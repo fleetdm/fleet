@@ -654,6 +654,16 @@ func (a ActivityTypeDisabledRecoveryLockPasswords) ActivityName() string {
 	return "disabled_recovery_lock_passwords"
 }
 
+type ActivityTypeEditedHostNameTemplate struct {
+	FleetID          *uint   `json:"fleet_id"`
+	FleetName        *string `json:"fleet_name"`
+	HostNameTemplate *string `json:"name_template"` // nil when the template was cleared
+}
+
+func (a ActivityTypeEditedHostNameTemplate) ActivityName() string {
+	return "edited_host_name_template"
+}
+
 type ActivityTypeCreatedManagedLocalAccount struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -712,6 +722,15 @@ type ActivityTypeDisabledGitOpsMode struct{}
 
 func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
 	return "disabled_gitops_mode"
+}
+
+// ActivityTypeEditedAccountProvisioning is emitted whenever the Apple account
+// provisioning (Platform SSO) settings actually change. It carries no details:
+// the settings are global-only and the IdP client secret must never be logged.
+type ActivityTypeEditedAccountProvisioning struct{}
+
+func (a ActivityTypeEditedAccountProvisioning) ActivityName() string {
+	return "edited_account_provisioning"
 }
 
 type ActivityTypeEnabledGitOpsException struct {
@@ -1090,6 +1109,36 @@ type ActivityTypeEditedDeclarationProfile struct {
 
 func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
 	return "edited_declaration_profile"
+}
+
+type ActivityTypeCreatedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationAsset) ActivityName() string {
+	return "created_apple_asset_declaration"
+}
+
+type ActivityTypeDeletedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationAsset) ActivityName() string {
+	return "deleted_apple_asset_declaration"
+}
+
+type ActivityTypeEditedDeclarationAsset struct {
+	AssetName string  `json:"asset_name"`
+	TeamID    *uint   `json:"team_id" renameto:"fleet_id"`
+	TeamName  *string `json:"team_name" renameto:"fleet_name"`
+}
+
+func (a ActivityTypeEditedDeclarationAsset) ActivityName() string {
+	return "edited_apple_asset_declaration"
 }
 
 type ActivityTypeResentConfigurationProfile struct {
@@ -1909,6 +1958,7 @@ type ActivityTypeResentCertificate struct {
 	HostDisplayName       string `json:"host_display_name"`
 	CertificateTemplateID uint   `json:"certificate_template_id"`
 	CertificateName       string `json:"certificate_name"`
+	Automated             bool   `json:"-"`
 }
 
 func (a ActivityTypeResentCertificate) ActivityName() string {
@@ -1917,6 +1967,10 @@ func (a ActivityTypeResentCertificate) ActivityName() string {
 
 func (a ActivityTypeResentCertificate) HostIDs() []uint {
 	return []uint{a.HostID}
+}
+
+func (a ActivityTypeResentCertificate) WasFromAutomation() bool {
+	return a.Automated
 }
 
 type ActivityTypeEditedHostIdpData struct {

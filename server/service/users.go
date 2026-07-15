@@ -476,6 +476,22 @@ func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	return resp, nil
 }
 
+// filterUserTeamsToRequesterScope returns the subset of teams that the
+// requester is permitted to see. A requester with any global role sees all
+// teams unchanged; a team-scoped requester sees only teams they have a role in.
+func filterUserTeamsToRequesterScope(teams []fleet.UserTeam, requester *fleet.User) []fleet.UserTeam {
+	if requester.HasAnyGlobalRole() {
+		return teams
+	}
+	filtered := make([]fleet.UserTeam, 0, len(teams))
+	for _, t := range teams {
+		if requester.HasAnyRoleInTeam(t.ID) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	user := &fleet.User{}
 	if opt.TeamID != 0 {
@@ -485,7 +501,26 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	users, err := svc.ds.ListUsers(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// The datastore loads each user's full team membership. A team-scoped
+	// requester is only authorized to list users of a team they administer, so
+	// strip any team memberships (IDs/names/roles) for teams the requester has
+	// no role in before returning them. Global roles are authorized to see all
+	// teams and are left untouched.
+	for _, user := range users {
+		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
+	}
+
+	return users, nil
 }
 
 func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {

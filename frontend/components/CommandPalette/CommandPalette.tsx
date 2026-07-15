@@ -165,6 +165,16 @@ const CommandPalette = (): JSX.Element | null => {
     !!isTeamAdmin ||
     !!isTeamMaintainer;
 
+  // Admin/maintainer-only Controls sub-items (Certificates, Passwords, Host
+  // names). Technicians can reach Controls (canAccessControls) but not these,
+  // so gate them on the positive admin/maintainer role rather than
+  // `!isTechnician`.
+  const isAdminOrMaintainer =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamAdmin ||
+    isAnyTeamMaintainer;
+
   // Observer+ users can run live queries even though they can't write.
   const canRunLiveReport =
     canWrite || !!isObserverPlus || !!isAnyTeamObserverPlus;
@@ -422,6 +432,7 @@ const CommandPalette = (): JSX.Element | null => {
         canManageReportAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
         isPrimoMode,
@@ -458,6 +469,7 @@ const CommandPalette = (): JSX.Element | null => {
       canManageReportAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,
       isPrimoMode,

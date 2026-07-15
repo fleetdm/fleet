@@ -1801,6 +1801,55 @@ func testBatchSetSoftwareInstallersWithUpgradeCodes(t *testing.T, ds *Datastore)
 	// Clean up
 	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{})
 	require.NoError(t, err)
+
+	// Regression test for GitHub issue #48054: a Windows FMA added via gitops must not create a
+	// duplicate software title when a host already reported the same software with an upgrade_code.
+	// Host reports Aircall (installed manually via winget) with an upgrade_code, creating a title
+	// whose unique_identifier is derived from the upgrade_code.
+	aircallHost := test.NewHost(t, ds, "aircall-host", "", "aircall-host-key", "aircall-host-uuid", time.Now())
+	aircallUpgradeCode := "{9F7A3B21-4C5D-4E6F-8A9B-0C1D2E3F4A5B}"
+	_, err = ds.UpdateHostSoftware(ctx, aircallHost.ID, []fleet.Software{
+		{Name: "Aircall", Version: "1.0", Source: "programs", UpgradeCode: &aircallUpgradeCode},
+	})
+	require.NoError(t, err)
+
+	var aircallTitleIDs []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &aircallTitleIDs, `SELECT id FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`))
+	require.Len(t, aircallTitleIDs, 1)
+	hostTitleID := aircallTitleIDs[0]
+	require.Equal(t, aircallUpgradeCode, *getUpgradeCodeForTitle(hostTitleID))
+
+	// Add the Aircall FMA for the team via gitops, with no upgrade_code on the payload.
+	aircallFile := bytes.NewReader([]byte("aircall-installer"))
+	aircallTFR, err := fleet.NewTempFileReader(aircallFile, t.TempDir)
+	require.NoError(t, err)
+
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:   "install.ps1",
+		InstallerFile:   aircallTFR,
+		StorageID:       "aircall-installer",
+		Filename:        "aircall.msi",
+		Title:           "Aircall",
+		Source:          "programs",
+		Version:         "1.0",
+		UserID:          user1.ID,
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}})
+	require.NoError(t, err)
+
+	// Still exactly one Aircall title, matched by name, keeping the host-reported upgrade_code.
+	var aircallTitleIDsAfter []uint
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &aircallTitleIDsAfter, `SELECT id FROM software_titles WHERE name = 'Aircall' AND source = 'programs'`))
+	require.Equal(t, []uint{hostTitleID}, aircallTitleIDsAfter, "adding the Aircall FMA should not create a duplicate software title")
+	require.Equal(t, aircallUpgradeCode, *getUpgradeCodeForTitle(hostTitleID), "matched title should keep the host-reported upgrade_code")
+
+	// The Aircall installer should be linked to that same title.
+	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 1)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.Equal(t, hostTitleID, *softwareInstallers[0].TitleID, "installer should point at the existing title")
 }
 
 func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {
@@ -2979,7 +3028,7 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, tt.payload)
+			id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), tt.payload)
 			require.NoError(t, err)
 			require.NotEmpty(t, id)
 
@@ -3288,7 +3337,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	})
 	require.NoError(t, err)
 
-	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Empty(t, team1Policies)
 
@@ -3309,7 +3358,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	})
 	require.NoError(t, err)
 
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 1)
 	require.Equal(t, "[Install software] Foobar (pkg)", team1Policies[0].Name)
@@ -3343,7 +3392,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	})
 	require.NoError(t, err)
 
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 2)
 	require.Equal(t, "[Install software] FooFMA", team1Policies[1].Name)
@@ -3384,7 +3433,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.NoError(t, err)
 	require.Equal(t, "upgradecode", msiThatShouldHaveUpgradeCode.UpgradeCode)
 
-	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, noTeamPolicies, 1)
 	require.Equal(t, "[Install software] Zoobar (msi)", noTeamPolicies[0].Name)
@@ -3413,7 +3462,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	})
 	require.NoError(t, err)
 
-	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, _, err := ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 1)
 	require.Equal(t, "[Install software] Barfoo (deb)", team2Policies[0].Name)
@@ -3447,7 +3496,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	})
 	require.NoError(t, err)
 
-	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team2Policies, _, err = ds.ListTeamPolicies(ctx, team2.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team2Policies, 2)
 	require.Equal(t, "[Install software] Barzoo (rpm)", team2Policies[1].Name)
@@ -3487,7 +3536,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	})
 	require.NoError(t, err)
 
-	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team1Policies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team1Policies, 4)
 	require.Equal(t, "[Install software] OtherFoobar (pkg) 2", team1Policies[3].Name)
@@ -3529,7 +3578,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	})
 	require.NoError(t, err)
 
-	team3Policies, _, err := ds.ListTeamPolicies(ctx, team3.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	team3Policies, _, err := ds.ListTeamPolicies(ctx, team3.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, team3Policies, 3)
 	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)

@@ -12,6 +12,7 @@ import {
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
   DiskEncryptionStatus,
+  HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
 import { IHostCustomVital } from "./custom_host_vitals";
@@ -119,6 +120,11 @@ export type RecoveryLockPasswordStatus =
   | "pending"
   | "failed";
 
+export interface IHostMdmHostNameSetting {
+  status: HostNameSettingStatus;
+  detail: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
@@ -130,6 +136,7 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
     password_available: boolean;

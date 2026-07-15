@@ -2,6 +2,7 @@
 
 - [Authentication](#authentication)
 - [Activities](#activities)
+- [Charts](#charts)
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
@@ -1236,6 +1237,82 @@ Resends a certificate for the specified host. Currently, only Android certificat
 
 ---
 
+## Charts
+
+- [Get chart data](#get-chart-data)
+
+### Get chart data
+
+Returns time-series data for a dashboard chart, as a list of per-bucket distinct host counts over a recent window.
+
+The available metrics are:
+
+- `uptime`: the number of hosts online (checking in to Fleet) during each bucket.
+- `cve`: _Available in Fleet Premium_. The number of hosts with critical (CVSS >= 9.0) vulnerabilities in tracked software during each bucket.
+
+`GET /api/v1/fleet/charts/:metric`
+
+#### Parameters
+
+| Name                 | Type    | In    | Description                                                                                                                                                                                       |
+| ---                  | ---     | ---   | ---                                                                                                                                                                                               |
+| metric               | string  | path  | **Required**. The chart metric. One of `uptime` or `cve`. The `cve` metric requires Fleet Premium.                                                                                                |
+| days                 | integer | query | Number of days of history to return. Must be between 1 and 31. Default is `7`.                                                                                                                    |
+| resolution           | integer | query | Bucket size in hours. Must be `0` or a positive divisor of 24 (for example `1`, `2`, `3`, `4`, `6`, `8`, `12`, `24`). `0` (the default) uses the metric's default resolution.                      |
+| tz_offset            | integer | query | The client's UTC offset in minutes, as returned by JavaScript's `Date.getTimezoneOffset()` (positive is west of UTC). Used to align bucket boundaries to the client's local time.                  |
+| fleet_id             | integer | query | _Available in Fleet Premium_. Scopes results to the specified fleet. Use `0` to scope to "Unassigned" (no fleet) hosts.                                                                            |
+| label_ids            | string  | query | Comma-separated list of label IDs. Limits the chart to hosts that belong to any of these labels.                                                                                                  |
+| platforms            | string  | query | Comma-separated list of host platforms to include (for example `darwin,windows,linux,chrome`).                                                                                                    |
+| include_host_ids     | string  | query | Comma-separated list of host IDs. Limits the chart to only these hosts.                                                                                                                           |
+| exclude_host_ids     | string  | query | Comma-separated list of host IDs to exclude from the chart.                                                                                                                                       |
+| software_filters     | string  | query | `cve` metric only. Comma-separated list of software categories to include: `os`, `browsers`, `office`, `adobe`. Omit to include all categories.                                                   |
+| has_known_exploit    | boolean | query | `cve` metric only. If `true`, only include CVEs with a known exploit (present in the CISA Known Exploited Vulnerabilities catalog).                                                                |
+| epss_min             | number  | query | `cve` metric only. Minimum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
+| epss_max             | number  | query | `cve` metric only. Maximum EPSS probability, from `0.0` to `1.0`.                                                                                                                                  |
+| exclude_vulnerabilities | string | query | `cve` metric only. Comma-separated list of CVEs (for example `CVE-2024-1234`) to exclude from the chart.                                                                                         |
+
+#### Response fields
+
+| Name          | Type    | Description                                                                                                                |
+| ---           | ---     | ---                                                                                                                        |
+| metric        | string  | The requested metric.                                                                                                      |
+| visualization | string  | The metric's default visualization (`line` or `checkerboard`).                                                            |
+| total_hosts   | integer | The number of hosts matching the host filters, used as the denominator when the chart is displayed as a percentage.        |
+| resolution    | string  | The bucket size of the returned data (for example `hourly`, `3-hour`, or `daily`).                                         |
+| days          | integer | The number of days of history returned.                                                                                   |
+| filters       | object  | The filters that were applied to the request.                                                                             |
+| data          | array   | The time series. Each element has a `timestamp` (RFC3339, the start of the bucket) and a `value` (the host count).         |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "metric": "cve",
+  "visualization": "line",
+  "total_hosts": 1164,
+  "resolution": "3-hour",
+  "days": 7,
+  "filters": {
+    "software_filters": ["browsers", "adobe"],
+    "has_known_exploit": true
+  },
+  "data": [
+    {
+      "timestamp": "2026-06-08T00:00:00Z",
+      "value": 488
+    },
+    {
+      "timestamp": "2026-06-08T03:00:00Z",
+      "value": 502
+    }
+  ]
+}
+```
+
+---
+
 ## Conditional access
 
 - [Get Okta certificate](#get-okta-certificate)
@@ -1304,13 +1381,14 @@ None.
 - [Get carve](#get-carve)
 - [Get carve block](#get-carve-block)
 
-Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allows the Fleet server to request files (and sets of files) from Fleet's agent (fleetd), returning the full contents to Fleet.
 
-To initiate a file carve using the Fleet API, you can use the [live report](#run-live-report) endpoint to run a query against the `carves` table.
+File carving allows you to request files (and sets of files) and their full contents from hosts.
 
-Keep in mind that any failure when uploading a file block (like a network error) will result on a failed carved file. Starting in osquery v5.22.1, block uploads will be retried up to three times before failing.
+To initiate a file carve using the Fleet API, use the [live report](#run-live-report) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
+Any failure when uploading a file block (like a network error) will result in a failed carved file. Block uploads are retried up to three times before failing.
+
+To learn more about executing a file carve in Fleet, head to the [file carving guide](https://fleetdm.com/guides/file-carving).
 
 ### List carves
 
@@ -1657,7 +1735,12 @@ None.
       "enable_release_device_manually": false,
       "manual_agent_install": false
     },
-    "client_url": "https://instance.fleet.com"
+    "client_url": "https://instance.fleet.com",
+    "apple_account_provisioning": {
+      "oauth_idp_token_url": "https://fleet-example.okta.com/oauth2/v1/token",
+      "oauth_idp_client_id": "Ooa12345abcdeFGHI678",
+      "oauth_idp_client_secret": "********"
+    }
   },
   "agent_options": {
     "spec": {
@@ -2754,7 +2837,7 @@ _Available in Fleet Premium._
 }
 ```
 
-#### Features
+#### features
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2763,7 +2846,7 @@ _Available in Fleet Premium._
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 | historical_data                   | object | Per-dataset toggles for historical data collection used by the dashboard charts. See [Historical data](#historical-data) below.        |
 
-##### Historical data
+##### features.historical_data
 
 `features.historical_data` controls whether each dashboard chart's
 historical data is collected. Both sub-keys default to `true`. A dataset
@@ -3174,7 +3257,7 @@ the `software` table.
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet. |
 | connected_to_fleet   | boolean  | query | Filter hosts that are talking to this Fleet server for MDM features. In rare cases, hosts can be enrolled to one Fleet server but talk to a different Fleet server for MDM features. In this case, the value would be `false`. Always `false` for Linux hosts.                                                                                                                           |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
@@ -3483,7 +3566,7 @@ Response payload with the `munki_issue_id` filter provided:
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.   |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -4206,7 +4289,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet Desktop to display information about the host to the end user.
 
-This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). On iOS and iPadOS, authentication requires the Fleet identity SCEP certificate. This certificate is deployed to iOS/iPadOS hosts when they enroll to Fleet.
+This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS and iPadOS, this is the host's hardware UUID.
 
 `GET /api/v1/fleet/device/:token`
 
@@ -5232,7 +5315,7 @@ requested by a web browser.
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
@@ -6426,7 +6509,7 @@ Returns a list of the hosts that belong to the specified label.
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
-| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
+| mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
 | macos_settings           | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | low_disk_space           | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                 |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
@@ -7511,7 +7594,7 @@ _Available in Fleet Premium_
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
-| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
+| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 | enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
@@ -7656,7 +7739,7 @@ Body: <blob>
 _Available in Fleet Premium_
 
 
-List software that can be automatically installed during setup. If `install_during_setup` is `true` it will be installed during setup.
+List software that can be automatically installed during setup. If `install_during_setup` is `true` it will be installed during setup. On Windows and Linux hosts, Fleet checks the software's associated policies first and skips the install when the host passes all of them. Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#policies-are-checked-before-install).
 
 `GET /api/v1/fleet/setup_experience/software`
 
@@ -8030,9 +8113,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
-| page                      | integer | query | Page number of the results to fetch.                                      |
-| per_page                  | integer | query | Results per page. Default is `10`.                                        |
-| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
+| page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
+| per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
+| order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
@@ -9144,6 +9227,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 | order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -9219,6 +9303,7 @@ _Available in Fleet Premium_
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 
 #### Example (default usage)
@@ -9417,6 +9502,7 @@ _Available in Fleet Premium_
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -9447,6 +9533,7 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | merge_inherited     | boolean | query | If `true`, will include inherited ("All fleets") policies in the count. |
 | automation_type       | string | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -9588,10 +9675,11 @@ _Available in Fleet Premium_
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -9668,11 +9756,12 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 
 
@@ -9821,9 +9910,11 @@ _Available in Fleet Premium_
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -9896,11 +9987,13 @@ _Available in Fleet Premium_
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 | labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+| labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
+
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -12190,6 +12283,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
+| version | string | body | Only available for Fleet-maintained apps. Pins the app to specific or major version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -13680,30 +13774,6 @@ _Available in Fleet Premium_
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
 | features                                                | object  | body | Per-fleet feature toggles. v1 accepts only the `historical_data` sub-field; other `features` sub-fields are writable per-fleet only via GitOps. See [features.historical_data](#features-historical-data) below. |
 
-##### features.historical_data
-
-Sub-keys mirror the global `features.historical_data` shape and default to
-`true`. A dataset is collected for a host in this fleet only when both the
-global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
-the PATCH body retain their current stored value.
-
-| Name              | Type    | Description                                                                                                |
-| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
-| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
-
-###### Example request body
-
-```json
-{
-  "features": {
-    "historical_data": {
-      "vulnerabilities": false
-    }
-  }
-}
-```
-
 #### Example (transfer hosts to a fleet)
 
 `PATCH /api/v1/fleet/fleets/1`
@@ -14076,6 +14146,30 @@ Returned when the requested name only differs from another fleet's name by lette
   "host_expiry_settings": {
     "host_expiry_enabled": true,
     "host_expiry_window": 7
+  }
+}
+```
+
+##### features.historical_data
+
+Sub-keys mirror the global `features.historical_data` shape and default to
+`true`. A dataset is collected for a host in this fleet only when both the
+global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
+the PATCH body retain their current stored value.
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
+| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
+
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
   }
 }
 ```
@@ -14557,7 +14651,7 @@ By default, the user will be forced to reset its password upon first login.
 | ----------- | ------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | email       | string  | body | **Required**. The user's email address.                                                                                                                                                                                                                                                                                                                  |
 | name        | string  | body | **Required**. The user's full name or nickname.                                                                                                                                                                                                                                                                                                          |
-| password    | string  | body | The user's password (required for non-SSO users).                                                                                                                                                                                                                                                                                                        |
+| password    | string  | body | The user's password (**required** for API only and non-SSO users).                                                                                                                                                                                                                                                                                                        |
 | sso_enabled | boolean | body | Whether or not SSO is enabled for the user.                                                                                                                                                                                                                                                                                                              |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the user must click a magic link emailed to them to log in, after they successfully enter their username and password. Incompatible with SSO and API-only users. |
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |

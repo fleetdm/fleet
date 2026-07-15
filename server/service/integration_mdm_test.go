@@ -6846,6 +6846,101 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.True(t, q.Has("error"))
 }
 
+// TestMDMSSOReenrollWithDifferentIdPEmail is a regression test for
+// https://github.com/fleetdm/fleet/issues/47626.
+//
+// In the Orbit Setup Experience SSO flow (Linux/Windows) the device's host UUID
+// is provided in the SSO request data. Previously mdmSSOHandleCallbackAuth keyed
+// the mdm_idp_accounts row on that host UUID, so a device re-enrolling and
+// signing in with a *different* IdP email collided on the primary key. The
+// ON DUPLICATE KEY UPDATE clause did not touch the email, so the row kept the
+// old email and the immediate GetMDMIdPAccountByEmail read-back returned
+// not-found, surfacing as "retrieving new account data from IdP" and a failed
+// SSO login. The account UUID is now DB-generated (matching the Apple flow), so
+// the second login find-or-creates the account by email and succeeds.
+//
+// Note: the pre-existing TestSSO also re-enrolls a second user, but via the
+// Apple initiator with no host UUID, where the account UUID was always
+// generated — which is exactly why it never caught this bug.
+func (s *integrationMDMTestSuite) TestMDMSSOReenrollWithDifferentIdPEmail() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Configure MDM end-user authentication SSO against the test IdP.
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": { "server_url": "https://localhost:8080" },
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "%s"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
+
+	// TearDownTest clears the SSO provider settings but not
+	// macos_setup.enable_end_user_authentication, so disable end-user auth here
+	// (via t.Cleanup, so it runs even if the test fails) to avoid leaking the
+	// enabled-without-IdP state into subsequent suite tests.
+	t.Cleanup(func() {
+		var cleanupResp appConfigResponse
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"mdm": {
+				"end_user_authentication": {
+					"entity_id": "",
+					"idp_name": "",
+					"metadata_url": ""
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": false
+				}
+			}
+		}`), http.StatusOK, &cleanupResp)
+	})
+
+	// A single device (identified by a stable host UUID) enrolls, is deleted and
+	// re-enrolls under the same host UUID, signing in as two different IdP users.
+	hostUUID := uuid.NewString()
+
+	// First enrollment: sign in as sso_user (sso_user@example.com).
+	res := s.LoginMDMSSOUserSetupExperience("sso_user", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err := url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"), "first setup-experience SSO login should succeed")
+
+	acct, err := s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user@example.com", acct.Email)
+	// The account UUID must not be the host UUID — that coupling was the root
+	// cause of #47626.
+	require.NotEqual(t, hostUUID, acct.UUID)
+	firstAcctUUID := acct.UUID
+
+	// Re-enrollment: SAME host UUID, but a DIFFERENT IdP user, sso_user2
+	// (sso_user2@example.com). This is the scenario that previously failed with
+	// "retrieving new account data from IdP".
+	res = s.LoginMDMSSOUserSetupExperience("sso_user2", "user123#", hostUUID)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+	loc, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	require.False(t, loc.Query().Has("error"),
+		"re-enrollment SSO with a different IdP email must not fail (#47626)")
+
+	// The host is now linked to the new user's account.
+	acct, err = s.ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, acct)
+	require.Equal(t, "sso_user2@example.com", acct.Email)
+	require.NotEqual(t, firstAcctUUID, acct.UUID, "host should be re-pointed to the new account")
+}
+
 func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, username, fullname, email string) {
 	acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 	require.NoError(t, err)
@@ -8748,117 +8843,6 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.True(t, s.isXMLTagContentPresent("s:value", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("s:text", resSoapMsg))
 	require.True(t, s.checkIfXMLTagContains("s:text", "ContextItem item DeviceType is not present", resSoapMsg))
-}
-
-func (s *integrationMDMTestSuite) TestValidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with query params
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel&login_hint=demo%40mdmwindows.com"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Contains(t, resp.Header["Content-Type"], "text/html; charset=UTF-8")
-	require.NotEmpty(t, resBytes)
-
-	// Checking response content
-	resContent := string(resBytes)
-	require.Contains(t, resContent, "inputToken.name = 'wresult'")
-	// we expect the URL to be escaped
-	require.Contains(t, resContent, `form.action = "ms-app:\/\/windows.immersivecontrolpanel"`)
-	require.Contains(t, resContent, "performPost()")
-
-	// Getting token content
-	encodedToken := s.getRawTokenValue(resContent)
-	require.NotEmpty(t, encodedToken)
-}
-
-func (s *integrationMDMTestSuite) TestInvalidGetAuthRequest() {
-	t := s.T()
-
-	// Target Endpoint url with no login_hit query param
-	targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=ms-app%3A%2F%2Fwindows.immersivecontrolpanel"
-	resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-	resBytes, err := io.ReadAll(resp.Body)
-	resContent := string(resBytes)
-	require.NoError(t, err)
-	require.NotEmpty(t, resBytes)
-	require.Contains(t, resContent, "forbidden")
-}
-
-func (s *integrationMDMTestSuite) TestAppruValidationInGetAuthRequest() {
-	t := s.T()
-
-	// Test cases with invalid appru values that should bail due to exiting before auth check
-	invalidAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "javascript injection",
-			appru: "%3Bfor%20(var%20key%20in%20localStorage)%7B%20alert(key)%7D%3B%2F%2F",
-		},
-		{
-			name:  "javascript protocol",
-			appru: "javascript:alert(1)",
-		},
-		{
-			name:  "data URI",
-			appru: "data:text/html,<script>alert(1)</script>",
-		},
-		{
-			name:  "empty scheme",
-			appru: "://example.com",
-		},
-		{
-			name:  "plain text",
-			appru: "not-a-url",
-		},
-	}
-
-	for _, tc := range invalidAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusInternalServerError)
-
-			resBytes, err := io.ReadAll(resp.Body)
-			resContent := string(resBytes)
-			require.NoError(t, err)
-			require.NotEmpty(t, resBytes)
-			require.Contains(t, resContent, "forbidden")
-
-			resp.Body.Close()
-		})
-	}
-
-	// Also verify valid URLs still work
-	validAppruCases := []struct {
-		name  string
-		appru string
-	}{
-		{
-			name:  "ms-app scheme",
-			appru: "ms-app%3A%2F%2Fwindows.immersivecontrolpanel",
-		},
-		{
-			name:  "https scheme",
-			appru: "https%3A%2F%2Fexample.com%2Fcallback",
-		},
-		{
-			name:  "http scheme",
-			appru: "http%3A%2F%2Flocalhost%2Fcallback",
-		},
-	}
-
-	for _, tc := range validAppruCases {
-		t.Run(tc.name, func(t *testing.T) {
-			targetEndpointURL := microsoft_mdm.MDE2AuthPath + "?appru=" + tc.appru + "&login_hint=demo%40example.com"
-			resp := s.DoRaw("GET", targetEndpointURL, nil, http.StatusOK)
-			resp.Body.Close()
-		})
-	}
 }
 
 func (s *integrationMDMTestSuite) TestValidGetTOC() {
@@ -11097,24 +11081,6 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 	case <-time.After(5 * time.Minute):
 		s.T().Fatalf("Cleanup schedule jobs timed out after 5 minutes")
 	}
-}
-
-func (s *integrationMDMTestSuite) getRawTokenValue(content string) string {
-	// Create a regex object with the defined pattern
-	pattern := `inputToken.value\s*=\s*'([^']*)'`
-	regex := regexp.MustCompile(pattern)
-
-	// Find the submatch using the regex pattern
-	submatches := regex.FindStringSubmatch(content)
-
-	if len(submatches) >= 2 {
-		// Extract the content from the submatch
-		encodedToken := submatches[1]
-
-		return encodedToken
-	}
-
-	return ""
 }
 
 func (s *integrationMDMTestSuite) isXMLTagPresent(xmlTag string, payload string) bool {
@@ -19366,11 +19332,15 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	attach(continuousPolicy.ID, continuousTitleID)
 	attach(transitionPolicy.ID, transitionTitleID)
 
-	submitPolicyResult := func(policyID uint, passes bool) {
+	// Distributed writes carry a result for every policy in scope for the host,
+	// mirroring how osquery reports: it runs all distributed queries from a read
+	// and reports them together in one write. (Submitting a subset would make
+	// the missing policies look out-of-scope and get their membership cleaned up.)
+	submitPolicyResults := func(results map[uint]*bool) {
 		var distributedResp submitDistributedQueryResultsResponse
 		s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 			mdmHost,
-			map[uint]*bool{policyID: new(passes)},
+			results,
 		), http.StatusOK, &distributedResp)
 	}
 
@@ -19430,17 +19400,9 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		s.runWorker()
 	}
 
-	step := func(policyID uint, wantCount int, countFn func() int, msg string) {
-		t.Helper()
-		submitPolicyResult(policyID, false)
-		require.EventuallyWithT(t, func(t *assert.CollectT) {
-			assert.Equal(t, wantCount, countFn(), msg)
-		}, 5*time.Second, 100*time.Millisecond)
-		completeVPPInstall()
-	}
-
 	continuousCount := func() int { return countInstallsFor(continuousPolicy.ID) }
 	transitionCount := func() int { return countInstallsFor(transitionPolicy.ID) }
+	bothFail := map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(false)}
 
 	// Age a policy's verified VPP install so it sits outside the policy update interval.
 	// The continuous cooldown is keyed on verification_at.
@@ -19454,24 +19416,39 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 		})
 	}
 
-	// First failing result: pass→fail transition queues an install on both.
-	step(continuousPolicy.ID, 1, continuousCount, "first install for continuous policy")
-	step(transitionPolicy.ID, 1, transitionCount, "first install for transition policy")
+	// First fail for the continuous policy (transition still passing): the
+	// pass→fail transition queues an install. The first failures are staggered
+	// across writes because only one upcoming activity is activated at a time
+	// per host: a second install queued in the same write would only become
+	// visible after the first completes.
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(false), transitionPolicy.ID: new(true)})
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, continuousCount(), "first install for continuous policy")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 
-	// Second failing result (fail→fail) within the interval: the continuous policy is
-	// throttled. A successful VPP install requests a host refetch that re-runs policies
-	// immediately, so without throttling this would be a tight loop. It must NOT re-queue.
-	submitPolicyResult(continuousPolicy.ID, false)
+	// Transition policy now fails for the first time (pass→fail): queues its
+	// install. The continuous policy keeps failing (fail→fail) within the
+	// interval: it is throttled. A successful VPP install requests a host
+	// refetch that re-runs policies immediately, so without throttling this
+	// would be a tight loop. It must NOT re-queue.
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 1, transitionCount(), "first install for transition policy")
+	}, 5*time.Second, 100*time.Millisecond)
 	require.Never(t, func() bool {
 		return continuousCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must be throttled within the policy update interval")
+	completeVPPInstall()
 
-	// After the interval elapses, the continuous policy re-fires.
+	// After the interval elapses, the continuous policy re-fires; the default
+	// (transition-only) policy still does not.
 	ageVPPInstall(continuousPolicy.ID)
-	step(continuousPolicy.ID, 2, continuousCount, "continuous policy must re-fire after the cooldown elapses")
-
-	// The default (transition-only) policy never re-fires on fail→fail.
-	submitPolicyResult(transitionPolicy.ID, false)
+	submitPolicyResults(bothFail)
+	require.EventuallyWithT(t, func(t *assert.CollectT) {
+		assert.Equal(t, 2, continuousCount(), "continuous policy must re-fire after the cooldown elapses")
+	}, 5*time.Second, 100*time.Millisecond)
+	completeVPPInstall()
 	require.Never(t, func() bool {
 		return transitionCount() != 1
 	}, 2*time.Second, 100*time.Millisecond, "default policy must not re-trigger on fail→fail")
@@ -19479,8 +19456,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	// Final: passing results never trigger an install, regardless of mode.
 	continuousBefore := continuousCount()
 	transitionBefore := transitionCount()
-	submitPolicyResult(continuousPolicy.ID, true)
-	submitPolicyResult(transitionPolicy.ID, true)
+	submitPolicyResults(map[uint]*bool{continuousPolicy.ID: new(true), transitionPolicy.ID: new(true)})
 	require.Never(t, func() bool {
 		return continuousCount() != continuousBefore
 	}, 2*time.Second, 100*time.Millisecond, "continuous policy must not trigger install on passing result")
@@ -25296,4 +25272,1084 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	setRenewCommandUUID(&case4RenewCmd)
 	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
 	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
+}
+func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
+	t := s.T()
+	ctx := context.Background()
+	installAllActivityName := fleet.ActivityTypeInstalledAllSelfServiceSoftware{}.ActivityName()
+
+	installAll := func(token string, expectedStatus int, qp ...string) {
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token), nil, expectedStatus, qp...)
+	}
+	deviceInstall := func(token string, titleID uint) {
+		s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token, titleID), nil, http.StatusAccepted)
+	}
+	countRows := func(query string, args ...any) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, query, args...)
+		})
+		return n
+	}
+	// queued software-install titles for a host, in insertion (queue) order
+	queuedTitles := func(hostID uint) []string {
+		var titles []string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &titles, `
+				SELECT st.name
+				FROM upcoming_activities ua
+				JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				JOIN software_titles st ON st.id = siua.software_title_id
+				WHERE ua.host_id = ? AND ua.activity_type = 'software_install'
+				ORDER BY ua.id`, hostID)
+		})
+		return titles
+	}
+	// create a no-team or team self-service deb installer, returning its title id
+	newInstaller := func(name string, teamID *uint, selfService bool, labels fleet.LabelIdentsWithScope, categoryIDs ...uint) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
+		require.NoError(t, err)
+		_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			StorageID:       name + "-storage",
+			Filename:        name + ".deb",
+			Title:           name,
+			Extension:       "deb",
+			Source:          "deb_packages",
+			Platform:        "linux",
+			Version:         "1.0",
+			InstallScript:   "install",
+			UninstallScript: "uninstall",
+			InstallerFile:   tfr,
+			SelfService:     selfService,
+			UserID:          s.users["admin1@example.com"].ID,
+			TeamID:          teamID,
+			ValidatedLabels: &labels,
+			CategoryIDs:     categoryIDs,
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+	// complete the host's currently-activated (head) install with the given exit code
+	completeActivatedInstall := func(host *fleet.Host, exitCode int) {
+		var uid string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT execution_id FROM host_software_installs WHERE host_id = ? AND status = 'pending_install' LIMIT 1`, host.ID)
+		})
+		require.NotEmpty(t, uid, "expected an activated install to complete")
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": %d, "install_script_output": "done"}`, *host.OrbitNodeKey, uid, exitCode)),
+			http.StatusNoContent)
+	}
+
+	// VPP and in-house installs are exercised by the runs below. A stateless mock
+	// stands in for Apple's VPP API and a global VPP token is inserted. Apple MDM is
+	// already enabled by the MDM suite.
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/disassociate"):
+			_, _ = w.Write([]byte(`{"eventId":"d"}`))
+		case strings.Contains(r.URL.Path, "associate"):
+			_, _ = w.Write([]byte(`{"eventId":"evt"}`))
+		case strings.Contains(r.URL.Path, "assets"):
+			var assets []vpp.Asset
+			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
+				assets = []vpp.Asset{{AdamID: adamID, PricingParam: "STDQ", AvailableCount: 12}}
+			}
+			_ = json.NewEncoder(w).Encode(map[string][]vpp.Asset{"assets": assets})
+		default:
+			_, _ = w.Write([]byte(`{"locationName":"Fleet","countryISO2ACode":"US"}`))
+		}
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	test.CreateInsertGlobalVPPToken(t, s.ds)
+
+	// MDM-connect an Apple host (required for VPP candidacy and because activation
+	// of either Apple type enqueues an MDM command).
+	newMDMHost := func(platform, suffix string, teamID *uint) (*fleet.Host, string) {
+		host := createOrbitEnrolledHost(t, platform, suffix, s.ds)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID})))
+		host.TeamID = teamID
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
+			return err
+		})
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, last_seen_at) VALUES (?, ?, ?, 'Device', ?, ?, ?, 1, ?)`,
+				host.UUID, host.UUID, nil, host.UUID+".topic", host.UUID+".magic", host.UUID, time.Now())
+			return err
+		})
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", false, "Fleet", "", false))
+		token := suffix + "-tok"
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		return host, token
+	}
+	adamSeq := 0
+	newVPPApp := func(name string, teamID *uint, labels *fleet.LabelIdentsWithScope) uint {
+		adamSeq++
+		app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             name,
+			BundleIdentifier: "com.example." + name,
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID:        fleet.VPPAppID{AdamID: fmt.Sprint(adamSeq), Platform: fleet.MacOSPlatform},
+				SelfService:     true,
+				ValidatedLabels: labels,
+			},
+		}, teamID)
+		require.NoError(t, err)
+		return app.TitleID
+	}
+
+	t.Run("install statuses", func(t *testing.T) {
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-st", s.ds)
+		token := "ia-st-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.DeleteHost(ctx, host.ID))
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
+				return err
+			})
+		})
+
+		// bad device token -> 401; nothing available to install -> 202 with no rows or roll-up
+		s.DoRawNoAuth("POST", "/api/latest/fleet/device/not-a-token/software/install_all", nil, http.StatusUnauthorized)
+		installAll(token, http.StatusAccepted)
+		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+		s.lastActivityOfTypeDoesNotMatch(installAllActivityName, "", 0)
+
+		// Which self-service installs qualify (statuses, inventory, label/category/team
+		// scoping, alphabetical order) is covered in testGetSoftwareTitlesForInstallAll;
+		// here we verify the endpoint queues those installs, records the activities, and
+		// is idempotent. "installed" is a smoke check that an installed title stays out.
+		newInstaller("available", nil, true, fleet.LabelIdentsWithScope{})
+		newInstaller("also-available", nil, true, fleet.LabelIdentsWithScope{})
+		installedID := newInstaller("installed", nil, true, fleet.LabelIdentsWithScope{})
+		pendingID := newInstaller("pending", nil, true, fleet.LabelIdentsWithScope{})
+
+		// the host's queue runs one install at a time, so finish each before the next
+		deviceInstall(token, installedID)
+		completeActivatedInstall(host, 0) // -> installed, must be skipped
+		deviceInstall(token, pendingID)   // -> pending head, must be left untouched
+
+		// install_all queues only the available titles, in name order, after the
+		// already-pending title (which it leaves untouched and does not duplicate)
+		installAll(token, http.StatusAccepted)
+		require.Equal(t, []string{"pending", "also-available", "available"}, queuedTitles(host.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
+			host.ID, host.DisplayName()), 0)
+
+		// every queued install surfaces as a pending, self-service installed_software activity
+		var upcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &upcoming)
+		require.Len(t, upcoming.Activities, 3)
+		var actTitles []string
+		for _, act := range upcoming.Activities {
+			require.Equal(t, fleet.ActivityTypeInstalledSoftware{}.ActivityName(), act.Type)
+			var d fleet.ActivityTypeInstalledSoftware
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			require.True(t, d.SelfService)
+			require.Equal(t, string(fleet.SoftwareInstallPending), d.Status)
+			actTitles = append(actTitles, d.SoftwareTitle)
+		}
+		require.ElementsMatch(t, []string{"pending", "also-available", "available"}, actTitles)
+
+		// idempotent: a second call adds nothing
+		installAll(token, http.StatusAccepted)
+		require.Len(t, queuedTitles(host.ID), 3)
+
+		// the same MDM-enrolled darwin host installs custom packages (chrome, zoom) and a
+		// VPP app (slack); install_all queues them intermixed, sorted by name (not grouped
+		// by type). (In-house apps are iOS/iPadOS-only and the device endpoint is desktop-
+		// only, so those installs are covered in the MDM suite, not here.)
+		macTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-statuses"})
+		require.NoError(t, err)
+		macHost, macTok := newMDMHost("darwin", "av-statuses", &macTeam.ID)
+		newMacOSInstaller := func(name string) {
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("install-"+name), t.TempDir)
+			require.NoError(t, err)
+			_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				StorageID:       name + "-storage",
+				Filename:        name + ".pkg",
+				Title:           name,
+				Extension:       "pkg",
+				Source:          "apps",
+				Platform:        "darwin",
+				Version:         "1.0",
+				InstallScript:   "install",
+				UninstallScript: "uninstall",
+				InstallerFile:   tfr,
+				SelfService:     true,
+				UserID:          s.users["admin1@example.com"].ID,
+				TeamID:          &macTeam.ID,
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+		}
+		newMacOSInstaller("chrome")          // custom package
+		newMacOSInstaller("zoom")            // custom package
+		newVPPApp("slack", &macTeam.ID, nil) // VPP app; sorts between the packages
+		installAll(macTok, http.StatusAccepted)
+
+		// the package and VPP installs queue intermixed, in name order
+		var macHostUpcoming listHostUpcomingActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", macHost.ID), nil, http.StatusOK, &macHostUpcoming)
+		var macQueued []string
+		for _, act := range macHostUpcoming.Activities {
+			var d struct {
+				SoftwareTitle string `json:"software_title"`
+			}
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			macQueued = append(macQueued, d.SoftwareTitle)
+		}
+		require.Equal(t, []string{"chrome", "slack", "zoom"}, macQueued)
+	})
+
+	t.Run("coexists with existing and incoming activities", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		host := createOrbitEnrolledHost(t, "ubuntu", "ia-act", s.ds)
+		token := "ia-act-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host.ID, token)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		aID := newInstaller("act-a", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-b", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("act-c", &team.ID, true, fleet.LabelIdentsWithScope{})
+
+		// a manual install of A is already pending before install_all runs
+		deviceInstall(token, aID)
+		require.Equal(t, []string{"act-a"}, queuedTitles(host.ID))
+
+		// install_all appends the remaining titles behind A without re-queueing A
+		installAll(token, http.StatusAccepted)
+		require.Equal(t, []string{"act-a", "act-b", "act-c"}, queuedTitles(host.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": null, "self_service_category_name": null, "software_titles_count": 2}`,
+			host.ID, host.DisplayName()), 0)
+
+		// the queue drains in order
+		for range 3 {
+			completeActivatedInstall(host, 0)
+		}
+		require.Zero(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID))
+		require.Equal(t, 3, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
+
+		// an install request arriving after install_all coexists and drains too
+		dID := newInstaller("act-d", &team.ID, true, fleet.LabelIdentsWithScope{})
+		deviceInstall(token, dID)
+		completeActivatedInstall(host, 0)
+		require.Equal(t, 4, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, host.ID))
+
+		// an install request racing install_all on the same host must not corrupt the
+		// queue: exactly one activated head, every install request present
+		host2 := createOrbitEnrolledHost(t, "ubuntu", "ia-act2", s.ds)
+		token2 := "ia-act2-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host2.ID, token2)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+
+		client := s.server.Client()
+		var wg sync.WaitGroup
+		var instErr, allErr error
+		var instStatus, allStatus int
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", token2, aID), nil)
+			if err != nil {
+				instErr = err
+				return
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				instErr = err
+				return
+			}
+			resp.Body.Close()
+			instStatus = resp.StatusCode
+		}()
+		go func() {
+			defer wg.Done()
+			req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", token2), nil)
+			if err != nil {
+				allErr = err
+				return
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				allErr = err
+				return
+			}
+			resp.Body.Close()
+			allStatus = resp.StatusCode
+		}()
+		wg.Wait()
+		require.NoError(t, instErr)
+		require.NoError(t, allErr)
+		require.Equal(t, http.StatusAccepted, allStatus)
+		// the single install may win (202) or find the title already queued by
+		// install_all (400); either way the queue must stay consistent
+		require.Contains(t, []int{http.StatusAccepted, http.StatusBadRequest}, instStatus)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'pending_install'`, host2.ID))
+		require.GreaterOrEqual(t, len(queuedTitles(host2.ID)), 4)
+
+		// double-queue: if another endpoint queues a title behind an activated head
+		// while install_all's title list (read before that) still includes it,
+		// install_all queues a second copy. Its per-install reset only cancels
+		// ACTIVATED installs, so the not-yet-activated concurrent install survives.
+		// This reproduces that interleaving deterministically using install_all's exact
+		// insert sequence (ResetNonPolicyInstallAttempts + InsertSoftwareInstallRequest).
+		host3 := createOrbitEnrolledHost(t, "ubuntu", "ia-dq", s.ds)
+		token3 := "ia-dq-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, host3.ID, token3)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host3.ID})))
+
+		headID := newInstaller("dq-head", &team.ID, true, fleet.LabelIdentsWithScope{})
+		fooID := newInstaller("dq-foo", &team.ID, true, fleet.LabelIdentsWithScope{})
+		deviceInstall(token3, headID) // activated head
+		deviceInstall(token3, fooID)  // queued behind the head, not yet activated
+
+		var fooInstallerID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &fooInstallerID, `SELECT id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?`, fooID, team.ID)
+		})
+		require.NoError(t, s.ds.ResetNonPolicyInstallAttempts(ctx, host3.ID, fooInstallerID))
+		_, err = s.ds.InsertSoftwareInstallRequest(ctx, host3.ID, fooInstallerID, fleet.HostSoftwareInstallOptions{SelfService: true, WithRetries: true})
+		require.NoError(t, err)
+
+		require.Equal(t, 2, countRows(`
+			SELECT COUNT(*) FROM upcoming_activities ua
+			JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+			JOIN software_titles st ON st.id = siua.software_title_id
+			WHERE ua.host_id = ? AND st.name = 'dq-foo'`, host3.ID))
+
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-activities"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-activities", &vppTeam.ID)
+		newVPPApp("vpp-activities", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	t.Run("category label and team scoping", func(t *testing.T) {
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// a no-team installer must never be queued for a team host
+		newInstaller("global-app", nil, true, fleet.LabelIdentsWithScope{})
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0`)
+				return err
+			})
+		})
+
+		// hostA exercises team + label scoping
+		hostA := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-a", s.ds)
+		tokenA := "ia-sc-a-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, hostA.ID, tokenA)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostA.ID})))
+
+		lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-lbl", Query: "select 1"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostA, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
+		includeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
+		excludeLbl := fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}}
+
+		newInstaller("team-app", &team.ID, true, fleet.LabelIdentsWithScope{})
+		newInstaller("lbl-in", &team.ID, true, includeLbl)
+		newInstaller("lbl-out", &team.ID, true, excludeLbl)
+
+		// in scope: team-app and the include-any match; the exclude-any title and the
+		// no-team installer are skipped
+		installAll(tokenA, http.StatusAccepted)
+		require.ElementsMatch(t, []string{"team-app", "lbl-in"}, queuedTitles(hostA.ID))
+
+		// hostB exercises category scoping
+		hostB := createOrbitEnrolledHost(t, "ubuntu", "ia-sc-b", s.ds)
+		tokenB := "ia-sc-b-token" //nolint:gosec // G101: test value only
+		createDeviceTokenForHost(t, s.ds, hostB.ID, tokenB)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostB.ID})))
+
+		cat, err := s.ds.NewSoftwareCategory(ctx, team.ID, t.Name()+"-cat")
+		require.NoError(t, err)
+		newInstaller("cat-app", &team.ID, true, fleet.LabelIdentsWithScope{}, cat.ID)
+
+		// scoped to the category -> only its title, and the roll-up carries the category
+		installAll(tokenB, http.StatusAccepted, "category_id", fmt.Sprint(cat.ID))
+		require.Equal(t, []string{"cat-app"}, queuedTitles(hostB.ID))
+		s.lastActivityOfTypeMatches(installAllActivityName, fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "self_service_category_id": %d, "self_service_category_name": %q, "software_titles_count": 1}`,
+			hostB.ID, hostB.DisplayName(), cat.ID, cat.Name), 0)
+
+		// nonexistent category, or a category on another fleet -> 400
+		installAll(tokenB, http.StatusBadRequest, "category_id", "9999999")
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-other"})
+		require.NoError(t, err)
+		otherCat, err := s.ds.NewSoftwareCategory(ctx, otherTeam.ID, t.Name()+"-othercat")
+		require.NoError(t, err)
+		installAll(tokenB, http.StatusBadRequest, "category_id", fmt.Sprint(otherCat.ID))
+
+		// VPP label scoping: include-any (host is a member) is queued, exclude-any is skipped
+		vppHost, vppToken := newMDMHost("darwin", "sc-vpp", &team.ID)
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, vppHost, map[uint]*bool{lbl.ID: new(true)}, time.Now(), false))
+		newVPPApp("vpp-in", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeIncludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
+		newVPPApp("vpp-out", &team.ID, &fleet.LabelIdentsWithScope{LabelScope: fleet.LabelScopeExcludeAny, ByName: map[string]fleet.LabelIdent{lbl.Name: {LabelID: lbl.ID, LabelName: lbl.Name}}})
+		installAll(vppToken, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	t.Run("multiple hosts", func(t *testing.T) {
+		const (
+			numHosts      = 5
+			numInstallers = 5
+		)
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+		for i := range numInstallers {
+			newInstaller(fmt.Sprintf("mh-%d", i), &team.ID, true, fleet.LabelIdentsWithScope{})
+		}
+		type hostToken struct {
+			host  *fleet.Host
+			token string
+		}
+		hosts := make([]hostToken, numHosts)
+		for i := range numHosts {
+			h := createOrbitEnrolledHost(t, "ubuntu", fmt.Sprintf("mh-%d", i), s.ds)
+			require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h.ID})))
+			tok := fmt.Sprintf("mh-tok-%d", i)
+			createDeviceTokenForHost(t, s.ds, h.ID, tok)
+			hosts[i] = hostToken{h, tok}
+		}
+
+		// every host fires install_all at once (require can't run off the test goroutine)
+		client := s.server.Client()
+		statuses := make([]int, numHosts)
+		errs := make([]error, numHosts)
+		var wg sync.WaitGroup
+		for i := range hosts {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				req, err := http.NewRequest("POST", s.server.URL+fmt.Sprintf("/api/latest/fleet/device/%s/software/install_all", hosts[i].token), nil)
+				if err != nil {
+					errs[i] = err
+					return
+				}
+				resp, err := client.Do(req)
+				if err != nil {
+					errs[i] = err
+					return
+				}
+				resp.Body.Close()
+				statuses[i] = resp.StatusCode
+			}(i)
+		}
+		wg.Wait()
+
+		for i := range hosts {
+			require.NoErrorf(t, errs[i], "host %d", i)
+			require.Equalf(t, http.StatusAccepted, statuses[i], "host %d", i)
+		}
+
+		// each host queued exactly its installers, with no lost or cross-host rows
+		for i := range hosts {
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
+		}
+
+		// re-running queues nothing new, then drain every host's queue
+		for i := range hosts {
+			installAll(hosts[i].token, http.StatusAccepted)
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hosts[i].host.ID), "host %d", i)
+		}
+		for i := range hosts {
+			for range numInstallers {
+				completeActivatedInstall(hosts[i].host, 0)
+			}
+			require.Zerof(t, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, hosts[i].host.ID), "host %d", i)
+			require.Equalf(t, numInstallers, countRows(`SELECT COUNT(*) FROM host_software_installs WHERE host_id = ? AND status = 'installed'`, hosts[i].host.ID), "host %d", i)
+		}
+
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+
+		// install_all also queues VPP self-service app installs (MDM-enrolled darwin host)
+		vppTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "apple-multihost"})
+		require.NoError(t, err)
+		vppHost, vppTok := newMDMHost("darwin", "av-multihost", &vppTeam.ID)
+		newVPPApp("vpp-multihost", &vppTeam.ID, nil)
+		installAll(vppTok, http.StatusAccepted)
+		require.Equal(t, 1, countRows(`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activity_type = 'vpp_app_install'`, vppHost.ID))
+	})
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// A macOS host that walks the whole pipeline: command, ack, osquery verify, drift.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	// A macOS host whose name already matches the resolved template: verified
+	// directly, no command.
+	matchingHost, matchingDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(matchingHost.ID, false)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET computer_name = ? WHERE id = ?`, "WS-"+matchingHost.HardwareSerial, matchingHost.ID)
+		return err
+	})
+
+	// An iOS host that acks the rename and later verifies through the
+	// DeviceInformation refetch path.
+	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosHost.ID, false)
+
+	// An iOS host whose device rejects the command (e.g. unsupervised).
+	iosFailHost, iosFailDevice := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(iosFailHost.ID, false)
+
+	// A BYOD (personal enrollment) host: never enforced.
+	byodHost, _ := s.createAppleMobileHostThenEnrollMDM("ios")
+	setFleetMDMData(byodHost.ID, true)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{macHost.ID, matchingHost.ID, iosHost.ID, iosFailHost.ID, byodHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- endpoint validation ---
+	// (An omitted fleet_id targets "No team", covered by
+	// TestHostNameTemplateNoTeamEndToEnd; this test drives the team scope.)
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_SECRET_TOKEN"}, http.StatusUnprocessableEntity)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-\x07"}, http.StatusUnprocessableEntity)
+	// fixed text alone longer than the 63-byte device-name limit is rejected up front
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: strings.Repeat("N", 64)}, http.StatusUnprocessableEntity)
+	// nothing was created or logged by the failed attempts
+	requireNoRow(macHost.UUID)
+
+	// --- set the template ---
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, team.ID, team.Name, tmpl), 0)
+
+	// eligible hosts are queued; the BYOD host has no row
+	requireRowStatus(macHost.UUID, nil)
+	requireRowStatus(matchingHost.UUID, nil)
+	requireRowStatus(iosHost.UUID, nil)
+	requireRowStatus(iosFailHost.UUID, nil)
+	requireNoRow(byodHost.UUID)
+
+	// re-saving the identical template emits no duplicate activity
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron: resolve + enqueue ---
+	runDeviceNameCron()
+
+	// the already-matching host goes straight to verified, and its device got no command
+	matchingRow := requireRowStatus(matchingHost.UUID, &fleet.MDMDeliveryVerified)
+	require.NotNil(t, matchingRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+matchingHost.HardwareSerial, *matchingRow.ExpectedDeviceName)
+	cmd, err := matchingDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// the other eligible hosts are pending on a DEVNAME- command with the resolved name
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.NotNil(t, macRow.ExpectedDeviceName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// --- mac: device receives the Settings command and acknowledges ---
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *macRow.CommandUUID, cmd.CommandUUID)
+	var settingsCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+	require.Len(t, settingsCmd.Command.Settings, 1)
+	require.Equal(t, "DeviceName", settingsCmd.Command.Settings[0].Item)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, settingsCmd.Command.Settings[0].DeviceName)
+
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// the ack renamed the host in Fleet and moved the row to verifying
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.Hostname)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.DisplayName())
+
+	// --- mac: osquery reports the matching name -> verified ---
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {
+					{
+						"computer_name":      computerName,
+						"hostname":           computerName,
+						"uuid":               macHost.UUID,
+						"hardware_serial":    macHost.HardwareSerial,
+						"hardware_model":     "MacBookPro16,1",
+						"physical_memory":    "16000000000",
+						"cpu_physical_cores": "8",
+						"cpu_logical_cores":  "8",
+					},
+				},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{
+				"fleet_detail_query_system_info": 0,
+			},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	// a report that was generated before the device applied the rename (still
+	// carrying the old name) arriving right after the ack is not drift: the row
+	// stays verifying until a fresh report decides it
+	submitSystemInfo("stale-pre-rename-name")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- mac: the end user renames the device -> drift -> failed ---
+	submitSystemInfo("Renamed by user")
+	driftedRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, driftedRow.Detail, "renamed on the device")
+
+	// --- iOS: ack then verify through the DeviceInformation refetch path ---
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", iosHost.ID), nil, http.StatusOK)
+	cmd, err = iosDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			cmd, err = iosDevice.AcknowledgeInstalledApplicationList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "CertificateList":
+			cmd, err = iosDevice.AcknowledgeCertificateList(iosDevice.UUID, cmd.CommandUUID, nil)
+		case "DeviceInformation":
+			cmd, err = iosDevice.AcknowledgeDeviceInformation(iosDevice.UUID, cmd.CommandUUID,
+				"WS-"+iosHost.HardwareSerial, "iPhone14,6", "America/Los_Angeles")
+		default:
+			cmd, err = iosDevice.Acknowledge(cmd.CommandUUID)
+		}
+		require.NoError(t, err)
+	}
+	requireRowStatus(iosHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// --- iOS failure: the device errors the command (e.g. unsupervised) ---
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = iosFailDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{
+		{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+	})
+	require.NoError(t, err)
+	failedRow := requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, failedRow.Detail, "The device is not supervised.")
+
+	// a failed command is not re-sent by subsequent cron runs
+	runDeviceNameCron()
+	requireRowStatus(iosFailHost.UUID, &fleet.MDMDeliveryFailed)
+	cmd, err = iosFailDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- a template resolving past 63 bytes fails without sending a command ---
+	// The fixed text (50 bytes) passes save-time validation, but expanding the
+	// UUID (36 chars) pushes the resolved name over the 63-byte limit — that
+	// per-host overflow is only detectable at resolve time, by the cron.
+	longTemplate := strings.Repeat("N", 50) + "$FLEET_VAR_HOST_UUID"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: longTemplate}, http.StatusNoContent)
+	requireRowStatus(macHost.UUID, nil) // rows re-queued by the new template
+	runDeviceNameCron()
+	longRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Equal(t, "Resolved name exceeds 63 bytes.", longRow.Detail)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// --- an APNs push failure doesn't lose or duplicate the command ---
+	// re-save the resolvable template to queue rows again
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+	originalPushMock := s.pushProvider.PushFunc
+	// Restore via defer so a failed assertion below can't leak the failing push
+	// mock into later tests. Nothing after this in the test pushes (the second
+	// cron run has no pending rows; Idle/Acknowledge are device-driven), so
+	// keeping the mock active until the test ends is harmless.
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		res := make(map[string]*push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &push.Response{Id: uuid.New().String(), Err: errors.New("APNs is down")}
+		}
+		return res, nil
+	}
+	runDeviceNameCron()
+
+	// the command was persisted despite the failed push, so the row is pending
+	// on it and a later cron run does not enqueue a duplicate
+	apnsRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, apnsRow.CommandUUID)
+	runDeviceNameCron()
+	afterRetry := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, afterRetry.CommandUUID)
+	require.Equal(t, *apnsRow.CommandUUID, *afterRetry.CommandUUID)
+
+	// the device still receives that single command on its next check-in
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, *apnsRow.CommandUUID, cmd.CommandUUID)
+	cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- clearing deletes all rows and never renames ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": null}`, team.ID, team.Name), 0)
+	for _, h := range []*fleet.Host{macHost, matchingHost, iosHost, iosFailHost} {
+		requireNoRow(h.UUID)
+	}
+	// the host keeps the last name it was given; clearing renames nothing
+	unchangedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, unchangedMac.ComputerName)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint, personal bool) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", personal))
+	}
+
+	// The host stays in "No team" (we never call AddHostsToTeam). BYOD exclusion
+	// for the No-team scope is covered deterministically by the datastore test
+	// (testHostDeviceNamesNoTeam); here we focus on the cron/ack/verify/host-detail
+	// /resend pipeline resolving the template from the global app config.
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(macHost.ID, false)
+
+	require.Nil(t, macHost.TeamID)
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	requireNoRow := func(hostUUID string) {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+
+	// --- set the No-team template (nil fleet_id) ---
+	// An invalid variable is still rejected on the No-team path.
+	res := s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
+
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	// the activity carries a null fleet_id/fleet_name for No team
+	activityID := s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": null, "fleet_name": null, "name_template": %q}`, tmpl), 0)
+
+	// the global app config now carries the template
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, tmpl, ac.MDM.HostNameTemplate.Value)
+
+	// eligible No-team host queued
+	requireRowStatus(macHost.UUID, nil)
+
+	// re-saving the identical template is a no-op (no duplicate activity)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: tmpl}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template", "", activityID)
+
+	// --- cron resolves the No-team template from app config and enqueues ---
+	runDeviceNameCron()
+	macRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, macRow.CommandUUID)
+	require.True(t, strings.HasPrefix(*macRow.CommandUUID, fleet.DeviceNameCommandUUIDPrefix))
+	require.Equal(t, "WS-"+macHost.HardwareSerial, *macRow.ExpectedDeviceName)
+
+	// device receives the Settings command and acknowledges → rename + verifying
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+	renamedMac, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "WS-"+macHost.HardwareSerial, renamedMac.ComputerName)
+
+	submitSystemInfo := func(computerName string) {
+		distributedReq := SubmitDistributedQueryResultsRequest{
+			NodeKey: *macHost.NodeKey,
+			Results: map[string][]map[string]string{
+				"fleet_detail_query_system_info": {{
+					"computer_name":      computerName,
+					"hostname":           computerName,
+					"uuid":               macHost.UUID,
+					"hardware_serial":    macHost.HardwareSerial,
+					"hardware_model":     "MacBookPro16,1",
+					"physical_memory":    "16000000000",
+					"cpu_physical_cores": "8",
+					"cpu_logical_cores":  "8",
+				}},
+			},
+			Statuses: map[string]fleet.OsqueryStatus{"fleet_detail_query_system_info": 0},
+		}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &submitDistributedQueryResultsResponse{})
+	}
+
+	// osquery reports the matching name → verified
+	submitSystemInfo("WS-" + macHost.HardwareSerial)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerified)
+
+	// end user renames the device off-template → drift → failed
+	submitSystemInfo("Renamed by user")
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryFailed)
+
+	// --- host detail exposes the host_name object for the No-team host ---
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", macHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+	require.NotNil(t, getHostResp.Host.MDM.OSSettings.HostName)
+	require.Equal(t, fleet.HostNameSettingFailed, getHostResp.Host.MDM.OSSettings.HostName.Status)
+
+	// --- resend works for the No-team host (host-keyed, nil TeamID allowed) ---
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/name_template/resend", macHost.ID), nil, http.StatusAccepted)
+	requireRowStatus(macHost.UUID, nil) // reset to queued
+
+	// --- aggregate: the No-team OS-settings summary folds the rename in ---
+	// (exact bucket counts are asserted in the datastore test; here we confirm the
+	// No-team host list filter surfaces the queued host under the No-team scope.)
+	noTeam := uint(0)
+	pendingHosts, err := s.ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin},
+		fleet.HostListOptions{TeamFilter: &noTeam, OSSettingsFilter: fleet.OSSettingsPending})
+	require.NoError(t, err)
+	pendingIDs := make([]uint, 0, len(pendingHosts))
+	for _, h := range pendingHosts {
+		pendingIDs = append(pendingIDs, h.ID)
+	}
+	require.Contains(t, pendingIDs, macHost.ID)
+
+	// --- clearing deletes the row and emits a null activity (nil fleet_id) ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.lastActivityMatches("edited_host_name_template",
+		`{"fleet_id": null, "fleet_name": null, "name_template": null}`, 0)
+	requireNoRow(macHost.UUID)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	macHost, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, macHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+
+	requireRowStatus := func(want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+	// drainSettingsCommand acks the pending Settings command and returns the
+	// DeviceName the server told the device to apply.
+	drainSettingsCommand := func() string {
+		cmd, err := macDevice.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		var settingsCmd struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &settingsCmd))
+		require.Len(t, settingsCmd.Command.Settings, 1)
+		_, err = macDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		return settingsCmd.Command.Settings[0].DeviceName
+	}
+
+	// --- both scopes carry a (distinct) template ---
+	const teamTmpl = "TEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	const noTeamTmpl = "NOTEAM-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: teamTmpl}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: noTeamTmpl}, http.StatusNoContent)
+
+	// --- host on the fleet: its team template governs ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // queued by the transfer reconcile (team has a template)
+
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand())
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	// --- transfer into "No team": the row is re-queued (No team has a template) ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	movedHost, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Nil(t, movedHost.TeamID, "host is now in No team")
+	requireRowStatus(nil) // re-queued, not deleted (was: always deleted pre-#10)
+
+	// --- cron now resolves the host name from the global No-team template ---
+	runDeviceNameCron()
+	requireRowStatus(&fleet.MDMDeliveryPending)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"after transfer to No team the cron must resolve the No-team template")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+	renamed, err = s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "NOTEAM-"+macHost.HardwareSerial, renamed.ComputerName)
+
+	requireNoRow := func() {
+		_, err := s.ds.GetHostDeviceNameEnforcement(ctx, macHost.UUID)
+		require.True(t, fleet.IsNotFound(err))
+	}
+
+	// --- reverse direction: No team -> fleet re-queues under the team template ---
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireRowStatus(nil) // re-queued on the way back to the fleet
+	runDeviceNameCron()
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, drainSettingsCommand(),
+		"back on the fleet the cron must resolve the team template again")
+	requireRowStatus(&fleet.MDMDeliveryVerifying)
+
+	// --- transfer to a template-less fleet deletes the row (stops enforcement) ---
+	emptyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-empty"})
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &emptyTeam.ID, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	// no command is enqueued and the host keeps its last name
+	runDeviceNameCron()
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+	kept, err := s.ds.Host(ctx, macHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, "TEAM-"+macHost.HardwareSerial, kept.ComputerName, "transfer must not rename")
+
+	// --- transfer into No team while No team has no template: not enforced ---
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: ""}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{macHost.ID}}, http.StatusOK)
+	requireNoRow()
+	runDeviceNameCron()
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 }

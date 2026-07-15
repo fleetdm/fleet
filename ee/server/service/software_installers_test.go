@@ -1853,3 +1853,45 @@ func TestParsePinnedVersion(t *testing.T) {
 		assert.Equalf(t, c.wantCaret, caret, "case %s", c.name)
 	}
 }
+
+func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		input     []string
+		extension string
+		want      []string
+		wantErr   string
+	}{
+		{name: "empty input", input: nil, extension: "sh", want: []string{}},
+		{name: "sh darwin", input: []string{"darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh linux", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
+		{name: "sh both platforms", input: []string{"darwin", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension)
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			// nil vs empty-slice noise: compare both as normalized empty.
+			if len(c.want) == 0 {
+				assert.Empty(t, got)
+				return
+			}
+			assert.Equal(t, c.want, got)
+		})
+	}
+}

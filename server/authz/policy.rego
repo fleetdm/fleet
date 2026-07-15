@@ -967,6 +967,38 @@ allow {
 # Apple MDM
 ##
 
+# Global admins, maintainers, and gitops can write DDM assets.
+allow {
+  object.type == "ddm_asset"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Global admins, maintainers, technicians, and gitops can read DDM assets.
+allow {
+  object.type == "ddm_asset"
+  subject.global_role == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
+# Team admins, maintainers and gitops can write DDM assets on their team.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "ddm_asset"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, technicians and gitops can read DDM assets on their teams.
+allow {
+  not is_null(object.team_id)
+  object.team_id != 0
+  object.type == "ddm_asset"
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  action == read
+}
+
 # Global admins can read, write, and list MDM apple information.
 allow {
   object.type == "mdm_apple"
@@ -1333,10 +1365,10 @@ allow {
 ##
 # SCIM (System for Cross-domain Identity Management)
 ##
-# Global admins and maintainers can access SCIM.
+# Only global admins can access SCIM.
 allow {
   object.type == "scim_user"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == admin
   action == [read, write][_]
 }
 

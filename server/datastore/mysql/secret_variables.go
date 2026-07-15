@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
@@ -510,6 +511,12 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 			// We need to send base64 encoded data in the <data> field.
 			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
 			secretValues[secretType] = encoded
+		case fleet.HostSecretPSSODeviceRegistrationToken:
+			token, err := ds.mintPSSODeviceRegistrationToken(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
+			}
+			secretValues[secretType] = token
 		default:
 			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
 		}
@@ -546,6 +553,26 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 	})
 
 	return expanded, nil
+}
+
+// mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
+// registration token bound to hostUUID, using the PSSO signing key asset. The
+// token is not stored: it is minted fresh for the requesting host each time the
+// profile is delivered, so it never lands in the database or on /mdm/commands.
+func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading psso signing key")
+	}
+	asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
+	if !ok || len(asset.Value) == 0 {
+		return "", ctxerr.New(ctx, "psso signing key asset is missing; configure Platform SSO first")
+	}
+	token, err := regtoken.MintFromPEM(asset.Value, hostUUID, time.Now())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "minting psso device registration token")
+	}
+	return token, nil
 }
 
 // getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.

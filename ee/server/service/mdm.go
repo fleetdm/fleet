@@ -1126,7 +1126,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		UUID:     ssoRequestData.HostUUID,
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
@@ -1578,6 +1577,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		string(mdmAssets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		accessRights,
+		true, // fresh enrollment (manual profile download)
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
