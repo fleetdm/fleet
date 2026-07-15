@@ -141,7 +141,7 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { getErrorMessage } from "./helpers";
+import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
@@ -1312,10 +1312,9 @@ const HostDetailsPage = ({
 
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
-  // admin only. The endpoint guarantees a valid link on every fetch — it
-  // refreshes an expired token or generates one for a host that has never
-  // had one — so we don't gate visibility on orbit/MDM state.
-  const canViewMyDeviceLink = isGlobalAdmin;
+  // admin only. Also hide it on hosts that have no live end-user surface —
+  // no Fleet Desktop (so no token, and no page to load) or wiped.
+  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
