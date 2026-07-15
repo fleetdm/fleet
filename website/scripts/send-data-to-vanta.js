@@ -126,6 +126,37 @@ module.exports = {
         usersToSyncWithVanta.push(userToSyncWithVanta);
       }
 
+      //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┬─┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
+      //  └─┐└┬┘││││    │ │└─┐├┤ ├┬┘└─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
+      //  └─┘ ┴ ┘└┘└─┘  └─┘└─┘└─┘┴└─└─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
+      // Note: Users are synced with Vanta before any host information is gathered. Vanta marks user accounts that are
+      // missing from this list as deactivated, so this request is sent first to make sure that users who are removed
+      // from a Fleet instance are deactivated in Vanta, even if an error occurs while gathering host information.
+      // See https://github.com/fleetdm/fleet/issues/45371 for more information.
+      // Note: this request is in a try-catch block so we can handle errors sent from the retry() method
+      try {
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'PUT',
+          url: 'https://api.vanta.com/v1/resources/user_account/sync_all',
+          body: {
+            sourceId: vantaConnection.vantaSourceId,
+            resourceId: '63868a88d436911435a94035',
+            resources: usersToSyncWithVanta,
+          },
+          headers: {
+            'accept': 'application/json',
+            'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
+            'content-type': 'application/json',
+          },
+        })
+        .retry();
+      } catch(error) {
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
+      }
+
+      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
+        return;
+      }
 
       //  ┌─┐┌─┐┌┬┐  ┬ ┬┌─┐┌─┐┌┬┐┌─┐
       //  │ ┬├┤  │   ├─┤│ │└─┐ │ └─┐
@@ -149,7 +180,7 @@ module.exports = {
         pageNumberForPossiblePaginatedResults++;
         // If we recieved less results than we requested, we've reached the last page of the results.
         return getHostsResponse.hosts.length !== numberOfHostsPerRequest;
-      }, 30000)
+      }, 300000)// This timeout is the budget for requesting every page of hosts from a Fleet instance. (Larger Fleet instances with many hosts need more than 30 seconds to return every page of results)
       .tolerate(()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When requesting all hosts from a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance did not respond with all of it's hosts in the set amount of time.`);
       });
@@ -380,34 +411,6 @@ module.exports = {
         }
       }//∞ After every batch of 25 Windows hosts
 
-      //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┬─┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
-      //  └─┐└┬┘││││    │ │└─┐├┤ ├┬┘└─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
-      //  └─┘ ┴ ┘└┘└─┘  └─┘└─┘└─┘┴└─└─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
-      // Note: this request is in a try-catch block so we can handle errors sent from the retry() method
-      try {
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'PUT',
-          url: 'https://api.vanta.com/v1/resources/user_account/sync_all',
-          body: {
-            sourceId: vantaConnection.sourceId,
-            resourceId: '63868a88d436911435a94035',
-            resources: usersToSyncWithVanta,
-          },
-          headers: {
-            'accept': 'application/json',
-            'authorization': 'Bearer '+updatedRecord.vantaAuthToken,
-            'content-type': 'application/json',
-          },
-        })
-        .retry();
-      } catch(error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
-      }
-
-      if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
-        return;
-      }
-
       //  ╔═╗┬ ┬┌┐┌┌─┐  ┌┬┐┌─┐┌─┐╔═╗╔═╗  ┬ ┬┌─┐┌─┐┌┬┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
       //  ╚═╗└┬┘││││    │││├─┤│  ║ ║╚═╗  ├─┤│ │└─┐ │ └─┐  ││││ │ ├─┤  ╚╗╔╝├─┤│││ │ ├─┤
       //  ╚═╝ ┴ ┘└┘└─┘  ┴ ┴┴ ┴└─┘╚═╝╚═╝  ┴ ┴└─┘└─┘ ┴ └─┘  └┴┘┴ ┴ ┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴
@@ -457,7 +460,7 @@ module.exports = {
         })
         .retry();
       } catch (error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/windows_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
