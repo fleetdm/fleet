@@ -2509,10 +2509,11 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
-			Name string `db:"name"`
+			Name   string `db:"name"`
+			SyncML []byte `db:"syncml"`
 		}
 		err := sqlx.GetContext(ctx, tx, &existing,
-			`SELECT name FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+			`SELECT name, syncml FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
@@ -2526,6 +2527,17 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 		}
 
 		if len(cp.SyncML) > 0 {
+			// For content that is actually changing, retain the outgoing version
+			// before the UPDATE overwrites it, so the profile-manager cron can
+			// build <Delete> commands for LocURIs the new content drops -- the
+			// same guarantee as SetOrUpdateMDMWindowsConfigProfile and
+			// batchSetMDMWindowsProfilesDB's edit path.
+			if !bytes.Equal(existing.SyncML, cp.SyncML) {
+				if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "retaining prior content for updated profile")
+				}
+			}
+
 			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, uploaded_at = CURRENT_TIMESTAMP() WHERE profile_uuid = ? AND name = ?`
 			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, cp.ProfileUUID, cp.Name)
 			if err != nil {
