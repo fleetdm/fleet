@@ -482,15 +482,17 @@ func TestVersionsFromRelease(t *testing.T) {
 		Assets: map[string]*AssetInfo{
 			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
 			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
-			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
-			"osv-rhel-9-2026-04-27.json.gz":      {Name: "osv-rhel-9-2026-04-27.json.gz"},
+			"osv-rhel-8-2026-04-27.json.gz":        {Name: "osv-rhel-8-2026-04-27.json.gz"},
+			"osv-rhel-9-2026-04-27.json.gz":        {Name: "osv-rhel-9-2026-04-27.json.gz"},
+			"osv-android-15-2026-04-27.json.gz":     {Name: "osv-android-15-2026-04-27.json.gz"},
+			"osv-android-16-2026-04-27.json.gz":     {Name: "osv-android-16-2026-04-27.json.gz"},
 		},
 	}
 
 	ubuntu, rhel, android := versionsFromRelease(release)
 	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
 	require.ElementsMatch(t, []string{"8", "9"}, rhel)
-	require.Empty(t, android)
+	require.ElementsMatch(t, []string{"15", "16"}, android)
 }
 
 func TestVersionsFromReleaseEmpty(t *testing.T) {

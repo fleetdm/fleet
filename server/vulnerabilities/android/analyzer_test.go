@@ -16,9 +16,9 @@ import (
 
 func TestParseAndroidVersion(t *testing.T) {
 	tests := []struct {
-		version     string
-		wantMajor   string
-		wantSPL     string
+		version   string
+		wantMajor string
+		wantSPL   string
 	}{
 		{"16 (2026-05-01)", "16", "2026-05-01"},
 		{"14 (2024-09-01)", "14", "2024-09-01"},
