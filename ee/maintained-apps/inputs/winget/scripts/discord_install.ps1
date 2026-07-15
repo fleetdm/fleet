@@ -19,6 +19,7 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 $uninstallRoots = @(
     "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+    "HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
     "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
     "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
 )
@@ -81,6 +82,15 @@ if (Test-Path $installDir) {
     Get-ChildItem $installDir -ErrorAction SilentlyContinue |
         Select-Object -ExpandProperty Name |
         ForEach-Object { Write-Host "  $_" }
+    # SquirrelSetup.log records exactly what the installer did, including
+    # whether/where it wrote the uninstall registry entry and why it exited.
+    $squirrelLog = Join-Path $installDir "SquirrelSetup.log"
+    if (Test-Path $squirrelLog) {
+        Write-Host "---- SquirrelSetup.log (tail) ----"
+        Get-Content $squirrelLog -Tail 50 -ErrorAction SilentlyContinue |
+            ForEach-Object { Write-Host $_ }
+        Write-Host "---- end SquirrelSetup.log ----"
+    }
 }
 foreach ($root in $uninstallRoots) {
     Get-ChildItem $root -ErrorAction SilentlyContinue |
