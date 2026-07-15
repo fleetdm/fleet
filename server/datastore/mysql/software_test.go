@@ -108,6 +108,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
 		{"ListHostSoftwareMultiplePackagesPrecedence", testListHostSoftwareMultiplePackagesPrecedence},
 		{"ListHostSoftwareMultiplePackagesInstallDetails", testListHostSoftwareMultiplePackagesInstallDetails},
+		{"ListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned", testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned},
 		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
@@ -13892,9 +13893,8 @@ func testListHostSoftwareMultiplePackagesInstallDetails(t *testing.T, ds *Datast
 		seedInstall(host.ID, installerA, "recency-a-old", baseTime, 0)
 		seedInstall(host.ID, installerA, "recency-a-new", baseTime.Add(time.Minute), 0)
 		// Sibling B installed more recently than either A install. The result must be the resolved
-		// installer's own most-recent install, not the globally-most-recent (B) one — this is what
-		// discriminates the fix from the pre-#49208 behavior, where an unordered merge could surface
-		// B's UUID next to A's name/version.
+		// installer's own most-recent install, not the globally-most-recent (B) one. An unordered
+		// merge could otherwise surface B's UUID next to A's name/version.
 		seedInstall(host.ID, installerB, "recency-b-newest", baseTime.Add(2*time.Minute), 0)
 
 		got := getTitle(t, host)
@@ -13943,4 +13943,69 @@ func testListHostSoftwareMultiplePackagesInstallDetails(t *testing.T, ds *Datast
 		require.NotNil(t, got.SoftwarePackage.LastUninstall)
 		require.Equal(t, "pending-uninstall-a", got.SoftwarePackage.LastUninstall.ExecutionID)
 	})
+}
+
+// testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned verifies that a title the host is out
+// of scope for, whose only trace is a failed install on a sibling package, is pruned from the
+// available-for-install list rather than leaking in. Guards against applyResolvedInstallerStatus
+// clearing the failed status before the out-of-scope pruning reads it.
+func testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Bob", "bob-oos-failed@example.com", true)
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "oosA" + t.Name()})
+	require.NoError(t, err)
+	labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "oosB" + t.Name()})
+	require.NoError(t, err)
+
+	newScopedPackage := func(storageID, filename, version string, label *fleet.Label) (uint, uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(filename), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			UninstallScript:  "uninstall",
+			InstallerFile:    tfr,
+			StorageID:        storageID,
+			Filename:         filename,
+			Title:            "OOSFailedPrune",
+			Version:          version,
+			Source:           "apps",
+			BundleIdentifier: "com.example.oos-failed-prune",
+			UserID:           user.ID,
+			Platform:         "darwin",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
+			},
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+
+	_, titleID := newScopedPackage("oos-a", "oos-a.pkg", "1.0", labelA)
+	installerB, titleIDB := newScopedPackage("oos-b", "oos-b.pkg", "2.0", labelB)
+	require.Equal(t, titleID, titleIDB)
+
+	// Host is a member of neither label, so it is out of scope for both packages.
+	host := test.NewHost(t, ds, "oos-failed-host", "", "oos-failed-key", "oos-failed-uuid", time.Now(), test.WithPlatform("darwin"))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	// A failed install recorded against sibling B (non-zero exit code yields failed_install).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, install_script_exit_code, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			"oos-b-failed", host.ID, installerB, 1, time.Now(), time.Now())
+		return err
+	})
+
+	software, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 50, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+	for _, item := range software {
+		require.NotEqualf(t, titleID, item.ID, "out-of-scope title with only a failed sibling install should be pruned, not listed")
+	}
 }

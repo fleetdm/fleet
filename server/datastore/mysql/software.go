@@ -3700,6 +3700,9 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 						AND si_active.is_active = 1
 				)
 			END
+		-- deterministic order so the first row kept per title (and its self_service) does not depend
+		-- on unordered UNION output; matched installer first, NULLs last.
+		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsia.installer_id
     `
 	var softwareInstalls []*hostSoftware
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID)
@@ -3794,6 +3797,8 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 			END
 		LEFT OUTER JOIN
 			host_script_results ON host_script_results.host_id = ? AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
+		-- deterministic order so the first row kept per title does not depend on unordered UNION output.
+		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsua.installer_id
     `
 	var softwareUninstalls []*hostSoftware
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, hostID, hostID, hostID)
@@ -5254,17 +5259,18 @@ func mergeUninstallDataByInstaller(installDataByTitleInstaller map[uint]map[uint
 
 // applyResolvedInstallerStatus pins each title's status/last-install/last-uninstall fields to the
 // installer that ListHostSoftware resolved for display (resolvedInstallers[titleID].ID), so those
-// fields describe the SAME installer as the shown name/version. If the resolved installer has no
-// install record on the host, the fields are left cleared (available) rather than borrowing a
-// sibling installer's data. This is the fix for #49208.
+// fields describe the same installer as the shown name/version. If the resolved installer has no
+// install record on the host, the fields are cleared (available) rather than borrowing a sibling
+// installer's data. Only in-scope titles (those in filteredBySoftwareTitleID) are pinned: out-of-scope
+// titles keep their provisional status so downstream pruning and self-service filtering still see it.
 func applyResolvedInstallerStatus(
-	bySoftwareTitleID map[uint]*hostSoftware,
+	filteredBySoftwareTitleID map[uint]*hostSoftware,
 	installDataByTitleInstaller map[uint]map[uint]*hostSoftware,
 	resolvedInstallers map[uint]resolvedInstaller,
 ) {
-	for titleID, resolved := range resolvedInstallers {
-		software := bySoftwareTitleID[titleID]
-		if software == nil {
+	for titleID, software := range filteredBySoftwareTitleID {
+		resolved, ok := resolvedInstallers[titleID]
+		if !ok || software == nil {
 			continue
 		}
 
@@ -6232,7 +6238,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
-	applyResolvedInstallerStatus(bySoftwareTitleID, installDataByTitleInstaller, resolvedInstallers)
+	applyResolvedInstallerStatus(filteredBySoftwareTitleID, installDataByTitleInstaller, resolvedInstallers)
 
 	// filter out VPP apps due to label scoping
 	filteredByVPPAdamID, otherVppAppsInInventory, err := filterVPPAppsByLabel(
