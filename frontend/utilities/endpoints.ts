@@ -33,6 +33,9 @@ export default {
   FORGOT_PASSWORD: `/${API_VERSION}/fleet/forgot_password`,
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
+  POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
+    `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
+  POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
@@ -41,6 +44,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_ALL: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install_all`,
   DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
     return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
   },
@@ -55,6 +60,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/uninstall/${scriptExecutionId}/results`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
+  DEVICE_SELF_SERVICE_CATEGORIES: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/self_service_categories`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -96,6 +103,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
+  HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/name_template/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -117,6 +126,11 @@ export default {
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
+
+  // self-service categories
+  SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  SELF_SERVICE_CATEGORY: (id: number) =>
+    `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
@@ -144,13 +158,13 @@ export default {
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
   // Apple Business (AB) endpoints
-  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
-  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
-  MDM_ABM_TOKEN_RENEW: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
-  MDM_ABM_TOKEN_TEAMS: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/fleets`,
-  MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
+  MDM_AB_TOKENS: `/${API_VERSION}/fleet/ab_tokens`,
+  MDM_AB_TOKEN: (id: number) => `/${API_VERSION}/fleet/ab_tokens/${id}`,
+  MDM_AB_TOKEN_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/renew`,
+  MDM_AB_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/fleets`,
+  MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
@@ -170,9 +184,14 @@ export default {
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
+  // Apple DDM asset endpoints
+  MDM_ASSETS: `/${API_VERSION}/fleet/assets`,
+  MDM_ASSET: (uuid: string) => `/${API_VERSION}/fleet/assets/${uuid}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+  HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (
     token: string,

@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
 
 export GO111MODULE=on
 
@@ -46,6 +46,17 @@ else
 	GOVERSION_CMD = "(go version).Split()[2]"
 	GOVERSION = $(shell powershell $(GOVERSION_CMD))
 	NOW	= $(shell powershell Get-Date -format "yyy-MM-dd")
+endif
+
+# Cap lint concurrency at half the logical CPUs (rounded up) so the incremental
+# linters (modernize, nilaway) don't saturate the machine. Override with LINT_CONCURRENCY=N.
+ifndef LINT_CONCURRENCY
+	ifeq ($(OS), Windows_NT)
+		LINT_NPROC := $(NUMBER_OF_PROCESSORS)
+	else
+		LINT_NPROC := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 2)
+	endif
+	LINT_CONCURRENCY := $(shell echo $$(( ($(LINT_NPROC) + 1) / 2 )))
 endif
 
 ifndef CIRCLE_PR_NUMBER
@@ -134,6 +145,24 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
+.help-short--dibble:
+	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
+dibble:
+	cd tools/dibble && go build -o dibble ./cmd/dibble
+
+.help-short--tidy-tool-modules:
+	@echo "Re-tidy tool modules that pin the parent fleet module (run after bumping the root go.mod)"
+# Tool modules under tools/ that pin the parent via `replace github.com/fleetdm/fleet/v4 => ../..`
+# mirror the root module's transitive dependency graph, so a root go.mod/go.sum bump leaves their
+# go.mod/go.sum out of sync. This discovers those modules and re-tidies each one.
+tidy-tool-modules:
+	@mods=$$(grep -rlF --include=go.mod 'replace github.com/fleetdm/fleet/v4 =>' tools); \
+	for mod in $$mods; do \
+		dir=$$(dirname $$mod); \
+		echo "==> go mod tidy in $$dir"; \
+		(cd $$dir && go mod tidy) || exit 1; \
+	done
+
 .help-short--serve:
 	@echo "Start the fleet server"
 .help-short--up:
@@ -182,6 +211,7 @@ else
 serve:
 	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
 	$(call filter_args)
+	@mkdir -p ~/.fleet
 # If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
 # Unless NO_SAVE is set to true, save the command to the last invocation file.
 # IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.
@@ -238,7 +268,7 @@ check-no-testing-in-prod:
 .help-short--lint-go-incremental:
 	@echo "Run the incremental Go linters"
 lint-go-incremental: custom-gcl
-	./custom-gcl run --allow-serial-runners -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
+	GOMAXPROCS=$(LINT_CONCURRENCY) ./custom-gcl run --allow-serial-runners --concurrency=$(LINT_CONCURRENCY) -c .golangci-incremental.yml --new-from-merge-base=origin/main --timeout 15m ./...
 
 custom-gcl:
 	golangci-lint custom
@@ -1039,21 +1069,31 @@ UPDATE_GO_MODS := \
 	./tools/snapshot/go.mod \
 	./tools/terraform/go.mod \
 	./third_party/vuln-check/go.mod \
+	./third_party/goval-dictionary/go.mod \
+	./tools/ci/apiparamcheck/go.mod \
 	./tools/ci/setboolcheck/go.mod \
 	./tools/github-manage/go.mod \
 	./tools/qacheck/go.mod \
-	./third_party/goval-dictionary/go.mod \
-	./tools/fleet-mcp/go.mod
+	./tools/screencap/go.mod \
+	./tools/hangar/go.mod \
+	./cmd/fleet-mcp/go.mod \
+	./tools/dibble/go.mod \
+	./tools/upgrade/go.mod
 update-go:
-	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
 		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
-		echo "Please update sha256 in $$dockerfile" ; \
+		tag=$$(grep -oE 'golang:[^@[:space:]]+' $$dockerfile | head -n1) ; \
+		echo "Resolving index digest for $$tag ..." ; \
+		digest=$$(docker buildx imagetools inspect $$tag --format '{{.Manifest.Digest}}') ; \
+		test "$$digest" || (echo "Failed to resolve digest for $$tag" ; exit 1) ; \
+		go run ./tools/tuf/replace $$dockerfile "$$tag@sha256:[0-9a-f]+" "$$tag@$$digest" ; \
+		echo "* Updated $$dockerfile -> $$tag@$$digest" ; \
 	done
 	@for gomod in $(UPDATE_GO_MODS) ; do \
 		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
 	done
-	@echo "* Updated go to $(version)" > changes/update-go-$(version)
-	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
+	@echo "- Updated Go to $(version)." > changes/update-go-$(version)
+	@echo "* Updated Go to $(version)." > orbit/changes/update-go-$(version)
 
 include ./tools/makefile-support/helpsystem-targets

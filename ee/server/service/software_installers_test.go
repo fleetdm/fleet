@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -528,7 +530,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		{
 			name:    "no version",
 			version: "^",
-			wantErr: "no version number provided",
+			wantErr: errEmptyCaretVersion.Error(),
 		},
 		{
 			name:    "invalid version",
@@ -546,6 +548,9 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 				require.ErrorContains(t, err, vt.wantErr)
 			} else {
 				require.NoError(t, err)
+				// RollbackVersion must be left as the user typed it, including a caret, so the pin expression
+				// survives downstream and is persisted to software_title_team_pins.
+				require.Equal(t, vt.version, payload.RollbackVersion)
 			}
 		})
 	}
@@ -556,8 +561,23 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	svc := newTestService(t, ds)
 	ctx := context.Background()
 
+	const validToken = "00000000-0000-0000-0000-000000000001"
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
+	}
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 1,
+				TeamID:          0,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
@@ -585,7 +605,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
             <key>kind</key>
             <string>software-package</string>
             <key>url</key>
-            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app?fleet_id=0</string>
+            <string>https://example.com/api/latest/fleet/software/titles/1/in_house_app/00000000-0000-0000-0000-000000000001</string>
           </dict>
           <dict>
             <key>kind</key>
@@ -612,16 +632,26 @@ func TestGetInHouseAppManifest(t *testing.T) {
   </dict>
 </plist>`
 
-	manifest, err := svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err := svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
-
 	assert.Equal(t, expected, string(manifest))
 
-	_, err = svc.GetInHouseAppManifest(ctx, 2, nil)
-	assert.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
 
-	// Set up a new S3 store to test CloudFront signing
+	// Wrong-length token is rejected before a DB lookup happens.
+	ds.GetInHouseAppInstallTokenMetadataFuncInvoked = false
+	_, err = svc.GetInHouseAppManifest(ctx, 1, "short")
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppInstallTokenMetadataFuncInvoked)
+
+	_, err = svc.GetInHouseAppManifest(ctx, 2, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
@@ -635,9 +665,42 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.NoError(t, err)
 	svc.softwareInstallStore = s3Store
 
-	manifest, err = svc.GetInHouseAppManifest(ctx, 1, nil)
+	manifest, err = svc.GetInHouseAppManifest(ctx, 1, validToken)
 	require.NoError(t, err)
 	require.Contains(t, string(manifest), signerURL)
+}
+
+func TestGetInHouseAppPackageTokenAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := context.Background()
+
+	const validToken = "00000000-0000-0000-0000-000000000002"
+
+	ds.GetInHouseAppInstallTokenMetadataFunc = func(ctx context.Context, token string) (*fleet.InHouseAppInstallTokenMetadata, error) {
+		if token == validToken {
+			return &fleet.InHouseAppInstallTokenMetadata{
+				Token:           validToken,
+				SoftwareTitleID: 5,
+				TeamID:          2,
+				HostID:          7,
+				ExpiresAt:       time.Now().Add(time.Hour),
+			}, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Unknown token → permission error before the metadata mock would fire.
+	_, err := svc.GetInHouseAppPackage(ctx, 5, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+	require.Error(t, err)
+	var permErr *fleet.PermissionError
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
+
+	_, err = svc.GetInHouseAppPackage(ctx, 99, validToken)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permErr)
+	require.False(t, ds.GetInHouseAppMetadataByTeamAndTitleIDFuncInvoked)
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -656,8 +719,9 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	svc := &Service{
-		authz: authorizer,
-		ds:    ds,
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }
@@ -951,6 +1015,158 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	// Install .sh on darwin should succeed (not return BadRequestError)
 	err := svc.InstallSoftwareTitle(ctx, 1, 100)
 	require.NoError(t, err, ".sh install on darwin should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform (windows or darwin) rather than inferring darwin from the extension.
+func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: false,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should succeed")
+	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+}
+
+// TestUninstallZipInstallerUsesStoredPlatform tests that .zip installers use the
+// stored platform during uninstall, so a Windows host can uninstall a Windows
+// .zip package without the helper inferring darwin from the extension.
+func TestUninstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID:              10,
+			Name:                     "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:                "zip",
+			Platform:                 "windows",
+			TeamID:                   new(uint(1)),
+			TitleID:                  new(uint(100)),
+			UninstallScriptContentID: 20,
+		}, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("uninstall script"), nil
+	}
+
+	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
+		return nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.UninstallSoftwareTitle(ctx, 1, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should uninstall")
+	require.True(t, ds.InsertSoftwareUninstallRequestFuncInvoked, "uninstall request should be created")
+}
+
+// TestSelfServiceInstallZipInstallerUsesStoredPlatform tests that .zip
+// installers use the stored platform during self-service install, so a Windows
+// host can self-service install a Windows .zip package without the helper
+// inferring darwin from the extension.
+func TestSelfServiceInstallZipInstallerUsesStoredPlatform(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "codex-x86_64-pc-windows-msvc.exe.zip",
+			Extension:   "zip",
+			Platform:    "windows",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: true,
+		}, nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+		return nil
+	}
+
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		return "install-uuid", nil
+	}
+
+	host := &fleet.Host{
+		ID:           1,
+		OrbitNodeKey: new("orbit_key"),
+		Platform:     "windows",
+		TeamID:       new(uint(1)),
+	}
+
+	err := svc.SelfServiceInstallSoftwareTitle(context.Background(), host, 100)
+	require.NoError(t, err, ".zip windows installer on windows host should self-service install")
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
@@ -1294,6 +1510,11 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
 	}
+	// The team has no installers, so the empty-payload dry run has nothing to
+	// report as pending deletion and must short-circuit.
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
 
 	svc := newTestService(t, ds)
 	svc.keyValueStore = kvs
@@ -1323,6 +1544,7 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			kvs.SetFuncInvoked = false
 			kvs.GetFuncInvoked = false
 			ds.TeamByNameFuncInvoked = false
+			ds.GetSoftwareInstallersPendingDeletionFuncInvoked = false
 
 			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, c.tmName, c.payloads, true)
 			require.NoError(t, err)
@@ -1331,6 +1553,335 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 			require.False(t, kvs.GetFuncInvoked, "keyValueStore.Get must not be called")
 			require.Equal(t, c.expectTeamLookup, ds.TeamByNameFuncInvoked,
 				"TeamByName should only be called when tmName != \"\"")
+			require.True(t, ds.GetSoftwareInstallersPendingDeletionFuncInvoked,
+				"the short-circuit must check for installers pending deletion")
+		})
+	}
+}
+
+func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
+	ctx := t.Context()
+	host := &fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Each field injects a failure at one point of the flow; a nil field means that
+	// step succeeds. The zero value drives two successful package installs.
+	type failures struct {
+		getTitles    error // GetSoftwareTitlesForInstallAll
+		installTitle error // the per-title install (SelfServiceInstallSoftwareTitle)
+		newActivity  error // the roll-up activity
+	}
+
+	setup := func(fail failures) (*Service, *strings.Builder) {
+		ds := new(mock.Store)
+		ds.GetSoftwareTitlesForInstallAllFunc = func(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {
+			if fail.getTitles != nil {
+				return nil, nil, fail.getTitles
+			}
+			return []*fleet.HostSoftwareWithInstaller{{ID: 10}, {ID: 11}}, nil, nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			if fail.installTitle != nil {
+				return nil, fail.installTitle
+			}
+			return &fleet.SoftwareInstaller{InstallerID: 1, SelfService: true, Name: "foo.pkg"}, nil
+		}
+		ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID uint, hostID uint) (bool, error) {
+			return true, nil
+		}
+		ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+			return nil
+		}
+		ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+			return "exec-uuid", nil
+		}
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return fail.newActivity
+		}
+		var logs strings.Builder
+		svc.logger = slog.New(slog.NewTextHandler(&logs, nil))
+		return svc, &logs
+	}
+
+	t.Run("returns the error when listing titles fails", func(t *testing.T) {
+		svc, _ := setup(failures{getTitles: errors.New("boom")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "get software titles for install all")
+	})
+
+	t.Run("logs per-title failures and continues instead of aborting the batch", func(t *testing.T) {
+		svc, logs := setup(failures{installTitle: errors.New("lookup failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.NoError(t, err) // a per-title failure is logged, not returned
+		// both titles were attempted (the loop continued past the first failure) and logged
+		require.Contains(t, logs.String(), "title_id=10")
+		require.Contains(t, logs.String(), "title_id=11")
+	})
+
+	t.Run("returns the error when the roll-up activity fails", func(t *testing.T) {
+		svc, _ := setup(failures{newActivity: errors.New("activity failed")})
+		err := svc.SelfServiceInstallAllSoftwareTitles(ctx, host, nil)
+		require.ErrorContains(t, err, "creating installed all self-service software activity")
+	})
+}
+
+// inMemoryKeyValueStore is a thread-safe map-backed KeyValueStore mock for
+// tests that need to observe what the batch goroutine writes.
+func inMemoryKeyValueStore() (*redismock.KeyValueStore, func(key string) *string) {
+	var mu sync.Mutex
+	values := make(map[string]string)
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			mu.Lock()
+			defer mu.Unlock()
+			values[key] = value
+			return nil
+		},
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			if v, ok := values[key]; ok {
+				return &v, nil
+			}
+			return nil, nil
+		},
+	}
+	get := func(key string) *string {
+		mu.Lock()
+		defer mu.Unlock()
+		if v, ok := values[key]; ok {
+			return &v
+		}
+		return nil
+	}
+	return kvs, get
+}
+
+func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
+	t.Parallel()
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	wouldDelete := []fleet.DeletedSoftwarePackage{
+		{TeamID: nil, TitleID: 1, DisplayName: "Cool App"},
+		{TeamID: nil, TitleID: 2, DisplayName: "Teammate Tool"},
+	}
+
+	ds := new(mock.Store)
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		// assert (not require): this runs on the batch goroutine, where FailNow would misbehave.
+		assert.Empty(t, incoming)
+		return wouldDelete, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Empty payload + dry run, but the (no-)team has installers: must NOT
+	// short-circuit, and must report every installer as pending deletion.
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", nil, true)
+	require.NoError(t, err)
+	require.NotEmpty(t, requestUUID, "dry run with installers pending deletion must go through the async path")
+
+	// Wait for the background goroutine to complete the batch.
+	require.Eventually(t, func() bool {
+		status := getKey(batchSoftwarePrefix + requestUUID)
+		return status != nil && *status == batchSetCompleted
+	}, 10*time.Second, 50*time.Millisecond, "batch never completed")
+
+	deletedJSON := getKey(batchSoftwarePrefix + requestUUID + batchSoftwareDeletedSuffix)
+	require.NotNil(t, deletedJSON, "deleted-packages key must be written before completion")
+	var gotDeleted []fleet.DeletedSoftwarePackage
+	require.NoError(t, json.Unmarshal([]byte(*deletedJSON), &gotDeleted))
+	require.Equal(t, wouldDelete, gotDeleted)
+
+	// The result endpoint returns the deleted packages on the dry-run completed branch.
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Equal(t, wouldDelete, deletedPackages)
+}
+
+func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
+	t.Parallel()
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	// Script only packages use a "script://filename" url to pass the filename,
+	// so these should skip url validation
+	scriptFilenames := []string{
+		"install chatgpt.ps1",
+		"my script://app v2.ps1",
+		"sub dir/install.ps1",
+		`C:\Program Files\install.ps1`,
+		"install chatgpt.sh",
+		"my script://app v2.sh",
+		"sub dir/install.sh",
+	}
+
+	for _, name := range scriptFilenames {
+		// The trailing "not a url" payload is a tripwire: validation only reaches and
+		// rejects it if the script:// payload before it was accepted.
+		payloads := []*fleet.SoftwareInstallerPayload{
+			{URL: "script://" + name, InstallScript: "echo hi"},
+			{URL: "not a url"},
+		}
+		_, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+		require.ErrorContains(t, err, `URL ("not a url") is invalid`)
+		require.NotContains(t, err.Error(), name)
+		require.NotContains(t, err.Error(), "script://")
+	}
+}
+
+func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
+	t.Parallel()
+
+	// Status key exists (completed) but the deleted-packages key is missing or
+	// expired: must degrade to an empty list, not an error.
+	completed := batchSetCompleted
+	kvs := &redismock.KeyValueStore{
+		GetFunc: func(ctx context.Context, key string) (*string, error) {
+			if key == batchSoftwarePrefix+"test-uuid" {
+				return &completed, nil
+			}
+			return nil, nil
+		},
+	}
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
+	require.Empty(t, message)
+	require.Empty(t, packages)
+	require.Empty(t, deletedPackages)
+}
+
+func TestVersionMatchesMajor(t *testing.T) {
+	// Versions taken from ee/maintained-apps/outputs; most are not valid semver. The leading dot-segment is
+	// compared as a string, so a leading-zero or bare major stays distinct from "2"/"10"/"12".
+	cases := []struct {
+		version      string
+		majorVersion string
+		want         bool
+	}{
+		{"149.1.91.172", "149", true},
+		{"149.1.91.172", "150", false},
+		{"149.1.91.172", "14", false},
+		{"6.0.4.11438", "6", true},
+		{"25.0.208.0", "25", true},
+		{"221.0.0.0.0", "221", true},
+		{"0.2026.06.10.09.27.01", "0", true},
+		{"8.0.47.CE", "8", true},
+		{"2.2.18d", "2", true},
+		{"1.2.92.148.g882cc571", "1", true},
+		{"114.0.4-release.20250509.32955", "114", true},
+		{"2026.05.0+218", "2026", true},
+		{"02.07.01.62", "02", true},
+		{"02.07.01.62", "2", false},
+		{"20250302", "20250302", true},
+		{"183", "183", true},
+		{"149", "149", true},
+		{"1.21b", "1", true},
+		{"10.0.1", "1", false},
+		{"12.0", "1", false},
+	}
+	for _, c := range cases {
+		assert.Equalf(t, c.want, versionMatchesMajor(c.version, c.majorVersion), "version %q caret ^%s", c.version, c.majorVersion)
+	}
+}
+
+func TestParsePinnedVersion(t *testing.T) {
+	cases := []struct {
+		name      string
+		version   string
+		wantMajor string
+		wantCaret bool
+		wantErr   string
+	}{
+		{name: "latest is empty", version: "", wantMajor: "", wantCaret: false},
+		{name: "literal 4-component is not a caret", version: "149.0.7827.115", wantMajor: "149.0.7827.115", wantCaret: false},
+		{name: "caret major", version: "^149", wantMajor: "149", wantCaret: true},
+		{name: "caret leading-zero major", version: "^02", wantMajor: "02", wantCaret: true},
+		{name: "empty caret", version: "^", wantErr: errEmptyCaretVersion.Error()},
+		{name: "caret with minor", version: "^149.0", wantErr: errNonMajorVersion.Error()},
+		{name: "caret 4-component", version: "^149.1.91.172", wantErr: errNonMajorVersion.Error()},
+		{name: "caret non-numeric", version: "^abc", wantErr: errNonMajorVersion.Error()},
+	}
+	for _, c := range cases {
+		major, caret, err := parsePinnedVersion(t.Context(), c.version)
+		if c.wantErr != "" {
+			require.ErrorContainsf(t, err, c.wantErr, "case %s", c.name)
+			continue
+		}
+		require.NoErrorf(t, err, "case %s", c.name)
+		assert.Equalf(t, c.wantMajor, major, "case %s", c.name)
+		assert.Equalf(t, c.wantCaret, caret, "case %s", c.name)
+	}
+}
+
+func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		input     []string
+		extension string
+		want      []string
+		wantErr   string
+	}{
+		{name: "empty input", input: nil, extension: "sh", want: []string{}},
+		{name: "sh darwin", input: []string{"darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh linux", input: []string{"linux"}, extension: "sh", want: []string{"linux"}},
+		{name: "sh both platforms", input: []string{"darwin", "linux"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh dedupe", input: []string{"darwin", "DARWIN", "darwin"}, extension: "sh", want: []string{"darwin"}},
+		{name: "sh case + whitespace", input: []string{" Darwin ", "LINUX"}, extension: "sh", want: []string{"darwin", "linux"}},
+		{name: "sh macos rejected", input: []string{"macos"}, extension: "sh", wantErr: `platform "macos" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
+		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
+		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := normalizeSetupExperiencePlatforms(c.input, c.extension)
+			if c.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			// nil vs empty-slice noise: compare both as normalized empty.
+			if len(c.want) == 0 {
+				assert.Empty(t, got)
+				return
+			}
+			assert.Equal(t, c.want, got)
 		})
 	}
 }

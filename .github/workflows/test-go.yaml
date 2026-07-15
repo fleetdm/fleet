@@ -8,6 +8,7 @@ on:
       - prepare-*
     paths:
       - '**.go'
+      - '**/testdata/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
@@ -22,6 +23,7 @@ on:
   pull_request:
     paths:
       - '**.go'
+      - '**/testdata/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
@@ -62,7 +64,9 @@ jobs:
     with:
       suite: ${{ matrix.suite }}
       is_cron: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Suites that need MySQL: always-run versions (every push/PR + cron).
@@ -78,7 +82,9 @@ jobs:
       suite: ${{ matrix.suite }}
       mysql: ${{ matrix.mysql }}
       is_cron: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ github.event_name == 'schedule' && secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL || '' }}
 
   # ──────────────────────────────────────────────────────────────────────────
   # Extended MySQL coverage: only on the nightly cron schedule.
@@ -95,7 +101,33 @@ jobs:
       suite: ${{ matrix.suite }}
       mysql: ${{ matrix.mysql }}
       is_cron: true
-    secrets: inherit
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Extended Redis/Valkey coverage: only on the nightly cron schedule.
+  # Runs the Redis-touching suites against newer Redis versions and Valkey, in
+  # both standalone and cluster mode. MySQL is pinned to the always-run version
+  # (single DB dimension, not NxM). Redis 6.2 is already covered by the always-run
+  # test-go job above, so it's omitted here.
+  # make sure to update supported versions docs when Redis/Valkey versions change
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-extended-redis:
+    if: github.event_name == 'schedule'
+    strategy:
+      matrix:
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "main", "service"]
+        redis: ["redis:7.4", "redis:8.0", "valkey/valkey:7.2", "valkey/valkey:8.0"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      mysql: "mysql:8.0.44"
+      redis: ${{ matrix.redis }}
+      is_cron: true
+    secrets:
+      FLEET_RELEASE_GITHUB_PAT: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+      SLACK_G_HELP_ENGINEERING_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
@@ -118,12 +150,14 @@ jobs:
       GO_TEST_TIMEOUT: 20m
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -214,18 +248,20 @@ jobs:
 
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-nanomdm]
+    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
       - name: Download artifacts
         uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
@@ -239,13 +275,13 @@ jobs:
   # Our Go test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
   # This job explicitly checks if any Go test suites have failed and marks the overall workflow with the proper pass/fail status.
   aggregate-result:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql]
+    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 

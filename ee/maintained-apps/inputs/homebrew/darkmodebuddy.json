@@ -1,0 +1,10 @@
+{
+  "name": "DarkModeBuddy",
+  "unique_identifier": "codes.rambo.DarkModeBuddy",
+  "token": "darkmodebuddy",
+  "installer_format": "dmg",
+  "slug": "darkmodebuddy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -52,7 +52,7 @@ org_settings:
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
-    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#require-idp-authentication
     ###########################################################
     # end_user_authentication:
     #   idp_name: "Okta"  # e.g. "Entra", "Okta", "Google Workspace", etc. (Displayed to end users.)
@@ -67,7 +67,7 @@ org_settings:
     #   • https://fleetdm.com/docs/configuration/yaml-files#apple-business-manager
     #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
-    # apple_business_manager:
+    # apple_business:
     #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business (AB).
     #     macos_fleet: "💻 Workstations" # Where new macOS devices from AB will appear
 

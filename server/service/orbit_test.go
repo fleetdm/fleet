@@ -2,16 +2,17 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -211,14 +212,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "")
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
 		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
-		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "")
+		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -226,7 +227,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		passphrase, salt := "foo", ""
 		var keySlot *uint
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint,
+			encryptedBase64Salt string, keySlotToPersist *uint,
 		) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
@@ -239,13 +240,13 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, salt, decryptedSalt)
 
-			require.Equal(t, *keySlot, keySlotToPersist)
+			require.Equal(t, keySlot, keySlotToPersist)
 
 			return true, nil
 		}
 
 		// with no salt
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -253,7 +254,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with no key slot
 		ds.ReportEscrowErrorFuncInvoked = false
 		salt = "baz"
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -261,11 +262,86 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with salt and key slot
 		keySlot = ptr.Uint(0)
 		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("recovery key escrow has no salt or key slot", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		host := &fleet.Host{
+			OsqueryHostID: new("test"),
+			ID:            1,
+		}
+		ctx = test.HostContext(ctx, host)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			}, nil
+		}
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+			return nil
+		}
+
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			return nil
+		}
+
+		recoveryKey := "55055-39320-64491-48436-47667-15525-36879-32875"
+		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
+			encryptedBase64Salt string, keySlotToPersist *uint,
+		) (bool, error) {
+			require.Equal(t, host.ID, incomingHost.ID)
+			key := config.TestConfig().Server.PrivateKey
+
+			decrypted, err := mdm.DecodeAndDecrypt(encryptedBase64Passphrase, key)
+			require.NoError(t, err)
+			require.Equal(t, recoveryKey, decrypted)
+
+			// snapd owns the LUKS key slots, so a recovery key has no salt or
+			// numeric key slot to escrow.
+			require.Empty(t, encryptedBase64Salt)
+			require.Nil(t, keySlotToPersist)
+
+			return true, nil
+		}
+
+		// A recovery key requires no salt or key slot.
+		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.NoError(t, err)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+		// A recovery key escrow with no key still fails validation.
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// Stray salt / key slot on the recovery-key path are rejected, not
+		// silently discarded — those fields are meaningless when snapd owns the
+		// LUKS key slots, and accepting them would hide client bugs.
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		ds.SaveLUKSDataFuncInvoked = false
+		strayKeySlot := uint(0)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -294,7 +370,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -303,7 +379,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
@@ -344,6 +420,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -422,6 +499,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -497,12 +575,11 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		// GetOrbitConfig derives the Fleet-MDM connection state from GetHostMDM
+		// (ConnectedToFleet).
+		var connectedToFleetMDM bool
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
-		}
-		var isHostConnectedToFleet bool
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
-			return isHostConnectedToFleet, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: connectedToFleetMDM}, nil
 		}
 
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
@@ -522,12 +599,12 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 
 		checkHostVariations := func(h *fleet.Host) {
-			// host is not connected to fleet
-			isHostConnectedToFleet = false
+			// host is osquery-enrolled but not connected to Fleet MDM
+			connectedToFleetMDM = false
 			checkEmptyNudgeConfig(h)
 
-			// host has MDM turned on but is not enrolled
-			isHostConnectedToFleet = true
+			// host is connected to Fleet MDM but not osquery-enrolled
+			connectedToFleetMDM = true
 			h.OsqueryHostID = nil
 			checkEmptyNudgeConfig(h)
 		}
@@ -585,6 +662,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
@@ -684,7 +762,7 @@ func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
 			return false, nil
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, sql.ErrNoRows
+			return nil, newNotFoundError()
 		}
 		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
 			return false
@@ -774,6 +852,7 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
+				ConnectedToFleet: true,
 			}, nil
 		}
 
@@ -1020,7 +1099,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	opts.RunReplication("software_installers", "software_titles")
 
 	// Mark policy as failing for the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 	opts.RunReplication("policy_membership")
 
@@ -1128,32 +1207,46 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 			return false
 		}
 		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
 		}
 		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 			return false, nil
+		}
+		// GetOrbitConfig persists the live sync capability on change; default to a no-op so subtests that don't assert it don't nil-panic.
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			return nil
 		}
 
 		ctx = test.HostContext(ctx, host)
 		return ds, svc, ctx, host
 	}
 
+	// withWindowsMDMSyncCapability returns a context whose X-Fleet-Capabilities advertise CapabilityWindowsMDMSync, as a Windows fleetd that
+	// supports on-demand sync would send on its orbit config request.
+	withWindowsMDMSyncCapability := func(ctx context.Context) context.Context {
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/config", nil)
+		cm := fleet.CapabilityMap{fleet.CapabilityWindowsMDMSync: struct{}{}}
+		req.Header.Set(fleet.CapabilitiesHeader, cm.String())
+		return capabilities.NewContext(ctx, req)
+	}
+
 	t.Run("Windows host awaiting=Pending sets RunSetupExperience", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationPending, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending}, nil
 		}
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.RunSetupExperience)
-		assert.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
 	})
 
 	t.Run("Windows host awaiting=Active sets RunSetupExperience", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive}, nil
 		}
 
 		cfg, err := svc.GetOrbitConfig(ctx)
@@ -1161,46 +1254,127 @@ func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
 		assert.True(t, cfg.Notifications.RunSetupExperience)
 	})
 
-	t.Run("Windows host awaiting=None does not set RunSetupExperience", func(t *testing.T) {
+	t.Run("Windows host awaiting=None, no pending commands sets neither notification", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationNone, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone}, nil
 		}
 
-		cfg, err := svc.GetOrbitConfig(ctx)
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
 	})
 
-	t.Run("Windows host not enrolled (NotFound) does not set RunSetupExperience", func(t *testing.T) {
+	t.Run("Windows host with pending commands and capability sets WindowsMDMSyncRequest", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return 0, &orbitTestNotFoundErr{}
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, HasPendingCommands: true}, nil
 		}
 
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked)
+	})
+
+	t.Run("persists fleetd sync capability only on change", func(t *testing.T) {
+		// Capability advertised but the persisted flag is still false -> write it true (so the OMA-DM session can relax the poll).
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: false}, nil
+		}
+		var wrote *bool
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should persist the capability when it differs from the stored flag")
+		assert.True(t, *wrote)
+
+		// Capability advertised and the persisted flag already true -> no write.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		_, err = svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, ds.SetMDMWindowsEnrollmentFleetdSyncCapableFuncInvoked, "no write when the stored flag already matches")
+
+		// No capability but the persisted flag is true (e.g. fleetd downgrade) -> write it false.
+		ds, svc, ctx, _ = setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, FleetdSyncCapable: true}, nil
+		}
+		wrote = nil
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error {
+			wrote = &capable
+			return nil
+		}
+		_, err = svc.GetOrbitConfig(ctx) // no capability header
+		require.NoError(t, err)
+		require.NotNil(t, wrote, "should clear the capability when fleetd stops advertising it")
+		assert.False(t, *wrote)
+	})
+
+	t.Run("Windows host with pending commands but no capability does not set WindowsMDMSyncRequest", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone, HasPendingCommands: true}, nil
+		}
+
+		// ctx has no X-Fleet-Capabilities, as an older fleetd that cannot sync on demand would send.
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+	})
+
+	t.Run("Windows host in ESP with pending commands prefers RunSetupExperience over sync", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending, HasPendingCommands: true}, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+	})
+
+	t.Run("Windows host not enrolled (NotFound) sets neither notification", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return nil, &orbitTestNotFoundErr{}
+		}
+
+		cfg, err := svc.GetOrbitConfig(withWindowsMDMSyncCapability(ctx))
+		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
 	})
 
 	t.Run("Windows host with non-NotFound lookup error returns the error", func(t *testing.T) {
 		ds, svc, ctx, _ := setupSvc(t)
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return 0, errors.New("transient db error")
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return nil, errors.New("transient db error")
 		}
 
 		_, err := svc.GetOrbitConfig(ctx)
 		require.Error(t, err)
 	})
 
-	t.Run("non-Windows host does not query awaiting_configuration", func(t *testing.T) {
+	t.Run("non-Windows host does not query Windows host config state", func(t *testing.T) {
 		ds, svc, ctx, host := setupSvc(t)
 		host.Platform = "darwin"
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.RunSetupExperience)
-		assert.False(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+		assert.False(t, cfg.Notifications.WindowsMDMSyncRequest)
+		assert.False(t, ds.GetMDMWindowsHostConfigStateFuncInvoked,
 			"non-Windows hosts must not invoke the Windows lookup")
 	})
 }

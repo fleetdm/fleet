@@ -574,7 +574,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
     });
 
-    it("renders as disabled when the host is offline", async () => {
+    it("renders as enabled when the host is offline", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -600,7 +600,7 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
-      expect(screen.getByText("Turn off MDM").parentElement).toHaveClass(
+      expect(screen.getByText("Turn off MDM").parentElement).not.toHaveClass(
         "actions-dropdown-select__option--is-disabled"
       );
     });
@@ -1557,7 +1557,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="android"
-          hostMdmEnrollmentStatus="On (personal)"
+          hostMdmEnrollmentStatus="On (manual - personal)"
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1618,6 +1618,40 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
       expect(screen.queryByText("Live report")).not.toBeInTheDocument();
       expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+
+    it("shows Wipe for a COBO Android host on Fleet Free (Android Wipe is not Premium-gated)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            isAndroidMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="android"
+          hostMdmEnrollmentStatus="On (automatic)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      // Android (COBO) Wipe is available on Fleet Free.
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      // Lock and Clear passcode remain Premium-only, so they should not appear on Free tier.
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
     });
 
     it("does NOT show Wipe for an Android host with enrollment status 'On (manual)' (Wipe requires COBO; allow-list, not negative check)", async () => {
@@ -1715,14 +1749,6 @@ describe("Host Actions Dropdown", () => {
         deviceStatus: "clearing_passcode" as const,
         expectHidden: ["Lock", "Wipe", "Clear passcode"],
       },
-      {
-        // BYO Android Unenroll fires AMAPI WIPE under the hood, so the pending-unenroll state
-        // surfaces as hostMdmDeviceStatus="wiping" with enrollment "On (personal)".
-        case: "BYO + wiping (= pending unenroll)",
-        enrollment: "On (personal)" as const,
-        deviceStatus: "wiping" as const,
-        expectHidden: ["Lock", "Clear passcode", "Unenroll"],
-      },
     ])(
       "hides pending-gated actions for Android when $case (#41683)",
       async ({ enrollment, deviceStatus, expectHidden }) => {
@@ -1759,7 +1785,7 @@ describe("Host Actions Dropdown", () => {
     );
   });
 
-  describe("personally enrolled hosts (e.g. enrollment status => On (personal)", () => {
+  describe("personally enrolled hosts (e.g. enrollment status => On (manual - personal))", () => {
     it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
       const render = createCustomRenderer({
         context: {
@@ -1777,7 +1803,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           hostMdmDeviceStatus="unlocked"
           isConnectedToFleetMdm
           hostScriptsEnabled
@@ -1817,7 +1843,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollmentStatus={"On (personal)"}
+          hostMdmEnrollmentStatus={"On (manual - personal)"}
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -2065,6 +2091,68 @@ describe("Host Actions Dropdown", () => {
       const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("renders the action for a global observer (the API authorizes any host-reader)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("renders the action for a team observer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isTeamObserver: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"

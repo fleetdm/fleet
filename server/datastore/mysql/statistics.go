@@ -114,6 +114,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fleet maintained apps")
 		}
+		numHostsFleetMDMEnrolledMacOS, numHostsFleetMDMEnrolledWindows, err := numHostsFleetMDMEnrolledDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of hosts enrolled in Fleet MDM")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumHostsABMPending = numHostsABMPending
@@ -150,6 +154,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		stats.AIFeaturesDisabled = appConfig.ServerSettings.AIFeaturesDisabled
 		stats.MaintenanceWindowsConfigured = len(appConfig.Integrations.GoogleCalendar) > 0 && appConfig.Integrations.GoogleCalendar[0].Domain != "" && !appConfig.Integrations.GoogleCalendar[0].ApiKey.IsEmpty()
+		stats.GoogleWorkspaceConfigured = appConfig.Integrations.IsGoogleWorkspaceConfigured()
 
 		stats.MaintenanceWindowsEnabled = false
 		teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
@@ -168,6 +173,8 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumQueries = numQueries
 		stats.FleetMaintainedAppsMacOS = fleetMaintainedAppsMacOS
 		stats.FleetMaintainedAppsWindows = fleetMaintainedAppsWindows
+		stats.NumHostsFleetMDMEnrolledMacOS = numHostsFleetMDMEnrolledMacOS
+		stats.NumHostsFleetMDMEnrolledWindows = numHostsFleetMDMEnrolledWindows
 
 		stats.ConditionalAccessEnabled, err = ds.conditionalAccessEnabledOnATeam(ctx, teams)
 		if err != nil {

@@ -3563,6 +3563,19 @@
         "index": false
       },
       {
+        "name": "subject2",
+        "description": "Certificate distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
+      },
+      {
         "name": "issuer",
         "description": "Certificate issuer distinguished name (deprecated, use issuer2)",
         "type": "text",
@@ -3570,6 +3583,19 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "issuer2",
+        "description": "Certificate issuer distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
       },
       {
         "name": "ca",
@@ -3746,32 +3772,6 @@
         "index": false,
         "platforms": [
           "Windows"
-        ]
-      },
-      {
-        "name": "issuer2",
-        "description": "Certificate issuer distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
-      },
-      {
-        "name": "subject2",
-        "description": "Certificate distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
         ]
       }
     ],
@@ -4796,9 +4796,15 @@
         "type": "integer",
         "required": false,
         "description": "PID of the container process."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
+    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```\n\nQuery containers from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_containers WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
     "url": "https://fleetdm.com/tables/containerd_containers",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
@@ -4846,9 +4852,15 @@
         "type": "text",
         "required": false,
         "description": "Mount options (comma-separated)."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```",
+    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```\n\nQuery mounts from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_mounts WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd_mounts` table is available on Linux systems with containerd installed. It provides\ninformation about the mounts configured for containers managed by containerd.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.",
     "url": "https://fleetdm.com/tables/containerd_mounts",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_mounts.yml"
@@ -23082,7 +23094,7 @@
   },
   {
     "name": "process_open_handles",
-    "description": "Enumerate open handles for a specified process. Defaults to the osquery process if no pid constraint is provided.",
+    "description": "Enumerate open handles for a specified process.",
     "url": "https://fleetdm.com/tables/process_open_handles",
     "platforms": [
       "windows"
@@ -25268,6 +25280,18 @@
     "evented": false,
     "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
     "columns": [
+      {
+        "name": "daemon_reachable",
+        "description": "Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the `error` column contains the santactl error and the remaining columns are NULL.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "error",
+        "description": "The error returned by `santactl status` when the daemon is unreachable (daemon_reachable=0); empty when the daemon is reachable.",
+        "required": false,
+        "type": "text"
+      },
       {
         "name": "sync_server",
         "description": "The server Santa syncs rules and configuration from",

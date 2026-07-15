@@ -3970,7 +3970,7 @@ reports:
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, pols, 3)
 	policyIDsByName := map[string]uint{}
@@ -3987,7 +3987,7 @@ reports:
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 	}))
 
-	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
@@ -4860,7 +4860,7 @@ settings:
 	installer, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "")
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install ruby", tmPols[0].Name)
@@ -4880,7 +4880,7 @@ settings:
 	installer, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tm.ID, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "")
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install team ruby", tmPols[0].Name)
@@ -4934,7 +4934,7 @@ labels:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
 
 	// Verify policy, agent_options, controls, and reports were applied.
-	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "Test Global Policy", policies[0].Name)
@@ -4977,7 +4977,7 @@ org_settings:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFile.Name()}))
 
 	// Verify policies were cleared.
-	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -5004,6 +5004,142 @@ org_settings:
 	labels, err = s.DS.LabelsByName(ctx, []string{"Test Global Label"}, fleet.TeamFilter{})
 	require.NoError(t, err)
 	require.Len(t, labels, 0)
+}
+
+// TestGitOpsPolicyLabelScopes verifies that policies applied via GitOps can combine
+// one include scope (any/all) with one exclude scope (any/all) — including the premium
+// labels_exclude_all scope — and that conflicting include/exclude scopes are rejected.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPolicyLabelScopes() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	tempDir := t.TempDir()
+	fleetName := "Label Scopes " + uuid.NewString()
+
+	// The global file defines the labels referenced by both the global and team
+	// policies, plus a global policy that combines an include scope (any) with the
+	// premium exclude scope (all).
+	globalConfig := `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: label_scopes_secret
+agent_options:
+controls:
+reports:
+labels:
+  - name: Label A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label B
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label C
+    label_membership_type: dynamic
+    query: SELECT 1
+policies:
+  - name: Global Combined Scope
+    query: SELECT 1;
+    labels_include_any:
+      - Label A
+    labels_exclude_all:
+      - Label B
+      - Label C
+`
+	globalFile := filepath.Join(tempDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644)) //nolint:gosec
+
+	// The team file defines a team policy that combines an include scope (all) with
+	// an exclude scope (any), referencing the globally-defined labels.
+	teamConfig := fmt.Sprintf(`
+name: %s
+controls:
+software:
+reports:
+agent_options:
+settings:
+  secrets:
+    - secret: label_scopes_team_secret
+policies:
+  - name: Team Combined Scope
+    query: SELECT 1;
+    labels_include_all:
+      - Label A
+      - Label B
+    labels_exclude_any:
+      - Label C
+`, fleetName)
+	teamFile := filepath.Join(tempDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamConfig), 0o644)) //nolint:gosec
+
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
+
+	// The global policy persisted both its include_any and exclude_all scopes.
+	globalPolicies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, globalPolicies, 1)
+	gp := globalPolicies[0]
+	require.Equal(t, "Global Combined Scope", gp.Name)
+	require.Len(t, gp.LabelsIncludeAny, 1)
+	require.Equal(t, "Label A", gp.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, gp.LabelsIncludeAll)
+	require.Empty(t, gp.LabelsExcludeAny)
+	require.Len(t, gp.LabelsExcludeAll, 2)
+	require.ElementsMatch(t, []string{"Label B", "Label C"}, []string{gp.LabelsExcludeAll[0].LabelName, gp.LabelsExcludeAll[1].LabelName})
+
+	// The team policy persisted both its include_all and exclude_any scopes.
+	tm, err := s.DS.TeamByName(ctx, fleetName)
+	require.NoError(t, err)
+	teamPolicies, _, err := s.DS.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	tp := teamPolicies[0]
+	require.Equal(t, "Team Combined Scope", tp.Name)
+	require.Empty(t, tp.LabelsIncludeAny)
+	require.Len(t, tp.LabelsIncludeAll, 2)
+	require.ElementsMatch(t, []string{"Label A", "Label B"}, []string{tp.LabelsIncludeAll[0].LabelName, tp.LabelsIncludeAll[1].LabelName})
+	require.Len(t, tp.LabelsExcludeAny, 1)
+	require.Equal(t, "Label C", tp.LabelsExcludeAny[0].LabelName)
+	require.Empty(t, tp.LabelsExcludeAll)
+
+	// A policy that specifies two include scopes is rejected.
+	conflictConfig := `
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: label_scopes_secret
+agent_options:
+controls:
+reports:
+labels:
+  - name: Label A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: Label B
+    label_membership_type: dynamic
+    query: SELECT 1
+policies:
+  - name: Conflicting Scope
+    query: SELECT 1;
+    labels_include_any:
+      - Label A
+    labels_include_all:
+      - Label B
+`
+	conflictFile := filepath.Join(tempDir, "conflict.yml")
+	require.NoError(t, os.WriteFile(conflictFile, []byte(conflictConfig), 0o644)) //nolint:gosec
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", conflictFile, "--dry-run"})
+	require.ErrorContains(t, err, "at most one of labels_include_any or labels_include_all")
 }
 
 // TestOmittedTopLevelKeysFleet verifies that omitting top-level keys from a fleet
@@ -5064,7 +5200,7 @@ labels:
 	fl, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
-	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 1)
 	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
@@ -5105,7 +5241,7 @@ name: %s
 	}))
 
 	// Verify policies were cleared.
-	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 0)
 

@@ -1,0 +1,10 @@
+{
+  "name": "Mimestream",
+  "unique_identifier": "com.mimestream.Mimestream",
+  "token": "mimestream",
+  "installer_format": "dmg",
+  "slug": "mimestream/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

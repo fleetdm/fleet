@@ -33,7 +33,12 @@ spec:
     zendesk: null
   mdm:
     android_enabled_and_configured: false
+    apple_business:
     apple_business_manager:
+    apple_account_provisioning:
+      oauth_idp_token_url: null
+      oauth_idp_client_id: null
+      oauth_idp_client_secret: null
     apple_server_url: ""
     volume_purchasing_program:
     apple_bm_enabled_and_configured: false
@@ -41,11 +46,13 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    name_template: null
     enable_recovery_lock_password: false
     windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
+    windows_entra_client_ids: null
     apple_require_hardware_attestation: false
     macos_migration:
       enable: false

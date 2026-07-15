@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.74.0",
+      "version": "4.81.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.' AND version_compare(version, '4.74.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.' AND version_compare(version, '4.81.0') < 0);"
       },
-      "installer_url": "https://desktop.docker.com/win/main/amd64/227015/Docker%20Desktop%20Installer.exe",
+      "installer_url": "https://desktop.docker.com/win/main/amd64/232925/Docker%20Desktop%20Installer.exe",
       "install_script_ref": "b06042dd",
       "uninstall_script_ref": "0b74af50",
-      "sha256": "f78111fae49b7ea099ec7af54caeae0395157f17a6e8cd01ec97565ba8f4600a",
+      "sha256": "8635cd74c10e5a37ed0efa7dc55abcecf7997815cb77df6fb2488ec3eb42646d",
       "default_categories": [
         "Developer tools"
       ]

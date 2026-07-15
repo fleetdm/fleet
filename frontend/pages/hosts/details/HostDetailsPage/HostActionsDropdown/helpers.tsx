@@ -118,6 +118,14 @@ interface IHostActionConfigOptions {
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
   managedAccountPasswordAvailable: boolean;
+  /**
+   * BYOD permission gates (issue #23242). Undefined when the host's stored
+   * AccessRights are not yet known; treat undefined as "allowed" to preserve
+   * pre-feature behavior.
+   */
+  wipeAllowed?: boolean;
+  lockAllowed?: boolean;
+  clearPasscodeAllowed?: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -269,8 +277,11 @@ const canWipeHost = ({
     isEnrolledInMdm &&
     isAndroidCOBO(hostMdmEnrollmentStatus);
 
+  // Wipe is a Fleet Premium feature for macOS, Windows, Linux and iOS/iPadOS, but is available on Fleet Free for
+  // Android (COBO) hosts. canWipeAndroid is already gated to Android COBO, so OR-ing it with isPremiumTier keeps the
+  // other platforms Premium-only.
   return (
-    isPremiumTier &&
+    (isPremiumTier || canWipeAndroid) &&
     !isAccountDrivenEnrolledIosOrIpadosDevice &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
@@ -377,10 +388,6 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   const {
     isPremiumTier,
     isConnectedToFleetMdm,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     hostPlatform,
     hostMdmEnrollmentStatus,
     isManagedLocalAccountEnabled,
@@ -392,7 +399,12 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
     return false;
   }
-  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // Not role-gated: the backend authorizes this action for any user who can
+  // read the host (including observers), matching the other "show secret"
+  // actions above (disk encryption key, Recovery Lock password). Restricting
+  // it to admins/maintainers here hid the action from observers even though
+  // the API returns the managed account password to them.
+  return true;
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {
@@ -537,12 +549,47 @@ const removeUnavailableOptions = (
   return options;
 };
 
+// Tooltip copy for the BYOD-disabled state per issue #23242. Shown when the
+// host's stored AccessRights bitmask omits the relevant bit.
+const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
+  wipe: (
+    <>
+      Wipe permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  lock: (
+    <>
+      Lock permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+  clearPasscode: (
+    <>
+      Clear passcode permissions
+      <br />
+      are disabled for this host.
+    </>
+  ),
+};
+
 // Available tooltips for disabled options
 export const getDropdownOptionTooltipContent = (
   value: string | number,
   isHostOnline?: boolean,
-  scriptsGloballyDisabled?: boolean
+  scriptsGloballyDisabled?: boolean,
+  byodDisabled?: boolean
 ) => {
+  if (
+    byodDisabled &&
+    typeof value === "string" &&
+    BYOD_DISABLED_TOOLTIPS[value]
+  ) {
+    return BYOD_DISABLED_TOOLTIPS[value];
+  }
+
   if (value === "runScript" && scriptsGloballyDisabled) {
     return <>Running scripts is disabled in organization settings.</>;
   }
@@ -595,6 +642,9 @@ const modifyOptions = (
     recoveryLockPasswordAvailable,
     managedAccountStatus,
     managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
+    clearPasscodeAllowed,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -608,19 +658,39 @@ const modifyOptions = (
     });
   };
 
+  // BYOD-disabled options get a different tooltip. Each action maps to its
+  // own *Allowed flag; only treat the boolean false as disabled (undefined =
+  // unknown rights, leave the action enabled).
+  const byodDisableOptions = (optionsToDisable: IDropdownOption[]) => {
+    optionsToDisable.forEach((option) => {
+      option.disabled = true;
+      option.tooltipContent = getDropdownOptionTooltipContent(
+        option.value,
+        isHostOnline,
+        scriptsGloballyDisabled,
+        true
+      );
+    });
+  };
+
+  if (wipeAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "wipe"));
+  }
+  if (lockAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "lock"));
+  }
+  if (clearPasscodeAllowed === false) {
+    byodDisableOptions(
+      options.filter((option) => option.value === "clearPasscode")
+    );
+  }
+
   let optionsToDisable: IDropdownOption[] = [];
   // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "query")
     );
-
-    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
-    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
-      optionsToDisable = optionsToDisable.concat(
-        options.filter((option) => option.value === "mdmOff")
-      );
-    }
   }
 
   // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM

@@ -8,7 +8,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { AxiosError } from "axios";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -34,6 +34,7 @@ import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -133,7 +134,7 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -402,6 +403,17 @@ export const SoftwareInstallDetailsModal = ({
             <DeviceUserError />
           ) : (
             <DataError description="Close this modal and try again." />
+          );
+        }
+
+        if (error?.status === 402) {
+          return deviceAuthToken ? (
+            <DeviceUserError />
+          ) : (
+            <>
+              <p>Couldn&apos;t get install details.</p>
+              <PremiumFeatureMessage />
+            </>
           );
         }
       }

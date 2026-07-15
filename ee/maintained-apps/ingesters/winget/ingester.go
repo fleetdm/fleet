@@ -4,8 +4,10 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,6 +34,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
+	var skippedApps int
 
 	githubHTTPClient := fleethttp.NewGithubClient()
 	githubClient := github.NewClient(githubHTTPClient)
@@ -89,13 +92,38 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
+			// skip throttled apps; they'll be retried on the next scheduled run
+			if isTransientGitHubError(err) {
+				skippedApps++
+				logger.WarnContext(ctx, "skipping app: GitHub rate-limited its ingestion; it will be retried on the next scheduled run",
+					"name", input.Name, "err", err)
+				continue
+			}
 			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
 	}
 
+	if skippedApps > 0 {
+		logger.WarnContext(ctx, "some winget apps were skipped due to GitHub rate limiting", "count", skippedApps)
+	}
+
 	return manifestApps, nil
+}
+
+// isTransientGitHubError reports whether err is GitHub load-shedding (rate limits, 429s, 5xx).
+func isTransientGitHubError(err error) bool {
+	if _, ok := errors.AsType[*github.RateLimitError](err); ok {
+		return true
+	}
+	if _, ok := errors.AsType[*github.AbuseRateLimitError](err); ok {
+		return true
+	}
+	if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok && ghErr.Response != nil {
+		return ghErr.Response.StatusCode == http.StatusTooManyRequests || ghErr.Response.StatusCode >= 500
+	}
+	return false
 }
 
 type wingetIngester struct {
@@ -107,6 +135,10 @@ type wingetIngester struct {
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
 // package version folders (semver-style). The upstream repo may add other top-level
 // folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
+// It also skips single-segment "year" folders such as "2010"/"2013"/"2019" that some
+// packages (e.g. Microsoft.Office) keep alongside their current multi-segment versions;
+// those legacy folders would otherwise outrank a real version like "16.0.19929.20062"
+// because a bare 2010 is numerically greater than 16.
 func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.RepositoryContent {
 	var out []*github.RepositoryContent
 	for _, c := range contents {
@@ -118,6 +150,9 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 			continue
 		}
 		if name[0] < '0' || name[0] > '9' {
+			continue
+		}
+		if !strings.Contains(name, ".") {
 			continue
 		}
 		out = append(out, c)
@@ -153,58 +188,78 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// sort the list of directories in descending order
 	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
-	// this directory has the latest version data in it
-	latestVersionDir := versionDirs[0]
-	if latestVersionDir.GetName() == "" {
-		return nil, ctxerr.New(ctx, "latest version for app not found")
-	}
-
-	// this is the path to the specific manifest file we need
-	installerManifestPath := path.Join(
-		dirPath,
-		latestVersionDir.GetName(),
-		fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
-	)
-
-	fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		installerManifestPath,
-		i.ghClientOpts,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "downloading file contents for installer manifest")
-	}
-
-	contents, err := fileContents.GetContent()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
-	}
-
+	// Try version directories in descending order. Some packages have nested
+	// grouping directories (e.g. "2020/20.001.30002") that look like version
+	// dirs but don't contain manifest files at the expected depth. Skip those
+	// and fall through to the next candidate.
 	var m installerManifest
-	if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
-	}
-
-	localeManifestPath := path.Join(dirPath, latestVersionDir.GetName(), fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-	fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-		"microsoft",
-		"winget-pkgs",
-		localeManifestPath,
-		i.ghClientOpts,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
-	}
-
-	contents, err = fileContents.GetContent()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
-	}
-
 	var l localeManifest
-	if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+	var versionFound bool
+	for _, versionDir := range versionDirs {
+		vName := versionDir.GetName()
+		if vName == "" {
+			continue
+		}
+
+		installerManifestPath := path.Join(
+			dirPath,
+			vName,
+			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
+		)
+
+		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			installerManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			// only a genuine 404 may fall through to an older version dir
+			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
+				continue
+			}
+			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
+		}
+
+		contents, err := fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+		}
+
+		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
+		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
+			"microsoft",
+			"winget-pkgs",
+			localeManifestPath,
+			i.ghClientOpts,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+		}
+
+		contents, err = fileContents.GetContent()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+		}
+
+		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
+		}
+
+		versionFound = true
+		break
+	}
+
+	if !versionFound {
+		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+			"path": dirPath,
+		})
 	}
 
 	var out maintained_apps.FMAManifestApp
@@ -396,10 +451,27 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	external_refs.EnrichManifest(&out)
 
+	// The patch policy normally compares osquery's reported version against the
+	// winget PackageVersion. Some installers report a registry DisplayVersion in a
+	// different format (e.g. python.org reports "3.14.5150.0" for "3.14.5"), which
+	// breaks version_compare ordering. When opted in, compare against the
+	// DisplayVersion so the patch policy flags outdated installs correctly.
+	patchVersion := out.Version
+	if input.UseDisplayVersionForPatch {
+		displayVersion := firstDisplayVersion(selectedInstaller.AppsAndFeaturesEntries)
+		if displayVersion == "" {
+			displayVersion = firstDisplayVersion(m.AppsAndFeaturesEntries)
+		}
+		if displayVersion == "" {
+			return nil, ctxerr.New(ctx, "use_display_version_for_patch is set but no DisplayVersion found in winget manifest")
+		}
+		patchVersion = displayVersion
+	}
+
 	// create patch policy
 	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
 		Platform:    "windows",
-		Version:     out.Version,
+		Version:     patchVersion,
 		ExistsQuery: out.Queries.Exists,
 	})
 	if err != nil {
@@ -411,6 +483,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 func escapeSQLParam(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// firstDisplayVersion returns the first non-empty DisplayVersion from a set of
+// AppsAndFeaturesEntries, or "" if none is present.
+func firstDisplayVersion(entries []appsAndFeaturesEntries) string {
+	for _, fe := range entries {
+		if v := strings.TrimSpace(fe.DisplayVersion); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
@@ -520,6 +603,12 @@ type inputApp struct {
 	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// ExistsQuery overrides the default programs-table exists query (e.g. portable zip installs).
 	ExistsQuery string `json:"exists_query,omitempty"`
+	// UseDisplayVersionForPatch makes the patch policy compare against the
+	// installer's registry DisplayVersion (from AppsAndFeaturesEntries) instead of
+	// the winget PackageVersion. Needed when the registry version format differs
+	// from the marketing version in a way that breaks version_compare ordering
+	// (e.g. python.org installers report "3.14.5150.0" for version "3.14.5").
+	UseDisplayVersionForPatch bool `json:"use_display_version_for_patch"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
@@ -557,9 +646,10 @@ type installerSwitches struct {
 }
 
 type appsAndFeaturesEntries struct {
-	Publisher   string `yaml:"Publisher"`
-	ProductCode string `yaml:"ProductCode"`
-	UpgradeCode string `yaml:"UpgradeCode"`
+	Publisher      string `yaml:"Publisher"`
+	ProductCode    string `yaml:"ProductCode"`
+	UpgradeCode    string `yaml:"UpgradeCode"`
+	DisplayVersion string `yaml:"DisplayVersion"`
 }
 
 type localeManifest struct {

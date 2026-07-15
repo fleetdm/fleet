@@ -1532,8 +1532,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -2153,7 +2153,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	resp = listHostsResponse{}
@@ -2417,7 +2417,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	for _, host := range hosts {
 		// All hosts pass the globalPolicy1
-		err := s.ds.RecordPolicyQueryExecutions(
+		_, err := s.ds.RecordPolicyQueryExecutions(
 			context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil,
 		)
 		require.NoError(t, err)
@@ -3263,8 +3263,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3313,14 +3313,14 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 
 	// Record query executions
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil,
-		),
+		)),
 	)
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil,
-		),
+		)),
 	)
 	// Update policy stats
 	require.NoError(t, s.ds.UpdateHostPolicyCounts(context.Background()))
@@ -3505,8 +3505,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?team_id=%d&policy_id=%d&policy_response=passing", team1.ID, policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3714,7 +3714,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
-	err = s.ds.RecordPolicyQueryExecutions(
+	_, err = s.ds.RecordPolicyQueryExecutions(
 		context.Background(),
 		host1,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
@@ -5700,7 +5700,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -5757,7 +5757,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -6138,7 +6138,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	// Add MDM info
@@ -8248,6 +8248,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -8353,10 +8356,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
 	)
 
-	// lock/unlock/wipe a host
+	// lock/unlock/wipe a host. Wipe is Premium-only only for non-Android platforms (Android COBO wipe is available on Fleet Free).
+	wipeHost := s.createHosts(t, "darwin")[0]
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
-	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
+	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
 
 	// try to update the enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
@@ -9539,8 +9543,8 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, lblMap, len(builtinNames))
 
 	// no search criteria
-	var searchResp searchTargetsResponse
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{}, http.StatusOK, &searchResp)
+	var searchResp fleet.SearchTargetsResponse
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, len(lblMap))
@@ -9551,22 +9555,22 @@ func (s *integrationTestSuite) TestSearchTargets() {
 		lblIDs = append(lblIDs, labelID)
 	}
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
 	require.Len(t, searchResp.Targets.Labels, 0)         // All built-in labels have been omitted (pre-selected)
 	require.Len(t, searchResp.Targets.Teams, 0)
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(1), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
 	require.Len(t, searchResp.Targets.Labels, len(lblMap)) // labels have not been omitted
 	require.Len(t, searchResp.Targets.Teams, 0)
 
-	searchResp = searchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	searchResp = fleet.SearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets", fleet.SearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Equal(t, uint(0), searchResp.TargetsCount)
 	require.Len(t, searchResp.Targets.Hosts, 1)
 	require.Len(t, searchResp.Targets.Labels, 1) // with a match query, only matching label names and "All Hosts" can be returned (here, only all hosts)
@@ -9672,12 +9676,12 @@ func (s *integrationTestSuite) TestCountTargets() {
 	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(ptr.Uint(team.ID), []uint{hostIDs[0]}))
 	require.NoError(t, err)
 
-	var countResp countTargetsResponse
+	var countResp fleet.CountTargetsResponse
 	// sleep to reduce flake in last seen time so that online/offline counts can be tested
 	time.Sleep(1 * time.Second)
 
 	// none selected
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{}, http.StatusOK, &countResp)
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{}, http.StatusOK, &countResp)
 	require.Equal(t, uint(0), countResp.TargetsCount)
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
@@ -9687,23 +9691,23 @@ func (s *integrationTestSuite) TestCountTargets() {
 		lblIDs = append(lblIDs, labelID)
 	}
 	// all hosts label selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(3), countResp.TargetsCount)
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(2), countResp.TargetsOffline)
 
 	// team selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(1), countResp.TargetsCount)
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
 	// 'No team' selected
-	countResp = countTargetsResponse{}
+	countResp = fleet.CountTargetsResponse{}
 	s.DoJSON(
-		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		"POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
 		http.StatusOK, &countResp,
 	)
 	assert.Equal(t, uint(2), countResp.TargetsCount)
@@ -9711,8 +9715,8 @@ func (s *integrationTestSuite) TestCountTargets() {
 	assert.Equal(t, uint(2), countResp.TargetsOffline)
 
 	// host id selected
-	countResp = countTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
+	countResp = fleet.CountTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", fleet.CountTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
 	require.Equal(t, uint(1), countResp.TargetsCount)
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(1), countResp.TargetsOffline)
@@ -9792,7 +9796,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	// create a policy and make the host fail it
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// refetch the host details
@@ -10538,7 +10542,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// create some device mappings for host[2]
@@ -12960,20 +12964,20 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	for i, host := range hosts {
 		// All hosts pass the globalPolicy0
-		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
+		_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		if i%2 == 0 {
 			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		} else {
 			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -14079,8 +14083,8 @@ func (s *integrationTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil))
 
@@ -15074,12 +15078,12 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Empty request
-	req := createSecretVariablesRequest{}
-	var resp createSecretVariablesResponse
+	req := fleet.CreateSecretVariablesRequest{}
+	var resp fleet.CreateSecretVariablesResponse
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	// Secret variable name too long
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  strings.Repeat("a", 256),
@@ -15091,7 +15095,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	assertBodyContains(t, httpResp, "secret variable name is too long")
 
 	// Secret variable name empty
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "  ",
@@ -15103,7 +15107,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	assertBodyContains(t, httpResp, "secret variable name cannot be empty")
 
 	validName := strings.Repeat("G", 255)
-	req = createSecretVariablesRequest{
+	req = fleet.CreateSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_" + validName,
@@ -15133,8 +15137,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	ctx := context.Background()
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusOK, &csvr)
@@ -15142,8 +15146,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, firstVariableID)
 
 	// List (no-filtering).
-	var lsvr listSecretVariablesResponse
-	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	var lsvr fleet.ListSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
 	require.Equal(t, lsvr.Count, 1)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
@@ -15159,21 +15163,21 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, secretVariables[0].UpdatedAt)
 
 	// Creating the same variable should fail with conflict.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusConflict, &csvr)
 
 	// Creating a variable with invalid name should fail with 422.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "lowercase",
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "",
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  strings.Repeat("HA ", 255/3+1),
 		Value: "foobar",
 	}, http.StatusUnprocessableEntity, &csvr)
@@ -15182,7 +15186,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	defer func() {
 		testSetEmptyPrivateKey = false
 	}()
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME2",
 		Value: "foobar",
 	}, http.StatusBadRequest, &csvr)
@@ -15190,13 +15194,13 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	testSetEmptyPrivateKey = false
 
 	// Creating a variable with empty value should fail with 422.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "ANOTHER_NAME",
 		Value: "",
 	}, http.StatusUnprocessableEntity, &csvr)
 
 	// Creating a second variable.
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "ANOTHER_NAME",
 		Value: "value2",
 	}, http.StatusOK, &csvr)
@@ -15204,7 +15208,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, secondVariableID)
 
 	// List (no-filtering) with pagination (first page).
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "0")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15215,7 +15219,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (second page).
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "1")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15227,7 +15231,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 	// List (no-filtering) with pagination (one page, two secrets).
 	// Must be ordered alphabetically.
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "20", "page", "0")
 	require.Equal(t, 2, lsvr.Count)
 	require.NotNil(t, lsvr.Meta)
@@ -15242,14 +15246,14 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NotZero(t, lsvr.CustomVariables[1].UpdatedAt)
 
 	// Test deletion of non-existent ID
-	var dsvr deleteSecretVariableResponse
+	var dsvr fleet.DeleteSecretVariableResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/custom_variables/999", nil, http.StatusNotFound, &dsvr)
 
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", secondVariableID), nil, http.StatusOK, &dsvr)
 
 	// List after deletions should be empty.
-	lsvr = listSecretVariablesResponse{}
+	lsvr = fleet.ListSecretVariablesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr)
 	require.Equal(t, 0, lsvr.Count)
 	require.Empty(t, lsvr.CustomVariables)
@@ -15265,8 +15269,8 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.NoError(t, err)
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "value1",
 	}, http.StatusOK, &csvr)
@@ -15349,7 +15353,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.NoError(t, err)
 
 	// Finally, delete now should work.
-	var dsvr deleteSecretVariableResponse
+	var dsvr fleet.DeleteSecretVariableResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
 }
 
@@ -15358,8 +15362,8 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	ctx := context.Background()
 
 	// Create a single secret variable.
-	var csvr createSecretVariableResponse
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	var csvr fleet.CreateSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "foobar",
 	}, http.StatusOK, &csvr)
@@ -15375,14 +15379,14 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	require.NoError(t, err)
 	s.setTokenForTest(t, "observer@example.com", test.GoodPassword)
 
-	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", fleet.CreateSecretVariableRequest{
 		Name:  "NAME1",
 		Value: "foobar",
 	}, http.StatusForbidden, &csvr)
 
 	// List (no-filtering) should work for non-admins.
-	var lsvr listSecretVariablesResponse
-	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	var lsvr fleet.ListSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", fleet.ListSecretVariablesRequest{}, http.StatusOK, &lsvr)
 	require.Equal(t, lsvr.Count, 1)
 	require.Len(t, lsvr.CustomVariables, 1)
 	require.NotZero(t, lsvr.CustomVariables[0].ID)
@@ -15675,7 +15679,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}
@@ -16934,9 +16938,9 @@ func (s *integrationTestSuite) TestListHostReports() {
 	})
 }
 
-// TestLabelScopePremiumGate verifies that the include_all scope fields is
-// premium-gated on all entry points for the free-tier (core) server, while
-// existing free-tier label fields (policy include/exclude_any) still work.
+// TestLabelScopePremiumGate verifies that all policy label scope fields
+// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
+// every entry point for the free-tier (core) server.
 func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	t := s.T()
 
@@ -16945,33 +16949,37 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
 	lbl := lblResp.Label
 
-	// LabelsIncludeAll on Global/TeamPolicyRequest is tagged `premium:"true"`, so
-	// the endpoint decoder rejects with 400 before reaching the service handler.
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "premium-gated-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAll: []string{lbl.Name},
-	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	// All policy label scope fields on GlobalPolicyRequest are tagged
+	// `premium:"true"`, so the endpoint decoder rejects with 400 before reaching
+	// the service handler.
+	for _, req := range []fleet.GlobalPolicyRequest{
+		{Name: "premium-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "premium-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "premium-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "premium-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	}
 
-	// Free-tier should still allow creating a policy with LabelsIncludeAny (existing field).
+	// A policy without any label scope can still be created on free-tier.
 	var freeOK fleet.GlobalPolicyResponse
 	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "free-include-any-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAny: []string{lbl.Name},
+		Name:  "free-no-labels-" + t.Name(),
+		Query: "SELECT 1",
 	}, http.StatusOK, &freeOK)
 	require.NotNil(t, freeOK.Policy)
 
-	// Free-tier should reject PATCHing a policy to add LabelsIncludeAll (middleware → 400).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: []string{lbl.Name}},
-	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
-
-	s.DoRaw("PATCH",
-		fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID),
-		fmt.Appendf(nil, `{"labels_include_any":[%q]}`, lbl.Name),
-		http.StatusOK,
-	)
+	// Free-tier should reject PATCHing a policy to add any label scope (middleware → 400).
+	for _, payload := range []fleet.ModifyPolicyPayload{
+		{LabelsIncludeAll: []string{lbl.Name}},
+		{LabelsIncludeAny: []string{lbl.Name}},
+		{LabelsExcludeAll: []string{lbl.Name}},
+		{LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+			ModifyPolicyPayload: payload,
+		}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+	}
 
 	for _, payload := range []fleet.QueryPayload{
 		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
@@ -16982,13 +16990,16 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 
 	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
 	// so the gate fires at the service layer and returns 402 (PaymentRequired).
-	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
-		Specs: []*fleet.PolicySpec{{
-			Name:             "spec-premium-gate-" + t.Name(),
-			Query:            "SELECT 1",
-			LabelsIncludeAll: []string{lbl.Name},
-		}},
-	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	for _, spec := range []*fleet.PolicySpec{
+		{Name: "spec-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "spec-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "spec-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "spec-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{spec},
+		}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	}
 
 	// Same for QuerySpec.
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{

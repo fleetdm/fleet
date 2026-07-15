@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import variablesAPI, {
   IListVariablesResponse,
@@ -9,13 +10,16 @@ import { IVariable } from "interfaces/variables";
 
 import { AppContext } from "context/app";
 
-import { stringToClipboard } from "utilities/copy_text";
-import { FLEET_WEBSITE_URL } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  FLEET_WEBSITE_URL,
+} from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -28,12 +32,16 @@ const baseClass = "variables";
 
 export const VARIABLES_PAGE_SIZE = 20;
 
-const Variables = () => {
-  const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
+interface IVariablesProps {
+  router: InjectedRouter;
+  location: {
+    pathname: string;
+    query: { add_variable?: string };
+  };
+}
 
-  const [copyMessage, setCopyMessage] = useState("");
-  const [copiedVariableName, setCopiedVariableName] = useState("");
-  const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+const Variables = ({ router, location }: IVariablesProps) => {
+  const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [variableToDelete, setVariableToDelete] = useState<
@@ -53,22 +61,22 @@ const Variables = () => {
     IListVariablesResponse,
     Error,
     IListVariablesResponse
-  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams));
+  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
-  // Open add modal via query param (e.g. from command palette)
+  // Open the Add variable modal via deep-link (e.g. from the command
+  // palette). Gate on the same predicate the in-page button uses — the
+  // param must not bypass admin/maintainer-only authoring. Strip the
+  // param either way so refreshes don't keep trying.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("add_variable") === "1") {
+    if (location.query.add_variable !== "1") return;
+    if (canEdit) {
       setShowAddModal(true);
-      params.delete("add_variable");
-      const qs = params.toString();
-      window.history.replaceState(
-        {},
-        "",
-        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-      );
     }
-  }, []);
+    const { add_variable, ...rest } = location.query;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [location.query, location.pathname, router, canEdit]);
 
   const onClickAddVariable = () => {
     setShowAddModal(true);
@@ -93,36 +101,6 @@ const Variables = () => {
     return `$FLEET_SECRET_${variableName.toUpperCase()}`;
   };
 
-  const onCopyVariableName = (evt: React.MouseEvent, variableName: string) => {
-    evt.preventDefault();
-
-    if (copyMessageTimeoutIdRef.current) {
-      clearTimeout(copyMessageTimeoutIdRef.current);
-    }
-
-    setCopiedVariableName(variableName);
-    stringToClipboard(getTokenFromVariableName(variableName))
-      .then(() => setCopyMessage("Copied!"))
-      .catch(() => setCopyMessage("Copy failed"));
-
-    // Clear message after 1 second
-    copyMessageTimeoutIdRef.current = setTimeout(() => {
-      setCopyMessage("");
-      setCopiedVariableName("");
-    }, 1000);
-
-    return false;
-  };
-
-  // Cleanup timeout on unmount.
-  useEffect(() => {
-    return () => {
-      if (copyMessageTimeoutIdRef.current) {
-        clearTimeout(copyMessageTimeoutIdRef.current);
-      }
-    };
-  }, []);
-
   const renderVariableRow = (variable: IVariable) => (
     <>
       <ListItem
@@ -134,20 +112,10 @@ const Variables = () => {
               <HumanTimeDiffWithDateTip timeString={variable.updated_at} />{" "}
               &bull; {getTokenFromVariableName(variable.name)}
             </span>
-            <Button
-              variant="unstyled"
-              className={`${baseClass}__copy-variable-icon`}
-              onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                onCopyVariableName(e, variable.name)
-              }
-            >
-              <Icon name="copy" />
-            </Button>
-            {copyMessage && copiedVariableName === variable.name && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage} `}</span>
-            )}
+            <CopyButton
+              copyText={getTokenFromVariableName(variable.name)}
+              variant="compact"
+            />
           </span>
         }
       />

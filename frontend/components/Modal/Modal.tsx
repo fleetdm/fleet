@@ -105,6 +105,27 @@ const Modal = ({
     return undefined;
   }, [onEnter]);
 
+  useEffect(() => {
+    const onWindowBlur = () => {
+      isDownOnBackgroundRef.current = false;
+    };
+    window.addEventListener("blur", onWindowBlur);
+    return () => {
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => {
+      // By cleanup time this modal's own background node is already
+      // detached, so only unlock scroll once none remain.
+      if (document.querySelectorAll(`.${baseClass}__background`).length === 0) {
+        document.body.classList.remove("modal-open");
+      }
+    };
+  }, []);
+
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
     [`${baseClass}__closing`]: isClosing,

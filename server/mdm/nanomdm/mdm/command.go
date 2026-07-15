@@ -1,6 +1,7 @@
 package mdm
 
 import (
+	"bytes"
 	"errors"
 
 	"github.com/micromdm/plist"
@@ -32,7 +33,7 @@ type CommandResults struct {
 // DecodeCheckin unmarshals rawMessage into results
 func DecodeCommandResults(rawResults []byte) (results *CommandResults, err error) {
 	results = new(CommandResults)
-	err = plist.Unmarshal(rawResults, results)
+	err = plist.NewXMLDecoder(bytes.NewReader(rawResults)).Decode(results)
 	if err != nil {
 		return
 	}
@@ -68,7 +69,7 @@ type CommandWithSubtype struct {
 // DecodeCommand unmarshals rawCommand into command
 func DecodeCommand(rawCommand []byte) (command *Command, err error) {
 	command = new(Command)
-	err = plist.Unmarshal(rawCommand, command)
+	err = plist.NewXMLDecoder(bytes.NewReader(rawCommand)).Decode(command)
 	if err != nil {
 		return
 	}

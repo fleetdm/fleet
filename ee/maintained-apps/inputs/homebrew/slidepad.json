@@ -1,0 +1,10 @@
+{
+  "name": "Slidepad",
+  "unique_identifier": "com.slidepad.slidepad",
+  "token": "slidepad",
+  "installer_format": "zip",
+  "slug": "slidepad/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

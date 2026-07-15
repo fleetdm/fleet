@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -26,7 +27,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (tpol, ipol []*fleet.Policy, err error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) (tpol, ipol []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -154,7 +155,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByID(ctx, 1, 1)
@@ -223,6 +224,11 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		patchSoftwareDisplay   = "Patchable App.app"
 	)
 
+	wantInstallIconURL := fmt.Sprintf(
+		"/api/latest/fleet/software/titles/%d/icon?fleet_id=%d",
+		softwareInstallerTitle, teamID,
+	)
+
 	// Returns a fresh team-scoped policy with all three automation IDs set.
 	// Each test gets a separate copy to prevent cross-test mutation.
 	freshPolicy := func() *fleet.Policy {
@@ -251,10 +257,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.TeamPolicyFunc = func(ctx context.Context, tID uint, id uint) (*fleet.Policy, error) {
 			return freshPolicy(), nil
 		}
-		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, []*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil, nil
 		}
-		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil
 		}
 		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
@@ -283,6 +289,16 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 				DisplayName:   patchSoftwareDisplay,
 			}, nil
 		}
+		ds.GetSoftwareIconsByTeamAndTitleIdsFunc = func(ctx context.Context, tID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error) {
+			require.Equal(t, teamID, tID)
+			// Only the install-software title has a custom icon uploaded.
+			return map[uint]fleet.SoftwareTitleIcon{
+				softwareInstallerTitle: {
+					TeamID:          teamID,
+					SoftwareTitleID: softwareInstallerTitle,
+				},
+			}, nil
+		}
 		return ds
 	}
 
@@ -302,6 +318,19 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, patchInstallerTitleID, p.PatchSoftware.SoftwareTitleID)
 		assert.Equal(t, patchSoftwareTitleName, p.PatchSoftware.Name)
 		assert.Equal(t, patchSoftwareDisplay, p.PatchSoftware.DisplayName)
+	}
+
+	// requireSoftwareIconURLs verifies that install_software.icon_url is set to the
+	// custom icon path when one exists, and that patch_software.icon_url stays nil
+	// when the title has no custom icon.
+	requireSoftwareIconURLs := func(t *testing.T, p *fleet.Policy) {
+		t.Helper()
+		require.NotNil(t, p.InstallSoftware, "install_software should be populated")
+		require.NotNil(t, p.InstallSoftware.IconURL, "install_software icon_url should be set when a custom icon exists")
+		assert.Equal(t, wantInstallIconURL, *p.InstallSoftware.IconURL)
+
+		require.NotNil(t, p.PatchSoftware, "patch_software should be populated")
+		assert.Nil(t, p.PatchSoftware.IconURL, "patch_software icon_url should be nil when no custom icon exists")
 	}
 
 	adminCtx := func(ctx context.Context) context.Context {
@@ -336,6 +365,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		policy, err := svc.GetTeamPolicyByID(ctx, teamID, policyID)
 		require.NoError(t, err)
 		requireAutomationsPopulated(t, policy)
+		requireSoftwareIconURLs(t, policy)
 	})
 
 	t.Run("GetPolicyByID", func(t *testing.T) {
@@ -346,6 +376,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		policy, err := svc.GetPolicyByID(ctx, policyID)
 		require.NoError(t, err)
 		requireAutomationsPopulated(t, policy)
+		requireSoftwareIconURLs(t, policy)
 	})
 
 	t.Run("ListTeamPolicies", func(t *testing.T) {
@@ -353,10 +384,11 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 		require.NoError(t, err)
 		require.Len(t, teamPols, 1)
 		requireAutomationsPopulated(t, teamPols[0])
+		requireSoftwareIconURLs(t, teamPols[0])
 	})
 
 	t.Run("ListTeamPolicies_mergeInherited", func(t *testing.T) {
@@ -364,10 +396,11 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "")
+		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "", "")
 		require.NoError(t, err)
 		require.Len(t, merged, 1)
 		requireAutomationsPopulated(t, merged[0])
+		requireSoftwareIconURLs(t, merged[0])
 	})
 
 	t.Run("ModifyTeamPolicy", func(t *testing.T) {
@@ -385,6 +418,190 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		require.NoError(t, err)
 		requireAutomationsPopulated(t, policy)
 	})
+}
+
+// TestPopulateSoftwareIconURLs verifies how the software automation icon_url is derived:
+// - Titles with a custom uploaded icon and VPP apps both get the icon endpoint URL (which serves the custom icon or redirects to the App Store icon).
+// - Package installers with no custom icon get a nil URL (so clients use the default icon and avoid a 404).
+// - Inherited policies (nil team, no software, present in merged lists) are skipped.
+func TestPopulateSoftwareIconURLs(t *testing.T) {
+	const (
+		teamID               = uint(7)
+		customInstallerTitle = uint(11)
+		plainInstallerTitle  = uint(12)
+		vppPlainTitle        = uint(13)
+		vppCustomTitle       = uint(14)
+		patchCustomTitle     = uint(15)
+		vppAppsTeamsID       = uint(900)
+	)
+
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	// populateSoftwareIconURLs is unexported, so reach the concrete service.
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+
+	var requestedTitleIDs []uint
+	ds.GetSoftwareIconsByTeamAndTitleIdsFunc = func(ctx context.Context, tID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error) {
+		require.Equal(t, teamID, tID)
+		requestedTitleIDs = titleIDs
+		// Custom icons exist for one installer, one VPP app, and one patch title.
+		return map[uint]fleet.SoftwareTitleIcon{
+			customInstallerTitle: {TeamID: teamID, SoftwareTitleID: customInstallerTitle},
+			vppCustomTitle:       {TeamID: teamID, SoftwareTitleID: vppCustomTitle},
+			patchCustomTitle:     {TeamID: teamID, SoftwareTitleID: patchCustomTitle},
+		}, nil
+	}
+
+	tID := teamID
+	teamPolicy := func(install *fleet.PolicySoftwareTitle, vppAppsTeamsID *uint, patch *fleet.PolicySoftwareTitle) *fleet.Policy {
+		return &fleet.Policy{
+			PolicyData:      fleet.PolicyData{TeamID: &tID, VPPAppsTeamsID: vppAppsTeamsID},
+			InstallSoftware: install,
+			PatchSoftware:   patch,
+		}
+	}
+
+	customInstaller := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: customInstallerTitle}, nil, nil)
+	plainInstaller := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: plainInstallerTitle}, nil, nil)
+	vppPlain := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppPlainTitle}, new(vppAppsTeamsID), nil)
+	vppCustom := teamPolicy(&fleet.PolicySoftwareTitle{SoftwareTitleID: vppCustomTitle}, new(vppAppsTeamsID), nil)
+	patchPolicy := teamPolicy(nil, nil, &fleet.PolicySoftwareTitle{SoftwareTitleID: patchCustomTitle})
+	inheritedPolicy := &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: nil}}
+
+	policies := []*fleet.Policy{customInstaller, plainInstaller, vppPlain, vppCustom, patchPolicy, inheritedPolicy}
+	require.NoError(t, svcImpl.populateSoftwareIconURLs(ctx, policies))
+
+	require.True(t, ds.GetSoftwareIconsByTeamAndTitleIdsFuncInvoked)
+	// The inherited policy has no team and no software, so it contributes nothing.
+	require.ElementsMatch(t,
+		[]uint{customInstallerTitle, plainInstallerTitle, vppPlainTitle, vppCustomTitle, patchCustomTitle},
+		requestedTitleIDs,
+	)
+
+	// Custom installer icon → canonical endpoint URL.
+	require.NotNil(t, customInstaller.InstallSoftware.IconURL)
+	assert.Equal(t,
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", customInstallerTitle, teamID),
+		*customInstaller.InstallSoftware.IconURL,
+	)
+
+	// Plain installer, no custom icon → nil (client uses default icon, no 404).
+	assert.Nil(t, plainInstaller.InstallSoftware.IconURL)
+
+	// VPP app, no custom icon → endpoint URL (redirects to App Store icon).
+	require.NotNil(t, vppPlain.InstallSoftware.IconURL)
+	assert.Equal(t,
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", vppPlainTitle, teamID),
+		*vppPlain.InstallSoftware.IconURL,
+	)
+
+	// VPP app with a custom icon → still gets the endpoint URL (custom icon served).
+	require.NotNil(t, vppCustom.InstallSoftware.IconURL)
+	assert.Equal(t,
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", vppCustomTitle, teamID),
+		*vppCustom.InstallSoftware.IconURL,
+	)
+
+	// Patch software with a custom icon → endpoint URL.
+	require.NotNil(t, patchPolicy.PatchSoftware.IconURL)
+	assert.Equal(t,
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", patchCustomTitle, teamID),
+		*patchPolicy.PatchSoftware.IconURL,
+	)
+}
+
+func TestNewTeamPolicyQueryIDAuth(t *testing.T) {
+	const (
+		callerTeamID = uint(1)
+		otherTeamID  = uint(2)
+		queryID      = uint(99)
+		secretSQL    = "SELECT secret FROM restricted;"
+	)
+
+	otherTeam := otherTeamID
+	callerTeam := callerTeamID
+
+	testCases := []struct {
+		name        string
+		user        *fleet.User
+		queryTeamID *uint
+		shouldFail  bool
+	}{
+		{
+			name:        "team admin references another team's query",
+			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
+			queryTeamID: &otherTeam,
+			shouldFail:  true,
+		},
+		{
+			name:        "team gitops references a global query",
+			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleGitOps}}},
+			queryTeamID: nil,
+			shouldFail:  true,
+		},
+		{
+			name:        "team admin references a global query",
+			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
+			queryTeamID: nil,
+			shouldFail:  false,
+		},
+		{
+			name:        "team admin references their own team's query",
+			user:        &fleet.User{ID: 1, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: callerTeamID}, Role: fleet.RoleAdmin}}},
+			queryTeamID: &callerTeam,
+			shouldFail:  false,
+		},
+		{
+			name:        "global admin references another team's query",
+			user:        &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
+			queryTeamID: &otherTeam,
+			shouldFail:  false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{}
+			svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+				return nil
+			}
+
+			ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+				require.Equal(t, queryID, id)
+				return &fleet.Query{
+					ID:     id,
+					TeamID: tc.queryTeamID,
+					Name:   "referenced query",
+					Query:  secretSQL,
+				}, nil
+			}
+			ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+				return &fleet.Policy{
+					PolicyData: fleet.PolicyData{ID: 1, TeamID: &callerTeam, Name: "referenced query", Query: secretSQL},
+				}, nil
+			}
+			ds.TeamLiteFunc = func(ctx context.Context, tID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tID}, nil
+			}
+
+			ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tc.user})
+
+			_, err := svc.NewTeamPolicy(ctx, callerTeamID, fleet.NewTeamPolicyPayload{
+				QueryID: new(queryID),
+			})
+
+			if tc.shouldFail {
+				require.Error(t, err)
+				var forbiddenError *authz.Forbidden
+				require.ErrorAs(t, err, &forbiddenError)
+			} else {
+				require.NoError(t, err)
+			}
+			require.True(t, ds.QueryFuncInvoked, "expected the referenced query to be loaded for a read authorization check")
+		})
+	}
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

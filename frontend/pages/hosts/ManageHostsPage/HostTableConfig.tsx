@@ -190,13 +190,14 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_model",
     id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell
+      <TooltipTruncatedTextCell
         value={
           isAppleDevice(cellProps.row.original.platform)
             ? cellProps.row.original.hardware_marketing_name ||
               cellProps.cell.value
             : cellProps.cell.value
         }
+        className="w250"
       />
     ),
   },
@@ -467,13 +468,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={
-            <>
-              Settings can be updated remotely on hosts with MDM turned
-              <br />
-              on. To filter by MDM status, head to the Dashboard page.
-            </>
-          }
+          tipContent={<>To filter by MDM status, head to the Dashboard page.</>}
         >
           MDM status
         </TooltipWrapper>
@@ -589,22 +584,61 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       );
     },
   },
-  // Osquery
+  // Agent
   {
-    title: "Osquery",
+    title: "Agent",
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Osquery"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
+      <HeaderCell value="Agent" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
-    accessor: "osquery_version",
-    id: "osquery_version",
+    accessor: (row) => row.orbit_version || row.osquery_version,
+    id: "agent",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      const {
+        platform,
+        orbit_version,
+        osquery_version,
+        fleet_desktop_version,
+      } = cellProps.row.original;
+
+      if (isMobilePlatform(platform)) {
         return NotSupported;
       }
-      return <TextCell value={cellProps.cell.value} />;
+
+      // Match the Host details Vitals card: treat a missing/empty orbit version
+      // (including the normalized "---" placeholder) as a vanilla osquery host.
+      const isChromeOrVanillaOsquery =
+        platform === "chrome" ||
+        !orbit_version ||
+        orbit_version === DEFAULT_EMPTY_CELL_VALUE;
+
+      if (isChromeOrVanillaOsquery) {
+        return <TextCell value={osquery_version} />;
+      }
+
+      return (
+        <TextCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {osquery_version}
+                  <br />
+                  Orbit: {orbit_version}
+                  {fleet_desktop_version &&
+                    fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                      <>
+                        <br />
+                        Fleet Desktop: {fleet_desktop_version}
+                      </>
+                    )}
+                </>
+              }
+            >
+              {orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
     },
   },
   // Last seen
@@ -679,6 +713,8 @@ const defaultHiddenColumns = [
   "device_mapping",
   "primary_mac",
   "public_ip",
+  "primary_ip",
+  "issues",
   "cpu_type",
   // TODO: should those be mdm.<blah>?
   "mdm.server_url",

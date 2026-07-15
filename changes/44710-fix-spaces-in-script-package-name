@@ -1,0 +1,1 @@
+- Fixed a bug where if a script-only package was provided with spaces in the path name in a GitOps run, it would fail validation.

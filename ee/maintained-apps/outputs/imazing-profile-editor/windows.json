@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.0.4.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'iMazing Profile Editor' AND publisher = 'DigiDNA';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'iMazing Profile Editor' AND publisher = 'DigiDNA' AND version_compare(version, '2.0.4.0') < 0);"
+      },
+      "installer_url": "https://downloads.imazing.com/windows/iMazing-Profile-Editor/2.0.4/iMazing_Profile_Editor_2.0.4.exe",
+      "install_script_ref": "46d85965",
+      "uninstall_script_ref": "120c1575",
+      "sha256": "1bd94ad14d40321761a2c6415c6bc716fe975117c845dd24e1a81787fe1bb6a9",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "120c1575": "# Uninstall iMazing Profile Editor (Inno Setup).\n#\n# It is recommended to use an exact software name here if possible to avoid\n# uninstalling unintended software.\n$softwareNameLike = \"*iMazing Profile Editor*\"\n\n# Inno Setup uninstallers run silently with these flags.\n$silentArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n\n        # Prefer QuietUninstallString when present.\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Parse the UninstallString defensively. It can be:\n        #   \"C:\\path with spaces\\unins000.exe\" /SILENT   (quoted)\n        #   C:\\path with spaces\\unins000.exe /SILENT      (unquoted, may contain spaces)\n        #   MsiExec.exe /X{GUID}                          (bare token)\n        $exe = $null\n        $existingArgs = \"\"\n        if ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exe = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exe = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n            $exe = $matches[1]\n            $existingArgs = $matches[2].Trim()\n        } else {\n            Throw \"Could not parse uninstall command: $uninstallCommand\"\n        }\n\n        # Ensure silent flags are present (skip if QuietUninstallString already has them).\n        $uninstallArgs = $existingArgs\n        if ($existingArgs -notmatch '(?i)/VERYSILENT|/SILENT') {\n            $uninstallArgs = \"$existingArgs $silentArgs\".Trim()\n        }\n\n        Write-Host \"Uninstall command: $exe\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $exe\n            PassThru = $true\n            Wait = $true\n        }\n        if ($uninstallArgs -ne '') {\n            $processOptions.ArgumentList = $uninstallArgs\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 0\n}\n\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "46d85965": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Inno Setup installers use these flags for a silent, machine-wide install\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Unity Hub",
+  "unique_identifier": "com.unity3d.unityhub",
+  "token": "unity-hub",
+  "installer_format": "dmg",
+  "slug": "unity-hub/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

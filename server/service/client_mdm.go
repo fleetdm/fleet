@@ -49,7 +49,7 @@ func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
 }
 
 func (c *Client) CountABMTokens() (int, error) {
-	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	verb, path := "GET", "/api/latest/fleet/ab_tokens/count"
 	var responseBody countABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.Count, err
@@ -67,7 +67,7 @@ func (c *Client) RequestAppleCSR() ([]byte, error) {
 // RequestAppleABM requests a signed CSR from the Fleet server and returns the
 // public key bytes
 func (c *Client) RequestAppleABM() ([]byte, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/ab_public_key"
 	var resp generateABMKeyPairResponse
 	err := c.authenticatedRequest(nil, verb, path, &resp)
 	return resp.PublicKey, err

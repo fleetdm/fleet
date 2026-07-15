@@ -1,16 +1,18 @@
 import React from "react";
 
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import strUtils from "utilities/strings";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -25,6 +27,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
+    <Icon name="filter" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
@@ -60,7 +63,7 @@ const ProfileDetails = ({
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
       <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${formatDistanceToNow(new Date(uploadedAt))} ago`}
+        {`Uploaded ${timeAgo(new Date(uploadedAt), { addSuffix: true })}`}
       </span>
     </div>
   );
@@ -113,8 +116,13 @@ const ProfileListItem = ({
     labels_exclude_any,
     name,
     platform,
+    scope,
   } = profile;
   const subClass = "list-item";
+
+  // iOS/iPadOS don't support user channels, so never show the user-scope icon
+  // for them (matches the host details OS settings table).
+  const isUserScoped = scope === "User" && !isIPadOrIPhone(platform);
 
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);
@@ -125,16 +133,20 @@ const ProfileListItem = ({
     FileSaver.saveAs(file);
   };
 
-  const labels = labels_include_all || labels_include_any || labels_exclude_any;
+  const labels = [
+    ...(labels_include_all ?? []),
+    ...(labels_include_any ?? []),
+    ...(labels_exclude_any ?? []),
+  ];
 
   const renderLabelInfo = () => {
-    if (!isPremium || labels === undefined || labels.length === 0) {
+    if (!isPremium || labels.length === 0) {
       return null;
     }
 
     return (
       <div className={`${subClass}__labels`}>
-        {labels?.some((label) => label.broken) && <Icon name="warning" />}
+        {labels.some((label) => label.broken) && <Icon name="warning" />}
         <LabelCount className={subClass} count={labels.length} />
       </div>
     );
@@ -146,7 +158,27 @@ const ProfileListItem = ({
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
         <div className={`${subClass}__info`}>
-          <span className={`${subClass}__title`}>{name}</span>
+          <div className={`${baseClass}__title-row`}>
+            <TooltipWrapper
+              tipContent={`UUID: ${profile.profile_uuid}`}
+              underline={false}
+              position="top"
+              showArrow
+            >
+              <span className={`${subClass}__title`}>{name}</span>
+            </TooltipWrapper>
+            {isUserScoped && (
+              <TooltipWrapper
+                className={`${baseClass}__scope-tooltip`}
+                tipContent="Scoped to the user channel."
+                underline={false}
+                position="top"
+                showArrow
+              >
+                <Icon name="user" />
+              </TooltipWrapper>
+            )}
+          </div>
           <div className={`${subClass}__details`}>
             <ProfileDetails
               platform={platform}
@@ -166,7 +198,7 @@ const ProfileListItem = ({
           >
             <Icon name="info" size="medium" />
           </Button>
-          {isPremium && labels !== undefined && labels.length && (
+          {isPremium && labels.length > 0 && (
             <Button
               className={`${subClass}__action-button`}
               variant="icon"

@@ -26,11 +26,13 @@ jobs:
   test-fma:
     env:
       LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
-    runs-on: windows-latest
+    # ARM64 runner so we can validate ARM-native FMAs. x86/x64 FMAs continue to
+    # install and run here via Windows 11 on ARM's Prism emulation.
+    runs-on: windows-11-arm
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -41,6 +43,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.ref }}
           path: fleet
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -50,7 +53,16 @@ jobs:
       - name: Install osquery windows
         run: |
           Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
-          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
+          # Use the native osquery build for the runner architecture. On
+          # windows-11-arm this picks the arm64 zip so osqueryi runs natively
+          # rather than under Prism emulation; x86_64 runners keep the x64 zip.
+          if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+            $osqueryAsset = "osquery-5.18.1.windows_arm64.zip"
+          } else {
+            $osqueryAsset = "osquery-5.18.1.windows_x86_64.zip"
+          }
+          Write-Host "Downloading osquery asset: $osqueryAsset"
+          curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/$osqueryAsset"
           Expand-Archive -Path osquery.zip -DestinationPath osquery
           Get-ChildItem -Recurse osquery | Where-Object { $_.Name -like "*osquery*" -and $_.Extension -eq ".exe" }
           $osqueryPath = (Get-ChildItem -Recurse osquery | Where-Object { $_.Name -eq "osqueryi.exe" }).Directory.FullName

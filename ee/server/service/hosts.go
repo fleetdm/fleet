@@ -64,12 +64,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockPersonalHostsMessage,
 			}
 		}
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (manual)" &&
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual &&
 			(host.FleetPlatform() == "ios" || host.FleetPlatform() == "ipados") {
 			return "", &fleet.BadRequestError{
 				Message: fleet.CantLockManualIOSIpadOSHostsMessage,
@@ -282,7 +282,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 	var requireMDM bool
 	switch host.FleetPlatform() {
 	case "darwin", "ios", "ipados":
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
+		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal {
 			return &fleet.BadRequestError{
 				Message: fleet.CantWipePersonalHostsMessage,
 			}
@@ -322,18 +322,8 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.M
 		}
 
 	case "android":
-		// Wipe is COBO-only for Android. BYO unenroll already runs an AMAPI WIPE under the hood (see UnenrollAndroidHost) and surfaces as
-		// the mdm_unenrolled activity; routing BYO hosts through the Wipe flow would be redundant + misleading.
-		if host.MDM.EnrollmentStatus != nil && *host.MDM.EnrollmentStatus == "On (personal)" {
-			return &fleet.BadRequestError{
-				Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
-			}
-		}
-		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
-			if errors.Is(err, fleet.ErrMDMNotConfigured) {
-				err = fleet.NewInvalidArgumentError("host_id", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
-			}
-			return ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		if err := fleet.ValidateAndroidWipeRequest(ctx, svc.ds, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate android wipe request")
 		}
 		requireMDM = true
 
@@ -580,6 +570,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		fleet.ActivityTypeWipedHost{
 			HostID:          host.ID,
 			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.FleetPlatform(),
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")

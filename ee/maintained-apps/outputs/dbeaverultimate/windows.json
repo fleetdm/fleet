@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.0.0",
+      "version": "26.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaverUltimate %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverUltimate %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverUltimate %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);"
       },
-      "installer_url": "https://downloads.dbeaver.net/ultimate/26.0.0/dbeaver-ue-26.0.0-windows-x86_64.exe",
+      "installer_url": "https://downloads.dbeaver.net/ultimate/26.1.0/dbeaver-ue-26.1.0-windows-x86_64.exe",
       "install_script_ref": "d46ba9a9",
       "uninstall_script_ref": "d9df80cd",
-      "sha256": "fe28a204a932105c6dddf1f673a00f95e30180bf814dea099f6633cae0567805",
+      "sha256": "5e068ec148de4418b13226df55ad62cee403a3ed99ff9415a887bf9dc7a0ec3f",
       "default_categories": [
         "Developer tools"
       ]

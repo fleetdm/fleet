@@ -116,6 +116,7 @@ type SoftwareInstaller struct {
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
 	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
+	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -184,6 +185,32 @@ func (p SoftwarePackageResponse) GetIconHash() string      { return p.IconHash }
 func (p SoftwarePackageResponse) GetIconFilename() string  { return p.IconFilename }
 func (p SoftwarePackageResponse) GetLocalIconHash() string { return p.LocalIconHash }
 func (p SoftwarePackageResponse) GetLocalIconPath() string { return p.LocalIconPath }
+
+// SoftwareTitleIdentifier identifies a software title using the same matching
+// semantics as the software batch-set deletion: titles match on
+// (unique_identifier, source), where unique_identifier is the bundle
+// identifier when present and the title name otherwise.
+type SoftwareTitleIdentifier struct {
+	// UniqueIdentifier is the title's bundle identifier when present,
+	// otherwise its name (mirrors software_titles.unique_identifier).
+	UniqueIdentifier string
+	// Source is the title's source (e.g. "apps", "programs").
+	Source string
+}
+
+// DeletedSoftwarePackage describes a software package that a batch-set
+// operation will delete (or, on a dry run, would delete) because its title
+// matches no incoming payload.
+type DeletedSoftwarePackage struct {
+	// TeamID is the ID of the team. A value of nil means it is scoped to
+	// hosts that are assigned to "No team".
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	// TitleID is the id of the software title associated with the software installer.
+	TitleID uint `json:"title_id" db:"title_id"`
+	// DisplayName is the team's display-name override for the title when
+	// set, otherwise the software title name.
+	DisplayName string `json:"display_name" db:"display_name"`
+}
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
@@ -401,6 +428,11 @@ type HostLastInstallData struct {
 	ExecutionID string `db:"execution_id"`
 	// Status is the status of the installation on the host.
 	Status *SoftwareInstallerStatus `db:"status"`
+	// UpdatedAt is when the install record was last updated. For a completed install
+	// this reflects when it reached its terminal status (e.g. installed), which is what
+	// requests the host refetch; it is used to throttle continuous policy automation
+	// re-installs (see continuousAutomationOnCooldown).
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // HostSoftwareInstaller represents a software installer package that has been installed on a host.
@@ -554,10 +586,14 @@ type UploadSoftwareInstallerPayload struct {
 	UpgradeCode        string
 	UninstallScript    string
 	Extension          string
-	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny   []string // names of "include any" labels
-	LabelsExcludeAny   []string // names of "exclude any" labels
-	LabelsIncludeAll   []string // names of "include all" labels
+	InstallDuringSetup *bool // keep saved value if nil, otherwise set as indicated
+	// SetupExperiencePlatforms carries non-native cross-platform setup
+	// experience selections. Nil means "no change"; an empty slice clears
+	// all cross-platform selections for this installer.
+	SetupExperiencePlatforms *[]string
+	LabelsIncludeAny         []string // names of "include any" labels
+	LabelsExcludeAny         []string // names of "exclude any" labels
+	LabelsIncludeAll         []string // names of "include all" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
 	ValidatedLabels       *LabelIdentsWithScope
@@ -579,6 +615,14 @@ type UploadSoftwareInstallerPayload struct {
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
+}
+
+// SoftwareInstallerLookupRow projects the columns needed to resolve an
+// installer's identity from its (filename, platform) natural key.
+type SoftwareInstallerLookupRow struct {
+	ID       uint   `db:"id"`
+	Filename string `db:"filename"`
+	Platform string `db:"platform"`
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -661,6 +705,8 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Pins a Fleet-maintained app to a specific or major version
+	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
 }
@@ -669,7 +715,8 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
+		u.PinnedVersion == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -727,6 +774,32 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 func IsScriptPackage(ext string) bool {
 	ext = strings.TrimPrefix(ext, ".")
 	return ext == "sh" || ext == "ps1"
+}
+
+// CanonicalPlatform maps a user-friendly platform name to Fleet's canonical
+// form ("macos" → "darwin"); other inputs are lowercased/trimmed and returned
+// as-is. Callers must validate against their own allowlist.
+func CanonicalPlatform(p string) string {
+	p = strings.ToLower(strings.TrimSpace(p))
+	if p == "macos" {
+		return "darwin"
+	}
+	return p
+}
+
+// AllowedSetupExperiencePlatformsForExtension returns the canonical platform
+// names that may appear in a package's setup_experience_platform field. Both
+// the native platform and any supported non-native targets are allowed —
+// listing the native platform is the declarative equivalent of
+// setup_experience: true.
+func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
+	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
+	switch ext {
+	case "sh":
+		return []string{"darwin", "linux"}
+	default:
+		return nil
+	}
 }
 
 // HostSoftwareWithInstaller represents the list of software installed on a
@@ -841,7 +914,15 @@ type SoftwarePackageSpec struct {
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
-	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	// SetupExperiencePlatform selects the installer for the setup experience,
+	// as a comma-separated string of platforms (e.g. "darwin,linux"),
+	// consistent with the query/policy `platform` field. Additive with
+	// InstallDuringSetup: the native platform is controlled by that bool, the
+	// non-native entries feed the setup_experience_software_installers
+	// cross-table. Only meaningful for packages whose file can run on more than
+	// one platform (today: .sh).
+	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
+	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
 	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
@@ -857,10 +938,10 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string   `json:"referenced_yaml_path"`
-	SHA256             string   `json:"hash_sha256"`
-	Categories         []string `json:"categories"`
-	DisplayName        string   `json:"display_name,omitempty"`
+	ReferencedYamlPath string                `json:"referenced_yaml_path"`
+	SHA256             string                `json:"hash_sha256"`
+	Categories         optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName        string                `json:"display_name,omitempty"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	// When false (the default), Fleet sends If-None-Match with the stored ETag
 	// on subsequent downloads. If the server returns 304 Not Modified, the
@@ -881,7 +962,8 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
 	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid
+		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid ||
+		spec.SetupExperiencePlatform.Set
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -893,36 +975,38 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug               string                `json:"slug"`
-	Version            string                `json:"version"`
-	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
-	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny   []string              `json:"labels_include_any"`
-	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
-	LabelsIncludeAll   []string              `json:"labels_include_all"`
-	Categories         []string              `json:"categories"`
-	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
-	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	Slug                    string                `json:"slug"`
+	Version                 string                `json:"version"`
+	SelfService             bool                  `json:"self_service"`
+	PreInstallQuery         TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
+	InstallScript           TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript       TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript         TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny        []string              `json:"labels_include_any"`
+	LabelsExcludeAny        []string              `json:"labels_exclude_any"`
+	LabelsIncludeAll        []string              `json:"labels_include_all"`
+	Categories              optjson.Slice[string] `json:"categories,omitzero"`
+	InstallDuringSetup      optjson.Bool          `json:"setup_experience"`
+	SetupExperiencePlatform optjson.String        `json:"setup_experience_platform,omitzero"`
+	Icon                    TeamSpecSoftwareAsset `json:"icon"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
-		Slug:               &spec.Slug,
-		Version:            spec.Version,
-		PreInstallQuery:    spec.PreInstallQuery,
-		InstallScript:      spec.InstallScript,
-		PostInstallScript:  spec.PostInstallScript,
-		UninstallScript:    spec.UninstallScript,
-		SelfService:        spec.SelfService,
-		LabelsIncludeAny:   spec.LabelsIncludeAny,
-		LabelsExcludeAny:   spec.LabelsExcludeAny,
-		LabelsIncludeAll:   spec.LabelsIncludeAll,
-		InstallDuringSetup: spec.InstallDuringSetup,
-		Icon:               spec.Icon,
-		Categories:         spec.Categories,
+		Slug:                    &spec.Slug,
+		Version:                 spec.Version,
+		PreInstallQuery:         spec.PreInstallQuery,
+		InstallScript:           spec.InstallScript,
+		PostInstallScript:       spec.PostInstallScript,
+		UninstallScript:         spec.UninstallScript,
+		SelfService:             spec.SelfService,
+		SetupExperiencePlatform: spec.SetupExperiencePlatform,
+		LabelsIncludeAny:        spec.LabelsIncludeAny,
+		LabelsExcludeAny:        spec.LabelsExcludeAny,
+		LabelsIncludeAll:        spec.LabelsIncludeAll,
+		InstallDuringSetup:      spec.InstallDuringSetup,
+		Icon:                    spec.Icon,
+		Categories:              spec.Categories,
 	}
 }
 

@@ -4,4 +4,8 @@
   &__section-description {
     margin: 0;
   }
+
+  .form-field--checkbox {
+    gap: $pad-xsmall;
+  }
 }

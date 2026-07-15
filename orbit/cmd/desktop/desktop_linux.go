@@ -4,8 +4,9 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"os/exec"
 	"slices"
-	"strings"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/godbus/dbus/v5"
@@ -27,12 +28,22 @@ func getIcon() []byte {
 	return iconDarkDefault
 }
 
+// isKDE reports whether the user with the active GUI session is running KDE
+// Plasma process.
 func isKDE() bool {
-	session, err := user.GetCurrentUserDisplaySession()
+	guiUser, err := user.LoggedInGuiUser()
 	if err != nil {
+		log.Debug().Err(err).Msg("isKDE: look up logged-in GUI user")
 		return false
 	}
-	return session != nil && strings.ToLower(session.Desktop) == "kde"
+	if guiUser == nil {
+		return false
+	}
+	uid := strconv.FormatInt(guiUser.ID, 10)
+	if err := exec.Command("pgrep", "-u", uid, "-x", "plasmashell").Run(); err != nil {
+		return false
+	}
+	return true
 }
 
 func blockWaitForStopEvent(_ string) error {

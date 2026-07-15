@@ -1,10 +1,10 @@
-import React, { useContext } from "react";
+import React from "react";
 import { noop } from "lodash";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
 import activitiesAPI from "services/entities/activities";
-import { NotificationContext } from "context/notification";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
@@ -29,7 +29,6 @@ const CancelActivityModal = ({
   onSuccessCancel,
   onExit,
 }: ICancelActivityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isCanceling, setIsCanceling] = React.useState(false);
 
   const ActivityItemComponent = upcomingActivityComponentMap[activity.type];
@@ -38,10 +37,10 @@ const CancelActivityModal = ({
     setIsCanceling(true);
     try {
       await activitiesAPI.cancelHostActivity(hostId, activity.uuid);
-      renderFlash("success", "Activity successfully canceled.");
+      notify.success("Activity successfully canceled.");
       onSuccessCancel(activity);
     } catch (err) {
-      renderFlash("error", getErrorMessage(err));
+      notify.error(getErrorMessage(err), { response: err });
     }
     onCancelActivity(activity);
     onExit();

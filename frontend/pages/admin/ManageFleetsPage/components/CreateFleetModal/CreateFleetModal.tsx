@@ -50,7 +50,7 @@ const CreateFleetModal = ({
   );
 
   return (
-    <Modal title="Create fleet" onExit={onCancel} className={baseClass}>
+    <Modal title="Add fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -67,7 +67,6 @@ const CreateFleetModal = ({
           placeholder="Workstations"
           value={name}
           error={errors.name}
-          ignore1password
         />
         <div className="modal-cta-wrap">
           <Button

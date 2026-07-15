@@ -1,0 +1,10 @@
+{
+  "name": "DevToys",
+  "unique_identifier": "com.devtoys",
+  "token": "devtoys",
+  "installer_format": "zip",
+  "slug": "devtoys/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

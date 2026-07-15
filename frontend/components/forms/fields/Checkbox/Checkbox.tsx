@@ -188,7 +188,7 @@ const Checkbox = (props: ICheckboxProps) => {
         <div
           role="checkbox"
           aria-label={name}
-          aria-checked={indeterminate ? "mixed" : value || undefined}
+          aria-checked={indeterminate ? "mixed" : value ?? undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}
           tabIndex={disabled ? -1 : 0}

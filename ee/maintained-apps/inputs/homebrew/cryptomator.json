@@ -1,0 +1,8 @@
+{
+  "name": "Cryptomator",
+  "unique_identifier": "org.cryptomator",
+  "token": "cryptomator",
+  "installer_format": "dmg",
+  "slug": "cryptomator/darwin",
+  "default_categories": ["Security"]
+}

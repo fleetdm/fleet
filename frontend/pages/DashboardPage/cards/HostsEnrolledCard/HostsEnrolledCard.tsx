@@ -45,6 +45,11 @@ type PlatformKey = keyof IHostPlatformCounts;
 
 interface IHostsEnrolledCardProps {
   counts: IHostPlatformCounts;
+  // Total enrolled hosts across the whole fleet, used as the denominator for
+  // each platform's share. This is the authoritative total (unaffected by the
+  // dashboard's platform filter), not the sum of the bars below — some hosts
+  // may be on platforms not broken out here.
+  totalHostCount: number;
   builtInLabels?: ILabelSummary[];
   currentTeamId?: number;
   router: InjectedRouter;
@@ -54,6 +59,7 @@ interface IPlatformDatum {
   label: string;
   count: number;
   platform: PlatformKey;
+  percent: number;
 }
 
 // Make a map of platform to label for use in linking to the correct hosts list
@@ -76,6 +82,14 @@ const formatTick = (value: number): string => {
   return `${value}`;
 };
 
+// Format a platform's share of all enrolled hosts. A nonzero count that rounds
+// to 0.0% (e.g. a handful of hosts in a fleet of tens of thousands) shows as
+// "<0.1%" rather than misleadingly reading "0.0%".
+export const formatPercent = (count: number, percent: number): string => {
+  if (count > 0 && percent < 0.1) return "<0.1%";
+  return `${percent.toFixed(1)}%`;
+};
+
 interface ITooltipProps {
   active?: boolean;
   payload?: { payload: IPlatformDatum }[];
@@ -87,11 +101,15 @@ const HostsEnrolledTooltip = ({
 }: ITooltipProps): JSX.Element | null => {
   if (!active || !payload?.length) return null;
   const datum = payload[0].payload;
+  const percentLabel = formatPercent(datum.count, datum.percent);
   return (
     <div className={`${baseClass}__tooltip`}>
       <div className={`${baseClass}__tooltip-label`}>{datum.label}</div>
       <div className={`${baseClass}__tooltip-value`}>
         {datum.count.toLocaleString()} hosts
+      </div>
+      <div className={`${baseClass}__tooltip-share`}>
+        {percentLabel} of fleet
       </div>
     </div>
   );
@@ -137,6 +155,7 @@ const ClickableYAxisTick = ({
 
 const HostsEnrolledCard = ({
   counts,
+  totalHostCount,
   builtInLabels,
   currentTeamId,
   router,
@@ -145,6 +164,7 @@ const HostsEnrolledCard = ({
     platform,
     label,
     count: counts[platform],
+    percent: totalHostCount ? (counts[platform] / totalHostCount) * 100 : 0,
   }));
 
   // Given a platform, find the corresponding built-in label ID for linking to the

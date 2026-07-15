@@ -128,6 +128,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -413,6 +414,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.EqualValues(t, lastTeamID, *asst.TeamID)
 			setupAsstByTeam[*asst.TeamID] = asst
 			return asst, nil
+		}
+		ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) {
+			return false, nil
 		}
 
 		// new team ("one - three") is created with bootstrap package and end user auth based on app config

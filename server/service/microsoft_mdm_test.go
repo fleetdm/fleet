@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -39,79 +40,6 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 
 	// If there was no error, return the SoapRequest and a nil error
 	return req, nil
-}
-
-func TestIsValidAppruURL(t *testing.T) {
-	tests := []struct {
-		name     string
-		appru    string
-		expected bool
-	}{
-		// Valid URLs
-		{
-			name:     "valid ms-app scheme",
-			appru:    "ms-app://windows.immersivecontrolpanel",
-			expected: true,
-		},
-		{
-			name:     "valid https scheme",
-			appru:    "https://example.com/callback",
-			expected: true,
-		},
-		{
-			name:     "valid http scheme",
-			appru:    "http://localhost/callback",
-			expected: true,
-		},
-		// Invalid URLs - XSS attempts
-		{
-			name:     "javascript injection",
-			appru:    ";for (var key in localStorage){ alert(key)};//",
-			expected: false,
-		},
-		{
-			name:     "javascript protocol",
-			appru:    "javascript:alert(1)",
-			expected: false,
-		},
-		{
-			name:     "data URI",
-			appru:    "data:text/html,<script>alert(1)</script>",
-			expected: false,
-		},
-		{
-			name:     "empty scheme",
-			appru:    "://example.com",
-			expected: false,
-		},
-		{
-			name:     "plain text",
-			appru:    "not-a-url",
-			expected: false,
-		},
-		{
-			name:     "empty string",
-			appru:    "",
-			expected: false,
-		},
-		{
-			name:     "file scheme",
-			appru:    "file:///etc/passwd",
-			expected: false,
-		},
-		{
-			name:     "ftp scheme",
-			appru:    "ftp://example.com",
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := isValidAppru(tc.appru)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
 }
 
 func TestValidSoapResponse(t *testing.T) {
@@ -279,6 +207,74 @@ func TestInvalidSoapRequestWithDiscoverMsg(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestRejectUnsupportedAuth verifies that a policy/enroll request following the OnPremise auth policy with a
+// <wsse:UsernameToken> (username + plaintext password) is turned into an actionable fault, while other token errors pass
+// through unchanged.
+func TestRejectUnsupportedAuth(t *testing.T) {
+	sentinel := errors.New("binarySecurityToken is empty")
+
+	header := func(security string) []byte {
+		return []byte(`
+			<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
+			<s:Header>
+				<a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPolicies</a:Action>
+				<a:MessageID>urn:uuid:148132ec-a575-4322-b01b-6172a9cf8478</a:MessageID>
+				<a:To s:mustUnderstand="1">https://mdmwindows.com/EnrollmentServer/Policy.svc</a:To>` + security + `
+			</s:Header>
+			</s:Envelope>`)
+	}
+
+	const secretPassword = "SuperSecret-PlaintextPassword"
+	usernameToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:UsernameToken>
+						<wsse:Username>user@example.com</wsse:Username>
+						<wsse:Password>` + secretPassword + `</wsse:Password>
+					</wsse:UsernameToken>
+				</wsse:Security>`
+	binarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">dG9rZW4=</wsse:BinarySecurityToken>
+				</wsse:Security>`
+	// A present-but-empty BinarySecurityToken element (ValueType/EncodingType set, no content) is a genuine empty-token
+	// error, not OnPremise auth, so it must keep the original "binarySecurityToken is empty" error.
+	emptyBinarySecurityToken := `
+				<wsse:Security s:mustUnderstand="1">
+					<wsse:BinarySecurityToken ValueType="` + syncml.BinarySecurityAzureEnroll + `" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"></wsse:BinarySecurityToken>
+				</wsse:Security>`
+
+	testCases := []struct {
+		name              string
+		security          string
+		wantActionableMsg bool
+	}{
+		{name: "username/password (OnPremise) is rejected with actionable message", security: usernameToken, wantActionableMsg: true},
+		{name: "binary security token passes the original error through", security: binarySecurityToken, wantActionableMsg: false},
+		{name: "present-but-empty binary security token passes the original error through", security: emptyBinarySecurityToken, wantActionableMsg: false},
+		{name: "missing security header passes the original error through", security: "", wantActionableMsg: false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := header(tc.security)
+			req, err := NewSoapRequest(raw)
+			require.NoError(t, err)
+			req.Raw = raw // DecodeBody populates Raw in production; the NewSoapRequest test helper does not.
+
+			got := rejectUnsupportedAuth(&req, sentinel)
+
+			if tc.wantActionableMsg {
+				require.Contains(t, got.Error(), "is not supported")
+				require.Contains(t, got.Error(), "Microsoft Entra ID")
+				// The plaintext password must never be echoed back into the fault (and therefore the logs).
+				require.NotContains(t, got.Error(), secretPassword)
+			} else {
+				require.Equal(t, sentinel, got)
+			}
+		})
+	}
+}
+
 func TestProvisioningDocGeneration(t *testing.T) {
 	deviceIdentityFingerprint := "031336C933CC7E228B88880D78824FB2909A0A2F"
 	serverIdentityFingerprint := "F9A4F20FC50D990FDD0E3DB9AFCBF401818D5462"
@@ -382,6 +378,21 @@ func TestValidSyncMLCmdText(t *testing.T) {
 	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
 	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
 	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">chr</Format>")
+}
+
+func TestSyncMLCmdTextEscapesXMLMetacharacters(t *testing.T) {
+	t.Parallel()
+	cmdMsg := newSyncMLCmdText(fleet.CmdReplace, "testuri", `AT&T <Reader>`)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	payload := string(outXML)
+
+	// The marshaled XML must be well-formed (parseable) and carry escaped entities, not raw metacharacters. A raw
+	// "&"/"<" here would make xml.Unmarshal fail, which is exactly the device-side rejection we are preventing.
+	require.NoError(t, xml.Unmarshal(outXML, new(fleet.SyncMLCmd)), "escaped command must be well-formed XML")
+	require.Contains(t, payload, "AT&amp;T")
+	require.Contains(t, payload, "&lt;Reader&gt;")
+	require.NotContains(t, payload, "AT&T", "raw ampersand must not appear unescaped")
 }
 
 func TestValidSyncMLCmdXml(t *testing.T) {
@@ -582,6 +593,20 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 			string(scepCmdWithAtomic.RawCommand),
 		)
 	})
+
+	t.Run("scope-less SCEP profile is wrapped in Atomic", func(t *testing.T) {
+		scepLocURI := "Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL"
+		cmd, err := buildCommandFromProfileBytes(syncMLForTest(scepLocURI), "uuid-scopeless")
+		require.NoError(t, err)
+		require.Contains(t, string(cmd.RawCommand), "<Atomic>")
+
+		// A non-wrapped profile unmarshalls into a single top-level command; only an <Atomic> wrapper populates both nested
+		// command slices, so this is a definitive check that the scope-less SCEP profile was wrapped.
+		wrapped := new(fleet.SyncMLCmd)
+		require.NoError(t, xml.Unmarshal(cmd.RawCommand, wrapped))
+		require.Len(t, wrapped.ReplaceCommands, 1)
+		require.Len(t, wrapped.AddCommands, 1)
+	})
 }
 
 func syncMLForTest(locURI string) []byte {
@@ -651,45 +676,51 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 
-	// The cron's batched path picks a host window first, then calls the
-	// scoped listings for that window. For the mock, return all host UUIDs
-	// from hostToProfile so the rest of the reconciler runs against the
-	// same set the test wants.
-	ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	// The cron's batched path loads a snapshot (hosts + profiles + current state) per window and computes install/remove deltas in
+	// memory. Return every host from hostToProfile in a single window, each paired with its profile under a unique team_id so
+	// ComputeWindowsReconcileDeltas maps each host to exactly its mapped profile (regardless of whether two hosts share a profile).
+	// Empty current state => every mapped profile is a fresh install, matching the legacy listInstall fixture. The `after != ""`
+	// guard keeps these single-tick tests from looping (everything is delivered in the first window).
+	ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if after != "" {
+			return nil, nil, nil, nil, nil
+		}
+		// Emit ONE profile row per unique ProfileUUID (the real snapshot is profile-scoped, not per-host). Each unique profile gets its
+		// own team, and every host that maps to that profile is placed in that team, so ComputeWindowsReconcileDeltas fans the single
+		// profile out to all its hosts, exercising shared-profile grouping the way production does. Hosts are returned ascending by UUID
+		// to match `ORDER BY h.uuid`.
 		hostUUIDs := make([]string, 0, len(hostToProfile))
 		for hostUUID := range hostToProfile {
 			hostUUIDs = append(hostUUIDs, hostUUID)
 		}
-		return hostUUIDs, nil
-	}
-
-	listInstall := func(_ context.Context, _ ...any) ([]*fleet.MDMWindowsProfilePayload, error) {
-		profilesToInstall := []*fleet.MDMWindowsProfilePayload{}
-		for hostUUID, profile := range hostToProfile {
-			profilesToInstall = append(profilesToInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:   profile.ProfileUUID,
-				ProfileName:   profile.Name,
-				HostUUID:      hostUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeInstall,
-			})
+		sort.Strings(hostUUIDs)
+		teamByProfile := make(map[string]uint, len(hostToProfile))
+		var hosts []*fleet.WindowsHostReconcileInfo
+		var profiles []*fleet.WindowsProfileForReconcile
+		var nextHostID uint
+		for _, hostUUID := range hostUUIDs {
+			profile := hostToProfile[hostUUID]
+			tid, ok := teamByProfile[profile.ProfileUUID]
+			if !ok {
+				tid = uint(len(teamByProfile) + 1)
+				teamByProfile[profile.ProfileUUID] = tid
+				profiles = append(profiles, &fleet.WindowsProfileForReconcile{
+					ProfileUUID: profile.ProfileUUID,
+					ProfileName: profile.Name,
+					TeamID:      tid,
+				})
+			}
+			nextHostID++
+			hostID, teamID := nextHostID, tid
+			hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: hostID, UUID: hostUUID, TeamID: &teamID})
 		}
-		return profilesToInstall, nil
-	}
-	// Mock both the legacy global listing (kept for tests still using it
-	// directly) and the new scoped listing the cron now calls.
-	ds.ListMDMWindowsProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-	ds.ListMDMWindowsProfilesToInstallForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return listInstall(ctx)
-	}
-
-	ds.ListMDMWindowsProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
-	}
-	ds.ListMDMWindowsProfilesToRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMWindowsProfilePayload, error) {
-		return nil, nil
+		return hosts, profiles, nil, map[string][]*fleet.MDMWindowsProfilePayload{}, nil
 	}
 
 	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
@@ -707,6 +738,15 @@ func setupReconcilerTest(ds *mock.Store, hostToProfile map[string]*fleet.MDMWind
 		return nil
 	}
 	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	// Modify-install delete pass: default to no retained prior content (no LocURIs removed) and a no-op enqueue, so reconcile tests
+	// that don't exercise edited-profile <Delete> generation don't nil-panic. Tests covering it can override these.
+	ds.GetWindowsMDMProfilePriorContentsFunc = func(ctx context.Context, keys []fleet.MDMWindowsProfileVersionKey) ([]fleet.MDMWindowsProfilePriorContent, error) {
+		return nil, nil
+	}
+	ds.MDMWindowsInsertCommandForHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
 	}
 
@@ -991,7 +1031,7 @@ func TestReconcileWindowsProfilesSkipsDeletedProfile(t *testing.T) {
 	}
 	setupReconcilerTest(ds, hostToProfile)
 
-	// Simulate the race: ListMDMWindowsProfilesToInstall and
+	// Simulate the race: the reconcile snapshot and
 	// GetMDMWindowsProfilesContents already ran (both set up by
 	// setupReconcilerTest to include the profile). Between those and the
 	// upsert, the admin deleted the profile, so
@@ -1094,8 +1134,14 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 				setCalls++
 				return nil
 			}
-			ds.ListNextPendingMDMWindowsHostUUIDsFunc = func(ctx context.Context, after string, batchSize int) ([]string, error) {
-				return nil, nil
+			ds.GetWindowsProfileReconcileSnapshotFunc = func(ctx context.Context, after string, batch int) (
+				[]*fleet.WindowsHostReconcileInfo,
+				[]*fleet.WindowsProfileForReconcile,
+				map[uint]map[uint]struct{},
+				map[string][]*fleet.MDMWindowsProfilePayload,
+				error,
+			) {
+				return nil, nil, nil, nil, nil
 			}
 
 			require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
@@ -1103,6 +1149,262 @@ func TestReconcileWindowsProfilesEmptyPopulation(t *testing.T) {
 			require.Equal(t, tc.wantFinalCursor, cursor)
 		})
 	}
+}
+
+// setReconcileWindowsBudgets sets the three drain-loop tunables for the duration of a test and restores them on cleanup.
+func setReconcileWindowsBudgets(t *testing.T, scanBatch, deliveryCap int, scanBudget time.Duration) {
+	t.Helper()
+	savedBatch := reconcileWindowsProfilesBatchSize
+	savedCap := reconcileWindowsProfilesDeliveryCap
+	savedBudget := reconcileWindowsProfilesScanBudget
+	t.Cleanup(func() {
+		reconcileWindowsProfilesBatchSize = savedBatch
+		reconcileWindowsProfilesDeliveryCap = savedCap
+		reconcileWindowsProfilesScanBudget = savedBudget
+	})
+	reconcileWindowsProfilesBatchSize = scanBatch
+	reconcileWindowsProfilesDeliveryCap = deliveryCap
+	reconcileWindowsProfilesScanBudget = scanBudget
+}
+
+// setKeys returns the keys of a set as a slice (order unspecified).
+func setKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+// windowSnapshotFunc returns a GetWindowsProfileReconcileSnapshot stub that pages allHosts (ascending) into windows of the
+// requested batch size, honoring the `after` cursor, and returns the given profiles for every non-empty window. Hosts present in
+// `delivered` get a matching verified install row per profile, so a delivered host no longer computes as work (modeling the real
+// upsert flipping rows to verified) and a later full pass is a true no-op. If calls is non-nil it is incremented per invocation.
+func windowSnapshotFunc(
+	allHosts []string,
+	profiles []*fleet.WindowsProfileForReconcile,
+	delivered map[string]struct{},
+	calls *int,
+) func(context.Context, string, int) ([]*fleet.WindowsHostReconcileInfo, []*fleet.WindowsProfileForReconcile, map[uint]map[uint]struct{}, map[string][]*fleet.MDMWindowsProfilePayload, error) {
+	return func(_ context.Context, after string, batch int) (
+		[]*fleet.WindowsHostReconcileInfo,
+		[]*fleet.WindowsProfileForReconcile,
+		map[uint]map[uint]struct{},
+		map[string][]*fleet.MDMWindowsProfilePayload,
+		error,
+	) {
+		if calls != nil {
+			*calls++
+		}
+		var hosts []*fleet.WindowsHostReconcileInfo
+		for i, h := range allHosts {
+			if h > after {
+				hosts = append(hosts, &fleet.WindowsHostReconcileInfo{HostID: uint(i + 1), UUID: h}) //nolint:gosec
+				if len(hosts) == batch {
+					break
+				}
+			}
+		}
+		if len(hosts) == 0 {
+			return nil, nil, nil, nil, nil
+		}
+		currentByHost := map[string][]*fleet.MDMWindowsProfilePayload{}
+		for _, h := range hosts {
+			if _, ok := delivered[h.UUID]; !ok {
+				continue
+			}
+			for _, p := range profiles {
+				currentByHost[h.UUID] = append(currentByHost[h.UUID], &fleet.MDMWindowsProfilePayload{
+					ProfileUUID:   p.ProfileUUID,
+					HostUUID:      h.UUID,
+					Checksum:      p.Checksum,
+					OperationType: fleet.MDMOperationTypeInstall,
+					Status:        &fleet.MDMDeliveryVerified,
+				})
+			}
+		}
+		return hosts, profiles, nil, currentByHost, nil
+	}
+}
+
+// newDrainLoopTestDS wires a mock.Store for ReconcileWindowsProfiles drain-loop tests: Windows MDM enabled, a cursor backed by
+// *cursor, the windowing snapshot over allHosts/profiles, and the downstream execute stubs a non-variable install needs. Enqueued
+// hosts are recorded in `delivered` so a later pass is a no-op. Observe results via *cursor, the `delivered` set, and *calls.
+func newDrainLoopTestDS(
+	ds *mock.Store,
+	allHosts []string,
+	profiles []*fleet.WindowsProfileForReconcile,
+	delivered map[string]struct{},
+	cursor *string,
+	calls *int,
+) {
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.MDM.WindowsEnabledAndConfigured = true
+		return cfg, nil
+	}
+	ds.GetMDMWindowsReconcileCursorFunc = func(ctx context.Context) (string, error) { return *cursor, nil }
+	ds.SetMDMWindowsReconcileCursorFunc = func(ctx context.Context, c string) error {
+		*cursor = c
+		return nil
+	}
+	ds.GetWindowsProfileReconcileSnapshotFunc = windowSnapshotFunc(allHosts, profiles, delivered, calls)
+	ds.GetMDMWindowsProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
+		out := map[string]fleet.MDMWindowsProfileContents{}
+		for _, p := range profiles {
+			out[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
+				SyncML:   []byte(`<Replace><Item><Target><LocURI>./Test</LocURI></Target><Data>v</Data></Item></Replace>`),
+				Checksum: p.Checksum,
+			}
+		}
+		return out, nil
+	}
+	ds.GetExistingMDMWindowsProfileUUIDsFunc = func(ctx context.Context, uuids []string) (map[string]struct{}, error) {
+		out := map[string]struct{}{}
+		for _, p := range profiles {
+			out[p.ProfileUUID] = struct{}{}
+		}
+		return out, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.MDMWindowsBulkInsertCommandsFunc = func(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error { return nil }
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		for _, h := range hostUUIDs {
+			delivered[h] = struct{}{}
+		}
+		return nil
+	}
+	ds.BulkUpsertMDMWindowsHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
+		return nil
+	}
+}
+
+// TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick exercises the within-tick drain loop's delivery cap: with a large scan
+// window but a small per-tick delivery cap, a bulk change (every enrolled host needs the same profile) is throttled to
+// deliveryCap hosts per tick, the cursor advances only to the last delivered host, and successive ticks drain the remainder until
+// the host space is exhausted (cursor resets to ""). This preserves the writer-pressure smoothing the legacy 2000-host batch
+// provided.
+func TestReconcileWindowsProfilesDeliveryCapThrottlesPerTick(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	// Large scan window (the whole fleet fits in one window), small delivery cap, no wall-clock limit.
+	setReconcileWindowsBudgets(t, 100 /*scanBatch*/, 3 /*deliveryCap*/, time.Hour)
+
+	allHosts := []string{"h00", "h01", "h02", "h03", "h04", "h05", "h06", "h07", "h08", "h09"}
+	profiles := []*fleet.WindowsProfileForReconcile{{ProfileUUID: "shared-profile", ProfileName: "Shared", TeamID: 0, Checksum: []byte("c")}}
+	delivered := map[string]struct{}{}
+	var cursor string
+	newDrainLoopTestDS(ds, allHosts, profiles, delivered, &cursor, nil)
+
+	// Capture exactly which hosts each enqueue delivered (still marking them delivered for convergence).
+	var deliveredBatches [][]string
+	ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		deliveredBatches = append(deliveredBatches, append([]string{}, hostUUIDs...))
+		for _, h := range hostUUIDs {
+			delivered[h] = struct{}{}
+		}
+		return nil
+	}
+
+	// Tick 1: deliver the first 3 hosts (contiguous prefix); cursor advances to the last delivered host.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h02", cursor)
+	require.Equal(t, [][]string{{"h00", "h01", "h02"}}, deliveredBatches)
+
+	// Ticks 2-3: next 3 hosts each.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h05", cursor)
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, "h08", cursor)
+
+	// Tick 4: final host (short window) drains and resets the cursor.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Tick 5: empty fleet pass, cursor stays reset, nothing re-delivered.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+
+	// Every host was delivered exactly once across the ticks.
+	var all []string
+	for _, b := range deliveredBatches {
+		all = append(all, b...)
+	}
+	require.ElementsMatch(t, allHosts, all)
+}
+
+// TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick covers the core drain behavior the other tests don't: when the delivery
+// cap spans several scan windows, one tick reads window after window (cheap indexed reads) accumulating delivered hosts until the
+// cap is reached mid-window. With scanBatch=2 and cap=5 over 6 hosts that all need work, tick 1 makes 3 snapshot reads (delivering
+// 2+2+1) and stops at the 5th host; tick 2 delivers the remainder and resets the cursor.
+func TestReconcileWindowsProfilesDrainsMultipleWindowsPerTick(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 5 /*deliveryCap*/, time.Hour)
+
+	allHosts := []string{"h0", "h1", "h2", "h3", "h4", "h5"}
+	profiles := []*fleet.WindowsProfileForReconcile{{ProfileUUID: "p", ProfileName: "P", TeamID: 0, Checksum: []byte("c")}}
+	delivered := map[string]struct{}{}
+	var cursor string
+	var snapshotCalls int
+	newDrainLoopTestDS(ds, allHosts, profiles, delivered, &cursor, &snapshotCalls)
+
+	// Tick 1: drains 3 windows (2+2+1) to reach the cap of 5, stopping mid-third-window at h4.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 3, snapshotCalls, "one tick should read multiple windows to fill the cap")
+	require.Equal(t, "h4", cursor)
+	require.ElementsMatch(t, []string{"h0", "h1", "h2", "h3", "h4"}, setKeys(delivered))
+
+	// Tick 2: delivers the last host; the short final window resets the cursor.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+	require.ElementsMatch(t, allHosts, setKeys(delivered))
+
+	// Tick 3: full no-op pass over the now all-delivered fleet, cursor stays reset.
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Empty(t, cursor)
+}
+
+// TestReconcileWindowsProfilesScanBudgetHaltsDrain exercises the scan-budget branch of the drain loop: when the wall-clock budget
+// is already exhausted, the tick stops after the first scanned window and persists the cursor at the last scanned host (it does
+// NOT keep draining to the end of the fleet, and does NOT reset the cursor). The next tick resumes from there.
+func TestReconcileWindowsProfilesScanBudgetHaltsDrain(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	// Small windows, generous delivery cap (so the cap never governs), and an already-expired scan budget so the loop halts after
+	// the first window.
+	setReconcileWindowsBudgets(t, 2 /*scanBatch*/, 1000 /*deliveryCap*/, time.Nanosecond)
+
+	allHosts := []string{"h0", "h1", "h2", "h3", "h4", "h5"}
+	// No profiles => no work; this test is purely about the scan/cursor mechanics, so execute is never reached.
+	delivered := map[string]struct{}{}
+	var cursor string
+	var snapshotCalls int
+	newDrainLoopTestDS(ds, allHosts, nil /*profiles*/, delivered, &cursor, &snapshotCalls)
+
+	// Tick 1: the budget is already spent, so only the first window is scanned and the cursor advances to its last host (not reset).
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 1, snapshotCalls)
+	require.Equal(t, "h1", cursor)
+
+	// Tick 2: resumes from the persisted cursor, reads the NEXT window and advances again, confirming progress isn't lost.
+	snapshotCalls = 0
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, logger))
+	require.Equal(t, 1, snapshotCalls)
+	require.Equal(t, "h3", cursor)
 }
 
 func TestRekeyWindowsDevice(t *testing.T) {
@@ -1114,12 +1416,17 @@ func TestRekeyWindowsDevice(t *testing.T) {
 
 	var credsHash *[]byte
 	const testEnrollmentID uint = 123
+	// Captured before the local `syncml` string variable below shadows the syncml package.
+	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
 			HostUUID:        "host-uuid-123",
 			CredentialsHash: credsHash,
+			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
+			// the test); a device loaded with the flag at 0 skips the refresh entirely.
+			HasPendingCommands: true,
 		}, nil
 	}
 
@@ -1233,7 +1540,24 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	// WE only need to mock this as we short-circuit when challenging or invalid creds
 	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
 		require.Equal(t, testEnrollmentID, enrollmentID)
-		return []*fleet.MDMWindowsCommand{}, nil
+		// A still-pending internal poll-schedule Replace must NOT block the per-session refresh: the
+		// has_pending_commands flag excludes poll commands by definition, so the refresh gate must too.
+		return []*fleet.MDMWindowsCommand{
+			{
+				CommandUUID:  "poll-schedule-cmd-uuid",
+				RawCommand:   []byte(`<Replace><CmdID>poll-schedule-cmd-uuid</CmdID></Replace>`),
+				TargetLocURI: pollScheduleLocURI,
+			},
+		}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
+	}
+	// No NON-POLL pending commands means the session has drained the flag-relevant queue, so the service refreshes the
+	// denormalized has_pending_commands flag (at most once per session).
+	ds.MDMWindowsRefreshHasPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) error {
+		require.Equal(t, testEnrollmentID, enrollmentID)
+		return nil
 	}
 	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, failedCommandIds []string) ([]*fleet.MDMWindowsCommand, error) {
 		return []*fleet.MDMWindowsCommand{}, nil
@@ -1276,6 +1600,8 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	require.NotNil(t, res)
 
 	require.Equal(t, 1, ackCalled, "acknowledge should have been called once")
+	require.True(t, ds.MDMWindowsRefreshHasPendingCommandsFuncInvoked,
+		"refresh should run when no non-poll commands are pending, even with a poll-schedule command still queued")
 }
 
 func hashMDMCredentials(username, password, nonce string) []byte {
@@ -1306,7 +1632,7 @@ func TestGetESPCommands(t *testing.T) {
 			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: nil}, nil
 		}
 		// Stage 1, 2, 3 listings default empty so the wait gates pass through to finalize cleanly.
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 			return nil, nil
 		}
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -1431,18 +1757,59 @@ func TestGetESPCommands(t *testing.T) {
 		assert.Nil(t, cmds, "should wait while profiles are verifying")
 	})
 
-	t.Run("active waits when profiles not yet queued by reconciler", func(t *testing.T) {
+	t.Run("active queues unqueued profiles via per-host reconcile and waits", func(t *testing.T) {
 		ds, svc := newSvc(t)
-		ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
-			return []*fleet.MDMWindowsProfilePayload{
-				{ProfileUUID: "prof-1", ProfileName: "WiFi"},
+		// setupReconcilerTest wires the execute-step mocks (contents, command insert, host-profile upserts) and an
+		// AppConfig with Windows MDM enabled, so the ESP stage-1 per-host reconcile can actually queue the profile.
+		profile := &fleet.MDMWindowsConfigProfile{ProfileUUID: "prof-1", Name: "WiFi", SyncML: syncMLForTest("./Device/WiFi")}
+		setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{hostUUID: profile})
+		// Non-variable installs dispatch through MDMWindowsEnqueueCommandAndUpsertHostProfiles; capture its payloads.
+		var queued []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+		ds.MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+			queued = append(queued, payload...)
+			return nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: hUUID, TeamID: nil}, nil
+		}
+		ds.ListWindowsProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+			return []*fleet.WindowsProfileForReconcile{
+				{ProfileUUID: profile.ProfileUUID, ProfileName: profile.Name, TeamID: teamID, Checksum: []byte("c")},
+			}, nil
+		}
+		ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+			return nil, nil
+		}
+		ds.BulkGetHostMDMWindowsProfilesByUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
+			return map[string][]*fleet.MDMWindowsProfilePayload{}, nil
+		}
+		// Stage 2 sees the freshly queued (pending) row and blocks the release.
+		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+			return []fleet.HostMDMWindowsProfile{
+				{ProfileUUID: profile.ProfileUUID, Name: profile.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
 		require.NoError(t, err)
-		assert.Nil(t, cmds, "should wait when profiles are configured but not yet queued")
-		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not check delivery status when profiles not yet queued")
+		assert.Nil(t, cmds, "should wait while the freshly queued profile is pending")
+		require.NotEmpty(t, queued, "per-host reconcile must queue the unqueued profile")
+		assert.Equal(t, profile.ProfileUUID, queued[0].ProfileUUID)
+		assert.Equal(t, hostUUID, queued[0].HostUUID)
+	})
+
+	t.Run("active with failing per-host reconcile returns error and does not release", func(t *testing.T) {
+		ds, svc := newSvc(t)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+		}
+		ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+			return nil, errors.New("boom")
+		}
+
+		_, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.Error(t, err, "a reconcile failure must block the release; the next checkin retries")
+		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
 
 	// setRequireAll flips the require_all_software_windows lookup to the given value via the no-team /
@@ -1564,6 +1931,101 @@ func TestGetESPCommands(t *testing.T) {
 			"software failure error text takes precedence over profile/timeout text")
 	})
 
+	t.Run("software failure with require_all=false soft blocks with continue anyway", func(t *testing.T) {
+		// When software fails but "Cancel setup if software fails" is off, the device still surfaces the ESP failure
+		// UI listing the failed software by name, with a "Continue anyway" option so the user can proceed to the
+		// desktop and install the missing software via self-service.
+		ds, svc := newSvc(t)
+		hostTeamID := uint(9)
+		osqueryHostID := "osquery-" + hostUUID
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+			return &fleet.HostLite{ID: 1, UUID: identifier, OsqueryHostID: &osqueryHostID, TeamID: &hostTeamID}, nil
+		}
+		// require_all_software_windows stays false via the team path (zero-value team config).
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid}, nil
+		}
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			require.Equal(t, hostTeamID, teamID,
+				"list call must pass the host's team ID so display-name enrichment is team-scoped")
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "slack-installer", DisplayName: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Zoom", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(2))},
+				{Name: "Notepad++", Status: fleet.SetupExperienceStatusSuccess, SoftwareInstallerID: new(uint(3))},
+				{Name: "Docker", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(4))},
+			}, nil
+		}
+		activitySvc := &mock.MockActivityService{}
+		svc.SetActivityService(activitySvc)
+
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "soft block must surface the ESP failure UI")
+		require.NotNil(t, blockCmd.Items[0].Data)
+		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
+			"soft block must offer Reset PC and Continue Anyway (1|4) per DMClient CSP bit flags")
+
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		require.NotNil(t, errCmd.Items[0].Data)
+		assert.Equal(t,
+			"Slack, Zoom, and Docker failed to install. "+
+				"Reset your device to try again, or proceed and install missing software via self-service. "+
+				"If unavailable, contact your IT admin.",
+			errCmd.Items[0].Data.Content,
+			"soft block must list only the failed software, in result order, preferring custom display names")
+
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"soft block must NOT signal ESP success")
+		assert.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"soft block must not cancel setup experience steps")
+		assert.False(t, ds.CancelHostUpcomingActivityFuncInvoked,
+			"soft block must not cancel upcoming activities")
+		assert.False(t, activitySvc.NewActivityFuncInvoked,
+			"soft block must not emit canceled_setup_experience: setup was not cancelled")
+		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"soft block finalizes: awaiting_configuration must transition out of Active")
+	})
+
+	t.Run("timeout with require_all=false and a failure soft blocks listing failed software", func(t *testing.T) {
+		// A failure that occurred before the 3-hour timeout (with a sibling still stuck) must still be surfaced: the
+		// timeout path scans for failures so it lists the failed software rather than releasing silently.
+		ds, svc := newSvc(t)
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{
+				{Name: "Slack", Status: fleet.SetupExperienceStatusFailure, SoftwareInstallerID: new(uint(1))},
+				{Name: "Stuck App", Status: fleet.SetupExperienceStatusPending, SoftwareInstallerID: new(uint(2)), HostSoftwareInstallsExecutionID: new("exec-stuck")},
+			}, nil
+		}
+		past := time.Now().Add(-4 * time.Hour)
+		device := newActiveDevice()
+		device.AwaitingConfigurationAt = &past
+
+		cmds, err := svc.getESPCommands(t.Context(), device)
+		require.NoError(t, err)
+		require.NotEmpty(t, cmds)
+
+		blockCmd := findCmdByLocURI(cmds, "BlockInStatusPage")
+		require.NotNil(t, blockCmd, "timeout with a failure must surface the ESP failure UI")
+		assert.Equal(t, "5", blockCmd.Items[0].Data.Content,
+			"timeout soft block must offer Reset PC and Continue Anyway")
+		errCmd := findCmdByLocURI(cmds, "CustomErrorText")
+		require.NotNil(t, errCmd)
+		assert.Equal(t,
+			"Slack failed to install. "+
+				"Reset your device to try again, or proceed and install missing software via self-service. "+
+				"If unavailable, contact your IT admin.",
+			errCmd.Items[0].Data.Content,
+			"timeout with a failure must list the failed software, not the timeout text")
+		assert.Nil(t, findCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
+			"timeout soft block must NOT signal ESP success")
+		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
+			"timeout must cancel the still-pending sibling")
+	})
+
 	t.Run("timeout cancel tolerates upcoming activity already gone", func(t *testing.T) {
 		// CancelHostUpcomingActivity returns notFound when the row is already absent (e.g., a previous finalize
 		// attempt cancelled the queue row and crashed before the status table update; the retry sees status
@@ -1615,8 +2077,9 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			t.Fatal("AppConfig must not be called when host has a team_id")
-			return nil, nil
+			ac := &fleet.AppConfig{}
+			ac.MDM.MacOSSetup.RequireAllSoftwareWindows = false
+			return ac, nil
 		}
 
 		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
@@ -1719,4 +2182,215 @@ func TestGetESPCommands(t *testing.T) {
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
 			"must not transition state while waiting for orbit init")
 	})
+}
+
+func TestReconcileWindowsMDMPollSchedule(t *testing.T) {
+	t.Parallel()
+	const deviceID = "test-device-id"
+	const enrollmentID = uint(7)
+
+	// assertEnqueuedInterval parses the captured raw command exactly as the session delivery path does, confirming it is a well-formed
+	// Replace on the Poll node with the expected interval.
+	assertEnqueuedInterval := func(t *testing.T, cmd *fleet.MDMWindowsCommand, interval string) {
+		t.Helper()
+		require.NotNil(t, cmd, "a poll command should have been enqueued")
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, cmd.TargetLocURI)
+		assert.NotEmpty(t, cmd.CommandUUID)
+		parsed, err := fleet.UnmarshallMultiTopLevelXMLProfile(cmd.RawCommand)
+		require.NoError(t, err)
+		require.Len(t, parsed, 1)
+		assert.Equal(t, fleet.CmdReplace, parsed[0].XMLName.Local)
+		assert.Equal(t, syncml.DMClientPollIntervalLocURI, parsed[0].GetTargetURI())
+		assert.Equal(t, interval, parsed[0].GetTargetData())
+	}
+
+	// The reconcile relaxes the poll iff the host's persisted fleetd_sync_capable differs from its current poll_schedule_relaxed: it enqueues
+	// a Replace carrying the relaxed (480m) or fast (1m) interval and records the new intended state. The not-capable+fast case also covers
+	// the unlinked / never-reported-capable enrollment (fleetd_sync_capable defaults to false).
+	for _, c := range []struct {
+		name         string
+		syncCapable  bool
+		relaxed      bool
+		wantEnqueue  bool
+		wantInterval string // only checked when wantEnqueue
+	}{
+		{"capable host on fast poll is relaxed", true, false, true, windowsMDMRelaxedPollIntervalMinutes},
+		{"capable host already relaxed is a no-op", true, true, false, ""},
+		{"not-capable host marked relaxed is restored to fast", false, true, true, windowsMDMFastPollIntervalMinutes},
+		{"not-capable host already on fast poll is a no-op", false, false, false, ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			var enqueued *fleet.MDMWindowsCommand
+			var intendedRelaxed *bool
+			ds := new(mock.Store)
+			ds.MDMWindowsEnqueuePollScheduleCommandFunc = func(
+				ctx context.Context, mdmDeviceID string, id uint, cmd *fleet.MDMWindowsCommand, relaxed bool,
+			) error {
+				assert.Equal(t, deviceID, mdmDeviceID, "poll command must target the enrollment's device id")
+				assert.Equal(t, enrollmentID, id)
+				enqueued, intendedRelaxed = cmd, &relaxed
+				return nil
+			}
+			svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+
+			device := &fleet.MDMWindowsEnrolledDevice{
+				ID: enrollmentID, MDMDeviceID: deviceID, PollScheduleRelaxed: c.relaxed, FleetdSyncCapable: c.syncCapable,
+			}
+			require.NoError(t, svc.reconcileWindowsMDMPollSchedule(t.Context(), device))
+
+			require.Equal(t, c.wantEnqueue, ds.MDMWindowsEnqueuePollScheduleCommandFuncInvoked)
+			if c.wantEnqueue {
+				assertEnqueuedInterval(t, enqueued, c.wantInterval)
+				require.NotNil(t, intendedRelaxed)
+				// The recorded intended state always equals the capability (relax iff capable).
+				assert.Equal(t, c.syncCapable, *intendedRelaxed)
+			}
+		})
+	}
+}
+
+// TestHasAuthorizedAzureAudience covers the audience-matching logic that authorizes Entra-issued tokens for Windows
+// automatic enrollment, including the v2 (client ID / GUID `aud`) path added for issue #46388 and the unchanged v1
+// (server-URL `aud`) path.
+func TestHasAuthorizedAzureAudience(t *testing.T) {
+	const (
+		serverHost = "fleet.example.com"
+		clientID   = "11111111-1111-1111-1111-111111111111"
+		clientID2  = "22222222-2222-2222-2222-222222222222"
+		serverURL  = "https://fleet.example.com"
+	)
+	for _, tc := range []struct {
+		name      string
+		audiences []string
+		clientIDs []string
+		want      bool
+	}{
+		// v1 (server URL) path - unchanged behavior, no client IDs configured.
+		{"v1 server URL, no client IDs", []string{serverURL}, nil, true},
+		{"v1 server URL with path", []string{serverURL + "/some/path"}, nil, true},
+		{"v1 host case-insensitive (RFC 3986)", []string{"https://Fleet.Example.COM"}, nil, true},
+		{"v1 same host different port is rejected", []string{"https://fleet.example.com:8443"}, nil, false},
+		{"v1 different host", []string{"https://evil.example.com"}, nil, false},
+
+		// v2 (client ID) path.
+		{"v2 client ID match", []string{clientID}, []string{clientID}, true},
+		{"v2 matches second configured client ID", []string{clientID2}, []string{clientID, clientID2}, true},
+		{"v2 client ID, case-insensitive aud", []string{strings.ToUpper(clientID)}, []string{clientID}, true},
+		{"v2 client ID with surrounding whitespace", []string{"  " + clientID + "  "}, []string{clientID}, true},
+		{"v2 client ID not in allowlist", []string{"99999999-9999-9999-9999-999999999999"}, []string{clientID}, false},
+
+		// Backward compatibility: a v2-style GUID aud with no client IDs configured is not authorized.
+		{"GUID aud, no client IDs configured", []string{clientID}, nil, false},
+
+		// Mixed / multiple audiences: any one match wins.
+		{"multiple auds, client ID wins", []string{"urn:something", clientID}, []string{clientID}, true},
+		{"multiple auds, server URL wins", []string{"urn:something", serverURL}, []string{clientID}, true},
+		{"multiple auds, none match", []string{"urn:something", "https://other.example.com"}, []string{clientID}, false},
+
+		// Degenerate inputs.
+		{"empty audiences", nil, []string{clientID}, false},
+		{"empty everything", nil, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureAudience(tc.audiences, serverHost, tc.clientIDs))
+		})
+	}
+
+	// A GUID aud must not match a misconfigured (empty) serverHost - GUIDs parse to a URL with an empty host.
+	t.Run("empty serverHost does not match GUID aud", func(t *testing.T) {
+		assert.False(t, hasAuthorizedAzureAudience([]string{clientID}, "", nil))
+	})
+}
+
+// TestHasAuthorizedAzureTenant covers the tenant-matching logic that authorizes Entra-issued tokens by the `tid`
+// claim. The comparison is case-insensitive: the GUID validator accepts upper-case tenant IDs, and
+// Entra emits `tid` lower-cased, so a tenant ID stored with upper-case hex must still authorize enrollment.
+func TestHasAuthorizedAzureTenant(t *testing.T) {
+	const (
+		tenantA = "1a86b496-e2a4-43ef-ba00-20004e29b13b"
+		tenantB = "6dca58c4-c817-4730-831b-f3348931df05"
+	)
+	for _, tc := range []struct {
+		name      string
+		tenantIDs []string
+		token     string
+		want      bool
+	}{
+		{"exact match", []string{tenantA}, tenantA, true},
+		{"matches second configured", []string{tenantA, tenantB}, tenantB, true},
+		{"configured upper, token lower", []string{strings.ToUpper(tenantB)}, tenantB, true},
+		{"configured lower, token upper", []string{tenantB}, strings.ToUpper(tenantB), true},
+		{"surrounding whitespace", []string{"  " + tenantA + "  "}, tenantA, true},
+		{"not configured", []string{tenantA}, tenantB, false},
+		{"empty configured", nil, tenantA, false},
+		{"empty token", []string{tenantA}, "", false},
+		{"empty token with whitespace", []string{tenantA}, "   ", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, hasAuthorizedAzureTenant(tc.tenantIDs, tc.token))
+		})
+	}
+}
+
+// TestIsFleetdPresentOnDevice covers the fleetd-presence decision for a Windows MDM session.
+func TestIsFleetdPresentOnDevice(t *testing.T) {
+	t.Parallel()
+
+	enrolledAt := time.Date(2026, 6, 10, 9, 36, 32, 0, time.UTC)
+
+	cases := []struct {
+		name        string
+		nonUPN      bool          // enroll_user_id is a device token (programmatic enrollment), not a UPN
+		unlinked    bool          // enrollment not yet linked to a host
+		noVersion   bool          // host_orbit_info has an empty version
+		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
+		wantPresent bool
+	}{
+		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
+		{name: "UPN not yet linked to a host", unlinked: true, wantPresent: false},
+		{name: "UPN with empty orbit version", noVersion: true, seenOffset: time.Minute, wantPresent: false},
+		{name: "UPN stale check-in before enrollment (wipe)", seenOffset: -20 * 24 * time.Hour, wantPresent: false},
+		{name: "UPN fresh check-in after enrollment", seenOffset: time.Minute, wantPresent: true},
+		{name: "UPN check-in within grace before enrollment", seenOffset: -fleetdPresenceGracePeriod / 2, wantPresent: true},
+		// Exactly on the threshold (seen_time == created_at - grace) must count as present: the check is inclusive
+		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
+		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
+		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			enrollUser := "alice@example.com"
+			if tc.nonUPN {
+				enrollUser = "device-token"
+			}
+			hostUUID := "host-1"
+			if tc.unlinked {
+				hostUUID = ""
+			}
+			version := "1.56.2"
+			if tc.noVersion {
+				version = ""
+			}
+
+			ds := new(mock.Store)
+			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
+			}
+			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
+				return &fleet.HostOrbitInfo{Version: version}, nil
+			}
+			svc := &Service{ds: ds}
+
+			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				MDMEnrollUserID: enrollUser,
+				HostUUID:        hostUUID,
+				CreatedAt:       enrolledAt,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantPresent, present)
+		})
+	}
 }

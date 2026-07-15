@@ -89,7 +89,7 @@
       overflow: hidden;
       margin-bottom: 24px;
       &.overflowing {
-        margin-bottom: 8px;
+        margin-bottom: 0px;
       }
       &.overflowing::after {
         content: '';
@@ -116,7 +116,9 @@
       cursor: pointer;
       font-size: 14px;
       font-weight: 700;
-      margin-bottom: 24px;
+      padding: 12px;
+      margin-top: -12px;
+      margin-bottom: 12px;
       display: inline-block;
     }
     [purpose='quote-author-info'] {

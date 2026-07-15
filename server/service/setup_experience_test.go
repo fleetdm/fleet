@@ -744,8 +744,8 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		// Windows cancel-gate: this test exercises the OOBE/Autopilot path,
 		// so awaiting_configuration is Active. The non-ESP cases (None -> no cancel,
 		// no activity) are covered in the matrix subtest below.
-		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationActive}, nil
 		}
 
 		installerID := uint(20)
@@ -831,16 +831,18 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		computerName := "DESKTOP-NOAUTOPILOT"
 		osqueryHostID := "windows-osquery-id-matrix"
 
-		notFound := func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return 0, &notFoundError{}
+		notFound := func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+			return nil, &notFoundError{}
 		}
-		returns := func(v fleet.WindowsMDMAwaitingConfiguration) func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) {
-			return func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error) { return v, nil }
+		returns := func(v fleet.WindowsMDMAwaitingConfiguration) func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+			return func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error) {
+				return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: v}, nil
+			}
 		}
 
 		cases := []struct {
 			name                 string
-			primary              func(context.Context, string) (fleet.WindowsMDMAwaitingConfiguration, error)
+			primary              func(context.Context, string) (*fleet.MDMWindowsHostConfigState, error)
 			fallbackDevice       *fleet.MDMWindowsEnrolledDevice // nil = fallback also returns notFound
 			expectCancel         bool
 			expectFallbackLookup bool
@@ -921,7 +923,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 						},
 					}, nil
 				}
-				ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = tc.primary
+				ds.GetMDMWindowsHostConfigStateFunc = tc.primary
 				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc = func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
 					require.Equal(t, computerName, deviceName)
 					if tc.fallbackDevice == nil {
@@ -955,7 +957,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				}
 				ds.CancelPendingSetupExperienceStepsFunc = func(ctx context.Context, hUUID string) error { return nil }
 
-				ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = false
+				ds.GetMDMWindowsHostConfigStateFuncInvoked = false
 				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = false
 				ds.CancelHostUpcomingActivityFuncInvoked = false
 				ds.CancelPendingSetupExperienceStepsFuncInvoked = false
@@ -975,8 +977,8 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 				require.NoError(t, err)
 				require.True(t, updated, "installer status row must still be updated to failure regardless of gate decision")
-				require.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
-					"the new gate must always consult awaiting_configuration first")
+				require.True(t, ds.GetMDMWindowsHostConfigStateFuncInvoked,
+					"the new gate must always consult the Windows host config state first")
 				require.Equal(t, tc.expectFallbackLookup, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked,
 					"fallback by device_name must run iff the primary lookup returned notFound")
 				require.Equal(t, tc.expectCancel, activityFnCalled,

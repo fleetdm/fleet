@@ -1,0 +1,10 @@
+{
+  "name": "PS Remote Play",
+  "unique_identifier": "com.playstation.RemotePlay",
+  "token": "sony-ps-remote-play",
+  "installer_format": "pkg",
+  "slug": "sony-ps-remote-play/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

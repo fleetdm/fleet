@@ -148,6 +148,34 @@ describe("HostHeader", () => {
     expect(await screen.findByText(/Host is locked/i)).toBeInTheDocument();
   });
 
+  it("renders wipe status tags for Linux hosts", () => {
+    const linuxSummaryData = { ...defaultSummaryData, platform: "ubuntu" };
+
+    const { rerender } = render(
+      <HostHeader
+        summaryData={linuxSummaryData}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"wiping" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
+      />
+    );
+    expect(screen.getByText("Wipe pending")).toBeInTheDocument();
+
+    rerender(
+      <HostHeader
+        summaryData={linuxSummaryData}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmDeviceStatus={"wiped" as HostMdmDeviceStatusUIState}
+        hostMdmEnrollmentStatus={null}
+      />
+    );
+    expect(screen.getByText("Wiped")).toBeInTheDocument();
+  });
+
   it("renders 'Lock pending' and 'Wiped' badges for Android hosts", () => {
     const { rerender } = renderWithSetup(
       <HostHeader
@@ -174,24 +202,6 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wiped")).toBeInTheDocument();
   });
 
-  it("renders 'Unenroll pending' (not 'Wipe pending') for BYO Android during pending wipe (#41683)", () => {
-    // BYO Android Unenroll fires an AMAPI WIPE under the hood, so the backend surfaces this as
-    // hostMdmDeviceStatus="wiping". The label is overridden in HostHeader for BYO so the badge
-    // matches the action the admin took (Unenroll), not the underlying mechanism.
-    render(
-      <HostHeader
-        summaryData={{ ...defaultSummaryData, platform: "android" }}
-        showRefetchSpinner={false}
-        onRefetchHost={jest.fn()}
-        renderActionsDropdown={renderActionDropdown}
-        hostMdmDeviceStatus={"wiping" as HostMdmDeviceStatusUIState}
-        hostMdmEnrollmentStatus="On (personal)"
-      />
-    );
-    expect(screen.getByText("Unenroll pending")).toBeInTheDocument();
-    expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
-  });
-
   it("renders 'Wipe pending' for COBO Android during pending wipe (#41683)", () => {
     render(
       <HostHeader
@@ -204,7 +214,6 @@ describe("HostHeader", () => {
       />
     );
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
-    expect(screen.queryByText("Unenroll pending")).not.toBeInTheDocument();
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {

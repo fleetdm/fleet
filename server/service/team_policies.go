@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -37,6 +38,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsIncludeAny:             req.LabelsIncludeAny,
 		LabelsIncludeAll:             req.LabelsIncludeAll,
 		LabelsExcludeAny:             req.LabelsExcludeAny,
+		LabelsExcludeAll:             req.LabelsExcludeAll,
 		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
 		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
 		Type:                         req.Type,
@@ -73,11 +75,21 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		})
 	}
 
-	if len(tp.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+	if p.QueryID != nil {
+		query, err := svc.ds.Query(ctx, *p.QueryID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get query for policy")
+		}
+		if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	}
+
+	if (len(tp.LabelsIncludeAll) > 0 || len(tp.LabelsExcludeAll) > 0 || len(tp.LabelsIncludeAny) > 0 || len(tp.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, slices.Concat(tp.LabelsIncludeAny, tp.LabelsIncludeAll, tp.LabelsExcludeAny), vc.User); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, &teamID, slices.Concat(tp.LabelsIncludeAny, tp.LabelsIncludeAll, tp.LabelsExcludeAny, tp.LabelsExcludeAll), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -204,6 +216,76 @@ func (svc *Service) populatePolicyPatchSoftware(ctx context.Context, p *fleet.Po
 	return nil
 }
 
+func getPolicySoftwareTitleIconURL(teamID, titleID uint) string {
+	icon := fleet.SoftwareTitleIcon{TeamID: teamID, SoftwareTitleID: titleID}
+	return icon.IconUrl()
+}
+
+// populateSoftwareIconURLs sets the IconURL on each policy's software automation
+// when the software title has an icon to serve: a custom icon uploaded for the
+// title, or a VPP app (whose icon endpoint redirects to the App Store icon).
+// Otherwise the IconURL is left nil.
+func (svc *Service) populateSoftwareIconURLs(ctx context.Context, policies []*fleet.Policy) error {
+	titleIDsByTeam := make(map[uint]map[uint]struct{})
+	for _, p := range policies {
+		// Merged team-policy lists can include inherited/global policies (nil TeamID).
+		// They should not have software automation, so skip them.
+		if p.TeamID == nil {
+			continue
+		}
+		teamID := *p.TeamID
+		for _, t := range []*fleet.PolicySoftwareTitle{p.InstallSoftware, p.PatchSoftware} {
+			if t == nil {
+				continue
+			}
+			if titleIDsByTeam[teamID] == nil {
+				titleIDsByTeam[teamID] = make(map[uint]struct{})
+			}
+			titleIDsByTeam[teamID][t.SoftwareTitleID] = struct{}{}
+		}
+	}
+	if len(titleIDsByTeam) == 0 {
+		return nil
+	}
+
+	iconsByTeam := make(map[uint]map[uint]fleet.SoftwareTitleIcon, len(titleIDsByTeam))
+	for teamID, set := range titleIDsByTeam {
+		titleIDs := slices.Collect(maps.Keys(set))
+		icons, err := svc.ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get software icons for policies")
+		}
+		iconsByTeam[teamID] = icons
+	}
+
+	for _, p := range policies {
+		if p.TeamID == nil {
+			continue
+		}
+		teamID := *p.TeamID
+		icons := iconsByTeam[teamID]
+
+		if t := p.InstallSoftware; t != nil {
+			_, hasCustomIcon := icons[t.SoftwareTitleID]
+			// VPP apps always have an App Store icon the icon endpoint redirects
+			// to (see getPolicySoftwareTitleIconURL), so it's safe to point at it
+			// without risking a 404.
+			if hasCustomIcon || p.VPPAppsTeamsID != nil {
+				t.IconURL = new(getPolicySoftwareTitleIconURL(teamID, t.SoftwareTitleID))
+			}
+		}
+
+		if t := p.PatchSoftware; t != nil {
+			// Patch software is always a package installer (never a VPP app), so
+			// it only gets an icon URL when a custom icon was uploaded.
+			if _, ok := icons[t.SoftwareTitleID]; ok {
+				t.IconURL = new(getPolicySoftwareTitleIconURL(teamID, t.SoftwareTitleID))
+			}
+		}
+	}
+	return nil
+}
+
 func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (fleet.PolicyPayload, error) {
 	policyType := fleet.PolicyTypeDynamic
 
@@ -230,6 +312,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsIncludeAny:             p.LabelsIncludeAny,
 		LabelsIncludeAll:             p.LabelsIncludeAll,
 		LabelsExcludeAny:             p.LabelsExcludeAny,
+		LabelsExcludeAll:             p.LabelsExcludeAll,
 		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
 		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
 		Type:                         policyType,
@@ -251,20 +334,24 @@ func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc flee
 		OrderKey:       req.InheritedOrderKey,
 	}
 
-	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType)
+	tmPols, inheritedPols, err := svc.ListTeamPolicies(ctx, req.TeamID, req.Opts, inheritedListOptions, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.ListTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.ListTeamPoliciesResponse{Policies: tmPols, InheritedPolicies: inheritedPols}, nil
 }
 
-func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationFilter string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
 		return nil, nil, err
+	}
+
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID > 0 {
@@ -274,16 +361,22 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 	}
 
 	if mergeInherited {
-		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter)
+		policies, err := svc.ds.ListMergedTeamPolicies(ctx, teamID, opts, automationFilter, platform)
+		if err != nil {
+			return nil, nil, err
+		}
 		for i := range policies {
 			if err := svc.populateAutomationsForTeamPolicy(ctx, policies[i]); err != nil {
 				return nil, nil, ctxerr.Wrapf(ctx, err, "populate automations for policy_id: %d", policies[i].ID)
 			}
 		}
-		return policies, nil, err
+		if err := svc.populateSoftwareIconURLs(ctx, policies); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "populate software icon urls")
+		}
+		return policies, nil, nil
 	}
 
-	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter)
+	teamPolicies, inheritedPolicies, err = svc.ds.ListTeamPolicies(ctx, teamID, opts, iopts, automationFilter, platform)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -292,6 +385,9 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		if err := svc.populateAutomationsForTeamPolicy(ctx, teamPolicies[i]); err != nil {
 			return nil, nil, ctxerr.Wrapf(ctx, err, "populate automations for policy_id: %d", teamPolicies[i].ID)
 		}
+	}
+	if err := svc.populateSoftwareIconURLs(ctx, teamPolicies); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "populate software icon urls")
 	}
 
 	return teamPolicies, inheritedPolicies, nil
@@ -303,20 +399,24 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 
 func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleet.CountTeamPoliciesRequest)
-	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType)
+	count, inheritedCount, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited, req.AutomationType, req.Platform)
 	if err != nil {
 		return fleet.CountTeamPoliciesResponse{Err: err}, nil
 	}
 	return fleet.CountTeamPoliciesResponse{Count: count, InheritedPolicyCount: inheritedCount}, nil
 }
 
-func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
+func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			TeamID: ptr.Uint(teamID),
 		},
 	}, fleet.ActionRead); err != nil {
 		return 0, 0, err
+	}
+
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID > 0 {
@@ -326,18 +426,24 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 	}
 
 	if mergeInherited {
-		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType)
+		count, err := svc.ds.CountMergedTeamPolicies(ctx, teamID, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
-		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType)
+		// CountPolicies ignores automationType when teamID is nil, so the
+		// inherited count would be wrong (too high) when an automation filter
+		// is active. Short-circuit to 0 in that case.
+		if automationType != "" {
+			return count, 0, nil
+		}
+		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err
 		}
 		return count, inheritedCount, nil
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType)
+	count, err := svc.ds.CountPolicies(ctx, &teamID, matchQuery, automationType, platform)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -373,6 +479,9 @@ func (svc Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID 
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, teamPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+	if err := svc.populateSoftwareIconURLs(ctx, []*fleet.Policy{teamPolicy}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "populate software icon urls")
 	}
 
 	return teamPolicy, nil
@@ -543,11 +652,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
-	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), authz.UserFromContext(ctx)); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, teamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll), authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -622,14 +731,16 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
-	// If the client sent any of the three label scope fields, treat all three as authoritative
-	// for the policy's label state. The validator on ModifyPolicyPayload (Verify()) enforces that at most
-	// one is non-nil, so a single field switches scope and clears the others. Sending none of
-	// the three leaves labels untouched.
-	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil {
+	// If the client sent any of the label scope fields, treat all of them as authoritative
+	// for the policy's label state. Verify() enforces that at most one include scope and one
+	// exclude scope carry values (empty slices are allowed and just clear that scope), so the
+	// provided fields switch scope and clear the others. Sending none of them (all nil) leaves
+	// labels untouched.
+	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil || p.LabelsExcludeAny != nil || p.LabelsExcludeAll != nil {
 		policy.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
 		policy.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
 		policy.LabelsExcludeAny = fleet.LabelNamesToIdents(p.LabelsExcludeAny)
+		policy.LabelsExcludeAll = fleet.LabelNamesToIdents(p.LabelsExcludeAll)
 	}
 
 	if err := fleet.PolicyVerifyConditionalAccess(policy.ConditionalAccessEnabled, policy.Platform); err != nil {

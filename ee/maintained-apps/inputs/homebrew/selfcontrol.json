@@ -1,0 +1,10 @@
+{
+  "name": "SelfControl",
+  "unique_identifier": "org.eyebeam.SelfControl",
+  "token": "selfcontrol",
+  "installer_format": "zip",
+  "slug": "selfcontrol/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
