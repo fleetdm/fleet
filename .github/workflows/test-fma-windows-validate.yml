@@ -55,10 +55,14 @@ jobs:
 
       - name: Determine pre-installed apps to remove
         id: check-windows-apps
+        # Pass the slugs through env rather than expanding ${{ inputs.slugs }}
+        # into the script body (flagged by zizmor as template injection).
+        env:
+          SLUGS_JSON: ${{ inputs.slugs }}
         run: |
-          # inputs.slugs is a JSON array; wrap in @() so a single slug still
+          # SLUGS_JSON is a JSON array; wrap in @() so a single slug still
           # behaves as an array.
-          $slugs = @('${{ inputs.slugs }}' | ConvertFrom-Json)
+          $slugs = @($env:SLUGS_JSON | ConvertFrom-Json)
           Write-Host "Apps to validate on this $env:PROCESSOR_ARCHITECTURE runner:"
           $slugs | ForEach-Object { Write-Host "  - $_" }
 
@@ -500,6 +504,10 @@ jobs:
       # Git" below. Git for Windows provides the Git Bash 'bash' that this step's
       # filter-apps-json.sh call depends on; validation itself does not need bash.
       - name: Filter apps.json to this shard's apps
+        # Pass the slugs through env rather than expanding ${{ inputs.slugs }}
+        # into the script body (flagged by zizmor as template injection).
+        env:
+          SLUGS_JSON: ${{ inputs.slugs }}
         run: |
           cd fleet
           # Set GITHUB_WORKSPACE to current directory so scripts can find files
@@ -511,7 +519,7 @@ jobs:
           # bash script: forwarding a quoted JSON string across the
           # PowerShell -> bash argument boundary mangles the embedded quotes under
           # Windows PowerShell 5.1, which breaks jq --argjson.
-          $windowsSlugsJson = '${{ inputs.slugs }}'
+          $windowsSlugsJson = $env:SLUGS_JSON
           Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"
 
           $windowsSlugsFile = Join-Path $env:TEMP "windows-slugs-$(New-Guid).json"
