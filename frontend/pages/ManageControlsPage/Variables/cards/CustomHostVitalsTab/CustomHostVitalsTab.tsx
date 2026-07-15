@@ -7,10 +7,9 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 import { ICustomHostVital } from "interfaces/custom_host_vitals";
-import { IListCustomHostVitalsResponse } from "services/entities/custom_host_vitals";
-// TODO(#48559): replace mock with live API — swap for
-// "services/entities/custom_host_vitals" once CRUD endpoints exist.
-import customHostVitalsAPI from "services/entities/custom_host_vitals_mock";
+import customHostVitalsAPI, {
+  IListCustomHostVitalsResponse,
+} from "services/entities/custom_host_vitals";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
