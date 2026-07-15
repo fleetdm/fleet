@@ -215,12 +215,12 @@ func run(cfg Config) error {
 	filesProcessed := 0
 	filesSkipped := 0
 
-	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 
@@ -641,12 +641,12 @@ func runRHEL(cfg Config) error {
 	filesProcessed := 0
 	filesSkipped := 0
 
-	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 
@@ -913,13 +913,17 @@ func runAndroid(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	skippedNonAndroid := 0
+	skippedNonEcosystem := 0
+	skippedNonVersion := 0
+	totalAffectedEntries := 0
 
-	err := filepath.Walk(cfg.InputDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if info.IsDir() || !strings.HasSuffix(path, ".json") {
+		if d.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
 		}
 
@@ -937,7 +941,10 @@ func runAndroid(cfg Config) error {
 		}
 
 		for _, affected := range osvData.Affected {
+			totalAffectedEntries++
+
 			if affected.Package.Ecosystem != "Android" {
+				skippedNonAndroid++
 				continue
 			}
 
@@ -948,6 +955,7 @@ func runAndroid(cfg Config) error {
 
 			for _, r := range affected.Ranges {
 				if r.Type != "ECOSYSTEM" {
+					skippedNonEcosystem++
 					continue
 				}
 
@@ -964,6 +972,7 @@ func runAndroid(cfg Config) error {
 						continue
 					}
 					if !isAndroidVersion(major) {
+						skippedNonVersion++
 						continue
 					}
 					fixedEvents = append(fixedEvents, struct {
@@ -1020,7 +1029,14 @@ func runAndroid(cfg Config) error {
 	}
 
 	log.Printf("Processed %d files, skipped %d files in %s", filesProcessed, filesSkipped, time.Since(startTime).Round(time.Millisecond))
+	log.Printf("Affected entries: %d total, skipped — non-Android ecosystem: %d, non-ECOSYSTEM range: %d, non-version prefix: %d",
+		totalAffectedEntries, skippedNonAndroid, skippedNonEcosystem, skippedNonVersion)
 	log.Printf("Discovered %d Android versions", len(collected))
+
+	if len(collected) == 0 {
+		log.Printf("WARNING: no Android vulnerabilities found — check that the input directory contains valid Android OSV JSON files")
+		return nil
+	}
 
 	totalCVEs := 0
 	for _, cveMap := range collected {

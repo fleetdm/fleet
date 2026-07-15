@@ -1719,6 +1719,187 @@ func TestRunAndroidLatestFixedSPLWins(t *testing.T) {
 	}
 }
 
+func TestRunAndroidSeverityUpgrade(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Same CVE, same version, different severities across affected entries.
+	// The highest severity (Critical > High) must win.
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "ASB-A-152496149",
+		"published": "2020-08-01T00:00:00Z",
+		"modified": "2020-09-01T00:00:00Z",
+		"aliases": ["CVE-2020-0245"],
+		"affected": [
+			{
+				"package": {"name": "platform/frameworks/av", "ecosystem": "Android"},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "11:0"}, {"fixed": "11:2020-09-01"}]}],
+				"ecosystem_specific": {"severity": "High"}
+			},
+			{
+				"package": {"name": "platform/frameworks/base", "ecosystem": "Android"},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "11:0"}, {"fixed": "11:2020-09-01"}]}],
+				"ecosystem_specific": {"severity": "Critical"}
+			}
+		]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "test.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "android",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-07-15",
+		GeneratedTimestamp: "2026-07-15T00:00:00Z",
+		RunTime:            time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runAndroid(cfg)
+	require.NoError(t, err)
+
+	artifact, err := readAndroidArtifact(filepath.Join(outputDir, "osv-android-11-2026-07-15.json.gz"))
+	require.NoError(t, err)
+	require.Len(t, artifact.Vulnerabilities, 1)
+	require.Equal(t, "Critical", artifact.Vulnerabilities[0].Severity,
+		"highest severity must win when deduplicating")
+}
+
+func TestRunAndroidGitRangeIgnored(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Real Android entries carry GIT ranges alongside ECOSYSTEM ranges.
+	// Only the ECOSYSTEM range should be used; the GIT range must be ignored.
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "ASB-A-111111111",
+		"published": "2026-01-01T00:00:00Z",
+		"modified": "2026-01-02T00:00:00Z",
+		"aliases": ["CVE-2026-11111"],
+		"affected": [{
+			"package": {"name": "platform/frameworks/base", "ecosystem": "Android"},
+			"ranges": [
+				{
+					"type": "GIT",
+					"events": [
+						{"introduced": "0"},
+						{"fixed": "abc123def456"}
+					]
+				},
+				{
+					"type": "ECOSYSTEM",
+					"events": [
+						{"introduced": "16:0"},
+						{"fixed": "16:2026-01-01"}
+					]
+				}
+			],
+			"ecosystem_specific": {"severity": "High"}
+		}]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "test.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "android",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-07-15",
+		GeneratedTimestamp: "2026-07-15T00:00:00Z",
+		RunTime:            time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runAndroid(cfg)
+	require.NoError(t, err)
+
+	artifact, err := readAndroidArtifact(filepath.Join(outputDir, "osv-android-16-2026-07-15.json.gz"))
+	require.NoError(t, err)
+	require.Len(t, artifact.Vulnerabilities, 1)
+	require.Equal(t, "CVE-2026-11111", artifact.Vulnerabilities[0].CVE)
+	require.Equal(t, "2026-01-01", artifact.Vulnerabilities[0].FixedSPL)
+}
+
+func TestRunAndroidNonAndroidEcosystemIgnored(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// An entry with a non-Android ecosystem that has version-like fixed events
+	// must not produce an Android artifact.
+	testData := `{
+		"schema_version": "1.7.5",
+		"id": "FAKE-ENTRY",
+		"published": "2026-01-01T00:00:00Z",
+		"modified": "2026-01-02T00:00:00Z",
+		"aliases": ["CVE-2026-99999"],
+		"affected": [{
+			"package": {"name": "some-package", "ecosystem": "Ubuntu:24.04:LTS"},
+			"ranges": [{
+				"type": "ECOSYSTEM",
+				"events": [{"introduced": "16:0"}, {"fixed": "16:2026-01-01"}]
+			}]
+		}]
+	}`
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "test.json"), []byte(testData), 0o644))
+
+	cfg := Config{
+		Platform:           "android",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		DateStr:            "2026-07-15",
+		GeneratedTimestamp: "2026-07-15T00:00:00Z",
+		RunTime:            time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runAndroid(cfg)
+	require.NoError(t, err)
+
+	files, err := filepath.Glob(filepath.Join(outputDir, "osv-android-*.json.gz"))
+	require.NoError(t, err)
+	require.Empty(t, files, "non-Android ecosystem must not produce any artifact")
+}
+
+func TestRunAndroidExcludeVersions(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	// Create entries for Android 14, 15, and 16
+	for i, ver := range []string{"14", "15", "16"} {
+		data := fmt.Sprintf(`{
+			"schema_version": "1.7.5",
+			"id": "ASB-A-20000000%d",
+			"published": "2026-01-01T00:00:00Z",
+			"modified": "2026-01-02T00:00:00Z",
+			"aliases": ["CVE-2026-100%d%d"],
+			"affected": [{
+				"package": {"name": "platform/frameworks/base", "ecosystem": "Android"},
+				"ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "%s:0"}, {"fixed": "%s:2026-01-01"}]}],
+				"ecosystem_specific": {"severity": "High"}
+			}]
+		}`, i, i, i, ver, ver)
+		require.NoError(t, os.WriteFile(filepath.Join(inputDir, fmt.Sprintf("test-%s.json", ver)), []byte(data), 0o644))
+	}
+
+	cfg := Config{
+		Platform:           "android",
+		InputDir:           inputDir,
+		OutputDir:          outputDir,
+		ExcludeVersions:    "14,15",
+		DateStr:            "2026-07-15",
+		GeneratedTimestamp: "2026-07-15T00:00:00Z",
+		RunTime:            time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runAndroid(cfg)
+	require.NoError(t, err)
+
+	// Only Android 16 should be generated
+	require.FileExists(t, filepath.Join(outputDir, "osv-android-16-2026-07-15.json.gz"))
+	_, err = os.Stat(filepath.Join(outputDir, "osv-android-15-2026-07-15.json.gz"))
+	require.True(t, os.IsNotExist(err), "excluded version 15 should not produce an artifact")
+	_, err = os.Stat(filepath.Join(outputDir, "osv-android-14-2026-07-15.json.gz"))
+	require.True(t, os.IsNotExist(err), "excluded version 14 should not produce an artifact")
+}
+
 func TestRunAndroidDeltaFlagsRejected(t *testing.T) {
 	cfg := Config{
 		Platform:          "android",
