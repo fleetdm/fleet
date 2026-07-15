@@ -482,10 +482,10 @@ func TestVersionsFromRelease(t *testing.T) {
 		Assets: map[string]*AssetInfo{
 			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
 			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
-			"osv-rhel-8-2026-04-27.json.gz":        {Name: "osv-rhel-8-2026-04-27.json.gz"},
-			"osv-rhel-9-2026-04-27.json.gz":        {Name: "osv-rhel-9-2026-04-27.json.gz"},
-			"osv-android-15-2026-04-27.json.gz":     {Name: "osv-android-15-2026-04-27.json.gz"},
-			"osv-android-16-2026-04-27.json.gz":     {Name: "osv-android-16-2026-04-27.json.gz"},
+			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
+			"osv-rhel-9-2026-04-27.json.gz":      {Name: "osv-rhel-9-2026-04-27.json.gz"},
+			"osv-android-15-2026-04-27.json.gz":  {Name: "osv-android-15-2026-04-27.json.gz"},
+			"osv-android-16-2026-04-27.json.gz":  {Name: "osv-android-16-2026-04-27.json.gz"},
 		},
 	}
 
