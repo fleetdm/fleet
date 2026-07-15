@@ -36,10 +36,9 @@ func Generate(ctx context.Context, _ table.QueryContext, socket string) ([]map[s
 
 	model := row["hardware_model"]
 
-	name, ok := fleet.AppleHardwareModels[model]
-	if !ok {
-		name = model
-	}
+	// Return an empty marketing_name when there's no mapping entry so a missing
+	// mapping can be told apart from the raw model identifier.
+	name := fleet.AppleHardwareModels[model]
 
 	return []map[string]string{{
 		"marketing_name": name,

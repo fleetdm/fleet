@@ -18,7 +18,7 @@ columns:
   - name: marketing_name
     type: text
     required: false
-    description: "The Apple marketing name for the hardware (e.g. MacBook Pro (16-inch, Nov 2023)). Falls back to the hardware model identifier if unknown."
+    description: "The Apple marketing name for the hardware, e.g. MacBook Pro (16-inch, Nov 2023)."
 notes: |-
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

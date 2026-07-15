@@ -8747,9 +8747,9 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 		case "abc", "xyz":
 			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "MacBook Pro")
 		case "ijk":
-			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, fleet.AppleHardwareModels["iPad13,16"])
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPad13,16")
 		case "tuv":
-			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, fleet.AppleHardwareModels["iPhone14,6"])
+			checkMDMHostRelatedTables(t, ds, h.ID, h.HardwareSerial, "iPhone14,6")
 
 		}
 	}

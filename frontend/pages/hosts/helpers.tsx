@@ -1,3 +1,5 @@
+import React from "react";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 export const getHostStatusTooltipText = (status: string): string => {
@@ -20,3 +22,17 @@ export const getHostStatus = (
 
   return status || DEFAULT_EMPTY_CELL_VALUE;
 };
+
+// getHardwareModelTooltip renders the tooltip shown behind an Apple device's
+// marketing name, surfacing both the raw hardware model and the marketing name.
+export const getHardwareModelTooltip = (
+  hardwareModel: React.ReactNode,
+  marketingName: React.ReactNode
+): JSX.Element => (
+  // Left-align to override the tooltip's default centered text.
+  <div style={{ textAlign: "left" }}>
+    <b>Model:</b> {hardwareModel}
+    <br />
+    <b>Marketing name:</b> {marketingName}
+  </div>
+);

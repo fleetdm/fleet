@@ -1412,7 +1412,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		"mdm_enrolled",
 		fmt.Sprintf(
 			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
-			mdmDevice.SerialNumber, fleet.AppleHardwareModels[mdmDevice.Model], mdmDevice.SerialNumber,
+			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
 		),
 		0,
 	)
