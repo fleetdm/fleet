@@ -821,18 +821,25 @@ func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error)
 
 // normalizeMDMSSOConfig, normalizes the MDM SSO configuration by trimming whitespaces.
 func normalizeMDMSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
-	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
-		if sso, ok := mdm["end_user_authentication"].(map[string]any); ok {
-			idpName, _ := sso["idp_name"].(string)
-			entityID, _ := sso["entity_id"].(string)
-			metadata, _ := sso["metadata"].(string)
-			metadataURL, _ := sso["metadata_url"].(string)
-
-			sso["idp_name"] = strings.TrimSpace(idpName)
-			sso["entity_id"] = strings.TrimSpace(entityID)
-			sso["metadata"] = strings.TrimSpace(metadata)
-			sso["metadata_url"] = strings.TrimSpace(metadataURL)
-		}
+	mdm, _ := orgSettings["mdm"].(map[string]any)
+	if mdm == nil {
+		return multiError
+	}
+	eua, _ := mdm["end_user_authentication"].(map[string]any)
+	if eua == nil {
+		return multiError
+	}
+	if v, ok := eua["idp_name"].(string); ok {
+		eua["idp_name"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["entity_id"].(string); ok {
+		eua["entity_id"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata"].(string); ok {
+		eua["metadata"] = strings.TrimSpace(v)
+	}
+	if v, ok := eua["metadata_url"].(string); ok {
+		eua["metadata_url"] = strings.TrimSpace(v)
 	}
 	return multiError
 }

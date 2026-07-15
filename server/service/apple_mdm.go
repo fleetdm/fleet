@@ -2627,8 +2627,6 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	fmt.Printf("Software update required for DEP enrollment: %+v\n", sur)
-
 	return sur, nil
 }
 
