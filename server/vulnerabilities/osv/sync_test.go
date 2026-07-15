@@ -539,6 +539,144 @@ func TestReleaseDateFromAssets(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestRemoveOldAndroidOSVArtifacts(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-android-16-2026-07-15.json.gz",  // today — keep
+		"osv-android-16-2026-07-14.json.gz",  // yesterday — remove
+		"osv-android-15-2026-07-14.json.gz",  // yesterday, different version, not in successful — keep
+		"osv-rhel-9-2026-07-14.json.gz",      // rhel — not touched
+		"osv-ubuntu-2204-2026-07-14.json.gz", // ubuntu — not touched
+		"some-other-file.json",               // unrelated — not touched
+	}
+
+	for _, file := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
+	}
+
+	err := removeOldAndroidOSVArtifacts(today, tmpDir, []string{"16"})
+	require.NoError(t, err)
+
+	// Today's Android 16 — kept
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-15.json.gz"))
+	require.NoError(t, err)
+
+	// Yesterday's Android 16 — removed (successfully downloaded today)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-14.json.gz"))
+	require.True(t, os.IsNotExist(err))
+
+	// Yesterday's Android 15 — kept (not in successful list)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-15-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// RHEL artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// Ubuntu artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// Other file — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
+	require.NoError(t, err)
+}
+
+func TestGetNeededAndroidVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		oses     []fleet.OperatingSystem
+		expected []string
+	}{
+		{
+			name:     "empty",
+			oses:     nil,
+			expected: nil,
+		},
+		{
+			name: "non-android ignored",
+			oses: []fleet.OperatingSystem{
+				{Name: "Ubuntu", Version: "22.04", Platform: "ubuntu"},
+				{Name: "Windows", Version: "10.0.19042", Platform: "windows"},
+			},
+			expected: nil,
+		},
+		{
+			name: "bare versions",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "16", Platform: "android"},
+				{Name: "Android", Version: "14", Platform: "android"},
+			},
+			expected: []string{"16", "14"},
+		},
+		{
+			name: "versions with SPL deduplicated",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "16 (2026-01-01)", Platform: "android"},
+				{Name: "Android", Version: "16 (2026-05-01)", Platform: "android"},
+				{Name: "Android", Version: "14 (2025-03-01)", Platform: "android"},
+			},
+			expected: []string{"16", "14"},
+		},
+		{
+			name: "empty version skipped",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "", Platform: "android"},
+				{Name: "Android", Version: "16", Platform: "android"},
+			},
+			expected: []string{"16"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getNeededAndroidVersions(tt.oses)
+			require.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAndroidOSVFilename(t *testing.T) {
+	date := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"16", "osv-android-16-2026-07-15.json.gz"},
+		{"14", "osv-android-14-2026-07-15.json.gz"},
+		{"8.1", "osv-android-8.1-2026-07-15.json.gz"},
+		{"12L", "osv-android-12L-2026-07-15.json.gz"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, androidOSVFilename(tt.version, date))
+		})
+	}
+}
+
+func TestExtractAndroidMajorVersion(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"16 (2026-05-01)", "16"},
+		{"14", "14"},
+		{"8.1 (2021-01-01)", "8.1"},
+		{"12L (2022-12-01)", "12L"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, extractAndroidMajorVersion(tt.version))
+		})
+	}
+}
+
 func TestDateFromAssetName(t *testing.T) {
 	tests := []struct {
 		name     string

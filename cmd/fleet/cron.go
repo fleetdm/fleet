@@ -244,9 +244,11 @@ func scanVulnerabilities(
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
 
-	phaseStart = time.Now()
-	checkAndroidVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	logger.InfoContext(ctx, "phase completed", "phase", "android_osv", "elapsed", time.Since(phaseStart))
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		checkAndroidVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		logger.InfoContext(ctx, "phase completed", "phase", "android_osv", "elapsed", time.Since(phaseStart))
+	}
 
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
 	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
@@ -470,10 +472,11 @@ func checkAndroidVulnerabilities(
 		syncSpan.End()
 	}
 
+	cache := androidvuln.NewArtifactCache()
 	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.android.analyze")
 	for _, o := range oses {
 		start := time.Now()
-		r, err := androidvuln.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger)
+		r, err := androidvuln.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger, cache)
 		elapsed := time.Since(start)
 		logger.DebugContext(analyzeCtx, "android-osv-analysis-done",
 			"os_version", o.Version,

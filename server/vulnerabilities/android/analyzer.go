@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,6 +22,28 @@ type OSVulnStore interface {
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error)
 	InsertOSVulnerabilities(ctx context.Context, vulns []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulns []fleet.OSVulnerability) error
+}
+
+type ArtifactCache struct {
+	version  string
+	artifact *AndroidArtifact
+}
+
+func NewArtifactCache() *ArtifactCache {
+	return &ArtifactCache{}
+}
+
+func (c *ArtifactCache) get(majorVersion, vulnPath string) (*AndroidArtifact, error) {
+	if c.version == majorVersion && c.artifact != nil {
+		return c.artifact, nil
+	}
+	a, err := loadArtifact(majorVersion, vulnPath)
+	if err != nil {
+		return nil, err
+	}
+	c.version = majorVersion
+	c.artifact = a
+	return a, nil
 }
 
 // AndroidVuln mirrors the artifact entry produced by cmd/osv-processor.
@@ -56,6 +77,7 @@ func Analyze(
 	vulnPath string,
 	collectVulns bool,
 	logger *slog.Logger,
+	cache *ArtifactCache,
 ) ([]fleet.OSVulnerability, error) {
 	if logger == nil {
 		logger = slog.Default()
@@ -66,7 +88,7 @@ func Analyze(
 		return nil, nil
 	}
 
-	artifact, err := loadArtifact(majorVersion, vulnPath)
+	artifact, err := cache.get(majorVersion, vulnPath)
 	if err != nil {
 		logger.DebugContext(ctx, "no Android OSV artifact found",
 			"android_version", majorVersion,
@@ -223,30 +245,4 @@ func readArtifact(path string) (*AndroidArtifact, error) {
 	}
 
 	return &artifact, nil
-}
-
-// LatestArtifactDate returns the date encoded in the latest Android artifact
-// filename for the given version, or zero time if none found.
-func LatestArtifactDate(majorVersion, vulnPath string) time.Time {
-	prefix := fmt.Sprintf("osv-android-%s-", majorVersion)
-	pattern := filepath.Join(vulnPath, prefix+"*.json.gz")
-
-	matches, _ := filepath.Glob(pattern)
-	if len(matches) == 0 {
-		return time.Time{}
-	}
-
-	latest := matches[0]
-	for _, m := range matches[1:] {
-		if m > latest {
-			latest = m
-		}
-	}
-
-	// Extract date from "osv-android-16-2026-07-14.json.gz"
-	base := filepath.Base(latest)
-	base = strings.TrimSuffix(base, ".json.gz")
-	base = strings.TrimPrefix(base, prefix)
-	t, _ := time.Parse("2006-01-02", base)
-	return t
 }

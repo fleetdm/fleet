@@ -10,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,8 +30,8 @@ func TestParseAndroidVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
 			major, spl := parseAndroidVersion(tt.version)
-			assert.Equal(t, tt.wantMajor, major)
-			assert.Equal(t, tt.wantSPL, spl)
+			require.Equal(t, tt.wantMajor, major)
+			require.Equal(t, tt.wantSPL, spl)
 		})
 	}
 }
@@ -40,7 +39,7 @@ func TestParseAndroidVersion(t *testing.T) {
 func TestResolvedVersion(t *testing.T) {
 	got := resolvedVersion("16", "2026-06-01")
 	require.NotNil(t, got)
-	assert.Equal(t, "16 (2026-06-01)", *got)
+	require.Equal(t, "16 (2026-06-01)", *got)
 }
 
 func writeTestArtifact(t *testing.T, dir string, artifact *AndroidArtifact) string {
@@ -95,7 +94,7 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		result, err := Analyze(ctx, ds, os, vulnDir, true, nil)
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
 		require.NoError(t, err)
 		require.Len(t, result, 2)
 
@@ -105,8 +104,8 @@ func TestAnalyze(t *testing.T) {
 			require.Equal(t, fleet.AndroidOSVSource, v.Source)
 			cves[v.CVE] = *v.ResolvedInVersion
 		}
-		assert.Equal(t, "16 (2026-05-01)", cves["CVE-2026-1111"])
-		assert.Equal(t, "16 (2026-06-01)", cves["CVE-2026-2222"])
+		require.Equal(t, "16 (2026-05-01)", cves["CVE-2026-1111"])
+		require.Equal(t, "16 (2026-06-01)", cves["CVE-2026-2222"])
 	})
 
 	t.Run("host with recent SPL is only vulnerable to later fix", func(t *testing.T) {
@@ -130,10 +129,10 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		result, err := Analyze(ctx, ds, os, vulnDir, true, nil)
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
 		require.NoError(t, err)
 		require.Len(t, result, 1)
-		assert.Equal(t, "CVE-2026-2222", result[0].CVE)
+		require.Equal(t, "CVE-2026-2222", result[0].CVE)
 	})
 
 	t.Run("fully patched host has no vulnerabilities", func(t *testing.T) {
@@ -155,7 +154,7 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		result, err := Analyze(ctx, ds, os, vulnDir, true, nil)
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
 		require.NoError(t, err)
 		require.Empty(t, result)
 	})
@@ -179,7 +178,7 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		result, err := Analyze(ctx, ds, os, vulnDir, true, nil)
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
 		require.NoError(t, err)
 		require.Empty(t, result)
 	})
@@ -220,7 +219,7 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		_, err := Analyze(ctx, ds, os, vulnDir, false, nil)
+		_, err := Analyze(ctx, ds, os, vulnDir, false, nil, NewArtifactCache())
 		require.NoError(t, err)
 		// Both previously existing vulns should be deleted
 		require.Len(t, deleted, 2)
@@ -235,8 +234,96 @@ func TestAnalyze(t *testing.T) {
 			Platform: "android",
 		}
 
-		result, err := Analyze(ctx, ds, os, vulnDir, true, nil)
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
 		require.NoError(t, err)
 		require.Nil(t, result)
 	})
+
+	t.Run("corrupt artifact is handled gracefully", func(t *testing.T) {
+		corruptDir := t.TempDir()
+		// Write a file that is not valid gzip
+		require.NoError(t, os.WriteFile(
+			filepath.Join(corruptDir, "osv-android-16-2026-07-14.json.gz"),
+			[]byte("not gzip data"), 0o644))
+
+		ds := new(mock.Store)
+		os := fleet.OperatingSystem{
+			ID:       7,
+			Name:     "Android",
+			Version:  "16 (2026-01-01)",
+			Platform: "android",
+		}
+
+		result, err := Analyze(ctx, ds, os, corruptDir, true, nil, NewArtifactCache())
+		require.NoError(t, err) // should not propagate, just skip
+		require.Nil(t, result)
+	})
+
+	t.Run("empty artifact (zero vulns) is a no-op", func(t *testing.T) {
+		emptyDir := t.TempDir()
+		writeTestArtifact(t, emptyDir, &AndroidArtifact{
+			SchemaVersion:   "1.0",
+			AndroidVersion:  "16",
+			Generated:       "2026-07-14T00:00:00Z",
+			TotalCVEs:       0,
+			Vulnerabilities: nil,
+		})
+
+		ds := new(mock.Store)
+		os := fleet.OperatingSystem{
+			ID:       8,
+			Name:     "Android",
+			Version:  "16 (2026-01-01)",
+			Platform: "android",
+		}
+
+		result, err := Analyze(ctx, ds, os, emptyDir, true, nil, NewArtifactCache())
+		require.NoError(t, err)
+		require.Nil(t, result)
+		// No datastore methods should have been called
+		require.False(t, ds.ListOSVulnerabilitiesByOSFuncInvoked)
+	})
+}
+
+func TestLoadArtifactPicksLatest(t *testing.T) {
+	dir := t.TempDir()
+
+	// Write two artifacts for the same version with different dates
+	writeTestArtifact(t, dir, &AndroidArtifact{
+		SchemaVersion:  "1.0",
+		AndroidVersion: "16",
+		Generated:      "2026-07-13T00:00:00Z",
+		TotalCVEs:      1,
+		Vulnerabilities: []AndroidVuln{
+			{CVE: "CVE-2026-0001", FixedSPL: "2026-01-01"},
+		},
+	})
+	// Overwrite with a different date filename
+	older := filepath.Join(dir, "osv-android-16-2026-07-13.json.gz")
+	newer := filepath.Join(dir, "osv-android-16-2026-07-14.json.gz")
+	// Rename the one writeTestArtifact created to the older date
+	require.NoError(t, os.Rename(
+		filepath.Join(dir, "osv-android-16-2026-07-14.json.gz"),
+		older))
+
+	// Write the newer one with 2 CVEs so we can distinguish
+	f, err := os.Create(newer)
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	require.NoError(t, json.NewEncoder(gz).Encode(&AndroidArtifact{
+		SchemaVersion:  "1.0",
+		AndroidVersion: "16",
+		Generated:      "2026-07-14T00:00:00Z",
+		TotalCVEs:      2,
+		Vulnerabilities: []AndroidVuln{
+			{CVE: "CVE-2026-0001", FixedSPL: "2026-01-01"},
+			{CVE: "CVE-2026-0002", FixedSPL: "2026-02-01"},
+		},
+	}))
+	require.NoError(t, gz.Close())
+	require.NoError(t, f.Close())
+
+	artifact, err := loadArtifact("16", dir)
+	require.NoError(t, err)
+	require.Equal(t, 2, artifact.TotalCVEs, "should pick the latest (2026-07-14) artifact")
 }
