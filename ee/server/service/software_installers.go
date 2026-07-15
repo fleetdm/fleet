@@ -519,17 +519,54 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
 
-		if newInstallerExtension != existingInstaller.Extension {
+		// Fleet-maintained apps can't have their package replaced; return the FMA message before the
+		// extension and identity checks so it isn't masked by a more generic error.
+		if existingInstaller.FleetMaintainedAppID != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     "The selected package is for a different file type.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
+				InternalErr: ctxerr.New(ctx, "installer file changed for fleet maintained app installer"),
 			}
 		}
 
-		if payloadForNewInstallerFile.Title != software.Name {
+		if newInstallerExtension != existingInstaller.Extension {
 			return nil, &fleet.BadRequestError{
-				Message:     "The selected package is for different software.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
+				Message:     "The selected package is for a different file type.",
+				InternalErr: ctxerr.New(ctx, "installer extension mismatch"),
+			}
+		}
+
+		// The replacement must be the same software as the installer being edited. Its extracted
+		// identity (bundle id for apps, upgrade code for Windows, else name) must point at this title.
+		// A bare name match is accepted only when no title claims the identity — so a re-keyed MSI or
+		// re-bundled pkg still edits — while another app's package, which resolves to a different title,
+		// is rejected even when the names coincide. A package that changes both its name and its
+		// upgrade code at once can't be tied to the edited installer, so it is rejected (as before).
+		switch {
+		case payloadForNewInstallerFile.UpgradeCode != "" && payloadForNewInstallerFile.UpgradeCode == existingInstaller.UpgradeCode:
+			// Same Windows product as the edited installer (a sibling MSI whose upgrade code can differ
+			// from the title's); trusted fast path, skip the title lookup entirely.
+		default:
+			resolvedTitleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctx, payloadForNewInstallerFile)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "resolving title for updated installer")
+			}
+			switch {
+			case err == nil && resolvedTitleID == payload.TitleID:
+				// Identity resolves to this title.
+			case err == nil && (payloadForNewInstallerFile.BundleIdentifier != "" || payloadForNewInstallerFile.UpgradeCode != ""):
+				// A strong identifier (bundle id / upgrade code) resolves to a different existing title:
+				// different software, even if the names coincide. Name-only matches are excluded here
+				// because the resolver's name branch can match multiple same-named titles ambiguously.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.Errorf(ctx, "installer resolves to title %d, editing title %d", resolvedTitleID, payload.TitleID),
+				}
+			case payloadForNewInstallerFile.Title != software.Name:
+				// No authoritative identity claims this package and the name does not match either.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.New(ctx, "installer identity not found and name mismatch"),
+				}
 			}
 		}
 
@@ -563,13 +600,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
-		}
-
-		if existingInstaller.FleetMaintainedAppID != nil {
-			return nil, &fleet.BadRequestError{
-				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer file changed for fleet maintained app installer"),
-			}
 		}
 	}
 

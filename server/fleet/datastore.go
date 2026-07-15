@@ -2713,6 +2713,9 @@ type Datastore interface {
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
+	// GetExistingSoftwareInstallerTitleID resolves the software title an installer payload identifies
+	// (by bundle_identifier / upgrade_code / name+source). Returns a NotFound error if none matches.
+	GetExistingSoftwareInstallerTitleID(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)

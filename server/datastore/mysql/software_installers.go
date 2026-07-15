@@ -506,7 +506,9 @@ func softwareInstallerTitleSelect(payload *fleet.UploadSoftwareInstallerPayload)
 	}
 }
 
-func (ds *Datastore) getExistingSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+// GetExistingSoftwareInstallerTitleID resolves the software title an installer payload identifies
+// (by bundle_identifier / upgrade_code / name+source). Returns a NotFound error if none matches.
+func (ds *Datastore) GetExistingSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	stmt, args := softwareInstallerTitleSelect(payload)
 	var titleID uint
 	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &titleID, stmt, args...); {
@@ -4369,7 +4371,7 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 	}
 
 	if payload.FleetMaintainedAppID == nil {
-		titleID, err := ds.getExistingSoftwareInstallerTitleID(ctx, payload)
+		titleID, err := ds.GetExistingSoftwareInstallerTitleID(ctx, payload)
 		if fleet.IsNotFound(err) {
 			if payload.TitleID != nil {
 				return &fleet.BadRequestError{Message: fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, payload.Filename)}
