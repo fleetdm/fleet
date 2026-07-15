@@ -7,9 +7,6 @@ import Icon from "components/Icon/Icon";
 const baseClass = "modal";
 const CLOSE_ANIMATION_MS = 100;
 
-const FOCUSABLE_SELECTOR =
-  'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
-
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
 
@@ -66,20 +63,17 @@ const Modal = ({
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
-  // FocusScope's default is to focus the first tabbable in the scope, which
-  // is the close X. For enabled modals, focus into the content instead so
-  // Tab lands on a control, not the dismiss button. Disabled modals keep
-  // the default so the user can still close.
+  // Focus the container (tabIndex=-1) on open rather than the first tabbable
+  // child. Matches WAI-ARIA dialog guidance and — importantly — prevents an
+  // in-flight keydown from the trigger (Enter or Space held for the browser's
+  // autorepeat window) from immediately activating a newly-focused content
+  // button like "Save". First user Tab moves into content from here.
+  // Disabled-content modals keep FocusScope's default (first tabbable = the
+  // header close X) so the user can still dismiss.
   const handleMountAutoFocus = (e: Event) => {
     if (isContentDisabled) return;
-    const contentEl = containerRef.current?.querySelector(
-      `.${baseClass}__content`
-    );
-    const first = contentEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-    if (first) {
-      e.preventDefault();
-      first.focus();
-    }
+    e.preventDefault();
+    containerRef.current?.focus();
   };
 
   const handleClose = useCallback(() => {
@@ -112,6 +106,9 @@ const Modal = ({
   useEffect(() => {
     if (onEnter) {
       const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
+        // Skip autorepeated keys: the trigger button's Enter may still be
+        // held when the modal mounts and this listener attaches.
+        if (event.repeat) return;
         if (event.code === "Enter" || event.code === "NumpadEnter") {
           event.preventDefault();
           onEnter();
