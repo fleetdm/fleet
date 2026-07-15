@@ -10599,12 +10599,14 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
 
+	// hardware_marketing_name is emitted right after hardware_model, shifting
+	// every subsequent column index by one.
 	const (
 		idCol        = 3
-		issuesCol    = 46
-		gigsDiskCol  = 42
-		pctDiskCol   = 43
-		gigsTotalCol = 44
+		issuesCol    = 47
+		gigsDiskCol  = 43
+		pctDiskCol   = 44
+		gigsTotalCol = 45
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
