@@ -29,7 +29,7 @@ describe("AddAssetModal", () => {
 
     expect(
       screen.getByText(
-        /only asset declarations \(com\.apple\.asset\) are supported/i
+        /only json files with com\.apple\.asset\.\* are supported/i
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Upload asset")).toBeInTheDocument();

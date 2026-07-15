@@ -4016,7 +4016,6 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 	t.Run("invalid templates are rejected", func(t *testing.T) {
 		for _, tc := range []struct{ name, tmpl string }{
 			{"unsupported variable", "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"},
-			{"secret variable", "WS-$FLEET_SECRET_FOO"},
 			{"control characters", "WS-\x07"},
 			{"too long", strings.Repeat("a", 256)},
 		} {
@@ -4030,6 +4029,52 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 				require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
 			})
 		}
+	})
+
+	t.Run("custom (secret) variables", func(t *testing.T) {
+		// Restore the permissive default after each subtest overrides it.
+		defaultValidate := ds.ValidateEmbeddedSecretsFunc
+		defer func() { ds.ValidateEmbeddedSecretsFunc = defaultValidate }()
+
+		t.Run("undefined secret is rejected as invalid argument", func(t *testing.T) {
+			resetInvoked()
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error {
+				return &fleet.MissingSecretsError{MissingSecrets: []string{"FOO"}}
+			}
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.Error(t, err)
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.Contains(t, err.Error(), "missing from database")
+			require.False(t, ds.SaveTeamFuncInvoked)
+			require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+		})
+
+		t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+			resetInvoked()
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error {
+				return errors.New("database is down")
+			}
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.Error(t, err)
+			var invalid *fleet.InvalidArgumentError
+			require.NotErrorAs(t, err, &invalid, "a DB error must not be reported as invalid input")
+			require.False(t, ds.SaveTeamFuncInvoked)
+		})
+
+		t.Run("defined secret is accepted and saved", func(t *testing.T) {
+			resetInvoked()
+			currentTemplate = ""
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.NoError(t, err)
+			require.True(t, ds.SaveTeamFuncInvoked)
+			require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+			require.True(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+			// the unexpanded placeholder is what gets persisted, never the value
+			require.NotNil(t, savedTeam)
+			require.Equal(t, "WS-$FLEET_SECRET_FOO", savedTeam.Config.MDM.HostNameTemplate)
+		})
 	})
 
 	t.Run("setting a template saves, emits activity and queues rows", func(t *testing.T) {

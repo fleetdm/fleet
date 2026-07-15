@@ -18,6 +18,14 @@ import (
 // var (not const) so tests can override it.
 var reconcileHostDeviceNamesBatchSize = 500
 
+// secretExpansion memoizes the result of expanding the custom (secret) variables
+// in a host name template. err is set (e.g. fleet.MissingSecretsError) when a
+// referenced secret is undefined.
+type secretExpansion struct {
+	value string
+	err   error
+}
+
 // ReconcileHostDeviceNames runs one pass of host-name template enforcement:
 // for each host whose enforcement row is queued (status NULL), it resolves
 // the host's team name template and either enqueues a Settings/DeviceName
@@ -60,7 +68,12 @@ func ReconcileHostDeviceNames(
 
 	noTeamTemplate := appConfig.MDM.HostNameTemplate.Value
 	templates := make(map[uint]string) // team ID → name template
-	var notify []string                // hosts with a freshly-enqueued command to push
+	// secretsExpanded caches the result of expanding $FLEET_SECRET_* custom
+	// variables for a given raw template. Secret values are global (name-keyed,
+	// host-independent), so the same template expands to the same string for
+	// every host — expand once per distinct template rather than per host.
+	secretsExpanded := make(map[string]secretExpansion)
+	var notify []string // hosts with a freshly-enqueued command to push
 	for _, host := range pending {
 		var tmpl string
 		if host.TeamID == nil {
@@ -90,7 +103,41 @@ func ReconcileHostDeviceNames(
 			continue
 		}
 
-		resolved := fleet.ResolveHostNameTemplate(tmpl, &fleet.Host{
+		// Expand any custom (secret, $FLEET_SECRET_*) variables before resolving
+		// the built-in host variables. Secret values are global and
+		// host-independent, so this is memoized per distinct template.
+		expandedTmpl := tmpl
+		if len(fleet.ContainsPrefixVars(tmpl, fleet.ServerSecretPrefix)) > 0 {
+			exp, ok := secretsExpanded[tmpl]
+			if !ok {
+				value, expandErr := ds.ExpandEmbeddedSecrets(ctx, tmpl)
+				exp = secretExpansion{value: value, err: expandErr}
+				secretsExpanded[tmpl] = exp
+			}
+			if exp.err != nil {
+				if !fleet.IsMissingSecretsError(exp.err) {
+					// A transient failure (e.g. a DB error while fetching/decrypting
+					// the secret). Abort the batch so the next cron tick retries,
+					// exactly like the team-config lookup error above — don't
+					// permanently fail rows that a retry would resolve (failed rows
+					// aren't re-picked until a manual resend).
+					return ctxerr.Wrap(ctx, exp.err, "expand host name template secrets")
+				}
+				// A referenced secret is genuinely undefined (e.g. deleted). Save-time
+				// validation and the delete guard normally prevent this, so it's a
+				// defensive path: fail the row with the reason and don't send a
+				// command. On a write error, log and move on rather than aborting the
+				// batch, consistent with the other outcomes below.
+				if err := ds.SetHostDeviceNameStatus(ctx, host.HostUUID, fleet.MDMDeliveryFailed, nil, "",
+					exp.err.Error()); err != nil {
+					logger.ErrorContext(ctx, "mark device name row failed for missing secret", "host_uuid", host.HostUUID, "err", err)
+				}
+				continue
+			}
+			expandedTmpl = exp.value
+		}
+
+		resolved := fleet.ResolveHostNameTemplate(expandedTmpl, &fleet.Host{
 			UUID:           host.HostUUID,
 			HardwareSerial: host.HardwareSerial,
 			Platform:       host.Platform,

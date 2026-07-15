@@ -43,15 +43,21 @@ func TestValidateHostNameTemplate(t *testing.T) {
 			tmpl:    "$FLEET_VAR_HOST_UUID_EXTRA",
 			wantErr: "Fleet variable $FLEET_VAR_HOST_UUID_EXTRA is not supported in host name templates.",
 		},
+		// Custom (secret) variables are allowed syntactically; their existence is
+		// checked separately (needs the datastore).
+		{name: "secret var", tmpl: "$FLEET_SECRET_FOO", wantNorm: "$FLEET_SECRET_FOO"},
+		{name: "secret var braced", tmpl: "${FLEET_SECRET_FOO}", wantNorm: "${FLEET_SECRET_FOO}"},
 		{
-			name:    "secret var",
-			tmpl:    "$FLEET_SECRET_FOO",
-			wantErr: "Secret variables aren't supported in host name templates.",
+			name:     "built-in and secret vars mixed",
+			tmpl:     "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE",
+			wantNorm: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE",
 		},
 		{
-			name:    "secret var braced",
-			tmpl:    "${FLEET_SECRET_FOO}",
-			wantErr: "Secret variables aren't supported in host name templates.",
+			// A long secret token doesn't count toward the fixed-text byte floor,
+			// since the secret can resolve to an empty value.
+			name:     "long secret token doesn't hit byte floor",
+			tmpl:     "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
+			wantNorm: "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
 		},
 		{name: "tab control char", tmpl: "bad\tname", wantErr: "control characters"},
 		{name: "rtl override format char", tmpl: "bad\u202ename", wantErr: "control characters"},

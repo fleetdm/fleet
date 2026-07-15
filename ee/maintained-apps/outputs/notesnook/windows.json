@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.4.3",
+      "version": "3.4.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters' AND version_compare(version, '3.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Notesnook %' AND publisher = 'Streetwriters' AND version_compare(version, '3.4.4') < 0);"
       },
-      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.3/notesnook_win_x64.exe",
+      "installer_url": "https://github.com/streetwriters/notesnook/releases/download/v3.4.4/notesnook_win_x64.exe",
       "install_script_ref": "fae91a29",
       "uninstall_script_ref": "83cee2d6",
-      "sha256": "28a97af1e2df6db7a97767d5717752098a668a28033d3bcb8d3fe3c4ab0d5b90",
+      "sha256": "1fcb981f246181b682756dee4c3e72ced207f22f158b039fefc5bd6a5ecb48c6",
       "default_categories": [
         "Productivity"
       ]

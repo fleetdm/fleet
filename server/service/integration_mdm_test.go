@@ -25855,8 +25855,11 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	res := s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
-	s.Do("POST", "/api/latest/fleet/host_name_template",
-		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_SECRET_TOKEN"}, http.StatusUnprocessableEntity)
+	// A custom (secret) variable is allowed, but an undefined one is rejected at
+	// save time with the missing-secret error.
+	res = s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_SECRET_UNDEFINED"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "missing from database")
 	s.Do("POST", "/api/latest/fleet/host_name_template",
 		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-\x07"}, http.StatusUnprocessableEntity)
 	// fixed text alone longer than the 63-byte device-name limit is rejected up front
@@ -26085,6 +26088,52 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	unchangedMac, err := s.ds.Host(ctx, macHost.ID)
 	require.NoError(t, err)
 	require.Equal(t, "WS-"+macHost.HardwareSerial, unchangedMac.ComputerName)
+
+	// --- custom (secret) variable: expanded into the resolved name ---
+	secretID, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	const secretTmpl = "${FLEET_SECRET_SITE}-$FLEET_VAR_HOST_HARDWARE_SERIAL" //nolint:gosec // G101: name template string, not a credential
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: secretTmpl}, http.StatusNoContent)
+	// the activity records the unexpanded template (the secret placeholder is
+	// never stored expanded)
+	s.lastActivityMatches("edited_host_name_template",
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, team.ID, team.Name, secretTmpl), 0)
+
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	secretRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, secretRow.ExpectedDeviceName)
+	// the secret value ("HQ") is expanded alongside the built-in serial variable
+	require.Equal(t, "HQ-"+macHost.HardwareSerial, *secretRow.ExpectedDeviceName)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	var secretSettingsCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &secretSettingsCmd))
+	require.Len(t, secretSettingsCmd.Command.Settings, 1)
+	require.Equal(t, "HQ-"+macHost.HardwareSerial, secretSettingsCmd.Command.Settings[0].DeviceName)
+
+	// the secret can't be deleted while a host name template references it
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.Error(t, err)
+	var secretUsed *fleet.SecretUsedError
+	require.ErrorAs(t, err, &secretUsed)
+	require.Equal(t, "host_name_template", secretUsed.Entity.Type)
+
+	// clearing the template releases the secret for deletion
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.NoError(t, err)
 }
 
 func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {

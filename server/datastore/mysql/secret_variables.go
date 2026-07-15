@@ -311,6 +311,41 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 			}
 		}
 
+		// 5. Check if the secret variable is used in a host name template, on a
+		// team or on "No team" (the global app config). The template is stored as
+		// the unexpanded $FLEET_SECRET_* placeholder in the config JSON.
+		var nameTemplateContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&nameTemplateContents,
+			// A team's name_template is a plain string that always serializes into
+			// the config JSON (as "" when unset), and the No-team template is an
+			// optjson that serializes to null when unset, so filter both on a
+			// non-empty resolved value rather than IS NOT NULL.
+			`SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+			FROM teams t
+			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+			UNION ALL
+			SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			'No team' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			FROM app_config_json
+			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host name template contents")
+		}
+		for _, c := range nameTemplateContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
 		if _, err := tx.ExecContext(ctx, `DELETE FROM secret_variables WHERE id = ?`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete secret variable")
 		}

@@ -1900,7 +1900,7 @@ func (svc *Service) validateMDM(
 	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
-		} else if validated, err := fleet.ValidateHostNameTemplate(mdm.HostNameTemplate.Value); err != nil {
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
 			invalid.Append("mdm.name_template", err.Error())
 		} else {
 			mdm.HostNameTemplate = optjson.SetString(validated)

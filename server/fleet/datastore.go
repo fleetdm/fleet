@@ -331,11 +331,10 @@ type Datastore interface {
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
-	// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
-	// If a label name does not exist, then the host is considered not a member of the provided label.
-	// A host will always be a member of an empty label set, so this method returns (true, nil)
-	// if labelNames is empty.
-	HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+	// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+	// Labels that do not exist are not included in the result. The returned map is keyed by the
+	// requested label names (preserving the caller's casing), not the DB-stored names.
+	HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
@@ -3974,6 +3973,12 @@ func (c *SecretUsedError) Error() string {
 		return fmt.Sprintf(
 			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
 			c.SecretName, c.Entity.Name, c.Entity.TeamName,
+		)
+	}
+	if c.Entity.Type == "host_name_template" {
+		return fmt.Sprintf(
+			"%s is used by the host name template in the %q team. Please edit or clear the host name template and try again.",
+			c.SecretName, c.Entity.TeamName,
 		)
 	}
 	return fmt.Sprintf(
