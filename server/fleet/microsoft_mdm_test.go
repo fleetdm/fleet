@@ -968,7 +968,7 @@ func TestIsFleetInternalCmdID(t *testing.T) {
 }
 
 func TestEnrollmentVersionAtLeast(t *testing.T) {
-	const min = syncml.MinSupportedEnrollmentVersion // "4.0"
+	const minVersion = syncml.MinSupportedEnrollmentVersion // "4.0"
 
 	for _, tc := range []struct {
 		name    string
@@ -991,7 +991,7 @@ func TestEnrollmentVersionAtLeast(t *testing.T) {
 		{"non-numeric minor", "4.x", false, `invalid version component "x"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := enrollmentVersionAtLeast(tc.version, min)
+			got, err := enrollmentVersionAtLeast(tc.version, minVersion)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				return
