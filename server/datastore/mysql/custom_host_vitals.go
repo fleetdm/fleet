@@ -96,8 +96,10 @@ func (ds *Datastore) UpdateCustomHostVital(ctx context.Context, id uint, name st
 	if affected == 0 {
 		// No rows affected can mean the id was not found, or the name is unchanged.
 		// Distinguish the two so a no-op rename doesn't surface as NotFound.
+		// Check on the writer: the UPDATE above targeted the primary, so a replica
+		// lagging behind it could otherwise report a false NotFound.
 		var exists bool
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists,
+		if err := sqlx.GetContext(ctx, ds.writer(ctx), &exists,
 			`SELECT 1 FROM custom_host_vitals WHERE id = ?`, id); err != nil {
 			if err == sql.ErrNoRows {
 				return fleet.CustomHostVital{}, ctxerr.Wrap(ctx, notFound("CustomHostVital").WithID(id))
@@ -464,7 +466,7 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 		if !strings.HasPrefix(s, fleet.CustomHostVitalPrefix) {
 			return "", false
 		}
-		id, parseErr := strconv.ParseUint(strings.TrimPrefix(s, fleet.CustomHostVitalPrefix), 10, 64)
+		id, parseErr := strconv.ParseUint(strings.TrimPrefix(s, fleet.CustomHostVitalPrefix), 10, strconv.IntSize)
 		if parseErr != nil {
 			return "", false
 		}

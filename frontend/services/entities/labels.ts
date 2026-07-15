@@ -75,7 +75,8 @@ const generateCreateLabelBody = (formData: INewLabelFormData) => {
           vital: formData.vital,
           value: formData.vitalValue,
           ...(formData.vital === CUSTOM_HOST_VITAL_CRITERION &&
-          formData.customHostVitalId != null
+          formData.customHostVitalId != null &&
+          Number.isFinite(formData.customHostVitalId)
             ? { custom_host_vital_id: formData.customHostVitalId }
             : {}),
         },

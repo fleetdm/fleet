@@ -117,7 +117,7 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
   );
 
   const renderCount = useCallback(
-    () => <TableCount name="secrets" count={count} />,
+    () => <TableCount name="variables" count={count} />,
     [count]
   );
 

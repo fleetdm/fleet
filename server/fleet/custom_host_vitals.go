@@ -176,7 +176,7 @@ func ContainsCustomHostVitalIDs(text string) []uint {
 	seen := make(map[uint]struct{}, len(suffixes))
 	ids := make([]uint, 0, len(suffixes))
 	for _, s := range suffixes {
-		id, err := strconv.ParseUint(s, 10, 64)
+		id, err := strconv.ParseUint(s, 10, strconv.IntSize)
 		if err != nil || id == 0 {
 			continue
 		}
@@ -196,7 +196,7 @@ func ContainsCustomHostVitalIDs(text string) []uint {
 func ContainsMalformedCustomHostVitalRefs(text string) []string {
 	var malformed []string
 	for _, s := range ContainsPrefixVars(text, CustomHostVitalPrefix) {
-		if id, err := strconv.ParseUint(s, 10, 64); err != nil || id == 0 {
+		if id, err := strconv.ParseUint(s, 10, strconv.IntSize); err != nil || id == 0 {
 			malformed = append(malformed, CustomHostVitalPrefix+s)
 		}
 	}

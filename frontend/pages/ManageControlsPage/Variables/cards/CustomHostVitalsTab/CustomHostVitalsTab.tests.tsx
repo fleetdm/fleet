@@ -9,7 +9,9 @@ import {
 } from "test/test-utils";
 import mockServer from "test/mock-server";
 
-import CustomHostVitalsTab from "./CustomHostVitalsTab";
+import CustomHostVitalsTab, {
+  CUSTOM_HOST_VITALS_PAGE_SIZE,
+} from "./CustomHostVitalsTab";
 
 // The tab filters server-side, so intercept GET /custom_host_vitals and return
 // the seeded vitals matching the `query` param — by name or the derived
@@ -106,5 +108,83 @@ describe("CustomHostVitalsTab - URL-persistent search", () => {
       "Search by name"
     ) as HTMLInputElement;
     expect(searchInput.value).toBe("");
+  });
+});
+
+describe("CustomHostVitalsTab - server-side pagination and sort", () => {
+  // One full page plus a few, so there's a real second page. Names are
+  // zero-padded so page 0 starts at "Vital 01".
+  const PAGED_SEED = Array.from(
+    { length: CUSTOM_HOST_VITALS_PAGE_SIZE + 3 },
+    (_, i) => ({
+      id: i + 1,
+      name: `Vital ${String(i + 1).padStart(2, "0")}`,
+      created_at: "",
+      updated_at: "",
+    })
+  );
+
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: { app: { isGlobalAdmin: true } },
+  });
+
+  // Capture the last request's params so we can assert the tab forwards the
+  // URL-derived page/sort to the API.
+  let lastParams: URLSearchParams | undefined;
+
+  beforeEach(() => {
+    lastParams = undefined;
+    mockServer.use(
+      http.get(baseUrl("/custom_host_vitals"), ({ request }) => {
+        const url = new URL(request.url);
+        lastParams = url.searchParams;
+        const page = parseInt(url.searchParams.get("page") ?? "0", 10);
+        const perPage = parseInt(
+          url.searchParams.get("per_page") ??
+            String(CUSTOM_HOST_VITALS_PAGE_SIZE),
+          10
+        );
+        const start = page * perPage;
+        const rows = PAGED_SEED.slice(start, start + perPage);
+        return HttpResponse.json({
+          custom_host_vitals: rows,
+          count: PAGED_SEED.length,
+          meta: {
+            has_next_results: start + perPage < PAGED_SEED.length,
+            has_previous_results: page > 0,
+          },
+        });
+      })
+    );
+  });
+
+  it("forwards the page and sort params from the URL to the API", async () => {
+    const props = makeProps({ page: "1", order_direction: "desc" });
+    render(<CustomHostVitalsTab {...props} />);
+
+    await waitFor(() => {
+      expect(lastParams?.get("page")).toBe("1");
+    });
+    expect(lastParams?.get("per_page")).toBe(
+      String(CUSTOM_HOST_VITALS_PAGE_SIZE)
+    );
+    expect(lastParams?.get("order_key")).toBe("name");
+    expect(lastParams?.get("order_direction")).toBe("desc");
+  });
+
+  it("appends page to the URL when navigating to the next page", async () => {
+    const props = makeProps();
+    const { user } = render(<CustomHostVitalsTab {...props} />);
+
+    await screen.findByText("Vital 01");
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeEnabled();
+
+    await user.click(nextButton);
+
+    expect(props.router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("page=1")
+    );
   });
 });

@@ -30,6 +30,8 @@ import DeleteCustomHostVitalModal from "../../components/DeleteCustomHostVitalMo
 
 const baseClass = "custom-host-vitals-tab";
 
+export const CUSTOM_HOST_VITALS_PAGE_SIZE = 20;
+
 const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   router,
   location,
@@ -40,6 +42,13 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   const searchQuery = location.query.query ?? "";
+  const parsedPage = parseInt(location.query.page ?? "", 10);
+  const pageNumber =
+    Number.isNaN(parsedPage) || parsedPage < 0 ? 0 : parsedPage;
+  const sortHeader = location.query.order_key || "name";
+  const sortDirection: "asc" | "desc" =
+    location.query.order_direction === "desc" ? "desc" : "asc";
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [vitalToEdit, setVitalToEdit] = useState<
     ICustomHostVital | undefined
@@ -48,7 +57,13 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
     ICustomHostVital | undefined
   >();
 
-  const apiParams = { query: searchQuery };
+  const apiParams = {
+    query: searchQuery,
+    page: pageNumber,
+    per_page: CUSTOM_HOST_VITALS_PAGE_SIZE,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+  };
   const { data, isLoading, isFetching, refetch } = useQuery<
     IListCustomHostVitalsResponse,
     Error,
@@ -56,7 +71,7 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   >(
     ["customHostVitals", apiParams],
     () => customHostVitalsAPI.getCustomHostVitals(apiParams),
-    // keepPreviousData keeps `data` populated across search-driven key changes
+    // keepPreviousData keeps `data` populated across page/search key changes
     // so TableContainer (and its search box) doesn't unmount/remount empty.
     { ...DEFAULT_USE_QUERY_OPTIONS, keepPreviousData: true }
   );
@@ -66,9 +81,24 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
 
   const onQueryChange = useCallback(
     (queryData: ITableQueryData) => {
-      const nextSearchQuery = queryData.searchQuery;
+      const {
+        searchQuery: nextSearchQuery,
+        pageIndex,
+        sortHeader: nextSortHeader,
+        sortDirection: nextSortDirection,
+      } = queryData;
 
-      if (nextSearchQuery === searchQuery) {
+      const searchChanged = nextSearchQuery !== searchQuery;
+      const nextPage = searchChanged ? 0 : pageIndex;
+      const nextOrderKey = nextSortHeader || "name";
+      const nextOrderDirection = nextSortDirection === "desc" ? "desc" : "asc";
+
+      if (
+        !searchChanged &&
+        nextPage === pageNumber &&
+        nextOrderKey === sortHeader &&
+        nextOrderDirection === sortDirection
+      ) {
         return;
       }
 
@@ -78,11 +108,15 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
           queryParams: {
             ...location.query,
             query: nextSearchQuery || undefined,
+            page: nextPage || undefined,
+            order_key: nextOrderKey !== "name" ? nextOrderKey : undefined,
+            order_direction:
+              nextOrderDirection !== "asc" ? nextOrderDirection : undefined,
           },
         })
       );
     },
-    [searchQuery, router, location.query]
+    [searchQuery, pageNumber, sortHeader, sortDirection, router, location.query]
   );
 
   const onClickAdd = () => setShowAddModal(true);
@@ -184,7 +218,12 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
         isAllPagesSelected={false}
         searchable
         renderCount={renderCount}
-        isClientSidePagination
+        manualSortBy
+        pageIndex={pageNumber}
+        pageSize={CUSTOM_HOST_VITALS_PAGE_SIZE}
+        disableNextPage={
+          (pageNumber + 1) * CUSTOM_HOST_VITALS_PAGE_SIZE >= count
+        }
       />
     );
   };

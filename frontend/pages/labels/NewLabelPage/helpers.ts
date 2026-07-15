@@ -15,9 +15,12 @@ export const parseCriterionOptionValue = (
   optionValue: string
 ): { vital: LabelHostVitalsCriterion; customHostVitalId?: number } => {
   if (optionValue.startsWith(`${CUSTOM_HOST_VITAL_CRITERION}:`)) {
+    // Guard against a malformed/missing id: an unparseable value would become
+    // NaN, later pass `!= null`, and serialize to `null` in the request body.
+    const parsedId = Number(optionValue.split(":")[1]);
     return {
       vital: CUSTOM_HOST_VITAL_CRITERION,
-      customHostVitalId: Number(optionValue.split(":")[1]),
+      customHostVitalId: Number.isFinite(parsedId) ? parsedId : undefined,
     };
   }
   return { vital: optionValue as LabelHostVitalsCriterion };
