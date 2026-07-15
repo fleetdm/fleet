@@ -10642,6 +10642,21 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
 	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
 
+	// requesting columns that don't include hardware_model or
+	// hardware_marketing_name returns exactly the requested columns and neither
+	// hardware field (hardware_marketing_name must not leak into the report).
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,uuid,platform",
+	)
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Equal(t, []string{"hostname", "uuid", "platform"}, rows[0])
+	require.NotContains(t, rows[0], "hardware_model")
+	require.NotContains(t, rows[0], "hardware_marketing_name")
+
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
 	rows, err = csv.NewReader(res.Body).ReadAll()
@@ -10742,6 +10757,61 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_version_id", "456")
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456")
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456", "software_title_id", "789")
+}
+
+func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHost := func(suffix, platform, model string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(t.Name() + suffix),
+			NodeKey:         ptr.String(t.Name() + suffix),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + suffix,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		// hardware_model is not persisted by NewHost, so set it directly.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `UPDATE hosts SET hardware_model = ? WHERE id = ?`, model, h.ID)
+			return err
+		})
+		return h
+	}
+
+	// Apple host whose model maps to a marketing name, plus a non-Apple host
+	// with no mapping.
+	mapped := newHost("-mapped", "darwin", "MacBookPro18,1")
+	unmapped := newHost("-unmapped", "ubuntu", "Standard PC")
+
+	res := s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,hardware_model,hardware_marketing_name",
+	)
+	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 3) // header + 2 hosts
+	// columns are returned in the requested order
+	require.Equal(t, []string{"hostname", "hardware_model", "hardware_marketing_name"}, rows[0])
+
+	byHostname := make(map[string][]string, len(rows)-1)
+	for _, row := range rows[1:] {
+		byHostname[row[0]] = row
+	}
+
+	// Apple host: raw model plus the mapped marketing name.
+	require.Equal(t, "MacBookPro18,1", byHostname[mapped.Hostname][1])
+	require.Equal(t, fleet.AppleHardwareModels["MacBookPro18,1"], byHostname[mapped.Hostname][2])
+
+	// Non-Apple host: raw model, empty marketing name.
+	require.Equal(t, "Standard PC", byHostname[unmapped.Hostname][1])
+	require.Equal(t, "", byHostname[unmapped.Hostname][2])
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
