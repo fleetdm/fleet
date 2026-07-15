@@ -153,19 +153,20 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
 
-			if c.inputApp.Token == "docker-desktop" {
+			switch c.inputApp.Token {
+			case "docker-desktop":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop' AND path NOT LIKE '%.back' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
-			} else if c.inputApp.Token == "swiftdialog" {
+			case "swiftdialog":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND version_compare(bundle_short_version, '1.0') < 0 AND path NOT LIKE '/opt/orbit/bin/%');",
 					out.Queries.Patched,
 				)
-			} else {
+			default:
 				require.Equal(t,
 					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
 					out.Queries.Patched,
