@@ -2,13 +2,20 @@
 
 *"It's already included" might be the most expensive sentence in IT budgeting.*
 
+## Key takeaways
+
+- **The ladder got taller and pricier this year.** Microsoft 365 E7 landed at $99 per user per month in May, and on July 1 nearly every enterprise plan took its first across-the-board price increase since 2021.
+- **"Included" is not free.** Microsoft sells Intune alone for $8 per user per month. Every E3 and E5 seat carries that cost whether anyone uses it or not.
+- **About half of E5 spend delivers no return.** Independent research puts E5 licenses that sit inactive or unassigned at roughly 50%, and overall SaaS license utilization at 54%.
+- **Sometimes the bundle is the right call.** Windows-first organizations that genuinely run Defender XDR and Purview get their money's worth. The point is to decide with data, not defaults.
+- **Rightsizing recovers six or seven figures a year.** Moving users who don't consume the E5 delta to E3 plus Fleet Premium ($7 per host per month) saves around $588,000 a year at list prices for a 5,000-person organization.
+- **Your renewal is the moment of leverage.** Pull feature-consumption data, price components individually, and treat E7 as a negotiating anchor. That last one is Gartner's advice, not ours.
+
+**[See Fleet's pricing](https://fleetdm.com/pricing)**
+
 If you run IT or security at a Microsoft shop, two announcements probably landed on your desk this year. In March, Microsoft [introduced Microsoft 365 E7](https://www.theregister.com/2026/03/09/microsoft_adds_a_premium_tier/), a new $99 per user per month tier above E5. It's the first new top tier since E5 launched in 2015. Then on July 1, the price of nearly every Microsoft 365 enterprise plan [went up](https://www.microsoft.com/en-us/licensing/news/2026-m365-packaging-pricing-updates): E3 rose 8.3% to $39, E5 rose 5.3% to $60, and Office 365 E3 jumped 13%. That's the first across-the-board increase since 2021. It stacks on top of the [volume discounts Microsoft removed from Enterprise Agreements](https://samexpert.com/microsoft-365-july-2026-price-increase/) in late 2025. Licensing advisors estimate the combined impact approaches 20% for many organizations.
 
-Somewhere in your organization, a device management decision will come up this quarter. And someone will say the sentence that ends the conversation: "We already pay for Intune. It's free."
-
-It isn't. Microsoft publishes the price: [Intune Plan 1 is $8 per user per month](https://www.microsoft.com/en-us/security/business/microsoft-intune-pricing) as a standalone product. You're paying for it inside every E3 and E5 seat, whether anyone at your company has opened the Intune console or not. The same goes for every other component in the bundle. Nothing in an enterprise agreement is free. It's prepaid.
-
-This article breaks down what the Microsoft ladder costs in 2026 and why the "it's included" reflex is a sunk-cost fallacy that compounds every renewal. It also shows how rightsizing the device management and telemetry pieces can recover six or seven figures a year.
+Somewhere in your organization, a device management decision will come up this quarter. Someone will end the conversation with: "We already pay for Intune. It's free." Except it isn't. Microsoft publishes the price: [Intune Plan 1 is $8 per user per month](https://www.microsoft.com/en-us/security/business/microsoft-intune-pricing) as a standalone product. You're paying for it inside every E3 and E5 seat, whether anyone at your company has opened the Intune console or not. Nothing in an enterprise agreement is free. It's prepaid. Here's what that prepayment looks like when you price the pieces.
 
 ## The Microsoft licensing ladder in 2026
 
@@ -56,7 +63,7 @@ The problem is that "we did the analysis" and "it's included" are different sent
 Here's where the money is. The reasons organizations climb from E3 to E5, or feel locked at E5, are often device-shaped: security wants richer device telemetry, IT wants better management tooling, and compliance wants posture reporting. Those are the pieces worth pricing on their own, because they're where the bundle is weakest for many real-world fleets:
 
 - **Cross-platform reality.** Intune's deepest integrations are with Windows and Entra ID. Mac-heavy and Linux-heavy organizations routinely buy a second management tool anyway. That means paying for Intune inside the bundle and paying a specialist vendor on top.
-- **Telemetry and visibility.** Real-time device state, software inventory, and posture data across every platform is what [osquery](https://fleetdm.com/docs/get-started/why-fleet)-based tooling was built for, and it works the same on macOS, Windows, and Linux.
+- **Telemetry and visibility.** Real-time device state, software inventory, and posture data across every platform is what [Fleet's agent](https://fleetdm.com/docs/get-started/why-fleet) was built for, and it works the same on macOS, Windows, and Linux.
 
 [Fleet Premium is $7 per host per month](https://fleetdm.com/pricing), published on the website, with MDM, software management, vulnerability reporting, and real-time telemetry included across macOS, Windows, Linux, iOS, iPadOS, and Android. Two honest clarifications before any math. Fleet prices per host while Microsoft prices per user, so a user with two managed devices costs more in Fleet's model. And Fleet is not an endpoint detection and response (EDR) product; if Defender for Endpoint Plan 2 is doing real detection and response work for you, that's a genuine E5 delta feature, not shelfware.
 
