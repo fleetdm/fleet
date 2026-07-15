@@ -232,7 +232,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		)
 	}
 	if input.Token == "swiftdialog" {
-		// Orbit installs swiftDialog v2.5.6 when mdm migration is enabled, do not consider it for patch status.
+		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment profile renewal; do not consider it for patch status.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0 AND path NOT LIKE '/opt/orbit/bin/%%');",
 			out.UniqueIdentifier, out.Version,
