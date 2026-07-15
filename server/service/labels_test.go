@@ -1212,6 +1212,24 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
+
+	t.Run("create domestic host vitals label (public_ip)", func(t *testing.T) {
+		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "office-egress",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital: new("public_ip"),
+				Value: new("203.0.113.10"),
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, fleet.LabelMembershipTypeHostVitals, lbl.LabelMembershipType)
+
+		// A domestic vital filters directly on the hosts table with no JOIN.
+		query, queryValues, err := lbl.CalculateHostVitalsQuery()
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT %s FROM %s WHERE hosts.public_ip = ? GROUP BY hosts.id", query)
+		assert.Equal(t, []any{"203.0.113.10"}, queryValues)
+	})
 }
 
 func TestNewLabelFieldValidation(t *testing.T) {
