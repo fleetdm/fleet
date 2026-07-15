@@ -3104,7 +3104,7 @@ func (svc *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint
 	}
 
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}

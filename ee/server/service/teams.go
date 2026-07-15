@@ -327,7 +327,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.MDM.HostNameTemplate.Set {
 			nameTemplate := payload.MDM.HostNameTemplate.Value
 			if nameTemplate != "" {
-				validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err)
 				}
@@ -1525,7 +1525,7 @@ func (svc *Service) createTeamFromSpec(
 
 	nameTemplate := spec.MDM.HostNameTemplate.Value
 	if nameTemplate != "" {
-		validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
@@ -1811,7 +1811,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.HostNameTemplate.Set {
 		nameTemplate := spec.MDM.HostNameTemplate.Value
 		if nameTemplate != "" {
-			validated, err := fleet.ValidateHostNameTemplate(nameTemplate)
+			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err)
 			}
