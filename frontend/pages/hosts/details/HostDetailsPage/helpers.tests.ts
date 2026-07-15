@@ -31,4 +31,16 @@ describe("canShowMyDeviceButton", () => {
     });
     expect(canShowMyDeviceButton(host)).toBe(false);
   });
+
+  it("returns false when the host has a wipe in flight", () => {
+    const host = createMockHost({
+      fleet_desktop_version: "1.22.1",
+      mdm: {
+        ...createMockHost().mdm,
+        device_status: "unlocked",
+        pending_action: "wipe",
+      },
+    });
+    expect(canShowMyDeviceButton(host)).toBe(false);
+  });
 });
