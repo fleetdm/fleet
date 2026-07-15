@@ -14,7 +14,6 @@ import (
 	"unicode"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/invopop/jsonschema"
 )
 
@@ -22,20 +21,6 @@ import (
 // option (config.options.*). It's an unexported struct, so we parse its AST rather
 // than reflect it.
 const generatedOsqueryOptions = "../../server/fleet/agent_options_generated.go"
-
-func goTypeToJSON(name string) string {
-	switch name {
-	case "bool":
-		return "boolean"
-	case "string":
-		return "string"
-	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64":
-		return "integer"
-	case "float32", "float64":
-		return "number"
-	}
-	return ""
-}
 
 // osqueryOptionsSchema parses the generated osqueryOptions struct into a strict
 // object schema, so config.options.* gets completion, types, and unknown-key
@@ -73,88 +58,6 @@ func osqueryOptionsSchema(path string) (map[string]any, error) {
 	return map[string]any{"type": "object", "additionalProperties": false, "properties": props}, nil
 }
 
-// GitOpsSpec is our own top-level struct with the real GitOps YAML keys (the
-// fields on spec.GitOps have no json tags, so reflecting it directly gives
-// PascalCase keys). We reuse Fleet's existing typed structs for each section.
-type GitOpsSpec struct {
-	Name         string                    `json:"name,omitempty"`
-	OrgSettings  *spec.GitOpsOrgSettings   `json:"org_settings,omitempty"`
-	Settings     *spec.GitOpsFleetSettings `json:"settings,omitempty"`
-	AgentOptions *fleet.AgentOptions       `json:"agent_options,omitempty"`
-	Controls     Controls                  `json:"controls,omitempty"`
-	Policies     []*spec.GitOpsPolicySpec  `json:"policies,omitempty"`
-	Reports      []*spec.Query             `json:"reports,omitempty"`
-	Software     spec.GitOpsSoftware       `json:"software,omitempty"`
-	Labels       []*fleet.LabelSpec        `json:"labels,omitempty"`
-}
-
-// Controls covers the `controls:` section with real types. spec.GitOpsControls
-// types nearly everything as `any` (so yamlls offers no completion for it) and
-// leaks an internal `Defined` field, so we spell it out here.
-type Controls struct {
-	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
-	EnableDiskEncryption        bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword  bool `json:"enable_recovery_lock_password"`
-	WindowsRequireBitLockerPIN  bool `json:"windows_require_bitlocker_pin"`
-
-	MacOSUpdates   *fleet.AppleOSUpdateSettings `json:"macos_updates"`
-	IOSUpdates     *fleet.AppleOSUpdateSettings `json:"ios_updates"`
-	IPadOSUpdates  *fleet.AppleOSUpdateSettings `json:"ipados_updates"`
-	WindowsUpdates *fleet.WindowsUpdates        `json:"windows_updates"`
-
-	MacOSSetup               *fleet.MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
-	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
-	Scripts                  []fleet.BaseItem                `json:"scripts"`
-
-	MacOSSettings   *fleet.MacOSSettings   `json:"macos_settings" renameto:"apple_settings"`
-	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
-	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
-
-	// Remaining keys left loose for now (accept anything).
-	MacOSMigration                  any `json:"macos_migration"`
-	WindowsMigrationEnabled         any `json:"windows_migration_enabled"`
-	EnableTurnOnWindowsMDMManually  any `json:"enable_turn_on_windows_mdm_manually"`
-	WindowsEntraTenantIDs           any `json:"windows_entra_tenant_ids"`
-	WindowsEntraClientIDs           any `json:"windows_entra_client_ids"`
-	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
-}
-
-// typeMapper overrides schemas for Fleet/optjson wrapper types that don't
-// reflect to the JSON they actually marshal to.
-func typeMapper(t reflect.Type) *jsonschema.Schema {
-	pkg := t.PkgPath()
-	// json.RawMessage reflects to a bare `true` schema, which yamlls won't offer
-	// in completion. In GitOps these blobs (agent_options.config, command_line_flags,
-	// extensions, update_channels) are objects, so type them as such.
-	if pkg == "encoding/json" && t.Name() == "RawMessage" {
-		return &jsonschema.Schema{Type: "object"}
-	}
-	// fleet.Duration embeds time.Duration (also named "Duration"), so invopop
-	// emits a self-referential $def that overflows yamlls' resolver. It marshals
-	// to a string like "24h".
-	if strings.HasSuffix(pkg, "server/fleet") && t.Name() == "Duration" {
-		return &jsonschema.Schema{Type: "string"}
-	}
-	// optjson.Bool/String/Int/Slice[T]/Any[T] marshal to their Value, not the
-	// internal {Set, Valid, Value} struct.
-	if strings.Contains(pkg, "pkg/optjson") {
-		if vf, ok := t.FieldByName("Value"); ok {
-			return schemaForType(vf.Type)
-		}
-		// BoolOr[T]/StringOr[T] marshal to a scalar OR T (e.g. install_software is
-		// `true` or an object). Their generic def names contain the qualified type
-		// param (slashes) which yamlls can't resolve as a $ref, and a bare {} isn't
-		// offered in completion, so express both arms as an anyOf.
-		scalar := "boolean"
-		if _, ok := t.FieldByName("String"); ok {
-			scalar = "string"
-		}
-		return &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: scalar}, {Type: "object"}}}
-	}
-	return nil
-}
-
 // reflectProps reflects a struct and returns its top-level property schemas.
 func reflectProps(v any) map[string]any {
 	r := &jsonschema.Reflector{RequiredFromJSONSchemaTags: true, Mapper: typeMapper, KeyNamer: toSnake, ExpandedStruct: true}
@@ -168,27 +71,6 @@ func reflectProps(v any) map[string]any {
 	}
 	props, _ := m["properties"].(map[string]any)
 	return props
-}
-
-func schemaForType(t reflect.Type) *jsonschema.Schema {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
-	}
-	switch t.Kind() {
-	case reflect.Bool:
-		return &jsonschema.Schema{Type: "boolean"}
-	case reflect.String:
-		return &jsonschema.Schema{Type: "string"}
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return &jsonschema.Schema{Type: "integer"}
-	case reflect.Float32, reflect.Float64:
-		return &jsonschema.Schema{Type: "number"}
-	case reflect.Slice, reflect.Array:
-		return &jsonschema.Schema{Type: "array", Items: schemaForType(t.Elem())}
-	default:
-		return &jsonschema.Schema{Type: "object"}
-	}
 }
 
 // toSnake converts a Go field name to snake_case. invopop applies KeyNamer to
