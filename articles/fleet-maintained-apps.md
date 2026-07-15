@@ -87,6 +87,26 @@ To manage Fleet-maintained apps using Fleet's best practice GitOps, check out `f
 
 > Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist if not also added in YAML.
 
+### Pin an app to a specific version
+
+By default, Fleet updates each Fleet-maintained app to the latest version in the [software catalog](https://fleetdm.com/software-catalog) when GitOps runs. To control which version Fleet installs, set the `version` field for the app under `fleet_maintained_apps`. Wrap the value in quotes so Fleet reads it as a string.
+
+You can pin a version two ways:
+
+- **Exact version.** Set `version` to a full version number, like `"147.0.1"`, to install that specific release. Available versions are listed in the Fleet UI under **Actions > Edit software**.
+- **Major version.** Set `version` to a caret (`^`) constraint, like `"^147"`, to install the latest release within that major version. Fleet keeps installing patches and minor updates until the app reaches 148.0, which it won't install until you update the constraint.
+
+Pinning to a major version keeps hosts patched without jumping to a new major release you haven't tested or licensed:
+
+```yaml
+software:
+  fleet_maintained_apps:
+    - slug: firefox/darwin
+      version: "^147"
+```
+
+Version pinning is available in GitOps today. Pinning in the Fleet UI is [coming soon](https://github.com/fleetdm/fleet/issues/38504).
+
 ## How does Fleet maintain these apps?
 
 Fleet:
