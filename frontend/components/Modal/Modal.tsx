@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { FocusScope } from "@radix-ui/react-focus-scope";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
 const CLOSE_ANIMATION_MS = 100;
+
+const FOCUSABLE_SELECTOR =
+  'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
@@ -56,10 +60,27 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
+
+  // FocusScope's default is to focus the first tabbable in the scope, which
+  // is the close X. For enabled modals, focus into the content instead so
+  // Tab lands on a control, not the dismiss button. Disabled modals keep
+  // the default so the user can still close.
+  const handleMountAutoFocus = (e: Event) => {
+    if (isContentDisabled) return;
+    const contentEl = containerRef.current?.querySelector(
+      `.${baseClass}__content`
+    );
+    const first = contentEl?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+    if (first) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
@@ -193,36 +214,34 @@ const Modal = ({
       onMouseDown={handleBackgroundMouseDown}
       onMouseUp={handleBackgroundMouseUp}
     >
-      <div
-        className={modalContainerClasses}
-        tabIndex={-1} // Make focusable
-        onMouseDown={handleContainerMouseDown}
-        onMouseUp={handleContainerMouseUp}
-        onInput={handleContainerInput}
-        onClick={handleContainerClick}
-      >
-        <div className={`${baseClass}__header`}>
-          <span>{title}</span>
-          {!disableClosingModal && (
-            <div className={`${baseClass}__ex`}>
-              <Button
-                variant="icon"
-                onClick={handleClose}
-                iconStroke
-                autofocus={isContentDisabled}
-              >
-                <Icon name="close" color="core-fleet-black" size="medium" />
-              </Button>
-            </div>
-          )}
+      <FocusScope asChild loop trapped onMountAutoFocus={handleMountAutoFocus}>
+        <div
+          ref={containerRef}
+          className={modalContainerClasses}
+          tabIndex={-1} // Make focusable
+          onMouseDown={handleContainerMouseDown}
+          onMouseUp={handleContainerMouseUp}
+          onInput={handleContainerInput}
+          onClick={handleContainerClick}
+        >
+          <div className={`${baseClass}__header`}>
+            <span>{title}</span>
+            {!disableClosingModal && (
+              <div className={`${baseClass}__ex`}>
+                <Button variant="icon" onClick={handleClose} iconStroke>
+                  <Icon name="close" color="core-fleet-black" size="medium" />
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className={contentWrapperClasses}>
+            {isContentDisabled && (
+              <div className={`${baseClass}__disabled-overlay`} />
+            )}
+            <div className={contentClasses}>{children}</div>
+          </div>
         </div>
-        <div className={contentWrapperClasses}>
-          {isContentDisabled && (
-            <div className={`${baseClass}__disabled-overlay`} />
-          )}
-          <div className={contentClasses}>{children}</div>
-        </div>
-      </div>
+      </FocusScope>
     </div>
   );
 };

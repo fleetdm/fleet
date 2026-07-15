@@ -1,6 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Modal from "./Modal";
@@ -188,5 +194,90 @@ describe("Modal", () => {
     await clickBackground(background);
     act(() => jest.runAllTimers());
     expect(onExit).not.toHaveBeenCalled();
+  });
+
+  describe("focus management", () => {
+    // Radix's FocusScope schedules autofocus with rAF/timeouts. Use real
+    // timers in this block so those callbacks actually fire.
+    beforeEach(() => jest.useRealTimers());
+
+    it("moves focus to the first control inside the content on open", async () => {
+      render(
+        <Modal title="Confirm" onExit={noop}>
+          <>
+            <button type="button">Submit</button>
+            <button type="button">Cancel</button>
+          </>
+        </Modal>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Submit" })).toHaveFocus();
+      });
+    });
+
+    it("keeps focus on the header close button for disabled-content modals", async () => {
+      render(
+        <Modal title="Loading" isContentDisabled onExit={noop}>
+          <button type="button">Submit</button>
+        </Modal>
+      );
+
+      // The header X is the first tabbable, so FocusScope's default keeps it.
+      const buttons = screen.getAllByRole("button");
+      await waitFor(() => {
+        expect(buttons[0]).toHaveFocus();
+      });
+      expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
+    });
+
+    it("restores focus to the previously focused element on close", async () => {
+      const Wrapper = () => {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              data-testid="trigger"
+            >
+              Open
+            </button>
+            {open && (
+              <Modal title="Confirm" onExit={() => setOpen(false)}>
+                <button type="button" onClick={() => setOpen(false)}>
+                  Close from inside
+                </button>
+              </Modal>
+            )}
+          </>
+        );
+      };
+
+      const user = userEvent.setup();
+      render(<Wrapper />);
+      const trigger = screen.getByTestId("trigger");
+      trigger.focus();
+      expect(trigger).toHaveFocus();
+
+      await user.click(trigger);
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Close from inside" })
+        ).toHaveFocus();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: "Close from inside" })
+      );
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("button", { name: "Close from inside" })
+        ).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(trigger).toHaveFocus();
+      });
+    });
   });
 });
