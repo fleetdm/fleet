@@ -1,3 +1,1 @@
-- Added new `apple_hardware_info` osquery extension table (macOS only) with a
-  `marketing_name` column that returns the human-readable marketing name for
-  the current Apple device.
+- Added new `apple_hardware_info` osquery extension table (macOS only) with a `marketing_name` column that returns the human-readable marketing name for the current Apple device.
