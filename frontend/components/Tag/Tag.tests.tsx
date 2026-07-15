@@ -25,15 +25,35 @@ describe("Tag", () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
-  it("disables the clickable button when disabled is set", () => {
-    render(
-      <Tag type="clickable" onClick={() => undefined} disabled>
-        iPadOS
-      </Tag>
-    );
+  it.each([
+    {
+      case: "clickable",
+      renderTag: () =>
+        render(
+          <Tag type="clickable" onClick={() => undefined} disabled>
+            iPadOS
+          </Tag>
+        ),
+      buttonName: "iPadOS",
+    },
+    {
+      case: "dismissible",
+      renderTag: () =>
+        render(
+          <Tag type="dismissible" onDismiss={() => undefined} disabled>
+            Apple Silicon macOS hosts
+          </Tag>
+        ),
+      buttonName: "Remove",
+    },
+  ])(
+    "disables the $case tag's button when disabled is set",
+    ({ renderTag, buttonName }) => {
+      renderTag();
 
-    expect(screen.getByRole("button", { name: "iPadOS" })).toBeDisabled();
-  });
+      expect(screen.getByRole("button", { name: buttonName })).toBeDisabled();
+    }
+  );
 
   it("renders dismissible tags with a dismiss button and calls onDismiss", async () => {
     const handler = jest.fn();
