@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"fleetdm/gm/pkg/ghapi"
 )
 
 var (
@@ -81,7 +83,7 @@ func (m Model) focusCard(w WorkItem, selected bool) string {
 	if w.Status != "" {
 		statusChip = "  " + statusStyle.Render("["+w.Status+"]")
 	}
-	head := fmt.Sprintf("%s#%-6d %s", marker, w.Number, truncate(w.Title, m.titleWidth())) + statusChip
+	head := fmt.Sprintf("%s#%-6d %s", marker, w.Number, truncateTitle(w.Title)) + statusChip
 
 	// PR / session line.
 	var detail string
@@ -159,11 +161,17 @@ func (m Model) renderBoard() string {
 			if itemIdx == m.cursor {
 				cursorLine = len(lines)
 			}
-			hiddenLabel := ""
-			if !m.triage.Visible(m.key(it), it.Updated, now) {
-				hiddenLabel = m.triage.Label(m.key(it))
+			// Project View issues render as a two-line block (issue, then its PR/
+			// branch). Everything else is a single line.
+			if bk == BucketPrimary && it.Kind == KindIssue {
+				lines = append(lines, m.projectIssueLines(it, itemIdx == m.cursor)...)
+			} else {
+				hiddenLabel := ""
+				if !m.triage.Visible(m.key(it), it.Updated, now) {
+					hiddenLabel = m.triage.Label(m.key(it))
+				}
+				lines = append(lines, m.itemLine(it, itemIdx == m.cursor, hiddenLabel, bk))
 			}
-			lines = append(lines, m.itemLine(it, itemIdx == m.cursor, hiddenLabel, bk))
 			itemIdx++
 		}
 		lines = append(lines, "")
@@ -220,7 +228,7 @@ func (m Model) itemLine(it Item, selected bool, hiddenLabel string, bk Bucket) s
 		num = fmt.Sprintf("#%d", it.Number)
 	}
 	age := humanizeAge(it.Updated)
-	title := truncate(it.Title, m.titleWidth())
+	title := truncateTitle(it.Title)
 	marker := ""
 	if it.HasSession {
 		marker = " 💬"
@@ -279,6 +287,68 @@ func (m Model) projectLine(it Item, selected bool) string {
 		return selectedStyle.Render("▸ " + body)
 	}
 	return "  " + projectStyle.Render(it.Title) + "   " + statusStyle.Render(it.Reason) + "   " + dimStyle.Render("b/enter to open")
+}
+
+// projectIssueLines renders a Project View issue as a two-line block: the issue
+// (number, title, project status) and, indented beneath, its linked PR + branch +
+// local clone folder + PR state. The PR/branch line is omitted when there's none.
+func (m Model) projectIssueLines(it Item, selected bool) []string {
+	w := m.workByIssue[it.Number]
+	title := truncateTitle(it.Title)
+
+	var line1 string
+	if selected {
+		s := fmt.Sprintf("issue #%d  %s", it.Number, title)
+		if w.Status != "" {
+			s += "  [" + w.Status + "]"
+		}
+		line1 = selectedStyle.Render("  ▸ " + s)
+	} else {
+		line1 = "  " + issueTagStyle.Render(fmt.Sprintf("issue #%d", it.Number)) + "  " + title
+		if w.Status != "" {
+			line1 += "  " + statusStyle.Render("["+w.Status+"]")
+		}
+	}
+	lines := []string{line1}
+
+	if w.PR != nil || w.Branch != "" {
+		var parts []string
+		if w.PR != nil {
+			parts = append(parts, prTagStyle.Render(fmt.Sprintf("PR #%d", w.PR.Number)))
+		}
+		if w.Branch != "" {
+			parts = append(parts, dimStyle.Render("branch "+w.Branch))
+		}
+		if folder := m.branchFolder(w); folder != "" {
+			parts = append(parts, dimStyle.Render("["+folder+"]"))
+		}
+		var pr *ghapi.PullRequest
+		if w.PR != nil {
+			pr = w.PR.PR
+		}
+		if st := prStatusLabel(pr); st != "" {
+			parts = append(parts, reasonStyle.Render(st))
+		}
+		lines = append(lines, "      "+strings.Join(parts, "  "))
+	}
+	return lines
+}
+
+// prStatusLabel summarizes a PR's state as open / approved / merged / closed.
+func prStatusLabel(pr *ghapi.PullRequest) string {
+	if pr == nil {
+		return ""
+	}
+	switch {
+	case strings.EqualFold(pr.State, "MERGED"):
+		return "merged"
+	case strings.EqualFold(pr.State, "CLOSED"):
+		return "closed"
+	case pr.IsApproved():
+		return "approved"
+	default:
+		return "open"
+	}
 }
 
 // issueAnnotation returns the project status and linked-PR text for an issue item
@@ -372,15 +442,13 @@ func (m Model) startWorkFooter() string {
 	return b.String()
 }
 
-func (m Model) titleWidth() int {
-	w := m.width - 42
-	if w < 20 {
-		return 20
+// truncateTitle caps a title at 35 characters, rendering "<first 32>..." when longer.
+func truncateTitle(s string) string {
+	r := []rune(s)
+	if len(r) <= 35 {
+		return s
 	}
-	if w > 80 {
-		return 80
-	}
-	return w
+	return string(r[:32]) + "..."
 }
 
 func humanizeAge(t time.Time) string {

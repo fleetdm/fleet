@@ -1,6 +1,7 @@
 package jarvis
 
 import (
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,9 @@ type FetchResult struct {
 	// project's last-updated time), used to jump to an issue's most recently
 	// updated board.
 	IssueProjects map[int][]ProjectRef
+	// LocalBranches maps a branch name → the local clone folder that has it, so
+	// the Project View can show where a branch lives.
+	LocalBranches map[string]string
 }
 
 // ProjectRef is a lightweight reference to a project an issue belongs to.
@@ -199,12 +203,21 @@ func fetchIssueStatuses(issues []ghapi.Issue) (statuses map[int]string, projects
 var workflowKeywords = []string{"ready", "progress", "review", "await", "qa", "draft", "blocked"}
 
 // pickWorkflowStatus chooses, among the projects an issue belongs to, the one
-// whose Status looks like a workflow column. Falls back to the first project
-// with any Status set, then to the first present project.
+// whose Status looks like a workflow column. Falls back to the lowest-numbered
+// project with any Status set, then to the lowest-numbered present project.
+// Projects are scanned in ascending number order so the pick is deterministic
+// (map iteration order would otherwise flap the status between an issue's boards).
 func pickWorkflowStatus(found map[int]ghapi.ProjectStatus) (int, string) {
+	pids := make([]int, 0, len(found))
+	for pid := range found {
+		pids = append(pids, pid)
+	}
+	sort.Ints(pids)
+
 	var firstSet, firstPresent int
 	var firstSetStatus string
-	for pid, ps := range found {
+	for _, pid := range pids {
+		ps := found[pid]
 		if !ps.Present {
 			continue
 		}

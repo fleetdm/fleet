@@ -192,7 +192,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.focusView {
 			if w, ok := m.currentWork(); ok {
 				m.notice = fmt.Sprintf("refreshing #%d…", w.Number)
-				cmds := []tea.Cmd{refreshIssueCmd(m.repo, w.Number)}
+				cmds := []tea.Cmd{refreshIssueCmd(m.repo, w.Number, w.Project)}
 				if w.PR != nil {
 					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
 				}
@@ -207,7 +207,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, refreshPRCmd(m.repo, it.Number)
 			case KindIssue:
 				m.notice = fmt.Sprintf("refreshing #%d…", it.Number)
-				return m, refreshIssueCmd(m.repo, it.Number)
+				return m, refreshIssueCmd(m.repo, it.Number, m.workByIssue[it.Number].Project)
 			default:
 				m.notice = "nothing to refresh here (r for a full refresh)"
 			}

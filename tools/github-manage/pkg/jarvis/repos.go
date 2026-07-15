@@ -111,6 +111,30 @@ func normalizeRemote(url string) (string, bool) {
 	return "", false
 }
 
+// LocalBranchFolders scans the configured clones of repo and returns a map of
+// local branch name → clone folder name (first clone that has the branch wins).
+func LocalBranchFolders(baseDirs []string, repo string) map[string]string {
+	out := map[string]string{}
+	for _, c := range DiscoverClones(baseDirs, repo) {
+		folder := filepath.Base(c.Path)
+		for _, b := range gitLocalBranches(c.Path) {
+			if _, ok := out[b]; !ok {
+				out[b] = folder
+			}
+		}
+	}
+	return out
+}
+
+// gitLocalBranches lists the local branch names in a clone.
+func gitLocalBranches(dir string) []string {
+	out, err := exec.Command("git", "-C", dir, "for-each-ref", "--format=%(refname:short)", "refs/heads/").Output()
+	if err != nil {
+		return nil
+	}
+	return strings.Fields(string(out))
+}
+
 func gitCurrentBranch(dir string) string {
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "--abbrev-ref", "HEAD").Output()
 	if err != nil {

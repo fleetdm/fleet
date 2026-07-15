@@ -3,6 +3,7 @@ package jarvis
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -60,6 +61,7 @@ type Model struct {
 	statuses      map[int]string
 	projects      map[int]int
 	issueProjects map[int][]ProjectRef // issue number → projects it's on (+ updatedAt)
+	localBranches map[string]string    // branch name → local clone folder that has it
 	work          []WorkItem
 	workByIssue   map[int]WorkItem
 
@@ -156,6 +158,9 @@ func (m *Model) applyFetch(res FetchResult) {
 	}
 	if res.IssueProjects != nil {
 		m.issueProjects = res.IssueProjects
+	}
+	if res.LocalBranches != nil {
+		m.localBranches = res.LocalBranches
 	}
 	m.autoMarkCompleted()
 	m.rebuild()
@@ -335,6 +340,18 @@ func (m *Model) autoMarkCompleted() {
 	}
 }
 
+// branchFolder returns the local clone folder for a work item's branch: the
+// recorded clone if Start Work created it, else any clone found to hold the branch.
+func (m Model) branchFolder(w WorkItem) string {
+	if w.ClonePath != "" {
+		return filepath.Base(w.ClonePath)
+	}
+	if w.Branch != "" {
+		return m.localBranches[w.Branch]
+	}
+	return ""
+}
+
 // workForPR returns the work item whose linked PR has the given number.
 func (m *Model) workForPR(prNum int) (WorkItem, bool) {
 	for _, w := range m.work {
@@ -418,8 +435,12 @@ type itemRefreshedMsg struct {
 func (m *Model) fetchCmd() tea.Cmd {
 	repo, limit := m.repo, m.limit
 	primary := m.config.PrimaryProjects
+	baseDirs := m.config.CloneBaseDirs
 	return func() tea.Msg {
 		res, err := Fetch(repo, limit, primary)
+		if err == nil {
+			res.LocalBranches = LocalBranchFolders(baseDirs, repo)
+		}
 		return fetchDoneMsg{res: res, err: err}
 	}
 }
@@ -515,14 +536,22 @@ func refreshPRCmd(repo string, number int) tea.Cmd {
 }
 
 // refreshIssueCmd re-fetches a single issue's project Status + board memberships,
-// and its open/closed state (so a since-closed issue gets marked done).
-func refreshIssueCmd(repo string, number int) tea.Cmd {
+// and its open/closed state (so a since-closed issue gets marked done). When
+// project is non-zero (e.g. a Project View row), the status is read from THAT
+// project so it never shows a secondary project's column; otherwise the workflow
+// board is picked heuristically.
+func refreshIssueCmd(repo string, number, project int) tea.Cmd {
 	return func() tea.Msg {
 		found, err := ghapi.GetAllIssueProjectStatuses(number)
 		if err != nil {
 			return itemRefreshedMsg{kind: KindIssue, number: number, err: err}
 		}
-		pid, status := pickWorkflowStatus(found)
+		pid, status := project, ""
+		if ps, ok := found[project]; project != 0 && ok && ps.Present {
+			status = ps.Status
+		} else {
+			pid, status = pickWorkflowStatus(found)
+		}
 		var refs []ProjectRef
 		for p, ps := range found {
 			if ps.Present {
