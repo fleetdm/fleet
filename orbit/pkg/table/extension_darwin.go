@@ -6,8 +6,8 @@ import (
 	"context"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_hardware_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_hardware_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
