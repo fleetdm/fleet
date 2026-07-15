@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
 import PageDescription from "components/PageDescription";
-import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import Spinner from "components/Spinner";
 import mdmAPI from "services/entities/mdm";
 
 import getOSSettingsNavItems from "./OSSettingsNavItems";
@@ -17,6 +17,10 @@ interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
   currentPage: number;
+  // Undefined until the URL's fleet id resolves to an available fleet.
+  // Gate team-scoped queries on this being defined — anything fired during
+  // that window targets the wrong fleet.
+  teamIdForApi?: number;
   location: {
     search: string;
   };
@@ -25,19 +29,12 @@ interface IOSSettingsProps {
 const OSSettings = ({
   router,
   currentPage,
+  teamIdForApi,
   location: { search: queryString },
   params,
 }: IOSSettingsProps) => {
   const { section } = params;
-  const { currentTeam, isTeamTechnician, isGlobalTechnician } = useContext(
-    AppContext
-  );
-
-  // TODO: consider using useTeamIdParam hook here instead in the future
-  const teamId =
-    currentTeam?.id === undefined || currentTeam.id < APP_CONTEXT_NO_TEAM_ID
-      ? API_NO_TEAM_ID // coerce undefined and -1 to 0 for 'No team'
-      : currentTeam.id;
+  const { isTeamTechnician, isGlobalTechnician } = useContext(AppContext);
 
   const {
     data: aggregateProfileStatusData,
@@ -45,9 +42,10 @@ const OSSettings = ({
     isError: isErrorAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
-    ["aggregateProfileStatuses", teamId],
-    () => mdmAPI.getProfilesStatusSummary(teamId),
+    ["aggregateProfileStatuses", teamIdForApi],
+    () => mdmAPI.getProfilesStatusSummary(teamIdForApi as number),
     {
+      enabled: teamIdForApi !== undefined,
       refetchOnWindowFocus: false,
       retry: false,
     }
@@ -82,6 +80,12 @@ const OSSettings = ({
 
   const CurrentCard = currentFormSection.Card;
 
+  // Wait for the fleet id to resolve before mounting children — they fire
+  // team-scoped queries eagerly.
+  if (teamIdForApi === undefined) {
+    return <Spinner />;
+  }
+
   return (
     <div className={baseClass}>
       <PageDescription
@@ -91,7 +95,7 @@ const OSSettings = ({
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
         isError={isErrorAggregateProfileStatus}
-        teamId={teamId}
+        teamId={teamIdForApi}
         aggregateProfileStatusData={aggregateProfileStatusData}
       />
       <SideNav
@@ -103,8 +107,8 @@ const OSSettings = ({
         activeItem={currentFormSection.urlSection}
         CurrentCard={
           <CurrentCard
-            key={teamId}
-            currentTeamId={teamId}
+            key={teamIdForApi}
+            currentTeamId={teamIdForApi}
             onMutation={refetchAggregateProfileStatus}
             router={router}
             currentPage={currentPage}

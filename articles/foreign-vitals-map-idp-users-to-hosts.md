@@ -116,156 +116,66 @@ It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To 
 
 ## Google Workspace
 
-Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
+Google Workspace doesn't support the [SCIM](https://scim.cloud/) standard. Instead, Fleet connects directly to Google Workspace and pulls users, groups, and departments from the [Admin SDK Directory API](https://developers.google.com/workspace/admin/directory/reference/rest) on a schedule, using a Google Cloud service account with domain-wide delegation.
+
+When a Google Workspace integration is configured, Fleet ignores SCIM requests from other identity providers. Configure either a SCIM integration (Okta, Entra ID, etc.) or Google Workspace, not both.
 
 ### Prerequisites
 
-- [Install](https://docs.goauthentik.io/docs/install-config/install/aws) and run authentik
-- Google Workspace Business Plus plan (or one of the plans listed in [Google Secure LDAP](https://support.google.com/a/answer/9048516?hl=en&ref_topic=9048334&sjid=5482490660946222035-EU) article)
+- Google Workspace with super admin access to the [Google Admin console](https://admin.google.com/)
+- A Google Cloud project where you can create a service account
 
 ### Connect
 
-To map users from Google Workspace to hosts in Fleet, we'll do the following steps:
+To map users from Google Workspace to hosts in Fleet, complete the following steps:
 
-1. [Add LDAP client in Google Admin console](#step-1-add-ldap-client-in-google-admin-console)
-2. [Add LDAP authentication certificate to authentik](#step-2-add-ldap-authentication-certificate-to-authentik)
-3. [Add custom LDAP property mappings to authentik](#step-3-add-custom-ldap-property-mappings-to-authentik)
-4. [Configure LDAP connection in authentik](#step-4-configure-ldap-connection-in-authentik)
-5. [Map users and groups to hosts in Fleet](#step-5-map-users-to-hosts-in-fleet)
+1. [Create a service account in Google Cloud](#step-1-create-a-service-account-in-google-cloud)
+2. [Authorize the service account via domain-wide delegation](#step-2-authorize-the-service-account-via-domain-wide-delegation)
+3. [Connect Google Workspace to Fleet](#step-3-connect-google-workspace-to-fleet)
+4. [Map users and groups to hosts in Fleet](#step-4-map-users-and-groups-to-hosts-in-fleet)
 
-#### Step 1: Add LDAP client in Google Admin console
+#### Step 1: Create a service account in Google Cloud
 
-1. Head to the [Google Admin console](https://admin.google.com/).
-2. From the side menu, select **Apps > LDAP**.
-3. Select **ADD CLIENT**, add a friendly name (e.g. "authentik") and description, and then select **CONTINUE**.
-4. Select **Entire domain** in **Verify user credentials** and **Read user information** sections.
-5. Toggle the switch under **Read group information** to **On** and select **ADD LDAP CLIENT**.
-6. Select **Download certificate** and select **CONTINUE TO CLIENT DETAILS**.
-7. Select **Authentication card** and select **GENERATE NEW CREDENTIALS**.
-8. Save **Username** and **Password**. We'll need those along with a certificate we'll download in the next section.
+1. Go to the [Service accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) page in the Google Cloud console.
+2. Select or create a project, then select **Create service account**.
+3. Enter a name (e.g., "Fleet IdP sync") and select **Create and continue**, then **Done**.
+4. Select the new service account, open the **Keys** tab, and select **Add key > Create new key**.
+5. Select the **JSON** key type and select **Create** to download the key file. You'll paste its contents into Fleet later.
+6. Enable the [Admin SDK API](https://console.cloud.google.com/apis/library/admin.googleapis.com) in the same project as the service account. This is required, and it's easy to miss. If it's not enabled, the sync fails with a 403 `SERVICE_DISABLED` error.
 
+#### Step 2: Authorize the service account via domain-wide delegation
 
-#### Step 2: Add LDAP authentication certificate to authentik
+1. In the [Google Admin console](https://admin.google.com/), go to **Security > Access and data control > API controls > Manage Domain Wide Delegation**.
+2. Select **Add new**.
+3. For **Client ID**, enter the service account's client ID. You can find this as the `client_id` value in the JSON key file.
+4. For **OAuth scopes**, enter the following, separated by commas:
+   - `https://www.googleapis.com/auth/admin.directory.user.readonly`
+   - `https://www.googleapis.com/auth/admin.directory.group.readonly`
+   - `https://www.googleapis.com/auth/admin.directory.group.member.readonly`
+5. Select **Authorize**.
 
-1. Navigate to your authentik admin dashboard.
-2. From the side menu, select **System > Certificates**.
-3. Select **Create** and add a friendly name (e.g. "Google LDAP certificate").
-4. Now, find the downloaded certificate on your computer and unarchive it. Then, open the `.crt` with a text editor (e.g. TextEdit), copy its contents, and paste into the **Certificate** field.
-5. Open the `.key` file with a text editor and copy its content to the **Private key** field. Then, select **Create**.
+#### Step 3: Connect Google Workspace to Fleet
 
-#### Step 3: Add custom LDAP property mappings to authentik
+1. In Fleet, head to **Settings > Integrations > Identity provider (IdP)**.
+2. In the **Google Workspace** section, paste the full contents of the JSON key file into **API key JSON**.
+3. For **Primary domain**, enter your Google Workspace primary domain.
+4. For **Admin email to impersonate**, enter a Google Workspace admin's email. The service account impersonates this user to read the directory.
+5. Select **Save**.
 
-1. In authentik's side menu, select **Customization > Property Mappings**,
-2. Select **Create** and **LDAP Source Property Mapping** from the list. Then, select **Next**.
-3. You need to repeat this a few times and add each of these property mappings:
+Fleet syncs your directory shortly after you save, and then on a schedule. You can confirm the connection status in the **Identity provider (IdP)** section.
 
-- **Name**: Google LDAP objectSid > ldap_uniq
-- **Expression**:
-    ```
-    return {
-        "attributes": {
-            "ldap_uniq": list_flatten(ldap.get("objectSid")),
-        },
-    }
-    ```
+#### Step 4: Map users and groups to hosts in Fleet
 
-- **Name**: Google LDAP mail > username  
-- **Expression**:
-    ```
-    return {
-        "username": list_flatten(ldap.get("mail")),
-    }
-    ```
+Fleet maps each Google Workspace user to a host using the end user's IdP email collected during MDM enrollment. After a host is mapped, its IdP username, groups, and department are available on host details. To verify the mapping, see [Verify connection](#verify-connection) below.
 
-- **Name**: Google LDAP mail > email
-- **Expression**:
-    ```
-    return {
-        "email": list_flatten(ldap.get("mail")),
-    }
-    ```
+#### Troubleshooting
 
-- **Name**: Google LDAP givenName > givenName
-- **Expression**:
-    ```
-    return {
-        "attributes": {
-            "givenName": list_flatten(ldap.get("givenName")),
-        },
-    }
-    ```
+If the sync fails, check the connection status in **Settings > Integrations > Identity provider (IdP)** and the Fleet server logs for the `google_workspace_sync` cron job.
 
-
-- **Name**: Google LDAP sn > familyName
-- **Expression**:
-    ```
-    return {
-        "attributes": {
-            "familyName": list_flatten(ldap.get("sn")),
-        },
-    }
-    ```
-
-- **Name**: Google LDAP displayName > name
-- **Expression**:
-    ```
-    return {
-        "name": list_flatten(ldap.get("displayName")),
-    }
-    ```
-
-- **Name**: Google LDAP displayName > name (group)
-- **Expression**:
-    ```
-    return {
-        "name": list_flatten(ldap.get("displayName")),
-    }
-    ```
-
-- **Name**: Google LDAP objectSid > ldap_uniq (group)
-- **Expression**:
-    ```
-    return {
-        "attributes": {
-            "ldap_uniq": list_flatten(ldap.get("objectSid")),
-        },
-    }
-    ```
-
-#### Step 4: Configure LDAP connection in authentik
-
-1. From the side menu, select **Directory > Federation and Social login**.
-2. Select **Create**, **LDAP Source**, and **Next**.
-3. Add a friendly name (e.g. "Google LDAP").
-4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
-5. In the **Server URL** enter `ldap://ldap.google.com`. For more information, refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
-6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
-7. For the **Bind CN**, enter the username that you saved in the first step. For **Bind Password**, enter the password you saved.
-8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dc=yourcompany,dc=com).
-9. For the **User Property Mappings,** remove all selected properties by clicking the "X" icon, and select all user properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings-960x270@2x.png)
-10. For the **Group Property Mappings**, remove all selected properties by clicking the "X" icon, and select all group properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings-960x270@2x.png)
-11. Under **Additional settings**, enter values below:
-    - **User object filter** > `(objectClass=person)`
-    - **Group object filter** > `(objectClass= groupOfNames)`
-    - **Group membership field** > `member`
-    - **Object uniqueness field** > `objectSid`  
-12. Select **Finish** to save your configuration. 
-13. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
-
-#### Step 5: Map users to hosts in Fleet
-
-1. From the side menu, select **Applications > Providers**, **Create**, **SCIM Provider**, and then **Next**.
-2. Add a friendly name (e.g. "Fleet SCIM provider").
-3. For the **URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
-5. Select **Finish** to save provider.
-6. Now, from the side menu, select **Applications > Applications**. Then, select **Create**.
-7. Add a friendly name (e.g. "Fleet SCIM app") and slug (e.g. "fleet-scim-app").
-8. For the **Backchannel Providers**, select the provider created above ("Fleet SCIM provider").
-9. Select **Create** to add the application.
-10. After a few minutes, you should see users mapped to hosts in Fleet.
+- **"Admin SDK API has not been used in project ... or it is disabled" (403 `SERVICE_DISABLED`)**: enable the Admin SDK API in the Google Cloud project that owns the service account, not your Google Workspace organization. Open the activation link in the error (it includes the project ID) and select **Enable**. Wait a few minutes, then retry.
+- **"unauthorized_client" or "access_denied" (403)**: domain-wide delegation isn't authorized correctly. In the Google Admin console, confirm the **Client ID** matches the service account's unique ID and that all three OAuth scopes are present and spelled exactly as listed in Step 2. Changes can take a few minutes to propagate.
+- **"Admin email to impersonate" errors**: the impersonated user must be a real Google Workspace admin with permission to read users and groups.
+- **Can't create a service account key ("Organization Policy ... disableServiceAccountKeyCreation")**: your organization enforces a policy that blocks key creation. Create the service account in a Google Cloud project that isn't part of that organization, or ask an Organization Policy Administrator to override the policy. Domain-wide delegation works regardless of which project or organization the service account belongs to.
 
 ## Other IdPs
 

@@ -254,7 +254,7 @@ type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, 
 
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
-type HostMemberOfAllLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+type HostMembershipForLabelsFunc func(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
@@ -296,9 +296,9 @@ type SetOrUpdateIDPHostDeviceMappingFunc func(ctx context.Context, hostID uint, 
 
 type DeleteHostIDPFunc func(ctx context.Context, id uint) error
 
-type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) error
+type SetOrUpdateHostSCIMUserMappingFunc func(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error)
 
-type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) error
+type DeleteHostSCIMUserMappingFunc func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error)
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
@@ -1151,6 +1151,26 @@ type MarkRecoveryLockPasswordViewedFunc func(ctx context.Context, hostUUID strin
 type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error)
 
 type SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
+
+type BulkUpsertHostDeviceNameEnforcementFunc func(ctx context.Context, teamID *uint) error
+
+type DeleteHostDeviceNameEnforcementForTeamFunc func(ctx context.Context, teamID *uint) error
+
+type ListHostsPendingDeviceNameCommandFunc func(ctx context.Context, limit int) ([]fleet.HostDeviceNamePending, error)
+
+type DeactivateHostDeviceNameCommandsFunc func(ctx context.Context, hostUUIDs []string) error
+
+type SetHostDeviceNameStatusFunc func(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error
+
+type UpdateHostDeviceNameStatusFromCommandFunc func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+
+type UpdateHostDeviceNameStatusFromReportFunc func(ctx context.Context, hostUUID string, reportedName string) error
+
+type GetHostDeviceNameEnforcementFunc func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error)
+
+type ResendHostDeviceNameFunc func(ctx context.Context, hostUUID string) error
+
+type ReconcileHostDeviceNamesForHostsFunc func(ctx context.Context, hostIDs []uint) error
 
 type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
 
@@ -2524,8 +2544,8 @@ type DataStore struct {
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
 
-	HostMemberOfAllLabelsFunc        HostMemberOfAllLabelsFunc
-	HostMemberOfAllLabelsFuncInvoked bool
+	HostMembershipForLabelsFunc        HostMembershipForLabelsFunc
+	HostMembershipForLabelsFuncInvoked bool
 
 	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
 	HostIDsByOSVersionFuncInvoked bool
@@ -3870,6 +3890,36 @@ type DataStore struct {
 
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc        SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked bool
+
+	BulkUpsertHostDeviceNameEnforcementFunc        BulkUpsertHostDeviceNameEnforcementFunc
+	BulkUpsertHostDeviceNameEnforcementFuncInvoked bool
+
+	DeleteHostDeviceNameEnforcementForTeamFunc        DeleteHostDeviceNameEnforcementForTeamFunc
+	DeleteHostDeviceNameEnforcementForTeamFuncInvoked bool
+
+	ListHostsPendingDeviceNameCommandFunc        ListHostsPendingDeviceNameCommandFunc
+	ListHostsPendingDeviceNameCommandFuncInvoked bool
+
+	DeactivateHostDeviceNameCommandsFunc        DeactivateHostDeviceNameCommandsFunc
+	DeactivateHostDeviceNameCommandsFuncInvoked bool
+
+	SetHostDeviceNameStatusFunc        SetHostDeviceNameStatusFunc
+	SetHostDeviceNameStatusFuncInvoked bool
+
+	UpdateHostDeviceNameStatusFromCommandFunc        UpdateHostDeviceNameStatusFromCommandFunc
+	UpdateHostDeviceNameStatusFromCommandFuncInvoked bool
+
+	UpdateHostDeviceNameStatusFromReportFunc        UpdateHostDeviceNameStatusFromReportFunc
+	UpdateHostDeviceNameStatusFromReportFuncInvoked bool
+
+	GetHostDeviceNameEnforcementFunc        GetHostDeviceNameEnforcementFunc
+	GetHostDeviceNameEnforcementFuncInvoked bool
+
+	ResendHostDeviceNameFunc        ResendHostDeviceNameFunc
+	ResendHostDeviceNameFuncInvoked bool
+
+	ReconcileHostDeviceNamesForHostsFunc        ReconcileHostDeviceNamesForHostsFunc
+	ReconcileHostDeviceNamesForHostsFuncInvoked bool
 
 	SaveHostManagedLocalAccountFunc        SaveHostManagedLocalAccountFunc
 	SaveHostManagedLocalAccountFuncInvoked bool
@@ -6218,11 +6268,11 @@ func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, li
 	return s.HostIDsByOSIDFunc(ctx, osID, offset, limit)
 }
 
-func (s *DataStore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
+func (s *DataStore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	s.mu.Lock()
-	s.HostMemberOfAllLabelsFuncInvoked = true
+	s.HostMembershipForLabelsFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostMemberOfAllLabelsFunc(ctx, hostID, labelNames)
+	return s.HostMembershipForLabelsFunc(ctx, hostID, labelNames)
 }
 
 func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
@@ -6365,14 +6415,14 @@ func (s *DataStore) DeleteHostIDP(ctx context.Context, id uint) error {
 	return s.DeleteHostIDPFunc(ctx, id)
 }
 
-func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
+func (s *DataStore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.SetOrUpdateHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostSCIMUserMappingFunc(ctx, hostID, scimUserID)
 }
 
-func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
+func (s *DataStore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	s.mu.Lock()
 	s.DeleteHostSCIMUserMappingFuncInvoked = true
 	s.mu.Unlock()
@@ -9359,6 +9409,76 @@ func (s *DataStore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx contex
 	s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.BulkUpsertHostDeviceNameEnforcementFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertHostDeviceNameEnforcementFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error {
+	s.mu.Lock()
+	s.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteHostDeviceNameEnforcementForTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) ListHostsPendingDeviceNameCommand(ctx context.Context, limit int) ([]fleet.HostDeviceNamePending, error) {
+	s.mu.Lock()
+	s.ListHostsPendingDeviceNameCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostsPendingDeviceNameCommandFunc(ctx, limit)
+}
+
+func (s *DataStore) DeactivateHostDeviceNameCommands(ctx context.Context, hostUUIDs []string) error {
+	s.mu.Lock()
+	s.DeactivateHostDeviceNameCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeactivateHostDeviceNameCommandsFunc(ctx, hostUUIDs)
+}
+
+func (s *DataStore) SetHostDeviceNameStatus(ctx context.Context, hostUUID string, status fleet.MDMDeliveryStatus, commandUUID *string, expectedName string, detail string) error {
+	s.mu.Lock()
+	s.SetHostDeviceNameStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostDeviceNameStatusFunc(ctx, hostUUID, status, commandUUID, expectedName, detail)
+}
+
+func (s *DataStore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+	s.mu.Lock()
+	s.UpdateHostDeviceNameStatusFromCommandFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostDeviceNameStatusFromCommandFunc(ctx, commandUUID, acknowledged, detail)
+}
+
+func (s *DataStore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID string, reportedName string) error {
+	s.mu.Lock()
+	s.UpdateHostDeviceNameStatusFromReportFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostDeviceNameStatusFromReportFunc(ctx, hostUUID, reportedName)
+}
+
+func (s *DataStore) GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+	s.mu.Lock()
+	s.GetHostDeviceNameEnforcementFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDeviceNameEnforcementFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ResendHostDeviceName(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ResendHostDeviceNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostDeviceNameFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.ReconcileHostDeviceNamesForHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileHostDeviceNamesForHostsFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error {

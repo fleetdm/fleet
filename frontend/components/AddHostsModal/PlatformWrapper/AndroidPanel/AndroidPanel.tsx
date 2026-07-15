@@ -39,6 +39,11 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
     "workProfile"
   );
 
+  const helpText =
+    "When the end user navigates to this URL, the enrollment profile " +
+    "will download in their browser. End users will have to install the profile " +
+    "to enroll to Fleet.";
+
   if (!config) return null;
 
   if (!isAndroidMdmEnabledAndConfigured) {
@@ -88,6 +93,7 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
           inputWrapperClass={`${baseClass}__enroll-link`}
           name="enroll-link"
           value={url}
+          helpText={helpText}
         />
       </form>
     </div>

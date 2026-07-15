@@ -1828,6 +1828,24 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// raw decryptable key status.
 				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
+				// populate host-name template enforcement status (macOS, iOS, iPadOS).
+				// Omitted entirely when the host has no enforcement row.
+				dnEnforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get host device name enforcement")
+				}
+				if dnEnforcement != nil {
+					// A NULL DB status is a queued row waiting; it renders as pending
+					status := fleet.HostNameSettingPending
+					if dnEnforcement.Status != nil {
+						status = fleet.HostNameSettingStatus(*dnEnforcement.Status)
+					}
+					host.MDM.OSSettings.HostName = &fleet.HostMDMHostNameSetting{
+						Status: status,
+						Detail: dnEnforcement.Detail,
+					}
+				}
+
 				// populate recovery lock password status for macOS hosts
 				if host.Platform == "darwin" {
 					rlpStatus, err := svc.ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
@@ -2384,15 +2402,29 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 		if err == nil && scimUser != nil {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		}
 

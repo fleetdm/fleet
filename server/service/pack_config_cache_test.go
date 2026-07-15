@@ -329,4 +329,3 @@ func TestPackConfigCacheLegacyPacksBypass(t *testing.T) {
 	assert.Greater(t, callCounter.Load(), callsAfterFirst,
 		"expected DB call even on second request when legacy packs are present")
 }
-

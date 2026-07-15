@@ -528,6 +528,7 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
+- `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
@@ -649,8 +650,8 @@ software:
 - `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
-- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
-- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default. Not supported for `.sh` and `.ps1` files.
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 
 #### Example
@@ -733,9 +734,9 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 ##### Script-only
 
-Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the team YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
 
-`self_service`, `categories`, `labels`, and `icon` are specified inline in the team YAML file.
+`self_service`, `categories`, `labels`, and `icon` are specified inline in the team's YAML file.
 
 ```yaml
 software:
@@ -781,7 +782,7 @@ The fields below are all optional.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
-- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
+- `⁠version` specifies the app version. Available versions are listed in the Fleet UI under **Actions > Versions**. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
   - To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0.
 
 If the fields below are omitted, they default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
@@ -1015,6 +1016,8 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional access (enabling/disabling for hosts in "Unassigned"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+This section also lets you connect Google Workspace to sync identity provider (IdP) host vitals directly from your directory.
+
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
 #### Example
@@ -1028,6 +1031,10 @@ org_settings:
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
+    google_workspace:
+      - api_key_json: $GOOGLE_WORKSPACE_API_KEY_JSON
+        domain: fleetdm.com
+        impersonated_user_email: admin@example.com
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -1060,6 +1067,18 @@ For specific fleets (`settings`):
 
 - `enable_calendar_events` to enable calendar events for a fleet (default: `false`).
 - `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
+
+#### google_workspace
+
+_Available in Fleet Premium._
+
+Connecting Google Workspace populates identity provider (IdP) host vitals directly from your directory. While Google Workspace is configured, SCIM provisioning (Okta, Entra ID, etc.) is ignored; configure one or the other, not both.
+
+- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key. The service account must have domain-wide delegation enabled (default: `""`).
+- `domain` is your Google Workspace primary domain (default: `""`).
+- `impersonated_user_email` is a Google Workspace admin the service account impersonates via domain-wide delegation (default: `""`).
+
+Can be configured for "All fleets" (`org_settings`).
 
 #### jira
 
@@ -1281,6 +1300,7 @@ After [adding an Apple Business (AB) token via the UI](https://fleetdm.com/guide
 - `macos_fleet` is the fleet where macOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ios_fleet` is the the fleet where iOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 - `ipados_fleet` is the fleet where iPadOS hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
+- `byod_fleet` is the fleet where BYOD hosts are automatically added when they appear in Apple Business. If not specified, defaults to "Unassigned".
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1294,6 +1314,7 @@ org_settings:
       macos_fleet: 💻 Workstations
       ios_fleet: 📱🏢 Company-owned iPhones
       ipados_fleet: 🔳🏢 Company-owned iPads
+      byod_fleet: 📱 BYOD iPhones
 ```
 
 #### volume_purchasing_program

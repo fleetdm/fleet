@@ -17124,7 +17124,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 
 	crossScript := "echo 'cross-platform hello'"
 	crossHash := sha256.Sum256([]byte(crossScript))
-	darwinOnly := []string{"macos"}
+	darwinOnly := []string{"darwin"}
 	crossPkg := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:                      "script://cross-hello.sh",
@@ -17134,7 +17134,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		},
 	}
 
-	// [macos] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
+	// [darwin] on a .sh (native=linux): cross-table row for darwin, install_during_setup stays off.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkg}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
 
@@ -17199,7 +17199,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	// alone (native "linux" is present), and the darwin cross-row is
 	// preserved. When SetupExperiencePlatforms is set it's authoritative for
 	// both the native flag and the cross-table.
-	bothPlatforms := []string{"macos", "linux"}
+	bothPlatforms := []string{"darwin", "linux"}
 	crossPkgBoth := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:                      "script://cross-hello.sh",
@@ -17248,18 +17248,18 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: crossPkgBad}, http.StatusAccepted, &batchResp, "team_name", crossTeam.Name)
 	failure = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, crossTeam.Name, batchResp.RequestUUID)
-	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platforms" value for a .sh package`)
+	require.Contains(t, failure, `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`)
 
-	// CR-4: multi-installer batch with mixed opt-in. Installer A opts into
-	// [macos]; installer B leaves SetupExperiencePlatforms nil. B's existing
+	// Multi-installer batch with mixed opt-in. Installer A opts into
+	// [darwin]; installer B leaves SetupExperiencePlatforms nil. B's existing
 	// darwin cross-row (seeded via a prior explicit apply) must survive the
 	// batch instead of being wiped by A's opt-in.
 	scriptB := "echo 'sibling'"
 	scriptBHash := sha256.Sum256([]byte(scriptB))
 	// First, give both A and B a darwin cross-row so we have prior state to
 	// preserve.
-	seedA := []string{"macos"}
-	seedB := []string{"macos"}
+	seedA := []string{"darwin"}
+	seedB := []string{"darwin"}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{
 		{URL: "script://cross-hello.sh", SHA256: hex.EncodeToString(crossHash[:]), InstallScript: crossScript, SetupExperiencePlatforms: &seedA},
 		{URL: "script://sibling.sh", SHA256: hex.EncodeToString(scriptBHash[:]), InstallScript: scriptB, SetupExperiencePlatforms: &seedB},
@@ -33502,4 +33502,101 @@ func (s *integrationEnterpriseTestSuite) TestResetPolicy() {
 
 	// 404 for a nonexistent policy.
 	s.Do("POST", "/api/latest/fleet/policies/999999/reset", nil, http.StatusNotFound)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+	activityName := fleet.ActivityTypeEditedHostNameTemplate{}.ActivityName()
+	activityDetails := func(nameTemplate string) string {
+		jsonTemplate := "null"
+		if nameTemplate != "" {
+			jsonTemplate = fmt.Sprintf("%q", nameTemplate)
+		}
+		return fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %s}`, team.ID, team.Name, jsonTemplate)
+	}
+	getTemplate := func() string {
+		var getResp getTeamResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+		return getResp.Team.Config.MDM.HostNameTemplate
+	}
+
+	// PATCH /teams/{id} with an invalid template is rejected
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(`{"mdm": {"name_template": "X-$FLEET_SECRET_Y"}}`), http.StatusUnprocessableEntity)
+	require.Empty(t, getTemplate())
+
+	// PATCH sets the template and logs the activity
+	var tmResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"mdm": {"name_template": %q}}`, tmpl)), http.StatusOK, &tmResp)
+	require.Equal(t, tmpl, tmResp.Team.Config.MDM.HostNameTemplate)
+	require.Equal(t, tmpl, getTemplate())
+	activityID := s.lastActivityMatches(activityName, activityDetails(tmpl), 0)
+
+	// re-PATCHing the identical template logs no duplicate activity
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(fmt.Sprintf(`{"mdm": {"name_template": %q}}`, tmpl)), http.StatusOK, &tmResp)
+	s.lastActivityMatches("", "", activityID)
+
+	// a PATCH without the key leaves the template untouched
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID),
+		json.RawMessage(`{"mdm": {"windows_require_bitlocker_pin": false}}`), http.StatusOK, &tmResp)
+	require.Equal(t, tmpl, getTemplate())
+
+	// team-spec apply: an invalid template is rejected, even in dry-run
+	specWith := func(mdm map[string]any) map[string]any {
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": mdm}}}
+	}
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "X-$FLEET_VAR_NOPE"}), http.StatusUnprocessableEntity)
+	require.Equal(t, tmpl, getTemplate())
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "X-$FLEET_VAR_NOPE"}), http.StatusUnprocessableEntity, "dry_run", "true")
+	require.Equal(t, tmpl, getTemplate())
+
+	// a valid dry-run does not persist the change
+	s.Do("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": "DR-$FLEET_VAR_HOST_UUID"}), http.StatusOK, "dry_run", "true")
+	require.Equal(t, tmpl, getTemplate())
+
+	// spec apply sets a new template and logs the activity
+	const specTmpl = "iPad $FLEET_VAR_HOST_UUID"
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": specTmpl}), http.StatusOK, &applyResp)
+	require.Equal(t, specTmpl, getTemplate())
+	activityID = s.lastActivityOfTypeMatches(activityName, activityDetails(specTmpl), 0)
+
+	// re-applying the same spec logs no duplicate activity
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": specTmpl}), http.StatusOK, &applyResp)
+	s.lastActivityOfTypeMatches(activityName, "", activityID)
+
+	// a spec without the key leaves the template untouched
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{}), http.StatusOK, &applyResp)
+	require.Equal(t, specTmpl, getTemplate())
+
+	// an empty string clears the template and logs a null-template activity
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		specWith(map[string]any{"name_template": ""}), http.StatusOK, &applyResp)
+	require.Empty(t, getTemplate())
+	s.lastActivityOfTypeMatches(activityName, activityDetails(""), 0)
+
+	// creating a new team from a spec with a template applies it and logs the activity
+	newTeamName := t.Name() + "-new"
+	s.DoJSON("POST", "/api/latest/fleet/spec/fleets",
+		map[string]any{"specs": []any{map[string]any{"name": newTeamName, "mdm": map[string]any{"name_template": tmpl}}}},
+		http.StatusOK, &applyResp)
+	newTeam, err := s.ds.TeamByName(ctx, newTeamName)
+	require.NoError(t, err)
+	require.Equal(t, tmpl, newTeam.Config.MDM.HostNameTemplate)
+	s.lastActivityOfTypeMatches(activityName,
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, newTeam.ID, newTeam.Name, tmpl), 0)
 }

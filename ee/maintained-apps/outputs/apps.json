@@ -3474,6 +3474,41 @@
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
     },
     {
+      "name": "Gadwin PrintScreen Pro",
+      "slug": "gadwin-printscreen-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
+      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
+    },
+    {
+      "name": "Gadwin PrintScreen",
+      "slug": "gadwin-printscreen/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
+      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
+    },
+    {
+      "name": "Gadwin ScreenRecorder",
+      "slug": "gadwin-screenrecorder/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
+      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
+    },
+    {
+      "name": "Galaxy Modeler",
+      "slug": "galaxy-modeler/windows",
+      "platform": "windows",
+      "unique_identifier": "Galaxy Modeler",
+      "description": "Galaxy Modeler is a visual schema design tool for GraphQL data modeling."
+    },
+    {
+      "name": "Garmin BaseCamp",
+      "slug": "garmin-basecamp/windows",
+      "platform": "windows",
+      "unique_identifier": "Garmin BaseCamp",
+      "description": "Garmin BaseCamp is a trip-planning application for organizing maps, routes, and outdoor activities."
+    },
+    {
       "name": "Garmin Express",
       "slug": "garmin-express/darwin",
       "platform": "darwin",
@@ -3542,6 +3577,13 @@
       "platform": "windows",
       "unique_identifier": "GenesysCloud",
       "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
+      "name": "GeoGebra Classic",
+      "slug": "geogebra-classic/windows",
+      "platform": "windows",
+      "unique_identifier": "GeoGebra Classic",
+      "description": "GeoGebra Classic is a math tool bundle for geometry, algebra, spreadsheets, and calculus."
     },
     {
       "name": "Gephi",
@@ -3649,11 +3691,25 @@
       "description": "Glyphs is a font editor."
     },
     {
+      "name": "Go",
+      "slug": "go/windows",
+      "platform": "windows",
+      "unique_identifier": "Go Programming Language",
+      "description": "Go is an open-source programming language for building secure, scalable systems."
+    },
+    {
       "name": "Go2Shell",
       "slug": "go2shell/darwin",
       "platform": "darwin",
       "unique_identifier": "com.zipzapmac.Go2Shell",
       "description": "Go2Shell is an opens a terminal window to the current directory in Finder."
+    },
+    {
+      "name": "GoAnywhere OpenPGP Studio",
+      "slug": "goanywhere-openpgp-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "GoAnywhere OpenPGP Studio",
+      "description": "GoAnywhere OpenPGP Studio is a free PGP encryption tool for securing files."
     },
     {
       "name": "Godot Engine",
@@ -3698,11 +3754,25 @@
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
+      "name": "GoldenDict-ng",
+      "slug": "goldendict-ng/windows",
+      "platform": "windows",
+      "unique_identifier": "GoldenDict-ng",
+      "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
+    },
+    {
       "name": "GoodSync",
       "slug": "goodsync/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sibersystems.goodsyncmac2000",
       "description": "GoodSync is a file synchronisation and backup software."
+    },
+    {
+      "name": "Google Ads Editor",
+      "slug": "google-ads-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Ads Editor",
+      "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
     },
     {
       "name": "Google Chrome",
@@ -3752,6 +3822,13 @@
       "platform": "darwin",
       "unique_identifier": "com.google.GeminiMacOS",
       "description": "Google Gemini is a native desktop AI assistant from Google."
+    },
+    {
+      "name": "Google Web Designer",
+      "slug": "google-web-designer/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Web Designer",
+      "description": "Google Web Designer is a tool for creating HTML5-based ads, videos, and interactive designs."
     },
     {
       "name": "GoToMeeting",
@@ -3815,6 +3892,20 @@
       "platform": "windows",
       "unique_identifier": "Granola",
       "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
+      "name": "Graphviz",
+      "slug": "graphviz/windows",
+      "platform": "windows",
+      "unique_identifier": "Graphviz",
+      "description": "Graphviz is open-source graph visualization software for representing structural information as diagrams."
+    },
+    {
+      "name": "grepWin",
+      "slug": "grepwin/windows",
+      "platform": "windows",
+      "unique_identifier": "grepWin",
+      "description": "grepWin is a regular expression search-and-replace tool for Windows."
     },
     {
       "name": "Grids",
@@ -5369,6 +5460,20 @@
       "platform": "darwin",
       "unique_identifier": "io.mountainduck",
       "description": "Mountain Duck is a mounts servers and cloud storages as a disk on the desktop."
+    },
+    {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.macos.FirefoxVPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
+    },
+    {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla VPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
     },
     {
       "name": "MQTTX",

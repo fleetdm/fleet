@@ -196,6 +196,7 @@ type GitOpsControls struct {
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -210,7 +211,8 @@ func (c GitOpsControls) Set() bool {
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
-		c.AppleAccountProvisioning != nil
+		c.AppleAccountProvisioning != nil ||
+		c.NameTemplate != nil
 }
 
 type Policy struct {
@@ -312,7 +314,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
-	packageLevel.SetupExperiencePlatforms = spec.SetupExperiencePlatforms
+	packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
 	packageLevel.SelfService = spec.SelfService
 	packageLevel.Configuration = spec.Configuration
 
@@ -1183,6 +1185,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
+		}
+	}
+
+	// Validate that name_template, if present, is a string.
+	if result.Controls.NameTemplate != nil {
+		if _, ok := result.Controls.NameTemplate.(string); !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
 		}
 	}
 
