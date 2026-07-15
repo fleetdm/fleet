@@ -155,6 +155,16 @@ describe("HostSoftwareTable", () => {
     expect(screen.queryByText("Full inventory")).not.toBeInTheDocument();
   });
 
+  it("renders the /Applications filter on the My device page for macOS hosts", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      isMyDevicePage: true,
+    });
+
+    expect(screen.getByText("Applications")).toBeInTheDocument();
+  });
+
   it("appends macos_applications to the URL on pagination when the filter is set", () => {
     const router = createMockRouter();
     renderWithContext({
@@ -171,14 +181,30 @@ describe("HostSoftwareTable", () => {
     );
   });
 
-  it("does not append macos_applications to the URL on pagination when the filter is undefined (My device page)", () => {
+  it("appends macos_applications to the URL on pagination on the My device page", () => {
     const router = createMockRouter();
     renderWithContext({
       router,
       platform: "darwin",
-      // My device page leaves the filter undefined since it has no dropdown.
-      macosApplicationsFilter: undefined,
+      macosApplicationsFilter: true,
       isMyDevicePage: true,
+      data: fullPageWithNextResults,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("macos_applications=true")
+    );
+  });
+
+  it("does not append macos_applications to the URL on pagination when the filter is undefined (non-macOS host)", () => {
+    const router = createMockRouter();
+    renderWithContext({
+      router,
+      platform: "windows",
+      // Non-macOS platforms leave the filter undefined since it doesn't apply.
+      macosApplicationsFilter: undefined,
       data: fullPageWithNextResults,
     });
 

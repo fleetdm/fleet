@@ -766,11 +766,7 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      {isFirstLoadWithCustomIcon ? (
-        <Spinner includeContainer={false} />
-      ) : (
-        renderForm()
-      )}
+      {isFirstLoadWithCustomIcon ? <Spinner /> : renderForm()}
       <ModalFooter
         primaryButtons={
           <Button

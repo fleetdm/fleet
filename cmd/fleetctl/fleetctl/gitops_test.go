@@ -7225,6 +7225,310 @@ software:
 	})
 }
 
+func TestGitOpsHostNameTemplate(t *testing.T) {
+	// Cannot t.Parallel() — RunServerWithMockedDS sets environment variables.
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	opts := &service.TestServerOpts{
+		License:       license,
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
+	setupEmptyGitOpsMocks(ds)
+
+	// Mock Apple GDMF API (required for validating OS update minimum version settings)
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
+	const (
+		localTeamName  = "Team1"
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+		template       = "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"
+	)
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == localTeamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, tm *fleet.Team) (*fleet.Team, error) {
+		savedTeam = tm
+		return tm, nil
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	defaultTeamConfig := &fleet.TeamConfig{}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+		}
+		if tid == 1 && savedTeam != nil {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, nil
+	}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) { return defaultTeamConfig, nil }
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{
+			fleet.BuiltinLabelMacOS14Plus: 1,
+			fleet.BuiltinLabelIOS:         2,
+			fleet.BuiltinLabelIPadOS:      3,
+		}, nil
+	}
+	ds.HasAppleUpdateConfigProfileConfiguredFunc = func(ctx context.Context, teamID uint) (bool, error) { return false, nil }
+	ds.BulkUpsertHostDeviceNameEnforcementFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.DeleteHostDeviceNameEnforcementForTeamFunc = func(ctx context.Context, teamID *uint) error { return nil }
+
+	// The "No team" / org-level template lives on the global app config, so track
+	// it through a mutable stored config for change detection and idempotency.
+	storedAppConfig := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return storedAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		storedAppConfig = config
+		return nil
+	}
+
+	var emitted []activity_api.ActivityDetails
+	var emittedMu sync.Mutex
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		emitted = append(emitted, a)
+		return nil
+	}
+	nameTemplateActivities := func() []fleet.ActivityTypeEditedHostNameTemplate {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		var out []fleet.ActivityTypeEditedHostNameTemplate
+		for _, a := range emitted {
+			if act, ok := a.(fleet.ActivityTypeEditedHostNameTemplate); ok {
+				out = append(out, act)
+			}
+		}
+		return out
+	}
+
+	writeYAML := func(t *testing.T, body string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(body)
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
+	teamYAML := func(controlsSection string) string {
+		return fmt.Sprintf(`
+controls:
+%s
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets:
+    - secret: test
+software:
+`, controlsSection, localTeamName)
+	}
+
+	// 0. Dry-run validates but does not persist, and still enforces the
+	// fleets-only rule (GitOps CI runs --dry-run on every PR).
+	t.Run("dry run does not persist a valid template", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml, "--dry-run"})
+
+		require.Nil(t, savedTeam)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Empty(t, nameTemplateActivities())
+	})
+
+	t.Run("dry run accepts org-level template but does not persist", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+		yml := writeYAML(t, fmt.Sprintf(`
+controls:
+  name_template: %q
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+software:
+`, template, fleetServerURL, orgName))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml, "--dry-run"})
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Empty(t, nameTemplateActivities())
+	})
+
+	// 1. Setting the template on a fleet stores it and emits the activity.
+	t.Run("set template on fleet", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.NotNil(t, savedTeam)
+		require.Equal(t, template, savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, 1)
+		require.NotNil(t, acts[0].HostNameTemplate)
+		require.Equal(t, template, *acts[0].HostNameTemplate)
+	})
+
+	// 2. Re-applying the same YAML is a no-op: no re-enqueue, no duplicate activity.
+	t.Run("idempotent re-apply", func(t *testing.T) {
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		yml := writeYAML(t, teamYAML(fmt.Sprintf("  name_template: %q", template)))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Equal(t, template, savedTeam.Config.MDM.HostNameTemplate)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.Len(t, nameTemplateActivities(), 1) // still just the one from step 1
+	})
+
+	// 3. Removing the key clears the template (declarative) and emits a null activity.
+	t.Run("clear template", func(t *testing.T) {
+		ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = false
+		yml := writeYAML(t, teamYAML(""))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Empty(t, savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, 2)
+		require.Nil(t, acts[1].HostNameTemplate) // cleared → null
+	})
+
+	// 4. An invalid variable surfaces the server's 422 validation message through fleetctl.
+	t.Run("invalid variable rejected", func(t *testing.T) {
+		yml := writeYAML(t, teamYAML(`  name_template: "$FLEET_VAR_HOST_END_USER_IDP_GROUPS"`))
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is not supported in host name templates")
+	})
+
+	// 4b. A secret variable is rejected at the GitOps env-expansion layer (before
+	// the server), since $FLEET_SECRET_* is only allowed in profiles and scripts.
+	t.Run("secret variable rejected at expansion", func(t *testing.T) {
+		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_FOO"`))
+		_, err := runAppNoChecks([]string{"gitops", "-f", yml})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_SECRET_")
+		require.Contains(t, err.Error(), "only allowed in profiles and scripts")
+	})
+
+	// 5. name_template in org-level controls sets the global ("No team") template.
+	t.Run("set template at org level", func(t *testing.T) {
+		before := len(nameTemplateActivities())
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		storedAppConfig = &fleet.AppConfig{}
+		yml := writeYAML(t, fmt.Sprintf(`
+controls:
+  name_template: %q
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+software:
+`, template, fleetServerURL, orgName))
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
+
+		require.Equal(t, template, storedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, before+1)
+		require.Nil(t, acts[len(acts)-1].FleetID, "No team activity carries a nil fleet_id")
+		require.NotNil(t, acts[len(acts)-1].HostNameTemplate)
+		require.Equal(t, template, *acts[len(acts)-1].HostNameTemplate)
+	})
+
+	// 6. name_template in no-team.yml controls sets the global ("No team") template
+	// via the same global-config merge disk encryption uses.
+	t.Run("set template for no team", func(t *testing.T) {
+		before := len(nameTemplateActivities())
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		storedAppConfig = &fleet.AppConfig{}
+		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+
+		// The file must be named exactly "no-team.yml".
+		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		noTeamFile, err := os.Create(noTeamPath)
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(`
+controls:
+  name_template: %q
+policies:
+name: No team
+software:
+`, template))
+		require.NoError(t, err)
+		require.NoError(t, noTeamFile.Close())
+
+		_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", noTeamPath})
+
+		require.Equal(t, template, storedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		acts := nameTemplateActivities()
+		require.Len(t, acts, before+1)
+		require.Nil(t, acts[len(acts)-1].FleetID)
+	})
+
+	// 7. An invalid template in no-team.yml surfaces the server's 422 through fleetctl.
+	t.Run("invalid variable rejected for no team", func(t *testing.T) {
+		storedAppConfig = &fleet.AppConfig{}
+		globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+		noTeamPath := filepath.Join(t.TempDir(), "no-team.yml")
+		require.NoError(t, os.WriteFile(noTeamPath, []byte(`
+controls:
+  name_template: "$FLEET_VAR_HOST_END_USER_IDP_GROUPS"
+policies:
+name: No team
+software:
+`), 0o600))
+
+		_, err := runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamPath})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "is not supported in host name templates")
+	})
+}
+
 func TestGitOpsWindowsOSUpdates(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := testing_utils.RunServerWithMockedDS(

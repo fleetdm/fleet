@@ -818,6 +818,13 @@ const HostDetailsPage = ({
     return hostAPI.rotateRecoveryLockPassword(host.id);
   }, [host?.id]);
 
+  const resendHostNameTemplate = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return Promise.resolve();
+    }
+    return hostAPI.resendNameTemplate(host.id);
+  }, [host?.id]);
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -1757,12 +1764,14 @@ const HostDetailsPage = ({
                 isHostTeamAdmin ||
                 isHostTeamMaintainer
               }
+              canResendHostNameTemplate={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
               resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+              resendHostNameTemplate={resendHostNameTemplate}
               onProfileResent={refetchHostDetails}
             />
           )}

@@ -1,8 +1,14 @@
 .fleet-500 {
   &__link {
-    // inline-block so the animated underline tracks the link's width
     display: inline-block;
+    @include link;
+    text-decoration: underline;
+    text-decoration-color: $ui-fleet-black-75;
+    text-underline-offset: 3px;
 
-    @include animated-bottom-border;
+    &:hover {
+      color: $core-fleet-black;
+      text-decoration-color: $core-fleet-black;
+    }
   }
 }
