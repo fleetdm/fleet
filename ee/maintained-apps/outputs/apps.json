@@ -3478,35 +3478,35 @@
       "slug": "gadwin-printscreen-pro/windows",
       "platform": "windows",
       "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
-      "description": ""
+      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
     },
     {
       "name": "Gadwin PrintScreen",
       "slug": "gadwin-printscreen/windows",
       "platform": "windows",
       "unique_identifier": "Gadwin PrintScreen (64-Bit)",
-      "description": ""
+      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
     },
     {
       "name": "Gadwin ScreenRecorder",
       "slug": "gadwin-screenrecorder/windows",
       "platform": "windows",
       "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
-      "description": ""
+      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
     },
     {
       "name": "Galaxy Modeler",
       "slug": "galaxy-modeler/windows",
       "platform": "windows",
       "unique_identifier": "Galaxy Modeler",
-      "description": ""
+      "description": "Galaxy Modeler is a visual schema design tool for GraphQL data modeling."
     },
     {
       "name": "Garmin BaseCamp",
       "slug": "garmin-basecamp/windows",
       "platform": "windows",
       "unique_identifier": "Garmin BaseCamp",
-      "description": ""
+      "description": "Garmin BaseCamp is a trip-planning application for organizing maps, routes, and outdoor activities."
     },
     {
       "name": "Garmin Express",
@@ -3583,7 +3583,7 @@
       "slug": "geogebra-classic/windows",
       "platform": "windows",
       "unique_identifier": "GeoGebra Classic",
-      "description": ""
+      "description": "GeoGebra Classic is a math tool bundle for geometry, algebra, spreadsheets, and calculus."
     },
     {
       "name": "Gephi",
@@ -3695,7 +3695,7 @@
       "slug": "go/windows",
       "platform": "windows",
       "unique_identifier": "Go Programming Language",
-      "description": ""
+      "description": "Go is an open-source programming language for building secure, scalable systems."
     },
     {
       "name": "Go2Shell",
@@ -3709,7 +3709,7 @@
       "slug": "goanywhere-openpgp-studio/windows",
       "platform": "windows",
       "unique_identifier": "GoAnywhere OpenPGP Studio",
-      "description": ""
+      "description": "GoAnywhere OpenPGP Studio is a free PGP encryption tool for securing files."
     },
     {
       "name": "Godot Engine",
@@ -3758,7 +3758,7 @@
       "slug": "goldendict-ng/windows",
       "platform": "windows",
       "unique_identifier": "GoldenDict-ng",
-      "description": ""
+      "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
     },
     {
       "name": "GoodSync",
@@ -3772,7 +3772,7 @@
       "slug": "google-ads-editor/windows",
       "platform": "windows",
       "unique_identifier": "Google Ads Editor",
-      "description": ""
+      "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
     },
     {
       "name": "Google Chrome",
@@ -3828,7 +3828,7 @@
       "slug": "google-web-designer/windows",
       "platform": "windows",
       "unique_identifier": "Google Web Designer",
-      "description": ""
+      "description": "Google Web Designer is a tool for creating HTML5-based ads, videos, and interactive designs."
     },
     {
       "name": "GoToMeeting",
@@ -3898,14 +3898,14 @@
       "slug": "graphviz/windows",
       "platform": "windows",
       "unique_identifier": "Graphviz",
-      "description": ""
+      "description": "Graphviz is open-source graph visualization software for representing structural information as diagrams."
     },
     {
       "name": "grepWin",
       "slug": "grepwin/windows",
       "platform": "windows",
       "unique_identifier": "grepWin",
-      "description": ""
+      "description": "grepWin is a regular expression search-and-replace tool for Windows."
     },
     {
       "name": "Grids",
