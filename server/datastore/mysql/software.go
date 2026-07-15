@@ -3673,14 +3673,13 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                         ua.activity_type = 'software_install'
                 )
         )
-        -- Resolve to the title's currently-active installer so list and install agree on
-        -- label scope after an FMA replacement (old row kept with is_active=0). LEFT JOIN
-        -- yields installer_id=NULL when no active installer exists; filterSoftwareInstallersByLabel
-        -- tolerates that. lsia columns are listed explicitly to avoid lsia.installer_id colliding
-        -- with the projected active id (sqlx maps last-wins).
-        SELECT
-			software_installers.id AS installer_id,
-			software_installers.self_service AS package_self_service,
+		-- Keep active install records keyed by their actual installer. After an FMA replacement,
+		-- map the inactive recorded installer to the title's currently-active installer so its
+		-- install history remains visible on the replacement. LEFT JOIN yields installer_id=NULL
+		-- when an inactive installer has no active replacement.
+		SELECT
+			matched_installer.id AS installer_id,
+			matched_installer.self_service AS package_self_service,
 			software_titles.id AS id,
 			lsia.last_install_install_uuid,
 			lsia.last_install_installed_at,
@@ -3692,16 +3691,18 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 		INNER JOIN
 			software_titles ON recorded_si.title_id = software_titles.id
 		LEFT JOIN
-			software_installers ON software_installers.title_id = recorded_si.title_id
-				AND software_installers.global_or_team_id = recorded_si.global_or_team_id
-				AND software_installers.is_active = 1
-				-- collapse to the first-added active package so multiple active packages don't fan out rows
-				AND software_installers.id = (
-					SELECT MIN(si_first.id) FROM software_installers si_first
-					WHERE si_first.title_id = recorded_si.title_id
-						AND si_first.global_or_team_id = recorded_si.global_or_team_id
-						AND si_first.is_active = 1
+			software_installers matched_installer ON matched_installer.id = CASE
+				WHEN recorded_si.is_active = 1 THEN recorded_si.id
+				ELSE (
+					SELECT MIN(si_active.id) FROM software_installers si_active
+					WHERE si_active.title_id = recorded_si.title_id
+						AND si_active.global_or_team_id = recorded_si.global_or_team_id
+						AND si_active.is_active = 1
 				)
+			END
+		-- deterministic order so the first row kept per title (and its self_service) does not depend
+		-- on unordered UNION output; matched installer first, NULLs last.
+		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsia.installer_id
     `
 	var softwareInstalls []*hostSoftware
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID)
@@ -3770,9 +3771,9 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                         ua.activity_type = 'software_uninstall'
                 )
         )
-        -- Resolve to active installer; see hostSoftwareInstalls for rationale.
-        SELECT
-			software_installers.id AS installer_id,
+		-- Resolve the installer used for matching; see hostSoftwareInstalls for rationale.
+		SELECT
+			matched_installer.id AS installer_id,
 			software_titles.id AS id,
 			host_script_results.exit_code AS exit_code,
 			lsua.last_uninstall_script_execution_id,
@@ -3785,18 +3786,19 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 		INNER JOIN
 			software_titles ON recorded_si.title_id = software_titles.id
 		LEFT JOIN
-			software_installers ON software_installers.title_id = recorded_si.title_id
-				AND software_installers.global_or_team_id = recorded_si.global_or_team_id
-				AND software_installers.is_active = 1
-				-- collapse to the first-added active package so multiple active packages don't fan out rows
-				AND software_installers.id = (
-					SELECT MIN(si_first.id) FROM software_installers si_first
-					WHERE si_first.title_id = recorded_si.title_id
-						AND si_first.global_or_team_id = recorded_si.global_or_team_id
-						AND si_first.is_active = 1
+			software_installers matched_installer ON matched_installer.id = CASE
+				WHEN recorded_si.is_active = 1 THEN recorded_si.id
+				ELSE (
+					SELECT MIN(si_active.id) FROM software_installers si_active
+					WHERE si_active.title_id = recorded_si.title_id
+						AND si_active.global_or_team_id = recorded_si.global_or_team_id
+						AND si_active.is_active = 1
 				)
+			END
 		LEFT OUTER JOIN
 			host_script_results ON host_script_results.host_id = ? AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
+		-- deterministic order so the first row kept per title does not depend on unordered UNION output.
+		ORDER BY software_titles.id, matched_installer.id IS NULL, matched_installer.id, lsua.installer_id
     `
 	var softwareUninstalls []*hostSoftware
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, hostID, hostID, hostID)
@@ -5161,9 +5163,13 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 	}
 }
 
-// filterOutOfScopeFailedHostSoftwareInstalls removes failed install entries that are not in
-// the osquery inventory and whose installer is out of label scope, so they don't surface
-// as available software on the host. Maps are mutated in place.
+// filterOutOfScopeFailedHostSoftwareInstalls drops titles the host is out of scope for and not
+// osquery-reporting as installed, whose status is a failed install, so a stale failed attempt on a
+// title the host can no longer install doesn't linger. For a multi-package title the Status read
+// here is the provisional per-title value (the first-added installer with a record, ordered by the
+// query): out-of-scope titles are never pinned by applyResolvedInstallerStatus, so the prune
+// deliberately reflects the first-added installer's outcome. Non-failed out-of-scope titles are kept.
+// Maps are mutated in place.
 func filterOutOfScopeFailedHostSoftwareInstalls(
 	bySoftwareTitleID map[uint]*hostSoftware,
 	byVPPAdamID map[string]*hostSoftware,
@@ -5201,6 +5207,94 @@ func filterOutOfScopeFailedHostSoftwareInstalls(
 				}
 			}
 		}
+	}
+}
+
+// mergeInstallDataByInstaller records the most recent install for a title's specific installer,
+// keyed by (title id, installer id). Keeping install data per installer (rather than collapsing to
+// one row per title) is what lets ListHostSoftware later surface the install belonging to the
+// resolved (displayed) installer instead of an arbitrary sibling's. No-op when the row has no
+// installer (e.g. an inactive installer with no active replacement).
+func mergeInstallDataByInstaller(installDataByTitleInstaller map[uint]map[uint]*hostSoftware, s *hostSoftware) {
+	if s.InstallerID == nil {
+		return
+	}
+	byInstaller := installDataByTitleInstaller[s.ID]
+	if byInstaller == nil {
+		byInstaller = make(map[uint]*hostSoftware)
+		installDataByTitleInstaller[s.ID] = byInstaller
+	}
+	existing := byInstaller[*s.InstallerID]
+	if existing == nil || existing.LastInstallInstalledAt == nil ||
+		(s.LastInstallInstalledAt != nil && s.LastInstallInstalledAt.After(*existing.LastInstallInstalledAt)) {
+		installData := *s
+		byInstaller[*s.InstallerID] = &installData
+	}
+}
+
+// mergeUninstallDataByInstaller folds a title's uninstall record into the per-(title, installer)
+// index built by mergeInstallDataByInstaller, so uninstall recency is evaluated against the same
+// installer's install record (not across sibling installers).
+func mergeUninstallDataByInstaller(installDataByTitleInstaller map[uint]map[uint]*hostSoftware, s *hostSoftware) {
+	if s.InstallerID == nil {
+		return
+	}
+	byInstaller := installDataByTitleInstaller[s.ID]
+	if byInstaller == nil {
+		byInstaller = make(map[uint]*hostSoftware)
+		installDataByTitleInstaller[s.ID] = byInstaller
+	}
+	installData := byInstaller[*s.InstallerID]
+	if installData == nil {
+		uninstallData := *s
+		byInstaller[*s.InstallerID] = &uninstallData
+		return
+	}
+	if (installData.LastInstallInstalledAt == nil ||
+		s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*installData.LastInstallInstalledAt)) &&
+		(installData.LastUninstallUninstalledAt == nil ||
+			s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*installData.LastUninstallUninstalledAt)) {
+		installData.Status = s.Status
+		installData.LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
+		installData.LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
+		installData.ExitCode = s.ExitCode
+	}
+}
+
+// applyResolvedInstallerStatus pins each title's status/last-install/last-uninstall fields to the
+// installer that ListHostSoftware resolved for display (resolvedInstallers[titleID].ID), so those
+// fields describe the same installer as the shown name/version. If the resolved installer has no
+// install record on the host, the fields are cleared (available) rather than borrowing a sibling
+// installer's data. Only in-scope titles (those in filteredBySoftwareTitleID) are pinned: out-of-scope
+// titles keep their provisional status so downstream pruning and self-service filtering still see it.
+func applyResolvedInstallerStatus(
+	filteredBySoftwareTitleID map[uint]*hostSoftware,
+	installDataByTitleInstaller map[uint]map[uint]*hostSoftware,
+	resolvedInstallers map[uint]resolvedInstaller,
+) {
+	for titleID, software := range filteredBySoftwareTitleID {
+		resolved, ok := resolvedInstallers[titleID]
+		if !ok || software == nil {
+			continue
+		}
+
+		software.Status = nil
+		software.LastInstallInstalledAt = nil
+		software.LastInstallInstallUUID = nil
+		software.LastUninstallUninstalledAt = nil
+		software.LastUninstallScriptExecutionID = nil
+		software.ExitCode = nil
+
+		installData := installDataByTitleInstaller[titleID][resolved.ID]
+		if installData == nil {
+			continue
+		}
+		software.Status = installData.Status
+		software.LastInstallInstalledAt = installData.LastInstallInstalledAt
+		software.LastInstallInstallUUID = installData.LastInstallInstallUUID
+		software.LastUninstallUninstalledAt = installData.LastUninstallUninstalledAt
+		software.LastUninstallScriptExecutionID = installData.LastUninstallScriptExecutionID
+		software.ExitCode = installData.ExitCode
 	}
 }
 
@@ -5252,6 +5346,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
+	installDataByTitleInstaller := make(map[uint]map[uint]*hostSoftware)
 
 	var err error
 	var hostSoftwareInstallsList []*hostSoftware
@@ -5261,11 +5356,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, err
 		}
 		for _, s := range hostSoftwareInstallsList {
+			mergeInstallDataByInstaller(installDataByTitleInstaller, s)
+			// Only ensure the title is present here; its status/last-install fields are pinned to
+			// the resolved installer later by applyResolvedInstallerStatus.
 			if _, ok := bySoftwareTitleID[s.ID]; !ok {
 				bySoftwareTitleID[s.ID] = s
-			} else {
-				bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
-				bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
 			}
 		}
 	}
@@ -5276,6 +5371,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range hostSoftwareUninstalls {
+		mergeUninstallDataByInstaller(installDataByTitleInstaller, s)
+		// The Status/LastUninstall* fields written to bySoftwareTitleID below are provisional and,
+		// for installer-backed titles, are superseded by applyResolvedInstallerStatus. They are kept
+		// because the uninstallQuarantineSet control flow (which removes titles the host uninstalled
+		// unless osquery still reports them installed) depends on this block for the
+		// non-available-for-install inventory path.
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 				bySoftwareTitleID[s.ID] = s
@@ -6141,6 +6242,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
+	applyResolvedInstallerStatus(filteredBySoftwareTitleID, installDataByTitleInstaller, resolvedInstallers)
 
 	// filter out VPP apps due to label scoping
 	filteredByVPPAdamID, otherVppAppsInInventory, err := filterVPPAppsByLabel(
