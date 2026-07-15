@@ -78,7 +78,7 @@ func TestListOperatingSystemsForPlatform(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 4)
 	for i := 1; i < len(list); i++ {
-		require.True(t, list[i-1].Version <= list[i].Version,
+		require.LessOrEqual(t, list[i-1].Version, list[i].Version,
 			"expected sorted order, got %q before %q", list[i-1].Version, list[i].Version)
 	}
 }
