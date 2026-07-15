@@ -42,7 +42,7 @@ Custom host vitals removed from `default.yml` are deleted on the next GitOps run
 
 A custom host vital starts with no value on each host. Until a value is set for a host, sending a script or profile that references the vital to that host will fail.
 
-Global admins and maintainers can set a value on any host; team admins and maintainers can set values for hosts in their teams.
+Global admins and maintainers can set a value on any host; fleet admins and maintainers can set values for hosts in their fleets.
 
 ### UI
 
