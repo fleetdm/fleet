@@ -94,6 +94,8 @@ export default {
   HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  HOST_CUSTOM_HOST_VITAL: (hostId: number, vitalId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/custom_host_vitals/${vitalId}`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
@@ -366,6 +368,8 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables endpoints
-  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // global variables endpoints
+  GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // custom host vitals endpoints
+  CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
 };

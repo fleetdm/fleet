@@ -738,6 +738,13 @@ func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	}}, nil
 }
 
+func (MockClient) ListCustomHostVitals(query string) ([]fleet.CustomHostVital, error) {
+	return []fleet.CustomHostVital{
+		{ID: 1, Name: "Asset tag"},
+		{ID: 2, Name: "Department"},
+	}, nil
+}
+
 func (MockClient) Me() (*fleet.User, error) {
 	return &fleet.User{
 		ID:         1,

@@ -381,6 +381,10 @@ type GitOps struct {
 	Labels              []*fleet.LabelSpec
 	LabelChangesSummary LabelChangesSummary
 
+	// CustomHostVitals are the custom host vital definitions (names only; per-host
+	// values are never set via GitOps). Global-only: cannot be set on a team/fleet file.
+	CustomHostVitals []fleet.CustomHostVital
+
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -392,6 +396,15 @@ type GitOps struct {
 	SoftwarePresent bool
 	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
 	SecretsPresent bool
+	// CustomHostVitalsPresent indicates that the `custom_host_vitals:` key was explicitly present in the YAML file.
+	CustomHostVitalsPresent bool
+}
+
+// GitOpsCustomHostVital defines the valid keys for an item in the top-level
+// `custom_host_vitals:` list. Definitions only (a name) -- per-host values are
+// never set via GitOps.
+type GitOpsCustomHostVital struct {
+	Name string `json:"name"`
 }
 
 type GitOpsSoftware struct {
@@ -465,7 +478,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels"}
+	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels", "custom_host_vitals"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -528,9 +541,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels" and "software" are special cases where omitting may be a no-op (based on exception settings),
-		// rather than a directive to clear settings. settings keys were handled above.
-		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "settings" || topKey == "org_settings" {
+		// "labels" and "software" are special cases where omitting may be a no-op (based on
+		// exception settings), rather than a directive to clear settings.
+		// "custom_host_vitals" has no exception setting -- omitting it always means clear-all -- but still needs its own
+		// presence tracking (parseCustomHostVitals below), so it's excluded from the generic
+		// null-default handling too. settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "custom_host_vitals" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
 		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
@@ -557,6 +573,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		} else {
 			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 		}
+	}
+	// Get the custom host vitals. CustomHostVitalsPresent tracks whether the key was in the YAML.
+	if _, ok := top["custom_host_vitals"]; ok {
+		result.CustomHostVitalsPresent = true
+		multiError = parseCustomHostVitals(top, result, filePath, multiError)
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
@@ -1064,6 +1085,40 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	} else {
 		result.TeamSettings["secrets"] = enrollSecrets
 	}
+	return multiError
+}
+
+// parseCustomHostVitals parses the top-level `custom_host_vitals:` key.
+// Global-only: custom host vital definitions aren't team-scoped, so the key
+// isn't valid on a team file. An empty (or explicitly null) list is a
+// declarative clear-all, same as an absent secrets/yara_rules list.
+func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
+	raw := top["custom_host_vitals"]
+
+	if !result.global() {
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+	}
+
+	result.CustomHostVitals = []fleet.CustomHostVital{}
+	if len(raw) == 0 || string(raw) == "null" {
+		return multiError
+	}
+
+	var vitals []GitOpsCustomHostVital
+	if err := json.Unmarshal(raw, &vitals); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"custom_host_vitals"}, err))
+	}
+	// Validate unknown keys in the custom_host_vitals section.
+	multiError = multierror.Append(multiError, validateRawKeys(raw, reflect.TypeFor[[]GitOpsCustomHostVital](), filePath, []string{"custom_host_vitals"})...)
+
+	for _, v := range vitals {
+		if err := fleet.ValidateCustomHostVitalName(v.Name); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("'custom_host_vitals': %w", err))
+			continue
+		}
+		result.CustomHostVitals = append(result.CustomHostVitals, fleet.CustomHostVital{Name: v.Name})
+	}
+
 	return multiError
 }
 

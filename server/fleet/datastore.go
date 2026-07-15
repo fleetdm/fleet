@@ -3260,6 +3260,28 @@ type Datastore interface {
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Custom host vitals
+	CreateCustomHostVital(ctx context.Context, name string) (CustomHostVital, error)
+	ListCustomHostVitals(ctx context.Context, opt ListOptions) (customHostVitals []CustomHostVital, meta *PaginationMetadata, count int, err error)
+	UpdateCustomHostVital(ctx context.Context, id uint, name string) (CustomHostVital, error)
+	DeleteCustomHostVital(ctx context.Context, id uint) (name string, err error)
+	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]HostCustomHostVital, error)
+	GetCustomHostVitals(ctx context.Context, ids []uint) ([]CustomHostVital, error)
+	// ValidateReferencedCustomHostVitals parses $FLEET_HOST_VITAL_<id> tokens from
+	// the given documents and checks that every referenced id exists. Returns a
+	// MissingCustomHostVitalsError if any referenced id is unknown.
+	ValidateReferencedCustomHostVitals(ctx context.Context, documents []string) error
+
+	// ExpandCustomHostVitals substitutes $FLEET_HOST_VITAL_<id> tokens in the
+	// document with the given host's stored values (format-aware escaping).
+	// Returns a MissingCustomHostVitalValueError if a referenced vital has no value
+	// for the host.
+	ExpandCustomHostVitals(ctx context.Context, hostID uint, document string) (string, error)
+
+	UpsertCustomHostVitals(ctx context.Context, vitals []CustomHostVital) (created []CustomHostVital, deleted []CustomHostVital, err error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Android
 
 	AndroidDatastore

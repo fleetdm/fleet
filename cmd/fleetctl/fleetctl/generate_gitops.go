@@ -86,6 +86,7 @@ type generateGitopsClient interface {
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels(teamID uint) ([]*fleet.LabelSpec, error)
+	ListCustomHostVitals(query string) ([]fleet.CustomHostVital, error)
 	Me() (*fleet.User, error)
 	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
@@ -523,6 +524,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
+
+			customHostVitals, err := cmd.generateCustomHostVitals()
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating custom host vitals: %s\n", err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]any)["custom_host_vitals"] = customHostVitals
 		} else {
 			// Generate team settings and agent options for the team (including "No team" with ID 0).
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
@@ -2452,6 +2460,35 @@ func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string
 		}
 
 		result = append(result, labelSpec)
+	}
+	return result, nil
+}
+
+// generateCustomHostVitals emits the existing custom host vital definitions
+// (names only; per-host values are never part of GitOps) so a round-trip
+// (apply -> generate -> re-apply) is a no-op. Global-only, like the
+// `custom_host_vitals:` GitOps key itself.
+func (cmd *GenerateGitopsCommand) generateCustomHostVitals() ([]map[string]any, error) {
+	const perPage = 1000
+	var vitals []fleet.CustomHostVital
+	for page := 0; ; page++ {
+		query := fmt.Sprintf("per_page=%d&page=%d", perPage, page)
+		pageVitals, err := cmd.Client.ListCustomHostVitals(query)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting custom host vitals: %s\n", err)
+			return nil, err
+		}
+		vitals = append(vitals, pageVitals...)
+		if len(pageVitals) < perPage {
+			break
+		}
+	}
+	t := reflect.TypeFor[spec.GitOpsCustomHostVital]()
+	result := make([]map[string]any, 0, len(vitals))
+	for _, vital := range vitals {
+		result = append(result, map[string]any{
+			jsonFieldName(t, "Name"): vital.Name,
+		})
 	}
 	return result, nil
 }

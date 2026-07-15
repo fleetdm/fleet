@@ -15,6 +15,7 @@ import {
   HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
+import { IHostCustomVital } from "./custom_host_vitals";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -393,6 +394,7 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
 }

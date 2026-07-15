@@ -122,6 +122,20 @@ func parseAndroidProfileValidationError(err error) error {
 }
 
 func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
+	// Custom host vitals are a secret-style, per-host variable (modeled on
+	// $FLEET_SECRET_*), not a $FLEET_VAR_*. Android expands only the $FLEET_VAR_*
+	// allowlist in app config (SubstituteFleetVarsInAndroidAppConfig) and has no
+	// embedded-secret or custom-host-vital substitution, so a $FLEET_HOST_VITAL_
+	// token here would reach the device literally — reject at upload instead.
+	// Checked before the variables.Find early-return below because vitals use a
+	// different prefix that Find ignores.
+	// TODO(product): confirm Android should stay unsupported for custom host
+	// vitals (parity with $FLEET_SECRET_*, also unsupported on Android) rather
+	// than gaining its own expansion path.
+	if ids := ContainsCustomHostVitalIDs(string(rawJSON)); len(ids) > 0 {
+		return errors.New("Couldn't edit profile. Custom host vitals aren't supported in Android configuration profiles.")
+	}
+
 	found := variables.Find(string(rawJSON))
 	if len(found) == 0 {
 		return nil

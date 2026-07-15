@@ -117,6 +117,18 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 	}
 
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		// Redo per-script to report which script references the undefined custom host vital.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &payload.InstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &payload.PostInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
+
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
@@ -384,6 +396,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		}
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
+	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, scripts); err != nil {
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", payload.InstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -845,6 +867,23 @@ func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptN
 ) *fleet.InvalidArgumentError {
 	if script != nil {
 		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
+			if argErr != nil {
+				argErr.Append(scriptName, errScript.Error())
+			} else {
+				argErr = fleet.NewInvalidArgumentError(scriptName, errScript.Error())
+			}
+		}
+	}
+	return argErr
+}
+
+// validateReferencedCustomHostVitalsOnScript mirrors validateEmbeddedSecretsOnScript
+// so callers can report which specific script references an undefined custom host vital.
+func (svc *Service) validateReferencedCustomHostVitalsOnScript(ctx context.Context, scriptName string, script *string,
+	argErr *fleet.InvalidArgumentError,
+) *fleet.InvalidArgumentError {
+	if script != nil {
+		if errScript := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{*script}); errScript != nil {
 			if argErr != nil {
 				argErr.Append(scriptName, errScript.Error())
 			} else {
@@ -2501,6 +2540,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		// we only want to ensure that secrets are in the database on the
 		// non-dry run case.
 		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allScripts); err != nil {
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 	}

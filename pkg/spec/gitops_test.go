@@ -4948,6 +4948,88 @@ name: TestTeam
 		require.NoError(t, err)
 		assert.False(t, gitops.SoftwarePresent)
 	})
+
+	t.Run("custom host vitals present", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+custom_host_vitals:
+  - name: Asset tag
+  - name: Department
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.CustomHostVitalsPresent)
+		assert.ElementsMatch(t, []fleet.CustomHostVital{{Name: "Asset tag"}, {Name: "Department"}}, gitops.CustomHostVitals)
+	})
+
+	t.Run("custom host vitals absent", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+`)
+		require.NoError(t, err)
+		assert.False(t, gitops.CustomHostVitalsPresent)
+		assert.Nil(t, gitops.CustomHostVitals, "absent custom_host_vitals should be nil")
+	})
+
+	t.Run("custom host vitals present but empty", func(t *testing.T) {
+		gitops, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+custom_host_vitals:
+`)
+		require.NoError(t, err)
+		assert.True(t, gitops.CustomHostVitalsPresent)
+		assert.Empty(t, gitops.CustomHostVitals)
+	})
+}
+
+func TestGitOpsCustomHostVitals(t *testing.T) {
+	t.Run("rejected on a team file", func(t *testing.T) {
+		path, basePath := createTempFile(t, "", `
+name: TestTeam
+custom_host_vitals:
+  - name: Asset tag
+`)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		require.ErrorContains(t, err, "'custom_host_vitals' cannot be set on a team file")
+	})
+
+	t.Run("rejects an invalid name", func(t *testing.T) {
+		_, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+custom_host_vitals:
+  - name: " Asset tag"
+`)
+		require.ErrorContains(t, err, "custom host vital name cannot have leading or trailing whitespace")
+	})
+
+	t.Run("rejects an unknown key", func(t *testing.T) {
+		_, err := gitOpsFromString(t, `
+org_settings:
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Test
+custom_host_vitals:
+  - name: Asset tag
+    id: 1
+`)
+		require.Error(t, err)
+	})
 }
 
 func TestGitOpsFMACategoriesPresence(t *testing.T) {
