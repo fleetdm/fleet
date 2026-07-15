@@ -487,16 +487,18 @@ func TestVersionsFromRelease(t *testing.T) {
 		},
 	}
 
-	ubuntu, rhel := versionsFromRelease(release)
+	ubuntu, rhel, android := versionsFromRelease(release)
 	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
 	require.ElementsMatch(t, []string{"8", "9"}, rhel)
+	require.Empty(t, android)
 }
 
 func TestVersionsFromReleaseEmpty(t *testing.T) {
 	release := &ReleaseInfo{TagName: "cve-202604270000", Assets: map[string]*AssetInfo{}}
-	ubuntu, rhel := versionsFromRelease(release)
+	ubuntu, rhel, android := versionsFromRelease(release)
 	require.Empty(t, ubuntu)
 	require.Empty(t, rhel)
+	require.Empty(t, android)
 }
 
 func TestVersionFromAssetName(t *testing.T) {
