@@ -20,7 +20,7 @@ type HostResponse struct {
 	Labels                []*Label     `json:"labels,omitempty" csv:"-"`
 	Geolocation           *GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping      string       `json:"-" db:"-" csv:"device_mapping"`
-	HardwareMarketingName string       `json:"hardware_marketing_name" csv:"-"`
+	HardwareMarketingName string       `json:"hardware_marketing_name" csv:"hardware_marketing_name"`
 }
 
 // HostResponseForHost returns a HostResponse from Host with Geolocation.
