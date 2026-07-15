@@ -31,6 +31,9 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 		return nil, nil, err
 	}
 
+	// Load the user before consuming the token: if this fails (e.g. the user was
+	// concurrently deleted or a transient read error occurs) the token is left
+	// intact so the login link can be retried, matching the pre-fix behavior.
 	user, err := ds.UserByID(ctx, userID)
 	if err != nil {
 		return nil, nil, err
@@ -38,12 +41,42 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 
 	var session *fleet.Session
 	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if session, err = ds.makeSessionInTransaction(ctx, tx, user.ID, sessionKeySize); err != nil {
-			return err
+		// Lock the token row and re-check its validity so that concurrent
+		// redemptions of the same one-time token are serialized. The loser of the
+		// race blocks here, re-reads after the winner commits its delete, finds no
+		// row, and aborts before creating a session. The rows-affected check on the
+		// delete below is a belt-and-suspenders guard on top of this lock.
+		var lockedUserID uint
+		err := sqlx.GetContext(
+			ctx,
+			tx,
+			&lockedUserID,
+			"SELECT user_id FROM verification_tokens WHERE token = ? AND created_at >= NOW() - INTERVAL ? SECOND FOR UPDATE",
+			token,
+			fleet.MFALinkTTL.Seconds(),
+		)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("Verification Token"))
+			}
+			return ctxerr.Wrap(ctx, err, "selecting verification token")
 		}
 
-		// only delete token once we've successfully consumed it
-		if _, err = tx.ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token); err != nil {
+		// Consume the token before creating the session, and confirm exactly one
+		// row was deleted.
+		result, err := tx.ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting verification token")
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected deleting verification token")
+		}
+		if affected == 0 {
+			return ctxerr.Wrap(ctx, notFound("Verification Token"))
+		}
+
+		if session, err = ds.makeSessionInTransaction(ctx, tx, lockedUserID, sessionKeySize); err != nil {
 			return err
 		}
 
