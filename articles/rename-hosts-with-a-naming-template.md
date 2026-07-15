@@ -33,8 +33,15 @@ Use these variables in a template to give each host a unique name:
 | `$FLEET_VAR_HOST_HARDWARE_SERIAL` | The host's hardware serial number. |
 | `$FLEET_VAR_HOST_UUID` | The host's UUID. |
 | `$FLEET_VAR_HOST_PLATFORM` | The host's platform: `macOS`, `iOS`, or `iPadOS`. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` | The host end user's identity provider (IdP) username. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the IdP username (before `@`). |
+| `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups, comma-separated. |
+| `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department. |
+| `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | The end user's IdP full name. |
 
 Each variable also works in its `${FLEET_VAR_...}` form. For more on built-in variables, see [Built-in variables](https://fleetdm.com/guides/fleet-variables).
+
+> **Note:** The IdP variables need the host to have end-user IdP data. If a host has no IdP user, or the field the template references is empty (for example, no department), that host lands on **Failed** — the same behavior as configuration profiles that use these variables. The identity variables (serial, UUID, platform) are always available.
 
 > **Note:** A resolved host name can't be longer than 63 bytes (Apple's device name limit). Hosts whose resolved name exceeds this land on **Failed**.
 
@@ -46,6 +53,16 @@ The custom variable must already exist when you save the template, or the save f
 
 > **Important:** Unlike in scripts and configuration profiles, a custom variable used in a name template isn't kept hidden. Its value becomes the host's name in Fleet and on the device, so only use custom variables for values that are safe to display (for example, a site or location code), not for secrets.
 
+### Variables that aren't supported
+
+Certificate authority variables — for example `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_DIGICERT_DATA_<CA>`, `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA>`, `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` — and the Platform SSO device registration token can't be used in a name template. They resolve to one-time challenges, proxy URLs, or certificate data: values that are meaningless as a device name and would expose secrets in a name that's visible on the device, in reports, and in the Fleet UI. Fleet rejects a template that references them.
+
+The deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable also isn't supported; use the `HOST_END_USER_IDP_*` variables above instead.
+
+### Renaming when a variable's value changes
+
+Fleet keeps host names in sync with their variables. When a host's IdP data changes (for example, the end user's department is updated) or a custom variable's value changes, Fleet resolves the template again and renames the hosts that use that variable.
+
 ## Set a name template with GitOps
 
 Add `name_template` under `controls` in a fleet's YAML, or in `no_team.yml` or `default.yml` controls to apply it to "Unassigned" hosts:
@@ -53,6 +70,13 @@ Add `name_template` under `controls` in a fleet's YAML, or in `no_team.yml` or `
 ```yaml
 controls:
   name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
+```
+
+You can reference a custom (`$FLEET_SECRET_*`) variable in the template too:
+
+```yaml
+controls:
+  name_template: "iPad $FLEET_SECRET_SITE" # Available in Fleet Premium
 ```
 
 Removing the key clears the template. For all controls options, see the [YAML files reference](https://fleetdm.com/docs/configuration/yaml-files#controls).
@@ -69,7 +93,7 @@ Controls > OS settings also rolls host name statuses into the **Verified**, **Ve
 
 ## Troubleshoot
 
-**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, a custom variable in the template is no longer defined, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
+**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, the host is missing IdP data a variable in the template needs, a custom variable in the template is no longer defined, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
 
 **An iPhone or iPad shows Failed with a supervision error.** Apple only applies MDM name changes to supervised iOS and iPadOS hosts. Supervise the host (for example, by enrolling it through Apple Business Manager), then select **Resend**.
 
