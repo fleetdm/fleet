@@ -3545,8 +3545,8 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 
 		if host.FleetPlatform() != requiredPlatform {
-			// Allow .sh scripts for any unix-like platform (linux and darwin)
-			if !(ext == ".sh" && fleet.IsUnixLike(host.Platform)) {
+			// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
+			if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
 					InternalErr: ctxerr.WrapWithData(
