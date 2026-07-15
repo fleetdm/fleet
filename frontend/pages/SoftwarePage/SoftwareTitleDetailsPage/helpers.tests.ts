@@ -1,5 +1,12 @@
+import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { ISoftwareTitleDetails } from "interfaces/software";
-import { buildLibraryVersionRows, getInstallerCardInfo } from "./helpers";
+import {
+  buildInstallerDownloadUrl,
+  buildLibraryVersionRows,
+  canDownloadInstallerRow,
+  getInstallerCardInfo,
+  resolveDownloadTarget,
+} from "./helpers";
 
 const v = (id: number, version: string) => ({
   id,
@@ -93,6 +100,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
+          installer_id: 1,
           labels_include_any: null,
           labels_exclude_any: null,
           labels_include_all: null,
@@ -114,6 +122,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           automatic_install_policies: [],
           url: "",
         },
+        packages: null,
         app_store_app: null,
         source: "apps",
         hosts_count: 10,
@@ -146,6 +155,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         icon_url: "https://example.com/icon.png",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
+        packages: null,
         app_store_app: {
           app_store_id: "1",
           name: "Test App",
@@ -186,6 +196,64 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         isScriptPackage: false,
         isSelfService: false,
       });
+    });
+  });
+
+  describe("canDownloadInstallerRow", () => {
+    // Guards the observer-download regression: the button must stay hidden
+    // for any role that lacks installer read permission, even on the active
+    // row. Backend rejects observers with 403 (policy.rego installable_entity
+    // read), so the UI shouldn't offer the click.
+    it("shows the button only when the row is active AND the user has permission", () => {
+      expect(canDownloadInstallerRow(true, true)).toBe(true);
+    });
+
+    it("hides the button when the user lacks installer permission (e.g., observer)", () => {
+      expect(canDownloadInstallerRow(true, false)).toBe(false);
+    });
+
+    it("hides the button on inactive (rollback / older) rows even for authorized users", () => {
+      expect(canDownloadInstallerRow(false, true)).toBe(false);
+    });
+
+    it("hides the button when both conditions fail", () => {
+      expect(canDownloadInstallerRow(false, false)).toBe(false);
+    });
+  });
+
+  describe("resolveDownloadTarget", () => {
+    // Guards the multi-package download flow: clicking a specific row must
+    // pin the download to that row's package, not the title's first-added.
+    const first = createMockSoftwarePackage({
+      installer_id: 1,
+      name: "acme-1.pkg",
+    });
+    const second = createMockSoftwarePackage({
+      installer_id: 2,
+      name: "acme-2.pkg",
+    });
+
+    it("returns the clicked package when both are provided (#49239)", () => {
+      expect(resolveDownloadTarget(second, first)).toBe(second);
+    });
+
+    it("falls back to the title's software_package when no row pkg is passed", () => {
+      expect(resolveDownloadTarget(undefined, first)).toBe(first);
+    });
+
+    it("returns null when neither is available", () => {
+      expect(resolveDownloadTarget(undefined, null)).toBeNull();
+      expect(resolveDownloadTarget(undefined, undefined)).toBeNull();
+    });
+  });
+
+  describe("buildInstallerDownloadUrl", () => {
+    it("assembles the token-based download URL for the given title id", () => {
+      expect(
+        buildInstallerDownloadUrl(42, "abc123", "https://fleet.example.com")
+      ).toBe(
+        "https://fleet.example.com/api/latest/fleet/software/titles/42/package/token/abc123"
+      );
     });
   });
 });

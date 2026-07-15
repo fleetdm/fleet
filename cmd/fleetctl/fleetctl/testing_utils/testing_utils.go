@@ -269,6 +269,13 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.Contains(r.URL.Path, "ruby_variant.deb"):
+					// ruby.deb with extra trailing bytes: same package (the deb archive
+					// ignores trailing bytes) but a different hash, so it is a distinct
+					// package of the same title.
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+					_, _ = w.Write([]byte("\n# variant\n"))
 				case strings.HasSuffix(r.URL.Path, ".pkg"):
 					pkgDir := getPathRelative("../testdata/gitops/lib/")
 					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))

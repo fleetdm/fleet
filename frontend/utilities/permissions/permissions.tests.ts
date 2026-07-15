@@ -175,3 +175,64 @@ describe("permissions - canWriteSoftware", () => {
     expect(permissions.canWriteSoftware(user, TEAM_ID)).toBe(false);
   });
 });
+
+describe("permissions - canDownloadSoftwareInstaller", () => {
+  // Mirrors backend READ on `installable_entity` (policy.rego L837-865):
+  // admin | maintainer | technician | gitops are allowed at both global and
+  // team scope. Observer / observer+ are excluded. Guards the download button
+  // in the UI so observers don't see it and hit the backend 403.
+  const TEAM_ID = 1;
+
+  it("returns false when there is no user", () => {
+    expect(permissions.canDownloadSoftwareInstaller(null, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["admin", "admin"],
+    ["maintainer", "maintainer"],
+    ["technician", "technician"],
+  ] as const)("allows a global %s", (_label, role) => {
+    const user = createMockUser({ global_role: role, teams: [] });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
+    expect(permissions.canDownloadSoftwareInstaller(user, null)).toBe(true);
+  });
+
+  it.each([
+    ["admin", "admin"],
+    ["maintainer", "maintainer"],
+    ["technician", "technician"],
+  ] as const)("allows a team %s on their team", (_label, role) => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(true);
+  });
+
+  it("denies a team technician on a different team", () => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: 2, name: "Team 2", role: "technician" }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["observer", "observer"],
+    ["observer_plus", "observer_plus"],
+  ] as const)("denies a global %s", (_label, role) => {
+    const user = createMockUser({ global_role: role, teams: [] });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+
+  it.each([
+    ["observer", "observer"],
+    ["observer_plus", "observer_plus"],
+  ] as const)("denies a team %s on their team", (_label, role) => {
+    const user = createMockUser({
+      global_role: null,
+      teams: [{ id: TEAM_ID, name: "Team 1", role }],
+    });
+    expect(permissions.canDownloadSoftwareInstaller(user, TEAM_ID)).toBe(false);
+  });
+});

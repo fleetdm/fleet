@@ -1760,6 +1760,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       hsi.SoftwareTitle,
 				SoftwarePackage:     hsi.SoftwarePackage,
+				HashSHA256:          hsi.HashSHA256,
 				InstallUUID:         result.InstallUUID,
 				Status:              string(status),
 				Source:              hsi.Source,

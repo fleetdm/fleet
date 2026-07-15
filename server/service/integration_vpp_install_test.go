@@ -1467,7 +1467,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an installer available for the Team 1 fleet.")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an Apple App Store (VPP) on the Team 1 fleet.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -2125,7 +2125,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		Filename: "ipa_test.ipa",
 		TeamID:   &team2.ID,
-	}, http.StatusConflict, "already has an installer available for the IPA Conflict Team 2 fleet.")
+	}, http.StatusConflict, "already has an Apple App Store (VPP) on the IPA Conflict Team 2 fleet.")
 
 	// Test Case 3: Verify "No team" works correctly
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
