@@ -3026,12 +3026,6 @@ func (r hostsReportResponse) Error() error { return r.Err }
 func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	// post-process the Device Mappings for CSV rendering
 	for _, h := range r.Hosts {
-		// Show the hardware marketing name (e.g. "MacBook Pro (16-inch, Nov 2023)")
-		// in the hardware_model column to match the UI. For non-Apple devices and
-		// unknown models, HardwareMarketingName falls back to the raw identifier,
-		// so this is a no-op in those cases.
-		h.HardwareModel = h.HardwareMarketingName
-
 		if h.DeviceMapping != nil {
 			// return the list of emails, comma-separated, as part of that single CSV field
 			var dms []struct {
