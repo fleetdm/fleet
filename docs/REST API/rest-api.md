@@ -2645,7 +2645,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
-| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM`. An empty string clears the template. To set the template for a fleet, use the [Update host name template](#update-host-name-template) endpoint. |
+| name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM`, as well as custom (`$FLEET_SECRET_*`) variables. An empty string clears the template. To set the template for a fleet, use the [Update host name template](#update-host-name-template) endpoint. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -7107,7 +7107,7 @@ _Available in Fleet Premium_
 
 Sets a naming convention for all macOS, iOS, and iPadOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
 
-The template supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM` (also usable in the `${FLEET_VAR_...}` form). Custom (`$FLEET_SECRET_*`) variables aren't supported.
+The template supports the built-in variables `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, and `$FLEET_VAR_HOST_PLATFORM` (also usable in the `${FLEET_VAR_...}` form). Custom (`$FLEET_SECRET_*`) variables are also supported and must already exist; a referenced custom variable that isn't defined returns a `422`. Custom variables are global, so a variable resolves to the same value for every fleet and host. Note that a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
 
 Sending an empty `name_template` clears the template. Clearing the template stops enforcement but doesn't rename any host.
 
@@ -15773,7 +15773,7 @@ At least one field is required. Ratios outside the `[0, 1]` range are rejected.
 
 ### List custom variables
 
-Lists all custom variables that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+Lists all custom variables that can be used in scripts, configuration profiles, and host name templates prefixed with `$FLEET_SECRET_`.
 
 `GET /api/v1/fleet/custom_variables`
 
@@ -15815,7 +15815,7 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
 
 ### Create custom variable
 
-Creates a custom variable that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+Creates a custom variable that can be used in scripts, configuration profiles, and host name templates prefixed with `$FLEET_SECRET_`.
 
 
 `POST /api/v1/fleet/custom_variables`

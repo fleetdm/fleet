@@ -17,7 +17,7 @@ This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts
 
 1. In the top navigation, select **Controls**, then select a fleet (or **Unassigned** for hosts that aren't in a fleet).
 2. Select **OS settings**, then **Host names**.
-3. In **Name template**, enter your naming convention. Use plain text, built-in variables, or both. For example: `Conference Room iPad $FLEET_VAR_HOST_HARDWARE_SERIAL`.
+3. In **Name template**, enter your naming convention. Use plain text, built-in variables, custom variables, or a combination. For example: `Conference Room iPad $FLEET_VAR_HOST_HARDWARE_SERIAL`.
 4. Select **Save**.
 
 Fleet queues a rename for every eligible host in the fleet. The name you set becomes the host's name in Fleet and on the device itself.
@@ -34,9 +34,17 @@ Use these variables in a template to give each host a unique name:
 | `$FLEET_VAR_HOST_UUID` | The host's UUID. |
 | `$FLEET_VAR_HOST_PLATFORM` | The host's platform: `macOS`, `iOS`, or `iPadOS`. |
 
-Each variable also works in its `${FLEET_VAR_...}` form. Custom (`$FLEET_SECRET_*`) variables aren't supported in name templates. For more on built-in variables, see [Built-in variables](https://fleetdm.com/guides/fleet-variables).
+Each variable also works in its `${FLEET_VAR_...}` form. For more on built-in variables, see [Built-in variables](https://fleetdm.com/guides/fleet-variables).
 
 > **Note:** A resolved host name can't be longer than 63 bytes (Apple's device name limit). Hosts whose resolved name exceeds this land on **Failed**.
+
+### Custom variables
+
+You can also use custom (`$FLEET_SECRET_*`) variables in a template, for example `$FLEET_SECRET_SITE-$FLEET_VAR_HOST_HARDWARE_SERIAL`. Custom variables are global, so a variable resolves to the same value for every fleet and host. See [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
+
+The custom variable must already exist when you save the template, or the save fails. A custom variable used in a name template can't be deleted until you remove it from the template.
+
+> **Important:** Unlike in scripts and configuration profiles, a custom variable used in a name template isn't kept hidden. Its value becomes the host's name in Fleet and on the device, so only use custom variables for values that are safe to display (for example, a site or location code), not for secrets.
 
 ## Set a name template with GitOps
 
@@ -61,7 +69,7 @@ Controls > OS settings also rolls host name statuses into the **Verified**, **Ve
 
 ## Troubleshoot
 
-**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
+**A host's Host name row shows Failed.** The status is Failed when the device rejected the command, the resolved name was too long, a custom variable in the template is no longer defined, or an end user renamed the device off-template. The row's tooltip shows the error. Select **Resend** on the row to try again.
 
 **An iPhone or iPad shows Failed with a supervision error.** Apple only applies MDM name changes to supervised iOS and iPadOS hosts. Supervise the host (for example, by enrolling it through Apple Business Manager), then select **Resend**.
 
@@ -70,6 +78,7 @@ Controls > OS settings also rolls host name statuses into the **Verified**, **Ve
 ## Further reading
 
 - [Built-in variables](https://fleetdm.com/guides/fleet-variables)
+- [Custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles)
 - [YAML files reference](https://fleetdm.com/docs/configuration/yaml-files#controls)
 - [Update host name template API](https://fleetdm.com/docs/rest-api/rest-api#update-host-name-template)
 
