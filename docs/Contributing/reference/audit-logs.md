@@ -6,7 +6,116 @@ To see activities in Fleet, select the Fleet icon in the top navigation and see 
 
 This page includes a list of activities.
 
-## created_pack
+### Contents
+
+- [Policies](#policies)
+- [Reports](#reports)
+- [Fleets](#fleets)
+- [Settings](#settings)
+- [Users](#users)
+- [Hosts](#hosts)
+- [Controls](#controls)
+- [Scripts](#scripts)
+- [Profiles](#profiles)
+- [Certificates](#certificates)
+- [Certificate authorities (CAs)](#certificate-authorities-cas)
+- [MDM](#mdm)
+- [Software](#software)
+- [Labels](#labels)
+- [Packs (deprecated)](#packs-deprecated)
+
+## Policies
+
+> TODO: Move things here
+
+---
+
+## Reports
+
+> TODO: Move things here
+
+---
+
+## Fleets
+
+> TODO: Move things here
+
+---
+
+## Settings
+
+> TODO: Move things here
+
+---
+
+## Users
+
+> TODO: Move things here
+
+
+---
+
+## Hosts
+
+> TODO: Move things here
+
+---
+
+## Controls
+
+> TODO: Move things here
+
+---
+
+## Scripts
+
+> TODO: Move things here
+
+---
+
+## Profiles
+
+> TODO: Move things here
+
+---
+
+## Certificates
+
+> TODO: Move things here
+
+---
+
+## Certificate authorities (CAs)
+
+> TODO: Move things here
+
+---
+
+## MDM
+
+> TODO: Move things here
+
+---
+
+## Software
+
+> TODO: Move things here
+
+---
+
+## Labels
+
+> TODO: Move things here
+
+---
+
+## Packs (deprecated)
+
+> TODO: Move things here
+
+---
+
+### created_pack
 
 Generated when creating scheduled query packs.
 
@@ -23,7 +132,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_pack
+### edited_pack
 
 Generated when editing scheduled query packs.
 
@@ -40,7 +149,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_pack
+### deleted_pack
 
 Generated when deleting scheduled query packs.
 
@@ -55,13 +164,13 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_pack
+### applied_spec_pack
 
 Generated when applying a scheduled query pack spec.
 
 This activity does not contain any detail fields.
 
-## created_policy
+### created_policy
 
 Generated when creating policies.
 
@@ -84,7 +193,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_policy
+### edited_policy
 
 Generated when editing policies.
 
@@ -107,7 +216,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_policy
+### deleted_policy
 
 Generated when deleting policies.
 
@@ -130,7 +239,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_policy
+### applied_spec_policy
 
 Generated when applying policy specs.
 
@@ -169,7 +278,7 @@ This activity contains a field "policies" where each item is a policy spec with 
 }
 ```
 
-## created_saved_query
+### created_saved_query
 
 Generated when creating a new report.
 
@@ -194,7 +303,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_saved_query
+### edited_saved_query
 
 Generated when editing a saved report.
 
@@ -219,7 +328,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_saved_query
+### deleted_saved_query
 
 Generated when deleting a saved report.
 
@@ -241,7 +350,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_multiple_saved_query
+### deleted_multiple_saved_query
 
 Generated when deleting multiple saved reports.
 
@@ -263,7 +372,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_saved_query
+### applied_spec_saved_query
 
 Generated when applying a report spec.
 
@@ -286,7 +395,7 @@ This activity contains a field "specs" where each item is a report spec with the
 }
 ```
 
-## created_team
+### created_team
 
 Generated when creating fleets.
 
@@ -305,7 +414,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_team
+### deleted_team
 
 Generated when deleting fleets.
 
@@ -324,7 +433,7 @@ This activity contains the following fields:
 }
 ```
 
-## applied_spec_team
+### applied_spec_team
 
 Generated when applying fleet specs.
 
@@ -345,7 +454,7 @@ This activity contains a field "teams" where each item contains the fleet detail
 }
 ```
 
-## transferred_hosts
+### transferred_hosts
 
 Generated when a user transfers a host (or multiple hosts) to a fleet (or no fleet).
 
@@ -368,7 +477,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_agent_options
+### edited_agent_options
 
 Generated when agent options are edited (either globally or for a fleet).
 
@@ -389,7 +498,7 @@ This activity contains the following fields:
 }
 ```
 
-## live_query
+### live_query
 
 Generated when running live queries.
 
@@ -409,13 +518,13 @@ This activity contains the following fields:
 }
 ```
 
-## user_added_by_sso
+### user_added_by_sso
 
 Generated when new users are added via SSO JIT provisioning
 
 This activity does not contain any detail fields.
 
-## user_logged_in
+### user_logged_in
 
 Generated when users successfully log in to Fleet.
 
@@ -430,7 +539,7 @@ This activity contains the following fields:
 }
 ```
 
-## user_failed_login
+### user_failed_login
 
 Generated when users try to log in to Fleet and fail.
 
@@ -447,7 +556,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_user
+### created_user
 
 Generated when a user is created.
 
@@ -466,7 +575,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user
+### deleted_user
 
 Generated when a user is deleted.
 
@@ -485,7 +594,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_host
+### deleted_host
 
 Generated when a host is deleted.
 
@@ -508,7 +617,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_global_role
+### changed_user_global_role
 
 Generated when user global roles are changed.
 
@@ -529,7 +638,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user_global_role
+### deleted_user_global_role
 
 Generated when user global roles are deleted.
 
@@ -550,7 +659,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_team_role
+### changed_user_team_role
 
 Generated when user fleet roles are changed.
 
@@ -577,7 +686,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_user_team_role
+### deleted_user_team_role
 
 Generated when user fleet roles are deleted.
 
@@ -604,7 +713,7 @@ This activity contains the following fields:
 }
 ```
 
-## fleet_enrolled
+### fleet_enrolled
 
 Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
 
@@ -623,7 +732,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_enrolled
+### mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
 
@@ -648,7 +757,7 @@ This activity contains the following fields:
 }
 ```
 
-## mdm_unenrolled
+### mdm_unenrolled
 
 Generated when a host is unenrolled from Fleet's MDM.
 
@@ -673,7 +782,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_macos_min_version
+### edited_macos_min_version
 
 Generated when the minimum required macOS version or deadline is modified.
 
@@ -696,7 +805,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_ios_min_version
+### edited_ios_min_version
 
 Generated when the minimum required iOS version or deadline is modified.
 
@@ -719,7 +828,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_ipados_min_version
+### edited_ipados_min_version
 
 Generated when the minimum required iPadOS version or deadline is modified.
 
@@ -742,7 +851,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_windows_updates
+### edited_windows_updates
 
 Generated when the Windows OS updates deadline or grace period is modified.
 
@@ -765,7 +874,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_update_new_hosts
+### enabled_macos_update_new_hosts
 
 Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
@@ -784,7 +893,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_macos_update_new_hosts
+### disabled_macos_update_new_hosts
 
 Generated when a user turns off updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
 
@@ -803,7 +912,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_disk_encryption_key
+### read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
 
@@ -820,7 +929,7 @@ This activity contains the following fields:
 }
 ```
 
-## retrieved_host_my_device_url
+### retrieved_host_my_device_url
 
 Generated when a global admin retrieves a host's "My device" page URL (a credential-bearing link that opens the end user's device page). Fleet logs this for every retrieval, including reuse of an existing token.
 
@@ -837,7 +946,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_macos_profile
+### created_macos_profile
 
 Generated when a user adds a new macOS profile to a fleet (or no fleet).
 
@@ -860,7 +969,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_macos_profile
+### deleted_macos_profile
 
 Generated when a user deletes a macOS profile from a fleet (or no fleet).
 
@@ -883,7 +992,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_macos_profile
+### edited_macos_profile
 
 Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -902,7 +1011,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_macos_setup_assistant
+### changed_macos_setup_assistant
 
 Generated when a user sets the macOS setup assistant for a fleet (or no fleet).
 
@@ -923,7 +1032,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_macos_setup_assistant
+### deleted_macos_setup_assistant
 
 Generated when a user deletes the macOS setup assistant for a fleet (or no fleet).
 
@@ -944,7 +1053,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_disk_encryption
+### enabled_macos_disk_encryption
 
 Generated when a user turns on disk encryption for a fleet (or no fleet).
 
@@ -963,7 +1072,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_macos_disk_encryption
+### disabled_macos_disk_encryption
 
 Generated when a user turns off disk encryption for a fleet (or no fleet).
 
@@ -982,19 +1091,19 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_gitops_mode
+### enabled_gitops_mode
 
 Generated when a user enables GitOps mode.
 
 This activity does not contain any detail fields.
 
-## disabled_gitops_mode
+### disabled_gitops_mode
 
 Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
-## enabled_gitops_exception
+### enabled_gitops_exception
 
 Generated when a user enables a GitOps exception.
 
@@ -1009,7 +1118,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_gitops_exception
+### disabled_gitops_exception
 
 Generated when a user disables a GitOps exception.
 
@@ -1024,7 +1133,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_historical_dataset
+### enabled_historical_dataset
 
 Generated when collection of a chart historical dataset is enabled, either globally or for a specific fleet.
 
@@ -1043,7 +1152,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_historical_dataset
+### disabled_historical_dataset
 
 Generated when collection of a chart historical dataset is disabled, either globally or for a specific fleet.
 
@@ -1062,7 +1171,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_bootstrap_package
+### added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a fleet (or no fleet).
 
@@ -1083,7 +1192,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_bootstrap_package
+### deleted_bootstrap_package
 
 Generated when a user deletes a bootstrap package from a fleet (or no fleet).
 
@@ -1104,7 +1213,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_setup_end_user_auth
+### enabled_macos_setup_end_user_auth
 
 Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
@@ -1123,7 +1232,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_macos_setup_end_user_auth
+### disabled_macos_setup_end_user_auth
 
 Generated when a user turns off IdP authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
@@ -1142,43 +1251,43 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_windows_mdm
+### enabled_windows_mdm
 
 Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
-## disabled_windows_mdm
+### disabled_windows_mdm
 
 Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
-## enabled_android_mdm
+### enabled_android_mdm
 
 Generated when a user turns on MDM features for all Android hosts.
 
 This activity does not contain any detail fields.
 
-## disabled_android_mdm
+### disabled_android_mdm
 
 Generated when a user turns off MDM features for all Android hosts.
 
 This activity does not contain any detail fields.
 
-## enabled_windows_mdm_migration
+### enabled_windows_mdm_migration
 
 Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
 
 This activity does not contain any detail fields.
 
-## disabled_windows_mdm_migration
+### disabled_windows_mdm_migration
 
 Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
 
 This activity does not contain any detail fields.
 
-## ran_script
+### ran_script
 
 Generated when a script is sent to be run for a host.
 
@@ -1209,7 +1318,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_script
+### added_script
 
 Generated when a script is added to a fleet (or no fleet).
 
@@ -1230,7 +1339,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_script
+### deleted_script
 
 Generated when a script is deleted from a fleet (or no fleet).
 
@@ -1251,7 +1360,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_script
+### edited_script
 
 Generated when a user edits the scripts of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -1270,7 +1379,7 @@ This activity contains the following fields:
 }
 ```
 
-## updated_script
+### updated_script
 
 Generated when a script is updated.
 
@@ -1291,7 +1400,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_windows_profile
+### created_windows_profile
 
 Generated when a user adds a new Windows profile to a fleet (or no fleet).
 
@@ -1312,7 +1421,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_windows_profile
+### deleted_windows_profile
 
 Generated when a user deletes a Windows profile from a fleet (or no fleet).
 
@@ -1333,7 +1442,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_windows_profile
+### edited_windows_profile
 
 Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -1352,7 +1461,7 @@ This activity contains the following fields:
 }
 ```
 
-## locked_host
+### locked_host
 
 Generated when a user sends a request to lock a host.
 
@@ -1371,7 +1480,7 @@ This activity contains the following fields:
 }
 ```
 
-## unlocked_host
+### unlocked_host
 
 Generated when a user sends a request to unlock a host.
 
@@ -1390,7 +1499,7 @@ This activity contains the following fields:
 }
 ```
 
-## wiped_host
+### wiped_host
 
 Generated when a user sends a request to wipe a host.
 
@@ -1407,7 +1516,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_wipe
+### failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
 
@@ -1424,7 +1533,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_declaration_profile
+### created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a fleet (or no fleet).
 
@@ -1447,7 +1556,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_declaration_profile
+### deleted_declaration_profile
 
 Generated when a user removes a macOS declaration from a fleet (or no fleet).
 
@@ -1470,7 +1579,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_declaration_profile
+### edited_declaration_profile
 
 Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -1489,7 +1598,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_android_profile
+### created_android_profile
 
 Generated when a user adds a new Android profile to a fleet (or no fleet).
 
@@ -1510,7 +1619,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_android_profile
+### deleted_android_profile
 
 Generated when a user deletes an Android profile from a fleet (or no fleet).
 
@@ -1531,7 +1640,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_android_profile
+### edited_android_profile
 
 Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -1550,7 +1659,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_android_certificate
+### edited_android_certificate
 
 Generated when a user adds or removes Android certificate templates of a fleet (or no fleet) via the fleetctl CLI.
 
@@ -1569,7 +1678,7 @@ This activity contains the following fields:
 }
 ```
 
-## resent_configuration_profile
+### resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
 
@@ -1588,7 +1697,7 @@ This activity contains the following fields:
 }
 ```
 
-## resent_configuration_profile_batch
+### resent_configuration_profile_batch
 
 Generated when a user resends a configuration profile to a batch of hosts.
 
@@ -1605,7 +1714,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_software
+### installed_software
 
 Generated when a Fleet-maintained app or custom package is installed on a host.
 
@@ -1643,7 +1752,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_all_self_service_software
+### installed_all_self_service_software
 
 Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
 
@@ -1666,7 +1775,7 @@ This activity contains the following fields:
 }
 ```
 
-## uninstalled_software
+### uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
@@ -1693,7 +1802,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_software
+### added_software
 
 Generated when a Fleet-maintained app or custom package is added to Fleet.
 
@@ -1732,7 +1841,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_software
+### edited_software
 
 Generated when a Fleet-maintained app or custom package is edited in Fleet.
 
@@ -1774,7 +1883,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_software
+### deleted_software
 
 Generated when a Fleet maintained app or custom package is deleted from Fleet.
 
@@ -1812,7 +1921,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_self_service_category
+### added_self_service_category
 
 Generated when a self-service category is added to a fleet.
 
@@ -1831,7 +1940,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_self_service_category
+### edited_self_service_category
 
 Generated when a self-service category is renamed on a fleet.
 
@@ -1850,7 +1959,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_self_service_category
+### deleted_self_service_category
 
 Generated when a self-service category is deleted from a fleet.
 
@@ -1869,7 +1978,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_vpp
+### enabled_vpp
 
 Generated when VPP features are enabled in Fleet.
 
@@ -1884,7 +1993,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_vpp
+### disabled_vpp
 
 Generated when VPP features are disabled in Fleet.
 
@@ -1899,7 +2008,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_app_store_app
+### added_app_store_app
 
 Generated when an App Store app is added to Fleet.
 
@@ -1941,7 +2050,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_app_store_app
+### deleted_app_store_app
 
 Generated when an App Store app is deleted from Fleet.
 
@@ -1979,7 +2088,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_app_store_app
+### installed_app_store_app
 
 Generated when an App Store app is installed on a device.
 
@@ -2012,7 +2121,7 @@ This activity contains the following fields:
 }
 ```
 
-## installed_certificate
+### installed_certificate
 
 Generated when a certificate is installed on a host or fails to install.
 
@@ -2049,7 +2158,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_app_store_app
+### edited_app_store_app
 
 Generated when an App Store app is updated in Fleet.
 
@@ -2101,25 +2210,25 @@ This activity contains the following fields:
 }
 ```
 
-## added_ndes_scep_proxy
+### added_ndes_scep_proxy
 
 Generated when NDES SCEP proxy is configured in Fleet.
 
 This activity does not contain any detail fields.
 
-## deleted_ndes_scep_proxy
+### deleted_ndes_scep_proxy
 
 Generated when NDES SCEP proxy configuration is deleted in Fleet.
 
 This activity does not contain any detail fields.
 
-## edited_ndes_scep_proxy
+### edited_ndes_scep_proxy
 
 Generated when NDES SCEP proxy configuration is edited in Fleet.
 
 This activity does not contain any detail fields.
 
-## added_custom_scep_proxy
+### added_custom_scep_proxy
 
 Generated when SCEP certificate authority configuration is added in Fleet.
 
@@ -2134,7 +2243,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_custom_scep_proxy
+### deleted_custom_scep_proxy
 
 Generated when SCEP certificate authority configuration is deleted in Fleet.
 
@@ -2149,7 +2258,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_custom_scep_proxy
+### edited_custom_scep_proxy
 
 Generated when SCEP certificate authority configuration is edited in Fleet.
 
@@ -2164,7 +2273,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_digicert
+### added_digicert
 
 Generated when DigiCert certificate authority configuration is added in Fleet.
 
@@ -2179,7 +2288,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_digicert
+### deleted_digicert
 
 Generated when DigiCert certificate authority configuration is deleted in Fleet.
 
@@ -2194,7 +2303,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_digicert
+### edited_digicert
 
 Generated when DigiCert certificate authority configuration is edited in Fleet.
 
@@ -2209,7 +2318,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_hydrant
+### added_hydrant
 
 Generated when Hydrant certificate authority configuration is added in Fleet.
 
@@ -2224,7 +2333,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_hydrant
+### deleted_hydrant
 
 Generated when Hydrant certificate authority configuration is deleted in Fleet.
 
@@ -2239,7 +2348,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_hydrant
+### edited_hydrant
 
 Generated when Hydrant certificate authority configuration is edited in Fleet.
 
@@ -2254,7 +2363,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_custom_est_proxy
+### added_custom_est_proxy
 
 Generated when a custom EST certificate authority configuration is added in Fleet.
 
@@ -2269,7 +2378,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_custom_est_proxy
+### deleted_custom_est_proxy
 
 Generated when a custom EST certificate authority configuration is deleted in Fleet.
 
@@ -2284,7 +2393,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_custom_est_proxy
+### edited_custom_est_proxy
 
 Generated when a custom EST certificate authority configuration is edited in Fleet.
 
@@ -2299,7 +2408,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_smallstep
+### added_smallstep
 
 Generated when Smallstep certificate authority configuration is added in Fleet.
 
@@ -2314,7 +2423,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_smallstep
+### deleted_smallstep
 
 Generated when Smallstep certificate authority configuration is deleted in Fleet.
 
@@ -2329,7 +2438,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_smallstep
+### edited_smallstep
 
 Generated when Smallstep certificate authority configuration is edited in Fleet.
 
@@ -2344,7 +2453,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_activity_automations
+### enabled_activity_automations
 
 Generated when activity automations are enabled
 
@@ -2359,7 +2468,7 @@ This activity contains the following field:
 }
 ```
 
-## edited_activity_automations
+### edited_activity_automations
 
 Generated when activity automations are edited while enabled
 
@@ -2374,13 +2483,13 @@ This activity contains the following field:
 }
 ```
 
-## disabled_activity_automations
+### disabled_activity_automations
 
 Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
-## canceled_run_script
+### canceled_run_script
 
 Generated when upcoming activity `ran_script` is canceled.
 
@@ -2399,7 +2508,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_install_software
+### canceled_install_software
 
 Generated when upcoming activity `installed_software` is canceled.
 
@@ -2420,7 +2529,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_uninstall_software
+### canceled_uninstall_software
 
 Generated when upcoming activity `uninstalled_software` is canceled.
 
@@ -2441,7 +2550,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_install_app_store_app
+### canceled_install_app_store_app
 
 Generated when upcoming activity `installed_app_store_app` is canceled.
 
@@ -2462,7 +2571,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_script_batch
+### ran_script_batch
 
 Generated when a script is run on a batch of hosts.
 
@@ -2481,7 +2590,7 @@ This activity contains the following fields:
 }
 ```
 
-## scheduled_script_batch
+### scheduled_script_batch
 
 Generated when a batch script is scheduled.
 
@@ -2502,7 +2611,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_script_batch
+### canceled_script_batch
 
 Generated when a batch script is canceled.
 
@@ -2523,31 +2632,31 @@ This activity contains the following fields:
 }
 ```
 
-## added_conditional_access_integration_microsoft
+### added_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is connected for conditional access.
 
 This activity does not contain any detail fields.
 
-## deleted_conditional_access_integration_microsoft
+### deleted_conditional_access_integration_microsoft
 
 Generated when Microsoft Entra is integration is disconnected.
 
 This activity does not contain any detail fields.
 
-## added_conditional_access_okta
+### added_conditional_access_okta
 
 Generated when Okta is configured or edited for conditional access.
 
 This activity does not contain any detail fields.
 
-## deleted_conditional_access_okta
+### deleted_conditional_access_okta
 
 Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
-## enabled_conditional_access_automations
+### enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
 
@@ -2566,7 +2675,7 @@ This activity contains the following field:
 }
 ```
 
-## disabled_conditional_access_automations
+### disabled_conditional_access_automations
 
 Generated when conditional access automations are disabled for a fleet.
 
@@ -2585,7 +2694,7 @@ This activity contains the following field:
 }
 ```
 
-## escrowed_disk_encryption_key
+### escrowed_disk_encryption_key
 
 Generated when a disk encryption key is escrowed.
 
@@ -2602,7 +2711,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_custom_variable
+### created_custom_variable
 
 Generated when custom variable is added.
 
@@ -2619,7 +2728,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_custom_variable
+### deleted_custom_variable
 
 Generated when custom variable is deleted.
 
@@ -2636,7 +2745,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_setup_experience_software
+### edited_setup_experience_software
 
 Generated when a user edits setup experience software.
 
@@ -2657,7 +2766,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_host_idp_data
+### edited_host_idp_data
 
 Generated when a user updates a host's IdP data. Currently IdP username can be edited.
 
@@ -2676,7 +2785,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_host_recovery_lock_password
+### read_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 
@@ -2693,7 +2802,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_enroll_secrets
+### edited_enroll_secrets
 
 Generated when global or fleet enroll secrets are edited.
 
@@ -2712,7 +2821,7 @@ This activity contains the following fields:
 }
 ```
 
-## escrowed_recovery_lock_password
+### escrowed_recovery_lock_password
 
 Generated when a Recovery Lock password is escrowed.
 
@@ -2729,7 +2838,7 @@ This activity contains the following fields:
 }
 ```
 
-## rotated_recovery_lock_password
+### rotated_recovery_lock_password
 
 Generated when a Recovery Lock password is rotated.
 
@@ -2746,7 +2855,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_recovery_lock_password
+### enabled_recovery_lock_password
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
@@ -2765,7 +2874,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_recovery_lock_password
+### disabled_recovery_lock_password
 
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 
@@ -2784,7 +2893,7 @@ This activity contains the following fields:
 }
 ```
 
-## rotated_managed_local_account_password
+### rotated_managed_local_account_password
 
 Generated when a managed local account password is rotated.
 
@@ -2801,7 +2910,7 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_managed_local_account
+### enabled_managed_local_account
 
 Generated when a user turns on create managed local account for a fleet (or unassigned hosts).
 
@@ -2818,7 +2927,7 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_managed_local_account
+### disabled_managed_local_account
 
 Generated when a user turns off create managed local account for a fleet (or unassigned hosts).
 
@@ -2835,7 +2944,7 @@ This activity contains the following fields:
 }
 ```
 
-## read_managed_local_account
+### read_managed_local_account
 
 Generated when a user reads the information for the local managed account for a host.
 
@@ -2852,7 +2961,7 @@ This activity contains the following fields:
 }
 ```
 
-## failed_enrollment_profile_renewal
+### failed_enrollment_profile_renewal
 
 Generated when an enrollment profile renewal (SCEP or ACME) has failed.
 
@@ -2871,7 +2980,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_label
+### created_label
 
 Generated when creating labels.
 
@@ -2892,7 +3001,7 @@ This activity contains the following fields:
 }
 ```
 
-## edited_label
+### edited_label
 
 Generated when editing labels.
 
@@ -2913,7 +3022,7 @@ This activity contains the following fields:
 }
 ```
 
-## deleted_label
+### deleted_label
 
 Generated when deleting labels.
 
@@ -2934,7 +3043,7 @@ This activity contains the following fields:
 }
 ```
 
-## resent_certificate
+### resent_certificate
 
 Generated when a user resends a certificate to a host.
 
@@ -2955,7 +3064,7 @@ This activity contains the following fields:
 }
 ```
 
-## cleared_passcode
+### cleared_passcode
 
 Generated when a user clears the passcode on a host.
 
@@ -2970,7 +3079,7 @@ This activity contains the following fields:
 }
 ```
 
-## canceled_setup_experience
+### canceled_setup_experience
 
 Generated when macOS setup experience is canceled due to software install failure.
 
@@ -2991,7 +3100,7 @@ This activity contains the following fields:
 }
 ```
 
-## created_managed_local_account
+### created_managed_local_account
 
 Generated when a local managed account and password is created for a host.
 
@@ -3008,7 +3117,7 @@ This activity contains the following fields:
 }
 ```
 
-## added_label_to_host
+### added_label_to_host
 
 Generated when a label is added to a host.
 
@@ -3029,7 +3138,7 @@ This activity contains the following fields:
 }
 ```
 
-## removed_label_from_host
+### removed_label_from_host
 
 Generated when a label is removed from a host.
 
