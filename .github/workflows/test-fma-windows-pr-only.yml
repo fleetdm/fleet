@@ -9,7 +9,7 @@ on:
       - cmd/maintained-apps/validate/**
       - .github/workflows/test-fma-windows-pr-only.yml
       - .github/workflows/test-fma-windows-validate.yml
-      - .github/scripts/partition-fma-windows-by-arch.sh
+      - .github/scripts/partition-fma-apps.sh
       - .github/scripts/detect-new-fmas-in-pr.sh
       - .github/scripts/filter-apps-json.sh
   workflow_dispatch: # Manual trigger
@@ -38,7 +38,7 @@ jobs:
   detect-changed-apps:
     runs-on: ubuntu-latest
     outputs:
-      has_windows_apps: ${{ steps.partition.outputs.has_windows_apps }}
+      has_windows_apps: ${{ steps.partition.outputs.has_apps }}
       matrix: ${{ steps.partition.outputs.matrix }}
     steps:
       - name: Harden Runner
@@ -67,7 +67,7 @@ jobs:
         env:
           CHANGED_APPS: ${{ steps.detect-changed.outputs.CHANGED_APPS }}
         run: |
-          bash .github/scripts/partition-fma-windows-by-arch.sh "${CHANGED_APPS:-[]}" 25
+          bash .github/scripts/partition-fma-apps.sh windows "${CHANGED_APPS:-[]}" 25
 
   validate:
     needs: detect-changed-apps

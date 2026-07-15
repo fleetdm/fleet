@@ -15,19 +15,25 @@ on:
           - info
           - warn
           - error
-
-env:
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shard_size:
+        description: "Maximum number of apps per validation job (shards run in parallel)"
+        required: false
+        default: "25"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  test-fma:
-    env:
-      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
-    runs-on: macos-latest
-
+  # Shard every darwin app in apps.json on a cheap Linux runner, then fan out
+  # to macOS runners that validate the shards in parallel. Note that GitHub
+  # caps concurrent macOS jobs well below Linux/Windows, so shards beyond the
+  # cap queue and run in waves.
+  partition:
+    runs-on: ubuntu-latest
+    outputs:
+      has_darwin_apps: ${{ steps.partition.outputs.has_apps }}
+      matrix: ${{ steps.partition.outputs.matrix }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -37,74 +43,59 @@ jobs:
       - name: Checkout Fleet
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          repository: fleetdm/fleet
           fetch-depth: 1
-          ref: ${{ github.ref }}
-          path: fleet
           persist-credentials: false
 
-      - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - name: Shard all Darwin apps
+        id: partition
+        env:
+          SHARD_SIZE: ${{ github.event.inputs.shard_size || '25' }}
+        run: |
+          ALL_DARWIN_SLUGS=$(jq -c '[.apps[].slug | select(endswith("/darwin"))]' ee/maintained-apps/outputs/apps.json)
+          bash .github/scripts/partition-fma-apps.sh darwin "$ALL_DARWIN_SLUGS" "$SHARD_SIZE"
+
+  validate:
+    needs: partition
+    if: needs.partition.outputs.has_darwin_apps == 'true'
+    name: ${{ matrix.name }}
+    strategy:
+      # Keep validating the remaining shards even if one fails so a full run
+      # reports every broken app, not just the first.
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.partition.outputs.matrix) }}
+    uses: ./.github/workflows/test-fma-darwin-validate.yml
+    permissions:
+      contents: read
+    with:
+      runner: ${{ matrix.runner }}
+      slugs: ${{ matrix.slugs }}
+      log_level: ${{ github.event.inputs.log_level || 'info' }}
+
+  # Stable-named summary job aggregating the per-shard results.
+  test-fma:
+    needs: [partition, validate]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
-          go-version-file: "fleet/go.mod"
+          egress-policy: audit
 
-      - name: Install osquery mac
+      - name: Check validation results
+        env:
+          PARTITION_RESULT: ${{ needs.partition.result }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
         run: |
-          echo "Runner architecture: $(uname -m)"
-          curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
-          tar -xzf osquery.tar.gz
-          sudo cp -r opt /
-          sudo cp -r private /
-          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd /usr/local/bin/osqueryi
-          sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
-
-      - name: Remove pre-installed google chrome mac
-        run: |
-          ls /Applications | grep -i "Chrome"
-          find /Applications -name "*Chrome*.app" -type d | while read app;
-          do
-            echo "Removing $app..."
-            sudo rm -rf "$app"
-          done
-
-      # Icon Composer ships bundled inside Xcode, and GitHub macOS runners
-      # come with Xcode pre-installed. Only runs when icon-composer/darwin is being
-      # validated in this PR.
-      - name: Remove pre-installed Xcode mac
-        run: |
-          ls /Applications | grep -i "Xcode" || true
-          find /Applications -maxdepth 1 -iname "Xcode*.app" -type d | while read app;
-          do
-            echo "Removing $app..."
-            sudo rm -rf "$app"
-          done
-
-      # Fleet Desktop's installer refuses to run unless the
-      # com.fleetdm.fleetd.config managed preferences profile is present
-      # (it's normally delivered via MDM). CI runners aren't MDM-enrolled,
-      # so we drop a stub plist in place before the validate step so the
-      # install script succeeds. This workflow validates every FMA every
-      # run, so fleet-desktop is always exercised.
-      - name: Create Fleet Desktop MDM config stub (CI-only)
-        run: |
-          sudo mkdir -p "/Library/Managed Preferences"
-          sudo tee "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist" > /dev/null <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>EnrollSecret</key>
-              <string>ci-test-placeholder</string>
-              <key>FleetURL</key>
-              <string>https://ci.test.example.com</string>
-          </dict>
-          </plist>
-          PLIST
-          sudo chmod 644 "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
-          ls -l "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
-
-      - name: Verify Fleet Maintained Apps mac
-        run: |
-          ls /Applications
-          cd fleet
-          sudo -E go run ./cmd/maintained-apps/validate
+          echo "partition: $PARTITION_RESULT"
+          echo "validate: $VALIDATE_RESULT"
+          if [ "$PARTITION_RESULT" != "success" ]; then
+            echo "Sharding apps failed"
+            exit 1
+          fi
+          if [ "$VALIDATE_RESULT" != "success" ] && [ "$VALIDATE_RESULT" != "skipped" ]; then
+            echo "Validation failed"
+            exit 1
+          fi
+          echo "All Darwin FMA validations passed"

@@ -33,7 +33,7 @@ jobs:
   partition:
     runs-on: ubuntu-latest
     outputs:
-      has_windows_apps: ${{ steps.partition.outputs.has_windows_apps }}
+      has_windows_apps: ${{ steps.partition.outputs.has_apps }}
       matrix: ${{ steps.partition.outputs.matrix }}
     steps:
       - name: Harden Runner
@@ -53,7 +53,7 @@ jobs:
           SHARD_SIZE: ${{ github.event.inputs.shard_size || '20' }}
         run: |
           ALL_WINDOWS_SLUGS=$(jq -c '[.apps[].slug | select(endswith("/windows"))]' ee/maintained-apps/outputs/apps.json)
-          bash .github/scripts/partition-fma-windows-by-arch.sh "$ALL_WINDOWS_SLUGS" "$SHARD_SIZE"
+          bash .github/scripts/partition-fma-apps.sh windows "$ALL_WINDOWS_SLUGS" "$SHARD_SIZE"
 
   validate:
     needs: partition
