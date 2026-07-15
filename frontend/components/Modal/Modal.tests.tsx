@@ -201,8 +201,8 @@ describe("Modal", () => {
     // timers in this block so those callbacks actually fire.
     beforeEach(() => jest.useRealTimers());
 
-    it("moves focus to the first control inside the content on open", async () => {
-      render(
+    it("focuses the modal container on open, not any interactive child", async () => {
+      const { container } = render(
         <Modal title="Confirm" onExit={noop}>
           <>
             <button type="button">Submit</button>
@@ -211,9 +211,11 @@ describe("Modal", () => {
         </Modal>
       );
 
+      const modalContainer = container.querySelector(".modal__modal_container");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Submit" })).toHaveFocus();
+        expect(modalContainer).toHaveFocus();
       });
+      expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
     });
 
     it("keeps focus on the header close button for disabled-content modals", async () => {
@@ -261,10 +263,11 @@ describe("Modal", () => {
       expect(trigger).toHaveFocus();
 
       await user.click(trigger);
+      // Container is now focused (not the interior button).
       await waitFor(() => {
         expect(
           screen.getByRole("button", { name: "Close from inside" })
-        ).toHaveFocus();
+        ).not.toHaveFocus();
       });
 
       await user.click(

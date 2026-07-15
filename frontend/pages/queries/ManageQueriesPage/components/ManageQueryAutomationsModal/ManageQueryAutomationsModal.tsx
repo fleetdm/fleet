@@ -140,6 +140,9 @@ const ManageQueryAutomationsModal = ({
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
+      // Skip autorepeated keys — the trigger button's Enter may still be
+      // held when this listener attaches, which would auto-submit the form.
+      if (event.repeat) return;
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
         onSubmit({
