@@ -334,9 +334,15 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
-### Create a quote
+## Quoting
+
+### Generate a quote
 
 Navigate to the opportunity you are creating a quote for, then follow the steps below.
+
+> Are you generating a quote for a customer?
+>
+> If so, be sure you're doing it from the renewal oppty. Do not generate quotes from an expansion opportunity. 
 
 1. Advance through each pipeline stage sequentially using the stage progression bar. Salesforce enforces sequential progression — skipping a stage will trigger an error.
 
@@ -354,7 +360,20 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
    The **"Discount Percentage"** field is locked and updates automatically based on the difference between list price and unit price. Click **"Save"**. MRR, ARR, Total Price, and Grand Total will update automatically.
 
-6. Click **"Submit for Approval"**. Complete any remaining required fields:
+6. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, and save it to the quote.
+
+   | Template | When to use |
+   | -------- | ----------- |
+   | Direct | Renewing an existing non-channel customer with no partner involved |
+   | Direct w/ custom terms | Selling directly to the customer with special commitments included |
+   | Authorized partner | Selling through an authorized channel partner |
+   | Unauthorized partner | Selling through a channel partner pending authorization |
+
+> Custom terms:
+>
+> If you're adding custom terms to a quote, be sure to add all necessary language in the **"Terms"** field. No "General terms" are added to the template by default.
+
+7. Click **"Submit for Approval"**. Complete any remaining required fields:
    - Billing address
    - Contact name (selected from associated Salesforce contact records)
    - Quote expiration date
@@ -365,35 +384,10 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
    > Chaz is the approver for new business opportunities. Zay is the approver for renewals and upsells.
 
-7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
+8. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit.
 
-8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
-
-   | Template | When to use |
-   | -------- | ----------- |
-   | Direct | Renewing an existing non-channel customer with no partner involved |
-   | Promises or custom terms | Selling directly to the customer with special commitments included |
-   | Authorized partner | Selling through an authorized channel partner |
-   | Unauthorized partner | Selling through a channel partner pending authorization |
-   | 3eye distributorship | Selling through the 3EYE distributor |
-
-
-
-### Generate a customer quote
-
-After a quote is approved, generate a PDF to send to the customer. The Salesforce PDF builder handles standard quotes, but quotes with custom terms require additional steps.
-
-To generate a quote with custom terms:
-
-1. Navigate to the approved quote record in Salesforce.
-2. In the **"Terms"** field, copy and paste the full general terms. Add any custom language after the general terms.
-
-   > All terms for the quote must be in the **"Terms"** field. If the quote includes custom language, paste the general terms first, then add the custom terms below them.
-
-3. Click **"Generate PDF"** and select the **"Promises or custom terms"** template. This template reflects any content entered in the "Terms" field.
-4. Click **"Create PDF"** and review the preview for accuracy.
-5. Submit the generated PDF for Zay Hanlon's approval before sending to the customer.
-
+9. Once the quote is approved, send it to the relevant stakeholders.
+ 
 
 ### Remove a contact from the "Top contacts" list in Salesforce
 
