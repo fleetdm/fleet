@@ -1445,6 +1445,55 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
 }
 
+// .py packages are stored with platform='linux'; the self-service install path
+// must still allow them on darwin hosts via the unix-like exception.
+func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID: 10,
+					Name:        "script.py",
+					Extension:   "py",
+					Platform:    "linux",
+					TeamID:      new(uint(1)),
+					TitleID:     new(uint(100)),
+					SelfService: true,
+				}, nil
+			}
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+				return nil
+			}
+
+			ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				return "install-uuid", nil
+			}
+
+			host := &fleet.Host{
+				ID:           1,
+				OrbitNodeKey: new("orbit_key"),
+				Platform:     platform,
+				TeamID:       new(uint(1)),
+			}
+
+			err := svc.SelfServiceInstallSoftwareTitle(context.Background(), host, 100)
+			require.NoError(t, err, ".py self-service install on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+		})
+	}
+}
+
 func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
