@@ -124,20 +124,6 @@ const ManageQueryAutomationsModal = ({
     );
   };
 
-  const onSubmitQueryAutomations = (
-    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
-  ) => {
-    evt.preventDefault();
-
-    const newQueryIds: number[] = [];
-    queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
-
-    onSubmit({
-      newAutomatedQueryIds: newQueryIds,
-      previousAutomatedQueryIds: automatedQueryIds,
-    });
-  };
-
   const submitSelected = () =>
     onSubmit({
       newAutomatedQueryIds: queryItems
@@ -145,6 +131,13 @@ const ManageQueryAutomationsModal = ({
         .map((p) => p.id),
       previousAutomatedQueryIds: automatedQueryIds,
     });
+
+  const onSubmitQueryAutomations = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
+    evt.preventDefault();
+    submitSelected();
+  };
 
   return (
     <Modal
