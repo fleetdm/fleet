@@ -132,7 +132,7 @@ const ActionsDropdown = ({
   isSearchable = false,
   className,
   menuAlign = "default",
-  menuPlacement = "bottom",
+  menuPlacement,
   variant = "subdued",
   buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
@@ -394,7 +394,8 @@ const ActionsDropdown = ({
         className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
-        menuPlacement={menuPlacement}
+        menuPlacement={menuPlacement ?? (insideTable ? "auto" : "bottom")}
+        menuShouldScrollIntoView={insideTable ? false : undefined}
         menuPortalTarget={insideTable ? document.body : undefined}
         {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "subdued"
       />
