@@ -97,7 +97,7 @@ If you're building your OS 27 response plan:
 
 1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today. If you use Fleet, you're already set.
 2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655. If you use Fleet, you're already set.
-3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing depracated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986).
+3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing deprecated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986).
 4. Plan the app management migration away from `com.apple.applicationaccess.new` on macOS.
 5. Update your re-enrollment runbooks to account for the backup restoration change.
 6. Start the Intel Mac refresh conversation if you haven't already.
