@@ -96,6 +96,16 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 				return ctxerr.Wrap(ctx, err, "update secret variables")
 			}
 		}
+
+		// A changed secret value changes the resolved name of any host whose host
+		// name template references it, so re-queue those hosts' enforcement rows.
+		changedNames := make([]string, 0, len(variablesToUpdate))
+		for _, secretVariable := range variablesToUpdate {
+			changedNames = append(changedNames, secretVariable.Name)
+		}
+		if err := ds.resendDeviceNamesForSecretChange(ctx, changedNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend device names for secret change")
+		}
 	}
 
 	return nil
@@ -327,7 +337,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
 			UNION ALL
 			SELECT 'host_name_template' AS entity, 'Host name' AS name,
-			'No team' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
 			FROM app_config_json
 			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
 		); err != nil {
