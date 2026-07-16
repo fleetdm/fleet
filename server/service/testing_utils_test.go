@@ -98,6 +98,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
 			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
 		}
+		// On Premium, AppConfig assembly and the osquery detail-query flow read the
+		// Microsoft conditional access integration. Default to an empty (not set up)
+		// integration so premium tests that don't care about it don't panic on a nil
+		// mock. Tests that assert on it can override.
+		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
+			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
 	}
 
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
