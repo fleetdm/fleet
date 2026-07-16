@@ -344,6 +344,7 @@ export default function App() {
         {active === "database" && (
           <DatabaseTab
             server={activeSrv}
+            servers={settings?.servers ?? []}
             currentBranch={branchStatus?.branch ?? null}
             procs={procs}
             serve={serve}

@@ -253,6 +253,17 @@ export const api = {
   dbCheckBackupName: (repo: string, rawName: string) =>
     cast<BackupNameCheck>(DBService.DBCheckBackupName(repo, rawName)),
 
+  // Central per-server backups (app-data), addressed by directory.
+  dbServerBackupsDir: (serverId: string) =>
+    DBService.DBServerBackupsDir(serverId),
+  dbEnsureDir: (dir: string) => DBService.DBEnsureDir(dir),
+  dbListBackupsInDir: (dir: string) =>
+    cast<BackupEntry[]>(DBService.DBListBackupsInDir(dir)),
+  dbDeleteBackupInDir: (dir: string, path: string) =>
+    DBService.DBDeleteBackupInDir(dir, path),
+  dbCheckBackupNameInDir: (dir: string, rawName: string) =>
+    cast<BackupNameCheck>(DBService.DBCheckBackupNameInDir(dir, rawName)),
+
   fleetctlResolveBinary: (repo: string | null, settingsPath: string | null) =>
     cast<ResolvedBinary>(
       FleetctlService.FleetctlResolveBinary(repo ?? "", settingsPath ?? ""),

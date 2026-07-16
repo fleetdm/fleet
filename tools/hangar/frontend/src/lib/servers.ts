@@ -71,6 +71,41 @@ export function composeNetwork(server: ServerProfile): string {
   return `${server.compose_project}_default`;
 }
 
+// One-off client image for db backup/restore. Matches tools/backup_db/*.sh
+// (${FLEET_MYSQL_IMAGE:-mysql:8.0.44}).
+const DB_CLIENT_IMAGE = "mysql:8.0.44";
+
+/// `bash -c` payload that dumps a server's `fleet` DB, via that server's compose
+/// network, to a gzipped file. Hangar builds this itself instead of shelling out
+/// to the worktree's tools/backup_db/backup.sh, because secondary worktrees run
+/// old/released refs whose scripts predate FLEET_COMPOSE_NETWORK and would
+/// silently target the primary (fleet_default) stack. `set -o pipefail` inside
+/// the container makes a failed mysqldump fail the whole command instead of
+/// writing a "successful" empty archive.
+export function dbBackupCommand(server: ServerProfile, absPath: string): string {
+  const net = composeNetwork(server);
+  return (
+    `docker run --rm --network '${net}' ${DB_CLIENT_IMAGE} ` +
+    `bash -c 'set -o pipefail; mysqldump -hmysql -uroot -ptoor ` +
+    `--default-character-set=utf8mb4 --add-drop-database --databases fleet | gzip -' ` +
+    `> '${absPath}'`
+  );
+}
+
+/// `bash -c` payload that restores a gzipped dump into a server's `fleet` DB via
+/// that server's compose network. See dbBackupCommand for why Hangar owns this.
+export function dbRestoreCommand(
+  server: ServerProfile,
+  absPath: string,
+): string {
+  const net = composeNetwork(server);
+  return (
+    `docker run --rm -i --network '${net}' ${DB_CLIENT_IMAGE} ` +
+    `bash -c 'set -o pipefail; gzip -dc - | MYSQL_PWD=toor mysql -hmysql -uroot fleet' ` +
+    `< '${absPath}'`
+  );
+}
+
 /// docker compose env that maps the parameterized host ports to this server's
 /// block. Read by the `${FLEET_*_PORT:-default}` substitutions in
 /// docker-compose.yml at `up` time.

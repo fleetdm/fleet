@@ -7,13 +7,15 @@ import {
 } from "../../lib/ipc";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 import { startServe, waitForExit } from "../../lib/orchestration";
-import { composeNetwork, prepareDbArgsFor, procId } from "../../lib/servers";
+import {
+  dbBackupCommand,
+  dbRestoreCommand,
+  prepareDbArgsFor,
+  procId,
+} from "../../lib/servers";
 import type { DockerHealth, ServeStatus } from "../../lib/useSystemHealth";
 
 const BACKUP_EXT = ".sql.gz";
-// Subdirectory under the repo where DB dumps are written and read back.
-// Must stay in sync with backupsDirName in internal/db/db.go.
-const BACKUPS_DIR = "db-backups";
 // Base process ids; namespaced per server via procId(server.id, ...).
 const RESET_DROP = "db-reset-drop";
 const RESET_PREPARE = "db-reset-prepare";
@@ -27,8 +29,16 @@ type BusyKind =
   | { kind: "reset" }
   | null;
 
+// A backup plus where it came from, so a merged list (central app-data +
+// worktree, possibly from another server) can key/select/delete unambiguously.
+type ListedBackup = BackupEntry & {
+  sourceDir: string; // directory it lives in — used for dir-scoped delete
+  origin: "central" | "worktree";
+};
+
 export function DatabaseTab({
   server,
+  servers,
   currentBranch,
   procs,
   serve,
@@ -36,6 +46,7 @@ export function DatabaseTab({
   goToLogs,
 }: {
   server: ServerProfile;
+  servers: ServerProfile[];
   currentBranch: string | null;
   procs: ProcInfo[];
   serve: ServeStatus;
@@ -44,12 +55,36 @@ export function DatabaseTab({
 }) {
   const repoPath = server.worktree_path;
   const serveProcId = procId(server.id, "fleet-serve");
-  const [backups, setBackups] = useState<BackupEntry[]>([]);
-  const [backupsDir, setBackupsDir] = useState<string | null>(null);
-  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [backups, setBackups] = useState<ListedBackup[]>([]);
+  // The active server's central (app-data) backups dir — where NEW backups are
+  // written, and what "Reveal" opens. Resolved once per active server.
+  const [activeCentralDir, setActiveCentralDir] = useState<string | null>(null);
+  // Which server's backups we're browsing. Defaults to the active server; pick
+  // another to restore its dumps into the active one.
+  const [sourceServerId, setSourceServerId] = useState(server.id);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [busy, setBusy] = useState<BusyKind>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+
+  // When the active server changes, snap the browse-source back to it and
+  // re-resolve the central dir new backups go into.
+  useEffect(() => {
+    setSourceServerId(server.id);
+    let cancelled = false;
+    api
+      .dbServerBackupsDir(server.id)
+      .then(async (dir) => {
+        await api.dbEnsureDir(dir);
+        if (!cancelled) setActiveCentralDir(dir);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveCentralDir(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [server.id]);
 
   // Tick once a minute so the "2m ago" style timestamps stay fresh
   // without us having to refresh the whole list on every render.
@@ -58,37 +93,61 @@ export function DatabaseTab({
     return () => window.clearInterval(id);
   }, []);
 
+  const sourceServer = useMemo(
+    () => servers.find((s) => s.id === sourceServerId) ?? server,
+    [servers, sourceServerId, server],
+  );
+  const sourceIsActive = sourceServer.id === server.id;
+
   const refresh = useCallback(async () => {
-    if (!repoPath) return;
     try {
-      // ensureBackupsDir is cheap and idempotent; doing it here keeps the
-      // "first time" case from showing an empty list because the folder
-      // doesn't exist yet.
-      const dir = await api.dbEnsureBackupsDir(repoPath);
-      setBackupsDir(dir);
-      const list = await api.dbListBackups(repoPath);
-      setBackups(list);
+      const merged: ListedBackup[] = [];
+      // Central app-data backups for the source server (survive worktree teardown).
+      try {
+        const centralDir = await api.dbServerBackupsDir(sourceServer.id);
+        await api.dbEnsureDir(centralDir);
+        const central = await api.dbListBackupsInDir(centralDir);
+        for (const b of central) {
+          merged.push({ ...b, sourceDir: centralDir, origin: "central" });
+        }
+      } catch (e) {
+        console.warn("list central backups failed", e);
+      }
+      // Also surface `make db-backup` outputs from the source server's worktree.
+      if (sourceServer.worktree_path) {
+        try {
+          const wtDir = await api.dbBackupsDir(sourceServer.worktree_path);
+          const wt = await api.dbListBackups(sourceServer.worktree_path);
+          for (const b of wt) {
+            merged.push({ ...b, sourceDir: wtDir, origin: "worktree" });
+          }
+        } catch (e) {
+          console.warn("list worktree backups failed", e);
+        }
+      }
+      merged.sort((a, b) => b.mtime_ms - a.mtime_ms);
+      setBackups(merged);
     } catch (e) {
       setError(String(e));
     }
-  }, [repoPath]);
+  }, [sourceServer]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Keep the selected backup in sync with the list — if it disappears
-  // (deleted, renamed externally) drop the selection rather than show
-  // ghost actions for a row that isn't there.
+  // Keep the selection in sync with the list — if it disappears (deleted,
+  // source switched) drop it rather than show ghost actions. Keyed by path
+  // since names aren't unique across dirs/servers.
   useEffect(() => {
-    if (selectedName && !backups.some((b) => b.name === selectedName)) {
-      setSelectedName(null);
+    if (selectedPath && !backups.some((b) => b.path === selectedPath)) {
+      setSelectedPath(null);
     }
-  }, [backups, selectedName]);
+  }, [backups, selectedPath]);
 
   const selected = useMemo(
-    () => backups.find((b) => b.name === selectedName) ?? null,
-    [backups, selectedName],
+    () => backups.find((b) => b.path === selectedPath) ?? null,
+    [backups, selectedPath],
   );
 
   if (!repoPath) {
@@ -142,11 +201,13 @@ export function DatabaseTab({
         serveProcId={serveProcId}
         lastBackup={lastBackup}
         backupCount={backups.length}
-        backupsDir={backupsDir}
+        backupsDir={activeCentralDir}
         now={now}
         onRefresh={refresh}
         onReveal={
-          backupsDir ? () => api.openPath(backupsDir, false) : undefined
+          activeCentralDir
+            ? () => api.openPath(activeCentralDir, false)
+            : undefined
         }
         setError={setError}
       />
@@ -180,16 +241,20 @@ export function DatabaseTab({
       >
         <BackupsPanel
           backups={backups}
-          selectedName={selectedName}
-          onSelect={setSelectedName}
+          selectedPath={selectedPath}
+          onSelect={setSelectedPath}
           busy={busy}
           selected={selected}
           mysqlUp={mysqlUp}
           serveUp={serve.up}
+          servers={servers}
+          sourceServerId={sourceServerId}
+          onSourceChange={setSourceServerId}
+          activeServerName={server.name}
+          sourceIsActive={sourceIsActive}
           onRestore={async (entry) => {
             await runRestore(entry, {
               server,
-              repoPath,
               setBusy,
               setError,
               refresh,
@@ -197,7 +262,7 @@ export function DatabaseTab({
             });
           }}
           onDelete={async (entry) => {
-            await runDelete(entry, { repoPath, setBusy, setError, refresh });
+            await runDelete(entry, { setBusy, setError, refresh });
           }}
         />
 
@@ -213,6 +278,7 @@ export function DatabaseTab({
           <NewBackupPanel
             server={server}
             repoPath={repoPath}
+            centralDir={activeCentralDir}
             currentBranch={currentBranch}
             mysqlUp={mysqlUp}
             busy={busy}
@@ -389,24 +455,34 @@ function StatusHeader({
 
 function BackupsPanel({
   backups,
-  selectedName,
+  selectedPath,
   onSelect,
   busy,
   selected,
   mysqlUp,
   serveUp,
+  servers,
+  sourceServerId,
+  onSourceChange,
+  activeServerName,
+  sourceIsActive,
   onRestore,
   onDelete,
 }: {
-  backups: BackupEntry[];
-  selectedName: string | null;
-  onSelect: (name: string) => void;
+  backups: ListedBackup[];
+  selectedPath: string | null;
+  onSelect: (path: string) => void;
   busy: BusyKind;
-  selected: BackupEntry | null;
+  selected: ListedBackup | null;
   mysqlUp: boolean;
   serveUp: boolean;
-  onRestore: (b: BackupEntry) => void;
-  onDelete: (b: BackupEntry) => void;
+  servers: ServerProfile[];
+  sourceServerId: string;
+  onSourceChange: (id: string) => void;
+  activeServerName: string;
+  sourceIsActive: boolean;
+  onRestore: (b: ListedBackup) => void;
+  onDelete: (b: ListedBackup) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -414,7 +490,7 @@ function BackupsPanel({
   // the "I selected a different row but delete still says CONFIRM?" trap.
   useEffect(() => {
     setConfirmDelete(false);
-  }, [selectedName]);
+  }, [selectedPath]);
 
   const restoreBlocked = !mysqlUp || serveUp || busy != null;
   const restoreReason = !mysqlUp
@@ -433,9 +509,60 @@ function BackupsPanel({
         minHeight: 0,
       }}
     >
-      <div className="section-title" style={{ margin: 0 }}>
-        Backups
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div className="section-title" style={{ margin: 0 }}>
+          Backups
+        </div>
+        {servers.length > 1 && (
+          <label
+            className="dim"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: "var(--fs-xx-small)",
+            }}
+          >
+            source
+            <select
+              value={sourceServerId}
+              onChange={(e) => onSourceChange(e.target.value)}
+              style={{ fontSize: "var(--fs-xx-small)", padding: "2px 6px" }}
+            >
+              {servers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
+
+      {!sourceIsActive && (
+        <div
+          style={{
+            fontSize: "var(--fs-xxx-small)",
+            color: "var(--ui-warning)",
+            border: "1px solid var(--ui-warning)",
+            borderRadius: "var(--radius-md)",
+            padding: "6px 8px",
+            lineHeight: 1.4,
+          }}
+        >
+          Browsing another server's backups. Restore imports into the active
+          server (<span className="mono">{activeServerName}</span>) — make sure
+          the branch/version lines up, or run prepare-db to migrate afterward.
+        </div>
+      )}
 
       {backups.length === 0 ? (
         <div
@@ -463,10 +590,10 @@ function BackupsPanel({
         >
           {backups.map((b) => (
             <BackupRow
-              key={b.name}
+              key={b.path}
               entry={b}
-              selected={b.name === selectedName}
-              onClick={() => onSelect(b.name)}
+              selected={b.path === selectedPath}
+              onClick={() => onSelect(b.path)}
             />
           ))}
         </div>
@@ -491,7 +618,7 @@ function BackupsPanel({
         >
           {busy?.kind === "restore" && selected?.name === busy.name
             ? "restoring…"
-            : "Restore selected"}
+            : `Restore into ${activeServerName}`}
         </button>
         <button
           className="danger"
@@ -519,7 +646,7 @@ function BackupRow({
   selected,
   onClick,
 }: {
-  entry: BackupEntry;
+  entry: ListedBackup;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -568,6 +695,21 @@ function BackupRow({
         >
           {entry.name}
         </span>
+        {entry.origin === "worktree" && (
+          <span
+            className="dim"
+            title="From the worktree's db-backups (e.g. make db-backup)"
+            style={{
+              fontSize: "var(--fs-xxx-small)",
+              border: "1px solid var(--app-border)",
+              borderRadius: 4,
+              padding: "0 4px",
+              flexShrink: 0,
+            }}
+          >
+            repo
+          </span>
+        )}
         <span
           className="dim"
           style={{ fontSize: "var(--fs-xxx-small)", flexShrink: 0 }}
@@ -612,6 +754,7 @@ function BackupRow({
 function NewBackupPanel({
   server,
   repoPath,
+  centralDir,
   currentBranch,
   mysqlUp,
   busy,
@@ -622,6 +765,8 @@ function NewBackupPanel({
 }: {
   server: ServerProfile;
   repoPath: string;
+  // Central app-data dir new backups are written to (null until resolved).
+  centralDir: string | null;
   currentBranch: string | null;
   mysqlUp: boolean;
   busy: BusyKind;
@@ -661,7 +806,8 @@ function NewBackupPanel({
     !stemEmpty &&
     (stemForValidate.startsWith(".") ||
       !/^[A-Za-z0-9._-]+$/.test(stemForValidate));
-  const canSave = !stemEmpty && !stemInvalid && mysqlUp && busy == null;
+  const canSave =
+    !stemEmpty && !stemInvalid && mysqlUp && busy == null && !!centralDir;
 
   // Surface "name already exists" as the user types so they see the
   // overwrite intent before clicking save — no popup. Debounced so we
@@ -669,14 +815,14 @@ function NewBackupPanel({
   // responses if the user keeps typing.
   const [nameExists, setNameExists] = useState(false);
   useEffect(() => {
-    if (stemEmpty || stemInvalid) {
+    if (stemEmpty || stemInvalid || !centralDir) {
       setNameExists(false);
       return;
     }
     let cancelled = false;
     const t = window.setTimeout(() => {
       api
-        .dbCheckBackupName(repoPath, stem)
+        .dbCheckBackupNameInDir(centralDir, stem)
         .then((c) => {
           if (!cancelled) setNameExists(c.exists);
         })
@@ -688,26 +834,30 @@ function NewBackupPanel({
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [stem, stemEmpty, stemInvalid, repoPath]);
+  }, [stem, stemEmpty, stemInvalid, centralDir]);
 
   async function onSave() {
-    if (!canSave) return;
+    if (!canSave || !centralDir) return;
     setError(null);
     try {
       // No overwrite confirm — the inline "will overwrite" hint and the
       // Overwrite-labeled save button already make the intent explicit.
-      // backup.sh uses shell `>` redirect so the file is replaced
+      // The command uses a shell `>` redirect so the file is replaced
       // atomically; we also rewrite the sidecar with the current
-      // branch/note.
-      const check = await api.dbCheckBackupName(repoPath, stem);
+      // branch/note. Backups are written to the active server's central
+      // app-data dir so they survive worktree teardown.
+      const check = await api.dbCheckBackupNameInDir(centralDir, stem);
+      const fullPath = `${centralDir}/${check.final_name}`;
       setBusy({ kind: "backup" });
+      // Hangar builds the dump command itself (see dbBackupCommand) instead of
+      // running the worktree's backup.sh — old/released refs ship a script that
+      // hardcodes the primary compose network and would dump the wrong stack.
       await api.startProcess({
         id: procId(server.id, BACKUP_PROC),
         label: `db-backup ${check.final_name}`,
         cwd: repoPath,
-        program: "./tools/backup_db/backup.sh",
-        args: [check.relative_path],
-        env: [["FLEET_COMPOSE_NETWORK", composeNetwork(server)]],
+        program: "bash",
+        args: ["-c", dbBackupCommand(server, fullPath)],
       });
       const ok = await waitForExit(procId(server.id, BACKUP_PROC));
       if (!ok) {
@@ -720,7 +870,6 @@ function NewBackupPanel({
       // Sidecar is best-effort metadata — we don't fail the save if it
       // can't be written, the dump itself is what matters.
       try {
-        const fullPath = `${repoPath}/${BACKUPS_DIR}/${check.final_name}`;
         await api.dbSaveBackupMeta(
           fullPath,
           currentBranch,
@@ -848,9 +997,9 @@ function NewBackupPanel({
             textOverflow: "ellipsis",
             minWidth: 0,
           }}
-          title={`${BACKUPS_DIR}/${finalName}`}
+          title={centralDir ? `${centralDir}/${finalName}` : finalName}
         >
-          {BACKUPS_DIR}/{finalName}
+          {finalName}
         </span>
       </div>
 
@@ -1145,17 +1294,16 @@ function ResetConfirmModal({
 // ---------- runners ----------
 
 async function runRestore(
-  entry: BackupEntry,
+  entry: ListedBackup,
   ctx: {
     server: ServerProfile;
-    repoPath: string;
     setBusy: (b: BusyKind) => void;
     setError: (e: string | null) => void;
     refresh: () => Promise<void>;
     goToLogs: () => void;
   },
 ) {
-  const { server, repoPath, setBusy, setError, refresh, goToLogs: _go } = ctx;
+  const { server, setBusy, setError, refresh, goToLogs: _go } = ctx;
   // No confirmation: parity with the original, which restored immediately on
   // click. (The old window.confirm() never actually prompted — Tauri's webview
   // silently returned true — so the effective behavior was a direct restore.)
@@ -1163,16 +1311,17 @@ async function runRestore(
   setError(null);
   const restoreId = procId(server.id, RESTORE_PROC);
   try {
-    // restore.sh wants the path relative to cwd (the worktree). We always
-    // store backups under <worktree>/db-backups so this stays stable.
-    // FLEET_COMPOSE_NETWORK points it at this server's docker network.
+    // Hangar builds the restore command itself (see dbRestoreCommand) instead
+    // of running the worktree's restore.sh: on old/released refs that script
+    // hardcodes the primary compose network, so a "successful" restore would
+    // silently import into the wrong stack. entry.path is absolute (it may live
+    // in another server's dir); the import always targets the ACTIVE server.
     await api.startProcess({
       id: restoreId,
       label: `db-restore ${entry.name}`,
-      cwd: repoPath,
-      program: "./tools/backup_db/restore.sh",
-      args: [`${BACKUPS_DIR}/${entry.name}`],
-      env: [["FLEET_COMPOSE_NETWORK", composeNetwork(server)]],
+      cwd: server.worktree_path ?? "",
+      program: "bash",
+      args: ["-c", dbRestoreCommand(server, entry.path)],
     });
     const success = await waitForExit(restoreId);
     if (!success) {
@@ -1186,19 +1335,19 @@ async function runRestore(
 }
 
 async function runDelete(
-  entry: BackupEntry,
+  entry: ListedBackup,
   ctx: {
-    repoPath: string;
     setBusy: (b: BusyKind) => void;
     setError: (e: string | null) => void;
     refresh: () => Promise<void>;
   },
 ) {
-  const { repoPath, setBusy, setError, refresh } = ctx;
+  const { setBusy, setError, refresh } = ctx;
   setBusy({ kind: "delete", name: entry.name });
   setError(null);
   try {
-    await api.dbDeleteBackup(repoPath, entry.path);
+    // Delete is scoped to the entry's own dir (central or worktree).
+    await api.dbDeleteBackupInDir(entry.sourceDir, entry.path);
     await refresh();
   } catch (e) {
     setError(String(e));
