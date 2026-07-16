@@ -27,7 +27,7 @@ Apple is raising the transport security floor for system processes involved in d
 
 New requirement: TLS 1.2 minimum with ATS-compliant cipher suites and certificates. If your MDM or management infrastructure falls short, things break in ways that aren't always obvious. Enrollment failures, profiles not installing, update commands silently failing.
 
-Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. Run it against your MDM and any internal management endpoints now, not in September.
+Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. Run it against your MDM and any internal management endpoints now, not in September. If you're using Fleet, you no action needed. Fleet meets the new requirements.
 
 ## New and migrated declarative configurations
 
@@ -95,9 +95,9 @@ A few things worth setting user expectations on: Siri AI requires a user waitlis
 
 If you're building your OS 27 response plan:
 
-1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today.
-2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655.
-3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations.
+1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today. If you use Fleet, you're already set.
+2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655. If you use Fleet, you're already set.
+3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing depracated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986).
 4. Plan the app management migration away from `com.apple.applicationaccess.new` on macOS.
 5. Update your re-enrollment runbooks to account for the backup restoration change.
 6. Start the Intel Mac refresh conversation if you haven't already.
