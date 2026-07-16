@@ -10769,8 +10769,8 @@ func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(t.Name() + suffix),
-			NodeKey:         ptr.String(t.Name() + suffix),
+			OsqueryHostID:   new(t.Name() + suffix),
+			NodeKey:         new(t.Name() + suffix),
 			UUID:            uuid.New().String(),
 			Hostname:        t.Name() + suffix,
 			Platform:        platform,
@@ -10811,7 +10811,7 @@ func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
 
 	// Non-Apple host: raw model, empty marketing name.
 	require.Equal(t, "Standard PC", byHostname[unmapped.Hostname][1])
-	require.Equal(t, "", byHostname[unmapped.Hostname][2])
+	require.Empty(t, byHostname[unmapped.Hostname][2])
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
