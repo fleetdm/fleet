@@ -2246,6 +2246,59 @@ software:
 	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), gitops.Software.Packages[0].Icon.Path)
 }
 
+// A path-referenced .py is a script-only package: it must be accepted and
+// treated like .sh/.ps1, not rejected as an unsupported extension.
+func TestScriptOnlyPackagesPathPy(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/script-only.py
+      self_service: true
+      icon:
+        path: ./foo/bar.png
+      uninstall_script:
+        path: software/uninstall.sh
+      post_install_script:
+        path: software/post-install.sh
+      pre_install_query:
+        path: software/preinstall-query.yml
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	copies := []struct{ src, dst string }{
+		{filepath.Join("testdata", "software", "script-only.py"), filepath.Join(basePath, "software", "script-only.py")},
+		{filepath.Join("testdata", "software", "install-app.sh"), filepath.Join(basePath, "software", "uninstall.sh")},
+		{filepath.Join("testdata", "software", "install-app.sh"), filepath.Join(basePath, "software", "post-install.sh")},
+	}
+	for _, c := range copies {
+		require.NoError(t, file.Copy(c.src, c.dst, os.FileMode(0o755)))
+	}
+	require.NoError(t, file.Copy(
+		filepath.Join("testdata", "lib", "preinstall-query.yml"),
+		filepath.Join(basePath, "software", "preinstall-query.yml"),
+		os.FileMode(0o644),
+	))
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	gitops, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, gitops.Software.Packages, 1)
+
+	pkg := gitops.Software.Packages[0]
+	assert.Equal(t, filepath.Join(basePath, "software", "script-only.py"), pkg.InstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), pkg.Icon.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "uninstall.sh"), pkg.UninstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "post-install.sh"), pkg.PostInstallScript.Path)
+	assert.Equal(t, filepath.Join(basePath, "software", "preinstall-query.yml"), pkg.PreInstallQuery.Path)
+	assert.True(t, pkg.SelfService)
+}
+
 func TestScriptOnlyPackagesWithAdvancedOptions(t *testing.T) {
 	t.Parallel()
 	config := getTeamConfig([]string{"software"})
@@ -4488,7 +4541,7 @@ software:
 
 		_, err = GitOpsFromFile(path, basePath, appConfig, nopLogf)
 		assert.ErrorContains(t, err, "unsupported extension")
-		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, or .ps1 files are supported")
+		assert.ErrorContains(t, err, "only .yml, .yaml, .sh, .ps1, or .py files are supported")
 	})
 
 	t.Run("script_with_team_options", func(t *testing.T) {
