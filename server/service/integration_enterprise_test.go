@@ -1728,6 +1728,11 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
 
+	// empty and whitespace-only secrets are rejected
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "   "}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "validSecret"},{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+
 	// No new activities should be generated
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
 	require.Len(t, seenActivitiesIDs, 2)
@@ -1986,6 +1991,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with an empty enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "empty_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: ""}},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with a whitespace-only enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "whitespace_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: "   "}},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// create a team with invalid host expiry window
 	team4 := &fleet.TeamPayload{

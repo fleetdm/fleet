@@ -8855,6 +8855,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
+	// apply spec, empty and whitespace-only secrets are rejected
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "   "}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
 	// error conditions should create new activities
 	seenActivitiesIDs[s.lastActivityMatches(activityName, "", 0)] = struct{}{}
 	require.Len(t, seenActivitiesIDs, 1)
