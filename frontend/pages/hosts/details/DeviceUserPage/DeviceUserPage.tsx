@@ -343,9 +343,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                notify.error(
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
-                );
+                notify.error("Vitals are taking longer than expected to load.");
               }
             }
           }
