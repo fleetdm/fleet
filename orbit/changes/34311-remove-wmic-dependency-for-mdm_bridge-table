@@ -1,0 +1,1 @@
+* Removed the wmic.exe dependency in the `mdm_bridge` table implementation.

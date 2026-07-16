@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import TabNav from "components/TabNav";
@@ -115,6 +116,17 @@ const ManageControlsPage = ({
     },
   });
 
+  // Controls pages don't support "All teams". On free tier the page runs as
+  // "All teams", so teamIdForApi is undefined and the sub-pages (which gate
+  // their render on it being defined) would spin forever. Free tier has only
+  // "No team", so coerce to it — but only once we've confirmed the tier is Free
+  // (isPremiumTier === false). While the tier is still unknown (undefined during
+  // config load) or premium, pass teamIdForApi through untouched so the
+  // sub-pages keep waiting instead of firing "No team" queries before the tier
+  // is known (which would flash wrong-team data for premium users on boot).
+  const teamIdForApiToUse =
+    isPremiumTier === false ? API_NO_TEAM_ID : teamIdForApi;
+
   const permittedControlsSubNav = useMemo(() => {
     let renderedSubNav = controlsSubNav;
     if (isTeamTechnician || isGlobalTechnician) {
@@ -189,7 +201,7 @@ const ManageControlsPage = ({
         <div className="tab-nav-routed-content">
           <div key={currentTabIndex} className="tab-nav-routed-content__fade">
             {React.cloneElement(children, {
-              teamIdForApi,
+              teamIdForApi: teamIdForApiToUse,
               currentPage: page,
               queryParams: parseOSUpdatesCurrentVersionsQueryParams(
                 location.query

@@ -1900,7 +1900,14 @@ func (svc *Service) validateMDM(
 	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
-		} else if validated, err := fleet.ValidateHostNameTemplate(mdm.HostNameTemplate.Value); err != nil {
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+			// A validation or missing-secret error is invalid user input (422); any
+			// other error (e.g. a datastore failure while checking secrets) must
+			// propagate as a server error rather than be misreported as invalid input.
+			var argErr *fleet.InvalidArgumentError
+			if !errors.As(err, &argErr) {
+				return ctxerr.Wrap(ctx, err, "validating host name template")
+			}
 			invalid.Append("mdm.name_template", err.Error())
 		} else {
 			mdm.HostNameTemplate = optjson.SetString(validated)

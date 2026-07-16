@@ -736,7 +736,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.ComputerName = computerName
 	host.Host.Hostname = computerName
 	host.Host.Platform = "android"
-	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
+	host.Host.OSVersion = androidHostOSVersion(device.SoftwareInfo)
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
@@ -823,6 +823,33 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	return nil
 }
 
+// androidOSVersion folds the Android version with the security patch level when
+// present, e.g. "16 (2026-05-01)", falling back to the bare version ("16") when
+// the device does not report a patch level (older devices may not). The major
+// version + security patch level pair is the vulnerability-relevant granularity
+// for Android (AMAPI exposes no "minor" version).
+func androidOSVersion(sw *androidmanagement.SoftwareInfo) string {
+	if sw == nil {
+		return ""
+	}
+	if sw.AndroidVersion == "" || sw.SecurityPatchLevel == "" {
+		return sw.AndroidVersion
+	}
+	return fmt.Sprintf("%s (%s)", sw.AndroidVersion, sw.SecurityPatchLevel)
+}
+
+// androidHostOSVersion returns the value stored in hosts.os_version, e.g.
+// "Android 16 (2026-05-01)". All SoftwareInfo fields are optional per the
+// Android Management API, so a device may report no version at all; in that
+// case we store "Android" without a dangling space or patch level.
+func androidHostOSVersion(sw *androidmanagement.SoftwareInfo) string {
+	version := androidOSVersion(sw)
+	if version == "" {
+		return "Android"
+	}
+	return "Android " + version
+}
+
 // updateHostOperatingSystem upserts the host's OS into the operating_systems
 // and host_operating_system tables. Without this, Android hosts cannot be
 // filtered via the os_name/os_version host list parameters and do not appear
@@ -833,7 +860,7 @@ func (svc *Service) updateHostOperatingSystem(ctx context.Context, hostID uint, 
 	}
 	if err := svc.fleetDS.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
 		Name:     "Android",
-		Version:  device.SoftwareInfo.AndroidVersion,
+		Version:  androidOSVersion(device.SoftwareInfo),
 		Platform: "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host operating system")
@@ -864,6 +891,14 @@ func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Devic
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
+	// Validate before dereferencing device.SoftwareInfo/MemoryInfo/HardwareInfo
+	// below. enrollHost already validates before dispatching here, but this keeps
+	// addNewHost self-contained so it cannot panic if called from another path,
+	// matching updateHost.
+	if err := svc.validateDevice(ctx, device); err != nil {
+		return err
+	}
+
 	var enrollmentTokenRequest enrollmentTokenRequest
 	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
@@ -903,7 +938,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			ComputerName:              computerName,
 			Hostname:                  computerName,
 			Platform:                  "android",
-			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
+			OSVersion:                 androidHostOSVersion(device.SoftwareInfo),
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
 			Memory:                    device.MemoryInfo.TotalRam,
 			GigsTotalDiskSpace:        gigsTotalDiskSpace,

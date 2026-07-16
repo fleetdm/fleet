@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.13.4",
+      "version": "1.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'studio.techflow.badgeify';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'studio.techflow.badgeify' AND version_compare(bundle_short_version, '1.13.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'studio.techflow.badgeify' AND version_compare(bundle_short_version, '1.14.0') < 0);"
       },
-      "installer_url": "https://api.badgeify.app/release/download/darwin/universal/1.13.4",
+      "installer_url": "https://api.badgeify.app/release/download/darwin/universal/1.14.0",
       "install_script_ref": "c91686bf",
       "uninstall_script_ref": "9d0f29ae",
-      "sha256": "ca0f357c260ce5a1c002deb992e2ec04920742c6d6d15680a1e481155234665f",
+      "sha256": "54edec479637c89bb1bde509e93d78cb41252d389535847c723305bd6aa2fa11",
       "default_categories": [
         "Utilities"
       ]

@@ -1627,13 +1627,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			SoftwareInstallerID *uint `db:"si_id"`
 			VPPAppsTeamsID      *uint `db:"vat_id"`
 		}
+		// A title can hold several active packages; pin the policy to the first-added one
+		// (smallest installer_id) so GitOps re-links deterministically to the first-added-wins
+		// package. si_id IS NULL orders the VPP branch last (a title is single-regime, so only
+		// one branch returns rows).
 		err := sqlx.GetContext(ctx, queryerContext, &ids,
 			`SELECT id si_id, NULL vat_id FROM software_installers
 				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
 				UNION
 				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
 				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-				WHERE global_or_team_id = ? AND title_id = ?`,
+				WHERE global_or_team_id = ? AND title_id = ?
+				ORDER BY si_id IS NULL, si_id ASC
+				LIMIT 1`,
 			teamNameToID[spec.Team], spec.SoftwareTitleID, teamNameToID[spec.Team], spec.SoftwareTitleID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -2926,6 +2932,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		p.id AS id,
 		p.name AS name,
 		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.software_installer_id AS software_installer_id,
 		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id

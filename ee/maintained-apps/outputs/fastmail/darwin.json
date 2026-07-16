@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.5.0",
+      "version": "1.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fastmail.mac.Fastmail';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fastmail.mac.Fastmail' AND version_compare(bundle_short_version, '1.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fastmail.mac.Fastmail' AND version_compare(bundle_short_version, '1.5.1') < 0);"
       },
-      "installer_url": "https://dl.fastmailcdn.com/desktop/production/mac/arm64/Fastmail-1.5.0-arm64-mac.zip",
+      "installer_url": "https://dl.fastmailcdn.com/desktop/production/mac/arm64/Fastmail-1.5.1-arm64-mac.zip",
       "install_script_ref": "4a23adc1",
       "uninstall_script_ref": "a0e5b1b8",
-      "sha256": "3fc5c2f01a49837014778dbe907ffe63da3677b5a47c377b0bd1cd9d138d5670",
+      "sha256": "6115519ae888e2ffc8040d523c56703932a9bb6d092554aff9a25e736c40fb7d",
       "default_categories": [
         "Communication"
       ]

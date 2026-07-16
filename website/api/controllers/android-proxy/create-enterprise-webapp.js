@@ -35,6 +35,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
     managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
   },
@@ -64,13 +65,6 @@ module.exports = {
     // Return an unauthorized response if the provided secret does not match.
     if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
       throw 'unauthorized';
-    }
-
-    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
-    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
-    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
-    if(!isEnterpriseManagedByFleet) {
-      throw 'notFound';
     }
 
     // Create the webApp.
@@ -106,6 +100,9 @@ module.exports = {
       return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }).intercept({ status: 400 }, (err) => {
       return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
     }).intercept((err)=>{
       if([502, 503, 504].includes(err.status)){
         return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};

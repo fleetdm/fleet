@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "149.0.7827.18",
+      "version": "151.0.7922.13",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.chromeremotedesktop.me2me-host-uninstaller';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.chromeremotedesktop.me2me-host-uninstaller' AND version_compare(bundle_short_version, '149.0.7827.18') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.chromeremotedesktop.me2me-host-uninstaller' AND version_compare(bundle_short_version, '151.0.7922.13') < 0);"
       },
       "installer_url": "https://dl.google.com/chrome-remote-desktop/chromeremotedesktop.dmg",
       "install_script_ref": "76c02a92",

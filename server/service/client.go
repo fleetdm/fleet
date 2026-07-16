@@ -2469,6 +2469,14 @@ func (c *Client) DoGitOps(
 			}
 		}
 
+		// Custom host vitals are global-only and fully declarative: an absent
+		// `custom_host_vitals:` key clears all existing definitions. Runs last in
+		// this branch, after all local-only validation above, since it fetches
+		// current server state over the network to compute the diff.
+		if err := c.doGitOpsCustomHostVitals(incoming, logFn, dryRun); err != nil {
+			return nil, err
+		}
+
 	} else if !incoming.IsNoTeam() {
 		team = make(map[string]interface{})
 		team["name"] = *incoming.TeamName
@@ -3220,6 +3228,72 @@ func (c *Client) doGitOpsLabels(
 	}
 	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
 	return c.ApplyLabels(config.Labels, config.TeamID, namesToMove)
+}
+
+// doGitOpsCustomHostVitals reconciles custom host vital definitions against
+// config.CustomHostVitals (an absent key clears all, per parseCustomHostVitals).
+// Global-only, so this is a no-op on a team file (config.CustomHostVitals is
+// always empty there).
+func (c *Client) doGitOpsCustomHostVitals(config *spec.GitOps, logFn func(format string, args ...any), dryRun bool) error {
+	if config.TeamName != nil {
+		return nil
+	}
+
+	desired := config.CustomHostVitals
+	if !config.CustomHostVitalsPresent {
+		desired = []fleet.CustomHostVital{}
+	}
+
+	existing, err := c.listAllCustomHostVitals()
+	if err != nil {
+		return err
+	}
+
+	existingNames := make(map[string]struct{}, len(existing))
+	for _, v := range existing {
+		existingNames[v.Name] = struct{}{}
+	}
+	desiredNames := make(map[string]struct{}, len(desired))
+	for _, v := range desired {
+		desiredNames[v.Name] = struct{}{}
+	}
+
+	var toDelete []string
+	for _, v := range existing {
+		if _, ok := desiredNames[v.Name]; !ok {
+			toDelete = append(toDelete, v.Name)
+		}
+	}
+	var toAdd []string
+	for _, v := range desired {
+		if _, ok := existingNames[v.Name]; !ok {
+			toAdd = append(toAdd, v.Name)
+		}
+	}
+
+	if dryRun {
+		if len(toDelete) > 0 {
+			logFn("[-] would've deleted %s\n", numberWithPluralization(len(toDelete), "custom host vital", "custom host vitals"))
+		}
+		for _, name := range toDelete {
+			logFn("[-] would've deleted custom host vital '%s'\n", name)
+		}
+		if len(toAdd) > 0 {
+			logFn("[+] would've created %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
+		}
+		return c.SaveCustomHostVitals(desired, true)
+	}
+
+	if len(toDelete) > 0 {
+		logFn("[-] deleting %s\n", numberWithPluralization(len(toDelete), "custom host vital", "custom host vitals"))
+	}
+	for _, name := range toDelete {
+		logFn("[-] deleting custom host vital '%s'\n", name)
+	}
+	if len(toAdd) > 0 {
+		logFn("[+] creating %s\n", numberWithPluralization(len(toAdd), "custom host vital", "custom host vitals"))
+	}
+	return c.SaveCustomHostVitals(desired, false)
 }
 
 // resolvePolicySoftwareTitleID attempts to resolve the software title ID for a

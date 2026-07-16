@@ -57,6 +57,16 @@ func (svc *Service) AddFleetMaintainedApp(
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {

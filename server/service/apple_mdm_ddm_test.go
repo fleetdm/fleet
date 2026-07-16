@@ -17,6 +17,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Custom host vital values are arbitrary admin/external strings, so one may
+// contain a literal $FLEET_VAR_<name>. variables.Replace is a blind global
+// string replace, so vitals must be expanded after the Fleet-var pass — else a
+// $FLEET_VAR_ token embedded in a vital value would be rewritten by that pass.
+func TestReplaceDeclarationFleetVariablesExpandsVitalsLast(t *testing.T) {
+	ctx := t.Context()
+	ds := mysqltest.CreateMySQLDS(t)
+	svc := MDMAppleDDMService{
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		UUID:            "vital-order-uuid",
+		Hostname:        "vital-order-host",
+		HardwareSerial:  "SERIAL123",
+		OsqueryHostID:   new("vital-order"),
+		NodeKey:         new("vital-order"),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	vital, err := ds.CreateCustomHostVital(ctx, "asset_tag")
+	require.NoError(t, err)
+	// The vital's value deliberately embeds a literal $FLEET_VAR_ token.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vital.ID, "tag-$FLEET_VAR_HOST_HARDWARE_SERIAL"))
+
+	contents := fmt.Sprintf(`{"vital":"$FLEET_HOST_VITAL_%d","serial":"$FLEET_VAR_HOST_HARDWARE_SERIAL"}`, vital.ID)
+	out, err := svc.replaceDeclarationFleetVariables(ctx, contents, host.UUID)
+	require.NoError(t, err)
+
+	// The genuine $FLEET_VAR_HOST_HARDWARE_SERIAL reference expands to the serial,
+	// but the identical token inside the vital's value survives intact because
+	// vitals are expanded last (variables.Replace never sees it).
+	require.JSONEq(t, `{"vital":"tag-$FLEET_VAR_HOST_HARDWARE_SERIAL","serial":"SERIAL123"}`, out)
+}
+
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	ctx := t.Context()
 	ds := mysqltest.CreateMySQLDS(t)

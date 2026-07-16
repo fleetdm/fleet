@@ -160,6 +160,8 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 		{"sh", "linux", false},
 		{".ps1", "windows", false},
 		{"ps1", "windows", false},
+		{".py", "linux", false},
+		{"py", "linux", false},
 
 		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
 		{".msix", "", true},
@@ -212,6 +214,8 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{"sh", "setup.sh", "sh_packages", false},
 		{".ps1", "script.ps1", "ps1_packages", false},
 		{"ps1", "setup.ps1", "ps1_packages", false},
+		{".py", "script.py", "py_packages", false},
+		{"py", "setup.py", "py_packages", false},
 
 		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
 		{".msix", "app.msix", "", true},
@@ -244,6 +248,8 @@ func TestIsScriptPackage(t *testing.T) {
 		{"sh", true},
 		{".ps1", true},
 		{"ps1", true},
+		{".py", true},
+		{"py", true},
 
 		// Non-script extensions - should return false
 		{".pkg", false},
@@ -263,6 +269,7 @@ func TestIsScriptPackage(t *testing.T) {
 		{"", false},
 		{".SH", false},   // Case sensitive
 		{".PS1", false},  // Case sensitive
+		{".PY", false},   // Case sensitive
 		{".bash", false}, // Not recognized
 	}
 

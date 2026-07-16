@@ -1,1 +1,0 @@
-* Fixed a bug where installing App Store (VPP) or in-house apps on an iOS/iPadOS host enrolled with the manual (profile-driven) BYOD enrollment profile failed while trying to look up a VPP user. These device-channel hosts now install apps to the device, the same as company-owned manual enrollment; user-scoped licensing is reserved for Account-Driven User Enrollment.

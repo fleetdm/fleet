@@ -243,6 +243,11 @@ button {
   }
 }
 
+input,
+textarea {
+  font-variant-ligatures: no-contextual;
+}
+
 input {
   &[type="number"] {
     &::-webkit-inner-spin-button,

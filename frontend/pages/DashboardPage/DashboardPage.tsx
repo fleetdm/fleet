@@ -242,8 +242,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
+        setMissingCount(data.missing_30_days_count || 0);
+        // low_disk_space_count and dep_assign_error_count are Premium-only.
+        // The backend nulls out low_disk_space_count for non-Premium callers,
+        // and the linked filters (`?low_disk_space=`, ABM issue filters) are
+        // also Premium-gated, so their cards stay hidden on Free.
         if (isPremiumTier) {
-          setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
@@ -806,7 +810,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
-  const linuxLayout = () => null;
+  const linuxLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
 
   const chromeLayout = () => (
     <>
@@ -830,6 +838,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const androidLayout = () => (
     <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
@@ -968,7 +977,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__host-sections`}>
           {isHostSummaryFetching ? (
             <Card paddingSize="medium">
-              <Spinner includeContainer={false} verticalPadding="small" />
+              <Spinner verticalPadding="small" />
             </Card>
           ) : (
             HostCountCards

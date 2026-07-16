@@ -15,4 +15,11 @@
     flex-direction: column;
     gap: $pad-medium;
   }
+
+  &__library-description-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
 }

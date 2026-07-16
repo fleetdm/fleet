@@ -82,9 +82,7 @@ const WelcomeHost = ({
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
-              notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
-              );
+              notify.error(`Vitals are taking longer than expected to load.`);
               setShowRefetchLoadingSpinner(false);
             }
           }

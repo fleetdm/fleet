@@ -350,6 +350,7 @@ const routes = (
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Variables} />
+                <Route path="variables/:section" component={Variables} />
               </Route>
             </Route>
             <Route

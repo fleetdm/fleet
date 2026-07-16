@@ -24,6 +24,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   "tar.gz": "Linux",
   sh: "macOS & Linux",
   ps1: "Windows",
+  py: "macOS & Linux",
   ipa: "iOS/iPadOS",
 };
 

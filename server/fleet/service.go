@@ -1403,12 +1403,12 @@ type Service interface {
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
-	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
-	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
+	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
+	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
 	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
 	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
-		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
+		teamID *uint, installerID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
 	/////////////////////////////////////////////////////////////////////////////////
@@ -1504,6 +1504,15 @@ type Service interface {
 	// DeleteSecretVariable deletes a secret variable by ID.
 	// Returns a NotFoundError error if there's no secret variable with such ID.
 	DeleteSecretVariable(ctx context.Context, id uint) error
+
+	ListCustomHostVitals(ctx context.Context, opts ListOptions) (customHostVitals []CustomHostVital, meta *PaginationMetadata, count int, err error)
+	CreateCustomHostVital(ctx context.Context, name string) (*CustomHostVital, error)
+	UpdateCustomHostVital(ctx context.Context, id uint, name string) (*CustomHostVital, error)
+	DeleteCustomHostVital(ctx context.Context, id uint) error
+	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	// UpsertCustomHostVitals declaratively reconciles custom host vital definitions (GitOps):
+	// names present are upserted, names absent from customHostVitals are deleted.
+	UpsertCustomHostVitals(ctx context.Context, customHostVitals []CustomHostVital, dryRun bool) error
 
 	// ListAPIEndpoints returns all API endpoints
 	ListAPIEndpoints(ctx context.Context) (endpoints []APIEndpoint, err error)

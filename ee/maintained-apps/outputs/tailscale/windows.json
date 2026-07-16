@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.98.8",
+      "version": "1.98.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.98.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.98.9') < 0);"
       },
-      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.98.8-amd64.msi",
+      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.98.9-amd64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "b665a7bd",
-      "sha256": "37416900f4990abb0e85b9cc26c7c7f96f8f181294cbee1eeb568ec3f355e87d",
+      "sha256": "07bcb57d3bd34a0299d98133f1a0091db2ce66831aa7c100f456e2269a41e665",
       "default_categories": [
         "Productivity"
       ],

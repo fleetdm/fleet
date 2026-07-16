@@ -1,1 +1,0 @@
-- Fixed fleet-mcp `run_live_query` returning a 403 error for users with the observer+ role. Multi-host live queries now run as an ad-hoc live query campaign (raw SQL, streamed over the results websocket) instead of creating a temporary saved query, so they require only the live-query permission that observer+ already has.

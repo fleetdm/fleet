@@ -142,7 +142,6 @@ const LiveResultsHeading = ({
             <Spinner
               size="x-small"
               centered={false}
-              includeContainer={false}
               className={`${baseClass}__responding-spinner`}
             />
           )}

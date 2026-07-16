@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.0.9",
+      "version": "1.0.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmeet.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmeet.desktop' AND version_compare(bundle_short_version, '1.0.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonmeet.desktop' AND version_compare(bundle_short_version, '1.0.10') < 0);"
       },
-      "installer_url": "https://proton.me/download/meet/macos/1.0.9/ProtonMeet-desktop.dmg",
+      "installer_url": "https://proton.me/download/meet/macos/1.0.10/ProtonMeet-desktop.dmg",
       "install_script_ref": "335a5366",
       "uninstall_script_ref": "55f817b5",
-      "sha256": "b3fe9148e9e5f56afe233dfee76c5bad4653b3e0be49843412208c40aac2ce13",
+      "sha256": "377e8f644dbfb6b8a4dc69a38d2618a496bd14ad47d28b9eb01009ec1b729ce1",
       "default_categories": [
         "Productivity"
       ]

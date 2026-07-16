@@ -27,7 +27,8 @@
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
-  quoteAuthorJobTitle: Former Engineering Leader, Uber
+  quoteImageFilename: social-proof-logo-uber-71x24@2x.png
+  quoteAuthorJobTitle: Engineering Leader, Uber
   productCategories: [Device management, Observability, Software management]
 - quote: Yes Sir. Great tools for the everyday open-source geeks 💯
   quoteAuthorName: Alvaro Gutierrez
@@ -60,7 +61,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
   quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
-  quoteAuthorJobTitle: Former Security Chief of Staff
+  quoteAuthorJobTitle: Security Chief of Staff
   productCategories: [Observability, Software management, Device management]
 - quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
   quoteAuthorName: Austin Anderson
@@ -72,8 +73,9 @@
 - quote: Exciting. This is a team that listens to feedback.
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
+  quoteImageFilename: social-proof-logo-uber-71x24@2x.png
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
-  quoteAuthorJobTitle: Former Staff Client Platform Engineer
+  quoteAuthorJobTitle: Staff Client Platform Engineer
   productCategories: [Observability, Device management, Software management]
 - quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
   quoteAuthorName: Nick Fohs
@@ -87,14 +89,14 @@
   quoteLinkUrl: https://www.linkedin.com/in/nwaisman/
   quoteAuthorName: Nico Waisman
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: Former CISO of Lyft
+  quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Observability, Software management]
 - quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
   quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: Former CISO of Lyft
+  quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
 - quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
   quoteAuthorName: Charles Zaffery

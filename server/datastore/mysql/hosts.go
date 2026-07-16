@@ -609,6 +609,7 @@ var hostRefs = []string{
 	"host_vpp_software_installs",
 	"host_last_known_locations",
 	"host_issues",
+	"host_custom_host_vitals",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not

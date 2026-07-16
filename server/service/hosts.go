@@ -1980,6 +1980,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
+	customHostVitals, err := svc.ds.GetHostCustomHostVitals(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
+	}
+
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
@@ -1987,6 +1992,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		EndUsers:                      endUsers,
+		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,

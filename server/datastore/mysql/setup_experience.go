@@ -210,7 +210,8 @@ SELECT
 		FROM policies p
 		WHERE p.software_installer_id = si.id
 		AND ? IN ('windows', 'linux')) AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -267,7 +268,8 @@ SELECT
 	si.id AS software_installer_id,
 	NULL AS vpp_app_team_id,
 	FALSE AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
@@ -302,7 +304,8 @@ SELECT
 	NULL AS software_installer_id,
 	vat.id AS vpp_app_team_id,
 	FALSE AS policy_gated,
-	COALESCE(stdn.display_name, st.name) AS sort_name
+	COALESCE(stdn.display_name, st.name) AS sort_name,
+	st.id AS software_title_id
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
@@ -329,6 +332,9 @@ AND %s`
 
 	var stmtSoftwareCombined string
 	if len(softwareUnionParts) > 0 {
+		// A title can now hold several packages, and more than one can be flagged for setup. Queue only
+		// the first-added (smallest installer_id) package per title so setup doesn't double-queue; labels
+		// don't apply during setup. VPP apps are single-package per title, so they pass through untouched.
 		stmtSoftwareCombined = fmt.Sprintf(`
 INSERT INTO setup_experience_status_results (
 	host_uuid,
@@ -339,8 +345,14 @@ INSERT INTO setup_experience_status_results (
 	policy_gated
 )
 SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id, policy_gated FROM (
-	%s
-) AS combined
+	SELECT combined.*, ROW_NUMBER() OVER (
+		PARTITION BY software_title_id
+		ORDER BY (software_installer_id IS NULL), software_installer_id ASC
+	) AS first_added_rank FROM (
+		%s
+	) AS combined
+) AS deduped
+WHERE software_installer_id IS NULL OR first_added_rank = 1
 ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
