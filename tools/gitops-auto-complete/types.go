@@ -9,21 +9,19 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// GitOpsSpec is our own top-level struct with the real GitOps YAML keys (the
-// fields on spec.GitOps have no json tags, so reflecting it directly gives
-// PascalCase keys). We reuse Fleet's existing typed structs for each section.
+// GitOpsSpec is our own top-level struct spelling out the real GitOps YAML keys.
+// spec.GitOps has no json tags, so reflecting it directly would give PascalCase
+// keys, so this reuses Fleet's existing typed structs for each section instead.
 type GitOpsSpec struct {
 	Name         string                    `json:"name,omitempty"`
 	OrgSettings  *spec.GitOpsOrgSettings   `json:"org_settings,omitempty"`
 	TeamSettings *spec.GitOpsFleetSettings `json:"settings,omitempty"`
 	AgentOptions *fleet.AgentOptions       `json:"agent_options,omitempty"`
-	// Controls is a custom struct defined here to include all the possible keys
-	// that can be used
-	Controls Controls                 `json:"controls,omitempty"`
-	Policies []*spec.GitOpsPolicySpec `json:"policies,omitempty"`
-	Reports  []*spec.Query            `json:"reports,omitempty"`
-	Software spec.GitOpsSoftware      `json:"software,omitempty"`
-	Labels   []*fleet.LabelSpec       `json:"labels,omitempty"`
+	Controls     Controls                  `json:"controls"`
+	Policies     []*spec.GitOpsPolicySpec  `json:"policies,omitempty"`
+	Reports      []*spec.Query             `json:"reports,omitempty"`
+	Software     spec.GitOpsSoftware       `json:"software"`
+	Labels       []*fleet.LabelSpec        `json:"labels,omitempty"`
 }
 
 // Controls covers the `controls:` section with real types. spec.GitOpsControls
@@ -49,7 +47,7 @@ type Controls struct {
 	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
 	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
 
-	// Remaining keys left loose for now (accept anything).
+	// Remaining keys left loose for now, accepting any value.
 	MacOSMigration                  any `json:"macos_migration"`
 	WindowsMigrationEnabled         any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually  any `json:"enable_turn_on_windows_mdm_manually"`
@@ -75,45 +73,52 @@ func goTypeToJSON(name string) string {
 
 // typeMapper overrides schemas for Fleet/optjson wrapper types that don't
 // reflect to the JSON they actually marshal to.
-func typeMapper(t reflect.Type) *jsonschema.Schema {
-	pkg := t.PkgPath()
+func typeMapper(goType reflect.Type) *jsonschema.Schema {
+	packagePath := goType.PkgPath()
+
 	// json.RawMessage reflects to a bare `true` schema, which yamlls won't offer
 	// in completion. In GitOps these blobs (agent_options.config, command_line_flags,
 	// extensions, update_channels) are objects, so type them as such.
-	if pkg == "encoding/json" && t.Name() == "RawMessage" {
+	if packagePath == "encoding/json" && goType.Name() == "RawMessage" {
 		return &jsonschema.Schema{Type: "object"}
 	}
+
 	// fleet.Duration embeds time.Duration (also named "Duration"), so invopop
 	// emits a self-referential $def that overflows yamlls' resolver. It marshals
 	// to a string like "24h".
-	if strings.HasSuffix(pkg, "server/fleet") && t.Name() == "Duration" {
+	if strings.HasSuffix(packagePath, "server/fleet") && goType.Name() == "Duration" {
 		return &jsonschema.Schema{Type: "string"}
 	}
+
 	// optjson.Bool/String/Int/Slice[T]/Any[T] marshal to their Value, not the
 	// internal {Set, Valid, Value} struct.
-	if strings.Contains(pkg, "pkg/optjson") {
-		if vf, ok := t.FieldByName("Value"); ok {
-			return schemaForType(vf.Type)
+	if strings.Contains(packagePath, "pkg/optjson") {
+		valueField, ok := goType.FieldByName("Value")
+		if ok {
+			return schemaForType(valueField.Type)
 		}
+
 		// BoolOr[T]/StringOr[T] marshal to a scalar OR T (e.g. install_software is
 		// `true` or an object). Their generic def names contain the qualified type
 		// param (slashes) which yamlls can't resolve as a $ref, and a bare {} isn't
 		// offered in completion, so express both arms as an anyOf.
 		scalar := "boolean"
-		if _, ok := t.FieldByName("String"); ok {
+		_, hasString := goType.FieldByName("String")
+		if hasString {
 			scalar = "string"
 		}
 		return &jsonschema.Schema{AnyOf: []*jsonschema.Schema{{Type: scalar}, {Type: "object"}}}
 	}
+
 	return nil
 }
 
 // schemaForType maps a reflect.Type to a JSON Schema type (used for optjson Value fields).
-func schemaForType(t reflect.Type) *jsonschema.Schema {
-	for t.Kind() == reflect.Pointer {
-		t = t.Elem()
+func schemaForType(goType reflect.Type) *jsonschema.Schema {
+	for goType.Kind() == reflect.Pointer {
+		goType = goType.Elem()
 	}
-	switch t.Kind() {
+	switch goType.Kind() {
 	case reflect.Bool:
 		return &jsonschema.Schema{Type: "boolean"}
 	case reflect.String:
@@ -124,7 +129,7 @@ func schemaForType(t reflect.Type) *jsonschema.Schema {
 	case reflect.Float32, reflect.Float64:
 		return &jsonschema.Schema{Type: "number"}
 	case reflect.Slice, reflect.Array:
-		return &jsonschema.Schema{Type: "array", Items: schemaForType(t.Elem())}
+		return &jsonschema.Schema{Type: "array", Items: schemaForType(goType.Elem())}
 	default:
 		return &jsonschema.Schema{Type: "object"}
 	}

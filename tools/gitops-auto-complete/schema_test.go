@@ -12,7 +12,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
-const schemaFile = "generated.schema.json"
+const schemaFile = "generated-schema.json"
 
 // compileSchema loads the committed schema and compiles it. The test validates
 // against the committed artifact; TestSchemaUpToDate separately guarantees that

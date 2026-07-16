@@ -12,7 +12,7 @@ Run from this directory (it reads Fleet's source via relative paths):
 
 ```bash
 cd tools/gitops-auto-complete
-go run . generated.schema.json   # write the schema (omit the arg to print to stdout)
+go run . generated-schema.json   # write the schema (omit the arg to print to stdout)
 ```
 
 Re-run it whenever the relevant Fleet structs change.
@@ -26,7 +26,7 @@ at the generated file. Two ways:
 - Or add a modeline to the top of a single file:
 
   ```yaml
-  # yaml-language-server: $schema=/absolute/path/to/generated.schema.json
+  # yaml-language-server: $schema=/absolute/path/to/generated-schema.json
   ```
 
 ### Example: Neovim + lazy.nvim
@@ -44,7 +44,7 @@ at the generated file. Two ways:
         yaml = {
           schemas = {
             -- schema file -> which YAML files it applies to
-            ["/absolute/path/to/generated.schema.json"] = {
+            ["/absolute/path/to/generated-schema.json"] = {
               "**/default.yml",
               "**/teams/*.yml",
               "**/fleets/*.yml",

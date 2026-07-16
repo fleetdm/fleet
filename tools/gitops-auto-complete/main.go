@@ -8,8 +8,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"maps"
 	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -18,351 +21,22 @@ import (
 )
 
 // generatedOsqueryOptions is the Fleet-generated file listing every valid osquery
-// option (config.options.*). It's an unexported struct, so we parse its AST rather
-// than reflect it.
-const generatedOsqueryOptions = "../../server/fleet/agent_options_generated.go"
-
-// osqueryOptionsSchema parses the generated osqueryOptions struct into a strict
-// object schema, so config.options.* gets completion, types, and unknown-key
-// validation matching what Fleet enforces.
-func osqueryOptionsSchema(path string) (map[string]any, error) {
-	f, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
-	if err != nil {
-		return nil, err
-	}
-	props := map[string]any{}
-	ast.Inspect(f, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if !ok || ts.Name.Name != "osqueryOptions" {
-			return true
-		}
-		st, ok := ts.Type.(*ast.StructType)
-		if !ok {
-			return false
-		}
-		for _, fld := range st.Fields.List {
-			ident, ok := fld.Type.(*ast.Ident)
-			if !ok || fld.Tag == nil {
-				continue
-			}
-			name := strings.Split(reflect.StructTag(strings.Trim(fld.Tag.Value, "`")).Get("json"), ",")[0]
-			if jt := goTypeToJSON(ident.Name); name != "" && name != "-" && jt != "" {
-				props[name] = map[string]any{"type": jt}
-			}
-		}
-		return false
-	})
-	if len(props) == 0 {
-		return nil, fmt.Errorf("osqueryOptions struct not found in %s", path)
-	}
-	return map[string]any{"type": "object", "additionalProperties": false, "properties": props}, nil
-}
-
-// reflectProps reflects a struct and returns its top-level property schemas.
-func reflectProps(v any) map[string]any {
-	r := &jsonschema.Reflector{RequiredFromJSONSchemaTags: true, Mapper: typeMapper, KeyNamer: toSnake, ExpandedStruct: true}
-	raw, err := json.Marshal(r.Reflect(v))
-	if err != nil {
-		return nil
-	}
-	var m map[string]any
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return nil
-	}
-	props, _ := m["properties"].(map[string]any)
-	return props
-}
-
-// toSnake converts a Go field name to snake_case. invopop applies KeyNamer to
-// the json-tag name when a tag is present, so already-snake tags pass through
-// unchanged; untagged Fleet fields (e.g. GitOpsSoftware.Packages) get fixed.
-func toSnake(s string) string {
-	rs := []rune(s)
-	out := make([]rune, 0, len(rs)+4)
-	for i, r := range rs {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				prev := rs[i-1]
-				nextLower := i+1 < len(rs) && unicode.IsLower(rs[i+1])
-				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextLower) {
-					out = append(out, '_')
-				}
-			}
-			out = append(out, unicode.ToLower(r))
-		} else {
-			out = append(out, r)
-		}
-	}
-	return string(out)
-}
-
-// pathRefDefs are the $defs where GitOps supports a file reference (`path:` /
-// `paths:`) in place of inline content: the top-level section values and the
-// list-item types. We inject path/paths only there instead of on every object,
-// so completion isn't cluttered with path everywhere.
-var pathRefDefs = []string{
-	"GitOpsOrgSettings", "GitOpsFleetSettings", "AgentOptions", "Controls", "GitOpsSoftware",
-	"GitOpsPolicySpec", "Query", "LabelSpec",
-	"SoftwarePackageSpec", "TeamSpecAppStoreApp", "MaintainedAppSpec",
-}
-
-// addPathRefs adds path/paths to the specific defs in pathRefDefs. The Go structs
-// don't model the file-reference pattern, so without this real GitOps files using
-// e.g. `- path: ./lib/foo.yml` light up with "Property path is not allowed".
-func addPathRefs(doc map[string]any) {
-	defs, ok := doc["$defs"].(map[string]any)
-	if !ok {
-		return
-	}
-	for _, name := range pathRefDefs {
-		def, ok := defs[name].(map[string]any)
-		if !ok {
-			continue
-		}
-		props, ok := def["properties"].(map[string]any)
-		if !ok {
-			continue
-		}
-		if _, exists := props["path"]; !exists {
-			props["path"] = map[string]any{"type": "string"}
-		}
-		if _, exists := props["paths"]; !exists {
-			props["paths"] = map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
-		}
-	}
-}
-
-// requiredSources says each software item must specify at least one source key.
-// Fleet enforces this in validation code, not via struct tags, so it's authored
-// explicitly here. `path` is always accepted (the item is defined in another file).
-var requiredSources = []struct {
-	def     string
-	keys    []string
-	message string
-}{
-	{"SoftwarePackageSpec", []string{"url", "hash_sha256", "path"}, "A package must set one of: url, hash_sha256, or path."},
-	{"TeamSpecAppStoreApp", []string{"app_store_id", "path"}, "An app_store_apps entry must set app_store_id (or path)."},
-	{"MaintainedAppSpec", []string{"slug", "path"}, "A fleet_maintained_apps entry must set slug (or path)."},
-}
-
-// strictStringKeys are the source/identifier keys kept as strict `string` (no null,
-// not untyped) so a wrong-typed value like `url: 12345` is caught. They pair with
-// requiredSources and are always present-and-a-string when used. Applied after
-// relaxNulls, which would otherwise drop their type.
-var strictStringKeys = map[string][]string{
-	"SoftwarePackageSpec": {"url", "hash_sha256"},
-	"TeamSpecAppStoreApp": {"app_store_id"},
-	"MaintainedAppSpec":   {"slug"},
-}
-
-func typeSourceKeys(doc map[string]any) {
-	defs, ok := doc["$defs"].(map[string]any)
-	if !ok {
-		return
-	}
-	for def, keys := range strictStringKeys {
-		d, ok := defs[def].(map[string]any)
-		if !ok {
-			continue
-		}
-		props, ok := d["properties"].(map[string]any)
-		if !ok {
-			continue
-		}
-		for _, k := range keys {
-			if p, ok := props[k].(map[string]any); ok {
-				p["type"] = "string"
-			}
-		}
-	}
-}
-
-// addRequiredSources injects an anyOf of required branches (each with the same
-// errorMessage) so the item is valid when any one source key is present.
-func addRequiredSources(doc map[string]any) {
-	defs, ok := doc["$defs"].(map[string]any)
-	if !ok {
-		return
-	}
-	for _, rs := range requiredSources {
-		def, ok := defs[rs.def].(map[string]any)
-		if !ok {
-			continue
-		}
-		branches := make([]any, 0, len(rs.keys))
-		for _, k := range rs.keys {
-			branches = append(branches, map[string]any{
-				"required":     []any{k},
-				"errorMessage": rs.message,
-			})
-		}
-		def["anyOf"] = branches
-	}
-}
-
-// typeLabel returns a short type name for a property schema, for hover text.
-func typeLabel(s map[string]any) string {
-	if ref, ok := s["$ref"].(string); ok {
-		return strings.TrimPrefix(ref, "#/$defs/")
-	}
-	if t, ok := s["type"].(string); ok {
-		if t == "array" {
-			if items, ok := s["items"].(map[string]any); ok {
-				if il := typeLabel(items); il != "" {
-					return "array<" + il + ">"
-				}
-			}
-			return "array"
-		}
-		return t
-	}
-	if _, ok := s["anyOf"]; ok {
-		return "boolean or object"
-	}
-	return ""
-}
-
-// addTypeDescriptions appends each property's type to its description so yamlls
-// shows it on hover (hover renders `description`, not the bare type). It keeps any
-// Go doc comment already set by AddGoComments and adds the type below it. Must run
-// before relaxNulls strips scalar `type` fields.
-func addTypeDescriptions(node any) {
-	switch n := node.(type) {
-	case map[string]any:
-		if props, ok := n["properties"].(map[string]any); ok {
-			for _, v := range props {
-				if ps, ok := v.(map[string]any); ok {
-					if lbl := typeLabel(ps); lbl != "" {
-						tline := "type: `" + lbl + "`"
-						if d, ok := ps["description"].(string); ok && d != "" {
-							ps["description"] = d + "\n\n" + tline
-						} else {
-							ps["description"] = tline
-						}
-					}
-				}
-			}
-		}
-		for _, v := range n {
-			addTypeDescriptions(v)
-		}
-	case []any:
-		for _, v := range n {
-			addTypeDescriptions(v)
-		}
-	}
-}
-
-// relaxNulls makes empty placeholder keys valid without yamlls suggesting `null`
-// in value completion. GitOps files routinely leave keys empty (e.g.
-// `minimum_version:` or `scripts:`), which YAML parses as null. yamlls can't
-// validate null without also offering it as a value, so for scalar leaves we drop
-// the `type` entirely (empty stays valid, no null suggestion, but the field is no
-// longer value-type-checked). Objects/arrays keep their type as `[type, null]` so
-// their structure and key/item completion survive while empty sections validate.
-func relaxNulls(node any) {
-	switch n := node.(type) {
-	case map[string]any:
-		if t, ok := n["type"].(string); ok && n["enum"] == nil {
-			switch t {
-			case "string", "integer", "number":
-				// Left untyped. Strings frequently have unquoted YAML values (a
-				// version like 13.0 parses as a float) that would falsely fail a
-				// string check. Several Fleet ints are really string enums (e.g.
-				// label_membership_type is a Go uint marshaled as "dynamic") that
-				// would falsely fail an integer check. Value completion would also
-				// only ever offer null for these.
-				delete(n, "type")
-			case "boolean", "object", "array":
-				// Keep the type (so wrong types are caught) but tolerate an empty
-				// (null) placeholder value. yamlls will offer null in value
-				// completion for these, unavoidable when null is valid.
-				n["type"] = []any{t, "null"}
-			}
-		}
-		for _, v := range n {
-			relaxNulls(v)
-		}
-	case []any:
-		for _, v := range n {
-			relaxNulls(v)
-		}
-	}
-}
-
-// addRenameAliases adds each renamed key as an alias next to its json-tag name so
-// both the old and new spellings validate (Fleet accepts both for backward compat),
-// and marks the legacy json-tag spelling deprecated (Fleet itself warns
-// "'<old>' is deprecated, use '<new>' instead"). The new spelling is not deprecated.
-func addRenameAliases(node any, renames map[string]string) {
-	switch n := node.(type) {
-	case map[string]any:
-		if props, ok := n["properties"].(map[string]any); ok {
-			for jsonName, renameName := range renames {
-				sub, present := props[jsonName]
-				if !present {
-					continue
-				}
-				if _, exists := props[renameName]; !exists {
-					// Shallow-copy map schemas; `any`-typed fields are a bare `true`,
-					// so copy the value as-is.
-					if m, ok := sub.(map[string]any); ok {
-						alias := make(map[string]any, len(m))
-						for k, v := range m {
-							alias[k] = v
-						}
-						props[renameName] = alias
-					} else {
-						props[renameName] = sub
-					}
-				}
-				// Deprecate the legacy spelling. Only possible on object schemas; a
-				// bare `true` (from an `any` field) has nowhere to hang the marker.
-				if m, ok := sub.(map[string]any); ok {
-					m["deprecated"] = true
-					m["deprecationMessage"] = "'" + jsonName + "' is deprecated, use '" + renameName + "' instead"
-				}
-			}
-		}
-		for _, v := range n {
-			addRenameAliases(v, renames)
-		}
-	case []any:
-		for _, v := range n {
-			addRenameAliases(v, renames)
-		}
-	}
-}
-
-// collectRenames walks the type tree recording json-tag -> renameto name. Fleet
-// aliases many config keys with a `renameto` tag (new fleets/reports terminology)
-// and GitOps YAML uses the renamed key, but invopop only reads the json tag.
-func collectRenames(t reflect.Type, seen map[reflect.Type]bool, out map[string]string) {
-	for t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Array || t.Kind() == reflect.Map {
-		t = t.Elem()
-	}
-	if t.Kind() != reflect.Struct || seen[t] {
-		return
-	}
-	seen[t] = true
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
-		if rt := f.Tag.Get("renameto"); rt != "" {
-			jsonName := strings.Split(f.Tag.Get("json"), ",")[0]
-			renameName := strings.Split(rt, ",")[0]
-			if jsonName != "" && renameName != "" {
-				out[jsonName] = renameName
-			}
-		}
-		collectRenames(f.Type, seen, out)
-	}
-}
+// option (config.options.*), relative to the repo root. It's an unexported struct,
+// so we parse its AST rather than reflect it.
+const generatedOsqueryOptions = "server/fleet/agent_options_generated.go"
 
 func main() {
-	renames := map[string]string{}
-	collectRenames(reflect.TypeOf(GitOpsSpec{}), map[reflect.Type]bool{}, renames)
+	// Resolve Fleet source paths from this file's own location so the tool works
+	// from any working directory, not just the module root.
+	repoRoot := ""
+	if _, thisFile, _, ok := runtime.Caller(0); ok {
+		repoRoot = filepath.Join(filepath.Dir(thisFile), "..", "..")
+	}
 
-	r := &jsonschema.Reflector{
+	renames := map[string]string{}
+	collectRenames(reflect.TypeFor[GitOpsSpec](), map[reflect.Type]bool{}, renames)
+
+	reflector := &jsonschema.Reflector{
 		RequiredFromJSONSchemaTags: true,
 		Mapper:                     typeMapper,
 		KeyNamer:                   toSnake,
@@ -370,84 +44,534 @@ func main() {
 		// single top-level $ref, so yamlls offers root-level key completion.
 		ExpandedStruct: true,
 	}
+	addFleetGoComments(reflector, repoRoot)
 
-	// Pull Fleet's Go doc comments into field descriptions (shown on hover).
-	// AddGoComments derives package paths from the walk dir relative to cwd, so
-	// run it from the repo root (two levels up from this tool).
-	if wd, err := os.Getwd(); err == nil {
-		if chErr := os.Chdir("../.."); chErr == nil {
-			const base = "github.com/fleetdm/fleet/v4"
-			_ = r.AddGoComments(base, "server/fleet")
-			_ = r.AddGoComments(base, "pkg/spec")
-			_ = os.Chdir(wd)
-		}
-	}
-
-	schema := r.Reflect(&GitOpsSpec{})
-
-	raw, err := json.Marshal(schema)
+	raw, err := json.Marshal(reflector.Reflect(&GitOpsSpec{}))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "marshal schema:", err)
 		os.Exit(1)
 	}
-	var doc map[string]any
-	if err := json.Unmarshal(raw, &doc); err != nil {
+
+	var schemaKeys map[string]any
+	err = json.Unmarshal(raw, &schemaKeys)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "unmarshal schema:", err)
 		os.Exit(1)
 	}
-	// Type agent_options.config.options with the generated osquery option list.
-	// config keeps other keys (schedule, decorators, ...) open.
-	if opts, err := osqueryOptionsSchema(generatedOsqueryOptions); err != nil {
+
+	// Merges run first so the injected keys get the same treatment as the rest.
+	// config.options is non-fatal: on failure config stays open rather than typed.
+	options, err := osqueryOptionsSchema(filepath.Join(repoRoot, generatedOsqueryOptions))
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "warning: could not type config.options:", err)
-	} else if defs, ok := doc["$defs"].(map[string]any); ok {
-		if ao, ok := defs["AgentOptions"].(map[string]any); ok {
-			if props, ok := ao["properties"].(map[string]any); ok {
-				props["config"] = map[string]any{
-					"type":       "object",
-					"properties": map[string]any{"options": opts},
-				}
-			}
-		}
+	} else {
+		mergeOsqueryOptions(schemaKeys, options)
 	}
+	mergeGitOpsMDM(schemaKeys)
 
-	// AppConfig/TeamConfig embed fleet.MDM, but GitOps allows extra mdm keys defined
-	// on spec.GitOpsMDM (e.g. end_user_license_agreement). Merge those in.
-	if gm := reflectProps(&spec.GitOpsMDM{}); gm != nil {
-		if defs, ok := doc["$defs"].(map[string]any); ok {
-			if mdm, ok := defs["MDM"].(map[string]any); ok {
-				if props, ok := mdm["properties"].(map[string]any); ok {
-					for k, v := range gm {
-						if _, exists := props[k]; !exists {
-							props[k] = v
-						}
-					}
-				}
-			}
-		}
-	}
+	// Order matters. annotate and addDeclarativeNotes read types that relaxNulls
+	// later strips, so they run first. addPathReferences also runs before relaxNulls
+	// so the path keys it adds get relaxed too. typeSourceKeys runs after relaxNulls
+	// to restore the string types it drops. relaxNulls re-collects the tree so it
+	// reaches the aliases and path keys added above.
+	annotate(collectNodes(schemaKeys), renames)
+	addDeclarativeNotes(schemaKeys)
+	addPathReferences(schemaKeys)
+	addRequiredSources(schemaKeys)
+	relaxNulls(collectNodes(schemaKeys))
+	typeSourceKeys(schemaKeys)
 
-	addTypeDescriptions(doc)
-	addDeclarativeNotes(doc)
-	addRenameAliases(doc, renames)
-	addPathRefs(doc)
-	addRequiredSources(doc)
-	relaxNulls(doc)
-	typeSourceKeys(doc)
-
-	out, err := json.MarshalIndent(doc, "", "  ")
+	out, err := json.MarshalIndent(schemaKeys, "", "  ")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "marshal schema:", err)
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 1 {
-		path := os.Args[1]
-		if err := os.WriteFile(path, append(out, '\n'), 0o644); err != nil {
-			fmt.Fprintln(os.Stderr, "write file:", err)
-			os.Exit(1)
-		}
-		fmt.Fprintln(os.Stderr, "wrote", path)
+	if len(os.Args) <= 1 {
+		fmt.Println(string(out))
 		return
 	}
-	fmt.Println(string(out))
+
+	path := os.Args[1]
+	err = os.WriteFile(path, append(out, '\n'), 0o644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "write file:", err)
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stderr, "wrote", path)
+}
+
+// --- building the base schema from Go types ---
+
+// addFleetGoComments pulls Fleet's Go doc comments into field descriptions (shown
+// on hover). AddGoComments derives package paths from the walk dir relative to cwd,
+// so it runs from the repo root and restores cwd afterward.
+func addFleetGoComments(reflector *jsonschema.Reflector, repoRoot string) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	err = os.Chdir(repoRoot)
+	if err != nil {
+		return
+	}
+	defer func() { _ = os.Chdir(workingDir) }()
+
+	const base = "github.com/fleetdm/fleet/v4"
+	_ = reflector.AddGoComments(base, "server/fleet")
+	_ = reflector.AddGoComments(base, "pkg/spec")
+}
+
+// osqueryOptionsSchema parses the generated osqueryOptions struct into a strict
+// object schema, so config.options.* gets completion, types, and unknown-key
+// validation matching what Fleet enforces.
+func osqueryOptionsSchema(path string) (map[string]any, error) {
+	parsedFile, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	properties := map[string]any{}
+	ast.Inspect(parsedFile, func(astNode ast.Node) bool {
+		typeSpec, ok := astNode.(*ast.TypeSpec)
+		if !ok || typeSpec.Name.Name != "osqueryOptions" {
+			return true
+		}
+
+		structType, ok := typeSpec.Type.(*ast.StructType)
+		if !ok {
+			return false
+		}
+
+		for _, field := range structType.Fields.List {
+			fieldType, ok := field.Type.(*ast.Ident)
+			if !ok || field.Tag == nil {
+				continue
+			}
+
+			tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
+			name, _, _ := strings.Cut(tag.Get("json"), ",")
+			jsonType := goTypeToJSON(fieldType.Name)
+			if name == "" || name == "-" || jsonType == "" {
+				continue
+			}
+
+			properties[name] = map[string]any{"type": jsonType}
+		}
+
+		return false
+	})
+
+	if len(properties) == 0 {
+		return nil, fmt.Errorf("osqueryOptions struct not found in %s", path)
+	}
+
+	return map[string]any{"type": "object", "additionalProperties": false, "properties": properties}, nil
+}
+
+// reflectProperties reflects a struct and returns its top-level property schemas.
+func reflectProperties(v any) map[string]any {
+	reflector := &jsonschema.Reflector{RequiredFromJSONSchemaTags: true, Mapper: typeMapper, KeyNamer: toSnake, ExpandedStruct: true}
+	raw, err := json.Marshal(reflector.Reflect(v))
+	if err != nil {
+		return nil
+	}
+
+	var reflected map[string]any
+	err = json.Unmarshal(raw, &reflected)
+	if err != nil {
+		return nil
+	}
+
+	properties, _ := reflected["properties"].(map[string]any)
+	return properties
+}
+
+// toSnake converts a Go field name to snake_case. invopop applies KeyNamer to the
+// json-tag name when a tag is present, so already-snake tags pass through unchanged.
+// Untagged Fleet fields like GitOpsSoftware.Packages get fixed.
+func toSnake(name string) string {
+	runes := []rune(name)
+	result := make([]rune, 0, len(runes)+4)
+
+	for i, char := range runes {
+		if !unicode.IsUpper(char) {
+			result = append(result, char)
+			continue
+		}
+
+		if i > 0 {
+			previous := runes[i-1]
+			nextIsLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			atBoundary := unicode.IsLower(previous) || unicode.IsDigit(previous) || (unicode.IsUpper(previous) && nextIsLower)
+			if atBoundary {
+				result = append(result, '_')
+			}
+		}
+
+		result = append(result, unicode.ToLower(char))
+	}
+
+	return string(result)
+}
+
+// collectRenames walks the type tree recording json-tag -> renameto name. Fleet
+// aliases many config keys with a `renameto` tag for the new fleets/reports
+// terminology, and GitOps YAML uses the renamed key, but invopop only reads json.
+func collectRenames(goType reflect.Type, visited map[reflect.Type]bool, renames map[string]string) {
+	for goType.Kind() == reflect.Pointer || goType.Kind() == reflect.Slice || goType.Kind() == reflect.Array || goType.Kind() == reflect.Map {
+		goType = goType.Elem()
+	}
+
+	if goType.Kind() != reflect.Struct || visited[goType] {
+		return
+	}
+	visited[goType] = true
+
+	for field := range goType.Fields() {
+		renameTo := field.Tag.Get("renameto")
+		if renameTo != "" {
+			jsonName, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+			renameName, _, _ := strings.Cut(renameTo, ",")
+			if jsonName != "" && renameName != "" {
+				renames[jsonName] = renameName
+			}
+		}
+
+		collectRenames(field.Type, visited, renames)
+	}
+}
+
+// mergeOsqueryOptions types agent_options.config.options with the generated osquery
+// option list. config keeps its other keys (schedule, decorators, ...) open.
+func mergeOsqueryOptions(schemaKeys map[string]any, options map[string]any) {
+	agentOptions, ok := definitionProperties(schemaKeys, "AgentOptions")
+	if !ok {
+		return
+	}
+
+	agentOptions["config"] = map[string]any{
+		"type":       "object",
+		"properties": map[string]any{"options": options},
+	}
+}
+
+// mergeGitOpsMDM adds the extra mdm keys GitOps allows via spec.GitOpsMDM (e.g.
+// end_user_license_agreement) that aren't on the embedded fleet.MDM struct.
+func mergeGitOpsMDM(schemaKeys map[string]any) {
+	extraProperties := reflectProperties(&spec.GitOpsMDM{})
+	if extraProperties == nil {
+		return
+	}
+
+	properties, ok := definitionProperties(schemaKeys, "MDM")
+	if !ok {
+		return
+	}
+
+	for key, value := range extraProperties {
+		_, exists := properties[key]
+		if !exists {
+			properties[key] = value
+		}
+	}
+}
+
+// --- tree helpers ---
+
+// collectNodes walks the schema iteratively and returns every object node,
+// parents always before their children. Collecting once lets the passes below be
+// plain loops instead of repeated recursive tree walks.
+func collectNodes(schemaKeys any) []map[string]any {
+	var nodes []map[string]any
+	stack := []any{schemaKeys}
+
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		switch node := current.(type) {
+		case map[string]any:
+			nodes = append(nodes, node)
+			for _, child := range node {
+				stack = append(stack, child)
+			}
+		case []any:
+			stack = append(stack, node...)
+		}
+	}
+
+	return nodes
+}
+
+// definitionByName returns a named $def object and whether it was found.
+func definitionByName(schemaKeys map[string]any, name string) (map[string]any, bool) {
+	definitions, _ := schemaKeys["$defs"].(map[string]any)
+	definition, ok := definitions[name].(map[string]any)
+	return definition, ok
+}
+
+// definitionProperties returns the properties of a named $def and whether it was found.
+func definitionProperties(schemaKeys map[string]any, name string) (map[string]any, bool) {
+	definition, ok := definitionByName(schemaKeys, name)
+	if !ok {
+		return nil, false
+	}
+
+	properties, ok := definition["properties"].(map[string]any)
+	return properties, ok
+}
+
+// appendDescription puts text below node's existing description, if any. The blank
+// line matters, since yamlls renders the two parts as separate paragraphs on hover.
+func appendDescription(node map[string]any, text string) {
+	existing, ok := node["description"].(string)
+	if ok && existing != "" {
+		node["description"] = existing + "\n\n" + text
+		return
+	}
+
+	node["description"] = text
+}
+
+// typeLabel returns a short type name for a schema node, for hover text.
+func typeLabel(node map[string]any) string {
+	ref, ok := node["$ref"].(string)
+	if ok {
+		return strings.TrimPrefix(ref, "#/$defs/")
+	}
+
+	schemaType, ok := node["type"].(string)
+	if !ok {
+		_, isAnyOf := node["anyOf"]
+		if isAnyOf {
+			return "boolean or object"
+		}
+		return ""
+	}
+
+	if schemaType != "array" {
+		return schemaType
+	}
+
+	items, ok := node["items"].(map[string]any)
+	if !ok {
+		return "array"
+	}
+
+	innerLabel := typeLabel(items)
+	if innerLabel == "" {
+		return "array"
+	}
+	return "array<" + innerLabel + ">"
+}
+
+// resolveReference follows a chain of $ref links through definitions to the concrete
+// schema object, stopping on a cycle or an unknown ref.
+func resolveReference(definitions map[string]any, node map[string]any) map[string]any {
+	seen := map[string]bool{}
+	for {
+		ref, ok := node["$ref"].(string)
+		if !ok {
+			return node
+		}
+
+		name := strings.TrimPrefix(ref, "#/$defs/")
+		if seen[name] {
+			return node
+		}
+		seen[name] = true
+
+		definition, ok := definitions[name].(map[string]any)
+		if !ok {
+			return node
+		}
+		node = definition
+	}
+}
+
+// --- post-processing passes ---
+
+// annotate walks the collected nodes once and, per node, does two things: label
+// each property with its type (shown on hover), then add an alias for any renamed
+// key alongside the deprecated original. Labeling comes first so an alias, a shallow
+// copy of the property, inherits the label.
+func annotate(nodes []map[string]any, renames map[string]string) {
+	for _, node := range nodes {
+		properties, ok := node["properties"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		for _, value := range properties {
+			property, ok := value.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			label := typeLabel(property)
+			if label == "" {
+				continue
+			}
+
+			appendDescription(property, "type: `"+label+"`")
+		}
+
+		for jsonName, renameName := range renames {
+			original, present := properties[jsonName]
+			if !present {
+				continue
+			}
+
+			property, isObject := original.(map[string]any)
+			_, aliasExists := properties[renameName]
+
+			switch {
+			case aliasExists:
+				// Keep an alias that's already present rather than overwriting it.
+			case isObject:
+				properties[renameName] = maps.Clone(property)
+			default:
+				properties[renameName] = original
+			}
+
+			if isObject {
+				property["deprecated"] = true
+				property["deprecationMessage"] = "'" + jsonName + "' is deprecated, use '" + renameName + "' instead"
+			}
+		}
+	}
+}
+
+// addDeclarativeNotes appends each declarativeExceptions note to the schema node at
+// its dotted key path. It descends the path from the root, following $refs and
+// stepping transparently through array items, and attaches the note to the property
+// node itself (so shared $defs aren't affected). Missing paths are skipped.
+func addDeclarativeNotes(schemaKeys map[string]any) {
+	definitions, _ := schemaKeys["$defs"].(map[string]any)
+
+	for path, note := range declarativeExceptions {
+		node := schemaKeys
+		found := true
+
+		for segment := range strings.SplitSeq(path, ".") {
+			container := resolveReference(definitions, node)
+			items, isArray := container["items"].(map[string]any)
+			if isArray {
+				container = resolveReference(definitions, items)
+			}
+
+			properties, hasProperties := container["properties"].(map[string]any)
+			if !hasProperties {
+				found = false
+				break
+			}
+
+			next, isObject := properties[segment].(map[string]any)
+			if !isObject {
+				found = false
+				break
+			}
+			node = next
+		}
+
+		if found {
+			appendDescription(node, note)
+		}
+	}
+}
+
+// addPathReferences adds path/paths to the definitions in pathReferenceDefinitions.
+// The Go structs don't model the file-reference pattern, so without this real GitOps
+// files using e.g. `- path: ./lib/foo.yml` light up with "Property path is not
+// allowed".
+func addPathReferences(schemaKeys map[string]any) {
+	for _, name := range pathReferenceDefinitions {
+		properties, ok := definitionProperties(schemaKeys, name)
+		if !ok {
+			continue
+		}
+
+		_, hasPath := properties["path"]
+		if !hasPath {
+			properties["path"] = map[string]any{"type": "string"}
+		}
+
+		_, hasPaths := properties["paths"]
+		if !hasPaths {
+			properties["paths"] = map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
+		}
+	}
+}
+
+// addRequiredSources injects an anyOf of single-key required branches (each with the
+// same errorMessage) so an item is valid when any one source key is present.
+func addRequiredSources(schemaKeys map[string]any) {
+	for _, source := range requiredSources {
+		definition, ok := definitionByName(schemaKeys, source.definition)
+		if !ok {
+			continue
+		}
+
+		branches := make([]any, 0, len(source.keys))
+		for _, key := range source.keys {
+			branches = append(branches, map[string]any{
+				"required":     []any{key},
+				"errorMessage": source.message,
+			})
+		}
+
+		definition["anyOf"] = branches
+	}
+}
+
+// relaxNulls makes empty placeholder keys valid without yamlls offering `null` in
+// value completion. GitOps files routinely leave keys empty, like `minimum_version:`
+// or `scripts:`, which YAML parses as null. yamlls can't validate null without also
+// suggesting it as a value, so scalar leaves drop their `type` entirely. That keeps
+// an empty value valid and stops the null suggestion, at the cost of no longer
+// type-checking the value. Objects and arrays instead keep their type as
+// `[type, null]`, so structure and key completion survive while empty sections
+// still validate.
+func relaxNulls(nodes []map[string]any) {
+	for _, node := range nodes {
+		schemaType, ok := node["type"].(string)
+		if !ok || node["enum"] != nil {
+			continue
+		}
+
+		switch schemaType {
+		case "string", "integer", "number":
+			// Left untyped. An unquoted YAML string like the version 13.0 parses as a
+			// float and would falsely fail a string check, and several Fleet ints are
+			// really string enums like label_membership_type marshaled as "dynamic".
+			// Value completion would also only ever offer null for these.
+			delete(node, "type")
+		case "boolean", "object", "array":
+			// Keep the type so wrong types are still caught, but tolerate an empty
+			// null placeholder. yamlls will offer null in completion for these, which
+			// is unavoidable once null is valid.
+			node["type"] = []any{schemaType, "null"}
+		}
+	}
+}
+
+// typeSourceKeys re-applies a strict string type to the source keys in
+// strictStringKeys, undoing the relaxNulls pass for them.
+func typeSourceKeys(schemaKeys map[string]any) {
+	for definitionName, sourceKeys := range strictStringKeys {
+		properties, ok := definitionProperties(schemaKeys, definitionName)
+		if !ok {
+			continue
+		}
+
+		for _, key := range sourceKeys {
+			node, ok := properties[key].(map[string]any)
+			if !ok {
+				continue
+			}
+			node["type"] = "string"
+		}
+	}
 }
