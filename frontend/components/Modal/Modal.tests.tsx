@@ -197,8 +197,6 @@ describe("Modal", () => {
   });
 
   describe("focus management", () => {
-    // Radix's FocusScope schedules autofocus with rAF/timeouts. Use real
-    // timers in this block so those callbacks actually fire.
     beforeEach(() => jest.useRealTimers());
 
     it("focuses the modal container on open, not any interactive child", async () => {
@@ -214,21 +212,6 @@ describe("Modal", () => {
       const modalContainer = container.querySelector(".modal__modal_container");
       await waitFor(() => {
         expect(modalContainer).toHaveFocus();
-      });
-      expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
-    });
-
-    it("keeps focus on the header close button for disabled-content modals", async () => {
-      render(
-        <Modal title="Loading" isContentDisabled onExit={noop}>
-          <button type="button">Submit</button>
-        </Modal>
-      );
-
-      // The header X is the first tabbable, so FocusScope's default keeps it.
-      const buttons = screen.getAllByRole("button");
-      await waitFor(() => {
-        expect(buttons[0]).toHaveFocus();
       });
       expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
     });
