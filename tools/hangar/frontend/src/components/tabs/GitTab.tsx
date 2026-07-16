@@ -49,6 +49,9 @@ export function GitTab({
   refreshBranchStatus: () => Promise<void>;
 }) {
   const [branches, setBranches] = useState<Branch[]>([]);
+  // The trunk, fetched separately so it can be pinned to the top of the RC
+  // view instead of living behind its own single-branch filter.
+  const [mainBranch, setMainBranch] = useState<Branch | null>(null);
   const [filter, setFilter] = useState<Filter>("rc");
   const [rcMinors, setRcMinors] = useState<number>(DEFAULT_RC_MINORS);
   const [search, setSearch] = useState("");
@@ -87,6 +90,32 @@ export function GitTab({
     const id = setTimeout(() => setDebouncedSearch(search), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(id);
   }, [search]);
+
+  // Fetch the trunk (main) so it can be pinned to the top of the RC list.
+  // Refetched whenever the branch list reloads (checkout/fetch/pull) so its
+  // "checked out" state stays accurate.
+  useEffect(() => {
+    if (!repoPath) {
+      setMainBranch(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .gitListBranches(repoPath, "main", "", 5)
+      .then((list) => {
+        if (cancelled) return;
+        setMainBranch(
+          list.find((b) => b.name === "main" && b.is_local) ??
+            list.find((b) => b.name === "main") ??
+            list[0] ??
+            null,
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [repoPath, branches]);
 
   // Rapid filter switches (rc → main → all) or fast typing can resolve out of
   // order — "last response wins" is whichever IPC happened to finish last,
@@ -157,6 +186,14 @@ export function GitTab({
     if (!q) return branches;
     return branches.filter((b) => b.name.toLowerCase().includes(q));
   }, [branches, search]);
+
+  // In the RC view, always render main as the first row. Skipped while
+  // searching — a search returns whatever matches across all refs, main
+  // included if it does.
+  const pinnedMain = filter === "rc" && !search.trim() ? mainBranch : null;
+  const rows = pinnedMain
+    ? filtered.filter((b) => b.name !== pinnedMain.name)
+    : filtered;
 
   // A server fetch for the current query hasn't landed yet (debounce window
   // or in-flight IPC). Used to avoid flashing "No branches match." before a
@@ -427,18 +464,20 @@ export function GitTab({
             </select>
           )}
           <FilterPill
-            label="main"
-            active={filter === "main"}
-            onClick={() => setFilter("main")}
-          />
-          <FilterPill
             label="all"
             active={filter === "all"}
             onClick={() => setFilter("all")}
           />
         </div>
         <div style={{ flex: 1, overflow: "auto" }}>
-          {filtered.map((b) => (
+          {pinnedMain && (
+            <BranchRow
+              branch={pinnedMain}
+              busy={busy === pinnedMain.name}
+              onCheckout={() => checkout(pinnedMain.name)}
+            />
+          )}
+          {rows.map((b) => (
             <BranchRow
               key={b.name}
               branch={b}
@@ -446,7 +485,7 @@ export function GitTab({
               onCheckout={() => checkout(b.name)}
             />
           ))}
-          {filtered.length === 0 && (
+          {rows.length === 0 && !pinnedMain && (
             <div
               style={{
                 padding: "var(--pad-large)",
