@@ -31,7 +31,7 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 ## New and migrated declarative configurations
 
-> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222). At the same time, Fleet will enable this feature flag out-of-the-box.
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
@@ -44,8 +44,6 @@ Notable controls: `AllowGenmoji`, `AllowImagePlayground`, `AllowWritingTools`, `
 **Web content filter plugin:** A new `com.apple.configuration.webcontent-filter.plugin` declarative configuration.
 
 **Content caching (macOS 27):** The `com.apple.configuration.content-cache.settings` configuration replaces the `com.apple.AssetCache.managed` profile. New status items for cache info, parents, and peers. Custom HTTPS reporting endpoints are supported. If you run content caches, plan the migration.
-
-**Configuration profiles as declarative assets:** Legacy profiles can be delivered as declarative assets via the new `ProfileAssetReference` key in `com.apple.configuration.legacy`. Integrity verification is built in. This is a useful bridge for teams partway through the DDM transition.
 
 ## App management changes
 
@@ -97,7 +95,7 @@ If you're building your OS 27 response plan:
 
 1. Verify your MDM vendor's DDM software update support. This is the fire drill. Do it today. If you use Fleet, you're already set.
 2. Audit TLS/ATS compliance across your MDM and management infrastructure using Apple's support article 126655. If you use Fleet, you're already set.
-3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing deprecated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986).
+3. Migrate Intelligence, Siri, and keyboard restrictions to the new declarative configurations. Fleet already supports all declarations that are replacing deprecated v1 profiles (.mobileconfig). Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). Custom activations are [coming in Fleet 4.91.0](https://github.com/fleetdm/fleet/issues/48222).
 4. Plan the app management migration away from `com.apple.applicationaccess.new` on macOS.
 5. Update your re-enrollment runbooks to account for the backup restoration change.
 6. Start the Intel Mac refresh conversation if you haven't already.
