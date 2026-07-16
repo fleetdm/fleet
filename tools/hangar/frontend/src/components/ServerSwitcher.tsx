@@ -49,6 +49,8 @@ export function ServerSwitcher({
           const serveUp = health?.serve.up ?? false;
           const dockerUp = health?.docker.up ?? false;
           const configured = !!s.worktree_path;
+          // Anything running on this server -> one green (pulsing) dot; else grey.
+          const running = configured && (serveUp || dockerUp);
           return (
             <button
               key={s.id}
@@ -72,24 +74,9 @@ export function ServerSwitcher({
                 flexShrink: 0,
               }}
             >
-              <span
-                aria-hidden
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: accent,
-                  opacity: active ? 1 : 0.55,
-                  flexShrink: 0,
-                }}
-              />
+              <span aria-hidden className={`dot ${running ? "run" : "idle"}`} />
               <span style={{ fontWeight: active ? 600 : 400 }}>{s.name}</span>
-              {configured ? (
-                <span style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                  <StatusDot up={serveUp} label="serve" />
-                  <StatusDot up={dockerUp} label="docker" />
-                </span>
-              ) : (
+              {!configured && (
                 <span
                   className="dim"
                   style={{ fontSize: "var(--fs-xxx-small)", fontStyle: "italic" }}
@@ -113,32 +100,5 @@ export function ServerSwitcher({
         Manage servers
       </button>
     </div>
-  );
-}
-
-/// Tiny serve/docker indicator: a dot in green when up, dim otherwise, with the
-/// service name as a one-letter suffix so the two are distinguishable.
-function StatusDot({ up, label }: { up: boolean; label: string }) {
-  return (
-    <span
-      title={`${label} ${up ? "up" : "down"}`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 2,
-        fontSize: "var(--fs-xxx-small)",
-        color: up ? "var(--core-fleet-green)" : "var(--app-text-dim)",
-      }}
-    >
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: up ? "var(--core-fleet-green)" : "var(--app-border)",
-        }}
-      />
-      {label[0]}
-    </span>
   );
 }
