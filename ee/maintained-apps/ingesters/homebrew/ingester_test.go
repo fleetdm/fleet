@@ -163,7 +163,7 @@ func TestIngestValidations(t *testing.T) {
 			case "swiftdialog":
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND version_compare(bundle_short_version, '1.0') < 0 AND path NOT LIKE '/opt/orbit/bin/%');",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND version_compare(bundle_short_version, '1.0') < 0 AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app');",
 					out.Queries.Patched,
 				)
 			default:
