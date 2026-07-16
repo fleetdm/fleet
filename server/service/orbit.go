@@ -1117,6 +1117,11 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand embedded secrets for host %d and script %s", host.ID, execID))
 	}
 
+	script.ScriptContents, err = svc.ds.ExpandCustomHostVitals(ctx, host.ID, script.ScriptContents)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
+	}
+
 	return script, nil
 }
 
@@ -1755,6 +1760,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       hsi.SoftwareTitle,
 				SoftwarePackage:     hsi.SoftwarePackage,
+				HashSHA256:          hsi.HashSHA256,
 				InstallUUID:         result.InstallUUID,
 				Status:              string(status),
 				Source:              hsi.Source,

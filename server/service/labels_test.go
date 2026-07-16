@@ -530,6 +530,46 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	assert.ErrorIs(t, err, assert.AnError)
 }
 
+func TestApplyLabelSpecsCustomHostVitalCriteria(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	specWithCriteria := func(criteria fleet.HostVitalCriteria) *fleet.LabelSpec {
+		raw, err := json.Marshal(&criteria)
+		require.NoError(t, err)
+		return &fleet.LabelSpec{
+			Name:                "custom-vital-spec",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(raw)),
+		}
+	}
+
+	// A custom_host_vital criterion without an id fails structural validation
+	// before any datastore call.
+	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{specWithCriteria(fleet.HostVitalCriteria{
+		Vital: new("custom_host_vital"),
+		Value: new("Engineering"),
+	})}, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "custom_host_vital_id")
+
+	// A criterion referencing a non-existent custom vital is rejected.
+	ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+		return nil, nil
+	}
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{specWithCriteria(fleet.HostVitalCriteria{
+		Vital:             new("custom_host_vital"),
+		Value:             new("Engineering"),
+		CustomHostVitalID: new(uint(999)),
+	})}, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not exist")
+	require.True(t, ds.GetCustomHostVitalsFuncInvoked)
+}
+
 func TestLabelsWithReplica(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
@@ -1211,6 +1251,60 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
+	})
+
+	t.Run("create custom host vital label", func(t *testing.T) {
+		ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+			return []fleet.CustomHostVital{{ID: 7, Name: "Department"}}, nil
+		}
+		ds.GetCustomHostVitalsFuncInvoked = false
+
+		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-label",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital:             new("custom_host_vital"),
+				Value:             new("Engineering"),
+				CustomHostVitalID: new(uint(7)),
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, ds.GetCustomHostVitalsFuncInvoked)
+		assert.Equal(t, fleet.LabelMembershipTypeHostVitals, lbl.LabelMembershipType)
+
+		query, queryValues, err := lbl.CalculateHostVitalsQuery()
+		require.NoError(t, err)
+		queryValuesJson, err := json.Marshal(queryValues)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT %s FROM %s JOIN host_custom_host_vitals ON (hosts.id = host_custom_host_vitals.host_id AND host_custom_host_vitals.custom_host_vital_id = ?) WHERE host_custom_host_vitals.value = ? GROUP BY hosts.id", query)
+		assert.JSONEq(t, `[7,"Engineering"]`, string(queryValuesJson))
+	})
+
+	t.Run("custom host vital label missing id is rejected", func(t *testing.T) {
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-no-id",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital: new("custom_host_vital"),
+				Value: new("Engineering"),
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "custom_host_vital_id")
+	})
+
+	t.Run("custom host vital label with unknown id is rejected", func(t *testing.T) {
+		ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+			return nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-bad-id",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital:             new("custom_host_vital"),
+				Value:             new("Engineering"),
+				CustomHostVitalID: new(uint(999)),
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not exist")
 	})
 }
 

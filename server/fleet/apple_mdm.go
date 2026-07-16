@@ -537,9 +537,12 @@ type AppleDeclarationForReconcile struct {
 	IncludeMode           AppleProfileIncludeMode
 	IncludeLabels         []AppleProfileLabelRef
 	ExcludeLabels         []AppleProfileLabelRef
-	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
-	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
-	// host knows to re-deliver when variable values change.
+	// HasFleetVariables is true if the declaration references any per-host Fleet
+	// variable that is expanded at delivery time: a $FLEET_VAR_* or a custom host
+	// vital ($FLEET_HOST_VITAL_*). Both behave identically here — the reconciler
+	// sets VariablesUpdatedAt on the host declaration row so the host knows to
+	// re-deliver when a variable value changes — so they share this flag even
+	// though custom host vitals are a separate variable namespace.
 	//
 	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
 	// where we extract the secrets and their last update time.

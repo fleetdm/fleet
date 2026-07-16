@@ -26,6 +26,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   currentTeam: undefined,
   config: createMockConfig(),
   canAccessControls: true,
+  canAccessVariables: true,
   canWrite: true,
   canRunLiveReport: true,
   canAccessSettings: true,
@@ -391,6 +392,32 @@ describe("CommandPalette helpers", () => {
       expect(subIds).toContain("controls-passwords");
     });
 
+    it("includes Variables with its Global variables and Custom host vitals sub-tabs when canAccessVariables", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const variables = items.find((i) => i.id === "controls-variables");
+      const subIds = variables?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).toContain("controls-global-variables");
+      expect(subIds).toContain("controls-custom-host-vitals");
+    });
+
+    it("hides Variables entirely when !canAccessVariables (technicians)", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canAccessVariables: false,
+        isTechnician: true,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("controls-variables");
+    });
+
     it("includes Host names for admin/maintainer on a fleet", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
@@ -752,6 +779,12 @@ describe("CommandPalette helpers", () => {
           ?.subItems?.map((s) => s.id) ?? [];
       expect(scriptsSubIds).toContain("controls-scripts-library");
       expect(scriptsSubIds).toContain("controls-scripts-batch-progress");
+      const variablesSubIds =
+        items
+          .find((i) => i.id === "controls-variables")
+          ?.subItems?.map((s) => s.id) ?? [];
+      expect(variablesSubIds).toContain("controls-global-variables");
+      expect(variablesSubIds).toContain("controls-custom-host-vitals");
     });
 
     it("surfaces Add script on Free (script library is Free-available)", () => {
