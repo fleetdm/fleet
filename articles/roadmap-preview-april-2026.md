@@ -14,9 +14,9 @@ In the next 3 months, Fleet will ship...
 - 📱 iOS/iPadOS: Clear passcode and configure apps (managed app configs) ([#39570](https://github.com/fleetdm/fleet/issues/39570), [#38790](https://github.com/fleetdm/fleet/issues/38790))
 - ✨ Self-service software for iPhones that enroll via Managed Apple Account ([#31138](https://github.com/fleetdm/fleet/issues/31138))
 - 🤖 Android: Lock, wipe, and clear passcode ([#41683](https://github.com/fleetdm/fleet/issues/41683))
-- ~~🪟 Add default fleets for Windows Autopilot-enrolled hosts ([#41787](https://github.com/fleetdm/fleet/issues/41787))~~ †
+- 🪟 Add default fleets for Windows Autopilot-enrolled hosts ([#41787](https://github.com/fleetdm/fleet/issues/41787))
 - 📌 Pin Fleet-maintained apps to a major version ([#31252](https://github.com/fleetdm/fleet/issues/31252))
-- ~~📂 Upload multiple versions of the same software to the same fleet ([#28108](https://github.com/fleetdm/fleet/issues/28108))~~ †
+- 📂 Upload multiple versions of the same software to the same fleet ([#28108](https://github.com/fleetdm/fleet/issues/28108))
 - 🛒 Self-service: Custom categories ([#30623](https://github.com/fleetdm/fleet/issues/30623))
 - 🔁 Continuous retries for software and script policy automations ([#42651](https://github.com/fleetdm/fleet/issues/42651))
 - 📊 Policy status page to view historical policy runs ([#30643](https://github.com/fleetdm/fleet/issues/30643))
