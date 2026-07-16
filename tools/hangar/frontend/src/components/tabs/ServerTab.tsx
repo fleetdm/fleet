@@ -1287,6 +1287,22 @@ function ActiveProcessesPanel({
             onStop={serveOwned ? serveStop : undefined}
             busy={busy?.startsWith("serve-") ?? false}
             down={!serve.up}
+            links={
+              serve.up
+                ? [
+                    {
+                      label: `${server.compose_project}.localhost ↗`,
+                      url: `https://${server.compose_project}.localhost:${server.ports.server}`,
+                      title: `Open https://${server.compose_project}.localhost:${server.ports.server} — isolated login (won't sign out your other local servers). Chrome/Firefox resolve *.localhost automatically.`,
+                    },
+                    {
+                      label: "localhost ↗",
+                      url: `https://localhost:${server.ports.server}`,
+                      title: `Open https://localhost:${server.ports.server} — note: the login cookie is shared across all localhost servers, so signing in here can sign you out of the others.`,
+                    },
+                  ]
+                : undefined
+            }
           />
         </Cell>
         <Cell>
@@ -1707,6 +1723,7 @@ function ProcRow({
   onStop,
   busy,
   down,
+  links,
 }: {
   dotState: string;
   name: string;
@@ -1715,6 +1732,8 @@ function ProcRow({
   onStop?: () => void;
   busy: boolean;
   down: boolean;
+  // Optional "open in browser" links (e.g. the server's URLs when serve is up).
+  links?: { label: string; url: string; title?: string }[];
 }) {
   return (
     <div
@@ -1752,6 +1771,16 @@ function ProcRow({
         </div>
       </div>
       <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        {links?.map((l) => (
+          <button
+            key={l.url}
+            onClick={() => api.openUrl(l.url)}
+            title={l.title}
+            style={{ padding: "4px 10px", fontSize: "var(--fs-xx-small)" }}
+          >
+            {l.label}
+          </button>
+        ))}
         {onLogs && (
           <button
             onClick={onLogs}
