@@ -1808,6 +1808,7 @@ func TestInstallPyScriptOnUnixLike(t *testing.T) {
 					SelfService: false,
 				}, nil
 			}
+			mockSoftwarePackagesFromMetadata(ds)
 
 			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
 				return true, nil
@@ -1865,6 +1866,7 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 			SelfService: false,
 		}, nil
 	}
+	mockSoftwarePackagesFromMetadata(ds)
 
 	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
 		return true, nil
@@ -1909,6 +1911,7 @@ func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
 					SelfService: true,
 				}, nil
 			}
+			mockSoftwarePackagesFromMetadata(ds)
 
 			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
 				return true, nil
