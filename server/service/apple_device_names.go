@@ -3,11 +3,15 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 )
 
@@ -142,6 +146,28 @@ func ReconcileHostDeviceNames(
 			HardwareSerial: host.HardwareSerial,
 			Platform:       host.Platform,
 		})
+
+		// Resolve IdP end-user variables (if any). These need a per-host datastore
+		// lookup and fail the same way configuration profiles do when the data is
+		// missing.
+		resolvedWithIDP, idpFailDetail, idpErr := resolveHostNameIDPVars(ctx, ds, resolved, host.HostID)
+		if idpErr != nil {
+			// A datastore failure; abort the batch so the next cron tick retries
+			// rather than permanently failing rows a retry would resolve.
+			return idpErr
+		}
+		if idpFailDetail != "" {
+			// The host is missing IdP data the template needs; fail the row with the
+			// profile-style detail. On a write error, log and move on rather than
+			// aborting the batch, consistent with the other outcomes below.
+			if err := ds.SetHostDeviceNameStatus(ctx, host.HostUUID, fleet.MDMDeliveryFailed, nil, "",
+				idpFailDetail); err != nil {
+				logger.ErrorContext(ctx, "mark device name row failed for idp resolution", "host_uuid", host.HostUUID, "err", err)
+			}
+			continue
+		}
+		resolved = resolvedWithIDP
+
 		switch {
 		case len(resolved) > fleet.MaxResolvedHostNameBytes:
 			// The resolved name is not stored: it can exceed the column width,
@@ -205,4 +231,99 @@ func ReconcileHostDeviceNames(
 		}
 	}
 	return nil
+}
+
+// resolveHostNameIDPVars substitutes the IdP end-user built-in variables in name
+// for the given host, with the same value mapping and fail-hard messages as
+// configuration profiles (server/mdm/profiles.ResolveHostEndUserIDPValue). It
+// fetches the host's end user once (all IdP variables in a template resolve from
+// the same user), so a template using several IdP variables needs a single
+// GetEndUsers call. It returns:
+//   - the resolved name, when every IdP variable is populated;
+//   - a non-empty failDetail (and empty name) when an IdP variable can't be
+//     populated for this host — the caller marks the host's row Failed with it,
+//     exactly as a profile install would fail;
+//   - an error only for a datastore failure, which the caller treats as transient.
+func resolveHostNameIDPVars(ctx context.Context, ds fleet.Datastore, name string, hostID uint) (resolved string, failDetail string, err error) {
+	// Collect the IdP variables used, longest-first (variables.Find sorts that way)
+	// so ..._IDP_USERNAME_LOCAL_PART is substituted before ..._IDP_USERNAME, whose
+	// regexps have no trailing boundary — matching the profile processor's order.
+	var idpVars []string
+	for _, v := range variables.Find(name) {
+		if fleet.IsHostNameTemplateIDPVar(v) {
+			idpVars = append(idpVars, v)
+		}
+	}
+	if len(idpVars) == 0 {
+		return name, "", nil
+	}
+
+	users, err := fleet.GetEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return "", "", ctxerr.Wrap(ctx, err, "get end users for device name")
+	}
+	var user *fleet.HostEndUser
+	if len(users) > 0 && users[0].IdpUserName != "" {
+		user = &users[0]
+	}
+
+	for _, v := range idpVars {
+		value, rx, ok, detail := resolveHostNameIDPValue(user, v)
+		if !ok {
+			return "", detail, nil
+		}
+		name = rx.ReplaceAllLiteralString(name, value)
+	}
+	return name, "", nil
+}
+
+// resolveHostNameIDPValue mirrors server/mdm/profiles.ResolveHostEndUserIDPValue's
+// value mapping and fail-hard detail messages, but works from an already-fetched
+// end user (nil when the host has no IdP user) so the caller can resolve every IdP
+// variable in a template from a single GetEndUsers call. On success it returns the
+// value and the variable's regexp; otherwise ok is false and detail carries the
+// profile-style failure message.
+func resolveHostNameIDPValue(user *fleet.HostEndUser, fleetVar string) (value string, rx *regexp.Regexp, ok bool, detail string) {
+	noGroupsErr := fmt.Sprintf("There are no IdP groups for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
+	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
+	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+
+	if user == nil {
+		switch fleetVar {
+		case string(fleet.FleetVarHostEndUserIDPGroups):
+			return "", nil, false, noGroupsErr
+		case string(fleet.FleetVarHostEndUserIDPDepartment):
+			return "", nil, false, noDepartmentErr
+		case string(fleet.FleetVarHostEndUserIDPFullname):
+			return "", nil, false, noFullnameErr
+		default:
+			return "", nil, false, fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+		}
+	}
+
+	switch fleetVar {
+	case string(fleet.FleetVarHostEndUserIDPUsername):
+		return user.IdpUserName, fleet.FleetVarHostEndUserIDPUsernameRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPUsernameLocalPart):
+		localPart, _, _ := strings.Cut(user.IdpUserName, "@")
+		return localPart, fleet.FleetVarHostEndUserIDPUsernameLocalPartRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPGroups):
+		if len(user.IdpGroups) == 0 {
+			return "", nil, false, noGroupsErr
+		}
+		return strings.Join(user.IdpGroups, ","), fleet.FleetVarHostEndUserIDPGroupsRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPDepartment):
+		if user.Department == "" {
+			return "", nil, false, noDepartmentErr
+		}
+		return user.Department, fleet.FleetVarHostEndUserIDPDepartmentRegexp, true, ""
+	case string(fleet.FleetVarHostEndUserIDPFullname):
+		fullName := strings.TrimSpace(user.IdpFullName)
+		if fullName == "" {
+			return "", nil, false, noFullnameErr
+		}
+		return fullName, fleet.FleetVarHostEndUserIDPFullnameRegexp, true, ""
+	default:
+		return "", nil, false, fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
+	}
 }

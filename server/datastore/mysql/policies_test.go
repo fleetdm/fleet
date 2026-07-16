@@ -76,6 +76,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesTeamPoliciesWithInstaller", testTeamPoliciesWithInstaller},
 		{"TestPoliciesTeamPoliciesWithVPP", testTeamPoliciesWithVPP},
 		{"ApplyPolicySpecWithInstallers", testApplyPolicySpecWithInstallers},
+		{"ApplyPolicySpecFirstAddedInstaller", testApplyPolicySpecFirstAddedInstaller},
 		{"TestPoliciesNewGlobalPolicyWithScript", testNewGlobalPolicyWithScript},
 		{"TestPoliciesTeamPoliciesWithScript", testTeamPoliciesWithScript},
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
@@ -5129,6 +5130,9 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, automaticPolicies, 1)
+	// VPP-backed policies dispatch to `AppStoreApp.AutomaticInstallPolicies`
+	// at the title level, not via InstallerID — the field stays nil.
+	require.Nil(t, automaticPolicies[0].InstallerID)
 
 	policyWithVPP, err := ds.Policy(ctx, automaticPolicies[0].ID)
 	require.NoError(t, err)
@@ -6320,6 +6324,11 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.Equal(t, policy1.ID, policies[0].ID)
 	require.Equal(t, policy1.Name, policies[0].Name)
+	// InstallerID is the join key used by the software-titles list to
+	// dispatch policies to the specific package on a multi-package title;
+	// verify it's populated so per-package attribution works.
+	require.NotNil(t, policies[0].InstallerID)
+	require.Equal(t, installer1ID, *policies[0].InstallerID)
 
 	// software title 1 should not have any policies when filtering by team 2
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team2.ID)
@@ -6332,6 +6341,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 	require.Equal(t, policy2.ID, policies[0].ID)
 	require.Equal(t, policy2.Name, policies[0].Name)
+	require.NotNil(t, policies[0].InstallerID)
+	require.Equal(t, installer2ID, *policies[0].InstallerID)
 
 	// software title 2 should not have any policies when filtering by team 1
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team1.ID)
@@ -6398,8 +6409,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
-		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, Type: fleet.PolicyTypeDynamic},
-		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, Type: fleet.PolicyTypeDynamic},
+		policy3.ID: {ID: policy3.ID, Name: policy3.Name, TitleID: *installer3.TitleID, InstallerID: new(installer3ID), Type: fleet.PolicyTypeDynamic},
+		policy4.ID: {ID: policy4.ID, Name: policy4.Name, TitleID: *installer4.TitleID, InstallerID: new(installer4ID), Type: fleet.PolicyTypeDynamic},
 	}
 
 	for _, got := range policies {
@@ -9025,4 +9036,55 @@ func testResetPolicy(t *testing.T, ds *Datastore) {
 			`SELECT attempt_number FROM host_script_results WHERE execution_id = 'other-script-1'`)
 	})
 	require.Equal(t, 3, attemptNum, "other policy attempt_number must be untouched")
+}
+
+// testApplyPolicySpecFirstAddedInstaller verifies that GitOps policy application resolves a title with
+// multiple active packages to the first-added package (smallest installer_id) deterministically.
+func testApplyPolicySpecFirstAddedInstaller(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Spec First Added", "spec-first-added@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-first-added-team"})
+	require.NoError(t, err)
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello-"+storage), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "SpecMultiPkg",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.specmultipkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         "darwin",
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+	installerA := newPkg("spec-a", "pkgA.pkg")
+	installerB := newPkg("spec-b", "pkgB.pkg")
+	require.Less(t, installerA, installerB)
+
+	err = ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{
+		{
+			Name:            "spec multi-package policy",
+			Query:           "SELECT 1;",
+			Team:            team.Name,
+			SoftwareTitleID: &titleID,
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.NotNil(t, policies[0].SoftwareInstallerID)
+	require.Equal(t, installerA, *policies[0].SoftwareInstallerID, "GitOps must resolve to the first-added package")
 }

@@ -28,6 +28,7 @@ import (
 type uploadSoftwareInstallerRequest struct {
 	File              *multipart.FileHeader
 	TeamID            *uint
+	TitleID           *uint
 	InstallScript     string
 	PreInstallQuery   string
 	PostInstallScript string
@@ -42,7 +43,9 @@ type uploadSoftwareInstallerRequest struct {
 }
 
 type updateSoftwareInstallerRequest struct {
-	TitleID           uint `url:"id"`
+	TitleID uint `url:"id"`
+	// InstallerID selects which package to edit; required when the title has multiple.
+	InstallerID       *uint
 	File              *multipart.FileHeader
 	TeamID            *uint
 	InstallScript     *string
@@ -120,6 +123,14 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(fleetID))
+	}
+
+	if idVal, ok := r.MultipartForm.Value["installer_id"]; ok && len(idVal) > 0 && idVal[0] != "" {
+		installerID, err := strconv.ParseUint(idVal[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid installer_id: %s", idVal[0])}
+		}
+		decoded.InstallerID = new(uint(installerID))
 	}
 
 	installScriptMultipart, ok := r.MultipartForm.Value["install_script"]
@@ -254,6 +265,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 
 	payload := &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:           req.TitleID,
+		InstallerID:       ptr.ValOrZero(req.InstallerID),
 		TeamID:            req.TeamID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
@@ -353,6 +365,14 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid fleet_id: %s", val[0])}
 		}
 		decoded.TeamID = ptr.Uint(uint(fleetID))
+	}
+
+	if v, ok := r.MultipartForm.Value["software_title_id"]; ok && len(v) > 0 && v[0] != "" {
+		id, err := strconv.ParseUint(v[0], 10, 32)
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Invalid software_title_id: %s", v[0])}
+		}
+		decoded.TitleID = new(uint(id))
 	}
 
 	val, ok = r.MultipartForm.Value["install_script"]
@@ -469,6 +489,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		TeamID:            req.TeamID,
+		TitleID:           req.TitleID,
 		InstallScript:     req.InstallScript,
 		PreInstallQuery:   req.PreInstallQuery,
 		PostInstallScript: req.PostInstallScript,
@@ -500,8 +521,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 type deleteSoftwareInstallerRequest struct {
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
-	TitleID uint  `url:"title_id"`
+	TeamID *uint `query:"team_id" renameto:"fleet_id"`
+	// InstallerID deletes one package; omitted deletes all of the title's packages.
+	InstallerID *uint `query:"installer_id,optional"`
+	TitleID     uint  `url:"title_id"`
 }
 
 type deleteSoftwareInstallerResponse struct {
@@ -513,14 +536,14 @@ func (r deleteSoftwareInstallerResponse) Status() int  { return http.StatusNoCon
 
 func deleteSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSoftwareInstallerRequest)
-	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID)
+	err := svc.DeleteSoftwareInstaller(ctx, req.TitleID, req.TeamID, req.InstallerID)
 	if err != nil {
 		return deleteSoftwareInstallerResponse{Err: err}, nil
 	}
 	return deleteSoftwareInstallerResponse{}, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -529,9 +552,15 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 }
 
 type getSoftwareInstallerRequest struct {
-	Alt     string `query:"alt,optional"`
-	TeamID  *uint  `query:"team_id" renameto:"fleet_id"`
-	TitleID uint   `url:"title_id"`
+	Alt string `query:"alt,optional"`
+	// TeamID is required. Kept as *uint so a missing query parameter returns a
+	// validation error instead of matching team 0.
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TitleID uint  `url:"title_id"`
+	// InstallerID pins the download to a specific package on a multi-package
+	// title. Omit for single-package titles or to fall back to the first-added
+	// package.
+	InstallerID *uint `query:"installer_id,optional"`
 }
 
 type downloadSoftwareInstallerRequest struct {
@@ -542,7 +571,7 @@ type downloadSoftwareInstallerRequest struct {
 func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
-	payload, err := svc.DownloadSoftwareInstaller(ctx, false, req.Alt, req.TitleID, req.TeamID)
+	payload, err := svc.DownloadSoftwareInstaller(ctx, false, req.Alt, req.TitleID, req.TeamID, req.InstallerID)
 	if err != nil {
 		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
@@ -553,7 +582,7 @@ func getSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc 
 func getSoftwareInstallerTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallerRequest)
 
-	token, err := svc.GenerateSoftwareInstallerToken(ctx, req.Alt, req.TitleID, req.TeamID)
+	token, err := svc.GenerateSoftwareInstallerToken(ctx, req.Alt, req.TitleID, req.TeamID, req.InstallerID)
 	if err != nil {
 		return getSoftwareInstallerTokenResponse{Err: err}, nil
 	}
@@ -568,7 +597,13 @@ func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{},
 		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
 
-	payload, err := svc.DownloadSoftwareInstaller(ctx, true, "media", meta.TitleID, &meta.TeamID)
+	// Zero InstallerID means the token was minted without a specific pin — fall
+	// back to first-added by passing nil.
+	var installerID *uint
+	if meta.InstallerID != 0 {
+		installerID = &meta.InstallerID
+	}
+	payload, err := svc.DownloadSoftwareInstaller(ctx, true, "media", meta.TitleID, &meta.TeamID, installerID)
 	if err != nil {
 		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
 	}
@@ -576,7 +611,7 @@ func downloadSoftwareInstallerEndpoint(ctx context.Context, request interface{},
 	return orbitDownloadSoftwareInstallerResponse{payload: payload}, nil
 }
 
-func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string, _ uint, _ *uint) (string, error) {
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, _ string, _ uint, _ *uint, _ *uint) (string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -640,7 +675,7 @@ func (r orbitDownloadSoftwareInstallerResponse) HijackRender(ctx context.Context
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, _ bool, _ string, _ uint,
-	_ *uint) (*fleet.DownloadSoftwareInstallerPayload,
+	_ *uint, _ *uint) (*fleet.DownloadSoftwareInstallerPayload,
 	error,
 ) {
 	// skipauth: No authorization check needed due to implementation returning

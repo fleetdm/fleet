@@ -424,6 +424,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
 
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
 	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -1001,6 +1005,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 	}
 
+	// Validate custom host vital references (top-level $FLEET_HOST_VITAL_<id>).
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+
 	varNames := make([]fleet.FleetVarName, 0, len(declVars))
 	for _, v := range declVars {
 		varNames = append(varNames, fleet.FleetVarName(v))
@@ -1280,8 +1289,12 @@ func jsonEscapeString(s string) string {
 func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 	ctx context.Context, contents string, hostUUID string,
 ) (string, error) {
+	// variables.Find only detects $FLEET_VAR_; custom host vitals are a separate
+	// top-level prefix, so gate on both so a declaration referencing only custom
+	// host vitals is still expanded.
 	fleetVars := variables.Find(contents)
-	if len(fleetVars) == 0 {
+	hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contents)) > 0
+	if len(fleetVars) == 0 && !hasHostVitals {
 		return contents, nil
 	}
 
@@ -1400,6 +1413,23 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 		}
 
 		contents = variables.Replace(contents, fleetVar, jsonEscapeString(value))
+	}
+
+	// Expand custom host vitals last, after the Fleet-var pass. variables.Replace
+	// is a blind global string replace, so expanding vitals earlier would let a
+	// vital value that happens to contain a literal $FLEET_VAR_<name> be rewritten
+	// by that pass. Doing it last makes the vital value the terminal substitution.
+	// On a missing/empty value the caller marks the declaration failed with this
+	// error's Detail.
+	if hasHostVitals {
+		if err := hydrateHost(); err != nil {
+			return "", err
+		}
+		expanded, err := svc.ds.ExpandCustomHostVitals(ctx, hostLite.ID, contents)
+		if err != nil {
+			return "", err
+		}
+		contents = expanded
 	}
 
 	return contents, nil
@@ -2706,10 +2736,7 @@ func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAp
 		return nil, nil
 	}
 
-	return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
-		ProductVersion: latest.ProductVersion,
-		Build:          latest.Build,
-	}), nil
+	return fleet.NewMDMAppleSoftwareUpdateRequired(latest.ProductVersion), nil
 }
 
 // enqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a RemoveProfile MDM command for the given host.
@@ -3050,6 +3077,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"missing fleet secrets")
+		}
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(prof)}); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
 		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
 		if err != nil {

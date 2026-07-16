@@ -20,27 +20,53 @@ const maxHostNameTemplateLength = 255
 // text alone already exceeds it.
 const MaxResolvedHostNameBytes = 63
 
-// fleetVarsSupportedInHostNameTemplates is the allow-list of Fleet variables that
-// may be used in a host name template.
-var fleetVarsSupportedInHostNameTemplates = []FleetVarName{
+// hostIdentityVarsInNameTemplates are the built-in variables resolved purely from
+// the in-memory host struct.
+var hostIdentityVarsInNameTemplates = []FleetVarName{
 	FleetVarHostHardwareSerial,
 	FleetVarHostUUID,
 	FleetVarHostPlatform,
 }
 
-// nameTemplateVarRegexp matches every supported name-template variable in both
-// its $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms, in a single pattern. It is
-// derived from fleetVarsSupportedInHostNameTemplates so it stays in sync with the
-// allow-list. The unbraced form uses a trailing word boundary so that an
-// unsupported longer name (e.g. HOST_UUID_EXTRA) is not partially matched.
-var nameTemplateVarRegexp = func() *regexp.Regexp {
-	alts := make([]string, len(fleetVarsSupportedInHostNameTemplates))
-	for i, v := range fleetVarsSupportedInHostNameTemplates {
+// idpVarsInNameTemplates are the built-in IdP end-user variables.
+var idpVarsInNameTemplates = []FleetVarName{
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+}
+
+// fleetVarsSupportedInHostNameTemplates is the allow-list of built-in Fleet
+// variables that may be used in a host name template.
+var fleetVarsSupportedInHostNameTemplates = slices.Concat(hostIdentityVarsInNameTemplates, idpVarsInNameTemplates)
+
+// nameTemplateVarRegexp matches every supported built-in name-template variable
+// (identity + IdP) in both its $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms.
+var nameTemplateVarRegexp = varAlternationRegexp(fleetVarsSupportedInHostNameTemplates)
+
+// nameTemplateIdentityVarRegexp matches only the host-identity variables.
+// ResolveHostNameTemplate uses it so it substitutes identity variables and leaves
+// IdP tokens untouched for the service-layer resolver.
+var nameTemplateIdentityVarRegexp = varAlternationRegexp(hostIdentityVarsInNameTemplates)
+
+// IsHostNameTemplateIDPVar reports whether name (a built-in variable name without
+// the FLEET_VAR_ prefix, as returned by variables.Find) is an IdP end-user
+// variable supported in host name templates.
+func IsHostNameTemplateIDPVar(name string) bool {
+	return slices.Contains(idpVarsInNameTemplates, FleetVarName(name))
+}
+
+// varAlternationRegexp builds a regexp matching any of the given variables in both
+// the $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms.
+func varAlternationRegexp(vars []FleetVarName) *regexp.Regexp {
+	alts := make([]string, len(vars))
+	for i, v := range vars {
 		alts[i] = regexp.QuoteMeta(string(v))
 	}
 	alt := strings.Join(alts, "|")
 	return regexp.MustCompile(fmt.Sprintf(`\$FLEET_VAR_(%[1]s)\b|\$\{FLEET_VAR_(%[1]s)\}`, alt))
-}()
+}
 
 // nameTemplateSecretRegexp matches a $FLEET_SECRET_NAME / ${FLEET_SECRET_NAME}
 // custom (secret) variable token. Secret values are only known at resolve time
@@ -131,9 +157,10 @@ var hostNameTemplatePlatformDisplayNames = map[string]string{
 	"ipados": "iPadOS",
 }
 
-// ResolveHostNameTemplate resolves a host name template against a host by
-// substituting the supported host-identity Fleet variables with the host's
-// values.
+// ResolveHostNameTemplate substitutes the host-identity built-in variables
+// ($FLEET_VAR_HOST_HARDWARE_SERIAL, _HOST_UUID, _HOST_PLATFORM) with the host's
+// values. IdP end-user variables are left untouched — they require a datastore
+// lookup and are resolved separately in the service layer.
 func ResolveHostNameTemplate(tmpl string, host *Host) string {
 	if host == nil {
 		return tmpl
@@ -150,8 +177,8 @@ func ResolveHostNameTemplate(tmpl string, host *Host) string {
 		FleetVarHostPlatform:       platform,
 	}
 
-	return nameTemplateVarRegexp.ReplaceAllStringFunc(tmpl, func(match string) string {
-		groups := nameTemplateVarRegexp.FindStringSubmatch(match)
+	return nameTemplateIdentityVarRegexp.ReplaceAllStringFunc(tmpl, func(match string) string {
+		groups := nameTemplateIdentityVarRegexp.FindStringSubmatch(match)
 		// Exactly one of the two capture groups (unbraced/braced) is populated.
 		name := groups[1]
 		if name == "" {

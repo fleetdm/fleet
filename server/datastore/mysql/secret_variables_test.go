@@ -484,9 +484,11 @@ func testListSecretVariables(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, id1, secrets[0].ID)
 		require.Equal(t, name1, secrets[0].Name)
+		require.NotEmpty(t, secrets[0].CreatedAt)
 		require.NotZero(t, secrets[0].UpdatedAt)
 		require.Equal(t, id2, secrets[1].ID)
 		require.Equal(t, name2, secrets[1].Name)
+		require.NotEmpty(t, secrets[1].CreatedAt)
 		require.NotZero(t, secrets[1].UpdatedAt)
 
 		_, err = ds.DeleteSecretVariable(ctx, id1)
@@ -830,7 +832,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		_, err = ds.SaveTeam(ctx, foobarTeam)
 		require.NoError(t, err)
 
-		// Set a "No team" (global) host name template that uses the variable.
+		// Set an "Unassigned" (global) host name template that uses the variable.
 		ac, err := ds.AppConfig(ctx)
 		require.NoError(t, err)
 		ac.MDM.HostNameTemplate = optjson.SetString("iPad ${FLEET_SECRET_FOOBAR}")
@@ -843,9 +845,9 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		require.ErrorAs(t, err, &s)
 		require.Equal(t, "FOOBAR", s.SecretName)
 		require.Equal(t, "host_name_template", s.Entity.Type)
-		require.Equal(t, "No team", s.Entity.TeamName)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
 
-		// Clear the "No team" template.
+		// Clear the "Unassigned" template.
 		ac.MDM.HostNameTemplate = optjson.SetString("")
 		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 	})

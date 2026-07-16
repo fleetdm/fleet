@@ -8371,8 +8371,10 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
-	// Preparing the Discovery Request message. We are testing all versions Fleet claims to support
-	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
+	// Preparing the Discovery Request message. We test the historically-supported versions plus
+	// newer ones (e.g. Windows 11 25H2 advertises "9.0") to confirm any version >= the minimum is
+	// accepted.
+	for _, requestVersion := range []string{"4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"} {
 		requestBytes := []byte(`
 		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
 		   <s:Header>
@@ -25853,7 +25855,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	// (An omitted fleet_id targets "No team", covered by
 	// TestHostNameTemplateNoTeamEndToEnd; this test drives the team scope.)
 	res := s.Do("POST", "/api/latest/fleet/host_name_template",
-		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
 	// A custom (secret) variable is allowed, but an undefined one is rejected at
 	// save time with the missing-secret error.
@@ -26121,6 +26123,32 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &secretSettingsCmd))
 	require.Len(t, secretSettingsCmd.Command.Settings, 1)
 	require.Equal(t, "HQ-"+macHost.HardwareSerial, secretSettingsCmd.Command.Settings[0].DeviceName)
+	_, err = macDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- changing the secret value re-enqueues a fresh command ---
+	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}}))
+	// the secret change reset the enforcement row back to queued
+	requireRowStatus(macHost.UUID, nil)
+	runDeviceNameCron()
+	changedSecretRow := requireRowStatus(macHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, changedSecretRow.ExpectedDeviceName)
+	require.Equal(t, "NYC-"+macHost.HardwareSerial, *changedSecretRow.ExpectedDeviceName)
+	cmd, err = macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	var changedSecretCmd struct {
+		Command struct {
+			Settings []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &changedSecretCmd))
+	require.Len(t, changedSecretCmd.Command.Settings, 1)
+	require.Equal(t, "NYC-"+macHost.HardwareSerial, changedSecretCmd.Command.Settings[0].DeviceName)
 
 	// the secret can't be deleted while a host name template references it
 	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
@@ -26175,7 +26203,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	// --- set the No-team template (nil fleet_id) ---
 	// An invalid variable is still rejected on the No-team path.
 	res := s.Do("POST", "/api/latest/fleet/host_name_template",
-		updateHostNameTemplateRequest{HostNameTemplate: "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusUnprocessableEntity)
+		updateHostNameTemplateRequest{HostNameTemplate: "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), "not supported in host name templates")
 
 	const tmpl = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
@@ -26275,6 +26303,451 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateNoTeamEndToEnd() {
 	s.lastActivityMatches("edited_host_name_template",
 		`{"fleet_id": null, "fleet_name": null, "name_template": null}`, 0)
 	requireNoRow(macHost.UUID)
+}
+
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPVariables() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+
+	// A host mapped to an IdP user.
+	idpHost, idpDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(idpHost.ID)
+	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "jdoe@example.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Doe"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, idpHost.ID, scimUserID)
+	require.NoError(t, err)
+
+	// A host with no IdP user mapped.
+	noIDPHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noIDPHost.ID)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{idpHost.ID, noIDPHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	runDeviceNameCron := func() {
+		require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		require.Equal(t, "DeviceName", sc.Command.Settings[0].Item)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// --- set a template that uses an IdP variable ---
+	const tmpl = "WS-$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+
+	// --- cron: resolves the IdP value for the mapped host; fails the unmapped one ---
+	runDeviceNameCron()
+
+	idpRow := requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, idpRow.ExpectedDeviceName)
+	require.Equal(t, "WS-jdoe@example.com", *idpRow.ExpectedDeviceName)
+
+	// a host with no IdP user fails exactly like a profile would, with the same detail
+	noIDPRow := requireRowStatus(noIDPHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, noIDPRow.Detail, "no IdP username for this host")
+
+	// the mapped host received the DeviceName command carrying the resolved IdP value
+	cmd, err := idpDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "Settings", cmd.Command.RequestType)
+	require.Equal(t, "WS-jdoe@example.com", deviceNameFromCmd(cmd.Raw))
+	_, err = idpDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// A host in another team with an identity-only template, mapped to the *same*
+	// IdP user, driven to a settled (verifying) state. An IdP change must NOT
+	// re-enqueue it — its resolved name can't depend on IdP data.
+	identityTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-identity"})
+	require.NoError(t, err)
+	identityHost, identityDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(identityHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, identityHost.ID, scimUserID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&identityTeam.ID, []uint{identityHost.ID})))
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &identityTeam.ID, HostNameTemplate: "SN-$FLEET_VAR_HOST_HARDWARE_SERIAL"}, http.StatusNoContent)
+	runDeviceNameCron()
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryPending)
+	icmd, err := identityDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, icmd)
+	_, err = identityDevice.Acknowledge(icmd.CommandUUID)
+	require.NoError(t, err)
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// --- changing the IdP value re-enqueues a fresh command (mirrors profile resend) ---
+	_, err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{
+		ID:         scimUserID,
+		UserName:   "jsmith@example.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Smith"),
+		Department: new("Engineering"),
+	})
+	require.NoError(t, err)
+
+	// the IdP-template host's row was reset back to queued...
+	requireRowStatus(idpHost.UUID, nil)
+	// ...but the identity-only-template host mapped to the same IdP user is untouched.
+	requireRowStatus(identityHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	runDeviceNameCron()
+	changedRow := requireRowStatus(idpHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, changedRow.ExpectedDeviceName)
+	require.Equal(t, "WS-jsmith@example.com", *changedRow.ExpectedDeviceName)
+	cmd, err = idpDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "WS-jsmith@example.com", deviceNameFromCmd(cmd.Raw))
+}
+
+// TestHostNameTemplateIDPResolution covers resolving a template that mixes
+// identity, IdP, and custom (secret) variables in one string, the
+// username-local-part variable, and the fail-hard behavior when a referenced IdP
+// field is empty for a host (matching how configuration profiles treat it).
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPResolution() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+
+	// A host whose IdP user has a username and a department.
+	fullHost, fullDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(fullHost.ID)
+	fullUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{
+		UserName:   "jdoe@corp.com",
+		GivenName:  new("Jane"),
+		FamilyName: new("Doe"),
+		Department: new("Eng"),
+	})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, fullHost.ID, fullUserID)
+	require.NoError(t, err)
+
+	// A host whose IdP user has a username but no department.
+	noDeptHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noDeptHost.ID)
+	noDeptUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "nodept@corp.com"})
+	require.NoError(t, err)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, noDeptHost.ID, noDeptUserID)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID,
+		[]uint{fullHost.ID, noDeptHost.ID})))
+
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		require.Equal(t, "DeviceName", sc.Command.Settings[0].Item)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// A single template mixing a custom (secret) variable, an identity variable, the
+	// username-local-part IdP variable, and the department IdP variable.
+	secretID, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	const tmpl = "${FLEET_SECRET_SITE}-${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}-$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT" //nolint:gosec // G101: name template string, not a credential
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: tmpl}, http.StatusNoContent)
+
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+
+	// the fully-populated host resolves all three variable kinds: secret "HQ", the
+	// local part of the username ("jdoe"), and the department ("Eng").
+	fullRow := requireRowStatus(fullHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, fullRow.ExpectedDeviceName)
+	require.Equal(t, "HQ-jdoe-Eng", *fullRow.ExpectedDeviceName)
+	cmd, err := fullDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "HQ-jdoe-Eng", deviceNameFromCmd(cmd.Raw))
+
+	// the host whose IdP user has no department fails the same way a profile would —
+	// an empty IdP field is treated like a missing one.
+	noDeptRow := requireRowStatus(noDeptHost.UUID, &fleet.MDMDeliveryFailed)
+	require.Contains(t, noDeptRow.Detail, "no IdP department for this host")
+
+	// cleanup: clearing the template releases the secret for deletion.
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &team.ID, HostNameTemplate: ""}, http.StatusNoContent)
+	_, err = s.ds.DeleteSecretVariable(ctx, secretID)
+	require.NoError(t, err)
+}
+
+// TestHostNameTemplateSecretReenqueue covers the secret-value change trigger: it
+// re-queues teams and "No team" whose template references the changed secret,
+// leaves scopes referencing a similarly-named secret (SITE vs SITE_CODE) alone, and
+// is a no-op when a secret is re-upserted with an unchanged value.
+func (s *integrationMDMTestSuite) TestHostNameTemplateSecretReenqueue() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+	}
+
+	_, err := s.ds.CreateSecretVariable(ctx, "SITE", "HQ")
+	require.NoError(t, err)
+	_, err = s.ds.CreateSecretVariable(ctx, "SITE_CODE", "C1")
+	require.NoError(t, err)
+
+	// A team whose template uses $FLEET_SECRET_SITE.
+	siteTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-site"})
+	require.NoError(t, err)
+	siteHost, siteDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(siteHost.ID)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&siteTeam.ID, []uint{siteHost.ID})))
+
+	// A team whose template uses the similarly-named $FLEET_SECRET_SITE_CODE.
+	codeTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-code"})
+	require.NoError(t, err)
+	codeHost, codeDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(codeHost.ID)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&codeTeam.ID, []uint{codeHost.ID})))
+
+	// A "No team" host whose global template uses $FLEET_SECRET_SITE.
+	noTeamHost, noTeamDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(noTeamHost.ID)
+	require.Nil(t, noTeamHost.TeamID)
+
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &siteTeam.ID, HostNameTemplate: "${FLEET_SECRET_SITE}-x"}, http.StatusNoContent) //nolint:gosec // G101: template
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &codeTeam.ID, HostNameTemplate: "${FLEET_SECRET_SITE_CODE}-x"}, http.StatusNoContent) //nolint:gosec // G101: template
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{HostNameTemplate: "${FLEET_SECRET_SITE}-y"}, http.StatusNoContent) //nolint:gosec // G101: template
+
+	// Drive all three to a settled (verifying) state.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	for _, d := range []*mdmtest.TestAppleMDMClient{siteDevice, codeDevice, noTeamDevice} {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "Settings", cmd.Command.RequestType)
+		_, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	requireRowStatus(siteHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(codeHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Re-upserting SITE with its current value changes nothing → no re-queue.
+	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "HQ"}}))
+	requireRowStatus(siteHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Changing SITE re-queues the SITE team and the No-team host, but not the
+	// SITE_CODE team (the trailing word boundary prevents SITE from matching
+	// SITE_CODE).
+	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}}))
+	requireRowStatus(siteHost.UUID, nil)
+	requireRowStatus(noTeamHost.UUID, nil)
+	requireRowStatus(codeHost.UUID, &fleet.MDMDeliveryVerifying)
+}
+
+// TestHostNameTemplateIDPGroupChange covers the SCIM group-change re-enqueue path:
+// renaming a group re-queues hosts whose template uses the groups variable, but not
+// a host (mapped to the same user) whose template uses only the username variable.
+func (s *integrationMDMTestSuite) TestHostNameTemplateIDPGroupChange() {
+	t := s.T()
+	ctx := t.Context()
+
+	setFleetMDMData := func(hostID uint) {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	}
+	requireRowStatus := func(hostUUID string, want *fleet.MDMDeliveryStatus) *fleet.HostDeviceNameEnforcement {
+		row, err := s.ds.GetHostDeviceNameEnforcement(ctx, hostUUID)
+		require.NoError(t, err)
+		if want == nil {
+			require.Nil(t, row.Status)
+		} else {
+			require.NotNil(t, row.Status)
+			require.Equal(t, *want, *row.Status)
+		}
+		return row
+	}
+	deviceNameFromCmd := func(raw []byte) string {
+		var sc struct {
+			Command struct {
+				Settings []struct {
+					Item       string
+					DeviceName string
+				}
+			}
+		}
+		require.NoError(t, plist.Unmarshal(raw, &sc))
+		require.Len(t, sc.Command.Settings, 1)
+		return sc.Command.Settings[0].DeviceName
+	}
+
+	// A user who belongs to a SCIM group. (Usernames/group names are unique per
+	// test — the integration suite shares one DB and scim_users.user_name is unique.)
+	userID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "jdoe@group.example.com"})
+	require.NoError(t, err)
+	groupID, err := s.ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "GCAdmins", ScimUsers: []uint{userID}})
+	require.NoError(t, err)
+
+	// A team whose template uses the groups variable.
+	groupTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-groups"})
+	require.NoError(t, err)
+	groupHost, groupDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(groupHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, groupHost.ID, userID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&groupTeam.ID, []uint{groupHost.ID})))
+
+	// A team whose template uses only the username variable, with a host mapped to
+	// the *same* user.
+	userTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-user"})
+	require.NoError(t, err)
+	userHost, userDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setFleetMDMData(userHost.ID)
+	_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, userHost.ID, userID)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&userTeam.ID, []uint{userHost.ID})))
+
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &groupTeam.ID, HostNameTemplate: "G-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/host_name_template",
+		updateHostNameTemplateRequest{FleetID: &userTeam.ID, HostNameTemplate: "U-$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusNoContent)
+
+	// Drive both to a settled (verifying) state.
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	groupRow := requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, groupRow.ExpectedDeviceName)
+	require.Equal(t, "G-GCAdmins", *groupRow.ExpectedDeviceName)
+	for _, d := range []*mdmtest.TestAppleMDMClient{groupDevice, userDevice} {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		_, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryVerifying)
+	requireRowStatus(userHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	// Renaming the group re-queues the groups-template host (its resolved name
+	// changes) but leaves the username-template host — mapped to the same user —
+	// untouched.
+	require.NoError(t, s.ds.ReplaceScimGroup(ctx, &fleet.ScimGroup{ID: groupID, DisplayName: "GCSupers", ScimUsers: []uint{userID}}))
+	requireRowStatus(groupHost.UUID, nil)
+	requireRowStatus(userHost.UUID, &fleet.MDMDeliveryVerifying)
+
+	require.NoError(t, ReconcileHostDeviceNames(ctx, s.ds, s.mdmCommander, s.logger))
+	newRow := requireRowStatus(groupHost.UUID, &fleet.MDMDeliveryPending)
+	require.NotNil(t, newRow.ExpectedDeviceName)
+	require.Equal(t, "G-GCSupers", *newRow.ExpectedDeviceName)
+	cmd, err := groupDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "G-GCSupers", deviceNameFromCmd(cmd.Raw))
+}
+
+// TestHostNameTemplateTeamSpecSecret covers the team-spec (GitOps) apply path with a
+// template referencing a custom (secret) variable: it validates on create and edit,
+// is idempotent on re-apply, and rejects an undefined secret.
+func (s *integrationMDMTestSuite) TestHostNameTemplateTeamSpecSecret() {
+	t := s.T()
+	ctx := t.Context()
+
+	_, err := s.ds.CreateSecretVariable(ctx, "SPECSITE", "HQ")
+	require.NoError(t, err)
+
+	teamName := t.Name()
+	applySpec := func(tmpl string, wantStatus int) *http.Response {
+		return s.Do("POST", "/api/latest/fleet/spec/teams", applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+			Name: teamName,
+			MDM:  fleet.TeamSpecMDM{HostNameTemplate: optjson.SetString(tmpl)},
+		}}}, wantStatus)
+	}
+
+	// Create the team via spec with a valid secret template — the team-spec path
+	// (createTeamFromSpec) validates the referenced secret and stores the template.
+	applySpec("iPad ${FLEET_SECRET_SPECSITE}", http.StatusOK) //nolint:gosec // G101: template
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, "iPad ${FLEET_SECRET_SPECSITE}", team.Config.MDM.HostNameTemplate)
+
+	// Re-applying the identical spec succeeds and is idempotent — the change-gate
+	// skips re-validation and leaves the stored template unchanged.
+	applySpec("iPad ${FLEET_SECRET_SPECSITE}", http.StatusOK) //nolint:gosec // G101: template
+	teamAfter, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, "iPad ${FLEET_SECRET_SPECSITE}", teamAfter.Config.MDM.HostNameTemplate)
+
+	// A spec referencing an undefined secret is rejected.
+	res := applySpec("iPad ${FLEET_SECRET_NOPE}", http.StatusUnprocessableEntity) //nolint:gosec // G101: template
+	require.Contains(t, extractServerErrorText(res.Body), "missing from database")
 }
 
 func (s *integrationMDMTestSuite) TestHostNameTemplateTransferTeamToNoTeam() {
