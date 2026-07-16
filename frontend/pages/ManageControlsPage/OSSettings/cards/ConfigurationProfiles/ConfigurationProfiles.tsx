@@ -1,10 +1,12 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IMdmProfile } from "interfaces/mdm";
 
@@ -18,6 +20,8 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 
 import Pagination from "components/Pagination";
 
@@ -31,23 +35,30 @@ import ProfileListItem from "./components/ProfileListItem";
 import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
+import AssetsTab from "./components/AssetsTab";
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const PROFILES_PER_PAGE = 10;
 
 const baseClass = "configuration-profiles";
 
+export type ConfigProfilesTab = "profiles" | "assets";
+
+const TABS_BY_INDEX: ConfigProfilesTab[] = ["profiles", "assets"];
+
 export type IConfigurationProfilesProps = IOSSettingsCommonProps & {
   currentPage?: number;
+  /** Which secondary tab is active, derived from the route section. */
+  activeTab?: ConfigProfilesTab;
 };
 
 const ConfigurationProfiles = ({
   currentTeamId,
   router,
   currentPage = 0,
+  activeTab = "profiles",
   onMutation,
 }: IConfigurationProfilesProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     config,
     isPremiumTier,
@@ -130,9 +141,9 @@ const ConfigurationProfiles = ({
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
       onMutation();
-      renderFlash("success", "Successfully deleted.");
+      notify.success("Successfully deleted.");
     } catch (e) {
-      renderFlash("error", "Couldn't delete. Please try again.");
+      notify.error("Couldn't delete. Please try again.", { response: e });
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
@@ -151,6 +162,18 @@ const ConfigurationProfiles = ({
   const onNextPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
+
+  const handleTabChange = (index: number) => {
+    const tabPath =
+      TABS_BY_INDEX[index] === "assets"
+        ? PATHS.CONTROLS_ASSETS
+        : PATHS.CONTROLS_CUSTOM_SETTINGS;
+    router.push(
+      getPathWithQueryParams(tabPath, {
+        fleet_id: isPremiumTier ? currentTeamId : undefined,
+      })
+    );
+  };
 
   const onClickInfo = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
@@ -225,38 +248,62 @@ const ConfigurationProfiles = ({
     !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
+  const pageDescription =
+    activeTab === "assets" ? (
+      "Manage assets that provide data or credentials referenced by DDM declarations."
+    ) : (
+      <>
+        {isTechnician
+          ? "View configuration profiles."
+          : "Create and upload configuration profiles to apply custom settings."}{" "}
+        <CustomLink
+          newTab
+          text="Learn more"
+          url="https://fleetdm.com/guides/custom-os-settings"
+        />
+      </>
+    );
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Configuration profiles" alignLeftHeaderVertically />
-      <PageDescription
-        variant="right-panel"
-        content={
-          <>
-            {isTechnician
-              ? "View configuration profiles."
-              : "Create and upload configuration profiles to apply custom settings."}{" "}
-            <CustomLink
-              newTab
-              text="Learn more"
-              url="https://fleetdm.com/guides/custom-os-settings"
-            />
-          </>
-        }
-      />
-      {!mdmEnabled ? (
-        <EmptyState
-          variant="header-list"
-          header="Additional configuration required"
-          info="MDM must be turned on to add configuration profiles."
-          primaryButton={
-            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-              Turn on
-            </Button>
-          }
-        />
-      ) : (
-        renderProfileList()
-      )}
+      <PageDescription variant="right-panel" content={pageDescription} />
+      <TabNav secondary>
+        <Tabs
+          selectedIndex={TABS_BY_INDEX.indexOf(activeTab)}
+          onSelect={handleTabChange}
+        >
+          <TabList>
+            <Tab>
+              <TabText>Profiles</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Assets</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel>
+            {!mdmEnabled ? (
+              <EmptyState
+                variant="header-list"
+                header="Additional configuration required"
+                info="MDM must be turned on to add configuration profiles."
+                primaryButton={
+                  <Button
+                    onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+                  >
+                    Turn on
+                  </Button>
+                }
+              />
+            ) : (
+              renderProfileList()
+            )}
+          </TabPanel>
+          <TabPanel>
+            <AssetsTab currentTeamId={currentTeamId} router={router} />
+          </TabPanel>
+        </Tabs>
+      </TabNav>
       {showAddProfileModal && (
         <AddProfileModal
           currentTeamId={currentTeamId}

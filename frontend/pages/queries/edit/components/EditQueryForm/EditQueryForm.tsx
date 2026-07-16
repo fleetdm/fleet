@@ -61,7 +61,7 @@ import Icon from "components/Icon/Icon";
 import InputField from "components/forms/fields/InputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import PageDescription from "components/PageDescription";
 
 import {
@@ -75,6 +75,8 @@ import DiscardDataOption from "../DiscardDataOption";
 import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
+
+const NAME_MAX_LENGTH = 255;
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
@@ -464,6 +466,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
         />
       );
     }
@@ -480,7 +483,7 @@ const EditQueryForm = ({
           placeholder="Add description"
           value={lastEditedQueryDescription}
           type="textarea"
-          helpText="What information does your report reveal? (Optional)"
+          helpText="What information does your report reveal? (optional)"
           onChange={(value: string) => setLastEditedQueryDescription(value)}
           disabled={gitOpsModeEnabled}
         />
@@ -736,7 +739,7 @@ const EditQueryForm = ({
               </Checkbox>
               {isExistingQuery && platformSelector.render()}
               {isPremiumTier && (
-                <TargetLabelSelector
+                <DropdownTargetLabelSelector
                   selectedTargetType={selectedTargetType}
                   selectedCustomTarget={selectedCustomTarget}
                   customTargetOptions={customTargetOptions}

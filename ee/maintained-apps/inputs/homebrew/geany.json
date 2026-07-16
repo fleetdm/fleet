@@ -1,0 +1,10 @@
+{
+  "name": "Geany",
+  "unique_identifier": "org.geany.geany",
+  "token": "geany",
+  "installer_format": "dmg",
+  "slug": "geany/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

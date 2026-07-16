@@ -763,8 +763,7 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be/i)).toBeInTheDocument();
-      expect(screen.getByText(/ran/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be run on the host/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -829,9 +828,8 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getAllByText("---")[0]);
     await waitFor(() => {
-      expect(
-        screen.getByText(/App store app can be installed/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Mock Software/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
     });
 
     // Not clickable

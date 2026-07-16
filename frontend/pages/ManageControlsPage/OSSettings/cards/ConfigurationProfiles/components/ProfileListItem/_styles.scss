@@ -4,6 +4,14 @@
     flex-direction: row;
     gap: $pad-xsmall;
     color: $ui-fleet-black-75;
+    overflow: hidden;
+    white-space: nowrap;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
   }
 
   &__list-item-details {
@@ -13,13 +21,72 @@
     font-size: $xx-small;
   }
 
-  &__action-button {
-    width: 40px;
-    height: 40px;
+  .list-item__actions {
+    .button--icon {
+      @include bordered-icon-button;
+    }
   }
 
   .list-item__actions-wrap {
     display: flex;
+    flex-shrink: 0;
+    gap: $pad-large;
+  }
+
+  // Stage 1 (≤1185px): hide the profile icon to reclaim horizontal space
+  @include breakpoint(smalldesk) {
+    .list-item__main-content .graphic {
+      display: none;
+    }
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    // The global body font-size ($medium) would otherwise inflate the name's
+    // line-box strut and baseline-bias the 14px title downward, making the
+    // centered user-scope icon look high. Match the title size so the strut
+    // tracks the text.
+    font-size: $x-small;
+
+    // let the name shrink/truncate; keep the user-scope icon at its natural size
+    .component__tooltip-wrapper:first-child {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .profile-list-item__scope-tooltip {
+      flex-shrink: 0;
+
+      // Center the icon as a flex box rather than inside the tooltip element's
+      // text line box, which would baseline-align it and push it above center.
+      .component__tooltip-wrapper__element {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+
+  .list-item__title {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // Stage 2 (≤1024px): constrain main content so title and details truncate
+  @include breakpoint(tablet) {
+    .list-item__main-content {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .list-item__info {
+      min-width: 0;
+      overflow: hidden;
+    }
   }
 
   .list-item__labels {
@@ -27,6 +94,9 @@
     gap: $pad-small;
 
     &--count {
+      display: flex;
+      align-items: center;
+      gap: $gap-icon-text;
       align-self: center;
       color: $ui-fleet-black-75;
       font-size: $x-small; // Remove when global default font is implemented

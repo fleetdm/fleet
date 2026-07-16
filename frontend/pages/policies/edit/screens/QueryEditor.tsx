@@ -6,7 +6,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
@@ -33,7 +33,6 @@ interface IQueryEditorProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   teamIdForApi?: number;
-  currentAutomatedPolicies?: number[];
 }
 
 const QueryEditor = ({
@@ -51,12 +50,10 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
   teamIdForApi,
-  currentAutomatedPolicies,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
   );
-  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -74,9 +71,9 @@ const QueryEditor = ({
 
   useEffect(() => {
     if (storedPolicyError) {
-      renderFlash(
-        "error",
-        "Something went wrong retrieving your policy. Please try again."
+      notify.error(
+        "Something went wrong retrieving your policy. Please try again.",
+        { response: storedPolicyError }
       );
     }
   }, []);
@@ -116,7 +113,7 @@ const QueryEditor = ({
         setLastEditedQueryDescription(autofillResponse.description);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        notify.error("Couldn't autofill policy data.", { response: error });
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -139,59 +136,73 @@ const QueryEditor = ({
         setLastEditedQueryResolution(autofillResponse.resolution);
       } catch (error) {
         console.log(error);
-        renderFlash("error", "Couldn't autofill policy data.");
+        notify.error("Couldn't autofill policy data.", { response: error });
       }
       setIsFetchingAutofillResolution(false);
     }
   };
 
-  const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
-    if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-      formData.team_id = policyTeamId;
-    }
-    setIsUpdatingPolicy(true);
-    const payload: IPolicyFormData = {
-      name: formData.name,
-      description: formData.description,
-      query: formData.query,
-      resolution: formData.resolution,
-      platform: formData.platform,
-      labels_include_any: formData.labels_include_any,
-      labels_include_all: formData.labels_include_all,
-      labels_exclude_any: formData.labels_exclude_any,
-    };
-    if (isPremiumTier) {
-      payload.critical = formData.critical;
-      payload.team_id = formData.team_id;
-    }
-
-    try {
-      const policy: IPolicy = await createPolicy(payload).then(
-        (data) => data.policy
-      );
-      setIsUpdatingPolicy(false);
-      router.push(
-        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
-          fleet_id: policy.team_id,
-        })
-      );
-      renderFlash("success", "Policy created.");
-    } catch (createError) {
-      console.error(createError);
-      if (getErrorReason(createError).includes("already exists")) {
-        setBackendValidators({
-          name: "A policy with this name already exists",
-        });
-      } else {
-        renderFlash(
-          "error",
-          "Something went wrong creating your policy. Please try again."
-        );
+  const onCreatePolicy = debounce(
+    async (
+      formData: IPolicyFormData,
+      saveAutomations?: (newPolicy: IPolicy) => Promise<void>
+    ) => {
+      if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
+        formData.team_id = policyTeamId;
       }
-    } finally {
-      setIsUpdatingPolicy(false);
+      setIsUpdatingPolicy(true);
+      const payload: IPolicyFormData = {
+        name: formData.name,
+        description: formData.description,
+        query: formData.query,
+        resolution: formData.resolution,
+        platform: formData.platform,
+        labels_include_any: formData.labels_include_any,
+        labels_include_all: formData.labels_include_all,
+        labels_exclude_any: formData.labels_exclude_any,
+        labels_exclude_all: formData.labels_exclude_all,
+      };
+      if (isPremiumTier) {
+        payload.critical = formData.critical;
+        payload.team_id = formData.team_id;
+      }
+
+      try {
+        const policy: IPolicy = await createPolicy(payload).then(
+          (data) => data.policy
+        );
+        if (saveAutomations) {
+          try {
+            await saveAutomations(policy);
+          } catch (automationsErr) {
+            notify.error(
+              "Policy was created, but its automations couldn't be saved.",
+              { response: automationsErr }
+            );
+          }
+        }
+        notify.success("Policy created.");
+        router.push(
+          getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
+            fleet_id: policy.team_id,
+          })
+        );
+      } catch (createError) {
+        if (getErrorReason(createError).includes("already exists")) {
+          setBackendValidators({
+            name: "A policy with this name already exists",
+          });
+        } else {
+          notify.error(
+            "Something went wrong creating your policy. Please try again.",
+            { response: createError }
+          );
+        }
+      } finally {
+        setIsUpdatingPolicy(false);
+      }
     }
-  });
+  );
 
   const onUpdatePolicy = async (formData: IPolicyFormData) => {
     if (!policyIdForEdit) {
@@ -229,15 +240,17 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      renderFlash("success", "Policy updated.");
+      notify.success("Policy updated.");
     } catch (updateError) {
       console.error(updateError);
       if (getErrorReason(updateError).includes("Duplicate")) {
-        renderFlash("error", "A policy with this name already exists.");
+        notify.error("A policy with this name already exists.", {
+          response: updateError,
+        });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong updating your policy. Please try again."
+        notify.error(
+          "Something went wrong updating your policy. Please try again.",
+          { response: updateError }
         );
       }
     } finally {
@@ -295,18 +308,6 @@ const QueryEditor = ({
         onClickAutofillDescription={onClickAutofillDescription}
         onClickAutofillResolution={onClickAutofillResolution}
         resetAiAutofillData={() => setPolicyAutofillData(null)}
-        currentAutomatedPolicies={currentAutomatedPolicies || []}
-        onCancel={
-          policyIdForEdit
-            ? () =>
-                router.push(
-                  getPathWithQueryParams(
-                    PATHS.POLICY_DETAILS(policyIdForEdit),
-                    { fleet_id: teamIdForApi }
-                  )
-                )
-            : undefined
-        }
       />
     </div>
   );

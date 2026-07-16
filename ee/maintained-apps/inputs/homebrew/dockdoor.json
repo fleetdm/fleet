@@ -1,0 +1,10 @@
+{
+  "name": "DockDoor",
+  "unique_identifier": "com.ethanbills.DockDoor",
+  "token": "dockdoor",
+  "installer_format": "dmg",
+  "slug": "dockdoor/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

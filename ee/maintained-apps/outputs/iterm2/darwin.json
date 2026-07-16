@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.6.10",
+      "version": "3.6.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2' AND version_compare(bundle_short_version, '3.6.10') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2' AND version_compare(bundle_short_version, '3.6.11') < 0);"
       },
-      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_10.zip",
+      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_6_11.zip",
       "install_script_ref": "49f7590e",
       "uninstall_script_ref": "d49e0980",
-      "sha256": "f62ce1cb28ac85a99b17447bebebbc2b2e4f6dd59ad7d64a612e39e07ce223ca",
+      "sha256": "36e78c5049560eaa8e122224f6652eb4b229c61cd5e7332d6d25b5c36f7398e7",
       "default_categories": [
         "Developer tools"
       ]

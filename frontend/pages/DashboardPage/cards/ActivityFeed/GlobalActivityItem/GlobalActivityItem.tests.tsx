@@ -1817,6 +1817,60 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
+  it("renders py script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "installed",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "pending_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "failed_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
   it("renders addedNdesScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedNdesScepProxy,
@@ -2139,5 +2193,110 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText("deleted the label .")).toBeInTheDocument();
     expect(screen.getByText("Workstations")).toBeInTheDocument();
+  });
+
+  it("renders an un-scoped installed_all_self_service_software activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAllSelfServiceSoftware,
+      actor_full_name: "Test User",
+      details: {},
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("End user")).toBeInTheDocument();
+    expect(
+      screen.getByText(/installed all the software in self-service/i)
+    ).toBeInTheDocument();
+    // The actor is dropped in favor of "End user".
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+  });
+
+  it("renders a category-scoped installed_all_self_service_software activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAllSelfServiceSoftware,
+      details: { self_service_category_name: "Productivity" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("End user")).toBeInTheDocument();
+    expect(screen.getByText("Install all")).toBeInTheDocument();
+    expect(screen.getByText("Productivity")).toBeInTheDocument();
+    expect(screen.getByText(/in the self-service/i)).toBeInTheDocument();
+  });
+
+  it("treats a null category the same as un-scoped (installed_all_self_service_software)", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledAllSelfServiceSoftware,
+      details: { self_service_category_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(/installed all the software in self-service/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders a ran_custom_mdm_command activity with a command name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanCustomMdmCommand,
+      details: {
+        request_type: "./Device/Vendor/MSFT/DMClient/Provider/DEMO/EntDMID",
+        host_display_name: "Huck's MacBook Pro",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(".../EntDMID")).toBeInTheDocument();
+    expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a ran_custom_mdm_command activity without a command name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RanCustomMdmCommand,
+      details: { host_display_name: "Huck's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/a custom MDM command/i)).toBeInTheDocument();
+    expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a created_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Function" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("created a custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Function")).toBeInTheDocument();
+  });
+
+  it("renders an edited_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Asset tag" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Asset tag" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
   });
 });

@@ -1,0 +1,10 @@
+{
+  "name": "FSMonitor",
+  "unique_identifier": "com.tristan.FSMonitor",
+  "token": "fsmonitor",
+  "installer_format": "zip",
+  "slug": "fsmonitor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

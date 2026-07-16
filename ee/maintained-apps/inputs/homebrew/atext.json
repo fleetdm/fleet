@@ -1,0 +1,10 @@
+{
+  "name": "aText",
+  "unique_identifier": "com.trankynam.aText",
+  "token": "atext",
+  "installer_format": "dmg",
+  "slug": "atext/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

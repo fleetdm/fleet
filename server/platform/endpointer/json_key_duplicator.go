@@ -20,6 +20,20 @@ type DuplicateJSONKeysOpts struct {
 // JSON contains "team_id": 42, the output will contain both "team_id": 42
 // and "fleet_id": 42.
 //
+// By default a renamed key produces a clean split: the old-named key keeps an
+// all-old subtree and the new-named key gets an all-new subtree (via
+// RewriteOldToNewKeys), so each subtree is internally single-named. A renamed
+// leaf at the top level (or under a non-renamed key) is instead duplicated in
+// place, so both names appear as siblings with the same value.
+//
+// A rule with Inline set opts into "merged" duplication for that container: its
+// old-named subtree additionally carries the new-named copies of any nested
+// renamed containers, so both names appear together on the same object (e.g.
+// "abm_tokens" holding both "macos_team" and "macos_fleet"). Leaf renames
+// inside an inlined subtree are still kept single-named per container (so
+// "macos_team" holds "team_id" while its sibling "macos_fleet" holds
+// "fleet_id") rather than cross-contaminating both id names into one object.
+//
 // If the new key already exists in the same object scope, the duplication is
 // skipped for that key (to avoid producing duplicate keys when the source
 // struct already has both, or when the function is called more than once).
@@ -29,21 +43,40 @@ type DuplicateJSONKeysOpts struct {
 // library. Duplicates are deferred until the closing '}' of each object so
 // that naturally-occurring new keys can be detected and skipped.
 func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeysOpts) []byte {
+	compact := len(opts) > 0 && opts[0].Compact
+	return duplicateJSONKeys(data, rules, compact)
+}
+
+// duplicateJSONKeys is the recursive core of DuplicateJSONKeys.
+//
+// An Inline container is the only recursive case: its old-named subtree is
+// re-run through this function so nested renames surface there too — exactly as
+// they did before the container itself was renamed. That recursion needs no
+// special mode because the default rules already produce the right shape:
+// nested renamed *containers* split cleanly into old/new siblings (their values
+// are consumed whole by ReadValue, so their leaves are never duplicated in
+// place), while nested renamed *leaves* are duplicated in place. The new-named
+// subtree is always a clean RewriteOldToNewKeys copy.
+func duplicateJSONKeys(data []byte, rules []AliasRule, compact bool) []byte {
 	if len(rules) == 0 || len(data) == 0 {
 		return data
 	}
 
 	oldToNew := make(map[string]string, len(rules))
 	newToOld := make(map[string]string, len(rules))
+	inlineOld := make(map[string]struct{}, len(rules))
 	for _, r := range rules {
 		oldToNew[r.OldKey] = r.NewKey
 		newToOld[r.NewKey] = r.OldKey
+		if r.Inline {
+			inlineOld[r.OldKey] = struct{}{}
+		}
 	}
 
 	var buf bytes.Buffer
 	dec := jsontext.NewDecoder(bytes.NewReader(data), jsontext.AllowDuplicateNames(true))
 	encOpts := []jsontext.Options{jsontext.AllowDuplicateNames(true)}
-	if len(opts) == 0 || !opts[0].Compact {
+	if !compact {
 		encOpts = append(encOpts, jsontext.WithIndent("  "))
 	}
 	enc := jsontext.NewEncoder(&buf, encOpts...)
@@ -137,21 +170,29 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 						return data
 					}
 
-					// Write the original value as-is for the old key — it
-					// already uses old names from json.Marshal, so no
-					// transformation is needed.
-					if err := enc.WriteValue(val); err != nil {
+					// Old-named subtree. By default it is written as-is (the
+					// value already uses old names from json.Marshal). An Inline
+					// container instead re-runs the duplicator over its value so
+					// nested renames also surface under the old name, the way
+					// they did before this container was renamed.
+					if _, ok := inlineOld[keyName]; ok && startsWithContainer(val) {
+						// compact is irrelevant here: the result is re-encoded
+						// by the outer encoder, which applies its own indent.
+						oldVal := duplicateJSONKeys([]byte(val), rules, true)
+						if err := enc.WriteValue(jsontext.Value(oldVal)); err != nil {
+							return data
+						}
+					} else if err := enc.WriteValue(val); err != nil {
 						return data
 					}
 
-					// For the new key, rename nested keys to new names only
-					// (removing old names) so the new-name subtree is clean.
+					// New-named sibling: a clean, fully new-named copy. For a
+					// scalar this is the same value, which yields an in-place
+					// duplicate (both old and new key on the same object).
 					newVal, renameErr := RewriteOldToNewKeys([]byte(val), rules)
 					if renameErr != nil {
 						newVal = []byte(val) // fall back to original value on error
 					}
-
-					// Defer the duplicate for emission at '}'.
 					if len(scopes) > 0 {
 						scopes[len(scopes)-1].pending = append(
 							scopes[len(scopes)-1].pending,
@@ -178,4 +219,20 @@ func DuplicateJSONKeys(data []byte, rules []AliasRule, opts ...DuplicateJSONKeys
 	}
 
 	return buf.Bytes()
+}
+
+// startsWithContainer reports whether the JSON value v is an object or array
+// (as opposed to a scalar: string, number, bool, or null).
+func startsWithContainer(v []byte) bool {
+	for _, b := range v {
+		switch b {
+		case ' ', '\t', '\n', '\r':
+			continue
+		case '{', '[':
+			return true
+		default:
+			return false
+		}
+	}
+	return false
 }

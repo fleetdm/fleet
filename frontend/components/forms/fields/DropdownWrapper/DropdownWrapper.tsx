@@ -125,6 +125,12 @@ export interface IDropdownWrapper {
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
   customNoOptionsMessage?: string;
+  /** Explicit accessible name for the combobox. When omitted, the resolved
+   * aria-label falls back to `placeholder`, then `name`, so existing call
+   * sites get at least a rough label without opting in. react-select does
+   * not infer any of these on its own; without a value here screen readers
+   * announce a bare "combobox". */
+  ariaLabel?: string;
 }
 
 const getOptionBackgroundColor = (
@@ -201,16 +207,12 @@ export const generateCustomDropdownStyles = (
               stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
-          ...(state.isFocused && {
-            backgroundColor: COLORS["ui-fleet-black-5"],
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-down"],
-            },
-          }),
+          // Note: state.isFocused is intentionally not used as a highlight
+          // trigger here. react-select's internal input retains focus after
+          // the menu closes (outside click, post-modal-close, etc.), so
+          // styling on it would leave the trigger visually highlighted
+          // indefinitely (#45853). Hover + menuIsOpen cover the meaningful
+          // interactive states for an action button.
           ...(state.menuIsOpen && {
             backgroundColor: COLORS["ui-fleet-black-5"],
             ".dropdown-wrapper__placeholder": {
@@ -456,9 +458,11 @@ const DropdownWrapper = ({
   variant,
   nowrapMenu,
   customNoOptionsMessage,
+  ariaLabel,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
+    [`${baseClass}__button`]: variant === "button",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
@@ -477,6 +481,13 @@ const DropdownWrapper = ({
 
   // Ability to handle value of type string or CustomOptionType
   const getCurrentValue = () => {
+    // Button variant is a fire-and-forget action menu (selection isn't displayed
+    // via `controlShouldRenderValue`). Forcing null prevents react-select from
+    // tracking the last click as the selected value and re-focusing it on reopen
+    // (#45853).
+    if (variant === "button") {
+      return null;
+    }
     if (typeof value === "string") {
       return options.find((option) => option.value === value) || null;
     }
@@ -555,6 +566,11 @@ const DropdownWrapper = ({
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
         controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
+        // Resolve accessible name: explicit prop wins, otherwise fall back
+        // to the placeholder (usually "Select X"), otherwise the required
+        // `name` (often a kebab-case identifier — least readable but
+        // guaranteed present).
+        aria-label={ariaLabel ?? placeholder ?? name}
       />
     </FormField>
   );

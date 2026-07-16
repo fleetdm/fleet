@@ -13,15 +13,19 @@ $shadow-transition-width: 16px;
       border-radius: 6px;
       flex-grow: 1;
       width: 100%;
+      // Wide tables scroll horizontally within the table wrapper rather than
+      // pushing the document past the viewport. The shadow backgrounds below
+      // were already engineered for horizontal scrolling.
+      overflow-x: auto;
 
       // Shadow
       background-image:
       /* Shadows */ linear-gradient(
           to right,
           $core-fleet-white,
-          $transparent
+          $core-fleet-white-transparent
         ),
-        linear-gradient(to left, $core-fleet-white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $core-fleet-white-transparent),
         /* Shadow covers */
           linear-gradient(
             to right,
@@ -146,7 +150,12 @@ $shadow-transition-width: 16px;
           min-width: max-content;
           font-weight: $bold;
 
-          span {
+          // Targets only HeaderCell's wrapper span (direct child of
+          // `.header-cell`), not arbitrary descendant spans. Previously
+          // `.column-header span` matched every descendant, leaking
+          // `display: flex` onto nested suffix/decoration spans like
+          // `.resolved-suffix` and turning them block-level.
+          .header-cell > span {
             display: flex;
             align-items: center;
             gap: $gap-icon-text;
@@ -252,21 +261,21 @@ $shadow-transition-width: 16px;
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
         &:focus-visible {
-          outline: 2px solid $core-focused-outline;
+          outline: 1px solid $core-focused-outline;
           background: $ui-off-white;
           border-radius: $border-radius;
         }
       }
 
-      // Round bottom corners on the last row so the row background doesn't
-      // overflow the wrapper's rounded corners (visible in dark mode where
-      // row and wrapper backgrounds differ).
+      // Round the last row's bottom corners so its background doesn't overflow
+      // the wrapper's rounded corners (visible in dark mode where row and
+      // wrapper backgrounds differ).
       tr:last-child {
         td:first-child {
-          border-bottom-left-radius: 6px;
+          border-bottom-left-radius: $border-radius-medium;
         }
         td:last-child {
-          border-bottom-right-radius: 6px;
+          border-bottom-right-radius: $border-radius-medium;
         }
       }
 
@@ -274,26 +283,11 @@ $shadow-transition-width: 16px;
         &:hover {
           cursor: pointer;
         }
-        &:active {
-          background-color: $ui-vibrant-blue-10;
-        }
       }
 
       .clickable-row {
         &:hover {
           cursor: pointer;
-        }
-      }
-
-      // Match the wrapper's rounded corners so the last row's hover
-      // background doesn't bleed past them.
-      tr:last-child,
-      .single-row:last-child {
-        td:first-child {
-          border-bottom-left-radius: 6px;
-        }
-        td:last-child {
-          border-bottom-right-radius: 6px;
         }
       }
 
@@ -342,50 +336,14 @@ $shadow-transition-width: 16px;
           }
         }
 
-        // Caution: LinkCell depends on this to have animation only under text and not icons etc
         .link-cell {
-          display: inline-block; // Underline only words
+          display: inline-block;
           overflow: visible;
           @include link;
 
-          &:not(.link-cell--tooltip-truncate) {
-            @include animated-bottom-border;
-          }
-
-          &.link-cell--tooltip-truncate {
-            min-width: 100%; // Take up as much of cell as possible
-
-            .data-table__tooltip-truncated-text-container {
-              position: relative;
-              @include bottom-border;
-            }
-
-            &:hover,
-            &:focus {
-              margin-bottom: 0; // Undo margin-bottom of animated bottom border
-
-              .data-table__tooltip-truncated-text::after,
-              .data-table__tooltip-truncated-text::after {
-                transform: scaleX(1);
-              }
-            }
-          }
-
           &:hover {
-            .data-table__tooltip-truncated-text-container {
-              @include animated-bottom-border;
-              margin-bottom: 0; // Undo margin-bottom of animated bottom border
-
-              &:hover {
-                margin-bottom: 0; // Undo margin-bottom of animated bottom border
-              }
-
-              &::after {
-                transform: scaleX(
-                  1
-                ); // This gets the animation on the text only when hovering over the whole link-cell
-              }
-            }
+            text-decoration: underline;
+            text-underline-offset: 3px;
           }
 
           > div {

@@ -1,0 +1,10 @@
+{
+  "name": "iExplorer",
+  "unique_identifier": "com.macroplant.iExplorer",
+  "token": "iexplorer",
+  "installer_format": "dmg",
+  "slug": "iexplorer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

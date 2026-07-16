@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -376,7 +377,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 					LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
 					LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
 					LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
-					Categories:         pkg.Categories,
+					Categories:         optjson.SetSlice(pkg.Categories),
 					InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 				})
 				continue
@@ -388,7 +389,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				LabelsIncludeAny:   scopeLabelNames(pkg.LabelsIncludeAny),
 				LabelsExcludeAny:   scopeLabelNames(pkg.LabelsExcludeAny),
 				LabelsIncludeAll:   scopeLabelNames(pkg.LabelsIncludeAll),
-				Categories:         pkg.Categories,
+				Categories:         optjson.SetSlice(pkg.Categories),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			})
 		case detail.AppStoreApp != nil:
@@ -494,6 +495,7 @@ func getCommand() *cli.Command {
 			getFleetsCommand(),
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
+			getMDMABCommand(),
 			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
@@ -1633,58 +1635,78 @@ func getMDMAppleCommand() *cli.Command {
 	}
 }
 
+func getMDMABCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "mdm-ab",
+		Aliases: []string{"mdm_ab"},
+		Usage:   "Show information about Apple Business (AB) for automatic enrollment",
+		Flags:   getMDMABFlags(),
+		Action:  runGetMDMAB,
+	}
+}
+
 func getMDMAppleBMCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-apple-bm",
 		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Show information about Apple Business for automatic enrollment",
-		Flags: []cli.Flag{
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
+		Usage:   "Deprecated. Use mdm-ab instead.",
+		Flags:   getMDMABFlags(),
 		Action: func(c *cli.Context) error {
-			const expirationWarning = 30 * 24 * time.Hour // 30 days
-
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return err
+			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl get mdm-apple-bm' is deprecated; use 'fleetctl get mdm-ab' instead\n")
 			}
-
-			bm, err := client.GetAppleBM()
-			if err != nil {
-				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
-					log(c, "Error: No Apple Business server token found. Use `fleetctl generate mdm-apple-bm` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
-					return nil
-				}
-				return fmt.Errorf("could not get Apple BM information: %w", err)
-			}
-
-			defaultTeam := bm.DefaultTeam
-			if defaultTeam == "" {
-				defaultTeam = "No team"
-			}
-			printKeyValueTable(c, [][]string{
-				{"Apple ID:", bm.AppleID},
-				{"Organization name:", bm.OrgName},
-				{"MDM server URL:", bm.MDMServerURL},
-				{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
-				{"Default team:", defaultTeam},
-			})
-
-			warnDate := time.Now().Add(expirationWarning)
-			if bm.RenewDate.Before(time.Now()) {
-				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-			} else if bm.RenewDate.Before(warnDate) {
-				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via ABM will not automatically enroll in Fleet. To renew your ABM server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-			}
-
-			return nil
+			return runGetMDMAB(c)
 		},
 	}
+}
+
+func getMDMABFlags() []cli.Flag {
+	return []cli.Flag{
+		configFlag(),
+		contextFlag(),
+		debugFlag(),
+	}
+}
+
+func runGetMDMAB(c *cli.Context) error {
+	const expirationWarning = 30 * 24 * time.Hour // 30 days
+
+	client, err := clientFromCLI(c)
+	if err != nil {
+		return err
+	}
+
+	bm, err := client.GetAppleBM()
+	if err != nil {
+		if _, ok := errors.AsType[service.NotFoundErr](err); ok {
+			log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
+			return nil
+		}
+		return fmt.Errorf("could not get Apple Business information: %w", err)
+	}
+
+	defaultTeam := bm.DefaultTeam
+	if defaultTeam == "" {
+		defaultTeam = "Unassigned"
+	}
+	printKeyValueTable(c, [][]string{
+		{"Apple ID:", bm.AppleID},
+		{"Organization name:", bm.OrgName},
+		{"MDM server URL:", bm.MDMServerURL},
+		{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
+		{"Default fleet:", defaultTeam},
+	})
+
+	warnDate := time.Now().Add(expirationWarning)
+	if bm.RenewDate.Before(time.Now()) {
+		// certificate is expired, print an error
+		color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+	} else if bm.RenewDate.Before(warnDate) {
+		// certificate will soon expire, print a warning
+		color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+	}
+
+	return nil
 }
 
 func getMDMCommandResultsCommand() *cli.Command {

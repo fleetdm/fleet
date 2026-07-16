@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.70.00187.26189",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.70.00187.26189') < 0);"
+      },
+      "installer_url": "https://download.microsoft.com/download/06ed2ff0-ec2c-45c5-abef-ea68e9956f2a/Setup.Microsoft.PowerAutomate.exe",
+      "install_script_ref": "20b20659",
+      "uninstall_script_ref": "d8400a71",
+      "sha256": "2e7f81be185de1e87383974b670011137392deb8a517c7d2137e8c28491b3ed4",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "20b20659": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"-Silent -Install -ACCEPTEULA\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "d8400a71": "$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\n# Power Automate for desktop is a WiX Burn bundle installed by the\n# Setup.Microsoft.PowerAutomate.exe bootstrapper. The visible ARP entry is the inner\n# MSI, whose UninstallString is \"MsiExec.exe /I{GUID}\" -- that is install/repair, not\n# an uninstall, and the bootstrapper's -Uninstall/-Silent switches are not valid for\n# MsiExec.exe. The documented silent uninstall runs the bootstrapper itself:\n#   Setup.Microsoft.PowerAutomate.exe -Silent -Uninstall\n# https://learn.microsoft.com/power-automate/desktop-flows/install-silently\n\n# Stop running PAD processes so the uninstall isn't blocked.\nStop-Process -Name \"PAD.Console.Host\" -Force -ErrorAction SilentlyContinue\n\n$setupExe = $null\n\n# 1) The Burn bundle's ARP entry records the cached bootstrapper in BundleCachePath.\n$arpPaths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\nforeach ($p in $arpPaths) {\n  $bundle = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like 'Power Automate for desktop*' -and $_.BundleCachePath\n  } | Select-Object -First 1\n  if ($bundle) { $setupExe = $bundle.BundleCachePath; break }\n}\n\n# 2) Fall back to searching the Burn package cache for the bootstrapper.\nif (-not $setupExe -or -not (Test-Path $setupExe)) {\n  $cache = Join-Path $env:ProgramData 'Package Cache'\n  $found = Get-ChildItem -Path $cache -Recurse -Filter 'Setup.Microsoft.PowerAutomate.exe' -ErrorAction SilentlyContinue | Select-Object -First 1\n  if ($found) { $setupExe = $found.FullName }\n}\n\nif (-not $setupExe -or -not (Test-Path $setupExe)) {\n  Write-Host \"Power Automate bootstrapper not found; nothing to uninstall.\"\n  Exit 0\n}\n\nWrite-Host \"Uninstall command: $setupExe\"\nWrite-Host \"Uninstall args: -Silent -Uninstall\"\n\ntry {\n    $processOptions = @{\n        FilePath = $setupExe\n        ArgumentList = @(\"-Silent\", \"-Uninstall\")\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

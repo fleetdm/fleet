@@ -1,0 +1,10 @@
+{
+  "name": "RetroArch",
+  "unique_identifier": "com.libretro.RetroArch",
+  "token": "retroarch",
+  "installer_format": "dmg",
+  "slug": "retroarch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

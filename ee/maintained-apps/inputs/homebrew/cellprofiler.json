@@ -1,0 +1,10 @@
+{
+  "name": "CellProfiler",
+  "unique_identifier": "org.cellprofiler.CellProfiler",
+  "token": "cellprofiler",
+  "installer_format": "zip",
+  "slug": "cellprofiler/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

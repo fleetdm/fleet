@@ -1,0 +1,10 @@
+{
+  "name": "Shotcut",
+  "unique_identifier": "com.meltytech.Shotcut",
+  "token": "shotcut",
+  "installer_format": "dmg",
+  "slug": "shotcut/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

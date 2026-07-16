@@ -8,6 +8,7 @@ import {
   browserHistory,
   IndexRedirect,
   IndexRoute,
+  InjectedRouter,
   Route,
   RouteComponent,
   Router,
@@ -58,6 +59,7 @@ import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
@@ -80,6 +82,7 @@ import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
 import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
+import SelfServiceCategoriesPage from "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/TeamSettings";
@@ -119,6 +122,7 @@ const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClie
 interface IAppWrapperProps {
   children: JSX.Element;
   location?: any;
+  router: InjectedRouter;
 }
 
 const queryClient = new QueryClient();
@@ -126,12 +130,14 @@ const queryClient = new QueryClient();
 // App.tsx needs the context for user and config. We also wrap the application
 // component in the required query client provider for react-query. This
 // will allow us to use react-query hooks in the application component.
-const AppWrapper = ({ children, location }: IAppWrapperProps) => {
+const AppWrapper = ({ children, location, router }: IAppWrapperProps) => {
   return (
     <AppProvider>
       <RoutingProvider>
         <CustomQueryClientProvider client={queryClient}>
-          <App location={location}>{children}</App>
+          <App location={location} router={router}>
+            {children}
+          </App>
         </CustomQueryClientProvider>
       </RoutingProvider>
     </AppProvider>
@@ -140,6 +146,9 @@ const AppWrapper = ({ children, location }: IAppWrapperProps) => {
 
 const routes = (
   <Router history={browserHistory}>
+    {/* Kept outside AppWrapper (and before the "/" route) so the App shell
+    never tries to load a normal session for API-only users. */}
+    <Route path="/apionlyuser" component={ApiOnlyUser} />
     <Route path={PATHS.ROOT} component={AppWrapper}>
       <Route component={UnauthenticatedRoutes as RouteComponent}>
         <Route component={GatedLayout}>
@@ -164,13 +173,17 @@ const routes = (
             path="mdm/apple/account_driven_enroll/sso"
             component={MDMAppleSSOPage}
           />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso/:token"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
         <Route component={CoreLayout}>
-          <IndexRedirect to="/dashboard" />
+          <IndexRedirect to="dashboard" />
           <Route path="dashboard" component={DashboardPage}>
             <Route path="linux" component={DashboardPage} />
             <Route path="mac" component={DashboardPage} />
@@ -337,6 +350,7 @@ const routes = (
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Variables} />
+                <Route path="variables/:section" component={Variables} />
               </Route>
             </Route>
             <Route
@@ -376,6 +390,10 @@ const routes = (
               {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route
+              path="library/categories"
+              component={SelfServiceCategoriesPage}
+            />
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />
@@ -446,11 +464,14 @@ const routes = (
           </Route>
         </Route>
       </Route>
+      {/* Inside AppWrapper so these render through App and can read the
+      authenticated user from AppContext. The catch-all must stay last. */}
+      <Route component={ErrorPageLayout}>
+        <Route path="404" component={Fleet404} />
+        <Route path="403" component={Fleet403} />
+        <Route path="*" component={Fleet404} />
+      </Route>
     </Route>
-    <Route path="/apionlyuser" component={ApiOnlyUser} />
-    <Route path="/404" component={Fleet404} />
-    <Route path="/403" component={Fleet403} />
-    <Route path="*" component={Fleet404} />
   </Router>
 );
 

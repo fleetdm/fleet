@@ -117,6 +117,7 @@ $base-class: "button";
   border: 0;
   position: relative;
   cursor: pointer;
+  white-space: nowrap;
 
   &:focus {
     outline: none;
@@ -139,13 +140,11 @@ $base-class: "button";
       $core-fleet-green-down
     );
     display: flex;
-    text-wrap: nowrap;
   }
 
   &--success {
     @include button-variant($ui-success, $ui-success-over, $ui-success-down);
     display: flex;
-    text-wrap: nowrap;
   }
 
   &--alert {
@@ -178,7 +177,6 @@ $base-class: "button";
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
     height: 24px;
-    white-space: nowrap;
 
     &:active {
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
@@ -205,7 +203,6 @@ $base-class: "button";
     font-weight: $bold;
     padding: 0 $pad-small;
     height: 28px;
-    white-space: nowrap;
 
     &:hover,
     &:focus {
@@ -220,7 +217,10 @@ $base-class: "button";
   // Looks exactly like a CustomLink but is a <button>
   &--link {
     @include link;
-    @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+    font-weight: $regular;
+    text-decoration: underline;
+    text-decoration-color: $ui-fleet-black-75;
+    text-underline-offset: 3px;
     background: transparent;
     border: 0;
     box-shadow: none;
@@ -232,6 +232,11 @@ $base-class: "button";
     display: inline-flex;
     align-items: center;
     gap: $pad-xsmall;
+    white-space: normal;
+
+    &:hover {
+      text-decoration-color: $core-fleet-black;
+    }
 
     &:focus {
       outline: none;
@@ -264,7 +269,6 @@ $base-class: "button";
     font-size: $x-small;
     font-weight: $bold;
     cursor: pointer;
-    white-space: nowrap;
 
     img {
       transform: scale(0.5);
@@ -340,7 +344,6 @@ $base-class: "button";
     font-size: $x-small;
     font-weight: $bold;
     cursor: pointer;
-    white-space: nowrap;
 
     &__small {
       @include button-pad-4px-8px;
@@ -465,6 +468,7 @@ $base-class: "button";
     height: auto;
     line-height: normal;
     font-weight: normal;
+    white-space: normal;
 
     &:active {
       box-shadow: none;
@@ -486,6 +490,7 @@ $base-class: "button";
     width: 100%;
     border-radius: 0px;
     border-bottom: 1px solid $ui-fleet-black-10;
+    white-space: normal;
 
     &:active {
       box-shadow: none;

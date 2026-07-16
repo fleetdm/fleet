@@ -12,6 +12,8 @@ interface ICustomLinkProps {
    * @default false
    */
   newTab?: boolean;
+  /** Emphasizes the link appearance by changing the color to an accent color */
+  emphasized?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
   /** Restricts access via keyboard when CustomLink is part of disabled UI */
@@ -32,14 +34,16 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
+  emphasized = false,
   disableKeyboardNavigation = false,
   variant = "default",
 }: ICustomLinkProps): JSX.Element => {
   const getIconColor = (): Colors => {
     switch (variant) {
       case "tooltip-link":
-      case "flash-message-link":
         return "core-fleet-white";
+      case "flash-message-link":
+        return "core-fleet-black";
       case "banner-link":
         return "core-fleet-black";
       default:
@@ -50,6 +54,7 @@ const CustomLink = ({
   const customLinkClass = classnames(baseClass, className, {
     [`${baseClass}--${variant}`]: variant !== "default",
     [`${baseClass}--multiline`]: multiline,
+    [`${baseClass}--emphasized`]: emphasized,
   });
 
   // Needed to not trigger clickable parent elements
@@ -67,7 +72,7 @@ const CustomLink = ({
     <>
       {multilineText}
       <span className={`${baseClass}__no-wrap`}>
-        {lastWord}
+        <span className={`${baseClass}__last-word`}>{lastWord}</span>
         {newTab && (
           <Icon
             name="external-link"

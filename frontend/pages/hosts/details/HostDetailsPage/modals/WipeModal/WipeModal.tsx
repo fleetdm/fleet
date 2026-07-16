@@ -1,13 +1,13 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import hostAPI from "services/entities/hosts";
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
-import { NotificationContext } from "context/notification";
 import { isAndroid } from "interfaces/platform";
 
 const baseClass = "wipe-modal";
@@ -31,7 +31,6 @@ const WipeModal = ({
   onSuccess,
   onClose,
 }: IWipeModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isWiping, setIsWiping] = React.useState(false);
   const isAndroidHost = isAndroid(hostPlatform);
@@ -41,20 +40,19 @@ const WipeModal = ({
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
-      renderFlash(
-        "success",
+      notify.success(
         isAndroidHost
           ? "Successfully sent request to wipe this host."
           : "Wiping host or will wipe when the host comes online."
       );
     } catch (e) {
       const errorReason = getErrorReason(e);
-      renderFlash(
-        "error",
+      notify.error(
         isAndroidHost
           ? errorReason ||
               "Couldn't send request to wipe this host. Please try again."
-          : errorReason
+          : errorReason,
+        { response: e }
       );
     }
     onClose();
@@ -72,21 +70,21 @@ const WipeModal = ({
           </p>
         )}
         {isLinuxHost && (
-          <p>
-            <b>Important!</b> Ensure you have read our{" "}
-            <CustomLink
-              url="https://fleetdm.com/guides/lock-wipe-hosts"
-              text="guide"
-              newTab
-            />{" "}
-            on what data is attempted to be erased and consider the consequences
-            of our script for your specific Linux host&apos;s setup before
-            wiping.
-          </p>
+          <>
+            <p>
+              This will run a script to erase content from this host.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/linux-wipe"
+                text="Learn more"
+                newTab
+              />{" "}
+            </p>
+            <p>To use the host again, you will have to do an OS reinstall.</p>
+          </>
         )}
         <div className={`${baseClass}__confirm-message`}>
           <span>
-            <b>Please check to confirm:</b>
+            <b>Confirm:</b>
           </span>
           <Checkbox
             wrapperClassName={`${baseClass}__wipe-checkbox`}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.4.3.0",
+      "version": "3.6.2.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'JetBrains Toolbox' AND publisher = 'JetBrains';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'JetBrains Toolbox' AND publisher = 'JetBrains' AND version_compare(version, '3.4.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'JetBrains Toolbox' AND publisher = 'JetBrains' AND version_compare(version, '3.6.2.0') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.4.3.81140.exe",
+      "installer_url": "https://download.jetbrains.com/toolbox/jetbrains-toolbox-3.6.2.85969.exe",
       "install_script_ref": "f635418b",
       "uninstall_script_ref": "a6821d8b",
-      "sha256": "059ba7c60815517f129e638f0024ed714911d9212820bb2e0b538a5b192f8da9",
+      "sha256": "3263c7805d930c394d5f3bfc7e4a589084818f620885206254720a43b36ce8e8",
       "default_categories": [
         "Developer tools"
       ]

@@ -131,6 +131,7 @@ const (
 	WinOfficeSource
 	UbuntuOSVSource
 	RHELOSVSource
+	AndroidOSVSource
 )
 
 type VulnerabilityWithMetadata struct {

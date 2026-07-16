@@ -1,0 +1,10 @@
+{
+  "name": "Camo Studio",
+  "unique_identifier": "com.reincubate.macos.cam",
+  "token": "camo-studio",
+  "installer_format": "zip",
+  "slug": "camo-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

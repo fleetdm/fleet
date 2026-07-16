@@ -1,0 +1,10 @@
+{
+  "name": "Ente Auth",
+  "unique_identifier": "io.ente.auth.mac",
+  "token": "ente-auth",
+  "installer_format": "dmg",
+  "slug": "ente-auth/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

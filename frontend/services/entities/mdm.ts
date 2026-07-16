@@ -3,6 +3,7 @@ import {
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
   IHostMdmProfile,
+  IMdmAsset,
   IMdmProfile,
   IMdmSSOResponse,
   MdmProfileStatus,
@@ -48,6 +49,23 @@ export interface IUploadProfileApiParams {
   labelsExcludeAny?: string[];
 }
 
+export interface IGetAssetsApiParams {
+  fleet_id?: number;
+}
+
+export interface IListAssetsResponse {
+  assets: IMdmAsset[] | null;
+}
+
+export interface IUploadAssetApiParams {
+  file: File;
+  teamId?: number;
+}
+
+export interface IUploadAssetResponse {
+  asset_uuid: string;
+}
+
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
   return profile.profile_uuid.startsWith("d");
 };
@@ -78,7 +96,7 @@ export interface IDefaultAppleSetupEnrollmentProfileResponse {
 
 export interface IMDMSSOParams {
   deviceinfo: string;
-  initiator: string;
+  initiator?: string;
   // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
   // enrollments with end-user authentication.
   host_uuid?: string;
@@ -152,22 +170,17 @@ const mdmService = {
       formData.append("fleet_id", teamId.toString());
     }
 
-    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
 
-      let labelKey = "";
-      if (labelsIncludeAll) {
-        labelKey = "labels_include_all";
-      } else if (labelsIncludeAny) {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
 
-      labels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
-    }
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -183,6 +196,44 @@ const mdmService = {
   deleteProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
+  },
+
+  getAssets: (params: IGetAssetsApiParams): Promise<IListAssetsResponse> => {
+    const { MDM_ASSETS } = endpoints;
+    const queryString = buildQueryStringFromParams({ ...params });
+    return sendRequest(
+      "GET",
+      queryString ? `${MDM_ASSETS}?${queryString}` : MDM_ASSETS
+    );
+  },
+
+  uploadAsset: ({
+    file,
+    teamId,
+  }: IUploadAssetApiParams): Promise<IUploadAssetResponse> => {
+    const { MDM_ASSETS } = endpoints;
+
+    const formData = new FormData();
+    formData.append("asset", file);
+
+    if (teamId) {
+      formData.append("fleet_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_ASSETS, formData);
+  },
+
+  downloadAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    const path = `${MDM_ASSET(assetUuid)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
+  },
+
+  deleteAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    return sendRequest("DELETE", MDM_ASSET(assetUuid));
   },
 
   getProfilesStatusSummary: (teamId: number) => {

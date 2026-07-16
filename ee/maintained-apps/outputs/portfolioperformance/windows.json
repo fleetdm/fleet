@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "0.85.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Portfolio Performance' AND publisher = 'Andreas Buchen' AND version_compare(version, '0.85.0') < 0);"
+      },
+      "installer_url": "https://github.com/portfolio-performance/portfolio/releases/download/0.85.0/PortfolioPerformance-0.85.0-setup.exe",
+      "install_script_ref": "efa25f6a",
+      "uninstall_script_ref": "1d78c875",
+      "sha256": "3d22e7ff997d97641a1334b61cdfad6dfe08c6e82f798448c15d0972f3f33cbb",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "1d78c875": "# Locates Portfolio Performance's uninstaller from the registry and runs it silently.\n# Searches HKCU first, then HKLM (incl. WOW6432Node), matching on DisplayName\n# and Publisher to avoid collisions with unrelated software.\n\n$displayNameLike = \"Portfolio Performance*\"\n$publisher = \"Andreas Buchen\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$selected = $null\nforeach ($p in $paths) {\n    $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n        $_.DisplayName -like $displayNameLike -and ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n    }\n    if ($items) { $selected = $items | Select-Object -First 1; break }\n}\n\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\ntry {\nStop-Process -Name \"PortfolioPerformance\" -Force -ErrorAction SilentlyContinue\n\n    $uninstallCommand = $selected.UninstallString\n\n    # Parse the executable path out of the uninstall string.\n    $exePath = \"\"\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n        $exePath = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n        $exePath = $matches[1]\n    } else {\n        $exePath = $uninstallCommand\n    }\n\n    # Determine the install directory for cleanup / NSIS _?= argument.\n    $installDir = $selected.InstallLocation\n    if (-not $installDir -or -not (Test-Path $installDir)) {\n        $installDir = Split-Path $exePath -Parent\n    }\n\n    $uninstallArgs = @(\"/S\", \"_?=$installDir\")\n\n    Write-Host \"Selected entry DisplayName: $($selected.DisplayName)\"\n    Write-Host \"Uninstall command: $exePath\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "efa25f6a": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Portfolio Performance ships as a Nullsoft (NSIS) installer; /S runs it silently.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    Write-Host \"Starting Portfolio Performance install with: $($processOptions.ArgumentList)\"\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

@@ -699,6 +699,19 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			}
 			return ctxerr.Wrap(ctx, err, "getting label id to delete")
 		}
+		var usedByProfile bool
+		if err := sqlx.GetContext(ctx, tx, &usedByProfile, `
+			SELECT EXISTS(
+				SELECT 1 FROM mdm_configuration_profile_labels WHERE label_id = ?
+				UNION ALL
+				SELECT 1 FROM mdm_declaration_labels WHERE label_id = ?
+			)`, labelID, labelID); err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if label is used by configuration profiles")
+		}
+		if usedByProfile {
+			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
+		}
+
 		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
@@ -817,14 +830,25 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
+		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
+		// When the team filter allows all hosts ("TRUE"),
+		// skip the join to the hosts table and count straight off the
+		// label_membership index.
+		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
+		if teamFilter == "TRUE" {
+			countFrom = "label_membership lm"
+		}
 		query = fmt.Sprintf(`
-				SELECT l.*,
-					(SELECT COUNT(1)
-					 FROM label_membership lm
-					     JOIN hosts h ON (lm.host_id = h.id) WHERE label_id = l.id AND %s
-					 ) AS host_count
+				WITH label_host_counts AS (
+					SELECT lm.label_id, COUNT(1) AS host_count
+					FROM %s
+					WHERE %s
+					GROUP BY lm.label_id
+				)
+				SELECT l.*, COALESCE(lhc.host_count, 0) AS host_count
 				FROM labels l
-			`, ds.whereFilterHostsByTeams(filter, "h"),
+				LEFT JOIN label_host_counts lhc ON lhc.label_id = l.id
+			`, countFrom, teamFilter,
 		)
 	}
 
@@ -1247,6 +1271,12 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
 	var whereParams, joinParams []interface{}
 
+	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
+	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	if opt.StatusFilter.IsValid() {
+		query += hostMDMSeenTimeJoin
+	}
+
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
 	}
@@ -1316,6 +1346,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
 		query += sqlJoinRecoveryLockStatus()
+		query += sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1685,32 +1716,38 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	return labelsSummary, nil
 }
 
-// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
-// If the labels do not exist, then the host is considered not a member of the provided labels.
-// A host will always be a member of an empty label set, so this method returns (true, nil)
-// if labelNames is empty.
-func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
-	if len(labelNames) == 0 {
-		return true, nil
-	}
-
+// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+// Labels that do not exist are not included in the result. The returned map is keyed by the
+// requested label names (preserving the caller's casing), not the DB-stored names.
+func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	sqlStatement := `
-		SELECT COUNT(*) = ? FROM labels l
-		LEFT JOIN (SELECT label_id FROM label_membership WHERE host_id = ?) lm
-		ON l.id = lm.label_id
-		WHERE l.name IN (?) AND lm.label_id IS NOT NULL;
+		SELECT l.name FROM labels l
+		JOIN label_membership lm ON l.id = lm.label_id
+		WHERE lm.host_id = ? AND l.name IN (?)
 	`
-	sql, args, err := sqlx.In(sqlStatement, len(labelNames), hostID, labelNames)
+	sql, args, err := sqlx.In(sqlStatement, hostID, labelNames)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query for host label membership")
 	}
 
-	var ok bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ok, sql, args...); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get label IDs")
+	var dbNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dbNames, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label membership")
 	}
 
-	return ok, nil
+	// The DB may return names with different casing than requested (utf8mb4_unicode_ci),
+	// so map DB names back to the caller's requested names for case-sensitive Go map lookups.
+	dbNameSet := make(map[string]struct{}, len(dbNames))
+	for _, n := range dbNames {
+		dbNameSet[strings.ToLower(n)] = struct{}{}
+	}
+	result := make(map[string]struct{}, len(dbNames))
+	for _, req := range labelNames {
+		if _, ok := dbNameSet[strings.ToLower(req)]; ok {
+			result[req] = struct{}{}
+		}
+	}
+	return result, nil
 }
 
 // AddLabelsToHost skips auth as it's only used in tests, and where label teams have already been validated.

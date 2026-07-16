@@ -1,0 +1,10 @@
+{
+  "name": "Go2Shell",
+  "unique_identifier": "com.zipzapmac.Go2Shell",
+  "token": "go2shell",
+  "installer_format": "dmg",
+  "slug": "go2shell/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

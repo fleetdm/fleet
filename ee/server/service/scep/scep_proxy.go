@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -40,6 +41,9 @@ const (
 	MessageSCEPProxyNotConfigured  = "SCEP proxy is not configured"
 	NDESChallengeInvalidAfter      = 57 * time.Minute
 	SmallstepChallengeInvalidAfter = 4 * time.Minute
+	// windowsSCEPFailureWriteTimeout bounds the detached write that records a Windows SCEP profile failure, so it can
+	// still persist when the originating request context is already at its deadline.
+	windowsSCEPFailureWriteTimeout = 5 * time.Second
 )
 
 // decodeHTMLResponse decodes HTTP response body to a string, handling various encodings.
@@ -268,10 +272,80 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 	res, err := client.PKIOperation(ctx, data)
 	if err != nil {
+		svc.recordWindowsSCEPProxyFailure(ctx, identifier, "PKIOperation", err)
 		return res, ctxerr.Wrapf(ctx, err,
 			"Could not do PKIOperation on SCEP server %s", scepURL)
 	}
 	return res, nil
+}
+
+// recordWindowsSCEPProxyFailure marks a Windows SCEP profile "failed" when the proxy observes a per-profile upstream
+// error.
+func (svc *scepProxyService) recordWindowsSCEPProxyFailure(ctx context.Context, identifier, operation string, upstreamErr error) {
+	// A canceled request context (device disconnected mid-exchange, reverse proxy aborted, or server shutting down) is
+	// not an upstream CA failure and must not mark the profile failed. Genuine upstream timeouts arrive as
+	// context.DeadlineExceeded / net timeouts and are still surfaced.
+	if errors.Is(upstreamErr, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+		return
+	}
+	hostUUID, profileUUID, ok := parseHostAndProfileFromSCEPIdentifier(identifier)
+	if !ok || !strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix) {
+		return
+	}
+	detail := fmt.Sprintf("SCEP %s failed: %s", operation, classifySCEPProxyError(upstreamErr))
+	// Detach the write from the request's deadline/cancellation: an upstream timeout often leaves the request context
+	// already at its deadline, and we must still persist the failure we observed. WithoutCancel preserves request
+	// values (tracing, etc.) while dropping the deadline; the write gets its own short timeout.
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), windowsSCEPFailureWriteTimeout)
+	defer cancel()
+	if err := svc.ds.SetMDMWindowsHostProfileFailed(writeCtx, hostUUID, profileUUID, detail); err != nil {
+		svc.debugLogger.ErrorContext(ctx, "recording Windows SCEP proxy failure",
+			"host_uuid", hostUUID, "profile_uuid", profileUUID, "err", err)
+		ctxerr.Handle(ctx, err)
+	}
+}
+
+// parseHostAndProfileFromSCEPIdentifier extracts the host and profile UUIDs from the SCEP proxy identifier
+// ("hostUUID,profileUUID,caName,challenge"). It intentionally does no validation beyond the two leading fields; full
+// validation lives in validateIdentifier.
+func parseHostAndProfileFromSCEPIdentifier(identifier string) (hostUUID, profileUUID string, ok bool) {
+	parsed, err := url.PathUnescape(identifier)
+	if err != nil {
+		return "", "", false
+	}
+	parts := strings.Split(parsed, ",")
+	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
+}
+
+var scepProxyHTTPStatusRegex = regexp.MustCompile(`status (\d{3})`)
+
+// classifySCEPProxyError renders a short, stable, human-readable reason for a Windows profile's failure detail.
+func classifySCEPProxyError(err error) string {
+	if err == nil {
+		return "unknown error"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	msg := err.Error()
+	if m := scepProxyHTTPStatusRegex.FindStringSubmatch(msg); m != nil {
+		return "HTTP " + m[1]
+	}
+	switch {
+	case strings.Contains(msg, "connection refused"):
+		return "connection refused"
+	case strings.Contains(msg, "no such host"):
+		return "DNS resolution error"
+	default:
+		return "upstream error"
+	}
 }
 
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
@@ -384,8 +458,8 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			// The challenge password was retrieved for this profile, and is now invalid.
 			// We need to resend the profile with a new challenge password.
 			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-			if err := svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			if err := svc.resendProfileForExpiredChallenge(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host profile after expired challenge")
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
@@ -450,6 +524,23 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
 	return scepURL, nil
+}
+
+// resendProfileForExpiredChallenge resends a SCEP profile whose challenge has expired so the
+// reconcile cron regenerates it with a fresh challenge.
+//
+// For Apple profiles we use ResendHostCertificateProfile, which additionally clears the stale
+// in-flight command and resets the retry counter. This matters because an expired challenge is a
+// timing condition, not a host install failure, so it must not consume the host's limited Apple
+// profile retries (and a late failure ACK for the superseded command must not strand the profile
+// as "failed"). ResendHostCertificateProfile only operates on Apple tables, so Windows/Android
+// profiles fall back to the platform-aware ResendHostMDMProfile to avoid silently dropping the
+// resend.
+func (svc *scepProxyService) resendProfileForExpiredChallenge(ctx context.Context, hostUUID, profileUUID string) error {
+	if strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
+		return svc.ds.ResendHostCertificateProfile(ctx, hostUUID, profileUUID)
+	}
+	return svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID)
 }
 
 func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
@@ -692,7 +783,7 @@ func NDESChallengeErrorToDetail(err error) string {
 	switch {
 	case errors.As(err, &NDESInvalidError{}):
 		return fmt.Sprintf("Invalid NDES admin credentials. Fleet couldn't populate %s. "+
-			"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.", varName)
+			"Please update credentials in Settings > Integrations > Certificate enrollment.", varName)
 	case errors.As(err, &NDESPasswordCacheFullError{}):
 		return fmt.Sprintf("The NDES password cache is full. Fleet couldn't populate %s. "+
 			"Please increase the number of cached passwords in NDES and try again.", varName)

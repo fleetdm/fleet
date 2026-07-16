@@ -72,8 +72,10 @@ type generateGitopsClient interface {
 	ListTeams(query string) ([]fleet.Team, error)
 	ListScripts(query string) ([]*fleet.Script, error)
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
+	ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	DownloadDDMAsset(assetUUID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
 	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
@@ -84,6 +86,7 @@ type generateGitopsClient interface {
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels(teamID uint) ([]*fleet.LabelSpec, error)
+	ListCustomHostVitals(query string) ([]fleet.CustomHostVital, error)
 	Me() (*fleet.User, error)
 	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
@@ -105,9 +108,12 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 		panic(fieldName + " not found in " + t.Name())
 	}
 
-	// Prefer the renameto tag (new canonical name) if it exists.
+	// Prefer the renameto tag (new canonical name) if it exists, stripping any
+	// options like ",inline".
 	if renameTo := field.Tag.Get("renameto"); renameTo != "" {
-		return renameTo
+		if name, _, _ := strings.Cut(renameTo, ","); name != "" {
+			return name
+		}
 	}
 
 	tag := field.Tag.Get("json")
@@ -274,6 +280,7 @@ type GenerateGitopsCommand struct {
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
+		Hidden:      true,
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
 		Action:      createGenerateGitopsAction(nil),
@@ -487,6 +494,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			EnableDiskEncryption:       cmd.AppConfig.MDM.EnableDiskEncryption.Value,
 			EnableRecoveryLockPassword: cmd.AppConfig.MDM.EnableRecoveryLockPassword.Value,
 			RequireBitLockerPIN:        cmd.AppConfig.MDM.RequireBitLockerPIN.Value,
+			HostNameTemplate:           cmd.AppConfig.MDM.HostNameTemplate.Value,
 			MacOSUpdates:               cmd.AppConfig.MDM.MacOSUpdates,
 			IOSUpdates:                 cmd.AppConfig.MDM.IOSUpdates,
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
@@ -516,6 +524,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
+
+			customHostVitals, err := cmd.generateCustomHostVitals()
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating custom host vitals: %s\n", err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]any)["custom_host_vitals"] = customHostVitals
 		} else {
 			// Generate team settings and agent options for the team (including "No team" with ID 0).
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
@@ -643,6 +658,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	}
 
 	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
+	softwareVersion := regexp.MustCompile(`(?m)^([ \t]+version: )([^"\n].*)$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
@@ -667,6 +683,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = emptyVal.ReplaceAll(b, []byte(":"))
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
+			// Keep software versions quoted so YAML treats them as strings (e.g. "10.0" must not become a float).
+			b = softwareVersion.ReplaceAll(b, []byte(`${1}"${2}"`))
 		} else {
 			switch fileToWrite := fileToWrite.(type) {
 			case []byte:
@@ -918,6 +936,12 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	}
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
+
+		// Google Workspace IdP is a premium-only integration, so omit it from the
+		// generated free-tier GitOps so the example stays valid on reapply.
+		if !cmd.AppConfig.License.IsPremium() {
+			delete(result, "google_workspace")
+		}
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
 
@@ -959,6 +983,18 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					Filename: "default.yml",
 					Key:      "integrations.zendesk.api_token",
 				})
+			}
+		}
+		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+			for _, intg := range googleWorkspace.([]any) {
+				intgMap := intg.(map[string]any)
+				if _, ok := intgMap["api_key_json"]; ok {
+					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
+					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+						Filename: "default.yml",
+						Key:      "integrations.google_workspace.api_key_json",
+					})
+				}
 			}
 		}
 	}
@@ -1313,11 +1349,23 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
 		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
 
-		if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
-			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					jsonFieldName(macosSettingsT, "CustomSettings"): profiles["apple_profiles"],
+		if cmd.AppConfig.MDM.EnabledAndConfigured {
+			macosSettings := map[string]any{}
+			if profiles != nil {
+				if appleProfiles, _ := profiles["apple_profiles"].([]map[string]any); len(appleProfiles) > 0 {
+					macosSettings[jsonFieldName(macosSettingsT, "CustomSettings")] = appleProfiles
 				}
+			}
+			assets, err := cmd.generateAssets(teamId, teamName)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating assets: %s\n", err)
+				return nil, err
+			}
+			if len(assets) > 0 {
+				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
+			}
+			if len(macosSettings) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
@@ -1381,6 +1429,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
 			result[jsonFieldName(mdmT, "EnableRecoveryLockPassword")] = teamMdm.EnableRecoveryLockPassword
 			result[jsonFieldName(mdmT, "RequireBitLockerPIN")] = teamMdm.RequireBitLockerPIN
+			result[jsonFieldName(mdmT, "HostNameTemplate")] = teamMdm.HostNameTemplate
 			result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
 			result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
 			result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
@@ -1399,6 +1448,28 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "WindowsEntraClientIDs")] = cmd.AppConfig.MDM.WindowsEntraClientIDs.Value
 			}
 			result[jsonFieldName(mdmT, "AppleRequireHardwareAttestation")] = cmd.AppConfig.MDM.AppleRequireHardwareAttestation
+
+			// apple_account_provisioning is a global-only MDM setting. The IdP
+			// client secret is masked/non-exportable from the API, so emit a TODO
+			// for the user to fill in (mirrors the other secret placeholders).
+			if aap := cmd.AppConfig.MDM.AppleAccountProvisioning; aap.Configured() {
+				aapT := reflect.TypeFor[fleet.AppleAccountProvisioning]()
+				controlsFile := "default.yml"
+				// This may look odd but ensures we put it in unassigned.yml if that's where
+				// we're putting the rest
+				if teamId != nil {
+					controlsFile = "fleets/" + teamName + ".yml"
+				}
+				result[jsonFieldName(mdmT, "AppleAccountProvisioning")] = map[string]any{
+					jsonFieldName(aapT, "OAuthIdPTokenURL"):     aap.OAuthIdPTokenURL.Value,
+					jsonFieldName(aapT, "OAuthIdPClientID"):     aap.OAuthIdPClientID.Value,
+					jsonFieldName(aapT, "OAuthIdPClientSecret"): cmd.AddComment(controlsFile, "TODO: Add your IdP client secret here"),
+				}
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: controlsFile,
+					Key:      "apple_account_provisioning.oauth_idp_client_secret",
+				})
+			}
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
@@ -1537,6 +1608,44 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	}, nil
 }
 
+// generateAssets emits the apple_settings.assets section: it writes each DDM
+// asset's JSON to an assets/ file and returns the list of path entries.
+func (cmd *GenerateGitopsCommand) generateAssets(teamId *uint, teamName string) ([]map[string]any, error) {
+	assets, err := cmd.Client.ListDDMAssets(teamId)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting assets: %v\n", err)
+		return nil, err
+	}
+	if len(assets) == 0 {
+		return nil, nil
+	}
+
+	result := make([]map[string]any, 0, len(assets))
+	for _, asset := range assets {
+		contents, err := cmd.Client.DownloadDDMAsset(asset.AssetUUID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting asset contents: %s\n", err)
+			return nil, err
+		}
+
+		fileName := fmt.Sprintf("assets/%s.json", asset.Name)
+		if teamId == nil {
+			fileName = fmt.Sprintf("lib/%s", fileName)
+		} else {
+			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+		}
+		cmd.FilesToWrite[fileName] = string(contents)
+
+		path := fmt.Sprintf("./%s", fileName)
+		if teamId != nil {
+			path = fmt.Sprintf("../%s", fileName)
+		}
+		result = append(result, map[string]any{"path": path})
+	}
+
+	return result, nil
+}
+
 func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string) ([]map[string]interface{}, error) {
 	// Get scripts.
 	query := ""
@@ -1610,6 +1719,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 
 		if policy.PatchSoftware != nil {
 			cachedSWTitle := cmd.SoftwareList[policy.PatchSoftware.SoftwareTitleID]
+			if cachedSWTitle.MaintainedAppID == 0 {
+				return nil, fmt.Errorf("The patch policy %q references a software installer that is no longer a Fleet-maintained app. Please delete the policy manually.", policy.Name)
+			}
 
 			fma, err := cmd.Client.GetFleetMaintainedApp(cachedSWTitle.MaintainedAppID)
 			if err != nil {
@@ -1659,14 +1771,17 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			}
 		}
 		// Parse any labels.
-		if policy.LabelsIncludeAny != nil {
+		if policy.LabelsIncludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
 		}
 		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
-		if policy.LabelsExcludeAny != nil {
+		if policy.LabelsExcludeAny != nil && cmd.AppConfig.License.IsPremium() {
 			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
+		}
+		if policy.LabelsExcludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_exclude_all"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAll)
 		}
 		result[i] = policySpec
 	}
@@ -1897,6 +2012,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByPlatformAndAppID := make(map[string]struct{})
+	// Emitted as setup_experience_platform (comma-separated) so a UI-set
+	// non-native selection round-trips through generate → apply unchanged.
+	crossPlatformSelectionsByTitleID := make(map[uint][]string)
 
 	// Fill in InstallDuringSetup for software, as that information is only available
 	// from the setup experience endpoint
@@ -1919,6 +2037,28 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		}
 	}
 
+	// A title returned by the per-platform setup experience listing whose
+	// native platform doesn't match the queried target is a cross-selection.
+	for _, crossTarget := range []string{"macos"} {
+		crossTitles, err := cmd.Client.GetSetupExperienceSoftware(crossTarget, teamID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s setup software: %s\n", crossTarget, err)
+			return nil, err
+		}
+		for _, t := range crossTitles {
+			pkg := t.SoftwarePackage
+			if pkg == nil || pkg.Platform == "" {
+				continue
+			}
+			if pkg.Platform == fleet.CanonicalPlatform(crossTarget) {
+				continue
+			}
+			// Emit the canonical platform token ("darwin", not "macos") to match
+			// the query/policy/label `platform` convention.
+			crossPlatformSelectionsByTitleID[t.ID] = append(crossPlatformSelectionsByTitleID[t.ID], fleet.CanonicalPlatform(crossTarget))
+		}
+	}
+
 	result := make(map[string]any)
 	packages := make([]map[string]any, 0)
 	appStoreApps := make([]map[string]any, 0)
@@ -1930,6 +2070,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			continue
 		}
 
+		// Detect if this is a script package (.sh or .ps1 file)
+		// Script packages have the file contents as the install script internally,
+		// but these fields should NOT be exposed in GitOps YAML as they are not
+		// user-configurable for script packages.
+		isScriptPackage := sw.SoftwarePackage != nil &&
+			fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.SoftwarePackage.Name)))
+
 		softwareSpec := make(map[string]interface{})
 		switch {
 		case sw.SoftwarePackage != nil:
@@ -1937,7 +2084,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
-			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			var comment string
+			if isScriptPackage {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s", sw.Name, pkgName))
+			} else {
+				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.SoftwarePackage.Version))
+			}
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -1977,18 +2129,22 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			return nil, err
 		}
 
+		// A title with more than one custom package is written to its own package YAML
+		// file, referenced by a single path entry in the fleet file.
+		if len(softwareTitle.Packages) > 1 {
+			_, inSetup := setupSoftwareBySoftwareTitle[softwareTitle.ID]
+			entry, err := cmd.generateMultiPackage(softwareTitle, sw.Name, teamID, teamFilename, downloadIcons, inSetup)
+			if err != nil {
+				return nil, err
+			}
+			packages = append(packages, entry)
+			continue
+		}
+
 		var slug string
 
 		if softwareTitle.SoftwarePackage != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
-
-			// Detect if this is a script package (.sh or .ps1 file)
-			// Script packages have the file contents as the install script internally,
-			// but these fields should NOT be exposed in GitOps YAML as they are not
-			// user-configurable for script packages.
-			isScriptPackage := sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" &&
-				(strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".sh") ||
-					strings.HasSuffix(strings.ToLower(sw.SoftwarePackage.Name), ".ps1"))
 
 			var fmaInstallScriptModified, fmaUninstallScriptModified bool
 			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
@@ -2202,49 +2358,26 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		}
 
-		var labels []fleet.SoftwareScopeLabel
 		var labelKey string
+		var labelNames []string
 		if softwareTitle.SoftwarePackage != nil {
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.SoftwarePackage.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.SoftwarePackage.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
+			sp := softwareTitle.SoftwarePackage
+			labelKey, labelNames = scopeLabels(sp.LabelsIncludeAny, sp.LabelsExcludeAny, sp.LabelsIncludeAll)
 			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
 				softwareSpec["setup_experience"] = true
 			}
+			if crosses, ok := crossPlatformSelectionsByTitleID[softwareTitle.ID]; ok && len(crosses) > 0 {
+				softwareSpec["setup_experience_platform"] = strings.Join(crosses, ",")
+			}
 		} else {
-			platformAndAppID := softwareTitle.AppStoreApp.VPPAppID.String()
-
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-				labelKey = "labels_include_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-				labelKey = "labels_exclude_any"
-			}
-			if len(softwareTitle.AppStoreApp.LabelsIncludeAll) > 0 {
-				labels = softwareTitle.AppStoreApp.LabelsIncludeAll
-				labelKey = "labels_include_all"
-			}
-			if _, exists := setupSoftwareByPlatformAndAppID[platformAndAppID]; exists {
+			app := softwareTitle.AppStoreApp
+			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
+			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}
 		}
-		if len(labels) > 0 {
-			labelsList := make([]string, len(labels))
-			for i, label := range labels {
-				labelsList[i] = label.LabelName
-			}
-			softwareSpec[labelKey] = labelsList
+		if labelKey != "" {
+			softwareSpec[labelKey] = labelNames
 		}
 
 		switch {
@@ -2253,6 +2386,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			delete(softwareSpec, "hash_sha256")
 			delete(softwareSpec, "url")
 			softwareSpec["slug"] = slug
+			if pv := softwareTitle.SoftwarePackage.PinnedVersion; pv != nil && *pv != "" {
+				softwareSpec["version"] = *pv
+			}
 		case sw.SoftwarePackage != nil:
 			packages = append(packages, softwareSpec)
 		case sw.AppStoreApp != nil:
@@ -2270,6 +2406,87 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	}
 
 	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateMultiPackage(title *fleet.SoftwareTitle, swName string, teamID uint, teamFilename string, downloadIcons bool, inSetup bool) (map[string]any, error) {
+	// Paths inside the package YAML file are resolved relative to that file, which
+	// lives in lib/<team>/software, so a sibling dir is reached with ../<dir>/<name>.
+	writeSideFile := func(dir string, name string, contents any) string {
+		cmd.FilesToWrite[fmt.Sprintf("lib/%s/%s/%s", teamFilename, dir, name)] = contents
+		return fmt.Sprintf("../%s/%s", dir, name)
+	}
+
+	items := make([]map[string]any, 0, len(title.Packages))
+	for i, pkg := range title.Packages {
+		prefix := fmt.Sprintf("%s-%s-%d", generateFilename(swName), pkg.Platform, i+1)
+		item := map[string]any{"hash_sha256": pkg.StorageID}
+		if pkg.URL != "" {
+			item["url"] = pkg.URL
+		}
+		if pkg.SelfService {
+			item["self_service"] = true
+		}
+		if len(pkg.Categories) > 0 {
+			item["categories"] = pkg.Categories
+		}
+		if pkg.InstallScript != "" {
+			item["install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-install", pkg.InstallScript)}
+		}
+		if pkg.PostInstallScript != "" {
+			item["post_install_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-postinstall", pkg.PostInstallScript)}
+		}
+		if pkg.UninstallScript != "" {
+			item["uninstall_script"] = map[string]any{"path": writeSideFile("scripts", prefix+"-uninstall", pkg.UninstallScript)}
+		}
+		if pkg.PreInstallQuery != "" {
+			item["pre_install_query"] = map[string]any{"path": writeSideFile("queries", prefix+"-preinstallquery.yml", []map[string]any{{"query": pkg.PreInstallQuery}})}
+		}
+		if key, names := scopeLabels(pkg.LabelsIncludeAny, pkg.LabelsExcludeAny, pkg.LabelsIncludeAll); key != "" {
+			item[key] = names
+		}
+		items = append(items, item)
+	}
+
+	// The icon is per-title, so emit it once on the first package.
+	if downloadIcons && title.IconUrl != nil && strings.HasPrefix(*title.IconUrl, "/api") && len(items) > 0 {
+		icon, err := cmd.Client.GetSoftwareTitleIcon(title.ID, teamID)
+		if err != nil {
+			return nil, err
+		}
+		items[0]["icon"] = map[string]any{"path": writeSideFile("icons", generateFilename(swName)+"-icon.png", icon)}
+	}
+
+	// The fleet-level entry points at the package file relative to the fleet file.
+	packageFile := fmt.Sprintf("lib/%s/software/%s.package.yml", teamFilename, generateFilename(swName))
+	cmd.FilesToWrite[packageFile] = items
+	entry := map[string]any{"path": "../" + packageFile}
+	if inSetup {
+		entry["setup_experience"] = true
+	}
+	if title.DisplayName != "" {
+		entry["display_name"] = title.DisplayName
+	}
+	return entry, nil
+}
+
+func scopeLabels(includeAny []fleet.SoftwareScopeLabel, excludeAny []fleet.SoftwareScopeLabel, includeAll []fleet.SoftwareScopeLabel) (string, []string) {
+	var labels []fleet.SoftwareScopeLabel
+	var key string
+	switch {
+	case len(includeAny) > 0:
+		labels, key = includeAny, "labels_include_any"
+	case len(excludeAny) > 0:
+		labels, key = excludeAny, "labels_exclude_any"
+	case len(includeAll) > 0:
+		labels, key = includeAll, "labels_include_all"
+	default:
+		return "", nil
+	}
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.LabelName
+	}
+	return key, names
 }
 
 func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string]any, error) {
@@ -2310,6 +2527,35 @@ func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string
 		}
 
 		result = append(result, labelSpec)
+	}
+	return result, nil
+}
+
+// generateCustomHostVitals emits the existing custom host vital definitions
+// (names only; per-host values are never part of GitOps) so a round-trip
+// (apply -> generate -> re-apply) is a no-op. Global-only, like the
+// `custom_host_vitals:` GitOps key itself.
+func (cmd *GenerateGitopsCommand) generateCustomHostVitals() ([]map[string]any, error) {
+	const perPage = 1000
+	var vitals []fleet.CustomHostVital
+	for page := 0; ; page++ {
+		query := fmt.Sprintf("per_page=%d&page=%d", perPage, page)
+		pageVitals, err := cmd.Client.ListCustomHostVitals(query)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting custom host vitals: %s\n", err)
+			return nil, err
+		}
+		vitals = append(vitals, pageVitals...)
+		if len(pageVitals) < perPage {
+			break
+		}
+	}
+	t := reflect.TypeFor[spec.GitOpsCustomHostVital]()
+	result := make([]map[string]any, 0, len(vitals))
+	for _, vital := range vitals {
+		result = append(result, map[string]any{
+			jsonFieldName(t, "Name"): vital.Name,
+		})
 	}
 	return result, nil
 }

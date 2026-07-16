@@ -2,9 +2,11 @@ package fleet
 
 import (
 	"bytes"
+	"crypto/md5" //nolint:gosec // matches EffectiveDDMToken's DDM token hashing
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -169,7 +171,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 	}
 }
 
-func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
+func TestMDMAppleConfigProfileAllowCustomFileVault(t *testing.T) {
 	cases := []struct {
 		testName     string
 		payloadTypes []string
@@ -200,49 +202,110 @@ func TestMDMAppleConfigProfileAllowCustomOSUpdatesAndFileVault(t *testing.T) {
 			require.Equal(t, "ValidName", parsed.Name)
 			require.Equal(t, "ValidIdentifier", parsed.Identifier)
 
-			// When allowCustomOSUpdatesAndFileVault = true, these profiles should be allowed
+			// When allowCustomFileVault = true, these profiles should be allowed
 			err = parsed.ValidateUserProvided(true)
 			require.NoError(t, err)
 		})
 	}
 }
 
-func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
-	t.Run("OSUpdateDeclarationBlockedByDefault", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
+func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
+	cases := []struct {
+		name        string
+		declType    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "valid configuration declaration",
+			declType: "com.apple.configuration.passcode.settings",
+			wantErr:  false,
+		},
+		{
+			// Regression test: software update enforcement used to be blocked
+			// unless a special flag was set; it is now allowed by default.
+			name:     "software update enforcement allowed by default",
+			declType: "com.apple.configuration.softwareupdate.enforcement.specific",
+			wantErr:  false,
+		},
+		{
+			name:        "forbidden declaration type",
+			declType:    "com.apple.configuration.watch.enrollment",
+			wantErr:     true,
+			errContains: "com.apple.configuration.watch.enrollment is a forbidden declaration type.",
+		},
+		{
+			name:        "status subscriptions not allowed",
+			declType:    "com.apple.configuration.management.status-subscriptions",
+			wantErr:     true,
+			errContains: "Declaration profile can't include status subscription type.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.app.managed",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
+		},
+		{
+			name:        "managed app configuration not allowed",
+			declType:    "com.apple.configuration.package",
+			wantErr:     true,
+			errContains: "Declaration profile can't include software management types. To manage software, please use the Software tab.",
+		},
+		{
+			name:        "non-configuration declaration not allowed",
+			declType:    "com.apple.activation.simple",
+			wantErr:     true,
+			errContains: "Only configuration declarations (com.apple.configuration.) are supported.",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			decl := &MDMAppleRawDeclaration{
+				Type:       c.declType,
+				Identifier: "test-identifier",
+			}
+
+			err := decl.ValidateUserProvided()
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMDMAppleDeclarationPayloadScope(t *testing.T) {
+	t.Parallel()
+
+	t.Run("parse and default", func(t *testing.T) {
+		cases := []struct {
+			name  string
+			raw   string
+			want  PayloadScope
+			valid bool
+		}{
+			{name: "absent defaults to System", raw: `{"Type":"com.apple.configuration.passcode.settings","Identifier":"x"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit System", raw: `{"Type":"x","Identifier":"y","PayloadScope":"System"}`, want: PayloadScopeSystem, valid: true},
+			{name: "explicit User", raw: `{"Type":"x","Identifier":"y","PayloadScope":"User"}`, want: PayloadScopeUser, valid: true},
+			{name: "invalid value", raw: `{"Type":"x","Identifier":"y","PayloadScope":"Nope"}`, valid: false},
 		}
-
-		// Should fail when allowCustomOSUpdatesAndFileVault = false
-		err := decl.ValidateUserProvided(false)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
-	})
-
-	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.softwareupdate.enforcement.specific",
-			Identifier: "test-os-update",
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				decl, err := GetRawDeclarationValues([]byte(c.raw))
+				require.NoError(t, err)
+				if c.valid {
+					require.NoError(t, decl.ValidateScope())
+					require.Equal(t, c.want, decl.ScopeOrDefault())
+				} else {
+					require.Error(t, decl.ValidateScope())
+					require.ErrorContains(t, decl.ValidateScope(), "Invalid PayloadScope")
+				}
+			})
 		}
-
-		// Should succeed when allowCustomOSUpdatesAndFileVault = true
-		err := decl.ValidateUserProvided(true)
-		require.NoError(t, err)
-	})
-
-	t.Run("OtherDeclarationsUnaffected", func(t *testing.T) {
-		decl := &MDMAppleRawDeclaration{
-			Type:       "com.apple.configuration.passcode.settings",
-			Identifier: "test-passcode",
-		}
-
-		// Should succeed regardless of flag
-		err := decl.ValidateUserProvided(false)
-		require.NoError(t, err)
-
-		err = decl.ValidateUserProvided(true)
-		require.NoError(t, err)
 	})
 }
 
@@ -557,6 +620,10 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].VariablesUpdatedAt = items[0].VariablesUpdatedAt
 	fieldsInEqualMethod++
+	items[1].AssetsUpdatedAt = items[0].AssetsUpdatedAt
+	fieldsInEqualMethod++
+	items[1].Scope = items[0].Scope
+	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
 
@@ -564,6 +631,50 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items[0].Status = nil
 	items[1].Status = nil
 	assert.True(t, items[0].Equal(items[1]))
+}
+
+func TestEffectiveDDMToken(t *testing.T) {
+	t.Parallel()
+
+	const staticToken = "abc123"
+	vars := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	assets := time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC)
+
+	// md5Hex mirrors the hashing done by EffectiveDDMToken so we can assert the
+	// exact concatenation order, which MUST match the SQL token computation in
+	// MDMAppleDDMDeclarationsToken: HEX(token) + variables_updated_at + assets_updated_at.
+	md5Hex := func(parts ...string) string {
+		h := md5.New() //nolint:gosec // matches EffectiveDDMToken
+		for _, p := range parts {
+			_, _ = h.Write([]byte(p))
+		}
+		return hex.EncodeToString(h.Sum(nil))
+	}
+	const layout = "2006-01-02 15:04:05.000000"
+
+	t.Run("no vars, no assets returns static token unchanged", func(t *testing.T) {
+		require.Equal(t, staticToken, EffectiveDDMToken(staticToken, nil, nil))
+	})
+
+	t.Run("only variables", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout)), EffectiveDDMToken(staticToken, &vars, nil))
+	})
+
+	t.Run("only assets", func(t *testing.T) {
+		got := EffectiveDDMToken(staticToken, nil, &assets)
+		require.Equal(t, md5Hex(staticToken, assets.Format(layout)), got)
+		// An asset update must change the effective token away from the static one.
+		require.NotEqual(t, staticToken, got)
+	})
+
+	t.Run("both variables and assets, order is static+vars+assets", func(t *testing.T) {
+		require.Equal(t, md5Hex(staticToken, vars.Format(layout), assets.Format(layout)), EffectiveDDMToken(staticToken, &vars, &assets))
+	})
+
+	t.Run("different asset timestamps yield different tokens", func(t *testing.T) {
+		later := assets.Add(time.Second)
+		require.NotEqual(t, EffectiveDDMToken(staticToken, nil, &assets), EffectiveDDMToken(staticToken, nil, &later))
+	})
 }
 
 func TestMDMManagedCertificateEqual(t *testing.T) {

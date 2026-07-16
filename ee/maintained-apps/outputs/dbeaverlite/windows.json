@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.0.0",
+      "version": "26.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaverLite %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);"
       },
-      "installer_url": "https://downloads.dbeaver.net/lite/26.0.0/dbeaver-le-26.0.0-windows-x86_64.exe",
+      "installer_url": "https://downloads.dbeaver.net/lite/26.1.0/dbeaver-le-26.1.0-windows-x86_64.exe",
       "install_script_ref": "f305c446",
       "uninstall_script_ref": "6763cb51",
-      "sha256": "11b33c8d282e1e4ccd304da4d1c5c8677d380312c104e509cc5e5ded5367852d",
+      "sha256": "113e374c69a7f08b26a99879207c8e40b2dfb612f10c90e7df9d17fec7781465",
       "default_categories": [
         "Developer tools"
       ]

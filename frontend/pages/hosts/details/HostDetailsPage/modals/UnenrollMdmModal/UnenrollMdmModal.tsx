@@ -1,9 +1,9 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import mdmAPI from "services/entities/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
@@ -22,10 +22,6 @@ interface IUnenrollMdmModalProps {
   hostName: string;
   enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
-  /** Fires once the unenroll request returns 2xx, before onClose. The parent uses this to
-   * optimistically flip the host's MDM device state so pending badges (e.g. Android BYO
-   * "Unenroll pending") appear without waiting for the next refetch. */
-  onSuccess: () => void;
 }
 
 const UnenrollMdmModal = ({
@@ -34,13 +30,10 @@ const UnenrollMdmModal = ({
   hostName,
   enrollmentStatus,
   onClose,
-  onSuccess,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
     undefined | "unenrolling" | "error"
   >(undefined);
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
@@ -57,8 +50,7 @@ const UnenrollMdmModal = ({
             checks in.
           </>
         );
-      renderFlash("success", successMessage);
-      onSuccess();
+      notify.success(successMessage);
       onClose();
     } catch (unenrollMdmError: unknown) {
       const errorMessage =
@@ -69,7 +61,7 @@ const UnenrollMdmModal = ({
             Failed to turn off MDM for <b>{hostName}</b>. Please try again.
           </>
         );
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: unenrollMdmError });
     }
     setRequestState(undefined);
   };
@@ -96,9 +88,8 @@ const UnenrollMdmModal = ({
     } else if (isAutomaticDeviceEnrollment(enrollmentStatus)) {
       return (
         <p>
-          To re-enroll, make sure that the host is still in Apple Business
-          Manager (ABM). The host will automatically enroll after it&apos;s
-          reset.
+          To re-enroll, make sure that the host is still in Apple Business (AB).
+          The host will automatically enroll after it&apos;s reset.
         </p>
       );
     }

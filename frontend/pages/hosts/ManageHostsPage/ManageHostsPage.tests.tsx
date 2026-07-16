@@ -1,5 +1,6 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { createCustomRenderer, baseUrl } from "test/test-utils";
@@ -8,6 +9,11 @@ import createMockConfig from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
 
 import ManageHostsPage from "./ManageHostsPage";
+
+// Exporting hosts wraps the CSV response in a File and hands it to
+// FileSaver.saveAs, which is a no-op in jsdom — mock it out so the click
+// handler completes without touching the DOM download machinery.
+jest.mock("file-saver");
 
 const mockAppContext = {
   isGlobalAdmin: true,
@@ -142,7 +148,7 @@ describe("ManageHostsPage", () => {
 
     // Add hosts button still visible in the page header
     const headerWrap = screen
-      .getByText("Manage enroll secret")
+      .getByText("Enroll secrets")
       .closest(".manage-hosts__button-wrap");
     expect(
       within(headerWrap as HTMLElement).getByText("Add hosts")
@@ -258,5 +264,57 @@ describe("ManageHostsPage", () => {
     expect(
       screen.getByRole("button", { name: /edit columns/i })
     ).not.toBeDisabled();
+  });
+
+  it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
+    const mockHost = {
+      id: 1,
+      hostname: "test-host",
+      display_name: "test-host",
+      display_text: "test-host",
+      status: "online",
+      platform: "darwin",
+      os_version: "macOS 14.0",
+      team_id: null,
+      team_name: null,
+      seen_time: "2024-01-01T00:00:00Z",
+      issues: { total_issues_count: 0, failing_policies_count: 0 },
+    };
+
+    // Capture the `columns` query param sent to the hosts report endpoint. The
+    // "agent" column is a display-only column (it coalesces orbit and osquery
+    // versions) with no corresponding CSV field on the backend, so the request
+    // must send the underlying fields instead — otherwise the backend rejects
+    // it with "invalid column name" and the export fails (#47085).
+    let exportedColumns: string | null = null;
+    setupHandlers(1, [mockHost]);
+    mockServer.use(
+      http.get(baseUrl("/hosts/report"), ({ request }) => {
+        exportedColumns = new URL(request.url).searchParams.get("columns");
+        return HttpResponse.text("hostname\ntest-host\n");
+      })
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const user = userEvent.setup();
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(await screen.findByText("1 host")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /export hosts/i }));
+
+    await waitFor(() => expect(exportedColumns).not.toBeNull());
+
+    const columns = ((exportedColumns as unknown) as string).split(",");
+    // The derived "agent" column is replaced by the real CSV fields...
+    expect(columns).toContain("orbit_version");
+    expect(columns).toContain("osquery_version");
+    // ...and neither "agent" nor the display-only "selection" column is sent.
+    expect(columns).not.toContain("agent");
+    expect(columns).not.toContain("selection");
   });
 });

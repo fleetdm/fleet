@@ -38,7 +38,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			return &fleet.AppConfig{}, nil
 		}
 		t.Run("dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -51,7 +51,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			require.ErrorContains(t, err, "could not retrieve vpp token")
 		})
 		t.Run("not dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -66,7 +66,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
-		ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 			return nil, nil
 		}
 
@@ -78,7 +78,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 
 		for _, pkg := range fleetAgentPackages {
 			t.Run(pkg+" dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -91,7 +91,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 				require.ErrorContains(t, err, "The Fleet agent cannot be added manually")
 			})
 			t.Run(pkg+" not dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -316,7 +316,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 			CountryCode: "us",
 		}, nil
 	}
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, _ []string) ([]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
 	}
 
@@ -328,7 +328,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	const adamID = "1107542306"
-	_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 		{
 			AppStoreID:       adamID,
 			LabelsExcludeAny: []string{},
@@ -344,4 +344,83 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
+}
+
+// TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
+// global readers but scopes the list to a team-scoped user's readable teams
+// (plus "All teams" tokens), without leaking tokens from teams the user can't
+// read. See #46057.
+func TestGetVPPTokensScoping(t *testing.T) {
+	ds := new(mock.Store)
+	// Tokens: team 1, team 2, "All teams" (non-nil empty Teams), and an
+	// unassigned token (nil Teams).
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, OrgName: "team1", Teams: []fleet.TeamTuple{{ID: 1, Name: "Workstations"}}},
+			{ID: 2, OrgName: "team2", Teams: []fleet.TeamTuple{{ID: 2, Name: "Servers"}}},
+			{ID: 3, OrgName: "allteams", Teams: []fleet.TeamTuple{}},
+			{ID: 4, OrgName: "unassigned", Teams: nil},
+		}, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	globalMaintainer := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+	// Technician can read installable entities but not write them, so it must be
+	// able to read the token list to use the picker (#46057 names this role).
+	globalTechnician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
+	teamMaintainer1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+	}}
+	teamTechnician1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
+	}}
+	// Observer on the first team, maintainer on the second: must still be
+	// authorized (via team 2) and scoped to team 2, never team 1.
+	observerThenMaintainer := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+	}}
+	teamObserver1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+	}}
+
+	tests := []struct {
+		name    string
+		user    *fleet.User
+		wantErr bool
+		wantIDs []uint
+	}{
+		{"global admin sees all", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, []uint{1, 2, 3, 4}},
+		{"global maintainer sees all", globalMaintainer, false, []uint{1, 2, 3, 4}},
+		{"global technician sees all", globalTechnician, false, []uint{1, 2, 3, 4}},
+		{"team maintainer scoped to team + all-teams", teamMaintainer1, false, []uint{1, 3}},
+		{"team technician scoped to team + all-teams", teamTechnician1, false, []uint{1, 3}},
+		{"observer-then-maintainer scoped to second team", observerThenMaintainer, false, []uint{2, 3}},
+		{"team observer forbidden", teamObserver1, true, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			got, err := svc.GetVPPTokens(ctx)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+			gotIDs := make([]uint, 0, len(got))
+			for _, tok := range got {
+				gotIDs = append(gotIDs, tok.ID)
+			}
+			require.ElementsMatch(t, tt.wantIDs, gotIDs)
+		})
+	}
 }

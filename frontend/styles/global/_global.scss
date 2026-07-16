@@ -22,6 +22,13 @@ body {
   font-size: $medium;
   height: 100%;
   line-height: $line-height;
+
+  // Applied while a Modal is mounted to prevent the page behind it from
+  // scrolling. The modal's own background overlay stays overflow: auto so
+  // its content can still scroll.
+  &.modal-open {
+    overflow: hidden;
+  }
 }
 
 // Applied briefly by theme.ts during toggle to fade all colors smoothly.
@@ -34,11 +41,14 @@ body {
   body.theme-transition *::after {
     transition: background-color 300ms ease, color 300ms ease,
       border-color 300ms ease, box-shadow 300ms ease, fill 300ms ease,
-      stroke 300ms ease !important;
+      stroke 300ms ease, background-image 300ms ease !important;
   }
 
-  // Hide the gradient image during theme switch so background-color
-  // can transition smoothly without the gradient snapping.
+  // The core-wrapper's hero gradient doesn't interpolate cleanly between
+  // themes (different shape/stops), so hide it during the transition and
+  // let background-color carry the fade. The data-table wrapper keeps its
+  // gradient — it has the same shape in both themes, so background-image
+  // interpolates smoothly along with background-color.
   body.theme-transition .core-wrapper {
     background-image: none !important;
   }
@@ -192,8 +202,6 @@ form,
       &__no-wrap {
         // adjust for multi-line custom links
         .icon {
-          padding-left: 4px;
-          position: relative;
           top: 2px;
         }
       }
@@ -233,6 +241,11 @@ button {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
     -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
   }
+}
+
+input,
+textarea {
+  font-variant-ligatures: no-contextual;
 }
 
 input {
@@ -285,6 +298,26 @@ body.dark-mode tbody tr {
   background-color: $dark-mode-table-row;
 }
 
+// Data table rows stay transparent in dark mode so the wrapper's scroll
+// shadow can show through when the table is horizontally scrollable —
+// matches the light-mode pattern where `tr` has no background and the
+// wrapper shows through.
+body.dark-mode .data-table-block tbody tr {
+  background-color: transparent;
+}
+
+// $ui-off-white-opaque is a near-transparent rgba tuned for light mode;
+// against the dark wrapper it's perceptually invisible. A translucent
+// black overlay darkens the row beneath the wrapper color cleanly — the
+// interpolation from `transparent` (rgba(0,0,0,0)) to rgba(0,0,0,0.2)
+// stays in monotonically darkening tints, so no flicker. Selector
+// includes `.data-table` to beat the component rule's `.single-row:hover`
+// specificity (0,4,2).
+body.dark-mode .data-table-block .data-table tbody tr:hover,
+body.dark-mode .data-table-block .data-table tbody .single-row:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
 body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
   background-color: $dark-mode-nav-hover;
 }
@@ -296,6 +329,15 @@ body.dark-mode .card .button--icon:hover {
   background-color: $core-fleet-white;
 }
 
+// A modal inside a card inherits the .card hover above, which matches the
+// modal surface and hides it. Restore the normal inverse hover.
+body.dark-mode .modal__modal_container .button--inverse:hover,
+body.dark-mode .modal__modal_container .button--inverse-alert:hover,
+body.dark-mode .modal__modal_container .button--text-icon:hover,
+body.dark-mode .modal__modal_container .button--icon:hover {
+  background-color: $ui-fleet-black-5;
+}
+
 body.dark-mode .checkbox-unchecked-state {
   fill: $core-fleet-white;
   stroke: $ui-fleet-black-25;
@@ -305,6 +347,14 @@ body.dark-mode .checkbox-unchecked-state {
 // so !important is needed to override them in dark mode.
 body.dark-mode .react-select__control {
   background-color: $ui-fleet-black-5 !important;
+}
+
+// Button-style dropdowns hardcode their hover to $ui-fleet-black-5, which
+// matches the card surface. Darken to $core-fleet-white on cards, like the
+// .card button rule above. One selector per dropdown component.
+body.dark-mode .card .dropdown-wrapper__button .react-select__control:hover,
+body.dark-mode .card .actions-dropdown-select__control:hover {
+  background-color: $core-fleet-white !important;
 }
 
 // Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.

@@ -38,42 +38,4 @@ describe("WipeHostActivityItem", () => {
 
     expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
   });
-
-  it("renders guide and feature request links for Linux hosts", () => {
-    render(
-      <WipeHostActivityItem
-        activity={createMockHostPastActivity({
-          actor_full_name: "Test User",
-          details: { host_platform: "linux" },
-        })}
-        tab="past"
-      />
-    );
-
-    expect(
-      screen.getByRole("link", { name: /learn more/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /file a feature request/i })
-    ).toBeInTheDocument();
-  });
-
-  it("does not render guide and feature request links for non-Linux hosts", () => {
-    render(
-      <WipeHostActivityItem
-        activity={createMockHostPastActivity({
-          actor_full_name: "Test User",
-          details: { host_platform: "darwin" },
-        })}
-        tab="past"
-      />
-    );
-
-    expect(
-      screen.queryByRole("link", { name: /learn more/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /file a feature request/i })
-    ).not.toBeInTheDocument();
-  });
 });

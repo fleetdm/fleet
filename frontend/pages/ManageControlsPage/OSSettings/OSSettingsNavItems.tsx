@@ -7,6 +7,7 @@ import DiskEncryption from "./cards/DiskEncryption";
 import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import Certificates from "./cards/Certificates";
 import Passwords from "./cards/Passwords";
+import HostNameTemplate from "./cards/HostNameTemplate";
 import { IConfigurationProfilesProps } from "./cards/ConfigurationProfiles/ConfigurationProfiles";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
 
@@ -50,6 +51,13 @@ const getOSSettingsNavItems = (
       Card: Passwords,
       urlSection: "passwords",
       path: PATHS.CONTROLS_PASSWORDS,
+      exclude: isTechnician,
+    },
+    {
+      title: "Host names",
+      Card: HostNameTemplate,
+      urlSection: "host-name-template",
+      path: PATHS.CONTROLS_HOST_NAME_TEMPLATE,
       exclude: isTechnician,
     },
   ];

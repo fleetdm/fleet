@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,6 +56,8 @@ type PolicyPayload struct {
 	LabelsIncludeAll []string
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []string
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
@@ -101,6 +105,9 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When nil, the policy defaults to the title's first-added package.
+	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
@@ -109,6 +116,8 @@ type NewTeamPolicyPayload struct {
 	LabelsIncludeAll []string
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []string
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
 
@@ -126,7 +135,8 @@ var (
 	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
 	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
 	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
-	ErrPolicyConflictingLabels                       = errors.New("policy can include at most one of labels_include_any, labels_include_all, or labels_exclude_any")
+	ErrPolicyConflictingIncludeLabels                = errors.New("policy can include at most one of labels_include_any or labels_include_all")
+	ErrPolicyConflictingExcludeLabels                = errors.New("policy can include at most one of labels_exclude_any or labels_exclude_all")
 	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
 	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
 	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
@@ -134,6 +144,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -157,7 +168,7 @@ func (p PolicyPayload) Verify() error {
 		if p.PatchSoftwareTitleID == nil {
 			return errPolicyPatchNoTitleID
 		}
-		if err := verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny); err != nil {
+		if err := verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll); err != nil {
 			return err
 		}
 		return nil
@@ -182,25 +193,42 @@ func (p PolicyPayload) Verify() error {
 		return err
 	}
 
-	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
-// verifyLabelScopeMutualExclusion enforces that at most one of the three label
-// scope slices carries values. Empty slices ([]) are treated as "no value" and
-// are ignored, so e.g. {LabelsIncludeAny: [], LabelsIncludeAll: [A]} is valid.
-func verifyLabelScopeMutualExclusion(includeAny, includeAll, excludeAny []string) error {
-	specified := 0
+// verifyPolicyLabelScopes enforces the policy label-targeting rules: at most one
+// include scope (labels_include_any or labels_include_all) and at most one
+// exclude scope (labels_exclude_any or labels_exclude_all) may carry values, and
+// no label may appear in both an include and an exclude list. An include scope
+// and an exclude scope may be combined. Empty slices ([]) are treated as "no
+// value", so e.g. {LabelsIncludeAny: [], LabelsIncludeAll: [A]} is valid.
+func verifyPolicyLabelScopes(includeAny, includeAll, excludeAny, excludeAll []string) error {
+	includeScopes := 0
 	if len(includeAny) > 0 {
-		specified++
+		includeScopes++
 	}
 	if len(includeAll) > 0 {
-		specified++
+		includeScopes++
 	}
+	if includeScopes > 1 {
+		return ErrPolicyConflictingIncludeLabels
+	}
+
+	excludeScopes := 0
 	if len(excludeAny) > 0 {
-		specified++
+		excludeScopes++
 	}
-	if specified > 1 {
-		return ErrPolicyConflictingLabels
+	if len(excludeAll) > 0 {
+		excludeScopes++
+	}
+	if excludeScopes > 1 {
+		return ErrPolicyConflictingExcludeLabels
+	}
+
+	include := slices.Concat(includeAny, includeAll)
+	exclude := slices.Concat(excludeAny, excludeAll)
+	if overlap := LabelOverlap(include, exclude); overlap != "" {
+		return fmt.Errorf("label %q cannot appear in both an include and an exclude list", overlap)
 	}
 	return nil
 }
@@ -236,6 +264,21 @@ func verifyPolicyPlatforms(platforms string) error {
 		}
 	}
 	return nil
+}
+
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
 }
 
 func verifyPatchPolicy(team string, typ string) error {
@@ -276,17 +319,24 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted (or 0), the policy defaults to the title's first-added package.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
-	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
@@ -315,7 +365,7 @@ func (p ModifyPolicyPayload) Verify() error {
 		if p.Platform != nil {
 			return errPolicyPlatformUpdated
 		}
-		return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+		return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 	}
 
 	if p.Name != nil {
@@ -333,7 +383,7 @@ func (p ModifyPolicyPayload) Verify() error {
 			return err
 		}
 	}
-	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // PolicyData holds data of a fleet policy.
@@ -372,6 +422,8 @@ type PolicyData struct {
 	LabelsIncludeAll []LabelIdent `json:"labels_include_all,omitempty"`
 	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []LabelIdent `json:"labels_exclude_all,omitempty"`
 
 	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
 	//
@@ -400,6 +452,18 @@ type PolicyData struct {
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 
 	UpdateCreateTimestamps
+}
+
+// VerifyLabelScopes checks that the policy's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicyData) VerifyLabelScopes() error {
+	return verifyPolicyLabelScopes(
+		LabelIdentsToNames(p.LabelsIncludeAny),
+		LabelIdentsToNames(p.LabelsIncludeAll),
+		LabelIdentsToNames(p.LabelsExcludeAny),
+		LabelIdentsToNames(p.LabelsExcludeAll),
+	)
 }
 
 // Policy is a fleet's policy query.
@@ -523,6 +587,7 @@ type PolicySpec struct {
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	LabelsExcludeAll []string `json:"labels_exclude_all,omitempty"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
@@ -542,10 +607,22 @@ type PolicySpec struct {
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
+	// SoftwareInstallerID is the ID of the specific package the policy pins
+	// on a multi-package title. Nil for VPP-backed policies (which pin via
+	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// automation UI reads this on load to reflect the user's non-default
+	// package choice; when nil, the UI falls back to the title's first-added
+	// package.
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
 	DisplayName string `json:"display_name" db:"display_name"`
+	// IconURL is the API path to this software title's icon in the policy's
+	// team. It is set when a custom icon was uploaded for the title, or for VPP
+	// apps (whose icon endpoint redirects to the App Store icon), and is nil
+	// otherwise.
+	IconURL *string `json:"icon_url,omitempty"`
 }
 
 // PolicyScript contains script data for policies.
@@ -573,7 +650,17 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
 	}
-	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
+	}
+	return p.VerifyLabelScopes()
+}
+
+// VerifyLabelScopes checks that the spec's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicySpec) VerifyLabelScopes() error {
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found

@@ -180,10 +180,29 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return nil
 	})
 
+	// Null label_id references in MDM profile/declaration label tables before deleting labels,
+	// since the application layer now blocks label deletion while referenced by a profile.
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL`); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			// Clear profile label associations first so DeleteLabel isn't blocked
+			// by the FK constraint that prevents deleting referenced labels.
+			mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+				if _, err := q.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID); err != nil {
+					return err
+				}
+				_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
+				return err
+			})
 			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
@@ -216,7 +235,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		return err
 	})
 
-	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := ts.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	if len(globalPolicies) > 0 {
 		var globalPolicyIDs []uint
@@ -457,6 +476,21 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+// LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
+// (Linux/Windows), which carries the device's host UUID through the SSO request
+// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
+// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
+// UUID is not yet known. Returns the callback response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 // LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
 // /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
 // SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
@@ -526,9 +560,13 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	return resp
 }
 
-func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password, token string) *http.Response {
+	initiator := fleet.SSOInitiatorAccountDrivenEnroll
+	if token != "" {
+		initiator = fmt.Sprintf("%s:%s", initiator, token)
+	}
 	requestParams := initiateMDMSSORequest{
-		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
+		Initiator:      initiator,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)
@@ -855,6 +893,9 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	if payload.TeamID != nil {
 		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
 	}
+	if payload.TitleID != nil {
+		require.NoError(t, w.WriteField("software_title_id", fmt.Sprintf("%d", *payload.TitleID)))
+	}
 	// add the remaining fields
 	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
 	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
@@ -933,6 +974,9 @@ func (ts *withServer) updateSoftwareInstaller(
 		tmID = *payload.TeamID
 	}
 	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	if payload.InstallerID != 0 {
+		require.NoError(t, w.WriteField("installer_id", fmt.Sprintf("%d", payload.InstallerID)))
+	}
 	// add the remaining fields
 	if payload.InstallScript != nil {
 		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))

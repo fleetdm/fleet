@@ -1,0 +1,10 @@
+{
+  "name": "Elgato Camera Hub",
+  "unique_identifier": "com.elgato.CameraHub",
+  "token": "elgato-camera-hub",
+  "installer_format": "pkg",
+  "slug": "elgato-camera-hub/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

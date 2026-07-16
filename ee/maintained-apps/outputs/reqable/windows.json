@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.2.9",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Reqable' AND publisher = 'Reqqable Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reqable' AND publisher = 'Reqqable Inc.' AND version_compare(version, '3.2.9') < 0);"
+      },
+      "installer_url": "https://github.com/reqable/reqable-app/releases/download/3.2.9/reqable-app-windows-x86_64.exe",
+      "install_script_ref": "d2ffec58",
+      "uninstall_script_ref": "b33fc442",
+      "sha256": "58bf8394f98d5d0b72e4d95a20242e0c8125444b0db886db1ef682152932cf71",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "b33fc442": "# Learn more about .exe uninstall scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$softwareName = \"Reqable\"\n$softwareNameLike = \"*$softwareName*\"\n$publisher = \"\"\n\n$userKey = `\n 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$userKey32on64 = `\n 'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey = `\n 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = `\n 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($userKey, $userKey32on64, $machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike -and\n        ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n        $foundUninstaller = $true\n\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Parse the uninstaller executable path from the uninstall command.\n        $uninstallExe = \"\"\n        if ($uninstallCommand -match '^\"([^\"]+)\"') {\n            $uninstallExe = $matches[1]\n        } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n            $uninstallExe = $matches[1]\n        }\n\n        if ($uninstallExe -eq \"\") {\n            Write-Host \"Could not parse uninstaller path from: $uninstallCommand\"\n            $exitCode = 1\n            break\n        }\n\n        # Determine the install directory.\n        $installDir = \"\"\n        if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n            $installDir = $key.InstallLocation\n        } else {\n            $installDir = Split-Path -Parent $uninstallExe\n        }\n\n        $uninstallArgs = @(\"/VERYSILENT\", \"/NORESTART\")\n\n        Write-Host \"Uninstall command: $uninstallExe\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallExe\n            ArgumentList = $uninstallArgs\n            PassThru = $true\n            Wait = $true\n            NoNewWindow = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n\n        if ($installDir -and (Test-Path $installDir)) {\n            Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n        }\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n",
+    "d2ffec58": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "PopSQL",
+  "unique_identifier": "org.electron.popsql",
+  "token": "popsql",
+  "installer_format": "dmg",
+  "slug": "popsql/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
