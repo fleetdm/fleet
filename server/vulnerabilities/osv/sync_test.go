@@ -584,6 +584,54 @@ func TestRemoveOldAndroidOSVArtifacts(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestRefreshAndroidUsesReleaseDate guards the regression where RefreshAndroid
+// built artifact filenames from the cron execution time instead of the release
+// date. When the two differ (the cron runs on any day after the release was
+// cut), filenames derived from "now" don't match the release assets, so nothing
+// downloads — and the cleanup would delete a release-dated artifact that was
+// downloaded. This exercises the sync + cleanup path RefreshAndroid delegates to.
+func TestRefreshAndroidUsesReleaseDate(t *testing.T) {
+	releaseDate := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)
+
+	assetName := androidOSVFilename("16", releaseDate)
+	release := &ReleaseInfo{
+		TagName: "cve-202607140000",
+		Assets: map[string]*AssetInfo{
+			assetName: {Name: assetName, ID: 1},
+		},
+	}
+
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		return os.WriteFile(dstPath, []byte("ok"), 0o644)
+	}
+
+	// Using the release date finds the asset and downloads it.
+	dir := t.TempDir()
+	result, err := syncOSVWithDownloader(context.Background(), dir, []string{"16"}, releaseDate, release, mockDownload, androidOSVFilename)
+	require.NoError(t, err)
+	require.Contains(t, result.Downloaded, "16")
+	require.Empty(t, result.NotInRelease)
+
+	// Using "now" (different from the release date) misses the asset entirely.
+	nowDir := t.TempDir()
+	nowResult, err := syncOSVWithDownloader(context.Background(), nowDir, []string{"16"}, now, release, mockDownload, androidOSVFilename)
+	require.NoError(t, err)
+	require.Contains(t, nowResult.NotInRelease, "16")
+	require.Empty(t, nowResult.Downloaded)
+
+	// Cleanup with the release date preserves the just-downloaded artifact...
+	require.NoError(t, removeOldAndroidOSVArtifacts(releaseDate, dir, []string{"16"}))
+	_, err = os.Stat(filepath.Join(dir, assetName))
+	require.NoError(t, err, "release-dated artifact must be preserved")
+
+	// ...whereas cleaning up with "now" would delete it, since its date suffix
+	// doesn't match and version 16 is in the successful set.
+	require.NoError(t, removeOldAndroidOSVArtifacts(now, dir, []string{"16"}))
+	_, err = os.Stat(filepath.Join(dir, assetName))
+	require.True(t, os.IsNotExist(err), "cleanup keyed on now wrongly deletes the release-dated artifact")
+}
+
 func TestGetNeededAndroidVersions(t *testing.T) {
 	tests := []struct {
 		name     string

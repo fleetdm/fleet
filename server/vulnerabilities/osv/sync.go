@@ -339,7 +339,6 @@ func RefreshAndroid(
 	ctx context.Context,
 	oses []fleet.OperatingSystem,
 	vulnPath string,
-	now time.Time,
 ) ([]string, error) {
 	neededVersions := getNeededAndroidVersions(oses)
 	if len(neededVersions) == 0 {
@@ -351,7 +350,16 @@ func RefreshAndroid(
 		return nil, fmt.Errorf("getting latest release: %w", err)
 	}
 
-	syncResult, err := syncAndroidOSV(ctx, vulnPath, neededVersions, now, release)
+	// Artifact filenames encode the release date (all assets in a release share
+	// it), so we derive the date from the release rather than the cron execution
+	// time. Using "now" would build filenames that don't match the release assets
+	// on any day the cron runs after the release was cut.
+	releaseDate, ok := releaseDateFromAssets(release)
+	if !ok {
+		return nil, fmt.Errorf("no OSV artifacts found in latest release %q", release.TagName)
+	}
+
+	syncResult, err := syncAndroidOSV(ctx, vulnPath, neededVersions, releaseDate, release)
 	if err != nil {
 		return nil, fmt.Errorf("syncing Android OSV artifacts: %w", err)
 	}
@@ -359,7 +367,7 @@ func RefreshAndroid(
 	upToDateVersions := make([]string, 0, len(syncResult.Downloaded)+len(syncResult.Skipped))
 	upToDateVersions = append(upToDateVersions, syncResult.Downloaded...)
 	upToDateVersions = append(upToDateVersions, syncResult.Skipped...)
-	if err := removeOldAndroidOSVArtifacts(now, vulnPath, upToDateVersions); err != nil {
+	if err := removeOldAndroidOSVArtifacts(releaseDate, vulnPath, upToDateVersions); err != nil {
 		return syncResult.Downloaded, fmt.Errorf("warning: failed to clean up old Android OSV artifacts: %w", err)
 	}
 

@@ -462,7 +462,7 @@ func checkAndroidVulnerabilities(
 
 	if !config.DisableDataSync {
 		syncCtx, syncSpan := tracer.Start(ctx, "vuln.android.sync")
-		downloaded, err := osv.RefreshAndroid(syncCtx, oses, vulnPath, time.Now().UTC())
+		downloaded, err := osv.RefreshAndroid(syncCtx, oses, vulnPath)
 		if err != nil {
 			errHandler(syncCtx, logger, "updating Android OSV artifacts", err)
 		}
