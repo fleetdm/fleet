@@ -160,7 +160,7 @@ const SoftwareTitleDetailsPage = ({
       select: (data) => data.software_title,
       onError: (error) => {
         if (error.status === 404) {
-          router.push(
+          router.replace(
             getPathWithQueryParams(paths.SOFTWARE, {
               fleet_id: teamIdForApi,
             })
