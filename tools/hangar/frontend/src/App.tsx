@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "./lib/events";
-import { TabBar, type TabId } from "./components/TabBar";
+import { TabBar, type TabId, isServerScopedTab } from "./components/TabBar";
 import { StatusRail } from "./components/StatusRail";
 import { ServerSwitcher } from "./components/ServerSwitcher";
 import { FirstRunGate } from "./components/FirstRunGate";
@@ -301,6 +301,7 @@ export default function App() {
         healthMap={healthMap}
         onSwitch={switchServer}
         onManage={() => goToSettings("servers")}
+        dimmed={!isServerScopedTab(active) && active !== "settings"}
       />
       <TabBar active={active} onChange={setActive} />
       <main style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>

@@ -3,23 +3,32 @@ import { serverColorVar } from "../lib/servers";
 import type { ServerHealth } from "../lib/useSystemHealth";
 
 /// Top-bar control for switching between local Fleet servers and seeing each
-/// one's status at a glance. One pill per configured server: name, accent dot,
-/// and serve/docker state. The active pill is highlighted. "Manage" jumps to
-/// the Servers settings section (add / remove / configure).
+/// one's status at a glance. One pill per server: a single status dot (green
+/// and pulsing when anything is running on that server, grey when off — the
+/// same dot the Server-tab process cards use), the name, and an accent border
+/// when active. "Manage" jumps to the Servers settings section.
 export function ServerSwitcher({
   settings,
   healthMap,
   onSwitch,
   onManage,
+  dimmed = false,
 }: {
   settings: Settings;
   healthMap: Record<string, ServerHealth>;
   onSwitch: (id: string) => void;
   onManage: () => void;
+  // Faded when the active tab is global (server selection doesn't apply there).
+  dimmed?: boolean;
 }) {
   const activeId = settings.active_server_id;
   return (
     <div
+      title={
+        dimmed
+          ? "Server selection applies to the Git / Server / Logs / Database tabs"
+          : undefined
+      }
       style={{
         display: "flex",
         alignItems: "center",
@@ -28,6 +37,8 @@ export function ServerSwitcher({
         background: "var(--app-surface)",
         borderBottom: "1px solid var(--app-border)",
         overflowX: "auto",
+        opacity: dimmed ? 0.45 : 1,
+        transition: "opacity 0.15s ease",
       }}
     >
       <span
