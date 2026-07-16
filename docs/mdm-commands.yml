@@ -1691,7 +1691,7 @@
   platform: apple
   category: Security
   externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/rotate-filevault-key-command
-  description: Clear the Activation Lock bypass code on a device.
+  description: Rotate the FileValt key on a device.
   supportedDeviceTypes:
     - macOS 10.9+
   command: |
