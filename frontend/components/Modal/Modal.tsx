@@ -62,6 +62,13 @@ const Modal = ({
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
+  // Latest-value ref so the focusout listener can consult isHidden without
+  // re-running the mount effect (which would steal focus on every toggle).
+  // isHidden signals a sibling modal is stacked on top of this one; that
+  // modal owns focus, so this one should stay out of the way.
+  const isHiddenRef = useRef(isHidden);
+  isHiddenRef.current = isHidden;
+
   // Focus the container on open so the modal is the keyboard landing point;
   // on close, restore focus to whatever was focused before. Native Tab handles
   // ordering inside — the focusout listener just redirects escaping focus
@@ -71,9 +78,10 @@ const Modal = ({
     if (!container) return undefined;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    container.focus();
+    if (!isHiddenRef.current) container.focus();
 
     const handleFocusOut = (e: FocusEvent) => {
+      if (isHiddenRef.current) return;
       const next = e.relatedTarget as Node | null;
       if (next && !container.contains(next)) container.focus();
     };
