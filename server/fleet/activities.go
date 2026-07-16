@@ -1855,6 +1855,14 @@ func (a ActivityCreatedCustomVariable) ActivityName() string {
 	return "created_custom_variable"
 }
 
+type ActivityUpdatedCustomVariable struct {
+	CustomVariableName string `json:"custom_variable_name"`
+}
+
+func (a ActivityUpdatedCustomVariable) ActivityName() string {
+	return "updated_custom_variable"
+}
+
 type ActivityDeletedCustomVariable struct {
 	CustomVariableID   uint   `json:"custom_variable_id"`
 	CustomVariableName string `json:"custom_variable_name"`

@@ -1840,7 +1840,7 @@ type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID strin
 
 type ResendHostCertificateProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
 
-type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
+type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error)
 
 type CreateSecretVariableFunc func(ctx context.Context, name string, value string) (id uint, err error)
 
@@ -11894,7 +11894,7 @@ func (s *DataStore) ResendHostCertificateProfile(ctx context.Context, hostUUID s
 	return s.ResendHostCertificateProfileFunc(ctx, hostUUID, profUUID)
 }
 
-func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
 	s.mu.Lock()
 	s.UpsertSecretVariablesFuncInvoked = true
 	s.mu.Unlock()

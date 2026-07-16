@@ -2035,6 +2035,15 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  updatedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        updated custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
   deletedCustomVariable: (activity: IActivity) => {
     const { custom_variable_name } = activity.details || {};
     return (
@@ -2649,6 +2658,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
+    }
+    case ActivityType.UpdatedCustomVariable: {
+      return TAGGED_TEMPLATES.updatedCustomVariable(activity);
     }
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);

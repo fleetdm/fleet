@@ -15117,19 +15117,45 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	}
 	// Do dry run
 	req.DryRun = true
+	idBeforeDryRun := s.lastActivityMatches("", "", 0)
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
+	// A dry run persists nothing, so it must not emit any activity.
+	require.Equal(t, idBeforeDryRun, s.lastActivityMatches("", "", 0))
 
-	// Do real run
+	// Do real run: creating the variable emits a created_custom_variable activity.
 	req.DryRun = false
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		0,
+	)
+
+	// Re-applying the same spec is a no-op and must not emit any activity.
+	idAfterCreate := s.lastActivityMatches("", "", 0)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	require.Equal(t, idAfterCreate, s.lastActivityMatches("", "", 0))
+
+	// Changing the value via the spec endpoint emits an updated_custom_variable activity.
+	req.SecretVariables[0].Value = "new-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "new-value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityUpdatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_name":%q}`, validName),
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestSecretVariables() {
