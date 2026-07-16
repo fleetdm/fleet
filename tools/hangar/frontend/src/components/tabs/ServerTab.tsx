@@ -10,6 +10,7 @@ import {
   buildChainFor,
   dockerUpWithStaleCleanup,
   ngrokArgsFor,
+  staleNgrokTunnels,
   ngrokIsLaunchable,
   pythonArgsFor,
   serveArgsFor,
@@ -1104,7 +1105,29 @@ function ActiveProcessesPanel({
     api
       .parseNgrokYml(settings.ngrok.yml_path)
       .then((r) => {
-        if (!cancelled) setNgrokInfo(r);
+        if (cancelled) return;
+        setNgrokInfo(r);
+        // Self-heal: if a selected tunnel no longer exists in the yml (renamed
+        // or removed), drop it so `ngrok start` doesn't try to launch a
+        // phantom tunnel. staleNgrokTunnels only fires on a valid parse.
+        const stale = staleNgrokTunnels(settings, r);
+        if (stale.length > 0) {
+          const next: Settings = {
+            ...settings,
+            ngrok: {
+              ...settings.ngrok,
+              default_tunnels: settings.ngrok.default_tunnels.filter(
+                (n) => !stale.includes(n),
+              ),
+            },
+          };
+          api
+            .saveSettings(next)
+            .then(() => onSettingsChange(next))
+            .catch((e) =>
+              console.error("failed to prune stale ngrok tunnels", e),
+            );
+        }
       })
       .catch(() => {});
     return () => {

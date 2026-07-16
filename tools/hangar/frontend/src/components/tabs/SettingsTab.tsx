@@ -20,6 +20,7 @@ import {
   updateActiveServer,
   updateServer,
 } from "../../lib/servers";
+import { staleNgrokTunnels } from "../../lib/orchestration";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
 export type SettingsSection =
@@ -1928,6 +1929,16 @@ function NgrokSection({
     try {
       const result = await api.parseNgrokYml(cfg.yml_path);
       setInfo(result);
+      // Self-heal: drop any selected tunnel that no longer exists in the yml
+      // (renamed/removed) so the start command can't reference a phantom.
+      const stale = staleNgrokTunnels(settings, result);
+      if (stale.length > 0) {
+        updateDefaults({
+          default_tunnels: cfg.default_tunnels.filter(
+            (n) => !stale.includes(n),
+          ),
+        });
+      }
       if (result.valid && result.resolved_path) {
         try {
           const txt = await api.readTextFile(result.resolved_path);

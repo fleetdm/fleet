@@ -7,7 +7,13 @@
 // top-level settings).
 
 import { listen } from "./events";
-import { api, type ProcEvent, type ServerProfile, type Settings } from "./ipc";
+import {
+  api,
+  type NgrokYamlInfo,
+  type ProcEvent,
+  type ServerProfile,
+  type Settings,
+} from "./ipc";
 import {
   dockerEnvFor,
   dockerUpArgs,
@@ -69,6 +75,23 @@ export function pythonArgsFor(settings: Settings): string[] {
 export function ngrokIsLaunchable(settings: Settings): boolean {
   const cfg = settings.ngrok;
   return cfg.enabled && (cfg.start_all || cfg.default_tunnels.length > 0);
+}
+
+/// Selected `default_tunnels` that no longer exist in the parsed ngrok.yml.
+/// When a tunnel is renamed or removed, its old name lingers in the selection
+/// (it has no chip in the UI, so it can't be unpicked) and still gets passed to
+/// `ngrok start`, which fails with "tunnel not defined". Callers prune these on
+/// a fresh parse so the start command stays in sync with the file.
+///
+/// Returns [] unless the parse is VALID — a missing or unparseable ngrok.yml
+/// must never cause us to drop a still-good selection.
+export function staleNgrokTunnels(
+  settings: Settings,
+  info: NgrokYamlInfo | null,
+): string[] {
+  if (!info || !info.valid) return [];
+  const available = new Set(info.tunnels.map((t) => t.name));
+  return settings.ngrok.default_tunnels.filter((n) => !available.has(n));
 }
 
 /// Single-spawn helper: kicks off `fleet serve --dev` for one server without
