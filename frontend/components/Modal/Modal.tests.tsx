@@ -242,9 +242,9 @@ describe("Modal", () => {
       expect(modalContainer).toHaveFocus();
     });
 
-    it("skips the focusout redirect when isHidden (stacked modal on top)", async () => {
+    it("does not steal focus on mount when isHidden (stacked modal on top)", () => {
       // When another modal is stacked on top (this modal receives isHidden),
-      // that top modal owns focus. This modal must not fight for it.
+      // that top modal owns focus. This modal must not grab it on mount.
       render(
         <>
           <button type="button" data-testid="stacked">
@@ -259,13 +259,34 @@ describe("Modal", () => {
       const stacked = screen.getByTestId("stacked");
       stacked.focus();
       expect(stacked).toHaveFocus();
+    });
 
-      // Give the effect a tick — if it were going to steal focus, it would.
-      await new Promise((r) => {
-        setTimeout(r, 0);
-      });
+    it("does not refocus on focusout when isHidden", () => {
+      // The bottom modal's focusout listener also has to stand down while a
+      // stacked modal is on top; otherwise every focus movement inside the
+      // top modal would trigger a refocus on the bottom one.
+      render(
+        <>
+          <button type="button" data-testid="stacked">
+            Stacked modal control
+          </button>
+          <Modal title="Bottom" isHidden onExit={noop}>
+            <button type="button">Submit</button>
+          </Modal>
+        </>
+      );
 
-      expect(stacked).toHaveFocus();
+      const stacked = screen.getByTestId("stacked");
+      const modalContainer = document.querySelector(
+        ".modal__modal_container"
+      ) as HTMLElement;
+
+      stacked.focus();
+      // Focus moving between two elements outside the hidden modal — the
+      // hidden modal's listener must not react.
+      fireEvent.focusOut(stacked, { relatedTarget: document.body });
+
+      expect(modalContainer).not.toHaveFocus();
     });
 
     it("does not fire onEnter for autorepeated Enter keys", () => {

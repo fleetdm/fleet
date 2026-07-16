@@ -1,0 +1,2 @@
+- Improved keyboard accessibility for modals: focus moves into the modal on open, stays trapped inside while it's open, and returns to the previously focused control when the modal closes.
+- Fixed automations forms auto-submitting when their trigger button was activated with Enter and the key's autorepeat fired before the user released it.
