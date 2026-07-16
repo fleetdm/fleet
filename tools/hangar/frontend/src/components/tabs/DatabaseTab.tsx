@@ -353,15 +353,31 @@ function StatusHeader({
   }
 
   async function startServeAction() {
+    if (serveBusy) return;
     setServeBusy("starting");
     setError(null);
     try {
       await startServe(server);
     } catch (e) {
       setError(String(e));
+      setServeBusy(null);
+      return;
     }
-    setServeBusy(null);
+    // startServe only spawns the process — the server isn't listening yet.
+    // Stay in "starting…" until health reports it up (see effect below); the
+    // timeout is a safety net if it never binds (crash / port already in use)
+    // so the button doesn't stay stuck.
+    window.setTimeout(() => {
+      setServeBusy((b) => (b === "starting" ? null : b));
+    }, 90_000);
   }
+
+  // Clear "starting…" the moment the server is actually up. Without this the
+  // button would re-enable (and look spammable) the instant the process is
+  // spawned, long before fleet is listening.
+  useEffect(() => {
+    if (serveUp) setServeBusy((b) => (b === "starting" ? null : b));
+  }, [serveUp]);
 
   return (
     <div
