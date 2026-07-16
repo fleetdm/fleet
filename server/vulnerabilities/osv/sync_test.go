@@ -476,6 +476,31 @@ func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
 	require.Contains(t, result.Failed, "2404")
 }
 
+// TestIsOSVReleaseAsset guards getLatestRelease's asset filter. Android assets
+// were silently dropped because the filter only matched Ubuntu and RHEL
+// prefixes, so RefreshAndroid could never find an asset to download.
+func TestIsOSVReleaseAsset(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"osv-ubuntu-2204-2026-07-14.json.gz", true},
+		{"osv-rhel-9-2026-07-14.json.gz", true},
+		{"osv-android-16-2026-07-14.json.gz", true},
+		{"osv-android-8.1-2026-07-14.json.gz", true},
+		// delta artifacts are excluded.
+		{"osv-ubuntu-2204-delta-2026-07-14.json.gz", false},
+		{"osv-android-16-delta-2026-07-14.json.gz", false},
+		// unrelated assets are excluded.
+		{"osv-2026-07-14.json.gz", false},
+		{"some-other-file.json.gz", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		require.Equalf(t, tt.want, isOSVReleaseAsset(tt.name), "isOSVReleaseAsset(%q)", tt.name)
+	}
+}
+
 func TestVersionsFromRelease(t *testing.T) {
 	release := &ReleaseInfo{
 		TagName: "cve-202604270000",

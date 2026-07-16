@@ -83,8 +83,7 @@ func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 
 	assets := make(map[string]*AssetInfo)
 	for _, asset := range release.Assets {
-		isOSVAsset := strings.HasPrefix(asset.Name, OSVFilePrefix) || strings.HasPrefix(asset.Name, OSVRHELFilePrefix)
-		if isOSVAsset && !strings.Contains(asset.Name, "delta") {
+		if isOSVReleaseAsset(asset.Name) {
 			assets[asset.Name] = &AssetInfo{
 				Name:   asset.Name,
 				ID:     asset.ID,
@@ -97,6 +96,16 @@ func getLatestRelease(ctx context.Context) (*ReleaseInfo, error) {
 		TagName: release.TagName,
 		Assets:  assets,
 	}, nil
+}
+
+// isOSVReleaseAsset reports whether a release asset name is a non-delta OSV
+// artifact Fleet consumes (Ubuntu, RHEL, or Android). New OSV ecosystems must be
+// added here or getLatestRelease will silently drop their assets.
+func isOSVReleaseAsset(name string) bool {
+	isOSVAsset := strings.HasPrefix(name, OSVFilePrefix) ||
+		strings.HasPrefix(name, OSVRHELFilePrefix) ||
+		strings.HasPrefix(name, OSVAndroidFilePrefix)
+	return isOSVAsset && !strings.Contains(name, "delta")
 }
 
 // downloadOSVArtifact downloads a specific OSV artifact using the asset ID from ReleaseInfo
