@@ -1044,7 +1044,7 @@
         },
         "host_expiry_settings": {
           "$ref": "#/$defs/HostExpirySettings",
-          "description": "type: `HostExpirySettings`"
+          "description": "type: `HostExpirySettings`\n\nGitOps: kept when omitted or null; cleared when set to an empty value."
         },
         "integrations": {
           "$ref": "#/$defs/TeamIntegrations",
@@ -1115,11 +1115,11 @@
         },
         "gitops": {
           "$ref": "#/$defs/GitOpsConfig",
-          "description": "type: `GitOpsConfig`"
+          "description": "type: `GitOpsConfig`\n\nGitOps: kept when omitted, null, or empty."
         },
         "host_expiry_settings": {
           "$ref": "#/$defs/HostExpirySettings",
-          "description": "type: `HostExpirySettings`"
+          "description": "type: `HostExpirySettings`\n\nGitOps: kept when omitted or null; cleared when set to an empty value."
         },
         "host_settings": {
           "$ref": "#/$defs/Features",
@@ -1407,7 +1407,7 @@
       "properties": {
         "api_key_json": {
           "$ref": "#/$defs/GoogleCalendarApiKey",
-          "description": "type: `GoogleCalendarApiKey`"
+          "description": "type: `GoogleCalendarApiKey`\n\nGitOps: kept when omitted, null, or empty."
         },
         "domain": {
           "description": "type: `string`"
@@ -1424,7 +1424,7 @@
       "properties": {
         "api_key_json": {
           "$ref": "#/$defs/GoogleCalendarApiKey",
-          "description": "ApiKey holds the service account JSON (client_email, private_key). It reuses\nthe GoogleCalendarApiKey masking type because the credential format and the\nmasking/preserve-on-update behavior are identical.\n\ntype: `GoogleCalendarApiKey`"
+          "description": "ApiKey holds the service account JSON (client_email, private_key). It reuses\nthe GoogleCalendarApiKey masking type because the credential format and the\nmasking/preserve-on-update behavior are identical.\n\ntype: `GoogleCalendarApiKey`\n\nGitOps: kept when omitted, null, or empty."
         },
         "domain": {
           "description": "Domain is the Google Workspace primary domain whose directory is synced.\n\ntype: `string`"
@@ -1625,7 +1625,7 @@
         },
         "hosts": {
           "$ref": "#/$defs/HostsSlice",
-          "description": "type: `HostsSlice`"
+          "description": "type: `HostsSlice`\n\nGitOps: kept when omitted; cleared when set to null or empty."
         },
         "id": {
           "description": "type: `integer`"

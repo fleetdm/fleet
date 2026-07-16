@@ -427,6 +427,7 @@ func main() {
 	}
 
 	addTypeDescriptions(doc)
+	addDeclarativeNotes(doc)
 	addRenameAliases(doc, renames)
 	addPathRefs(doc)
 	addRequiredSources(doc)
