@@ -343,9 +343,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                notify.error(
-                  "Vitals are taking longer than expected to load."
-                );
+                notify.error("Vitals are taking longer than expected to load.");
               }
             }
           }
