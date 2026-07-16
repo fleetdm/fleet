@@ -1314,10 +1314,15 @@ const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
 // MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
 // required software update.
 //
+// Apple's schema also defines an optional BuildVersion key, but we deliberately omit it:
+// GDMF often publishes multiple concurrent builds of the same OS version that all list the
+// same device, and pinning a build the device's software update client won't resolve makes
+// the mandatory update fail during Setup Assistant. Sending only OSVersion lets the device
+// pick the right build.
+//
 // [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
 type MDMAppleSoftwareUpdateRequiredDetails struct {
-	OSVersion    string `json:"OSVersion"`
-	BuildVersion string `json:"BuildVersion"`
+	OSVersion string `json:"OSVersion"`
 }
 
 // MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
@@ -1329,16 +1334,11 @@ type MDMAppleSoftwareUpdateRequired struct {
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
-func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
+func NewMDMAppleSoftwareUpdateRequired(osVersion string) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: osVersion},
 	}
-}
-
-type MDMAppleSoftwareUpdateAsset struct {
-	ProductVersion string `json:"ProductVersion"`
-	Build          string `json:"Build"`
 }
 
 type MDMManagedCertificate struct {
