@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.3.1481",
+      "version": "5.4.4.1499",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'LastPass' AND publisher = 'LastPass US LP.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.3.1481') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.4.1499') < 0);"
       },
       "installer_url": "https://download.cloud.lastpass.com/windows_installer/LastPassInstaller.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "62d1f9f2",
-      "sha256": "d94cfacfb9613bc374b509e701c1ec93525968c237213cd55904fbd7a1584f9e",
+      "sha256": "8f43f47bb330ffd3e475e551d3b610030fe1f014f8ef4045245338298fae0d68",
       "default_categories": [
         "Productivity"
       ],

@@ -95,13 +95,14 @@ func TestLabels(t *testing.T) {
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
-		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
+		{"HostMembershipForLabels", testHostMembershipForLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
 		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 		{"UpdateLabelMembershipByHostCriteriaIDP", testUpdateLabelMembershipByHostCriteriaIDP},
+		{"UpdateLabelMembershipByHostCriteriaCustomHostVital", testUpdateLabelMembershipByHostCriteriaCustomHostVital},
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
@@ -1924,16 +1925,14 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 }
 
-func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	//
 	// Setup test
 	// - h1 member of 'All hosts', 'Foobar' and 'Zoobar'
 	// - h2 member of 'All hosts' and 'Foobar'
-	// - h3 member of 'All hosts' and 'Zoobar'
-	// - h4 member of 'All hosts'
-	// - h5 member of no labels
+	// - h3 member of no labels
 	//
 
 	allHostsLabel, err := ds.NewLabel(ctx,
@@ -1966,8 +1965,8 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            name,
 			Hostname:        "foo.local" + name,
 		})
@@ -1978,130 +1977,76 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 	h1 := newHostFunc("h1")
 	h2 := newHostFunc("h2")
 	h3 := newHostFunc("h3")
-	h4 := newHostFunc("h4")
-	h5 := newHostFunc("h5")
-	_ = h5
 
 	err = ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
+		zoobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.RecordLabelQueryExecutions(ctx, h2, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h3, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h4, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-
-	//
-	// Run tests for HostMemberOfAllLabels
-	//
 
 	for _, tc := range []struct {
 		name           string
 		hostID         uint
 		labelNames     []string
-		expectedResult bool
+		expectedResult map[string]struct{}
 	}{
 		{
-			name:           "nonexistent host",
+			name:           "h1 is member of all three labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}, zoobarLabel.Name: {}},
+		},
+		{
+			name:           "h1 is member of a subset of labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "h2 is member of some but not all labels",
+			hostID:         h2.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "nonexistent labels are not included",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, "nonexistent-label"},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}},
+		},
+		{
+			name:           "case-insensitive match preserves requested casing",
+			hostID:         h1.ID,
+			labelNames:     []string{"foobar", "ZOOBAR"},
+			expectedResult: map[string]struct{}{"foobar": {}, "ZOOBAR": {}},
+		},
+		{
+			name:           "nonexistent host returns empty result",
 			hostID:         999,
 			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			expectedResult: map[string]struct{}{},
 		},
 		{
-			name:           "h1 does not belong to nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{"Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 does not belong to All hosts + nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, "Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 belongs to the given subset of labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 belongs to all the given labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 member of empty label set",
-			hostID:         h1.ID,
-			labelNames:     []string{},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h2 belongs to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belong to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h3 belongs to all the given labels",
+			name:           "h3 is member of no labels",
 			hostID:         h3.ID,
-			labelNames:     []string{allHostsLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 belongs to all the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 does not belong to the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h5 does not belong to the given labels",
-			hostID:         h5.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := ds.HostMemberOfAllLabels(ctx, tc.hostID, tc.labelNames)
+			result, err := ds.HostMembershipForLabels(ctx, tc.hostID, tc.labelNames)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedResult, v)
+			if tc.expectedResult == nil {
+				require.Nil(t, result)
+			} else {
+				require.Equal(t, tc.expectedResult, result)
+			}
 		})
 	}
 }
@@ -3026,6 +2971,105 @@ func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
 
 	_ = team2 // team2 is used only to give host2 an out-of-team membership.
+}
+
+// testUpdateLabelMembershipByHostCriteriaCustomHostVital exercises the real
+// custom-host-vital query path: membership is a host's stored value for a
+// specific custom_host_vital_id matching the criterion value. It verifies
+// multi-host isolation (one host's value doesn't leak to another), that the
+// criterion is scoped to its vital id (a matching value on a different vital
+// does not count), and that team-scoped labels only include in-team hosts.
+func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team2"})
+	require.NoError(t, err)
+
+	// host1 -> team1, host2 -> team2, host3 -> global, host4 -> global.
+	hosts := make([]*fleet.Host, 4)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil, nil}
+	for i := range 4 {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("chv-%d", i)),
+			NodeKey:        new(fmt.Sprintf("chv-%d", i)),
+			UUID:           fmt.Sprintf("chv-uuid%d", i),
+			Hostname:       fmt.Sprintf("chv-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("chv-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	vitalA, err := ds.CreateCustomHostVital(ctx, "Department")
+	require.NoError(t, err)
+	vitalB, err := ds.CreateCustomHostVital(ctx, "Function")
+	require.NoError(t, err)
+
+	// host1 & host4: vitalA = "Engineering" (should match).
+	// host2: vitalA = "Sales" (wrong value -> excluded).
+	// host3: vitalB = "Engineering" (right value but wrong vital -> excluded),
+	//        and vitalA = "Sales" so it also has a value for the target vital.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[0].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalB.ID, "Engineering"))
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital:             new("custom_host_vital"),
+		Value:             new("Engineering"),
+		CustomHostVitalID: &vitalA.ID,
+	})
+	require.NoError(t, err)
+
+	newCHVLabel := func(name string, teamID *uint) *fleet.Label {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			TeamID:              teamID,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(criteria)),
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Global label: host1 and host4 (vitalA = "Engineering"). host2 has the
+	// wrong value, host3 matches the value only on vitalB.
+	globalLabel := newCHVLabel("chv-global", nil)
+	updated, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[3].ID}, hostIDs(globalHosts))
+
+	// Team1 label: only host1, even though host4 also matches (it's global).
+	team1Label := newCHVLabel("chv-team1-label", &team1.ID)
+	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated.HostCount)
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
+
+	// Changing a host's value re-computes membership: host4 leaves, host2 joins.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Engineering"))
+	updated, err = ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err = ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID}, hostIDs(globalHosts))
+
+	_ = team2 // team2 only gives host2 an out-of-team membership.
 }
 
 func hostIDs(hosts []*fleet.Host) []uint {

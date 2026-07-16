@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.038",
+      "version": "9.000",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl' AND version_compare(version, '8.038') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE '3DF Zephyr Free %' AND publisher = '3Dflow srl' AND version_compare(version, '9.000') < 0);"
       },
-      "installer_url": "https://3df-eu.fra1.digitaloceanspaces.com/8.038/3DF%20Zephyr%20Free%20v8.038%20(x64).exe",
+      "installer_url": "https://3df-eu.fra1.digitaloceanspaces.com/9.000/3DF%20Zephyr%20Free%20v9.000%20(x64).exe",
       "install_script_ref": "df7f059c",
       "uninstall_script_ref": "740ec2ac",
-      "sha256": "1feb9e00eea123914f0705349185225d612e7d7204bf112b31d3b0c4d71f9838",
+      "sha256": "35e4dc6596149cc92ce63ac3074798f38184bb8ef4d72b081cf53bcc31b84c2c",
       "default_categories": [
         "Productivity"
       ]
