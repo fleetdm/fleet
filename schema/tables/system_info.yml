@@ -70,11 +70,6 @@ columns:
   - name: hardware_model
     type: text
     description: Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
-  - name: hardware_marketing_name
-    type: text
-    description: Hardware marketing name, e.g. "MacBook Air (13-inch, M5)".
-    platforms:
-      - darwin
   - name: cpu_brand
     type: text
   - name: cpu_type
