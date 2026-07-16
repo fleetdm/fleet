@@ -326,8 +326,14 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 }
 
 func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context) (bool, error) {
-	// Check if the integration is fully configured. The integration can only be
-	// set up on Fleet Premium, so its presence implies the feature is licensed.
+	// Conditional access is a Fleet Premium feature. Gate on the current license
+	// tier so that an integration left over from a previous Premium license
+	// (e.g. after a downgrade or expiry) isn't reported as configured.
+	if !license.IsPremium(ctx) {
+		return false, nil
+	}
+
+	// Check if the integration is fully configured.
 	integration, err := ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
 		if fleet.IsNotFound(err) {

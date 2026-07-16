@@ -592,6 +592,16 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.True(t, stats.EntraConditionalAccessConfigured)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// On Fleet Free (e.g. after a license downgrade/expiry) the leftover
+	// integration row must not be reported as configured.
+	freeLicense := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.EntraConditionalAccessConfigured)
 }
 
 func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
