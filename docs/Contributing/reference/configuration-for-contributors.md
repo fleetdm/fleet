@@ -248,7 +248,9 @@ license:
 
 ### mdm.android_batch_size
 
-Controls the maximum number of hosts processed per batch when the Fleet server communicates with the Android management API. This setting helps manage API rate limits.
+> This config is not meant for use by Fleet users/customers. Only set this config if you're a Fleet employee. Changing this config on one Fleet instance can effect other instances because Fleet has a single rate limit quota for the Android Management API across all instances.
+
+Controls the maximum number of hosts processed per batch when the Fleet server communicates with the [Android Management API](https://developers.google.com/android/management). This setting helps manage API rate limits.
 
 - Default value: 100
 - Environment variable: `FLEET_MDM_ANDROID_BATCH_SIZE`
