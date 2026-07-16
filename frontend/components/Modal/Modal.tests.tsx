@@ -216,6 +216,77 @@ describe("Modal", () => {
       expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
     });
 
+    it("redirects focus back to the container when it tries to escape", async () => {
+      render(
+        <>
+          <button type="button" data-testid="outside">
+            Outside
+          </button>
+          <Modal title="Confirm" onExit={noop}>
+            <button type="button">Submit</button>
+          </Modal>
+        </>
+      );
+
+      const modalContainer = document.querySelector(
+        ".modal__modal_container"
+      ) as HTMLElement;
+      await waitFor(() => expect(modalContainer).toHaveFocus());
+
+      // Simulate focus escaping the modal (Tab past the last control, or a
+      // stray focus() call landing on background UI).
+      fireEvent.focusOut(modalContainer, {
+        relatedTarget: screen.getByTestId("outside"),
+      });
+
+      expect(modalContainer).toHaveFocus();
+    });
+
+    it("skips the focusout redirect when isHidden (stacked modal on top)", async () => {
+      // When another modal is stacked on top (this modal receives isHidden),
+      // that top modal owns focus. This modal must not fight for it.
+      render(
+        <>
+          <button type="button" data-testid="stacked">
+            Stacked modal control
+          </button>
+          <Modal title="Bottom" isHidden onExit={noop}>
+            <button type="button">Submit</button>
+          </Modal>
+        </>
+      );
+
+      const stacked = screen.getByTestId("stacked");
+      stacked.focus();
+      expect(stacked).toHaveFocus();
+
+      // Give the effect a tick — if it were going to steal focus, it would.
+      await new Promise((r) => {
+        setTimeout(r, 0);
+      });
+
+      expect(stacked).toHaveFocus();
+    });
+
+    it("does not fire onEnter for autorepeated Enter keys", () => {
+      const onEnter = jest.fn();
+      render(
+        <Modal title="Confirm" onEnter={onEnter} onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      // The trigger button's Enter is still down when the modal mounts and
+      // this listener attaches; the browser's autorepeat fires more keydowns
+      // with event.repeat === true. Those must not fire onEnter.
+      fireEvent.keyDown(document, { code: "Enter", repeat: true });
+      expect(onEnter).not.toHaveBeenCalled();
+
+      // A fresh Enter (repeat: false) is a real user intent — fires.
+      fireEvent.keyDown(document, { code: "Enter", repeat: false });
+      expect(onEnter).toHaveBeenCalledTimes(1);
+    });
+
     it("restores focus to the previously focused element on close", async () => {
       const Wrapper = () => {
         const [open, setOpen] = useState(false);
