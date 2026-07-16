@@ -236,7 +236,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	err := ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+	_, _, err := ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{
 			Name:  "RUBBER",
 			Value: "DUCKY",

@@ -26128,7 +26128,8 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	requireRowStatus(macHost.UUID, &fleet.MDMDeliveryVerifying)
 
 	// --- changing the secret value re-enqueues a fresh command ---
-	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}}))
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}})
+	require.NoError(t, err)
 	// the secret change reset the enforcement row back to queued
 	requireRowStatus(macHost.UUID, nil)
 	runDeviceNameCron()
@@ -26602,14 +26603,16 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateSecretReenqueue() {
 	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
 
 	// Re-upserting SITE with its current value changes nothing → no re-queue.
-	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "HQ"}}))
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "HQ"}})
+	require.NoError(t, err)
 	requireRowStatus(siteHost.UUID, &fleet.MDMDeliveryVerifying)
 	requireRowStatus(noTeamHost.UUID, &fleet.MDMDeliveryVerifying)
 
 	// Changing SITE re-queues the SITE team and the No-team host, but not the
 	// SITE_CODE team (the trailing word boundary prevents SITE from matching
 	// SITE_CODE).
-	require.NoError(t, s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}}))
+	_, _, err = s.ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{{Name: "SITE", Value: "NYC"}})
+	require.NoError(t, err)
 	requireRowStatus(siteHost.UUID, nil)
 	requireRowStatus(noTeamHost.UUID, nil)
 	requireRowStatus(codeHost.UUID, &fleet.MDMDeliveryVerifying)
