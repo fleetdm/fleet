@@ -327,6 +327,19 @@ describe("CommandPalette helpers", () => {
       expect(keywords).not.toContain("sso");
     });
 
+    it("surfaces Add custom package when searching py / python (.py is an accepted upload type)", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+      const addCustomPackage = items.find((i) => i.id === "add-custom-package");
+      expect(addCustomPackage).toBeDefined();
+      const keywords = addCustomPackage?.keywords ?? [];
+      expect(keywords).toContain("py");
+      expect(keywords).toContain("python");
+    });
+
     it("hides calendar keywords on Unassigned (Calendar section is disabled there) but keeps conditional access", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
