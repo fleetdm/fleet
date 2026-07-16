@@ -29,6 +29,9 @@ interface IAddPackageModalProps {
    * flow). The POST carries this as `software_title_id` so the new package
    * attaches to an existing title instead of creating a new one. */
   softwareTitleId: number;
+  /** Display name of the software title — used to interpolate the title into
+   * backend conflict/error messages that don't carry it themselves. */
+  softwareTitleName: string;
   teamId: number;
   /** File name of the title's first-added package — used to derive the
    * platform/file-type restriction so the new upload matches the existing
@@ -42,6 +45,7 @@ interface IAddPackageModalProps {
 
 const AddPackageModal = ({
   softwareTitleId,
+  softwareTitleName,
   teamId,
   existingPackageName,
   onExit,
@@ -115,7 +119,7 @@ const AddPackageModal = ({
 
       onSuccess();
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, softwareTitleName), { response: e });
     }
     setUploadDetails(null);
   };

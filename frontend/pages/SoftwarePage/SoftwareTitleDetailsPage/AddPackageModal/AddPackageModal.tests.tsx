@@ -7,6 +7,7 @@ import AddPackageModal from "./AddPackageModal";
 
 const BASE_PROPS = {
   softwareTitleId: 42,
+  softwareTitleName: "GlobalProtect",
   teamId: 1,
   existingPackageName: "GlobalProtect-v6.3.2.pkg",
   onExit: jest.fn(),
