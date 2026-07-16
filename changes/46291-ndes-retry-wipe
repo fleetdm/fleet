@@ -1,1 +1,0 @@
-- Fixed a bug where an Apple SCEP certificate profile backed by NDES could be marked "failed" and consume one of the host's limited profile retry attempts when its challenge password expired, instead of being automatically resent with a fresh challenge.

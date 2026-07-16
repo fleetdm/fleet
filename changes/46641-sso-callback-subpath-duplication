@@ -1,1 +1,0 @@
-- Fixed SAML SSO callback URLs (both login and MDM end user authentication) duplicating the subpath when Fleet is deployed under a URL prefix, which broke authentication. The callback URL is now built so the subpath appears exactly once whether or not the server URL was configured with the prefix.
