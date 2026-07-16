@@ -211,7 +211,7 @@
         font-weight: 400;
         line-height: 150%;
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #515774;
+          color: #AE6DDF;
         }
         [purpose='line-break']:not(:first-of-type)::before {
           content: '\a';
@@ -233,16 +233,19 @@
           }
         }
         .hljs-operator {
-          color: #3e999f;
+          color: #515774;
         }
         .hljs-number {
-          color: #f5871f;
+          color: #4fd061;
         }
         .hljs-string { // For words wrapped in quotation marks
           color: #4fd061;
           .hljs-keyword {
             color: #4fd061;
           }
+        }
+        .hljs-attr-column { // For recognized column names (not pilled, not a quoted string)
+          color: #515774;
         }
         background-color: @ui-off-white;
         border: none;
@@ -423,7 +426,7 @@
 
       &.sql {
         .hljs-keyword { // SQL keywords (SELECT, FROM, WHERE, IN, etc.)
-          color: #515774;
+          color: #AE6DDF;
         }
         .hljs-attr { // For table and column names
           .hljs-keyword {
@@ -442,13 +445,16 @@
           }
         }
         .hljs-number {
-          color: #f5871f;
+          color: #4fd061;
         }
         .hljs-string { // For words wrapped in quotation marks
           color: #4fd061;
           .hljs-keyword {
             color: #4fd061;
           }
+        }
+        .hljs-attr-column { // For recognized column names (not pilled, not a quoted string)
+          color: #515774;
         }
       }
 
