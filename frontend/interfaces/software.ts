@@ -313,6 +313,7 @@ export const SOURCE_TYPE_CONVERSION = {
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
+  py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
 } as const;
@@ -346,11 +347,16 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   vscode_extensions: null,
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
+  py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
   go_binaries: null,
 } as const;
 
-export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+export const SCRIPT_PACKAGE_SOURCES = [
+  "sh_packages",
+  "ps1_packages",
+  "py_packages",
+];
 
 /** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
  * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`

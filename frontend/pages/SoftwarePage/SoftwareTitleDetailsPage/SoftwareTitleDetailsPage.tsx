@@ -371,6 +371,7 @@ const SoftwareTitleDetailsPage = ({
           isFma={isFma}
           isLatestFmaVersion={row.isActive && isLatestFmaVersion}
           isScriptPackage={isScriptPackage}
+          source={title.source}
           isTarballPackage={title.source === "tgz_packages"}
           isIosOrIpadosApp={isIosOrIpadosApp}
           isActive={row.isActive}

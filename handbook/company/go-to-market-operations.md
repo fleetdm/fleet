@@ -372,6 +372,7 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 > Custom terms:
 >
 > If you're adding custom terms to a quote, be sure to add all necessary language in the **"Terms"** field. No "General terms" are added to the template by default.
+> Any quote with custom terms must be reviewed by the CFO in addition to other approvers.
 
 7. Click **"Submit for Approval"**. Complete any remaining required fields:
    - Billing address

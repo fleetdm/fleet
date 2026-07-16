@@ -121,7 +121,7 @@
 - Fixed an issue where the macOS "Update new hosts to latest" OS update setting could stay enabled in GitOps after `minimum_version` and `deadline` were cleared; when `update_new_hosts` isn't explicitly set, it now defaults to enabled only while a minimum version and deadline are configured.
 - Fixed an issue where more than 8 entries for OS versions would not be paginated.
 
-## Fleet 4.88.1 (Jul 09, 2026)
+## Fleet 4.88.1 (Jul 10, 2026)
 
 ### Bug fixes
 

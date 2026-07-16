@@ -17151,6 +17151,77 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
 
+	pyContent := "#!/usr/bin/env python3\nprint('Installing...')\n"
+	pyFile, err := fleet.NewTempFileReader(strings.NewReader(pyContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer pyFile.Close()
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.py",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+		InstallerFile:    pyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .py packages.")
+
+	err = pyFile.Rewind()
+	require.NoError(t, err)
+
+	badPyContent := "print('no shebang')\n"
+	badPyFile, err := fleet.NewTempFileReader(strings.NewReader(badPyContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer badPyFile.Close()
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "no-shebang.py",
+		TeamID:        &team.ID,
+		InstallerFile: badPyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Script validation failed")
+
+	// install_script is derived from the file, so any install_script param is ignored.
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "install-app.py",
+		Title:             "install-app.py",
+		TeamID:            &team.ID,
+		InstallScript:     "this should be ignored",
+		UninstallScript:   "echo 'uninstall py'",
+		PostInstallScript: "echo 'post py'",
+		PreInstallQuery:   "SELECT 1;",
+		InstallerFile:     pyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var pyStored struct {
+		Source            string `db:"source"`
+		InstallScript     string `db:"install_script"`
+		UninstallScript   string `db:"uninstall_script"`
+		PostInstallScript string `db:"post_install_script"`
+		PreInstallQuery   string `db:"pre_install_query"`
+		Platform          string `db:"platform"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &pyStored, `
+			SELECT
+				st.source,
+				COALESCE(inst.contents, '') AS install_script,
+				COALESCE(uninst.contents, '') AS uninstall_script,
+				COALESCE(postinst.contents, '') AS post_install_script,
+				si.pre_install_query,
+				si.platform
+			FROM software_installers si
+			JOIN software_titles st ON st.id = si.title_id
+			LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
+			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
+			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
+			WHERE si.global_or_team_id = ? AND si.filename = ?`, team.ID, payload.Filename)
+	})
+	require.Equal(t, "py_packages", pyStored.Source, "py package should be stored with py_packages source")
+	require.Equal(t, pyContent, pyStored.InstallScript, "install_script should be the .py file contents, not the ignored param")
+	require.Equal(t, "echo 'uninstall py'", pyStored.UninstallScript)
+	require.Equal(t, "echo 'post py'", pyStored.PostInstallScript)
+	require.Equal(t, "SELECT 1;", pyStored.PreInstallQuery)
+	require.Equal(t, "linux", pyStored.Platform, ".py packages are stored with the linux platform")
+
 	// Fresh team so filename collisions from earlier assertions don't leak in.
 	crossTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "cross"})
 	require.NoError(t, err)
@@ -22689,6 +22760,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
+	pyScriptPath := filepath.Join(tmpDir, "test-script.py")
+	pyScriptContent := []byte("#!/usr/bin/env python3\nprint('Installing...')\n")
+	err = os.WriteFile(pyScriptPath, pyScriptContent, 0o644)
+	require.NoError(t, err)
+
 	t.Run("sh script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
 		require.NoError(t, err)
@@ -22777,6 +22853,53 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.Equal(t, "Write-Host 'post-install'", installer.PostInstallScript, ".ps1 script package should persist post_install_script")
 		require.Equal(t, "Write-Host 'uninstall'", installer.UninstallScript, ".ps1 script package should persist uninstall_script")
 		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".ps1 script package should persist pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
+
+	t.Run("py script package preserves advanced options", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(pyScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// install_script is ignored (the file is the install script); the rest persist.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "print('install_script is ignored')",
+			PostInstallScript: "echo 'post-install'",
+			UninstallScript:   "echo 'uninstall'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.py",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.py" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, "py_packages", titleResp.SoftwareTitle.Source, ".py script package should have py_packages source")
+		require.Equal(t, string(pyScriptContent), installer.InstallScript, ".py script package should have install_script from file contents")
+		require.NotEqual(t, "print('install_script is ignored')", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "echo 'post-install'", installer.PostInstallScript, ".py script package should persist post_install_script")
+		require.Equal(t, "echo 'uninstall'", installer.UninstallScript, ".py script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".py script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})

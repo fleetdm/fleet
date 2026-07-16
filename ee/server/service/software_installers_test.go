@@ -1241,6 +1241,82 @@ func TestAddScriptPackageMetadata(t *testing.T) {
 		require.NotEmpty(t, payload.StorageID)
 	})
 
+	t.Run("valid python script", func(t *testing.T) {
+		scriptContents := "#!/usr/bin/env python3\nprint('Installing software')\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "install-app.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
+		require.NoError(t, err)
+		require.Equal(t, "install-app", payload.Title)
+		require.Empty(t, payload.Version)
+		require.Equal(t, scriptContents, payload.InstallScript)
+		require.Equal(t, "linux", payload.Platform)
+		require.Equal(t, "py_packages", payload.Source)
+		require.Empty(t, payload.BundleIdentifier)
+		require.Empty(t, payload.PackageIDs)
+		require.NotEmpty(t, payload.StorageID)
+		require.Equal(t, "py", payload.Extension)
+	})
+
+	t.Run("python script without shebang", func(t *testing.T) {
+		scriptContents := "print('hello')\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Script validation failed")
+		require.Contains(t, err.Error(), "python shebang")
+	})
+
+	t.Run("python script with shell shebang", func(t *testing.T) {
+		scriptContents := "#!/bin/bash\necho 'hello'\n"
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "test.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Script validation failed")
+		require.Contains(t, err.Error(), "python shebang")
+	})
+
 	t.Run("invalid shebang", func(t *testing.T) {
 		scriptContents := "#!/usr/bin/python\nprint('hello')\n"
 		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.sh")
@@ -1385,6 +1461,32 @@ func TestAddScriptPackageMetadataLargeScript(t *testing.T) {
 		}
 
 		err = svc.addScriptPackageMetadata(ctx, payload, "ps1")
+		require.NoError(t, err)
+		require.Equal(t, scriptContents, payload.InstallScript)
+	})
+
+	t.Run("large python script within saved limit", func(t *testing.T) {
+		t.Parallel()
+		scriptContents := "#!/usr/bin/env python3\n" + strings.Repeat("print('line')\n", 1000)
+		require.Greater(t, len(scriptContents), fleet.UnsavedScriptMaxRuneLen)
+		require.Less(t, len(scriptContents), fleet.SavedScriptMaxRuneLen)
+
+		tmpFile, err := os.CreateTemp(t.TempDir(), "test-*.py")
+		require.NoError(t, err)
+		defer tmpFile.Close()
+		_, err = tmpFile.WriteString(scriptContents)
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewKeepFileReader(tmpFile.Name())
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile: tfr,
+			Filename:      "large-install.py",
+		}
+
+		err = svc.addScriptPackageMetadata(ctx, payload, "py")
 		require.NoError(t, err)
 		require.Equal(t, scriptContents, payload.InstallScript)
 	})
@@ -1669,6 +1771,172 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
 	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+}
+
+// .py packages are stored with platform='linux', but the unix-like exception
+// must still let them install on darwin hosts.
+func TestInstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:           1,
+					OrbitNodeKey: new("orbit_key"),
+					Platform:     platform,
+					TeamID:       new(uint(1)),
+				}, nil
+			}
+
+			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+				return nil, nil
+			}
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID: 10,
+					Name:        "script.py",
+					Extension:   "py",
+					Platform:    "linux",
+					TeamID:      new(uint(1)),
+					TitleID:     new(uint(100)),
+					SelfService: false,
+				}, nil
+			}
+			mockSoftwarePackagesFromMetadata(ds)
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+
+			ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+				return nil
+			}
+
+			ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				return "install-uuid", nil
+			}
+
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+				User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			})
+
+			err := svc.InstallSoftwareTitle(ctx, 1, 100)
+			require.NoError(t, err, ".py install on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+		})
+	}
+}
+
+func TestInstallPyScriptOnWindowsFails(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{
+			ID:           1,
+			OrbitNodeKey: new("orbit_key"),
+			Platform:     "windows",
+			TeamID:       new(uint(1)),
+		}, nil
+	}
+
+	ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			InstallerID: 10,
+			Name:        "script.py",
+			Extension:   "py",
+			Platform:    "linux",
+			TeamID:      new(uint(1)),
+			TitleID:     new(uint(100)),
+			SelfService: false,
+		}, nil
+	}
+	mockSoftwarePackagesFromMetadata(ds)
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+		return nil, nil
+	}
+
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	err := svc.InstallSoftwareTitle(ctx, 1, 100)
+	require.Error(t, err, ".py install on windows should fail")
+
+	var bre *fleet.BadRequestError
+	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
+	require.NotNil(t, bre)
+	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+}
+
+// .py packages are stored with platform='linux'; the self-service install path
+// must still allow them on darwin hosts via the unix-like exception.
+func TestSelfServiceInstallPyScriptOnUnixLike(t *testing.T) {
+	t.Parallel()
+
+	for _, platform := range []string{"linux", "darwin"} {
+		t.Run(platform, func(t *testing.T) {
+			t.Parallel()
+			ds := new(mock.Store)
+			svc := newTestService(t, ds)
+
+			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+				return &fleet.SoftwareInstaller{
+					InstallerID: 10,
+					Name:        "script.py",
+					Extension:   "py",
+					Platform:    "linux",
+					TeamID:      new(uint(1)),
+					TitleID:     new(uint(100)),
+					SelfService: true,
+				}, nil
+			}
+			mockSoftwarePackagesFromMetadata(ds)
+
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+				return true, nil
+			}
+
+			ds.ResetNonPolicyInstallAttemptsFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint) error {
+				return nil
+			}
+
+			ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				return "install-uuid", nil
+			}
+
+			host := &fleet.Host{
+				ID:           1,
+				OrbitNodeKey: new("orbit_key"),
+				Platform:     platform,
+				TeamID:       new(uint(1)),
+			}
+
+			err := svc.SelfServiceInstallSoftwareTitle(context.Background(), host, 100)
+			require.NoError(t, err, ".py self-service install on %s should succeed", platform)
+			require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
+		})
+	}
 }
 
 func TestSelfServiceInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
