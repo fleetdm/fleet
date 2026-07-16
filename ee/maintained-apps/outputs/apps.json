@@ -7520,6 +7520,13 @@
       "description": "Sloth is a displays all open files and sockets in use by all running processes."
     },
     {
+      "name": "Smallstep Agent",
+      "slug": "smallstepagent/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smallstep.Agent",
+      "description": "Smallstep Agent is a device identity agent that manages certificates for secure access to Wi-Fi, VPNs, and other resources."
+    },
+    {
       "name": "Smartsheet",
       "slug": "smartsheet/darwin",
       "platform": "darwin",
