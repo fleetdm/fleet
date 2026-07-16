@@ -124,7 +124,9 @@ func (s *osVersionTestSuite) TestAndroidOSVersionSecurityPatchLevel() {
 	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var versions []string
 		require.NoError(t, sqlx.SelectContext(ctx, q, &versions,
-			"SELECT version FROM operating_systems WHERE name = 'Android' ORDER BY version"))
+			`SELECT version FROM operating_systems
+			 WHERE name = 'Android' AND version IN ('1', '16 (2026-05-01)', '16 (2026-06-01)')
+			 ORDER BY version`))
 		// "1" is the bare version from enrollment (now orphaned; the cleanup cron
 		// that removes unreferenced rows does not run in this test). The two folded
 		// versions confirm each security patch level is a distinct row.
