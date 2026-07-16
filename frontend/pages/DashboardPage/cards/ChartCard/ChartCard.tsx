@@ -235,10 +235,10 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          iPhones/iPads check in and count as online anytime they have power and
-          an internet connection (including locked). Macs count as online
-          sometimes (infrequently) when the lid is closed. Android hosts never
-          show online when locked.
+          iOS/iPadOS hosts are online anytime they have power and an internet
+          connection (including locked). macOS, Windows, and Linux hosts can be
+          online when locked (lid closed), but less frequently than when the lid
+          is open. Android hosts are never online when locked.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -397,7 +397,7 @@ const ChartCard = ({
       );
     }
     if (isLoading) {
-      return <Spinner includeContainer={false} verticalPadding="small" />;
+      return <Spinner verticalPadding="small" />;
     }
     if (error) {
       return <DataError />;

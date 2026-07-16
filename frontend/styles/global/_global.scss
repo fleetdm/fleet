@@ -22,6 +22,13 @@ body {
   font-size: $medium;
   height: 100%;
   line-height: $line-height;
+
+  // Applied while a Modal is mounted to prevent the page behind it from
+  // scrolling. The modal's own background overlay stays overflow: auto so
+  // its content can still scroll.
+  &.modal-open {
+    overflow: hidden;
+  }
 }
 
 // Applied briefly by theme.ts during toggle to fade all colors smoothly.
@@ -195,8 +202,6 @@ form,
       &__no-wrap {
         // adjust for multi-line custom links
         .icon {
-          padding-left: 4px;
-          position: relative;
           top: 2px;
         }
       }
@@ -236,6 +241,11 @@ button {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
     -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
   }
+}
+
+input,
+textarea {
+  font-variant-ligatures: no-contextual;
 }
 
 input {

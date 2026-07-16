@@ -96,6 +96,16 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 				return ctxerr.Wrap(ctx, err, "update secret variables")
 			}
 		}
+
+		// A changed secret value changes the resolved name of any host whose host
+		// name template references it, so re-queue those hosts' enforcement rows.
+		changedNames := make([]string, 0, len(variablesToUpdate))
+		for _, secretVariable := range variablesToUpdate {
+			changedNames = append(changedNames, secretVariable.Name)
+		}
+		if err := ds.resendDeviceNamesForSecretChange(ctx, changedNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend device names for secret change")
+		}
 	}
 
 	return nil
@@ -154,7 +164,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (
 	secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error,
 ) {
-	stmt := `SELECT id, name, updated_at FROM secret_variables WHERE true`
+	stmt := `SELECT id, name, created_at, updated_at FROM secret_variables WHERE true`
 
 	// normalize the name for full Unicode support (Unicode equivalence).
 	normMatch := norm.NFC.String(opt.MatchQuery)
@@ -311,6 +321,41 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 			}
 		}
 
+		// 5. Check if the secret variable is used in a host name template, on a
+		// team or on "No team" (the global app config). The template is stored as
+		// the unexpanded $FLEET_SECRET_* placeholder in the config JSON.
+		var nameTemplateContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&nameTemplateContents,
+			// A team's name_template is a plain string that always serializes into
+			// the config JSON (as "" when unset), and the No-team template is an
+			// optjson that serializes to null when unset, so filter both on a
+			// non-empty resolved value rather than IS NOT NULL.
+			`SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+			FROM teams t
+			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+			UNION ALL
+			SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			FROM app_config_json
+			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host name template contents")
+		}
+		for _, c := range nameTemplateContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
 		if _, err := tx.ExecContext(ctx, `DELETE FROM secret_variables WHERE id = ?`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete secret variable")
 		}
@@ -357,34 +402,47 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	// Detect document format so we can escape the secret value appropriately.
+	expanded := expandDocumentVars(document, func(s string) (string, bool) {
+		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
+			return "", false
+		}
+		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
+		return val, ok
+	})
+
+	return expanded, secrets, nil
+}
+
+// expandDocumentVars runs fleet.MaybeExpand over document, resolving each
+// variable name via resolve and escaping the substituted value for the
+// document's format (JSON or XML) so an injected value can't break the
+// surrounding profile. resolve returns the raw (unescaped) value and whether the
+// variable was handled; unhandled variables are left in place. Shared by
+// ExpandEmbeddedSecrets ($FLEET_SECRET_) and ExpandCustomHostVitals
+// ($FLEET_HOST_VITAL_) so the format escaping has a single implementation.
+func expandDocumentVars(document string, resolve func(name string) (string, bool)) string {
 	// XML detection is aggressive because Windows profiles do not begin with <?xml.
 	trimmed := strings.TrimSpace(document)
 	documentIsXML := strings.HasPrefix(trimmed, "<")
 	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
-	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
-		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
+	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
+		val, ok := resolve(s)
+		if !ok {
 			return "", false
 		}
-		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
-
 		switch {
 		case documentIsJSON:
 			val = jsonEscapeString(val)
 		case documentIsXML:
 			var b strings.Builder
-			err = xml.EscapeText(&b, []byte(val))
-			if err != nil {
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
 				return "", false
 			}
 			val = b.String()
 		}
-
-		return val, ok
+		return val, true
 	})
-
-	return expanded, secrets, nil
 }
 
 // jsonEscapeString returns the JSON-escaped interior of a string value

@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -483,9 +484,11 @@ func testListSecretVariables(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, id1, secrets[0].ID)
 		require.Equal(t, name1, secrets[0].Name)
+		require.NotEmpty(t, secrets[0].CreatedAt)
 		require.NotZero(t, secrets[0].UpdatedAt)
 		require.Equal(t, id2, secrets[1].ID)
 		require.Equal(t, name2, secrets[1].Name)
+		require.NotEmpty(t, secrets[1].CreatedAt)
 		require.NotZero(t, secrets[1].UpdatedAt)
 
 		_, err = ds.DeleteSecretVariable(ctx, id1)
@@ -807,6 +810,46 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 
 		err = ds.DeleteScript(ctx, script.ID)
 		require.NoError(t, err)
+	})
+
+	t.Run("host name templates", func(t *testing.T) {
+		// Set a team host name template that uses the variable.
+		foobarTeam.Config.MDM.HostNameTemplate = "iPad $FLEET_SECRET_FOOBAR"
+		_, err := ds.SaveTeam(ctx, foobarTeam)
+		require.NoError(t, err)
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s := &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "host_name_template", s.Entity.Type)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
+
+		// Clear the team template.
+		foobarTeam.Config.MDM.HostNameTemplate = ""
+		_, err = ds.SaveTeam(ctx, foobarTeam)
+		require.NoError(t, err)
+
+		// Set an "Unassigned" (global) host name template that uses the variable.
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.HostNameTemplate = optjson.SetString("iPad ${FLEET_SECRET_FOOBAR}")
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "host_name_template", s.Entity.Type)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
+
+		// Clear the "Unassigned" template.
+		ac.MDM.HostNameTemplate = optjson.SetString("")
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 	})
 
 	// Finally attempt to delete the secret again now that no entity is using it.

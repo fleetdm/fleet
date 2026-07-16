@@ -273,6 +273,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeDisabledMacosDiskEncryption{},
 		fleet.ActivityTypeEnabledRecoveryLockPasswords{},
 		fleet.ActivityTypeDisabledRecoveryLockPasswords{},
+		fleet.ActivityTypeEditedHostNameTemplate{},
 		fleet.ActivityTypeEnabledGitOpsMode{},
 		fleet.ActivityTypeDisabledGitOpsMode{},
 		fleet.ActivityTypeEnabledGitOpsException{},

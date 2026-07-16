@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.16.2",
+      "version": "2.16.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper' AND version_compare(bundle_short_version, '2.16.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superduper.superwhisper' AND version_compare(bundle_short_version, '2.16.4') < 0);"
       },
-      "installer_url": "https://builds.superwhisper.com/v2.16.2/superwhisper.zip",
+      "installer_url": "https://builds.superwhisper.com/v2.16.4/superwhisper.zip",
       "install_script_ref": "06338cb4",
       "uninstall_script_ref": "27ca9133",
-      "sha256": "a3e2d936424e9d8dda867cb8a0df120e6d4c257870c91788db239c0b4f001770",
+      "sha256": "8dbebd6eebd61106984e82809c757f771b86e18bd9ad8a6b6c499a24052d9cc0",
       "default_categories": [
         "Productivity"
       ]

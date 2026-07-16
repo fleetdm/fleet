@@ -606,6 +606,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/custom_variables", listSecretVariablesEndpoint, fleet.ListSecretVariablesRequest{})
 	ue.DELETE("/api/_version_/fleet/custom_variables/{id:[0-9]+}", deleteSecretVariableEndpoint, fleet.DeleteSecretVariableRequest{})
 
+	// Custom host vitals
+	ue.GET("/api/_version_/fleet/custom_host_vitals", listCustomHostVitalsEndpoint, fleet.ListCustomHostVitalsRequest{})
+	ue.POST("/api/_version_/fleet/custom_host_vitals", createCustomHostVitalEndpoint, fleet.CreateCustomHostVitalRequest{})
+	ue.PATCH("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", updateCustomHostVitalEndpoint, fleet.UpdateCustomHostVitalRequest{})
+	ue.DELETE("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", deleteCustomHostVitalEndpoint, fleet.DeleteCustomHostVitalRequest{})
+	ue.PUT("/api/_version_/fleet/hosts/{host_id:[0-9]+}/custom_host_vitals/{id:[0-9]+}", setHostCustomHostVitalValueEndpoint, fleet.SetHostCustomHostVitalValueRequest{})
+	ue.PUT("/api/_version_/fleet/spec/custom_host_vitals", upsertCustomHostVitalsEndpoint, fleet.UpsertCustomHostVitalsRequest{})
+
 	// API end-points
 	ue.GET("/api/_version_/fleet/rest_api", listAPIEndpointsEndpoint, listAPIEndpointsRequest{})
 
@@ -844,6 +852,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/name_template/resend", resendHostNameTemplateEndpoint, resendHostNameTemplateRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/resend/batch", batchResendMDMProfileToHostsEndpoint, batchResendMDMProfileToHostsRequest{})
 	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}/status", getMDMConfigProfileStatusEndpoint, getMDMConfigProfileStatusRequest{})
 
@@ -851,6 +860,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
 	ue.POST("/api/_version_/fleet/disk_encryption", updateDiskEncryptionEndpoint, updateDiskEncryptionRequest{})
+	ue.POST("/api/_version_/fleet/host_name_template", updateHostNameTemplateEndpoint, updateHostNameTemplateRequest{})
 
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM

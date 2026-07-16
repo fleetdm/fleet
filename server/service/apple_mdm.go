@@ -424,6 +424,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
 
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
 	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -1001,6 +1005,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 	}
 
+	// Validate custom host vital references (top-level $FLEET_HOST_VITAL_<id>).
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("profile", err.Error())
+	}
+
 	varNames := make([]fleet.FleetVarName, 0, len(declVars))
 	for _, v := range declVars {
 		varNames = append(varNames, fleet.FleetVarName(v))
@@ -1280,8 +1289,12 @@ func jsonEscapeString(s string) string {
 func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 	ctx context.Context, contents string, hostUUID string,
 ) (string, error) {
+	// variables.Find only detects $FLEET_VAR_; custom host vitals are a separate
+	// top-level prefix, so gate on both so a declaration referencing only custom
+	// host vitals is still expanded.
 	fleetVars := variables.Find(contents)
-	if len(fleetVars) == 0 {
+	hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contents)) > 0
+	if len(fleetVars) == 0 && !hasHostVitals {
 		return contents, nil
 	}
 
@@ -1400,6 +1413,23 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 		}
 
 		contents = variables.Replace(contents, fleetVar, jsonEscapeString(value))
+	}
+
+	// Expand custom host vitals last, after the Fleet-var pass. variables.Replace
+	// is a blind global string replace, so expanding vitals earlier would let a
+	// vital value that happens to contain a literal $FLEET_VAR_<name> be rewritten
+	// by that pass. Doing it last makes the vital value the terminal substitution.
+	// On a missing/empty value the caller marks the declaration failed with this
+	// error's Detail.
+	if hasHostVitals {
+		if err := hydrateHost(); err != nil {
+			return "", err
+		}
+		expanded, err := svc.ds.ExpandCustomHostVitals(ctx, hostLite.ID, contents)
+		if err != nil {
+			return "", err
+		}
+		contents = expanded
 	}
 
 	return contents, nil
@@ -2706,10 +2736,7 @@ func (svc *Service) getAppleSoftwareUpdateRequiredForDEPEnrollment(m fleet.MDMAp
 		return nil, nil
 	}
 
-	return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
-		ProductVersion: latest.ProductVersion,
-		Build:          latest.Build,
-	}), nil
+	return fleet.NewMDMAppleSoftwareUpdateRequired(latest.ProductVersion), nil
 }
 
 // enqueueMDMAppleCommandRemoveEnrollmentProfile enqueues a RemoveProfile MDM command for the given host.
@@ -3051,6 +3078,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()),
 				"missing fleet secrets")
 		}
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(prof)}); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
+		}
 		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,
@@ -3277,6 +3307,26 @@ func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enable
 		}
 	}
 	return nil
+}
+
+// updateAppConfigMDMHostNameTemplate saves the "No team" host name template on
+// the global AppConfig.MDM struct and reconciles enforcement.
+func (svc *Service) updateAppConfigMDMHostNameTemplate(ctx context.Context, nameTemplate string) error {
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+
+	if ac.MDM.HostNameTemplate.Value == nameTemplate {
+		return nil
+	}
+
+	ac.MDM.HostNameTemplate = optjson.SetString(nameTemplate)
+	if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
+		return ctxerr.Wrap(ctx, err, "save app config for host name template")
+	}
+
+	return svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, nameTemplate)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4621,6 +4671,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return svc.handleRefetch(r, cmdResult)
 	}
 
+	// Results of the Settings/DeviceName command that enforces a team's host
+	// name template are routed by their UUID prefix rather than a "Settings"
+	// request-type case: other features may send Settings commands carrying
+	// different items, so the prefix scopes handling to renames.
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.DeviceNameCommandUUIDPrefix) {
+		return nil, svc.handleDeviceNameCommandResult(r.Context, cmdResult)
+	}
+
 	// We explicitly get the request type because it comes empty. There's a
 	// RequestType field in the struct, but it's used when a mdm.Command is
 	// issued.
@@ -5726,6 +5784,78 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 	return nil
 }
 
+// handleDeviceNameCommandResult processes the result of a Settings/DeviceName
+// command sent to enforce a team's host name template. On acknowledgment the
+// host is renamed in Fleet right away — the device just applied the name, so
+// the next osquery/DeviceInformation ingest confirms the rename (verifying →
+// verified) instead of reverting an optimistic early write. On error the
+// enforcement row lands failed with Apple's error chain; the cron only picks
+// up queued rows, so a failed command is not retried until an admin resends.
+func (svc *MDMAppleCheckinAndCommandService) handleDeviceNameCommandResult(ctx context.Context, cmdResult *mdm.CommandResults) error {
+	status := cmdResult.Status
+	detail := ""
+	switch status {
+	case fleet.MDMAppleStatusAcknowledged:
+		// A Settings command can report per-item failures inside an
+		// acknowledged result; this command carries a single DeviceName item,
+		// so any item-level error means the rename failed.
+		if itemDetail, itemFailed := deviceNameSettingsItemError(ctx, svc.logger, cmdResult.Raw); itemFailed {
+			status = fleet.MDMAppleStatusError
+			detail = itemDetail
+		}
+	case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+		detail = apple_mdm.FmtErrorChain(cmdResult.ErrorChain)
+	default:
+		// Idle/NotNow — the command hasn't completed yet; nothing to record.
+		return nil
+	}
+
+	if status == fleet.MDMAppleStatusAcknowledged {
+		// On acknowledgment the datastore moves the row to verifying and renames
+		// the host in Fleet in the same transaction. A not-found means the row
+		// tracks a newer command (template re-saved or resend clicked before this
+		// result arrived); this result is stale and the newer command's result
+		// carries the final name, so it's ignored.
+		if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, true, ""); err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "update device name row from acknowledged command")
+		}
+		return nil
+	}
+
+	if err := svc.ds.UpdateHostDeviceNameStatusFromCommand(ctx, cmdResult.CommandUUID, false, detail); err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "update device name row from failed command")
+	}
+	return nil
+}
+
+// deviceNameSettingsItemError inspects a Settings command acknowledgment for
+// per-item statuses: each item in the Settings array of the response can
+// individually report an Error even when the overall command is Acknowledged.
+// It returns a human-readable detail and true when any item failed.
+func deviceNameSettingsItemError(ctx context.Context, logger *slog.Logger, raw []byte) (string, bool) {
+	var ack struct {
+		Settings []struct {
+			Status     string           `plist:"Status"`
+			ErrorChain []mdm.ErrorChain `plist:"ErrorChain"`
+		} `plist:"Settings"`
+	}
+	if err := plist.Unmarshal(raw, &ack); err != nil {
+		// A malformed per-item array shouldn't fail the acknowledged command.
+		logger.WarnContext(ctx, "unmarshal Settings command acknowledgment for per-item statuses", "err", err)
+		return "", false
+	}
+	for _, item := range ack.Settings {
+		if item.Status != "" && item.Status != fleet.MDMAppleStatusAcknowledged {
+			detail := apple_mdm.FmtErrorChain(item.ErrorChain)
+			if detail == "" {
+				detail = "Settings item returned status " + item.Status + "."
+			}
+			return detail, true
+		}
+	}
+	return "", false
+}
+
 func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx context.Context, host *fleet.Host, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchDeviceCommandUUIDPrefix) {
 		// Caller should have checked this, but just in case we'll return an error.
@@ -5849,6 +5979,20 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
+
+	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
+		// Reconcile the host-name enforcement row (if any) against the name the
+		// device reported: confirms a rename (verifying → verified) or records
+		// drift (verified → failed). No-op for hosts without a row. A failure here
+		// is logged rather than returned: the refetch results are already
+		// persisted, this is a non-critical verify transition the next refetch
+		// will redo, and aborting would fail the whole MDM check-in. Mirrors the
+		// macOS osquery hook (server/service/osquery.go).
+		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, deviceName); err != nil {
+			svc.logger.ErrorContext(ctx, "update host device name status from refetch", "host_uuid", host.UUID, "err", err)
+		}
+	}
+
 	// Skip the disk space update when either capacity field is missing/invalid,
 	// since the percent-available calculation divides by deviceCapacity.
 	if deviceCapacityOK && availableDeviceCapacityOK && deviceCapacity > 0 {

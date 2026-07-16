@@ -27,7 +27,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) (tpol, ipol []*fleet.Policy, err error) {
+	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) (tpol, ipol []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
@@ -155,7 +155,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
-			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+			_, _, err = svc.ListTeamPolicies(ctx, 1, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.GetTeamPolicyByID(ctx, 1, 1)
@@ -257,10 +257,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.TeamPolicyFunc = func(ctx context.Context, tID uint, id uint) (*fleet.Policy, error) {
 			return freshPolicy(), nil
 		}
-		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, []*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil, nil
 		}
-		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil
 		}
 		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
@@ -272,6 +272,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
 			require.Equal(t, softwareInstallerID, id)
 			return &fleet.SoftwareInstaller{
+				InstallerID:   softwareInstallerID,
 				TitleID:       ptr.Uint(softwareInstallerTitle),
 				SoftwareTitle: installerSoftwareTitle,
 				DisplayName:   installerDisplayName,
@@ -309,6 +310,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, softwareInstallerTitle, p.InstallSoftware.SoftwareTitleID)
 		assert.Equal(t, installerSoftwareTitle, p.InstallSoftware.Name)
 		assert.Equal(t, installerDisplayName, p.InstallSoftware.DisplayName)
+		// SoftwareInstallerID lets the FE pre-fill the "Select package" pin
+		// on reload instead of always re-deriving first-added.
+		require.NotNil(t, p.InstallSoftware.SoftwareInstallerID, "install_software.software_installer_id should be populated")
+		assert.Equal(t, softwareInstallerID, *p.InstallSoftware.SoftwareInstallerID)
 
 		require.NotNil(t, p.RunScript, "run_script should be populated")
 		assert.Equal(t, scriptID, p.RunScript.ID)
@@ -318,6 +323,9 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		assert.Equal(t, patchInstallerTitleID, p.PatchSoftware.SoftwareTitleID)
 		assert.Equal(t, patchSoftwareTitleName, p.PatchSoftware.Name)
 		assert.Equal(t, patchSoftwareDisplay, p.PatchSoftware.DisplayName)
+		// Patch policies target FMA titles (single installer per title), so
+		// per-package pinning doesn't apply and the field stays nil.
+		assert.Nil(t, p.PatchSoftware.SoftwareInstallerID, "patch_software.software_installer_id should stay nil")
 	}
 
 	// requireSoftwareIconURLs verifies that install_software.icon_url is set to the
@@ -384,7 +392,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 		require.NoError(t, err)
 		require.Len(t, teamPols, 1)
 		requireAutomationsPopulated(t, teamPols[0])
@@ -396,7 +404,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "")
+		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "", "")
 		require.NoError(t, err)
 		require.Len(t, merged, 1)
 		requireAutomationsPopulated(t, merged[0])
