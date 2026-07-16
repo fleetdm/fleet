@@ -19,9 +19,9 @@ type StatisticsPayload struct {
 	NumHostSoftwareInstalledPaths  int    `json:"numHostSoftwareInstalledPaths"`
 	NumSoftwareCPEs                int    `json:"numSoftwareCPEs"`
 	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
-	NumTeams                       int    `json:"numTeams"`
+	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumPolicies                    int    `json:"numPolicies"`
-	NumQueries                     int    `json:"numQueries"`
+	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumLabels                      int    `json:"numLabels"`
 	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
 	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
@@ -31,7 +31,7 @@ type StatisticsPayload struct {
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
-	LiveQueryDisabled              bool   `json:"liveQueryDisabled"`
+	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
@@ -58,6 +58,9 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
+	// GoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// configured (integrations.google_workspace[0] has a domain and service account).
+	GoogleWorkspaceConfigured bool `json:"googleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
 	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
@@ -79,6 +82,11 @@ type StatisticsPayload struct {
 	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
+
+	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
+	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
 }
 
 type HostsCountByOrbitVersion struct {

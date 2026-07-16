@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
-import createMockHost from "__mocks__/hostMock";
+import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -34,7 +34,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -56,7 +56,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -78,7 +78,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -146,7 +146,7 @@ describe("Vitals Card component", () => {
       public_ip: "203.0.113.1",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (personal)",
+        enrollment_status: "On (manual - personal)",
       }),
     });
 
@@ -237,6 +237,153 @@ describe("Vitals Card component", () => {
     expect(screen.getByText("Serial number")).toBeInTheDocument();
     expect(screen.getAllByText("test-serial-number")[0]).toBeInTheDocument();
     expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
+  });
+});
+
+describe("Location vital", () => {
+  // ADE = iOS/iPadOS host with mdm.enrollment_status === "On (automatic)";
+  // matches the definition in Vitals.tsx.
+  const renderLocationVital = ({
+    ade = false,
+    withToggle = false,
+    hostOverrides,
+  }: {
+    ade?: boolean;
+    withToggle?: boolean;
+    hostOverrides?: Parameters<typeof createMockHost>[0];
+  } = {}) => {
+    const baseOverrides = ade
+      ? {
+          platform: "ios" as const,
+          mdm: createMockHostMdmData({ enrollment_status: "On (automatic)" }),
+        }
+      : {
+          platform: "darwin" as const,
+          geolocation: createMockHostGeolocation(),
+        };
+
+    const mockHost = createMockHost({ ...baseOverrides, ...hostOverrides });
+    const toggleLocationModal = withToggle ? jest.fn() : undefined;
+
+    const utils = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleLocationModal={toggleLocationModal}
+      />
+    );
+
+    return { ...utils, toggleLocationModal };
+  };
+
+  it("renders city/country as a clickable button when toggleLocationModal is provided", () => {
+    renderLocationVital({ withToggle: true });
+
+    expect(screen.getByText("Location")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Minneapolis, US" })
+    ).toBeInTheDocument();
+  });
+
+  it("invokes toggleLocationModal when the city/country button is clicked", () => {
+    const { toggleLocationModal } = renderLocationVital({ withToggle: true });
+
+    screen.getByRole("button", { name: "Minneapolis, US" }).click();
+
+    expect(toggleLocationModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders city/country as plain text when toggleLocationModal is not provided (e.g., My device page)", () => {
+    renderLocationVital();
+
+    expect(screen.getByText("Location")).toBeInTheDocument();
+    expect(screen.getByText("Minneapolis, US")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Minneapolis, US" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders 'Show location' button for ADE-enrolled iDevices when toggleLocationModal is provided", () => {
+    renderLocationVital({ ade: true, withToggle: true });
+
+    expect(screen.getByText("Location")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show location" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Location row for ADE-enrolled iDevices when toggleLocationModal is not provided", () => {
+    renderLocationVital({ ade: true });
+
+    expect(screen.queryByText("Location")).not.toBeInTheDocument();
+    expect(screen.queryByText("Show location")).not.toBeInTheDocument();
+  });
+
+  it("hides the Location row when the host has no geolocation", () => {
+    renderLocationVital({ hostOverrides: { geolocation: undefined } });
+
+    expect(screen.queryByText("Location")).not.toBeInTheDocument();
+  });
+
+  it("renders an empty Location value when geolocation is present but city/country are empty strings", () => {
+    renderLocationVital({
+      hostOverrides: {
+        geolocation: createMockHostGeolocation({
+          city_name: "",
+          country_iso: "",
+        }),
+      },
+    });
+
+    expect(screen.getByText("Location")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+describe("MDM status vital", () => {
+  const renderMDMStatusVital = ({ withToggle = false } = {}) => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    });
+    const toggleMDMStatusModal = withToggle ? jest.fn() : undefined;
+
+    const utils = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleMDMStatusModal={toggleMDMStatusModal}
+      />
+    );
+
+    return { ...utils, toggleMDMStatusModal };
+  };
+
+  it("renders the MDM status as a clickable button when toggleMDMStatusModal is provided", () => {
+    renderMDMStatusVital({ withToggle: true });
+
+    expect(screen.getByText("MDM status")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "On (manual)" })
+    ).toBeInTheDocument();
+  });
+
+  it("invokes toggleMDMStatusModal when the status button is clicked", () => {
+    const { toggleMDMStatusModal } = renderMDMStatusVital({ withToggle: true });
+
+    screen.getByRole("button", { name: "On (manual)" }).click();
+
+    expect(toggleMDMStatusModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the MDM status as plain text when toggleMDMStatusModal is not provided (e.g., My device page)", () => {
+    renderMDMStatusVital();
+
+    expect(screen.getByText("MDM status")).toBeInTheDocument();
+    expect(screen.getByText("On (manual)")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "On (manual)" })
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -466,5 +613,62 @@ describe("Disk space field visibility", () => {
     render(<Vitals vitalsData={mockHost} />);
 
     expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
+  });
+});
+
+describe("Custom host vitals", () => {
+  const customHostVitals = [
+    { custom_host_vital_id: 1, name: "Asset tag", value: "FLEET-001234" },
+    { custom_host_vital_id: 2, name: "Purchase date", value: "" },
+  ];
+
+  it("renders each custom host vital as a name/value row, falling back to the empty cell value when unset", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    render(
+      <Vitals vitalsData={mockHost} customHostVitals={customHostVitals} />
+    );
+
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+    expect(screen.getByText("Purchase date")).toBeInTheDocument();
+    // The vital with no value falls back to the default empty cell value.
+    expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
+  });
+
+  it("renders values as plain text (no edit affordance) when no edit handler is provided", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    render(
+      <Vitals vitalsData={mockHost} customHostVitals={customHostVitals} />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit Asset tag" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+  });
+
+  it("renders an edit pencil next to the label and calls the edit handler on click", async () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+    const onEditCustomHostVital = jest.fn();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={mockHost}
+        customHostVitals={customHostVitals}
+        onEditCustomHostVital={onEditCustomHostVital}
+      />
+    );
+
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "FLEET-001234" })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit Asset tag" }));
+
+    expect(onEditCustomHostVital).toHaveBeenCalledWith(customHostVitals[0]);
   });
 });

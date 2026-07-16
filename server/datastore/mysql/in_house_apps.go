@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -56,7 +57,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
 		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
 
-		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
+		installerIDIpad, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
 			return err
 		}
@@ -64,6 +65,20 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		installerID, err = ds.insertInHouseAppDB(ctx, tx, payload, argsIos)
 		if err != nil {
 			return err
+		}
+
+		// A single .ipa upload creates two in_house_apps rows (ios + ipados),
+		// each with its own installer ID. Configuration is keyed on installer
+		// ID, so without writing under both rows iPadOS lookups would always
+		// return no config. Write the same configuration under both so install
+		// command builders see it regardless of which platform's row they
+		// resolve from.
+		if len(payload.Configuration) > 0 {
+			for _, id := range []uint{installerID, installerIDIpad} {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, id, payload.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+				}
+			}
 		}
 
 		return nil
@@ -264,6 +279,14 @@ WHERE
 		}
 	}
 
+	cfg, err := ds.GetInHouseAppConfiguration(ctx, dest.InstallerID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+	if cfg != nil {
+		dest.Configuration = cfg
+	}
+
 	return &dest, nil
 }
 
@@ -311,6 +334,19 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.DisplayName != nil {
 			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
 				return ctxerr.Wrap(ctx, err, "update in house app display name")
+			}
+		}
+
+		// nil = leave unchanged; empty = clear; non-empty = set.
+		if payload.Configuration != nil {
+			if len(payload.Configuration) == 0 {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, payload.InstallerID); err != nil {
+					return ctxerr.Wrap(ctx, err, "clearing in-house app configuration")
+				}
+			} else {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, payload.InstallerID, payload.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+				}
 			}
 		}
 
@@ -380,28 +416,26 @@ func (ds *Datastore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamI
 	var dest fleet.VPPAppStatusSummary // Using the vpp struct since it is more appropriate for ipa
 	stmt := `
 WITH
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		:software_status_pending AS status
-	FROM
-		upcoming_activities ua
-		JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN in_house_app_upcoming_activities ihaua2
-				ON ua2.id = ihaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			ihaua.in_house_app_id = ihaua2.in_house_app_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type = 'in_house_app_install'
-		AND ua2.id IS NULL
-		AND ihaua.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			:software_status_pending AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type = 'in_house_app_install'
+			AND ihaua.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -424,7 +458,12 @@ past AS (
 	FROM
 		host_in_house_software_installs hihsi
 		JOIN hosts h ON host_id = h.id
-		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
+		-- LEFT JOIN so Fleet-side pre-flight failures (unresolvable
+		-- managed-config Fleet variable) survive — those never enqueue an MDM
+		-- command, so no ncr row exists. The CASE above maps
+		-- verification_failed_at IS NOT NULL to failed before any ncr.status
+		-- branch is evaluated.
+		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hihsi.command_uuid
 		LEFT JOIN host_in_house_software_installs hihsi2
 			ON hihsi.host_id = hihsi2.host_id AND
 				 hihsi.in_house_app_id = hihsi2.in_house_app_id AND
@@ -730,6 +769,60 @@ WHERE
 		SelfService:     res.SelfService,
 	}
 
+	return user, act, nil
+}
+
+// RecordFailedInHouseAppInstall records an in-house (.ipa) app install that
+// Fleet failed before sending it to the device — currently, the managed app
+// configuration referenced a Fleet variable that can't be resolved for this
+// host. It writes a failed host_in_house_software_installs row
+// (verification_failed_at sentinel) without enqueuing any MDM command, and
+// returns the user + failed-install activity to emit. failureReason is
+// surfaced on the activity (and the Install Details modal).
+func (ds *Datastore) RecordFailedInHouseAppInstall(ctx context.Context, hostID, inHouseAppID uint,
+	commandUUID, failureReason string, opts fleet.HostSoftwareInstallOptions,
+) (*fleet.User, *fleet.ActivityTypeInstalledSoftware, error) {
+	// Mirror InsertHostInHouseAppInstall's user attribution (in-house apps have
+	// no policy-driven path, so no PolicyID check).
+	var userID *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userID = &ctxUser.ID
+	}
+
+	const insStmt = `
+INSERT INTO host_in_house_software_installs
+	(host_id, in_house_app_id, command_uuid, user_id, platform, self_service, verification_failed_at)
+SELECT ?, ?, ?, ?, iha.platform, ?, CURRENT_TIMESTAMP(6)
+FROM in_house_apps iha
+WHERE iha.id = ?`
+
+	var (
+		user *fleet.User
+		act  *fleet.ActivityTypeInstalledSoftware
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, insStmt,
+			hostID, inHouseAppID, commandUUID, userID, opts.SelfService, inHouseAppID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert failed in-house install")
+		}
+
+		var err error
+		user, act, err = ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx,
+			&mdm.CommandResults{CommandUUID: commandUUID, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get failed in-house install activity data")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if act != nil {
+		act.FromSetupExperience = opts.ForSetupExperience
+		act.FailureReason = failureReason
+	}
 	return user, act, nil
 }
 
@@ -1302,6 +1395,18 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 
+			// Apply managed app configuration declaratively: an explicit
+			// non-empty value sets it, anything else (nil or empty) clears it.
+			if len(installer.Configuration) > 0 {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, installerID, installer.Configuration); err != nil {
+					return ctxerr.Wrapf(ctx, err, "set in-house app configuration for %q", installer.Filename)
+				}
+			} else {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clear in-house app configuration for %q", installer.Filename)
+				}
+			}
+
 			// process the labels associated with that in-house installer
 			if len(installer.ValidatedLabels.ByName) == 0 {
 				// no label to apply, so just delete all existing labels if any
@@ -1548,28 +1653,6 @@ WHERE
 	return exists == 1, nil
 }
 
-func (ds *Datastore) checkInstallerExistsByName(ctx context.Context, q sqlx.QueryerContext, teamID *uint, name, source, platform string) (bool, error) {
-	const stmt = `
-SELECT 1
-FROM
-	software_titles st
-	INNER JOIN software_installers ON st.id = software_installers.title_id
-		AND software_installers.global_or_team_id = ?
-WHERE
-	st.name = ?
-	AND st.source = ?
-	AND st.extension_for = ''
-	AND software_installers.platform = ?
-`
-
-	var exists int
-	err := sqlx.GetContext(ctx, q, &exists, stmt, ptr.ValOrZero(teamID), name, source, platform)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, ctxerr.Wrap(ctx, err, "check installer exists by name")
-	}
-	return exists == 1, nil
-}
-
 func (ds *Datastore) checkInHouseAppExistsForAdamID(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (exists bool, title string, err error) {
 	const stmt = `
 SELECT st.name
@@ -1599,4 +1682,181 @@ LIMIT 1
 		return false, "", err
 	}
 	return true, title, nil
+}
+
+func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
+	const stmt = `
+SELECT
+	BINARY COALESCE(?, '') != configuration AS has_changed
+FROM
+	in_house_app_configurations
+WHERE
+	in_house_app_id = ?
+`
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
+	}
+	return hasChanged, nil
+}
+
+func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
+
+	var config []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, inHouseAppID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+
+	return config, nil
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, tx, inHouseAppIDs)
+}
+
+func (ds *Datastore) bulkGetInHouseAppConfigurations(ctx context.Context, q sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	if len(inHouseAppIDs) == 0 {
+		return nil, nil
+	}
+
+	const bulkGetStmt = `
+SELECT
+	in_house_app_id,
+	configuration
+FROM in_house_app_configurations
+WHERE in_house_app_id IN (?)
+`
+
+	stmt, args, err := sqlx.In(bulkGetStmt, inHouseAppIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get in-house app configurations query")
+	}
+
+	var configs []*struct {
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		Configuration []byte `db:"configuration"`
+	}
+	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
+	}
+
+	m := make(map[uint][]byte, len(configs))
+	for _, c := range configs {
+		m[c.InHouseAppID] = c.Configuration
+	}
+	return m, nil
+}
+
+func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
+	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {
+	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating in-house app configuration")
+	}
+
+	const stmt = `
+INSERT INTO
+	in_house_app_configurations (in_house_app_id, configuration)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE
+	configuration = VALUES(configuration)
+`
+
+	_, err := tx.ExecContext(ctx, stmt, inHouseAppID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
+	}
+	return nil
+}
+
+func (ds *Datastore) CreateInHouseAppInstallToken(
+	ctx context.Context,
+	ex sqlx.ExtContext,
+	token string,
+	softwareTitleID, teamID, hostID uint,
+) error {
+	const stmt = `
+INSERT INTO in_house_app_install_tokens
+	(token, software_title_id, team_id, host_id, expires_at)
+VALUES
+	(?, ?, ?, ?, ?)
+`
+	expiresAt := time.Now().UTC().Add(fleet.InHouseAppInstallTokenTTL)
+	if _, err := ex.ExecContext(ctx, stmt, token, softwareTitleID, teamID, hostID, expiresAt); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert in-house app install token")
+	}
+	return nil
+}
+
+func (ds *Datastore) GetInHouseAppInstallTokenMetadata(
+	ctx context.Context,
+	token string,
+) (*fleet.InHouseAppInstallTokenMetadata, error) {
+	const stmt = `
+SELECT token, software_title_id, team_id, host_id, expires_at
+FROM in_house_app_install_tokens
+WHERE token = ? AND expires_at > NOW(6)
+`
+	// Read from primary: tokens are minted in the activation tx and may be
+	// looked up before replicas have caught up.
+	var meta fleet.InHouseAppInstallTokenMetadata
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &meta, stmt, token); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppInstallToken"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app install token metadata")
+	}
+	return &meta, nil
+}
+
+func (ds *Datastore) DeleteExpiredInHouseAppInstallTokens(ctx context.Context) (int64, error) {
+	const stmt = `DELETE FROM in_house_app_install_tokens WHERE expires_at < NOW(6) LIMIT 1000`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "delete expired in-house app install tokens rows affected")
+		}
+		total += n
+		if n < 1000 {
+			return total, nil
+		}
+	}
 }

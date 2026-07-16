@@ -14,10 +14,11 @@ import {
   REQUEST_TIMEOUT_ERROR_MESSAGE,
   ensurePeriod,
   formatAlreadyAvailableInstallMessage,
+  formatDifferentFileTypeMessage,
 } from "../helpers";
 
 // eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (err: unknown) => {
+export const getErrorMessage = (err: unknown, softwareTitle?: string) => {
   const isTimeout =
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);
@@ -34,6 +35,14 @@ export const getErrorMessage = (err: unknown) => {
     if (alreadyAvailableMessage) {
       return alreadyAvailableMessage;
     }
+  }
+
+  const differentFileTypeMessage = formatDifferentFileTypeMessage(
+    reason,
+    softwareTitle
+  );
+  if (differentFileTypeMessage) {
+    return differentFileTypeMessage;
   }
 
   if (reason.includes("Secret variable")) {

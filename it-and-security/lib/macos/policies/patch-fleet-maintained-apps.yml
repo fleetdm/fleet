@@ -8,11 +8,10 @@
     - Macs with Google Chrome installed
 - name: macOS - 1Password up to date
   description: This device may have an outdated version of 1Password, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service, otherwise the update will automatically install during an upcoming scheduled maintenance window. Check your calendar for details."
+  resolution: "1Password is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  install_software: false
-  calendar_events_enabled: true
+  install_software: true
   labels_include_any:
     - Macs with 1Password installed
 - name: macOS - Brave Browser up to date
@@ -66,10 +65,10 @@
     - Macs with Zoom installed
 - name: macOS - Okta Verify up to date
   description: The host may have an outdated version of Okta Verify, potentially risking security vulnerabilities or compatibility issues.
-  resolution: "Download the latest version from Self-service or check for updates using Okta Verify's built-in update functionality."
+  resolution: "Okta Verify is an app managed by IT and should be kept up to date automatically. If you are failing this policy, install the latest version from Self-service, then click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
   type: patch
   fleet_maintained_app_slug: okta-verify/darwin
-  install_software: false
+  install_software: true
   labels_include_any:
     - Macs with Okta Verify installed
 - name: macOS - Santa up to date

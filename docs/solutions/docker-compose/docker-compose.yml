@@ -112,7 +112,10 @@ services:
       - ./certs/fleet.key:/fleet/fleet.key:ro
     healthcheck:
       test:
-        ["CMD", "wget", "-qO-", "http://127.0.0.1:${FLEET_SERVER_PORT}/healthz"]
+        [
+          "CMD-SHELL",
+          "if [ \"$$FLEET_SERVER_TLS\" = \"true\" ]; then wget --no-check-certificate -qO- https://127.0.0.1:$$FLEET_SERVER_PORT/healthz; else wget -qO- http://127.0.0.1:$$FLEET_SERVER_PORT/healthz; fi"
+        ]        
       interval: 10s
       timeout: 5s
       retries: 12

@@ -17,8 +17,11 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
 1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
+
 2. Select the tab for your desired platform (e.g. **macOS**).
+
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
+
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
 #### Mobile devices
@@ -26,8 +29,11 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
+
 2. Select the tab for your desired platform (e.g. **iOS**).
+
 3. Copy the enrollment link from the UI and share it with your end users.
+
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
 ## CLI
@@ -41,8 +47,7 @@ The `--type` flag is used to specify the fleetd installer type.
 - macOS: `pkg`
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: `msi`
-  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
-  - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
+  - Generating a .msi on Windows, macOS, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
 - Linux: `deb`, `rpm`, or `pkg.tar.zst`
   - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
   - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
@@ -96,7 +101,7 @@ fleetctl debug connection \
 
 ## Enroll Chromebooks
 
-> The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
+> The fleetd Chrome extension is for enrolling and managing ChromeOS hosts. To learn how to enroll other platforms, head to the [top of the guide](#enroll).
 
 ### Overview
 Google Admin uses organizational units (OUs) to organize devices and users.
@@ -110,6 +115,7 @@ Fleet admins who are comfortable with this situation can skip step 2 below.
 To install the fleetd Chrome extension on Google Admin, there are two steps:
 
 1. Create an OU for all users who have Chromebooks and force-install the fleetd Chrome extension for those users
+
 2. Create an OU for all non-Chromebook devices and block the fleetd Chrome extension on this OU
 
 > More complex setups may be necessary, depending on the organization's needs, but the basic principle remains the same.
@@ -120,10 +126,15 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 
 1. In the navigation menu, visit **Devices > Chrome > Apps & Extensions > Users & browsers**.
+
 2. Select the relevant OU where you want the fleetd Chrome extension to be installed.
+
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
+
 4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+
 5. Enter the **Extension ID**, **Installation URL**, and **Policy for extensions** using the data provided in the modal.
+
 6. Under **Installation Policy**, select **Force install**, and under **Update URL**, select **Installation URL** (see above).
 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
@@ -134,26 +145,33 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 
 1. In the navigation menu, select **Devices > Chrome > Managed Browsers**.
+
 2. Select the relevant OU where you want the fleetd Chrome extension to be blocked.
+
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
+
 4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
+
 6. Under **Installation Policy**, select **Block**.
 
 ### Unenroll
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. If MDM is turned on, for macOS, Windows, iOS/iPadOS, and Android hosts:
-  - For macOS hosts, select **Actions > Turn off MDM** on the host's details page to turn MDM off. 
-  - For Windows hosts, download the [turn off MDM script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1), add it to the host's fleet on the **Scripts** page in Fleet, and run the script via **Actions > Run script** on the host's details page. 
-  - For iOS/iPadOS and Android hosts, select **Actions > Unenroll**.
+2. If MDM is turned on, turn it off:
+  - Windows: Skip to step 3 (Uninstall Fleet's agent).
+  - macOS: On the **Host details** page, select **Actions > Turn off MDM**.
+  - iOS/iPadOS & Android: On the **Host details** page, select **Actions > Unenroll**.
 
-3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
+3. For macOS, Windows, and Linux hosts, [uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd). 
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling it. This removes labels, prevents pending activity (like scripts or software installs) from running on the re-enrolled host, and avoids showing the original host’s vitals.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
+
+> The unenroll action on Android hosts sends a wipe command via the Android Management API. [Learn more](https://fleedtdm.com/docs/rest-api/rest-api#turn-off-hosts-mdm)
 
 ## Debugging
 
@@ -230,48 +248,11 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 macOS does not allow applications to access all system files by default. 
 
-If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, you can deploy a "Privacy Preferences Policy Control" policy to grant fleetd or osquery that level of access. 
+If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, deploy this ["Privacy Preferences Policy Control" configuration profile](https://github.com/fleetdm/fleet/blob/4f8677de3c005e6e971977dc5d86a9dec9e01e48/it-and-security/lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig). It grants Fleet's agent (fleetd) the required level of access. 
 
 This is required to find files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
 
-##### Obtaining identifiers
-
-If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
-
-On a system with osquery installed via Fleet's agent (fleetd), obtain the
-`CodeRequirement` of fleetd by running:
-
-```sh
-codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
-```
-
-The output should be similar or identical to:
-
-```sh
-Executable=/opt/orbit/bin/orbit/macos/edge/orbit
-designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
-```
-
-Note down the **executable path** and the entire **identifier**.
-
-Osqueryd will inherit the privileges from Orbit and does not need explicit permissions.
-
-##### Creating the profile
-
-Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
-
-1. Configure the identifier type to “path.”
-2. Paste the full path to Orbit as the identifier.
-3. Paste the full code signing identifier into the Code requirement field. 
-4. Allow “Access all files.” Access to Downloads, Documents, etc., is inherited from this.
-
-If your MDM solution does not have built-in support for privacy preferences profiles, you can use
-[PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to
-your MDM as a custom profile.
-
-##### Test the profile
-Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
 Preferences*, run this report from Fleet:
 
@@ -279,12 +260,9 @@ Preferences*, run this report from Fleet:
 SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
 ```
 
-If this report returns files, the profile was applied, as **Downloads** is a
-protected location. You can now enjoy the benefits of osquery on all system files and start
-using the **es_process_events** table!
+If this report returns files, the profile was applied, as **Downloads** is a protected location.
 
-If this report does not return data, you can look at operating system logs to confirm whether or not full disk
-access has been applied.
+If this report does not return data, you can look at operating system logs to confirm whether or not full disk access has been applied.
 
 See the last hour of logs related to TCC permissions with this command:
 
@@ -462,7 +440,7 @@ System keystore access can be disabled via `--disable-keystore` flag for the `fl
 
 `Applies only to Fleet Premium`
 
-When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows or macOS machine, you can tell `fleetctl package` to
+When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
@@ -473,8 +451,6 @@ so:
 ```powershell
 fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
 ```
-
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. We've built a [Wine installation script](https://fleetdm.com/install-wine) to help you get it.
 
 ### Config-less fleetd agent deployment
 
@@ -500,7 +476,11 @@ This variable is read at launch and will require a restart of the Orbit service 
 
 ### macOS Migration Assistant
 
-When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), first [turn MDM off, unenroll the Mac, and delete it from Fleet](#unenroll). Next, use Migration Assistant to transfer data and then re-enroll the Mac and turn MDM back on.
+When transferring data with [Apple's Migration Assistant](https://support.apple.com/en-us/102613), uncheck the **Other Files & Folders** option.
+
+![Migration settings with Other Files & Folders unchecked](../website/assets/images/articles/migration-assistant-caveat-832x625@2x.png)
+
+Otherwise, the device will continue to communicate with Fleet via the agent and osquery will work, but MDM commands will never be delivered to the new device. To resolve this, devices must be unenrolled and re-enrolled.
 
 
 <meta name="category" value="guides">

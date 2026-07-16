@@ -11,6 +11,11 @@
     gap: $pad-medium;
   }
 
+  &__name-description {
+    flex: 1;
+    min-width: 0;
+  }
+
   &__action-button-container {
     display: flex;
     justify-content: flex-end;
@@ -21,6 +26,7 @@
   &__query-name {
     margin-top: 0;
     font-size: $large;
+    overflow: hidden;
   }
 
   &__settings {

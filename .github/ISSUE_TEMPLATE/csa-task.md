@@ -1,7 +1,7 @@
 ---
 name: ⚔️  CSA task
 about: Ask a CSA for assistance researching or solutioning
-title: ''
+title: 'CSA task: '
 labels: ':help-customers'
 type: task
 assignees: ''

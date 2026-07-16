@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -26,7 +26,7 @@ import (
 
 func TestDEPService_RunAssigner(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	const abmTokenOrgName = "test_org"
 	depStorage, err := ds.NewMDMAppleDEPStorage()
@@ -36,12 +36,12 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		// start a server that will mock the Apple DEP API
 		srv := httptest.NewServer(depHandler)
 		t.Cleanup(srv.Close)
-		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
+		t.Cleanup(func() { mysqltest.TruncateTables(t, ds) })
 
 		err = depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
 
-		mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
+		mysqltest.SetTestABMAssets(t, ds, abmTokenOrgName)
 
 		logger := slog.New(slog.DiscardHandler)
 		return apple_mdm.NewDEPService(ds, depStorage, logger)
@@ -193,7 +193,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -327,7 +327,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -422,7 +422,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
 		// Verify that the two hosts have assignments marked failed
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseFailed))
@@ -513,7 +513,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
 		// Verify that the one host has an assignment marked throttled
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id = ? AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[1].ID, fleet.DEPAssignProfileResponseThrottled))
@@ -522,7 +522,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		})
 
 		// And the other is marked success
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id = ? AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -540,13 +540,13 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 		DummyReplica:   true,
 		UniqueTestName: "dep_runassigner_replica_lag",
 	}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 
 	const abmTokenOrgName = "test_org"
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 
-	mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
+	mysqltest.SetTestABMAssets(t, ds, abmTokenOrgName)
 	// Replicate ABM-related rows (abm_tokens, certs, app_config) so the JOIN target
 	// for the screen query exists on the replica. The lag we want to simulate is
 	// for the ghost-host rows ingested *during* RunAssigner, not for ABM setup.

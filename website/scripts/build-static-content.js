@@ -23,14 +23,13 @@ module.exports = {
     // The data we're compiling will get built into this dictionary and then written on top of the .sailsrc file.
     let builtStaticContent = {};
     let rootRelativeUrlPathsSeen = [];
-    let baseHeadersForGithubRequests;
+    let baseHeadersForGithubRequests = {
+      'User-Agent': 'Fleet-Standard-Query-Library',
+      'Accept': 'application/vnd.github.v3+json',
+    };
 
-    if(githubAccessToken) {// If a github token was provided, set headers for requests to GitHub.
-      baseHeadersForGithubRequests = {
-        'User-Agent': 'Fleet-Standard-Query-Library',
-        'Accept': 'application/vnd.github.v3+json',
-        'Authorization': `token ${githubAccessToken}`,
-      };
+    if(githubAccessToken) {// If a github token was provided, Add an authorization header for requests to GitHub.
+      baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
     } else {
       sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
     }//ﬁ
@@ -495,6 +494,12 @@ module.exports = {
 
               });//∞
 
+              // Rewrite YouTube embed src URLs to the privacy-enhanced (no-cookie) host so the embedded player doesn't set tracking cookies until the visitor presses play.
+              // This allows us to show embedded youtube videos to users who don't consent to the cookie banner on the website.
+              htmlString = htmlString.replace(/(src="https?:\/\/(?:www\.)?youtube\.com\/embed\/[^"]*")/g, (srcString) => {
+                return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
+              });//∞
+
               // Modify images in the /articles folder
               if (sectionRepoPath === 'articles/') {
                 // modifying relative links e.g. `../website/assets/images/articles/foo-200x300@2x.png`
@@ -503,7 +508,7 @@ module.exports = {
                   let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
                   // If the relative link goes to the image is in the website's assets folder (`website/assets/`) we'll modify the relative link
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
-                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
+                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g) ? referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0] : undefined;
                   if(isWebsiteAsset) {
                     if(!isWebsiteAsset.match(/\d+x\d+@2x.+/)){
                       throw new Error(`Failed compiling markdown content. An article page references an image (${isWebsiteAsset}) that does not follow the website's image naming conventions. Please update the filename and reference to the image in "${path.join(topLvlRepoPath, pageSourcePath)}" to include the CSS dimensions of the image (pixel dimensions * 0.5 postfixed with "@2x" e.g., a 400x600 pixel image should be postfixed with "-200x300@2x.png") and try running this script again. Read more about the website's image naming conventions here: https://fleetdm.com/handbook/company/communications#export-an-image-for-fleetdm-com`);
@@ -566,29 +571,12 @@ module.exports = {
               }//ﬁ
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
-              let lastModifiedAt;
-              if(!githubAccessToken) {
-                lastModifiedAt = Date.now();
-              } else if(process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME === 'main') {// Only add lastModifiedAt timestamps if this test is running on the main branch
-                let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-                  url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-                  data: {
-                    path: path.join(sectionRepoPath, pageRelSourcePath),
-                    page: 1,
-                    per_page: 1,//eslint-disable-line camelcase
-                  },
-                  headers: baseHeadersForGithubRequests,
-                }).intercept((err)=>{
-                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-                });
-                // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-                let mostRecentCommitToThisFile = responseData[0];
-                if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-                  // Throw an error if the the response from GitHub is missing a commit or commiter.
-                  throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-                }
-                lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-              }
+              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                dir: topLvlRepoPath,
+              })).stdout)).getTime();
+
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
@@ -666,7 +654,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -793,10 +781,9 @@ module.exports = {
                 } else {
 
                   // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
-                  // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }
@@ -850,30 +837,12 @@ module.exports = {
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
         // Get last modified timestamp using git, and represent it as a JS timestamp.
-        let lastModifiedAt;
-        if(!githubAccessToken) {
-          lastModifiedAt = Date.now();
-        } else {
-          // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
-          let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
-            url: 'https://api.github.com/repos/fleetdm/fleet/commits',
-            data: {
-              path: RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO,
-              page: 1,
-              per_page: 1,//eslint-disable-line camelcase
-            },
-            headers: baseHeadersForGithubRequests,
-          }).intercept((err)=>{
-            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
-          });
-          // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
-          let mostRecentCommitToThisFile = responseData[0];
-          if(!mostRecentCommitToThisFile.commit || !mostRecentCommitToThisFile.commit.committer) {
-            // Throw an error if the the response from GitHub is missing a commit or commiter.
-            throw new Error(`When trying to get a lastModifiedAt timestamp for the open positions YAML, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
-          }
-          lastModifiedAt = (new Date(mostRecentCommitToThisFile.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
-        }
+        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+          dir: topLvlRepoPath,
+        })).stdout)).getTime();
+
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
@@ -1134,7 +1103,7 @@ module.exports = {
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find pricing table features YAML file at "${RELATIVE_PATH_TO_PRICING_TABLE_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
-        let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Configuration', 'Devices', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Configuration', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
           if(feature.name) {// Compatibility check
@@ -1635,8 +1604,64 @@ module.exports = {
         }
         builtStaticContent.mdmCommands = mdmCommandsLibrary;
         builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
+      },
+      //
+      //  ╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╔╦╗╦    ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗  ╦  ╦╔╗╔╦╔═╔═╗
+      //  ╠╣ ║  ║╣ ║╣  ║ ║   ║ ║    ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝  ║  ║║║║╠╩╗╚═╗
+      //  ╚  ╩═╝╚═╝╚═╝ ╩ ╚═╝ ╩ ╩═╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═  ╩═╝╩╝╚╝╩ ╩╚═╝
+      // Fetch the latest URLS of the latest fleetctl installers from GitHub for the /download page.
+      // Note: This request is sent to GitHub regardless of whether a githubAccessToken input was provided.
+      async()=>{
+        let latestFleetReleaseDetails = await sails.helpers.http.get.with({
+          url: 'https://api.github.com/repos/fleetdm/fleet/releases/latest',
+          headers: baseHeadersForGithubRequests,
+        }).intercept((err) =>{
+          return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
+        });
+        let downloadAssets = latestFleetReleaseDetails.assets;
+        let macOsInstaller = _.find(downloadAssets, (asset)=> { return  _.endsWith(asset.browser_download_url, '_mac.pkg');});
+        let windowsInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');});
+        let windowsArmInstaller = _.find(downloadAssets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+        if(!macOsInstaller || !windowsInstaller || !windowsArmInstaller) {
+          let otherRecentFleetReleases = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/repos/fleetdm/fleet/releases',
+            headers: baseHeadersForGithubRequests,
+          }).intercept((err) =>{
+            return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
+          });
+
+          // Find all releases that contains all three installer assets.
+          let completeReleases = _.filter(otherRecentFleetReleases, (release)=>{
+            return _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');}) &&
+              _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');}) &&
+              _.some(release.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+          });
+          // Get the latest "complete" release to use.
+          let latestCompleteRelease = _.last(_.sortBy(completeReleases, (release)=>{ return new Date(release.published_at).getTime(); }));
+          if(!latestCompleteRelease) {
+            throw new Error(`When getting information about recent Fleet releases to find installers for the download page, no release containing macOS, Windows (amd64), and Windows (arm64) installers was found in the GitHub API response.`);
+          }
+          if(!macOsInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for macOS was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for macOS.`);
+            macOsInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_mac.pkg');});
+          }
+          if(!windowsInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (amd64) was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for Windows (amd64).`);
+            windowsInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_amd64.msi');});
+          }
+          if(!windowsArmInstaller) {
+            sails.log.warn(`When getting information about the latest release (${latestFleetReleaseDetails.name}) to get installer links for the download page, no installer for Windows (arm64) was found in the release assets. The download page will link to an older version (${latestCompleteRelease.name}) for Windows (arm64).`);
+            windowsArmInstaller = _.find(latestCompleteRelease.assets, (asset)=> { return _.endsWith(asset.browser_download_url, '_windows_arm64.msi');});
+          }
+        }
+        builtStaticContent.fleetctlDownloadUrls = {
+          macOs: macOsInstaller.browser_download_url,
+          windows: windowsInstaller.browser_download_url,
+          windowsArm: windowsArmInstaller.browser_download_url,
+        };
       }
     ]);
+
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
     //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝

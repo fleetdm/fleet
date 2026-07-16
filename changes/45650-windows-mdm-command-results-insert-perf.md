@@ -1,0 +1,1 @@
+- Improved the performance of Windows MDM profile installation across large numbers of hosts by reducing database lock contention when recording command results.

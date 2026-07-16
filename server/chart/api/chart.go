@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"time"
+
+	"github.com/RoaringBitmap/roaring"
 )
 
 // SampleStrategy describes how a dataset's samples combine within a bucket and
@@ -69,28 +71,57 @@ type Dataset interface {
 // method. It is satisfied by the chart internal Datastore, keeping dataset
 // implementations decoupled from internals.
 type DatasetStore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" using a
+	// platform-specific predicate. Non-mobile (osquery) hosts use the product's
+	// standard online predicate (host_seen_times.seen_time within the host's own
+	// check-in interval). Mobile hosts (iOS, iPadOS, Android), which only check
+	// in via MDM, use their MDM activity signal (nano_enrollments.last_seen_at,
+	// falling back to detail_updated_at) within a fixed mobile online window.
+	// Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map — callers must pass the
+	// CVE set they want to collect for. Unresolved-only is implicit in the
 	// underlying joins: a host's software/OS row transitions when it upgrades
 	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+
+	// CollectibleCVEs returns every CVE ID, at all severities, on the curated
+	// set of tracked software unioned with all operating-system vulnerabilities.
+	// Used by the CVE collector to scope collection. Display-time narrowing
+	// (severity, category, EPSS, etc.) happens later at read time, so the
+	// collector deliberately records the wide set. See the mysql implementation.
+	CollectibleCVEs(ctx context.Context) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.
+	// Bitmaps are passed in op form (*roaring.Bitmap); the datastore
+	// serializes via chart.BitmapToBlob at the storage boundary.
 	RecordBucketData(
 		ctx context.Context,
 		dataset string,
 		bucketStart time.Time,
 		bucketSize time.Duration,
 		strategy SampleStrategy,
-		entityBitmaps map[string][]byte,
+		entityBitmaps map[string]*roaring.Bitmap,
 	) error
 }
+
+// MetricCVE is the metric name of the vulnerability-exposure (CVE) dataset.
+// The CVE entity filters apply only to this metric.
+const MetricCVE = "cve"
+
+// CVE chart software category keys. These are the API contract for the
+// `software_filters` query parameter and are mirrored by the frontend. The
+// "os" category covers both operating-system vulnerabilities and the kernel
+// software matchers.
+const (
+	CVECategoryOS       = "os"
+	CVECategoryBrowsers = "browsers"
+	CVECategoryOffice   = "office"
+	CVECategoryAdobe    = "adobe"
+)
 
 // Host is a minimal host type for authorization checks within the chart bounded context.
 // The JSON tags matter: the OPA rego policy reads object.team_id via the JSON-encoded
@@ -138,6 +169,21 @@ type RequestOpts struct {
 	Platforms      []string
 	IncludeHostIDs []uint
 	ExcludeHostIDs []uint
+
+	// CVE entity filters (apply only to the MetricCVE metric).
+	SoftwareFilters []string
+	KnownExploit    bool
+	// EPSS bounds are 0.0–1.0 (matching cve_meta.epss_probability); nil means
+	// no bound. The frontend converts its 0–100 % input before sending.
+	EPSSMin *float64
+	EPSSMax *float64
+	// Severity (CVSS) bounds are accepted but ignored this round — the service
+	// forces critical-only [9.0, 10.0]. See the severity TODO in the service.
+	SeverityMin *float64
+	SeverityMax *float64
+	// ExcludeCVEs is a subtractive filter — these CVEs are removed from the
+	// resolved entity set.
+	ExcludeCVEs []string
 }
 
 // Filters captures the applied filters for a chart request.
@@ -147,4 +193,12 @@ type Filters struct {
 	Platforms      []string `json:"platforms,omitempty"`
 	IncludeHostIDs []uint   `json:"include_host_ids,omitempty"`
 	ExcludeHostIDs []uint   `json:"exclude_host_ids,omitempty"`
+
+	SoftwareFilters []string `json:"software_filters,omitempty"`
+	KnownExploit    bool     `json:"has_known_exploit,omitempty"`
+	EPSSMin         *float64 `json:"epss_min,omitempty"`
+	EPSSMax         *float64 `json:"epss_max,omitempty"`
+	SeverityMin     *float64 `json:"severity_min,omitempty"`
+	SeverityMax     *float64 `json:"severity_max,omitempty"`
+	ExcludeCVEs     []string `json:"exclude_vulnerabilities,omitempty"`
 }

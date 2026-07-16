@@ -50,13 +50,18 @@ SELECT
 
 - Platforms: windows
 
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('certificates') WHERE name = 'subject2'
+```
+
 - Query:
 ```sql
 SELECT
-		ca, common_name, subject, issuer,
+		ca, common_name, subject2, issuer2,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, username,
+		serial, sha1, username, sid,
 		path
 	FROM
 		certificates
@@ -102,12 +107,12 @@ SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows +
 
 - Query:
 ```sql
-SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
+SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1
 ```
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Query:
 ```sql
@@ -168,14 +173,14 @@ SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Query:
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts WHERE
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts WHERE
 -- exclude mounts with no space
 blocks > 0
 AND blocks_size > 0
@@ -223,7 +228,7 @@ OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
-)) AS gigs_all_disk_space
+) GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
@@ -330,7 +335,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 WITH
-		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
 		fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
 	SELECT encrypted, filevault_key FROM de LEFT JOIN fv;
 ```
@@ -347,7 +352,7 @@ SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND re
 - Query:
 ```sql
 WITH
-		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
 ```
@@ -423,7 +428,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin
 
 - Query:
 ```sql
@@ -499,7 +504,7 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -533,7 +538,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin
 
 - Query:
 ```sql
@@ -641,7 +646,7 @@ WITH display_version_table AS (
 
 ## osquery_flags
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Query:
 ```sql
@@ -659,7 +664,7 @@ select * from osquery_info limit 1
 
 ## scheduled_query_stats
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Query:
 ```sql
@@ -689,7 +694,7 @@ FROM chrome_extensions
 
 - Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Discovery query:
 ```sql
@@ -707,7 +712,7 @@ SELECT package, MAX(atime) AS last_opened_at
 
 ## software_go_binaries
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -731,7 +736,7 @@ FROM go_binaries
 
 ## software_jetbrains_plugins
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -759,7 +764,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)
 
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Query:
 ```sql
@@ -843,7 +848,7 @@ FROM cached_users CROSS JOIN firefox_addons USING (uid);
 
 ## software_linux_fleetd_pacman
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Discovery query:
 ```sql
@@ -888,6 +893,7 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
+WHERE path NOT LIKE '%.app/Contents/%'
 UNION
 SELECT
   name AS name,
@@ -962,7 +968,7 @@ SELECT
   path AS installed_path
 FROM homebrew_packages
 WHERE type = 'cask'
-AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%/%.app%') OR file.path LIKE CONCAT(homebrew_packages.path, '/%/%/%.app%') LIMIT 1);
 ```
 
 ## software_macos_codesign
@@ -1047,7 +1053,7 @@ WITH app_paths AS (
 
 - Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1075,7 +1081,7 @@ SELECT
 
 - Description: As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1107,7 +1113,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 - Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos
 
 - Discovery query:
 ```sql
@@ -1125,7 +1131,7 @@ SELECT package, MAX(atime) AS last_opened_at
 
 ## software_vscode_extensions
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1276,7 +1282,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Query:
 ```sql
@@ -1285,7 +1291,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, darwin, windows
 
 - Query:
 ```sql

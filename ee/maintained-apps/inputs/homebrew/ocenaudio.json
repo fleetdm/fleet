@@ -1,0 +1,10 @@
+{
+  "name": "ocenaudio",
+  "unique_identifier": "com.ocenaudio",
+  "token": "ocenaudio",
+  "installer_format": "dmg",
+  "slug": "ocenaudio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -82,7 +82,6 @@ module.exports = {
       'alexmitchelliii',
       'sampfluger88',
       'ireedy',
-      'mostlikelee',
       'AnthonySnyder8',
       'getvictor',
       'pintomi1989',
@@ -94,7 +93,6 @@ module.exports = {
       'tux234',
       'ksykulev',
       'mason-buettner',
-      'sgress454',
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
@@ -114,7 +112,6 @@ module.exports = {
       'GrayW',
       'maribell-fleetdm',
       'jkatz01',
-      'johnjeremiah',
       'melpike',
       'headmin',
       'nulmete',
@@ -913,9 +910,14 @@ module.exports = {
           'Accept': 'application/vnd.github.v4+json',
           'User-Agent': 'Fleet-Engineering-Metrics'
         }
-      );
+      )
+      .tolerate((err)=>{
+        // If there is an error sending a request to the GitHub API, log a warning and return undefined.
+        sails.log.warn(`When the receive-from-github webhook sent a request to the GitHub API to look up an issue, an error occurred. Full error: ${require('util').inspect(err)}`);
+        return undefined;
+      });
 
-      if (!graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
+      if (!graphqlQueryResponse || !graphqlQueryResponse.data || !graphqlQueryResponse.data.node) {
         return;
       }
 

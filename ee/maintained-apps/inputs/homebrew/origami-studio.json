@@ -1,0 +1,10 @@
+{
+  "name": "Origami Studio",
+  "unique_identifier": "com.facebook.Origami-Studio",
+  "token": "origami-studio",
+  "installer_format": "dmg",
+  "slug": "origami-studio/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1031,6 +1031,10 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 		return &fleet.Team{}, nil
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 
@@ -1108,4 +1112,245 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 		})
 
 	}
+}
+
+// TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured verifies that GitOps
+// team edits can add Windows or Android configuration profiles without being
+// rejected by an MDM-configured check on the team-edit path. The previous
+// check fired when the AppConfig's *EnabledAndConfigured flag was false, which
+// surfaced as a customer bug when the cached AppConfig lagged behind a recent
+// platform-enable. createTeamFromSpec has never gated this, so we mirror it.
+func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	const teamName = "Mobile"
+
+	newSvc := func(t *testing.T, mdmConfigured bool) (*Service, *mock.Store, **fleet.Team) {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			// mdmConfigured=false simulates the bug condition: the cached
+			// AppConfig still reports MDM as off even though it has actually
+			// been enabled. The fix must let the edit proceed regardless.
+			ac.MDM.AndroidEnabledAndConfigured = mdmConfigured
+			ac.MDM.WindowsEnabledAndConfigured = mdmConfigured
+			return ac, nil
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, _ string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			// Existing team has no Android/Windows custom settings — the spec
+			// is adding the first profile.
+			return &fleet.Team{ID: 42, Name: name}, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+		var saved *fleet.Team
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			saved = team
+			return team, nil
+		}
+
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(ctx context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+			return nil
+		}
+
+		svc := &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config: config.FleetConfig{
+				Server: config.ServerConfig{PrivateKey: "something"},
+			},
+			authz:  authorizer,
+			logger: slog.New(slog.DiscardHandler),
+		}
+		return svc, ds, &saved
+	}
+
+	t.Run("adds android profile when AppConfig reports Android MDM off", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, false)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/android.json"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.AndroidSettings.CustomSettings.Value, 1)
+		require.Equal(t, "profiles/android.json", (*saved).Config.MDM.AndroidSettings.CustomSettings.Value[0].Path)
+	})
+
+	t.Run("adds windows profile when AppConfig reports Windows MDM off", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, false)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/windows.xml"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.WindowsSettings.CustomSettings.Value, 1)
+		require.Equal(t, "profiles/windows.xml", (*saved).Config.MDM.WindowsSettings.CustomSettings.Value[0].Path)
+	})
+
+	t.Run("adds android profile when AppConfig reports Android MDM on (happy path)", func(t *testing.T) {
+		svc, ds, saved := newSvc(t, true)
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{
+						{Path: "profiles/android.json"},
+					}),
+				},
+			},
+		}
+
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, *saved)
+		require.Len(t, (*saved).Config.MDM.AndroidSettings.CustomSettings.Value, 1)
+	})
+}
+
+// TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted verifies that clearing
+// a bootstrap package via GitOps succeeds even when the actual package row has
+// already been deleted (e.g. via the GUI), leaving a stale URL in team config.
+func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	adminUser := &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
+	ctx := test.UserContext(context.Background(), adminUser)
+
+	const teamName = "TestTeam"
+	const teamID = uint(42)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, _ string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:   teamID,
+			Name: name,
+			Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						// Stale URL: the DB row is gone but team config still has it.
+						BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg"),
+					},
+				},
+			},
+		}, nil
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	// The bootstrap package row was already deleted via the GUI.
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: teamName}, nil
+	}
+	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+		return nil, &bootstrapNotFoundError{msg: "bootstrap package not found"}
+	}
+
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(ctx context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
+		return nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{PrivateKey: "something"},
+		},
+		authz:  authorizer,
+		logger: slog.New(slog.DiscardHandler),
+	}
+
+	spec := &fleet.TeamSpec{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSetup: fleet.MacOSSetup{
+				// Clearing the bootstrap package (Set=true, Value="").
+				BootstrapPackage: optjson.SetString(""),
+			},
+		},
+	}
+
+	_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
+	require.NoError(t, err)
+	require.True(t, ds.SaveTeamFuncInvoked)
+}
+
+// TestModifyTeamMDMManagedLocalAccountRequiresMDM covers the MDM-off gate, which
+// the integration suite can't exercise since it always runs with MDM configured.
+// The activity emission is covered end-to-end by TestManagedLocalAccount.
+func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+	}
+	ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team-1"}, nil
+	}
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+
+	mockSvc := &svcmock.Service{}
+	// Reached via validateEndUserAuthenticationAndSetupAssistant when MacOSSetup is set.
+	mockSvc.HasCustomSetupAssistantConfigurationWebURLFunc = func(context.Context, *uint) (bool, error) {
+		return false, nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+	}
+
+	payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+		MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
+	}}
+	_, err = svc.ModifyTeam(ctx, 1, payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
+	require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 }

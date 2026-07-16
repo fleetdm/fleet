@@ -26,12 +26,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
       uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
+      with:
+        persist-credentials: false
 
     # We trust own version of mk-ca-bundle.pl and its output, but as an extra check
     # we compare with the cacert.pem served by https://curl.se/ca/cacert.pem (this
@@ -63,3 +65,24 @@ jobs:
 
           Generated automatically with curl mk-ca-bundle.pl script.
         body: Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/update-certs.yml).
+
+    - name: Slack notification on failure
+      if: ${{ failure() }}
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "❌ The Update certs workflow failed\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

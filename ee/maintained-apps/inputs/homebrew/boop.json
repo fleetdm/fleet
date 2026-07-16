@@ -1,0 +1,10 @@
+{
+  "name": "Boop",
+  "unique_identifier": "com.okatbest.boop",
+  "token": "boop",
+  "installer_format": "zip",
+  "slug": "boop/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

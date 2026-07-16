@@ -7,7 +7,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
-| Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
+| VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Solutions Consultant (SC)               | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
 
@@ -46,6 +46,11 @@ As soon as an offer is accepted, Fleet provides laptops for core team members to
  > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 - Include delivery tracking information when closing the support request so the new employee can be notified.
+
+
+### Send Google login credentials to a new team member
+
+On the morning of a new team member's first day, IT sends them the Google Logins PDF sheet via email before their onboarding calls begin. This ensures they can access Gmail, Google Calendar, and other Google Workspace tools needed during onboarding.
 
 
 ### Process incoming equipment

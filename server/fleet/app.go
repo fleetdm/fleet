@@ -171,10 +171,26 @@ type MDMAppleABMAssignmentInfo struct {
 	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
 	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
 }
 
-// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
-// between a VPP token (via location) and the team associations.
+func (m *MDMAppleABMAssignmentInfo) CleanRemovedTeam(removedTeamName string) {
+	if m.MacOSTeam == removedTeamName {
+		m.MacOSTeam = ""
+	}
+	if m.IOSTeam == removedTeamName {
+		m.IOSTeam = ""
+	}
+	if m.IpadOSTeam == removedTeamName {
+		m.IpadOSTeam = ""
+	}
+	if m.BYODTeam == removedTeamName {
+		m.BYODTeam = ""
+	}
+}
+
+// MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
+// between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
@@ -188,12 +204,13 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+	// Deprecated: use AppleBusinessManager instead
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
-	// AppleBusinessManager defines the associations between ABM tokens
-	// and the teams used to assign hosts when they're ingested from ABM.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager"`
+	// AppleBusinessManager defines the associations between AB tokens
+	// and the fleets used to assign hosts when they're ingested from Apple
+	// Business.
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
@@ -245,6 +262,10 @@ type MDM struct {
 
 	WindowsEntraTenantIDs optjson.Slice[string] `json:"windows_entra_tenant_ids"`
 
+	// WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for
+	// Windows automatic enrollment.
+	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -252,6 +273,8 @@ type MDM struct {
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	HostNameTemplate optjson.String `json:"name_template"`
 
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
@@ -264,6 +287,11 @@ type MDM struct {
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
 	AndroidSettings             AndroidSettings `json:"android_settings"`
+
+	// AppleAccountProvisioning holds the macOS local account provisioning /
+	// Platform SSO password sync configuration. The IdP client secret is stored
+	// in mdm_config_assets, not in this JSON; only the masked value is returned.
+	AppleAccountProvisioning AppleAccountProvisioning `json:"apple_account_provisioning"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -426,6 +454,10 @@ func (w WindowsUpdates) Equal(other WindowsUpdates) bool {
 	return true
 }
 
+func (w WindowsUpdates) Configured() bool {
+	return w.DeadlineDays.Valid && w.GracePeriodDays.Valid
+}
+
 func (w WindowsUpdates) Validate() error {
 	const (
 		minDeadline    = 0
@@ -466,6 +498,13 @@ type MacOSSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings                 []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
+
+	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
+	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// spec: this field is only populated while parsing a GitOps file so the
+	// assets can be applied via their own batch endpoint. It is intentionally
+	// omitted from ToMap/FromMap.
+	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -575,6 +614,8 @@ type MacOSSetup struct {
 	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
+// Validate checks the payload is in a valid state.
+// If needed to compare against old values (for partial patches) use ValidateAgainst instead.
 func (mos *MacOSSetup) Validate() error {
 	if mos == nil {
 		return nil
@@ -584,8 +625,41 @@ func (mos *MacOSSetup) Validate() error {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
 	}
 
-	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
-		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	if PrimaryAccountType(mos.EndUserLocalAccountType.Value).RequiresLocalAdminAccount() && (!mos.EnableManagedLocalAccount.Valid || !mos.EnableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, mos.EndUserLocalAccountType.Value))
+	}
+
+	return nil
+}
+
+// ValidateAgainst checks the payload is in a valid state, comparing against old values if needed for partial patches.
+func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
+	if mos == nil {
+		return nil
+	}
+
+	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
+		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && !IsValidPrimaryAccountType(mos.EndUserLocalAccountType.Value) {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
+	}
+
+	accountType := mos.EndUserLocalAccountType
+	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
+		accountType = old.EndUserLocalAccountType
+	}
+	enableManagedLocalAccount := mos.EnableManagedLocalAccount
+	if !enableManagedLocalAccount.Set {
+		enableManagedLocalAccount = old.EnableManagedLocalAccount
+	}
+	if PrimaryAccountType(accountType.Value).RequiresLocalAdminAccount() && (!enableManagedLocalAccount.Valid || !enableManagedLocalAccount.Value) {
+		return NewInvalidArgumentError("enable_create_local_admin_account", fmt.Sprintf(`enable_create_local_admin_account is required to be enabled when using %q for the end_user_local_account_type`, accountType.Value))
 	}
 
 	return nil
@@ -756,6 +830,16 @@ func (c *AppConfig) Obfuscate() {
 	for _, gcIntegration := range c.Integrations.GoogleCalendar {
 		gcIntegration.ApiKey.SetMasked()
 	}
+	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
+		gwIntegration.ApiKey.SetMasked()
+	}
+	// The Apple account provisioning IdP client secret lives in
+	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
+	// whenever the feature is configured (token URL present implies a stored
+	// secret), so the API never leaks it but still signals it's set.
+	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
+		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
+	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
 	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
@@ -805,6 +889,7 @@ func (c *AppConfig) Copy() *AppConfig {
 			clone.Features.DetailQueryOverrides[k] = s
 		}
 	}
+	clone.Features.VulnerabilityExposureHistoricalReporting = c.Features.VulnerabilityExposureHistoricalReporting.Copy()
 	if c.AgentOptions != nil {
 		ao := make(json.RawMessage, len(*c.AgentOptions))
 		copy(ao, *c.AgentOptions)
@@ -845,6 +930,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			if len(g.ApiKey.Values) > 0 {
 				clone.Integrations.GoogleCalendar[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
 				maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey.Values, g.ApiKey.Values)
+			}
+		}
+	}
+	if len(c.Integrations.GoogleWorkspace) > 0 {
+		clone.Integrations.GoogleWorkspace = make([]*GoogleWorkspaceIntegration, len(c.Integrations.GoogleWorkspace))
+		for i, g := range c.Integrations.GoogleWorkspace {
+			gWorkspace := *g
+			clone.Integrations.GoogleWorkspace[i] = &gWorkspace
+			if len(g.ApiKey.Values) > 0 {
+				clone.Integrations.GoogleWorkspace[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
+				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)
 			}
 		}
 	}
@@ -936,6 +1032,11 @@ func (c *AppConfig) Copy() *AppConfig {
 	if c.MDM.WindowsEntraTenantIDs.Set {
 		clone.MDM.WindowsEntraTenantIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraTenantIDs.Value)))
 		copy(clone.MDM.WindowsEntraTenantIDs.Value, c.MDM.WindowsEntraTenantIDs.Value)
+	}
+
+	if c.MDM.WindowsEntraClientIDs.Set {
+		clone.MDM.WindowsEntraClientIDs = optjson.SetSlice(make([]string, len(c.MDM.WindowsEntraClientIDs.Value)))
+		copy(clone.MDM.WindowsEntraClientIDs.Value, c.MDM.WindowsEntraClientIDs.Value)
 	}
 
 	return &clone
@@ -1348,14 +1449,46 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
+
+	// VulnerabilityExposureHistoricalReporting holds the GitOps-managed default
+	// filter state for the Vulnerability exposure dashboard chart. It is a
+	// display-only concern: it seeds the chart's filter controls on load and
+	// does NOT affect what vulnerability data is collected. Premium-only.
+	//
+	// All fields are pointers so the config has sparse/PATCH semantics: a field
+	// present in YAML is persisted and respected by the frontend, while an
+	// omitted field stays nil and the frontend falls back to its own built-in
+	// default for that control.
+	VulnerabilityExposureHistoricalReporting *VulnExposureFilterSettings `json:"vulnerability_exposure_historical_reporting,omitempty"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// VulnExposureFilterSettings is the persisted default filter state for the
+// Vulnerability exposure (CVE) dashboard chart. Field names/units mirror what
+// the frontend consumes when seeding its filter controls: software categories
+// use the canonical keys (os/browsers/office/adobe), EPSS bounds are expressed
+// as 0–100 (the frontend converts to 0–1 only when calling the chart API).
+//
+// Every field is optional (nil = "not set, use the frontend default"). A
+// present SoftwareFilters slice must list at least one category: a
+// present-but-empty slice is rejected by Validate, because on the chart read
+// path an empty selection collapses to "all categories" and so can never
+// produce the empty chart it implies.
+type VulnExposureFilterSettings struct {
+	SoftwareFilters        *[]string `json:"software_filters,omitempty"`
+	CVSSMin                *float64  `json:"cvss_min,omitempty"`
+	CVSSMax                *float64  `json:"cvss_max,omitempty"`
+	EPSSMin                *float64  `json:"epss_min,omitempty"`
+	EPSSMax                *float64  `json:"epss_max,omitempty"`
+	HasKnownExploit        *bool     `json:"has_known_exploit,omitempty"`
+	ExcludeVulnerabilities *[]string `json:"exclude_vulnerabilities,omitempty"`
 }
 
 // HistoricalDataSettings controls per-dataset collection of the time-series
@@ -1432,7 +1565,115 @@ func (f *Features) Copy() *Features {
 		}
 	}
 
+	clone.VulnerabilityExposureHistoricalReporting = f.VulnerabilityExposureHistoricalReporting.Copy()
+
 	return &clone
+}
+
+// Copy returns a deep copy of the settings, or nil if the receiver is nil.
+func (v *VulnExposureFilterSettings) Copy() *VulnExposureFilterSettings {
+	if v == nil {
+		return nil
+	}
+
+	var clone VulnExposureFilterSettings
+
+	if v.CVSSMin != nil {
+		clone.CVSSMin = new(*v.CVSSMin)
+	}
+	if v.CVSSMax != nil {
+		clone.CVSSMax = new(*v.CVSSMax)
+	}
+	if v.EPSSMin != nil {
+		clone.EPSSMin = new(*v.EPSSMin)
+	}
+	if v.EPSSMax != nil {
+		clone.EPSSMax = new(*v.EPSSMax)
+	}
+	if v.HasKnownExploit != nil {
+		clone.HasKnownExploit = new(*v.HasKnownExploit)
+	}
+	if v.SoftwareFilters != nil {
+		sf := make([]string, len(*v.SoftwareFilters))
+		copy(sf, *v.SoftwareFilters)
+		clone.SoftwareFilters = &sf
+	}
+	if v.ExcludeVulnerabilities != nil {
+		ev := make([]string, len(*v.ExcludeVulnerabilities))
+		copy(ev, *v.ExcludeVulnerabilities)
+		clone.ExcludeVulnerabilities = &ev
+	}
+
+	return &clone
+}
+
+// vulnExposureSoftwareCategories is the set of valid software_filters values.
+// It mirrors the canonical CVE category keys defined in server/chart/api
+// (CVECategoryOS/Browsers/Office/Adobe); kept as a local set here to avoid the
+// base fleet package depending on the chart bounded context.
+var vulnExposureSoftwareCategories = map[string]struct{}{
+	"os":       {},
+	"browsers": {},
+	"office":   {},
+	"adobe":    {},
+}
+
+// vulnExposureCVERegex matches a CVE identifier, mirroring the pattern used in
+// server/service (cveRegex).
+var vulnExposureCVERegex = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4}\d*$`)
+
+// Validate checks only the fields that are present (non-nil). It is meant to be
+// run against the incoming GitOps/PATCH payload, not against persisted state.
+// Errors are appended to the provided invalid accumulator under keys prefixed
+// with the supplied path (e.g. "org_settings.features" or
+// "<fleet>.settings.features").
+func (v *VulnExposureFilterSettings) Validate(prefix string, invalid *InvalidArgumentError) {
+	if v == nil {
+		return
+	}
+	key := func(field string) string {
+		return prefix + ".vulnerability_exposure_historical_reporting." + field
+	}
+
+	if v.SoftwareFilters != nil {
+		// An empty list is rejected rather than treated as "no categories":
+		// on the chart read path an empty selection is indistinguishable from
+		// "no filter" and resolves to all categories, so it can never produce
+		// the empty chart it implies. Require at least one category instead.
+		if len(*v.SoftwareFilters) == 0 {
+			invalid.Append(key("software_filters"), "must include at least one software category (valid values: os, browsers, office, adobe)")
+		}
+		for _, c := range *v.SoftwareFilters {
+			if _, ok := vulnExposureSoftwareCategories[c]; !ok {
+				invalid.Append(key("software_filters"), fmt.Sprintf("invalid software category %q (valid values: os, browsers, office, adobe)", c))
+			}
+		}
+	}
+
+	validateBounds(invalid, key("cvss_min"), key("cvss_max"), v.CVSSMin, v.CVSSMax, 0, 10, "cvss")
+	validateBounds(invalid, key("epss_min"), key("epss_max"), v.EPSSMin, v.EPSSMax, 0, 100, "epss")
+
+	if v.ExcludeVulnerabilities != nil {
+		for _, cve := range *v.ExcludeVulnerabilities {
+			if !vulnExposureCVERegex.MatchString(cve) {
+				invalid.Append(key("exclude_vulnerabilities"), fmt.Sprintf("invalid CVE identifier %q", cve))
+			}
+		}
+	}
+}
+
+// validateBounds checks an optional [min, max] score range: each present bound
+// must fall within [lo, hi], and when both are present min must be <= max.
+func validateBounds(invalid *InvalidArgumentError, minKey, maxKey string, minVal, maxVal *float64, lo, hi float64, label string) {
+	if minVal != nil && (*minVal < lo || *minVal > hi) {
+		invalid.Append(minKey, fmt.Sprintf("%s_min must be between %g and %g", label, lo, hi))
+	}
+	if maxVal != nil && (*maxVal < lo || *maxVal > hi) {
+		invalid.Append(maxKey, fmt.Sprintf("%s_max must be between %g and %g", label, lo, hi))
+	}
+	if minVal != nil && maxVal != nil && *minVal > *maxVal {
+		invalid.Append(minKey, fmt.Sprintf("%s_min must be less than or equal to %s_max", label, label))
+	}
 }
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
@@ -1752,8 +1993,9 @@ type EmailConfig struct {
 }
 
 type SESConfig struct {
-	Region    string `json:"region"`
-	SourceARN string `json:"source_arn"`
+	Region       string `json:"region"`
+	SourceARN    string `json:"source_arn"`
+	SenderDomain string `json:"sender_domain"`
 }
 
 type UpdateIntervalConfig struct {
@@ -1833,6 +2075,14 @@ type NatsConfig struct {
 	StatusSubject string `json:"status_subject"`
 	ResultSubject string `json:"result_subject"`
 	AuditSubject  string `json:"audit_subject"`
+}
+
+// SplunkConfig shadows config.SplunkConfig only exposing a subset of fields
+type SplunkConfig struct {
+	URL        string `json:"url"`
+	Index      string `json:"index"`
+	Source     string `json:"source"`
+	SourceType string `json:"source_type"`
 }
 
 // DeviceGlobalConfig is a subset of AppConfig with information used by the

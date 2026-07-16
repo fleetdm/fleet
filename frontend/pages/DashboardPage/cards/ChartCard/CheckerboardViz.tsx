@@ -25,6 +25,12 @@ interface ICellData {
   percentage: number;
   dayLabel: string;
   hourLabel: string;
+  // The timeframe that contains "now" — the next slot we're still collecting
+  // data for. Gets a highlighted border.
+  isCurrent: boolean;
+  // The current slot and anything after it have no collected data yet, so
+  // their tooltip reads "No data" rather than "0 hosts".
+  isFuture: boolean;
 }
 
 interface ICheckerboardVizProps {
@@ -63,12 +69,12 @@ const CheckerboardViz = ({
 
   let getColorLevel;
   if (!relativeScale) {
-    getColorLevel = (percentage: number): number => {
-      if (percentage === 0) return 0;
-      if (percentage <= 20) return 1;
-      if (percentage <= 40) return 2;
-      if (percentage <= 60) return 3;
-      if (percentage <= 80) return 4;
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.percentage === 0) return 0;
+      if (cell.percentage <= 20) return 1;
+      if (cell.percentage <= 40) return 2;
+      if (cell.percentage <= 60) return 3;
+      if (cell.percentage <= 80) return 4;
       return 5;
     };
   } else {
@@ -78,14 +84,18 @@ const CheckerboardViz = ({
     // Exclude 0% points from the min/max calculation — they represent
     // "no data" cells (level-0) and would otherwise compress the ramp
     // toward zero whenever the grid contains empty slots.
-    const nonZeroPercs = data.map((d) => d.percentage).filter((p) => p > 0);
-    const minPerc = nonZeroPercs.length ? Math.min(...nonZeroPercs) : 0;
-    const maxPerc = nonZeroPercs.length ? Math.max(...nonZeroPercs) : 0;
-    const range = maxPerc - minPerc || 1; // avoid divide-by-zero
+    const nonZeroValues = data.map((d) => d.value).filter((p) => p > 0);
+    const minVal = nonZeroValues.length ? Math.min(...nonZeroValues) : 0;
+    const maxVal = nonZeroValues.length ? Math.max(...nonZeroValues) : 0;
+    const range = maxVal - minVal;
 
-    getColorLevel = (percentage: number): number => {
-      if (percentage === 0) return 0;
-      const scaled = ((percentage - minPerc) / range) * 5;
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.value === 0) return 0;
+      // When every non-zero cell shares the same value there's no range to
+      // grade against, so render them all at the brightest level rather than
+      // the dimmest.
+      if (range === 0) return 5;
+      const scaled = ((cell.value - minVal) / range) * 5;
       // Level zero is reserved for real 0, so ensure we return
       // something between 1 and 5.
       return Math.min(5, Math.ceil(scaled)) || 1;
@@ -117,12 +127,22 @@ const CheckerboardViz = ({
   const hourRows = 24 / hoursPerSlot;
 
   const { grid, dayLabels } = useMemo(() => {
+    // Anchor "now" once per build so every cell agrees on which slot is
+    // current. The current slot is the one we're still collecting data for;
+    // it and any later slot have no data yet.
+    const now = new Date();
+    const todayKey = format(now, "yyyy-MM-dd");
+    const currentSlot = Math.floor(now.getHours() / hoursPerSlot);
+
     // 24h view: each incoming data point becomes a single column in a
     // one-row strip. No day grouping, no slot aggregation — the backend has
     // already produced one point per hour and we render them in order.
     if (is24h) {
       const cells: ICellData[] = data.map((point, i) => {
         const date = parseISO(point.timestamp);
+        const dayKey = format(date, "yyyy-MM-dd");
+        const slot = Math.floor(date.getHours() / hoursPerSlot);
+        const isCurrent = dayKey === todayKey && slot === currentSlot;
         return {
           dayIndex: 0,
           hourRow: i,
@@ -131,6 +151,9 @@ const CheckerboardViz = ({
           percentage: point.percentage,
           dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
+          isCurrent,
+          isFuture:
+            dayKey > todayKey || (dayKey === todayKey && slot >= currentSlot),
         };
       });
       return { grid: cells, dayLabels: ["today"] };
@@ -190,6 +213,7 @@ const CheckerboardViz = ({
       for (let row = 0; row < hourRows; row += 1) {
         const point = hourMap?.get(row);
         const hourVal = row * hoursPerSlot;
+        const isCurrent = dayKey === todayKey && row === currentSlot;
         cells.push({
           dayIndex,
           hourRow: row,
@@ -198,6 +222,9 @@ const CheckerboardViz = ({
           total: point?.total,
           dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(hourVal),
+          isCurrent,
+          isFuture:
+            dayKey > todayKey || (dayKey === todayKey && row >= currentSlot),
         });
       }
     });
@@ -323,12 +350,17 @@ const CheckerboardViz = ({
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
-              const level = getColorLevel(cell.percentage);
+              // The current slot and future slots have no collected data yet —
+              // their tooltip and aria-label read "No data" — so render them at
+              // the level-0 "no data" swatch even when the current slot carries
+              // a partial value. Without this the fill contradicts the tooltip.
+              const level = cell.isFuture ? 0 : getColorLevel(cell);
               // Filled cells have a bg-colored 1px stroke that visually blends
-              // away. The level-0 (empty) cell uses a colored stroke instead,
-              // so without insetting it would look 1px larger than filled
-              // cells. Inset by half the stroke so the outline's outer edge
-              // sits where the filled cell's invisible stroke does.
+              // away. Level-0 cells (no data, which now includes the current
+              // and future slots) use a visible colored stroke instead, so
+              // without insetting they would look 1px larger than filled cells.
+              // Inset by half the stroke so the outline's outer edge sits where
+              // the filled cell's invisible stroke does.
               const inset = level === 0 ? 0.5 : 0;
               return (
                 <rect
@@ -339,11 +371,17 @@ const CheckerboardViz = ({
                   height={cellH - inset * 2}
                   rx={3}
                   ry={3}
-                  className={`${baseClass}__cell ${baseClass}__cell--level-${level}`}
+                  className={classnames(
+                    `${baseClass}__cell`,
+                    `${baseClass}__cell--level-${level}`,
+                    { [`${baseClass}__cell--current`]: cell.isCurrent }
+                  )}
                   role="img"
                   aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${
-                    cell.value
-                  } host${cell.value === 1 ? "" : "s"}`}
+                    cell.isFuture
+                      ? "No data"
+                      : `${cell.value} host${cell.value === 1 ? "" : "s"}`
+                  }`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}
                   onMouseLeave={handleMouseLeave}
                 />
@@ -382,13 +420,17 @@ const CheckerboardViz = ({
             {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
           </div>
           <div className="chart-card__tooltip-value">
-            {tooltipFormatter
-              ? tooltipFormatter({
-                  value: hoveredCell.value,
-                  percentage: hoveredCell.percentage,
-                  total: hoveredCell.total,
-                })
-              : `${hoveredCell.percentage}% of hosts`}
+            {/* The current slot and anything after it haven't been collected
+                yet, so there's no value to report — show "No data". */}
+            {hoveredCell.isFuture && "No data"}
+            {!hoveredCell.isFuture &&
+              (tooltipFormatter
+                ? tooltipFormatter({
+                    value: hoveredCell.value,
+                    percentage: hoveredCell.percentage,
+                    total: hoveredCell.total,
+                  })
+                : `${hoveredCell.percentage}% of hosts`)}
           </div>
         </div>
       )}

@@ -1,0 +1,11 @@
+{
+  "name": "Filebeat",
+  "slug": "filebeat/windows",
+  "package_identifier": "Elastic.Filebeat",
+  "unique_identifier": "Beats filebeat",
+  "fuzzy_match_name": "Beats filebeat % (x86_64)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

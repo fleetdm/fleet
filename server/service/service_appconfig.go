@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"html/template"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -57,7 +56,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 		Subject: "Hello from Fleet",
 		To:      []string{vc.User.Email},
 		Mailer: &mail.SMTPTestMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 		SMTPSettings: smtpSettings,
@@ -236,6 +235,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					Server:        conf.Nats.Server,
 				},
 			}
+		case "splunk":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "splunk",
+				Config: fleet.SplunkConfig{
+					URL:        conf.Splunk.URL,
+					Index:      conf.Splunk.Index,
+					Source:     conf.Splunk.Source,
+					SourceType: conf.Splunk.SourceType,
+				},
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}
@@ -255,8 +264,9 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 		email = &fleet.EmailConfig{
 			Backend: conf.Email.EmailBackend,
 			Config: fleet.SESConfig{
-				Region:    conf.SES.Region,
-				SourceARN: conf.SES.SourceArn,
+				Region:       conf.SES.Region,
+				SourceARN:    conf.SES.SourceArn,
+				SenderDomain: conf.SES.SenderDomain,
 			},
 		}
 	default:

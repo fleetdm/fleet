@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { IAppleDeviceUpdates } from "interfaces/config";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
   isAndroid,
@@ -42,8 +43,20 @@ interface IVitalsProps {
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
+  /**
+   * Opens the Location modal. Presence of this handler also makes the
+   * Location row interactive — omit it for read-only contexts (e.g., the
+   * My device page) so the row renders as plain text instead of a link.
+   */
   toggleLocationModal?: () => void;
+  /**
+   * Opens the MDM status modal. Presence of this handler also makes the
+   * MDM status row interactive — omit it for read-only contexts (e.g.,
+   * the My device page) so the row renders as plain text instead of a link.
+   */
   toggleMDMStatusModal?: () => void;
+  customHostVitals?: IHostCustomVital[];
+  onEditCustomHostVital?: (vital: IHostCustomVital) => void;
 }
 
 type VitalForSort = { sortKey: string; element: React.ReactNode };
@@ -91,10 +104,12 @@ const getHostDiskEncryptionTooltipMessage = (
   if (
     platform === "rhel" ||
     platform === "ubuntu" ||
+    platform === "zorin" ||
     platform === "arch" ||
     platform === "archarm" ||
     platform === "manjaro" ||
-    platform === "manjaro-arm"
+    platform === "manjaro-arm" ||
+    platform === "cachyos"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
@@ -115,6 +130,8 @@ const Vitals = ({
   className,
   toggleLocationModal,
   toggleMDMStatusModal,
+  customHostVitals,
+  onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -364,11 +381,16 @@ const Vitals = ({
     const isAdeIDevice =
       isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
 
-    if (isAdeIDevice || geolocation) {
-      const geoLocationButton = (
+    if (isAdeIDevice ? toggleLocationModal : geolocation) {
+      const label = isAdeIDevice
+        ? "Show location"
+        : getCityCountryLocation(geolocation);
+      const locationValue = toggleLocationModal ? (
         <Button variant="link" onClick={toggleLocationModal}>
-          {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
+          {label}
         </Button>
+      ) : (
+        label
       );
       vitals.push({
         sortKey: "Location",
@@ -377,7 +399,7 @@ const Vitals = ({
             className={`${baseClass}__location`}
             key="location"
             title="Location"
-            value={geoLocationButton}
+            value={locationValue}
           />
         ),
       });
@@ -403,6 +425,8 @@ const Vitals = ({
 
     // MDM
     if (mdm?.enrollment_status) {
+      const mdmStatusLabel =
+        MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName;
       vitals.push(
         {
           sortKey: "MDM status",
@@ -414,12 +438,13 @@ const Vitals = ({
               value={
                 <>
                   {mdm.dep_profile_error && <Icon name="error" />}
-                  <Button variant="link" onClick={toggleMDMStatusModal}>
-                    {
-                      MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                        .displayName
-                    }
-                  </Button>
+                  {toggleMDMStatusModal ? (
+                    <Button variant="link" onClick={toggleMDMStatusModal}>
+                      {mdmStatusLabel}
+                    </Button>
+                  ) : (
+                    mdmStatusLabel
+                  )}
                 </>
               }
             />
@@ -475,7 +500,7 @@ const Vitals = ({
       const version = vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
-          {version.slice(0, -8)}
+          {version.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
@@ -610,6 +635,38 @@ const Vitals = ({
         ),
       });
     }
+
+    customHostVitals?.forEach((vital) => {
+      const displayValue =
+        vital.value === "" ? DEFAULT_EMPTY_CELL_VALUE : vital.value;
+      const title = onEditCustomHostVital ? (
+        <span className={`${baseClass}__custom-vital-title`}>
+          {vital.name}
+          <Button
+            variant="icon"
+            size="small"
+            onClick={() => onEditCustomHostVital(vital)}
+            ariaLabel={`Edit ${vital.name}`}
+          >
+            <Icon name="pencil" size="small" />
+          </Button>
+        </span>
+      ) : (
+        vital.name
+      );
+
+      vitals.push({
+        sortKey: vital.name,
+        element: (
+          <DataSet
+            className={`${baseClass}__custom-vital`}
+            key={`custom-host-vital-${vital.custom_host_vital_id}`}
+            title={title}
+            value={displayValue}
+          />
+        ),
+      });
+    });
 
     // Sort alphabetically by title and render
     return (

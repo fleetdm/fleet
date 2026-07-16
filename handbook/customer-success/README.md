@@ -12,8 +12,8 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
-| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/)
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
 | Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
@@ -112,12 +112,25 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Monitor and respond to LinkedIn comments
+
+The Customer Support team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel and sent to Unthread.
+
+To monitor and respond to LinkedIn comments:
+1. Address LinkedIn mentions and comments once within 1 day.
+2. From the Fleet LinkedIn company page, Like mentions and respond to any questions asked in comments.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+
+
+
 ### Schedule a Fast-track engagement
 
 Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
-2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
+2. Create a Fast-track issue on the help-customers board for tracking.
+3. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
 - What is the target migration date and when does the previous MDM contract end?
 - Which critical workflows will Fleet be used for?
   - Onboarding workflow?
@@ -154,7 +167,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or working group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -219,6 +232,14 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Keep support conversations in one thread
+
+A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:
+
+- **Talk to the customer** in the customer channel thread.
+- **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
+- **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
+
 ### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
 
 ##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
@@ -254,6 +275,14 @@ Note: For non-CSA engaged customer requests, CSE's are responsible for escalatio
   - The next steps in your process will be determined by what you find
   - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
   - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
+
+### Accessing managed cloud customer environments
+
+Every time a customer or prospect managed cloud environment needs to be accessed, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+If a review of production data is required in order to troubleshoot a bug report or incident, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+Customer production data must never be used in development or testing environments. 
 
 ### Report an incident
 

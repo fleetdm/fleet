@@ -93,7 +93,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			"org_logo_path_dark_mode": "logo.png",
 			"org_logo_url_dark_mode":  "",
 		})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
 		require.Len(t, actions, 1)
 		assert.Equal(t, fleet.OrgLogoModeDark, actions[0].mode)
@@ -106,43 +106,51 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		}
 	})
 
-	t.Run("external URL with current Fleet-hosted blob plans delete and mirrors deprecated alias", func(t *testing.T) {
+	t.Run("external URL set rides on the PATCH and mirrors deprecated alias", func(t *testing.T) {
+		// Switching path → URL must preserve the new URL.
 		os := orgSettings(map[string]any{
 			"org_logo_url_dark_mode": "https://example.com/logo.png",
 		})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
-			OrgLogoURLDarkMode: "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
-		}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
-		require.Len(t, actions, 1)
-		assert.Equal(t, fleet.OrgLogoModeDark, actions[0].mode)
-		assert.Empty(t, actions[0].uploadPath, "empty uploadPath signals delete")
+		assert.Empty(t, actions, "URL changes ride on the PATCH; no follow-up action")
 
-		// URL key kept so PATCH writes the external URL, and the deprecated
-		// alias is mirrored so server-side NormalizeLogoFields can't undo it.
 		orgInfo := os["org_info"].(map[string]any)
 		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url_dark_mode"])
 		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url"])
 	})
 
-	t.Run("explicit empty URL with Fleet-hosted blob plans delete and mirrors deprecated alias as empty", func(t *testing.T) {
+	t.Run("explicit empty URL mirrors deprecated alias as empty", func(t *testing.T) {
 		os := orgSettings(map[string]any{
 			"org_logo_url_light_mode": "",
 		})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
-			OrgLogoURLLightMode: "/api/latest/fleet/logo?mode=light",
-		}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
-		require.Len(t, actions, 1)
-		assert.Equal(t, fleet.OrgLogoModeLight, actions[0].mode)
-		assert.Empty(t, actions[0].uploadPath)
+		assert.Empty(t, actions)
 
 		// Both new and deprecated keys must be sent as "" — otherwise the
-		// server preserves the deprecated field on merge and copies it back
-		// into the new one in NormalizeLogoFields.
+		// server preserves the deprecated field on merge and copies it
+		// back into the new one in NormalizeLogoFields.
 		orgInfo := os["org_info"].(map[string]any)
 		assert.Empty(t, orgInfo["org_logo_url_light_mode"])
 		assert.Empty(t, orgInfo["org_logo_url_light_background"])
+	})
+
+	t.Run("empty path key clears both new and deprecated URL fields", func(t *testing.T) {
+		// `org_logo_path_dark_mode: ""` (path key only, no URL key in YAML)
+		// must produce a PATCH that clears both URL fields.
+		os := orgSettings(map[string]any{
+			"org_logo_path_dark_mode": "",
+		})
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.NoError(t, err)
+		assert.Empty(t, actions)
+
+		orgInfo := os["org_info"].(map[string]any)
+		_, pathPresent := orgInfo["org_logo_path_dark_mode"]
+		assert.False(t, pathPresent, "path key should be stripped")
+		assert.Empty(t, orgInfo["org_logo_url_dark_mode"], "new key must be in the PATCH as \"\"")
+		assert.Empty(t, orgInfo["org_logo_url"], "deprecated alias must be in the PATCH as \"\"")
 	})
 
 	t.Run("clearing new URL keeps the deprecated alias in sync", func(t *testing.T) {
@@ -150,14 +158,8 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			"org_logo_url_dark_mode":  "",
 			"org_logo_url_light_mode": "",
 		})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
-			OrgLogoURLDarkMode:        "https://customer.example.com/dark.png",
-			OrgLogoURL:                "https://customer.example.com/dark.png",
-			OrgLogoURLLightMode:       "https://customer.example.com/light.png",
-			OrgLogoURLLightBackground: "https://customer.example.com/light.png",
-		}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
-		// Current URLs aren't Fleet-hosted, so no DELETE actions queued.
 		assert.Empty(t, actions)
 
 		orgInfo := os["org_info"].(map[string]any)
@@ -169,11 +171,29 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 
 	t.Run("missing keys preserve current state", func(t *testing.T) {
 		os := orgSettings(map[string]any{"org_name": "ACME"})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
-			OrgLogoURLDarkMode: "/api/latest/fleet/logo?mode=dark",
-		}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
 		assert.Empty(t, actions, "absent keys must not trigger any action")
+	})
+
+	t.Run("conflicting new and deprecated URL keys rejected", func(t *testing.T) {
+		os := orgSettings(map[string]any{
+			"org_logo_url_dark_mode": "https://example.com/new.png",
+			"org_logo_url":           "https://example.com/old.png",
+		})
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "conflicts with")
+	})
+
+	t.Run("clearing a mode while setting deprecated alias rejected", func(t *testing.T) {
+		os := orgSettings(map[string]any{
+			"org_logo_path_dark_mode": "",
+			"org_logo_url":            "https://example.com/keep.png",
+		})
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "being cleared")
 	})
 
 	t.Run("both path and url for same mode rejected", func(t *testing.T) {
@@ -181,13 +201,13 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			"org_logo_path_dark_mode": "logo.png",
 			"org_logo_url_dark_mode":  "https://example.com/logo.png",
 		})
-		_, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{}, dir, false, logFn)
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "cannot specify both")
 	})
 
 	t.Run("missing org_info is no-op", func(t *testing.T) {
-		actions, err := c.planAndStripOrgLogos(map[string]any{}, &fleet.OrgInfo{}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(map[string]any{}, dir, false, logFn)
 		require.NoError(t, err)
 		assert.Empty(t, actions)
 	})
@@ -197,24 +217,11 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			"org_logo_path_dark_mode": "logo.png",
 			"org_logo_url_light_mode": "https://example.com/light.png",
 		})
-		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
-			OrgLogoURLLightMode: "/api/latest/fleet/logo?mode=light", // current is Fleet-hosted
-		}, dir, false, logFn)
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
-		require.Len(t, actions, 2)
-
-		byMode := map[fleet.OrgLogoMode]orgLogoAction{}
-		for _, a := range actions {
-			byMode[a.mode] = a
-		}
-		// Dark: path → upload action.
-		darkAct, ok := byMode[fleet.OrgLogoModeDark]
-		require.True(t, ok)
-		assert.NotEmpty(t, darkAct.uploadPath, "dark mode should plan an upload")
-		// Light: external URL replacing a Fleet-hosted blob → delete action.
-		lightAct, ok := byMode[fleet.OrgLogoModeLight]
-		require.True(t, ok)
-		assert.Empty(t, lightAct.uploadPath, "light mode should plan a delete")
+		require.Len(t, actions, 1, "only the path-key mode queues an action; URL changes ride on the PATCH")
+		assert.Equal(t, fleet.OrgLogoModeDark, actions[0].mode)
+		assert.NotEmpty(t, actions[0].uploadPath, "dark mode should plan an upload")
 
 		orgInfo := os["org_info"].(map[string]any)
 		// Dark: every URL key for the mode is stripped (PUT will set them).
@@ -222,9 +229,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			_, present := orgInfo[k]
 			assert.False(t, present, "%s should be stripped", k)
 		}
-		// Light: URL key kept so PATCH writes the external URL, and the
-		// deprecated alias is mirrored to keep the server's
-		// NormalizeLogoFields a no-op.
+		// Light: URL ride on the PATCH with the deprecated alias mirrored.
 		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_mode"])
 		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_background"])
 	})
@@ -233,7 +238,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		os := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "does-not-exist.png",
 		})
-		_, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{}, dir, false, logFn)
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "dark")
 		require.ErrorContains(t, err, "does-not-exist.png")
@@ -245,7 +250,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		settings := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "bad.png",
 		})
-		_, err := c.planAndStripOrgLogos(settings, &fleet.OrgInfo{}, dir, false, logFn)
+		_, err := c.planAndStripOrgLogos(settings, dir, false, logFn)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "PNG, JPEG, WebP, or SVG")
 	})
@@ -260,14 +265,14 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		osBad := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "does-not-exist.png",
 		})
-		_, err := c.planAndStripOrgLogos(osBad, &fleet.OrgInfo{}, dir, true, captureLog)
+		_, err := c.planAndStripOrgLogos(osBad, dir, true, captureLog)
 		require.Error(t, err)
 
 		// Valid file should plan an upload and log the would-upload line.
 		osGood := orgSettings(map[string]any{
 			"org_logo_path_dark_mode": "logo.png",
 		})
-		actions, err := c.planAndStripOrgLogos(osGood, &fleet.OrgInfo{}, dir, true, captureLog)
+		actions, err := c.planAndStripOrgLogos(osGood, dir, true, captureLog)
 		require.NoError(t, err)
 		require.Len(t, actions, 1)
 		require.NotEmpty(t, logs)

@@ -1,0 +1,10 @@
+{
+  "name": "Clop",
+  "unique_identifier": "com.lowtechguys.Clop",
+  "token": "clop",
+  "installer_format": "dmg",
+  "slug": "clop/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

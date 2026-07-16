@@ -99,6 +99,20 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
 }
 
+// applyDDMAssets sets the complete desired set of Apple DDM assets for the
+// given team (empty team name targets "No team"). It is used by GitOps.
+func (c *Client) applyDDMAssets(tmName string, assets []fleet.MDMAppleDDMAssetBatchPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/assets/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	if tmName != "" {
+		query.Add("fleet_name", tmName)
+	}
+	return c.authenticatedRequestWithQuery(map[string]any{"assets": assets}, verb, path, nil, query.Encode())
+}
+
 // ApplyTeamScripts sends the list of scripts to be applied for the specified
 // team.
 func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
@@ -114,40 +128,40 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	return resp.Scripts, err
 }
 
-func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	query.Add("fleet_name", tmName)
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
-func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	query.Add("fleet_name", tmName)
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 
-func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
+func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 
-func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) ([]fleet.VPPAppResponse, error) {
+func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) ([]fleet.VPPAppResponse, []string, error) {
 	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
 	var appsResponse batchAssociateAppStoreAppsResponse
 	err := c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, &appsResponse, query.Encode())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return matchAppStoreAppCustomIcons(vppBatchPayload, appsResponse.Apps), nil
+	return matchAppStoreAppCustomIcons(vppBatchPayload, appsResponse.Apps), appsResponse.Categories, nil
 }
 
 // matchAppStoreAppCustomIcons hydrates VPP responses with references to icons in the request payload, so we can track

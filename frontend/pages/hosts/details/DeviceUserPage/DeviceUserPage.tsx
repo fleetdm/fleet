@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -7,11 +7,10 @@ import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
-import { NotificationContext } from "context/notification";
 import classNames from "classnames";
 
 import deviceUserAPI, {
-  IGetDeviceCertsRequestParams,
+  IGetDeviceCertsApiParams,
   IGetDeviceCertificatesResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
@@ -41,10 +40,11 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import FlashMessage from "components/FlashMessage";
+import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
+import { isDarkMode } from "utilities/theme";
 import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -66,6 +66,7 @@ import {
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
+  isRecentlyEnrolled,
 } from "./helpers";
 
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -113,6 +114,9 @@ interface IDeviceUserPageProps {
     pathname: string;
     query: {
       vulnerable?: string;
+      exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -133,10 +137,6 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
-
-  const { renderFlash, notification, hideFlash } = useContext(
-    NotificationContext
-  );
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -177,6 +177,17 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
 
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
+
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -199,7 +210,7 @@ const DeviceUserPage = ({
     IGetDeviceCertificatesResponse,
     Error,
     IGetDeviceCertificatesResponse,
-    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+    Array<IGetDeviceCertsApiParams & { scope: "device-certificates" }>
   >(
     [
       {
@@ -283,10 +294,16 @@ const DeviceUserPage = ({
           if (!refetchStartTime) {
             // Here and below: iOS/iPadOS refetches use MDM commands which can be slower/less predictable
             // than osquery. Don't show an error, just reset and let the user try again.
+            // Recently enrolled hosts are also exempted: orbit endpoints don't update host_seen_times,
+            // so a fresh host can read as offline until its first osquery distributed-read.
             const isIOSOrIPadOS =
               responseHost.platform === "ios" ||
               responseHost.platform === "ipados";
-            if (responseHost.status === "online" || isIOSOrIPadOS) {
+            if (
+              responseHost.status === "online" ||
+              isIOSOrIPadOS ||
+              isRecentlyEnrolled(responseHost.last_enrolled_at)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchDupDetails();
@@ -294,8 +311,7 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              renderFlash(
-                "error",
+              notify.error(
                 `This host is offline. Please try refetching host vitals later.`
               );
             }
@@ -305,15 +321,18 @@ const DeviceUserPage = ({
               const isIOSOrIPadOS =
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
-              if (responseHost.status === "online" || isIOSOrIPadOS) {
+              if (
+                responseHost.status === "online" ||
+                isIOSOrIPadOS ||
+                isRecentlyEnrolled(responseHost.last_enrolled_at)
+              ) {
                 setTimeout(() => {
                   refetchDupDetails();
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                renderFlash(
-                  "error",
+                notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
               }
@@ -324,10 +343,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                renderFlash(
-                  "error",
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
-                );
+                notify.error("Vitals are taking longer than expected to load.");
               }
             }
           }
@@ -345,11 +361,17 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url_light_background: orgLogoURL = "",
+    org_logo_url: orgLogoUrl = "",
+    org_logo_url_light_background: orgLogoUrlLightBackground = "",
+    org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
+    org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
   } = dupDetails || {};
+  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
+  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
+  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
@@ -476,9 +498,9 @@ const DeviceUserPage = ({
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setShowPolicyDetailsModal(!showPolicyDetailsModal);
+    setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
+  }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
   const onRefetchHost = useCallback(async () => {
@@ -492,16 +514,12 @@ const DeviceUserPage = ({
         refetchExtensions();
       }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
     } catch (error) {
-      renderFlash("error", getErrorMessage(error, host.display_name));
+      notify.error(getErrorMessage(error, host.display_name), {
+        response: error,
+      });
       resetHostRefetchStates();
     }
-  }, [
-    host,
-    deviceAuthToken,
-    refetchDupDetails,
-    refetchExtensions,
-    renderFlash,
-  ]);
+  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
@@ -522,10 +540,13 @@ const DeviceUserPage = ({
     }
   };
 
+  const idpFullName = host?.end_users?.[0]?.idp_full_name;
+  const pageHeader = idpFullName ? `${idpFullName}'s device` : "My device";
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
-  }, [location.pathname, host]);
+    document.title = `${pageHeader} | ${DOCUMENT_TITLE_SUFFIX}`;
+  }, [location.pathname, host, pageHeader]);
 
   const renderActionButtons = () => {
     return (
@@ -544,7 +565,7 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      renderFlash("error", "Failed to trigger key creation.");
+      notify.error("Failed to trigger key creation.", { response: e });
       setShowCreateLinuxKeyModal(false);
     } finally {
       setIsTriggeringCreateLinuxKey(false);
@@ -715,6 +736,8 @@ const DeviceUserPage = ({
             onRefetchHost={onRefetchHost}
             renderActionsDropdown={renderActionButtons}
             deviceUser
+            deviceUserHeader={pageHeader}
+            hostMdmEnrollmentStatus={null}
           />
           <TabNav className={`${baseClass}__tab-nav`}>
             <Tabs
@@ -779,8 +802,6 @@ const DeviceUserPage = ({
                   className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
-                  disableFullNameTooltip
-                  disableGroupsTooltip
                 />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
@@ -811,6 +832,7 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseHostSoftwareQueryParams(location.query)}
                     isMyDevicePage
+                    isPremiumTier={isPremiumTier}
                     platform={host.platform}
                     hostTeamId={host.team_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
@@ -825,6 +847,7 @@ const DeviceUserPage = ({
                     isLoading={isLoadingDupDetails}
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
@@ -919,12 +942,6 @@ const DeviceUserPage = ({
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}
-      <FlashMessage
-        fullWidth
-        notification={notification}
-        onRemoveFlash={hideFlash}
-        pathname={location.pathname}
-      />
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
@@ -932,7 +949,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingDupDetails ? (
-                    <Spinner includeContainer={false} centered={false} />
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}
@@ -973,14 +990,12 @@ const DeviceUserPage = ({
             setIsLoadingBypass(true);
             try {
               await bypassConditionalAccess(deviceAuthToken);
-              renderFlash(
-                "success",
+              notify.success(
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
               refetchDupDetails();
             } catch {
-              renderFlash(
-                "error",
+              notify.error(
                 `Couldn't restore access. Please click "Refetch" and try again.`
               );
             } finally {

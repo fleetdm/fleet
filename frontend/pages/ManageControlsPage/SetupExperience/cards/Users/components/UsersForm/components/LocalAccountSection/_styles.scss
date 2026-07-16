@@ -1,0 +1,17 @@
+.local-account-section {
+  &__managed-local-account {
+    .component__tooltip-wrapper.show-arrow {
+      line-height: 1;
+    }
+  }
+
+  &__field-group {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-page-component;
+  }
+
+  &__sub-header {
+    font-size: $x-small;
+  }
+}

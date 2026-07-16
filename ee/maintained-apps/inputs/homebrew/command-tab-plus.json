@@ -1,0 +1,10 @@
+{
+  "name": "Command-Tab Plus",
+  "unique_identifier": "com.sergey-gerasimenko.Command-Tab-Plus-2",
+  "token": "command-tab-plus",
+  "installer_format": "zip",
+  "slug": "command-tab-plus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

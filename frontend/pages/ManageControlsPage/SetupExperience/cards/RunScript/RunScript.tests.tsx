@@ -30,14 +30,14 @@ describe("RunScript", () => {
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(
-      await screen.findByText(/turn on automatic enrollment/)
+      await screen.findByText(/Turn on MDM and automatic enrollment/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Upload a script to run on macOS hosts/)
     ).toBeVisible();
   });
 
-  it("should render the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
+  it("should render the 'Turn on MDM and automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
       createGetConfigHandler({
@@ -53,14 +53,14 @@ describe("RunScript", () => {
     // Spinner has a 250ms anti-flash delay; the mocked request resolves
     // before that, so the spinner intentionally never renders here.
     expect(
-      screen.queryByText(/turn on automatic enrollment/)
+      screen.queryByText(/Turn on MDM and automatic enrollment/i)
     ).not.toBeInTheDocument();
     expect(
-      await screen.findByText(/turn on automatic enrollment/)
+      await screen.findByText(/Turn on MDM and automatic enrollment/i)
     ).toBeInTheDocument();
   });
 
-  it("should render the 'turn on automatic enrollment' message when MDM is configured but not ABM", async () => {
+  it("should render the 'Turn on MDM and automatic enrollment' message when MDM is configured but not ABM", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
       createGetConfigHandler({
@@ -80,10 +80,10 @@ describe("RunScript", () => {
     // Spinner has a 250ms anti-flash delay; the mocked request resolves
     // before that, so the spinner intentionally never renders here.
     expect(
-      screen.queryByText(/turn on automatic enrollment/)
+      screen.queryByText(/Turn on MDM and automatic enrollment/i)
     ).not.toBeInTheDocument();
     expect(
-      await screen.findByText(/turn on automatic enrollment/)
+      await screen.findByText(/Turn on MDM and automatic enrollment/i)
     ).toBeInTheDocument();
   });
 

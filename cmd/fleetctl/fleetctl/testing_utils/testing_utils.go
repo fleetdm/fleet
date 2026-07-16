@@ -21,7 +21,7 @@ import (
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -33,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mock2 "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -49,6 +50,14 @@ const (
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
 func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
+	// Custom host vitals are declarative and global-only, so every `fleetctl gitops`
+	// run against a global config calls these, even when custom_host_vitals: is absent.
+	ds.ListCustomHostVitalsFunc = func(ctx context.Context, opt fleet.ListOptions) ([]fleet.CustomHostVital, *fleet.PaginationMetadata, int, error) {
+		return nil, &fleet.PaginationMetadata{}, 0, nil
+	}
+	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		return nil, nil, nil
+	}
 	var users []*fleet.User
 	var admin *fleet.User
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -102,9 +111,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		}, nil
 	}
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) { return nil, nil }
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
-	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+	certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
 	require.NoError(t, err)
 	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
 		return map[fleet.MDMAssetName]string{
@@ -137,6 +146,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -164,6 +176,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
 		return nil, nil
 	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
 	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 		return &fleet.TeamMDM{}, nil
 	}
@@ -181,6 +196,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: tid}, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
@@ -188,7 +206,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	} else {
 		cachedDS = cached_mysql.New(ds)
 	}
-	_, server := service.RunServerForTestsWithDS(t, cachedDS, opts...)
+	_, server := svctest.RunServerForTestsWithDS(t, cachedDS, opts...)
 	os.Setenv("FLEET_SERVER_ADDRESS", server.URL)
 
 	return server, ds
@@ -251,6 +269,13 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.Contains(r.URL.Path, "ruby_variant.deb"):
+					// ruby.deb with extra trailing bytes: same package (the deb archive
+					// ignores trailing bytes) but a different hash, so it is a distinct
+					// package of the same title.
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+					_, _ = w.Write([]byte("\n# variant\n"))
 				case strings.HasSuffix(r.URL.Path, ".pkg"):
 					pkgDir := getPathRelative("../testdata/gitops/lib/")
 					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))
@@ -387,9 +412,11 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -498,6 +525,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		savedTeams[team.Name] = &team
 		return team, nil
 	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return true, nil
+	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (
 		*fleet.MDMAppleDeclaration, error,
 	) {
@@ -512,6 +542,18 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		return nil
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		return nil
 	}
 
 	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {

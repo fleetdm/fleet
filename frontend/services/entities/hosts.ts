@@ -244,6 +244,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   min_cvss_score?: number;
   max_cvss_score?: number;
   exploit?: boolean;
+  macos_applications?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -252,8 +253,13 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   softwareUpdatedAt?: string;
 }
 
-export interface IGetHostCertsRequestParams extends IListOptions {
+export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
+}
+
+export interface IGetHostDeviceURLResponse {
+  host_id: number;
+  device_url: string;
 }
 
 export interface IGetHostCertificatesResponse {
@@ -671,6 +677,11 @@ export default {
     return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
   },
 
+  getDeviceURL: (id: number): Promise<IGetHostDeviceURLResponse> => {
+    const { HOST_DEVICE_URL } = endpoints;
+    return sendRequest("GET", HOST_DEVICE_URL(id));
+  },
+
   getManagedAccountPassword: (id: number) => {
     const { HOST_MANAGED_ACCOUNT_PASSWORD } = endpoints;
     return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
@@ -719,6 +730,12 @@ export default {
     );
   },
 
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
+  },
+
   getHostSoftware: (
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {
@@ -752,7 +769,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
+  }: IGetHostCertsApiParams): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
     const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
       page,

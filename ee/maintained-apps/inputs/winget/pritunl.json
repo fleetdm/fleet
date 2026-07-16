@@ -1,0 +1,14 @@
+{
+  "name": "Pritunl",
+  "slug": "pritunl/windows",
+  "package_identifier": "Pritunl.PritunlClient",
+  "unique_identifier": "Pritunl",
+  "fuzzy_match_name": true,
+  "program_publisher": "Pritunl",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/pritunl_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/pritunl_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

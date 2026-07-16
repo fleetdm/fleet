@@ -52,19 +52,33 @@ module.exports = {
       description: 'The applican\'ts cover letter in plain text.',
     },
 
+    websiteUrl: {
+      type: 'string',
+      description: 'Honeypot field. If filled, the submission is silently discarded.'
+    }
+
   },
 
 
   exits: {
     success: {
       description: 'A job application was successfully submitted.',
-    }
+    },
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and was not delivered.',
+      responseType: 'badRequest'
+    },
   },
 
 
-  fn: async function ({ firstName, lastName, emailAddress, position, linkedinProfileUrl, location, message,}) {
+  fn: async function ({ firstName, lastName, emailAddress, position, linkedinProfileUrl, location, message, websiteUrl}) {
 
+    if (websiteUrl) { return; }// Honeypot input provided — return a success response
 
+    let emailDomain = emailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForContactFormSubmissions, emailDomain.toLowerCase())){
+      throw 'invalidEmailDomain';
+    }
 
 
     // Send the submitted information to a Zapier webhook.
@@ -86,6 +100,20 @@ module.exports = {
       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
       sails.log.warn(`When a user submitted the application form, an error occurred while sending a request to Zapier. Raw error: ${require('util').inspect(err)}`);
       return;
+    });
+
+
+    // Send a "Thanks for applying to Fleet" email to the user who submitted the form.
+    await sails.helpers.sendTemplateEmail.with({
+      to: emailAddress,
+      subject: 'Thanks for applying to Fleet',
+      template: 'email-application-submitted',
+      layout: 'layout-email',
+      from: sails.config.custom.applicationReplyEmailAddress,
+      templateData: {
+        firstName: firstName,
+      },
+      ensureAck: true,
     });
 
 

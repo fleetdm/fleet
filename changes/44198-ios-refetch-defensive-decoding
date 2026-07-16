@@ -1,1 +1,0 @@
-* Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.

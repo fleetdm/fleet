@@ -12,7 +12,8 @@
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: $xx-small;
-    // Surface stays yellow in both themes; text must stay dark for contrast.
+    // Warning + error surfaces shift between themes; text stays dark so the
+    // badge reads cleanly in both modes without glare in dark mode.
     color: $static-black;
     font-weight: $bold;
     border-radius: $border-radius;
@@ -23,8 +24,8 @@
     }
 
     &.error {
-      color: $static-white;
       background-color: $core-vibrant-red;
+      color: $static-black;
     }
   }
 

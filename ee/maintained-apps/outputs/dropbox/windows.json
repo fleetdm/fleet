@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "262.3.3075",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.' AND version_compare(version, '262.3.3075') < 0);"
+      },
+      "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20262.3.3075%20Enterprise%20Installer.x64.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "b8df2b6f",
+      "sha256": "2fa2ded4039893dae1879ff487c2df112a8a5958167193dcee3c9b9a2ac85226",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b8df2b6f": "$product_code = '{3DCEFA4A-E4B4-5D5A-BB8F-9F5974FD4C61}'\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n}\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\n# Check exit code and output result\nif ($successCodes -contains $process.ExitCode) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n"
+  }
+}

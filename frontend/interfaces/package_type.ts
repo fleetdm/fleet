@@ -1,7 +1,7 @@
 const fleetMaintainedPackageTypes = ["dmg", "zip"] as const;
 const unixPackageTypes = ["pkg", "deb", "rpm", "dmg", "zip", "tar.gz"] as const;
 const windowsPackageTypes = ["msi", "exe", "zip"] as const;
-const scriptOnlyPackageTypes = ["sh", "ps1"] as const;
+const scriptOnlyPackageTypes = ["sh", "ps1", "py"] as const;
 const iosIpadosPackageTypes = ["ipa"] as const;
 export const packageTypes = [
   ...unixPackageTypes,
@@ -38,6 +38,10 @@ export const isFleetMaintainedPackageType = (
 
 export const isIosIpadosPackageType = (s: any): s is IosIpadosPackageType => {
   return iosIpadosPackageTypes.includes(s);
+};
+
+export const isScriptOnlyPackageType = (s: any): s is ScriptOnlyPackageType => {
+  return scriptOnlyPackageTypes.includes(s);
 };
 
 export const isPackageType = (s: any): s is PackageType => {

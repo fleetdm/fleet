@@ -1,7 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
+import { IMdmVppToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -87,7 +87,7 @@ export const generateTableConfig = (
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
@@ -148,6 +148,6 @@ export const generateTableConfig = (
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

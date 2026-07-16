@@ -34,30 +34,56 @@
 #     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
 #     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Channel Account Manager
-  department: Sales
-  hiringManagerName: Chaz MacLaughlin
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
-  hiringManagerGithubUsername: chazmac6
-  onTargetEarnings: "$200,000 - $280,000"
+- jobTitle: 💸 Controller
+  department: Finance 
+  hiringManagerName: Tina Ong
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/ongtina/ 
+  hiringManagerGithubUsername: rfoo2015 
+  onTargetEarnings: "$150,000 - $190,000"
   responsibilities: |
-    - 🤝 Develop and nurture strong, productive relationships with channel partners, executives, and sales teams, acting as the primary liaison for Fleet.
-    - 📈 Execute Fleet's channel strategy, supporting partner acquisition and achieving revenue targets through partner organizations.
-    - ✈️ Spend ~50% of time traveling to deepen partner relationships, accelerate deals, and expand Fleet’s presence in key markets.
-    - 🎯 Facilitate and manage joint selling initiatives between channel partners and Fleet's direct sales team, ensuring seamless coordination and minimizing conflict.
-    - 🚀 Support the development and launch of new partner offerings and go-to-market strategies, identifying opportunities for incremental joint revenue and ensuring partner compliance with programs and agreements.
-    - 🌐 Collaborate extensively with internal teams such as Marketing, Product Design, Customer Success, and Engineering, as well as external stakeholders, to enhance product offerings, provide partner feedback, and capture market opportunities.
-    - 🧠 Understand the market dynamics, industry-specific trends, and landscapes to bring new insights and solutions that foster sustainable business growth through the channel.
-    - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on channel and prospect asks.
-    - 🤝 Collaborate with Marketing to help execute and track campaigns, to achieve quarterly pipeline and revenue targets.
+    - 📊 Own the full accounting cycle, including month-end and year-end close, ensuring accurate and timely financial reporting across Fleet.
+    - 🤝 Partner closely with leadership, operations, and department heads to provide financial insights that drive strategic decision-making.
+    - 📈 Build and maintain scalable accounting processes, internal controls, and policies that support Fleet's growth as a fast-moving, remote-first company.
+    - 🎯 Oversee accounts payable, accounts receivable, payroll, and general ledger functions, ensuring accuracy and compliance at every step.
+    - 🚀 Manage relationships with external tax advisors for accurate, timely filings and compliance across sales and payroll tax obligations.
+    - 🔍 Own audit-readiness and manage financial statement audits end-to-end, in collaboration with external auditors.
+    - 🌐 Collaborate extensively with internal teams such as People, Sales, and Marketing to support budgeting, forecasting, and vendor management.
+    - 🧠 Identify opportunities to improve financial systems and tooling, implementing best practices that reduce manual work and increase visibility.
+    - 💡 Provide ad hoc financial analysis and modeling to help the business evaluate new opportunities, partnerships, and investments.
   experience: |
-    - 🦉 Proven experience in channel sales or partner management, ideally within B2B SaaS or enterprise technology, with a track record of driving revenue through partnerships.
-    - 🗣️ Exceptional communication, negotiation, and relationship-building skills, with the ability to influence key decision-makers and stakeholders at all levels.
-    - ⚙️ System-oriented thinker with a hands-on approach, capable of supporting process improvements and operational efficiency within a channel ecosystem.
-    - ⚡ Agile and adaptable, thriving in a fast-paced, results-driven, remote-first environment while managing multiple priorities and complex projects.
-    - 🧑‍💻 Love technology and can explain how things work in detail, with experience marketing to or working with IT engineers, security engineers, or DevOps teams.
-    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+    - 🦉 5+ years of progressive accounting experience, ideally in a high-growth B2B SaaS or technology company, with at least 2 years in a controller role.
+    - 📜 Active CPA license, and managed audit process from start to finish. 
+    - 🗣️ Strong communicator who can translate complex financial data into clear, actionable insights for both technical and non-technical stakeholders.
+    - ⚙️ Systems-oriented and detail-driven, with a track record of building and improving accounting processes, controls, and workflows from the ground up.
+    - ⚡ Agile and adaptable, comfortable operating in a fast-paced, remote-first environment where priorities shift and ownership is encouraged.
+    - 🧑‍💻 Comfortable working with modern tooling and excited to leverage technology to automate and streamline financial operations.
+    - 🧪 Experience with tools like QuickBooks, Salesforce, Bill.com, Brex, Google Suite, and Slack in an all-remote setting.
+    - ➕ Bonus: Experience with AI-native tools (e.g. Rillet, Campfire, Tabs, Aleph) and building AI-assisted workflows for financial reporting and reconciliation; familiarity with open-source or device management concepts.
+
+- jobTitle: 🫧 Digital Marketing Manager
+  department: Marketing
+  hiringManagerName: Ashish Kuthiala
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/ashishkuthiala/
+  hiringManagerGithubUsername: akuthiala
+  onTargetEarnings: "$120,000 - $160,000"
+  responsibilities: |
+    - 🎯 Own and execute Fleet's B2B digital marketing strategy across the full multi-touch customer journey.
+    - 📣 Run LinkedIn Ads hands-on: targeting, creative testing, bidding, budget pacing, and performance analysis.
+    - 🚀 Build and improve paid digital funnels to grow pipeline, with a focus on CAC, CPL, and pipeline contribution.
+    - 📊 Use Google Analytics to track performance and attribution, turning data into actionable optimizations.
+    - 💡 Contribute to Fleet's messaging and positioning framework, ensuring campaigns reflect our ICP and value props.
+    - 🤝 Collaborate with sales to align campaigns with pipeline goals.
+    - 🏗️ Shape the digital marketing roadmap, not just execute it.
+    - 📋 Manage agency relationships where needed, while owning the work yourself.
+  experience: |
+    - 🦉 Extensive experience in B2B digital marketing, with hands-on LinkedIn Ads experience in the last 24 months at a $5M–$50M ARR company.
+    - 💰 Personally managed a LinkedIn Ads budget of $10,000–$100,000/month, hands-on and directly.
+    - 📈 Track record of growing B2B pipeline as the primary hands-on digital marketer, with metrics to back it up.
+    - 🔍 Deep expertise in Campaign Manager: segmentation, matched audiences, lead gen forms, retargeting, and funnel optimization.
+    - 📉 Solid Google Analytics skills, including funnel analysis, UTM tracking, and tying ad performance to pipeline metrics.
+    - 🗣️ Experience building or working within a value/messaging/positioning framework and translating it into ad copy and landing page strategy.
+    - 🟣 You thrive doing the work yourself and take pride in personal ownership of results.
+    - 🏢 Experience managing marketing firms is a plus, but hands-on mastery is required.
 
 #- jobTitle: 🐋 Enterprise Customer Success Manager
 # department: Customers
@@ -148,33 +174,33 @@
 #    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
 #    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 
-- jobTitle: 🚀 Quality Assurance Engineer
-  department: Engineering
-  hiringManagerName: Andrey Kizimenko
-  hiringManagerGithubUsername: AndreyKizimenko
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/andrey-kizimenko-988900214/
-  onTargetEarnings: "$80,000 - $160,000"
-  responsibilities: |
-    - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
-    - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-    - 🌟 Contribute to the overall success of all [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
-    - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
-    - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
-    - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
-    - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
-  experience: |
-    - 💭 3-5 years' of experience in a product quality, QA, or testing role.
-    - 💖 Proficient in creating comprehensive testing plans.
-    - ✍️ Experience working with engineering and product teams in an agile environment.
-    - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
-    - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
-    - 🌐 Experience in manual testing across various devices, platforms, and browsers.
-    - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
-    - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-    - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🛠️ Technical: You understand the software development processes.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Cybersecurity or IT background.
+#- jobTitle: 🚀 Quality Assurance Engineer
+#  department: Engineering
+#  hiringManagerName: Andrey Kizimenko
+#  hiringManagerGithubUsername: AndreyKizimenko
+#  hiringManagerLinkedInUrl: https://www.linkedin.com/in/andrey-kizimenko-988900214/
+#  onTargetEarnings: "$80,000 - $160,000"
+#  responsibilities: |
+#    - ⏫ Work closely with engineering to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
+#    - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+#    - 🌟 Contribute to the overall success of all [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
+#    - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
+#    - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
+#    - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
+#    - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
+#  experience: |
+#    - 💭 3-5 years' of experience in a product quality, QA, or testing role.
+#    - 💖 Proficient in creating comprehensive testing plans.
+#    - ✍️ Experience working with engineering and product teams in an agile environment.
+#    - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
+#    - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
+#    - 🌐 Experience in manual testing across various devices, platforms, and browsers.
+#    - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+#    - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+#    - 🤝 Collaboration: You work best in a participatory, team-based environment.
+#    - 🛠️ Technical: You understand the software development processes.
+#    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#    - ➕ Bonus: Cybersecurity or IT background.
 
 #- jobTitle: 🐋 Customer Solutions Architect
 #  department: Customers
@@ -209,6 +235,7 @@
   hiringManagerName: Zay Hanlon
   hiringManagerGithubUsername: zayhanlon
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  onTargetEarnings: "$30,000 - $80,000"
   responsibilities: |
     - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo.
     - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works.
@@ -254,33 +281,33 @@
 #     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
 #     - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
 
-- jobTitle: 🦢 Product Designer
-  department: Product Design
-  hiringManagerName: Noah Talerman
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
-  hiringManagerGithubUsername: noahtalerman
-  onTargetEarnings: "$125,000 - $160,000"
-  responsibilities: |
-    - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
-    - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
-    - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
-    - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
-    - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
-  experience: |
-    - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
-    - ⚙️ Technical chops: You either have professional engineering experience or you're a designer who builds on the side.
-    - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
-    - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
-    - 🧠 Strong product sense—you’re comfortable saying no, scoping down, and sequencing work for impact.
-    - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
-    - 💖 Proficient in visual design and wireframing tools (we use Figma).
-    - ✍️ Experienced in writing clear, concise product specs for engineering teams.
-    - 📖 Maintain a design system that enables speed for designers and engineers.
-    - 🤝 Collaboration: You work best in a participatory, team-based environment.
-    - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You’re comfortable accepting suboptimal designs in favor of iteration.
-    - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: B2B SaaS background
+# - jobTitle: 🦢 Product Designer
+#   department: Product Design
+#   hiringManagerName: Noah Talerman
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/noah-talerman/
+#   hiringManagerGithubUsername: noahtalerman
+#   onTargetEarnings: "$125,000 - $160,000"
+#   responsibilities: |
+#     - 📣 Design consistent interactions across the Fleet user experience, including API, CLI, and YAML.
+#     - 🧭 Prioritize work across competing customer needs, business goals, and technical constraints.
+#     - 🎯 Own the full product development lifecycle for your product group—from identifying problems to defining scope, designing solutions, and writing specs.
+#     - 🔎 Break down large ideas into shippable iterations and clearly communicate tradeoffs.
+#     - 👥 Collaborate with engineers and stakeholders to unblock work and ensure delivery.
+#   experience: |
+#     - 💭 3 - 5 years of experience as a Product Designer, Product Manager, or Software Engineer.
+#     - ⚙️ Technical chops: You either have professional engineering experience or you're a designer who builds on the side.
+#     - 🧑‍🔬 Understand developer-first automation workflows, including API, CLI, and Git experiences.
+#     - ✍️ Experience designing API/CLI experiences for developers or willingness to learn.
+#     - 🧠 Strong product sense—you're comfortable saying no, scoping down, and sequencing work for impact.
+#     - 🦉 Comfortable owning both the "why" and the "how"—from defining the problem to scoping and designing the solution.
+#     - 💖 Proficient in visual design and wireframing tools (we use Figma).
+#     - ✍️ Experienced in writing clear, concise product specs for engineering teams.
+#     - 📖 Maintain a design system that enables speed for designers and engineers.
+#     - 🤝 Collaboration: You work best in a participatory, team-based environment.
+#     - 🚀 Prototype-first: You embrace speed and failure as we iterate towards the right solution. You have hands-on experience in creating low and high-fidelity prototypes. You're comfortable accepting suboptimal designs in favor of iteration.
+#     - 🧬 Simplicity: You love complex questions and use your work to simplify that complexity for users.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - ➕ Bonus: B2B SaaS background
 
 #- jobTitle: 🌐 Solutions Consultant
 # department: IT & Enablement
@@ -308,38 +335,37 @@
 # - 🟣 Openness: You are flexible and open to new ideas and ways of working.
 # - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
-#- jobTitle: 🐋 Solutions Specialist
-# department: Sales
-#hiringManagerName: Alex Mitchell
-#hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-#hiringManagerGithubUsername: alexmitchelliii
-#onTargetEarnings: '$95,000 - $150,000'
-#responsibilities: |
-#   - 🎯 Partner with Sales and Marketing to support campaigns and outreach efforts aimed at growing pipeline and hitting goals.
-#  - 🛩️ Connect with customers—online or occasionally in person—to better understand their goals and recommend Fleet solutions that fit.
-# - 📈 Use available tools and guidance to analyze prospect needs and identify helpful trends or signals.
-#- ❔ Follow processes to qualify and progress opportunities to best help prospects solve problems.
-#- 📣 Represent Fleet at events, on social media, and in conversations with prospects to build awareness and trust.
-#- 🖥️ Help present and demonstrate the value of Fleet’s open-source software to mid-sized organizations, supporting win-win commercial conversations.
-#- 🤝 Support and gradually take ownership of the sales process for customers with 300–700 employees, working closely with senior team members as you grow.
-#- ⏫ Build and maintain relationships with customers, partnering with Customer Success to spot opportunities for expansion.
-#- 🕴️ Use Salesforce and other tools to track your work, organize your pipeline, and support team visibility.
-#- 🦢 Share customer feedback with Product, Design, and Engineering teams to help improve our product.
-#- 🧪 Contribute to ongoing improvements in our playbooks, handbook, and sales processes.
-#- 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions), and other handbook pages.
-# experience: |
-#    - 🖥️ 2-3 years of IT and/or security experience, ideally with MDM responsibility.
-#   - 🦉 1–2 years of experience in a customer-facing or sales-related role, or strong interest in moving into technical sales.
-#   - 💬 Excellent communication skills and the ability to build rapport quickly with both technical and non-technical people.
-#   - 🔧 Strong technical curiosity—you love figuring out how things work and helping others do the same.
-#   - 💭 Interest or experience with Fleet, osquery, MDM, endpoint security, or working with IT/security teams.
-#   - 🧑‍💻 Familiarity with tools like Slack, Google Workspace, or CRM systems (like Salesforce) is helpful, but not required.
-#   - 🚀 You’re a motivated self-starter, eager to grow your skills in a fast-paced, supportive environment.
-#   - 🤝 Comfortable talking to a wide range of stakeholders, from engineers to executives.
-#   - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
-#   - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
-#   - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-#   - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+# - jobTitle: 🐋 Solutions Specialist
+#   department: Sales
+#   hiringManagerName: Chaz MacLaughlin
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
+#   hiringManagerGithubUsername: chazmac6
+#   onTargetEarnings: '$95,000 - $130,000'
+#   responsibilities: |
+#     - 🎯 Partner with Sales and Marketing to support campaigns and outreach efforts aimed at growing pipeline and hitting goals.
+#     - 🛩️ Connect with customers—online or occasionally in person—to better understand their goals and recommend Fleet solutions that fit.
+#     - 📈 Use available tools and guidance to analyze prospect needs and identify helpful trends or signals.
+#     - ❔ Follow processes to qualify and progress opportunities to best help prospects solve problems.
+#     - 📣 Represent Fleet at events, on social media, and in conversations with prospects to build awareness and trust.
+#     - 🖥️ Help present and demonstrate the value of Fleet's open-source software to mid-sized organizations, supporting win-win commercial conversations.
+#     - ⏫ Build and maintain relationships with customers, partnering with Customer Success to spot opportunities for expansion.
+#     - 🕴️ Use Salesforce and other tools to track your work, organize your pipeline, and support team visibility.
+#     - 🦢 Share customer feedback with Product, Design, and Engineering teams to help improve our product.
+#     - 🧪 Contribute to ongoing improvements in our playbooks, handbook, and sales processes.
+#     - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions), and other handbook pages.
+#   experience: |
+#     - 🖥️ 2-3 years of IT and/or security experience, ideally with MDM responsibility.
+#     - 🦉 1–2 years of experience in a customer-facing or sales-related role, or strong interest in moving into technical sales.
+#     - 💬 Excellent communication skills and the ability to build rapport quickly with both technical and non-technical people.
+#     - 🔧 Strong technical curiosity—you love figuring out how things work and helping others do the same.
+#     - 💭 Interest or experience with Fleet, osquery, MDM, endpoint security, or working with IT/security teams.
+#     - 🧑‍💻 Familiarity with tools like Slack, Google Workspace, or CRM systems (like Salesforce) is helpful, but not required.
+#     - 🚀 You're a motivated self-starter, eager to grow your skills in a fast-paced, supportive environment.
+#     - 🤝 Comfortable talking to a wide range of stakeholders, from engineers to executives.
+#     - ⏩ Thrive in a complex, fast-paced, results-driven environment with the ability to pivot to organizational changes easily.
+#     - 💭 You know how to manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
+#     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+#     - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
 # - jobTitle: 💸 GTM Systems Architect
 #   department: Finance

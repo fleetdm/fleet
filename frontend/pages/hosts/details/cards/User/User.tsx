@@ -14,9 +14,7 @@ import UserValue from "./components/UserValue";
 import {
   generateChromeProfilesValues,
   generateUsernameValues,
-  generateFullNameTipContent,
   generateFullNameValues,
-  generateGroupsTipContent,
   generateGroupsValues,
   generateOtherEmailsValues,
 } from "./helpers";
@@ -27,10 +25,14 @@ interface IUserProps {
   /** There will be at most 1 end user */
   endUsers: IHostEndUser[];
   canWriteEndUser?: boolean;
-  disableFullNameTooltip?: boolean;
-  disableGroupsTooltip?: boolean;
+  canViewMyDeviceLink?: boolean;
   className?: string;
   onClickUpdateUser?: (
+    e:
+      | React.MouseEvent<HTMLButtonElement>
+      | React.KeyboardEvent<HTMLButtonElement>
+  ) => void;
+  onClickMyDevice?: (
     e:
       | React.MouseEvent<HTMLButtonElement>
       | React.KeyboardEvent<HTMLButtonElement>
@@ -40,10 +42,10 @@ interface IUserProps {
 const User = ({
   endUsers,
   canWriteEndUser = false,
-  disableFullNameTooltip = false,
-  disableGroupsTooltip = false,
+  canViewMyDeviceLink = false,
   className,
   onClickUpdateUser,
+  onClickMyDevice,
 }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -63,7 +65,6 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
-  const groupsTipContent = generateGroupsTipContent(endUsers);
 
   return (
     <Card
@@ -73,17 +74,25 @@ const User = ({
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
-        {canWriteEndUser && (
-          <Button
-            className={`${baseClass}__add-user-btn`}
-            variant="inverse"
-            onClick={onClickUpdateUser}
-            size="small"
-          >
-            <Icon name={writeButtonIcon} />
-            {writeButtonText}
-          </Button>
-        )}
+        <div className={`${baseClass}__header-actions`}>
+          {canViewMyDeviceLink && (
+            <Button variant="inverse" onClick={onClickMyDevice} size="small">
+              My device
+              <Icon name="external-link" />
+            </Button>
+          )}
+          {canWriteEndUser && (
+            <Button
+              className={`${baseClass}__add-user-btn`}
+              variant="inverse"
+              onClick={onClickUpdateUser}
+              size="small"
+            >
+              {writeButtonText}
+              <Icon name={writeButtonIcon} />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className={`${baseClass}__content`}>
@@ -94,31 +103,23 @@ const User = ({
 
         <DataSet
           title={
-            disableFullNameTooltip ? (
-              "Full name (IdP)"
-            ) : (
-              <TooltipWrapper tipContent={generateFullNameTipContent(endUsers)}>
-                Full name (IdP)
-              </TooltipWrapper>
-            )
+            <TooltipWrapper
+              tipContent={`This is the "givenName + familyName" from your IdP.`}
+            >
+              Full name (IdP)
+            </TooltipWrapper>
           }
           value={<UserValue values={generateFullNameValues(endUsers)} />}
         />
         <DataSet
-          title={
-            disableGroupsTooltip || !groupsTipContent ? (
-              "Groups (IdP)"
-            ) : (
-              <TooltipWrapper tipContent={groupsTipContent}>
-                <>Groups (IdP)</>
-              </TooltipWrapper>
-            )
-          }
+          title="Groups (IdP)"
           value={<UserValue values={generateGroupsValues(endUsers)} />}
         />
         <DataSet
           title={
-            <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+            <TooltipWrapper
+              tipContent={`This is the "department" collected from your IdP.`}
+            >
               Department (IdP)
             </TooltipWrapper>
           }

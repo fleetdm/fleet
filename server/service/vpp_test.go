@@ -15,7 +15,6 @@ import (
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -45,7 +44,7 @@ func TestVPPAuth(t *testing.T) {
 	androidSvc, err := android_service.NewServiceWithClient(logger, ds, androidMockClient, "test-private-key", ds, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, androidModule: androidSvc})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, AndroidModule: androidSvc})
 
 	// use a custom implementation of checkAuthErr as the service call will fail
 	// with a different error for in case of authorization success and the
@@ -66,34 +65,38 @@ func TestVPPAuth(t *testing.T) {
 		shouldFailRead         bool
 		shouldFailWrite        bool
 		shouldFailCreateWebApp bool
+		// GetVPPTokens has no team parameter; like CreateAndroidWebApp it
+		// authorizes against the user's first team, so the expected result
+		// depends only on the user, not on teamID.
+		shouldFailGetTokens bool
 	}{
-		{"no role no team", test.UserNoRoles, nil, true, true, true},
-		{"no role team", test.UserNoRoles, ptr.Uint(1), true, true, true},
-		{"global admin no team", test.UserAdmin, nil, false, false, false},
-		{"global admin team", test.UserAdmin, ptr.Uint(1), false, false, false},
-		{"global maintainer no team", test.UserMaintainer, nil, false, false, false},
-		{"global maintainer team", test.UserMaintainer, ptr.Uint(1), false, false, false},
-		{"global observer no team", test.UserObserver, nil, true, true, true},
-		{"global observer team", test.UserObserver, ptr.Uint(1), true, true, true},
-		{"global observer+ no team", test.UserObserverPlus, nil, true, true, true},
-		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true, true},
-		{"global gitops no team", test.UserGitOps, nil, false, false, false},
-		{"global gitops team", test.UserGitOps, ptr.Uint(1), false, false, false},
-		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true, false},
-		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false, false},
-		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true, false},
-		{"team maintainer no team", test.UserTeamMaintainerTeam1, nil, true, true, false},
-		{"team maintainer team", test.UserTeamMaintainerTeam1, ptr.Uint(1), false, false, false},
-		{"team maintainer other team", test.UserTeamMaintainerTeam2, ptr.Uint(1), true, true, false},
-		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true, true},
-		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), true, true, true},
-		{"team observer other team", test.UserTeamObserverTeam2, ptr.Uint(1), true, true, true},
-		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true, true},
-		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true, true},
-		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true, true},
-		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true, false},
-		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), false, false, false},
-		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true, false},
+		{"no role no team", test.UserNoRoles, nil, true, true, true, true},
+		{"no role team", test.UserNoRoles, new(uint(1)), true, true, true, true},
+		{"global admin no team", test.UserAdmin, nil, false, false, false, false},
+		{"global admin team", test.UserAdmin, new(uint(1)), false, false, false, false},
+		{"global maintainer no team", test.UserMaintainer, nil, false, false, false, false},
+		{"global maintainer team", test.UserMaintainer, new(uint(1)), false, false, false, false},
+		{"global observer no team", test.UserObserver, nil, true, true, true, true},
+		{"global observer team", test.UserObserver, new(uint(1)), true, true, true, true},
+		{"global observer+ no team", test.UserObserverPlus, nil, true, true, true, true},
+		{"global observer+ team", test.UserObserverPlus, new(uint(1)), true, true, true, true},
+		{"global gitops no team", test.UserGitOps, nil, false, false, false, false},
+		{"global gitops team", test.UserGitOps, new(uint(1)), false, false, false, false},
+		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true, false, false},
+		{"team admin team", test.UserTeamAdminTeam1, new(uint(1)), false, false, false, false},
+		{"team admin other team", test.UserTeamAdminTeam2, new(uint(1)), true, true, false, false},
+		{"team maintainer no team", test.UserTeamMaintainerTeam1, nil, true, true, false, false},
+		{"team maintainer team", test.UserTeamMaintainerTeam1, new(uint(1)), false, false, false, false},
+		{"team maintainer other team", test.UserTeamMaintainerTeam2, new(uint(1)), true, true, false, false},
+		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true, true, true},
+		{"team observer team", test.UserTeamObserverTeam1, new(uint(1)), true, true, true, true},
+		{"team observer other team", test.UserTeamObserverTeam2, new(uint(1)), true, true, true, true},
+		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true, true, true},
+		{"team observer+ team", test.UserTeamObserverPlusTeam1, new(uint(1)), true, true, true, true},
+		{"team observer+ other team", test.UserTeamObserverPlusTeam2, new(uint(1)), true, true, true, true},
+		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true, false, false},
+		{"team gitops team", test.UserTeamGitOpsTeam1, new(uint(1)), false, false, false, false},
+		{"team gitops other team", test.UserTeamGitOpsTeam2, new(uint(1)), true, true, false, false},
 	}
 
 	for _, tt := range testCases {
@@ -117,6 +120,9 @@ func TestVPPAuth(t *testing.T) {
 			ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 				return &android.Enterprise{}, nil
 			}
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
 			_, err := svc.GetAppStoreApps(ctx, tt.teamID)
@@ -126,7 +132,7 @@ func TestVPPAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
@@ -135,6 +141,11 @@ func TestVPPAuth(t *testing.T) {
 
 			_, err = svc.CreateAndroidWebApp(ctx, "test", "http://example.com", nil)
 			checkAuthErr(t, tt.shouldFailCreateWebApp, err)
+
+			// GetVPPTokens backs the Add software > App Store picker, so it must
+			// be readable by the same roles that can add App Store apps.
+			_, err = svc.GetVPPTokens(ctx)
+			checkAuthErr(t, tt.shouldFailGetTokens, err)
 		})
 	}
 }

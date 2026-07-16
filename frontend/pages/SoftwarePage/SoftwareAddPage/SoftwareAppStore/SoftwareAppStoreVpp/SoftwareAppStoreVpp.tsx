@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
 import mdmAppleAPI, {
@@ -17,6 +16,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
+import { notify } from "components/ToastNotification";
 import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
@@ -47,7 +47,7 @@ const EnableVppMessage = ({
     header="Volume Purchasing Program (VPP) isn't enabled"
     info={
       isGlobalAdmin
-        ? "To add App Store apps, first enable VPP."
+        ? "Enable VPP to add App Store apps (MDM required)."
         : "To add App Store apps, ask your admin to enable VPP."
     }
     primaryButton={
@@ -90,10 +90,10 @@ const NoVppAppsMessage = () => (
         You must purchase apps in{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-          text="ABM"
+          text="Apple Business"
           newTab
         />
-        .<br />
+        <br />
         App Store apps that are already added to this fleet are not listed.
       </>
     }
@@ -109,7 +109,6 @@ const SoftwareAppStoreVpp = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
@@ -195,12 +194,10 @@ const SoftwareAppStoreVpp = ({
         software_title_id: softwareVppTitleId,
       } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <b>{formData.selectedApp.name}</b> successfully added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
 
       queryClient.invalidateQueries({
@@ -220,7 +217,7 @@ const SoftwareAppStoreVpp = ({
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);
@@ -275,6 +272,7 @@ const SoftwareAppStoreVpp = ({
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            teamId={currentTeamId}
             isIosOrIpadosApp={isIosOrIpadosApp}
           />
         )}

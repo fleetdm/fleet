@@ -5,6 +5,7 @@ software/os/:id > Top section
 */
 
 import React from "react";
+import classnames from "classnames";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -24,7 +25,10 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
+import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
@@ -37,16 +41,24 @@ export const ACTION_EDIT_APPEARANCE = "edit_appearance";
 export const ACTION_EDIT_SOFTWARE = "edit_software";
 export const ACTION_EDIT_CONFIGURATION = "edit_configuration";
 export const ACTION_PATCH = "patch";
+export const ACTION_VERSIONS = "versions";
 export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
 
 export interface BuildActionOptionsArgs {
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
-  source?: string;
+  /** Apple VPP titles (App Store / iOS / iPadOS, not Android Play Store). VPP
+   * apps are GitOps-managed, so Edit software is locked behind the gitops
+   * tooltip when `gitOpsModeEnabled`. Compute as
+   * `installerType === "app-store" && !isAndroidPlayStoreApp` at the call
+   * site — `source` strings alone don't disambiguate, since both Apple VPP
+   * and Android Play Store use `apps`-family sources. */
+  isAppleVpp?: boolean;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
   canAddPatchPolicy: boolean;
+  canManageVersions: boolean;
   canConfigureAutoUpdate: boolean;
   hasExistingPatchPolicy?: boolean;
 }
@@ -54,10 +66,11 @@ export interface BuildActionOptionsArgs {
 export const buildActionOptions = ({
   gitOpsModeEnabled,
   repoURL,
-  source,
+  isAppleVpp = false,
   canEditSoftware,
   canEditConfiguration,
   canAddPatchPolicy,
+  canManageVersions,
   canConfigureAutoUpdate,
   hasExistingPatchPolicy = false,
 }: BuildActionOptionsArgs): CustomOptionType[] => {
@@ -66,6 +79,10 @@ export const buildActionOptions = ({
   let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
   let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
+  // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
+  // below); the tooltip is only populated when `repoURL` is also available,
+  // since the copy depends on it. Without that split, an empty `repoURL`
+  // would leave the options clickable in gitops mode.
   if (gitOpsModeEnabled) {
     const gitOpsModeTooltipContent =
       repoURL && getGitOpsModeTipContent(repoURL);
@@ -73,7 +90,7 @@ export const buildActionOptions = ({
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
     disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
 
-    if (source === "vpp_apps") {
+    if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
     }
   }
@@ -86,7 +103,7 @@ export const buildActionOptions = ({
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      isDisabled: !!disableEditAppearanceTooltipContent,
+      isDisabled: gitOpsModeEnabled,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
@@ -96,17 +113,17 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: !!disableEditSoftwareTooltipContent,
+      isDisabled: !!gitOpsModeEnabled && isAppleVpp,
       tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
 
-  // Show edit configuration option only for Android installers that are not web apps
+  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      isDisabled: !!disabledEditConfigurationTooltipContent,
+      isDisabled: gitOpsModeEnabled,
       tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
@@ -118,6 +135,16 @@ export const buildActionOptions = ({
       value: ACTION_PATCH,
       isDisabled: !!disabledPatchPolicyTooltipContent,
       tooltipContent: disabledPatchPolicyTooltipContent,
+    });
+  }
+
+  // Show versions option only for Fleet-maintained apps on Premium. Stays
+  // clickable in gitops mode — the modal itself disables Save with the gitops
+  // tooltip, matching the in-row Latest/Pinned badge behavior.
+  if (canManageVersions) {
+    options.push({
+      label: "Versions",
+      value: ACTION_VERSIONS,
     });
   }
 
@@ -160,6 +187,8 @@ interface ISoftwareDetailsSummaryProps {
   onClickEditSoftware?: () => void;
   /** Displays Patch CTA to add a patch policy */
   onClickAddPatchPolicy?: () => void;
+  /** Displays Versions CTA to open the versions / pin modal (Premium FMA only) */
+  onClickVersions?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
@@ -169,6 +198,16 @@ interface ISoftwareDetailsSummaryProps {
   /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
   iconUploadedAt?: string;
   patchPolicyId?: number;
+  /** Optional pill row rendered between the title and the Actions dropdown
+   * (e.g. Fleet-maintained, Self-service, Auto install). */
+  headerPills?: React.ReactNode;
+  /** Apple VPP — gates Edit software behind the gitops tooltip. See
+   * `BuildActionOptionsArgs.isAppleVpp` for the canonical computation. */
+  isAppleVpp?: boolean;
+  /** Custom non-FMA packages collapse the Actions dropdown into a single
+   * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
+   * Per-installer Edit lives on the Library accordion row. */
+  useSingleEditAppearanceButton?: boolean;
 }
 
 const SoftwareDetailsSummary = ({
@@ -186,11 +225,15 @@ const SoftwareDetailsSummary = ({
   onClickEditAppearance,
   onClickEditSoftware,
   onClickAddPatchPolicy,
+  onClickVersions,
   onClickEditConfiguration,
   onClickEditAutoUpdateConfig,
   iconPreviewUrl,
   iconUploadedAt,
   patchPolicyId,
+  headerPills,
+  isAppleVpp = false,
+  useSingleEditAppearanceButton = false,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -208,6 +251,9 @@ const SoftwareDetailsSummary = ({
       case ACTION_PATCH:
         onClickAddPatchPolicy && onClickAddPatchPolicy();
         break;
+      case ACTION_VERSIONS:
+        onClickVersions && onClickVersions();
+        break;
       case ACTION_EDIT_CONFIGURATION:
         onClickEditConfiguration && onClickEditConfiguration();
         break;
@@ -218,8 +264,8 @@ const SoftwareDetailsSummary = ({
     }
   };
 
-  // Remove host count for tgz_packages, sh_packages, and ps1_packages only
-  // or if viewing details summary from edit icon preview modal
+  // Remove host count for sources without version/host data (tgz and script
+  // packages) or if viewing details summary from edit icon preview modal
   const showHostCount =
     !!hostCount && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "");
 
@@ -251,37 +297,65 @@ const SoftwareDetailsSummary = ({
   const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
     repoURL,
-    source,
+    isAppleVpp,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
     canAddPatchPolicy: !!onClickAddPatchPolicy,
+    canManageVersions: !!onClickVersions,
     canConfigureAutoUpdate: !!onClickEditAutoUpdateConfig,
     hasExistingPatchPolicy: !!patchPolicyId,
   });
 
   return (
     <>
-      <div className={baseClass}>
-        {isOperatingSystem ? (
-          <OSIcon name={name} size="xlarge" />
-        ) : (
-          renderSoftwareIcon()
-        )}
-        <dl className={`${baseClass}__info`}>
-          <div className={`${baseClass}__title-actions`}>
-            <h1 aria-label="software display name">
-              {isRollingArch ? (
-                // wrap a tooltip around the "rolling" suffix
-                <>
-                  {displayName.slice(0, -8)}
-                  <TooltipWrapperArchLinuxRolling />
-                </>
+      <div
+        className={classnames(baseClass, {
+          [`${baseClass}--has-pills`]: !!headerPills,
+        })}
+      >
+        <div className={`${baseClass}__icon-wrap`}>
+          {isOperatingSystem ? (
+            <OSIcon name={name} size="xlarge" />
+          ) : (
+            renderSoftwareIcon()
+          )}
+        </div>
+        <div className={`${baseClass}__info`}>
+          <h1
+            aria-label="software display name"
+            className={`${baseClass}__title`}
+          >
+            {isRollingArch ? (
+              // wrap a tooltip around the "rolling" suffix
+              <>
+                {displayName.slice(0, -8)}
+                <TooltipWrapperArchLinuxRolling />
+              </>
+            ) : (
+              <TooltipTruncatedText value={displayName} />
+            )}
+          </h1>
+          {canManageSoftware && (
+            <div className={`${baseClass}__actions-wrapper`}>
+              {useSingleEditAppearanceButton ? (
+                // GitOps mode wraps the button so hover surfaces the
+                // "Managed by GitOps" tooltip + repo link, mirroring how the
+                // Actions dropdown's items are disabled with the same tip.
+                <GitOpsModeTooltipWrapper
+                  entityType="software"
+                  position="top"
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      variant="inverse"
+                      onClick={onClickEditAppearance}
+                      disabled={disableChildren || !onClickEditAppearance}
+                    >
+                      <Icon name="pencil" />
+                      Edit
+                    </Button>
+                  )}
+                />
               ) : (
-                <TooltipTruncatedText value={displayName} />
-              )}
-            </h1>
-            {canManageSoftware && (
-              <div className={`${baseClass}__actions-wrapper`}>
                 <DropdownWrapper
                   className={`${baseClass}__actions-dropdown`}
                   name="software-actions"
@@ -291,9 +365,9 @@ const SoftwareDetailsSummary = ({
                   variant="button"
                   nowrapMenu
                 />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 
@@ -317,7 +391,10 @@ const SoftwareDetailsSummary = ({
               />
             )}
           </dl>
-        </dl>
+          {headerPills && (
+            <div className={`${baseClass}__header-pills`}>{headerPills}</div>
+          )}
+        </div>
       </div>
     </>
   );

@@ -64,6 +64,17 @@ export const getSoftwareInstallResultHandler = http.get(
   }
 );
 
+// Requires Fleet Premium license (server returns 402)
+export const getSoftwareInstallResultHandlerPremiumRequired = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  () => {
+    return HttpResponse.json(
+      { message: "Requires Fleet Premium license" },
+      { status: 402 }
+    );
+  }
+);
+
 // ---- Pre install query output ----
 
 // Installed, outputs for pre-install, install, and post-install
@@ -98,6 +109,21 @@ export const getSoftwareInstallHandlerOnlyPreInstallOutput = http.get(
           pre_install_query_output: "Pre-install only",
         }),
       },
+    });
+  }
+);
+
+// Installed, with SHA-256 hash
+export const getSoftwareInstallHandlerWithHash = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
+    return HttpResponse.json({
+      results: createMockSoftwareInstallResult({
+        install_uuid: params.install_uuid as string,
+        status: "installed",
+        hash_sha256:
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad",
+      }),
     });
   }
 );

@@ -1,0 +1,10 @@
+{
+  "name": "Mac Mouse Fix",
+  "unique_identifier": "com.nuebling.mac-mouse-fix",
+  "token": "mac-mouse-fix",
+  "installer_format": "zip",
+  "slug": "mac-mouse-fix/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

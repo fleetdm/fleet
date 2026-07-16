@@ -1,4 +1,5 @@
 import { ISetupStep } from "interfaces/setup";
+import { SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -39,12 +40,29 @@ export const getFailedSoftwareInstall = (
   return firstWithError ?? failedSoftware[0];
 };
 
-/** Checks if the software is a script-only package (sh or ps1)
+/** Checks if the software is a script-only package (sh, ps1, or py)
  * by examining the source field from the API */
 export const isSoftwareScriptSetup = (s: ISetupStep) => {
   if (!s.source) return false;
 
-  return s.source === "sh_packages" || s.source === "ps1_packages";
+  return SCRIPT_PACKAGE_SOURCES.includes(s.source);
+};
+
+// Hosts after enrollment during which we suppress the "host is offline" banner.
+// Orbit endpoints do not update host_seen_times, so a freshly enrolled host can appear offline
+// until its first osquery distributed-read check-in (typically within 5-10 minutes).
+const RECENTLY_ENROLLED_THRESHOLD_MS = 10 * 60 * 1000;
+
+export const isRecentlyEnrolled = (
+  lastEnrolledAt: string | undefined
+): boolean => {
+  if (!lastEnrolledAt) return false;
+  const enrolledAt = new Date(lastEnrolledAt).getTime();
+  if (isNaN(enrolledAt)) return false;
+  // Require a non-negative delta so a future timestamp (e.g. from client/server clock skew) is not
+  // treated as "recent" and does not hide a real offline state indefinitely.
+  const delta = Date.now() - enrolledAt;
+  return delta >= 0 && delta < RECENTLY_ENROLLED_THRESHOLD_MS;
 };
 
 // Same solution as defined in /templates/enroll-ota.html (https://github.com/fleetdm/fleet/pull/26592)

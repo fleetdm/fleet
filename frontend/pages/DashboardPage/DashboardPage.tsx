@@ -10,7 +10,7 @@ import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import paths from "router/paths";
 
@@ -97,6 +97,7 @@ interface IDashboardProps {
     hash?: string;
     query: {
       fleet_id?: string;
+      manage_automations?: string;
     };
   };
 }
@@ -109,7 +110,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isPremiumTier,
     isOnGlobalTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const {
     currentTeamId,
@@ -160,7 +160,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setUpdatingActivityFeedAutomations,
   ] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
-  const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<
     IMdmSummaryMdmSolution[] | null
@@ -172,6 +171,36 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     JSX.Element | string | null
   >();
 
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  const canEditActivityFeedAutomations =
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
+
+  // Open activity feed automations modal via deep-link (e.g. from the
+  // command palette). Gate on the same predicate as the in-page action —
+  // the param must not bypass role/team checks. Wait for the user's role
+  // flags and the team route to resolve before evaluating, so an
+  // authorized global admin isn't denied the modal on direct page load
+  // while AppContext is still hydrating.
+  useEffect(() => {
+    if (location.query.manage_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (canEditActivityFeedAutomations) {
+      setShowActivityFeedAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = location.query;
+    router.replace({ pathname, query: rest });
+  }, [
+    location.query,
+    pathname,
+    router,
+    canEditActivityFeedAutomations,
+    setShowActivityFeedAutomationsModal,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
   useEffect(() => {
     const platformByPathname =
       PLATFORM_DROPDOWN_OPTIONS?.find((platform) => platform.path === pathname)
@@ -179,12 +208,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
     setSelectedPlatform(platformByPathname);
   }, [pathname]);
-
-  const canEnrollHosts =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canEditActivityFeedAutomations =
-    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
@@ -219,12 +242,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
         setLabels(data.builtin_labels);
+        setMissingCount(data.missing_30_days_count || 0);
+        // low_disk_space_count and dep_assign_error_count are Premium-only.
+        // The backend nulls out low_disk_space_count for non-Premium callers,
+        // and the linked filters (`?low_disk_space=`, ABM issue filters) are
+        // also Premium-gated, so their cards stay hidden on Free.
         if (isPremiumTier) {
-          setMissingCount(data.missing_30_days_count || 0);
           setLowDiskSpaceCount(data.low_disk_space_count || 0);
           setAbmIssueCount(data.dep_assign_error_count || 0);
         }
-        setShowHostsUI(true);
       },
     }
   );
@@ -463,7 +489,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: enrolled_automated_hosts_count,
           },
           {
-            status: "On (personal)",
+            status: "On (manual - personal)",
             hosts: enrolled_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
@@ -573,15 +599,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             },
           });
         }
-        renderFlash(
-          "success",
-          "Successfully updated activity feed automations."
-        );
+        notify.success("Successfully updated activity feed automations.");
         setShowActivityFeedAutomationsModal(false);
-      } catch {
-        renderFlash(
-          "error",
-          "Couldn't update activity feed automations. Please try again."
+      } catch (e) {
+        notify.error(
+          "Couldn't update activity feed automations. Please try again.",
+          { response: e }
         );
       } finally {
         setUpdatingActivityFeedAutomations(false);
@@ -593,7 +616,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       config?.webhook_settings.activities_webhook.destination_url,
       config?.webhook_settings.activities_webhook.enable_activities_webhook,
       refetchConfig,
-      renderFlash,
     ]
   );
 
@@ -642,8 +664,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     showTitle: showActivityFeedTitle,
     action: canEditActivityFeedAutomations
       ? {
-          type: "button",
-          text: "Manage automations",
+          type: "automations",
           onClick: () => setShowActivityFeedAutomationsModal(true),
         }
       : undefined,
@@ -789,7 +810,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
-  const linuxLayout = () => null;
+  const linuxLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+    </>
+  );
 
   const chromeLayout = () => (
     <>
@@ -813,6 +838,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const androidLayout = () => (
     <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
       {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
     </>
   );
@@ -913,6 +939,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           <Card paddingSize="xlarge" borderRadiusSize="large">
             <HostsEnrolledCard
               counts={totalCounts}
+              totalHostCount={hostSummaryTotals?.totals_hosts_count || 0}
               builtInLabels={labels}
               currentTeamId={teamIdForApi}
               router={router}
@@ -922,6 +949,9 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             <ChartCard
               currentTeamId={teamIdForApi}
               historicalDataEnabled={historicalDataEnabled}
+              filterDefaults={
+                featuresConfig?.vulnerability_exposure_historical_reporting
+              }
             />
           </Card>
         </div>
@@ -947,7 +977,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         <div className={`${baseClass}__host-sections`}>
           {isHostSummaryFetching ? (
             <Card paddingSize="medium">
-              <Spinner includeContainer={false} verticalPadding="small" />
+              <Spinner verticalPadding="small" />
             </Card>
           ) : (
             HostCountCards

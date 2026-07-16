@@ -114,6 +114,45 @@ func IsProfileNotFoundError(chain []mdm.ErrorChain) bool {
 	return false
 }
 
+// AppAlreadyInstalledBYODUserMessage is the user-facing error message shown
+// when an InstallApplication command fails on an Account-Driven User
+// Enrollment (BYOD) host because the end user already has the app installed
+// personally. Apple's raw "The app with iTunes Store ID <id> is already
+// installed." message leaks the App Store ID and gives the end user no
+// actionable next step — this copy (from #31138 Figma) is shown instead.
+const AppAlreadyInstalledBYODUserMessage = "Failed. This app is already installed. Please delete the app first, then reinstall via Self Service."
+
+// IsAppAlreadyInstalledError reports whether the error chain from a failed
+// InstallApplication command indicates the app is already installed on the
+// device — a common case on Account-Driven User Enrollment (BYOD) hosts where
+// the end user installed the app from the App Store before enrollment.
+//
+// Apple returns the message:
+//
+//	The app with iTunes Store ID <id> is already installed.
+//
+// Known error signature:
+// - MCMDMErrorDomain (12042): "...is already installed."
+//
+// Falls back to a substring match on the error description, since Apple's
+// numeric code for this case has shifted across iOS versions and the message
+// has been stable.
+func IsAppAlreadyInstalledError(chain []mdm.ErrorChain) bool {
+	for _, e := range chain {
+		if e.ErrorDomain == "MCMDMErrorDomain" && e.ErrorCode == 12042 {
+			return true
+		}
+		desc := e.USEnglishDescription
+		if desc == "" {
+			desc = e.LocalizedDescription
+		}
+		if strings.Contains(desc, "is already installed") {
+			return true
+		}
+	}
+	return false
+}
+
 // FmtDDMError formats a DDM error message
 func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 	var errMsg strings.Builder

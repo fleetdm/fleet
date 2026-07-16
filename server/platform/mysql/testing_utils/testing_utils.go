@@ -150,6 +150,7 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
+			"--default-character-set=utf8mb4",
 			"-u"+TestUsername, "-p"+TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
@@ -171,6 +172,7 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
+			"--default-character-set=utf8mb4",
 			"-u"+TestUsername, "-p"+TestPassword,
 		)
 		cmd.Stdin = strings.NewReader(sqlCommands)
@@ -185,10 +187,13 @@ func LoadSchema(t testing.TB, testName string, opts *DatastoreTestOptions, schem
 
 func MysqlTestConfig(testName string) *common_mysql.MysqlConfig {
 	return &common_mysql.MysqlConfig{
-		Username: TestUsername,
-		Password: TestPassword,
-		Database: testName,
-		Address:  TestAddress,
+		Username:        TestUsername,
+		Password:        TestPassword,
+		Database:        testName,
+		Address:         TestAddress,
+		MaxIdleConns:    50,
+		MaxOpenConns:    50,
+		ConnMaxLifetime: 0,
 	}
 }
 

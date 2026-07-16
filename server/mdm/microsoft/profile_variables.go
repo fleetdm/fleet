@@ -2,6 +2,7 @@ package microsoft_mdm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -78,9 +79,10 @@ type ProfilePreprocessParams struct {
 // implementation and to the interface if it's required for both verification and deployment. For new dependencies that
 // vary profile-to-profile, add them to ProfilePreprocessParams.
 func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
-	// Check if Fleet variables are present
+	// Check if Fleet variables or custom host vitals are present.
 	fleetVars := variables.Find(profileContents)
-	if len(fleetVars) == 0 {
+	hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(profileContents)) > 0
+	if len(fleetVars) == 0 && !hasHostVitals {
 		// No variables to replace, return original content
 		return profileContents, nil
 	}
@@ -121,8 +123,10 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		switch {
 		case fleetVar == string(fleet.FleetVarSCEPWindowsCertificateID):
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPWindowsCertificateIDRegexp, result, params.ProfileUUID)
-		case fleetVar == string(fleet.FleetVarSCEPRenewalID):
-			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
+		case fleetVar == string(fleet.FleetVarSCEPRenewalID), fleetVar == string(fleet.FleetVarCertificateRenewalID):
+			// Both legacy SCEP_RENEWAL_ID and the preferred CERTIFICATE_RENEWAL_ID
+			// substitute to the same value.
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarRenewalIDRegexp, result, "fleet-"+params.ProfileUUID)
 		case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 			caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix))
 			err := profiles.IsCustomSCEPConfigured(deps.Context, deps.CustomSCEPCAs, caName, fleetVar, func(errMsg string) error {
@@ -182,6 +186,27 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 		case fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
 			result = profiles.ReplaceNDESSCEPProxyURLVariable(deps.AppConfig.MDMUrl(), params.HostUUID, params.ProfileUUID, result)
 		}
+	}
+
+	// Expand per-host custom host vitals. On a missing/empty value the datastore
+	// returns a MissingCustomHostVitalValueError, which we surface as a
+	// MicrosoftProfileProcessingError so the caller marks the profile failed with
+	// this detail rather than shipping a blank substitution.
+	if hasHostVitals {
+		hostLite, _, err := profiles.HydrateHost(deps.Context, deps.DataStore, fleet.Host{UUID: params.HostUUID}, func(hostCount int) error {
+			return &MicrosoftProfileProcessingError{message: fmt.Sprintf("Found %d hosts with UUID %s. Custom host vital substitution requires exactly one host.", hostCount, params.HostUUID)}
+		})
+		if err != nil {
+			return profileContents, err
+		}
+		expanded, err := deps.DataStore.ExpandCustomHostVitals(deps.Context, hostLite.ID, result)
+		if err != nil {
+			if missing, ok := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); ok {
+				return profileContents, &MicrosoftProfileProcessingError{message: missing.Error()}
+			}
+			return profileContents, err
+		}
+		result = expanded
 	}
 
 	return result, nil

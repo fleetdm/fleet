@@ -8,6 +8,29 @@
               <div class="carousel-item active">
                 <div purpose="carousel-body">
                   <div purpose="carousel-text">
+                    <h2>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“The ability to get heard [with our previous MDM] was just impossible.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Wes Whetstone" src="/images/wes-whetstone-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Wes Whetstone</p>
+                          <p purpose="title">Staff Client Platform Engineer</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/stripe">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Stripe" src="/images/hero-slide-stripe-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
                     <h2>Foursquare cut costs and gained 114% ROI with Fleet</h2>
                     <div purpose="carousel-quote">
                       <p purpose="quote">“One of the easiest, quickest, smoothest migrations I’ve ever done.”</p>
@@ -74,29 +97,6 @@
                   </div>
                 </div>
               </div>
-              <div class="carousel-item">
-                <div purpose="carousel-body">
-                  <div purpose="carousel-text">
-                    <h2>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</h2>
-                    <div purpose="carousel-quote">
-                      <p purpose="quote">“The ability to get heard [with our previous MDM] was just impossible.”</p>
-                      <div purpose="quote-attribution">
-                        <div purpose="quote-image">
-                          <img alt="Wes Whetstone" src="/images/wes-whetstone-120x120@2x.png">
-                        </div>
-                        <div purpose="quote-author">
-                          <p purpose="name">Wes Whetstone</p>
-                          <p purpose="title">Staff Client Platform Engineer</p>
-                        </div>
-                      </div>
-                    </div>
-                    <animated-arrow-button href="/case-study/stripe">Read their story</animated-arrow-button>
-                  </div>
-                  <div purpose="carousel-image">
-                    <img alt="Stripe" src="/images/hero-slide-stripe-420x315@2x.png">
-                  </div>
-                </div>
-              </div>
             </div>
             <div purpose="controls-container">
               <a data-target="#heroCarousel" role="button" data-slide="prev">
@@ -134,6 +134,11 @@
             <p>Faire secures Macs with CIS benchmarks and Fleet.</p>
             <a href="/case-study/faire">Read their story</a>
           </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/mollie', $event)">
+            <img alt="Mollie logo" src="/images/mollie-logo-136x40@2x.png">
+            <p>Mollie manages endpoint compliance the same way it ships software</p>
+            <a href="/case-study/mollie">Read their story</a>
+          </div>
           <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/stripe', $event)">
             <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
             <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually.</p>
@@ -143,36 +148,6 @@
             <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
             <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
             <a href="/case-study/thumbtack">Read their story</a>
-          </div>
-          <% /*  Automatically created cards for anonymous case studies  */%>
-          <% for(let article of initalCaseStudyLinksToShow) { %>
-            <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)">
-              <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
-              <% if(article.meta.cardBodyForCustomersPage){ %>
-                <p><%- article.meta.cardBodyForCustomersPage %></p>
-              <% } else {%>
-                <p><%- article.meta.articleTitle %>.</p>
-              <% }%>
-              <a href="<%- article.url %>">Read their story</a>
-            </div>
-          <% } %>
-          <% for(let batch of blocksOfCaseStudies) { %>
-            <% for(let article of batch) { %>
-              <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)" v-if="pageOfCaseStudiesVisible >= <%- blocksOfCaseStudies.indexOf(batch) %>">
-                <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
-                <% if(article.meta.cardBodyForCustomersPage){ %>
-                  <p><%- article.meta.cardBodyForCustomersPage %></p>
-                <% } else {%>
-                  <p><%- article.meta.articleTitle %>.</p>
-                <% }%>
-                <a href="<%- article.url %>">Read their story</a>
-              </div>
-            <% } %>
-          <% } %>
-        </div>
-        <div purpose="button-container">
-          <div purpose="button-row" class="d-flex flex-row align-items-center justify-content-center w-100" v-if="pageOfCaseStudiesVisible !== (numberOfPagesOfCaseStudies - 2)">
-            <a purpose="cta-button" @click="clickShowMoreCaseStudies()">Load more</a>
           </div>
         </div>
       </div>
@@ -226,24 +201,24 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <div>
-        <h4>High-agency device management</h4>
-        <h2 class="mx-auto">Manage devices your way</h2>
+        <h4>Open device management</h4>
+        <h2 class="mx-auto">Manage all your devices like it's 2026</h2>
         </div>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
-          <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->
+          <!-- <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button> -->
         </div>
       </div>
     </div>
 
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city></parallax-city>
+  <cloud-city></cloud-city>
 
 
   <div v-for="video in quotesWithVideoLinks">
     <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
-      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+      <iframe width="560" height="315" :src="'https://www.youtube-nocookie.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
     </modal>
   </div>
 </div>

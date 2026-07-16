@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -36,7 +38,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			return &fleet.AppConfig{}, nil
 		}
 		t.Run("dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -49,7 +51,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			require.ErrorContains(t, err, "could not retrieve vpp token")
 		})
 		t.Run("not dry run", func(t *testing.T) {
-			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
@@ -64,7 +66,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
-		ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 			return nil, nil
 		}
 
@@ -76,7 +78,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 
 		for _, pkg := range fleetAgentPackages {
 			t.Run(pkg+" dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -89,7 +91,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 				require.ErrorContains(t, err, "The Fleet agent cannot be added manually")
 			})
 			t.Run(pkg+" not dry run", func(t *testing.T) {
-				_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+				_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 					{
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
@@ -287,4 +289,138 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, apps, "already-assigned apps must be filtered out of the picker list")
 	require.False(t, batchInsertCalled, "picker must not write metadata back")
+}
+
+// A no-platform numeric Adam ID expands to multiple (AdamID, platform)
+// rows; the missing-asset error must surface each AdamID only once.
+func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{
+			ID:          1,
+			OrgName:     "us-org",
+			Token:       "us-secret",
+			RenewDate:   time.Now().Add(24 * time.Hour),
+			CountryCode: "us",
+		}, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+
+	// ValidateSoftwareLabels inside the loop requires a present authz context
+	// for Authorize to mark it checked.
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	const adamID = "1107542306"
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+		{
+			AppStoreID:       adamID,
+			LabelsExcludeAny: []string{},
+			LabelsIncludeAny: []string{},
+			LabelsIncludeAll: []string{},
+			Categories:       []string{},
+			// Empty Platform triggers the auto-expansion to multiple
+			// (AdamID, platform) rows — the multiplier this test guards.
+		},
+	}, false)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
+	require.Equal(t, 1, strings.Count(err.Error(), adamID),
+		"missing-asset error must dedup by AdamID, got: %s", err.Error())
+}
+
+// TestGetVPPTokensScoping verifies that GetVPPTokens returns every token to
+// global readers but scopes the list to a team-scoped user's readable teams
+// (plus "All teams" tokens), without leaking tokens from teams the user can't
+// read. See #46057.
+func TestGetVPPTokensScoping(t *testing.T) {
+	ds := new(mock.Store)
+	// Tokens: team 1, team 2, "All teams" (non-nil empty Teams), and an
+	// unassigned token (nil Teams).
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, OrgName: "team1", Teams: []fleet.TeamTuple{{ID: 1, Name: "Workstations"}}},
+			{ID: 2, OrgName: "team2", Teams: []fleet.TeamTuple{{ID: 2, Name: "Servers"}}},
+			{ID: 3, OrgName: "allteams", Teams: []fleet.TeamTuple{}},
+			{ID: 4, OrgName: "unassigned", Teams: nil},
+		}, nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	globalMaintainer := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+	// Technician can read installable entities but not write them, so it must be
+	// able to read the token list to use the picker (#46057 names this role).
+	globalTechnician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
+	teamMaintainer1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer},
+	}}
+	teamTechnician1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician},
+	}}
+	// Observer on the first team, maintainer on the second: must still be
+	// authorized (via team 2) and scoped to team 2, never team 1.
+	observerThenMaintainer := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+	}}
+	teamObserver1 := &fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+	}}
+
+	tests := []struct {
+		name    string
+		user    *fleet.User
+		wantErr bool
+		wantIDs []uint
+	}{
+		{"global admin sees all", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, []uint{1, 2, 3, 4}},
+		{"global maintainer sees all", globalMaintainer, false, []uint{1, 2, 3, 4}},
+		{"global technician sees all", globalTechnician, false, []uint{1, 2, 3, 4}},
+		{"team maintainer scoped to team + all-teams", teamMaintainer1, false, []uint{1, 3}},
+		{"team technician scoped to team + all-teams", teamTechnician1, false, []uint{1, 3}},
+		{"observer-then-maintainer scoped to second team", observerThenMaintainer, false, []uint{2, 3}},
+		{"team observer forbidden", teamObserver1, true, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: tt.user})
+			got, err := svc.GetVPPTokens(ctx)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+			gotIDs := make([]uint, 0, len(got))
+			for _, tok := range got {
+				gotIDs = append(gotIDs, tok.ID)
+			}
+			require.ElementsMatch(t, tt.wantIDs, gotIDs)
+		})
+	}
 }

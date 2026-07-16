@@ -11,6 +11,16 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+
+    .component__tooltip-wrapper {
+      align-items: center;
+      line-height: 1;
+
+      &__element {
+        display: flex;
+        align-items: center;
+      }
+    }
   }
 
   &__description-tooltip {
@@ -95,7 +105,9 @@
     }
   }
 
-  &__filtered-badge {
+  // Clickable filtered badge — opens the Settings modal to the first tab with
+  // active filters.
+  &__filter-pill {
     display: inline-flex;
     align-items: center;
     padding: 2px 10px;
@@ -106,6 +118,11 @@
     border-radius: 12px;
     background: $core-fleet-white;
     white-space: nowrap;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $ui-fleet-black-25;
+    }
   }
 
   &__settings-btn {
@@ -151,6 +168,25 @@
   }
 
   &__tooltip-value {
+    font-weight: $bold;
+  }
+
+  // Consolidated filter tooltip: "Hosts" / "Software" sections, each with a
+  // muted header above its active-filter value lines.
+  &__tooltip-section {
+    text-align: left;
+
+    & + & {
+      margin-top: $pad-small;
+    }
+  }
+
+  &__tooltip-section-header {
+    font-weight: $regular;
+    opacity: 0.8;
+  }
+
+  &__tooltip-section-line {
     font-weight: $bold;
   }
 
@@ -317,11 +353,11 @@
 
     body.dark-mode & {
       --level-0: #515256;
-      --level-1: #5a2727;
-      --level-2: #7d2c2c;
-      --level-3: #a83232;
-      --level-4: #d04040;
-      --level-5: #ff5c5c;
+      --level-1: #512f34;
+      --level-2: #7c373a;
+      --level-3: #a83f41;
+      --level-4: #d34748;
+      --level-5: #ff4f4f;
     }
   }
 
@@ -366,6 +402,13 @@
       fill: var(--level-5);
       background-color: var(--level-5);
     }
+
+    // The current timeframe (the slot we're still collecting data for) gets a
+    // visible outline. Declared after the level rules so it overrides the
+    // level-0 stroke at equal specificity.
+    &--current {
+      stroke: $ui-fleet-black-50;
+    }
   }
 }
 
@@ -380,7 +423,7 @@
 
   h3 {
     margin: 0;
-    font-size: $medium;
+    font-size: $small;
     color: var(--core-fleet-black);
   }
 

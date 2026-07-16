@@ -1,10 +1,12 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { ISecretPayload } from "interfaces/secrets";
-import { hasStatusKey } from "interfaces/errors";
-import secretsAPI from "services/entities/secrets";
-import { NotificationContext } from "context/notification";
+import { IVariableFormData } from "interfaces/variables";
+import { hasStatusKey, getErrorReason } from "interfaces/errors";
+import variablesAPI from "services/entities/variables";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { notify } from "components/ToastNotification";
+import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
 
@@ -24,32 +26,30 @@ const AddCustomVariableModal = ({
   onCancel,
   onSave,
 }: AddCustomVariableModalProps) => {
-  const [secretName, setSecretName] = useState("");
-  const [secretValue, setSecretValue] = useState("");
+  const [variableName, setVariableName] = useState("");
+  const [variableValue, setVariableValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const [
     formValidation,
     setFormValidation,
   ] = useState<IAddCustomVariableFormValidation>(() =>
-    validateFormData({ name: secretName, value: secretValue })
+    validateFormData({ name: variableName, value: variableValue })
   );
 
   const onInputChange = (update: { name: string; value: string }) => {
     const name = update.name;
     let value = update.value;
     if (name === "name") {
-      value = value.trimRight().toUpperCase();
-      setSecretName(value);
+      value = value.trimEnd().toUpperCase();
+      setVariableName(value);
     } else if (name === "value") {
-      setSecretValue(value);
+      setVariableValue(value);
     }
     setFormValidation(
       validateFormData({
-        name: secretName,
-        value: secretValue,
+        name: variableName,
+        value: variableValue,
         [update.name]: value,
       })
     );
@@ -59,21 +59,38 @@ const AddCustomVariableModal = ({
     const validation = validateFormData({ name, value }, true);
     if (validation.isValid) {
       setIsSaving(true);
-      const newSecret: ISecretPayload = {
-        name: secretName,
-        value: secretValue,
+      const newVariable: IVariableFormData = {
+        name: variableName,
+        value: variableValue,
       };
       try {
-        await secretsAPI.addSecret(newSecret);
-        renderFlash("success", "Variable created.");
+        await variablesAPI.addVariable(newVariable);
+        notify.success("Variable created.");
         onSave();
       } catch (error) {
         if (hasStatusKey(error) && error.status === 409) {
-          renderFlash("error", "A secret with this name already exists.");
+          notify.error("A variable with this name already exists.", {
+            response: error,
+          });
+        } else if (
+          getErrorReason(error).includes("Missing required private key")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t save. Please configure a private key.{" "}
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>,
+            { response: error }
+          );
         } else {
-          renderFlash(
-            "error",
-            "An error occurred while saving the secret. Please try again."
+          notify.error(
+            "An error occurred while saving the variable. Please try again.",
+            { response: error }
           );
         }
       } finally {
@@ -89,21 +106,21 @@ const AddCustomVariableModal = ({
       <form className={`${baseClass}__add-variable-form`}>
         <InputField
           onChange={onInputChange}
-          value={secretName}
+          value={variableName}
           label="Name"
           name="name"
           parseTarget
           helpText={
             <span>
               You can use this in your script or configuration profile as
-              &ldquo;$FLEET_SECRET_{secretName}&rdquo;.
+              &ldquo;$FLEET_SECRET_{variableName}&rdquo;.
             </span>
           }
           error={formValidation.name?.message}
         />
         <InputField
           onChange={onInputChange}
-          value={secretValue}
+          value={variableValue}
           label="Value"
           name="value"
           parseTarget
@@ -112,7 +129,7 @@ const AddCustomVariableModal = ({
         <div className="modal-cta-wrap">
           <Button
             onClick={() => {
-              onClickSave(secretName, secretValue);
+              onClickSave(variableName, variableValue);
             }}
             disabled={!formValidation.isValid || isSaving}
             isLoading={isSaving}

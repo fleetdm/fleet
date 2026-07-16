@@ -187,11 +187,32 @@ func preprocessProfileContents(
 			continue
 		}
 
-		// Check if Fleet variables are present.
+		// Check if Fleet variables or custom host vitals are present.
 		contentsStr := string(contents)
 		fleetVars := variables.Find(contentsStr)
-		if len(fleetVars) == 0 {
+		hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contentsStr)) > 0
+		if len(fleetVars) == 0 && !hasHostVitals {
 			continue
+		}
+
+		// The PSSO device registration token is host-independent: it resolves to
+		// the same $FLEET_HOST_SECRET_ placeholder for every host, which is then
+		// expanded into a per-host, Fleet-signed JWT at command-delivery time
+		// (see ExpandHostSecrets). Substitute it once on the shared contents. If
+		// it is the only Fleet variable, the contents are identical for every
+		// host, so we skip the per-host profile fan-out and send a single shared
+		// command — the per-host token is injected at delivery time.
+		if slices.Contains(fleetVars, string(fleet.FleetVarPSSODeviceRegistrationToken)) {
+			contentsStr = profiles.ReplaceFleetVariableInXML(
+				fleet.FleetVarPSSODeviceRegistrationTokenRegexp, contentsStr,
+				"$"+fleet.HostSecretPrefix+fleet.HostSecretPSSODeviceRegistrationToken)
+			fleetVars = slices.DeleteFunc(fleetVars, func(v string) bool {
+				return v == string(fleet.FleetVarPSSODeviceRegistrationToken)
+			})
+			if len(fleetVars) == 0 {
+				profileContents[profUUID] = mobileconfig.Mobileconfig(contentsStr)
+				continue
+			}
 		}
 
 		var variablesUpdatedAt *time.Time
@@ -204,7 +225,7 @@ func preprocessProfileContents(
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
 		for _, fleetVar := range fleetVars {
-			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+			if fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
 				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarHostUUID) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
@@ -230,7 +251,8 @@ func preprocessProfileContents(
 
 			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) || fleetVar == string(fleet.FleetVarHostPlatform) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
-				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
+				fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) || fleetVar == string(fleet.FleetVarHostUUID):
 				// No extra validation needed for these variables
 
@@ -398,10 +420,12 @@ func preprocessProfileContents(
 					// Insert the SCEP URL into the profile contents
 					hostContents = profiles.ReplaceNDESSCEPProxyURLVariable(appConfig.MDMUrl(), hostUUID, profUUID, hostContents)
 
-				case fleetVar == string(fleet.FleetVarSCEPRenewalID):
-					// Insert the SCEP renewal ID into the SCEP Payload CN or OU
+				case fleetVar == string(fleet.FleetVarSCEPRenewalID), fleetVar == string(fleet.FleetVarCertificateRenewalID):
+					// Insert the renewal ID into the SCEP/ACME Payload CN or OU.
+					// Both legacy SCEP_RENEWAL_ID and the preferred
+					// CERTIFICATE_RENEWAL_ID substitute to the same value.
 					fleetRenewalID := "fleet-" + profUUID
-					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
+					hostContents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 					replacedContents, replacedVariable, err := profiles.ReplaceCustomSCEPChallengeVariable(ctx, logger, fleetVar, customSCEPCAs, hostContents)
@@ -628,6 +652,44 @@ func preprocessProfileContents(
 					// This was handled in the above switch statement, so we should never reach this case
 				}
 			}
+
+			// Expand per-host custom host vitals ($FLEET_HOST_VITAL_<id>). This is a
+			// top-level prefix not handled by the FLEET_VAR_ loop above. On a
+			// missing/empty value for this host, mark the profile failed with a
+			// detail rather than shipping a blank substitution.
+			if !failed && hasHostVitals {
+				hostForVitals, ok, err := profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "hydrating host for custom host vitals")
+				}
+				if !ok {
+					// onMismatchedHostCount already marked the profile failed.
+					failed = true
+				} else {
+					hostLite = hostForVitals
+					expanded, err := ds.ExpandCustomHostVitals(ctx, hostLite.ID, hostContents)
+					if err != nil {
+						var missing *fleet.MissingCustomHostVitalValueError
+						if !errors.As(err, &missing) {
+							return ctxerr.Wrap(ctx, err, "expanding custom host vitals")
+						}
+						if updErr := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.CmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             missing.Error(),
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						}); updErr != nil {
+							return ctxerr.Wrap(ctx, updErr, "marking profile failed for missing custom host vital")
+						}
+						failed = true
+					} else {
+						hostContents = expanded
+					}
+				}
+			}
+
 			if !failed {
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,

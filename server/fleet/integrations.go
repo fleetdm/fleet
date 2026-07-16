@@ -389,26 +389,20 @@ const (
 	GoogleCalendarPrivateKey = "private_key"
 )
 
-// googleCalendarKeyNames lists all valid JSON keys for GoogleCalendarApiKey,
-// used by ValidKeys() for gitops unknown-key validation.
-var googleCalendarKeyNames = []string{GoogleCalendarEmail, GoogleCalendarPrivateKey}
-
 // GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.
 // It handles JSON marshaling/unmarshaling with support for masking sensitive data.
 // When marshaled in masked state, it serializes to just "********".
 // When unmarshaled, it accepts either "********" (indicating masked/preserve) or a JSON object.
+//
+// GitOps unknown-key validation is intentionally skipped for this type: users
+// typically paste the full Google service-account JSON blob (which contains many
+// keys beyond the two Fleet uses), and ValidateGoogleCalendarIntegrations still
+// enforces that client_email and private_key are present.
 type GoogleCalendarApiKey struct {
 	// Values contains the actual API key fields when not masked
 	Values map[string]string
 	// masked indicates if this key should be serialized as masked
 	masked bool
-}
-
-// ValidKeys returns the set of accepted JSON keys for this type.
-// This is used by gitops validation to check for unknown keys in types
-// with custom JSON marshaling.
-func (GoogleCalendarApiKey) ValidKeys() []string {
-	return googleCalendarKeyNames
 }
 
 // MarshalJSON implements json.Marshaler. When masked, returns "********".
@@ -474,13 +468,40 @@ type GoogleCalendarIntegration struct {
 	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
 }
 
+// GoogleWorkspaceIntegration configures syncing IdP host vitals (users, groups,
+// and departments) from Google Workspace via the Admin SDK Directory API, using a
+// service account with domain-wide delegation. Unlike SCIM — which is a push from
+// the IdP into Fleet — this is a periodic pull performed by Fleet on a schedule.
+type GoogleWorkspaceIntegration struct {
+	// Domain is the Google Workspace primary domain whose directory is synced.
+	Domain string `json:"domain"`
+	// ImpersonatedUserEmail is the Google Workspace admin user that the service
+	// account impersonates via domain-wide delegation. The Admin SDK Directory API
+	// only accepts requests on behalf of a real admin user (the JWT Subject).
+	ImpersonatedUserEmail string `json:"impersonated_user_email"`
+	// ApiKey holds the service account JSON (client_email, private_key). It reuses
+	// the GoogleCalendarApiKey masking type because the credential format and the
+	// masking/preserve-on-update behavior are identical.
+	ApiKey GoogleCalendarApiKey `json:"api_key_json"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration           `json:"jira"`
-	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	Jira            []*JiraIntegration            `json:"jira"`
+	Zendesk         []*ZendeskIntegration         `json:"zendesk"`
+	GoogleCalendar  []*GoogleCalendarIntegration  `json:"google_calendar"`
+	GoogleWorkspace []*GoogleWorkspaceIntegration `json:"google_workspace,omitempty"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
+}
+
+// IsGoogleWorkspaceConfigured reports whether a Google Workspace IdP integration
+// is fully set up: an entry exists with a domain and a non-empty service-account
+// API key.
+func (i Integrations) IsGoogleWorkspaceConfigured() bool {
+	return len(i.GoogleWorkspace) > 0 &&
+		i.GoogleWorkspace[0].Domain != "" &&
+		!i.GoogleWorkspace[0].ApiKey.IsEmpty()
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
@@ -595,6 +616,57 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		intg.Domain = strings.TrimSpace(intg.Domain)
 		if intg.Domain == "" {
 			invalid.Append("integrations.google_calendar.domain", "domain is required")
+		}
+	}
+}
+
+// ValidateGoogleWorkspaceIntegrations validates the Google Workspace IdP
+// integrations. It enforces a single integration and the presence of the service
+// account credentials (client_email, private_key), the Workspace domain, and the
+// admin user email to impersonate (required for domain-wide delegation). Any error
+// found is appended to invalid, to be checked by the caller via invalid.HasErrors.
+func ValidateGoogleWorkspaceIntegrations(intgs []*GoogleWorkspaceIntegration, invalid *InvalidArgumentError) {
+	if len(intgs) > 1 {
+		invalid.Append("integrations.google_workspace", "integrating with >1 Google Workspace service account is not yet supported.")
+	}
+	for _, intg := range intgs {
+		if email, ok := intg.ApiKey.Values[GoogleCalendarEmail]; !ok {
+			invalid.Append(
+				fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarEmail),
+				fmt.Sprintf("%s is required", GoogleCalendarEmail),
+			)
+		} else {
+			email = strings.TrimSpace(email)
+			intg.ApiKey.Values[GoogleCalendarEmail] = email
+			if email == "" {
+				invalid.Append(
+					fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarEmail),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarEmail),
+				)
+			}
+		}
+		if privateKey, ok := intg.ApiKey.Values[GoogleCalendarPrivateKey]; !ok {
+			invalid.Append(
+				fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarPrivateKey),
+				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
+			)
+		} else {
+			privateKey = strings.TrimSpace(privateKey)
+			intg.ApiKey.Values[GoogleCalendarPrivateKey] = privateKey
+			if privateKey == "" {
+				invalid.Append(
+					fmt.Sprintf("integrations.google_workspace.api_key_json.%s", GoogleCalendarPrivateKey),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarPrivateKey),
+				)
+			}
+		}
+		intg.Domain = strings.TrimSpace(intg.Domain)
+		if intg.Domain == "" {
+			invalid.Append("integrations.google_workspace.domain", "domain is required")
+		}
+		intg.ImpersonatedUserEmail = strings.TrimSpace(intg.ImpersonatedUserEmail)
+		if intg.ImpersonatedUserEmail == "" {
+			invalid.Append("integrations.google_workspace.impersonated_user_email", "impersonated_user_email is required")
 		}
 	}
 }

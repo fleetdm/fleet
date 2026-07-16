@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -31,6 +30,7 @@ func TestIntegration(t *testing.T) {
 		{"GetAuthorization", testGetAuthorization},
 		{"FinalizeOrder", testFinalizeOrder},
 		{"DoChallengeDeviceAttestation", testDoChallengeDeviceAttestation},
+		{"InvalidPathIDs", testInvalidPathIDs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -42,15 +42,15 @@ func TestIntegration(t *testing.T) {
 
 func testNewNonce(t *testing.T, s *integrationTestSuite) {
 	// create a valid enrollment
-	enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollValid)
 
 	// create a revoked enrollment
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
 	// create an expired enrollment
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	cases := []struct {
@@ -165,15 +165,15 @@ func testNewNonce(t *testing.T, s *integrationTestSuite) {
 
 func testGetDirectory(t *testing.T, s *integrationTestSuite) {
 	// create a valid enrollment
-	enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollValid)
 
 	// create a revoked enrollment
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
 	// create an expired enrollment
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	cases := []struct {
@@ -263,14 +263,14 @@ func testGetDirectory(t *testing.T, s *integrationTestSuite) {
 
 func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	// create enrollments for testing
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("create new account", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -291,7 +291,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("return existing account with same JWK", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account
@@ -323,7 +323,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("too many accounts", func(t *testing.T) {
 		// use a dedicated enrollment so prior sub-tests don't affect the count
-		enrollForLimit := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollForLimit := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollForLimit)
 
 		// create 3 accounts (the maximum allowed per enrollment)
@@ -351,7 +351,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("revoked account", func(t *testing.T) {
 		// use a dedicated enrollment to avoid interference with other sub-tests
-		enrollForRevoke := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollForRevoke := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollForRevoke)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -382,7 +382,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account exists", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// create account first
@@ -410,7 +410,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("onlyReturnExisting account does not exist", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -427,7 +427,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// we need a valid enrollment to get a nonce, then use a bad identifier for the account request
@@ -448,7 +448,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		// get nonce from valid enrollment, then try to create account on revoked
@@ -468,7 +468,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -487,7 +487,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -503,7 +503,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("empty url in JWS header", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -521,7 +521,7 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid url in JWS header", func(t *testing.T) {
-		enrollValid := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enrollValid := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enrollValid)
 
 		privateKey, err := testhelpers.GenerateTestKey()
@@ -541,14 +541,14 @@ func testCreateAccount(t *testing.T, s *integrationTestSuite) {
 
 func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	// create enrollments shared across sub-tests for error cases
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("create new order", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
@@ -578,7 +578,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unsupported identifier type", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -598,7 +598,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("wrong identifier value", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -618,7 +618,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("multiple identifiers", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -639,7 +639,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("no identifiers", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -657,7 +657,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("notBefore set", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -678,7 +678,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("notAfter set", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -699,7 +699,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("too many orders", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -733,7 +733,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -755,7 +755,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -776,7 +776,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -797,7 +797,7 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, _ := s.createAccountForOrder(t, enroll)
 
@@ -819,14 +819,14 @@ func testCreateOrder(t *testing.T, s *integrationTestSuite) {
 
 func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	// create enrollments shared across sub-tests for error cases
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("get existing order", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -851,7 +851,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("non-empty payload rejected for POST-as-GET", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -871,7 +871,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("get finalized valid order includes certificate URL", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -891,7 +891,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order does not exist", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -907,7 +907,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order belongs to different account", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		// create account A and an order under it
@@ -935,7 +935,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -951,7 +951,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -966,7 +966,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -981,7 +981,7 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, _ := s.createOrderForGet(t, enroll)
 
@@ -997,14 +997,14 @@ func testGetOrder(t *testing.T, s *integrationTestSuite) {
 
 func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	// create enrollments shared across sub-tests for error cases
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("list orders with one order", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, _, nonce := s.createOrderForGet(t, enroll)
@@ -1025,7 +1025,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("list orders with multiple orders", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
@@ -1058,7 +1058,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("list orders with no orders", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
@@ -1075,7 +1075,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("list orders excludes invalid orders", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
@@ -1113,7 +1113,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order belongs to different account", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		// create account A with an order
@@ -1141,7 +1141,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 		accountID := parseAccountID(t, accountURL)
@@ -1159,7 +1159,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 		accountID := parseAccountID(t, accountURL)
@@ -1176,7 +1176,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 		accountID := parseAccountID(t, accountURL)
@@ -1193,7 +1193,7 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, _ := s.createAccountForOrder(t, enroll)
 		accountID := parseAccountID(t, accountURL)
@@ -1209,16 +1209,45 @@ func testListAccountOrders(t *testing.T, s *integrationTestSuite) {
 	})
 }
 
+// testInvalidPathIDs exercises the account and order id decoding to return a malformed request error rather than internal server error.
+func testInvalidPathIDs(t *testing.T, s *integrationTestSuite) {
+	// A valid enrollment is not required: the invalid ID fails to decode before
+	// the request ever reaches the service layer, so any path identifier works.
+	const pathID = "some-identifier"
+
+	cases := []struct {
+		desc string
+		url  string
+	}{
+		{"order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint", s.server.URL, pathID)},
+		{"account id", fmt.Sprintf("%s/api/mdm/acme/%s/accounts/not-a-uint/orders", s.server.URL, pathID)},
+		{"certificate order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint/certificate", s.server.URL, pathID)},
+		{"authorization id", fmt.Sprintf("%s/api/mdm/acme/%s/authorizations/not-a-uint", s.server.URL, pathID)},
+		{"challenge id", fmt.Sprintf("%s/api/mdm/acme/%s/challenges/not-a-uint", s.server.URL, pathID)},
+		{"finalize order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/not-a-uint/finalize", s.server.URL, pathID)},
+		{"negative order id", fmt.Sprintf("%s/api/mdm/acme/%s/orders/-1", s.server.URL, pathID)},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			_, acmeErr, resp := doACMERequest[struct{}](t, http.MethodPost, c.url, []byte("{}"))
+			require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			require.NotNil(t, acmeErr)
+			require.Contains(t, acmeErr.Type, "malformed")
+		})
+	}
+}
+
 func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	// create enrollments shared across sub-tests for error cases
-	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enrollRevoked := &types.Enrollment{Revoked: true, NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollRevoked)
 
-	enrollExpired := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(-24 * time.Hour))}
+	enrollExpired := &types.Enrollment{NotValidAfter: new(time.Now().Add(-24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enrollExpired)
 
 	t.Run("happy path", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -1239,7 +1268,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("non-empty payload rejected for POST-as-GET", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -1259,7 +1288,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order not finalized (pending)", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -1274,7 +1303,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order in invalid state", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
@@ -1293,7 +1322,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order does not exist", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -1308,7 +1337,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("order belongs to different account", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 
 		// create account A and an order under it
@@ -1335,7 +1364,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unknown identifier", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -1350,7 +1379,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("revoked enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -1364,7 +1393,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("expired enrollment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, nonce := s.createOrderForGet(t, enroll)
 
@@ -1378,7 +1407,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid nonce", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, orderResp, _ := s.createOrderForGet(t, enroll)
 
@@ -1393,7 +1422,7 @@ func testGetCertificate(t *testing.T, s *integrationTestSuite) {
 }
 
 func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
-	enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+	enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 	s.InsertACMEEnrollment(t, enroll)
 	payload := map[string]any{
 		"identifiers": []map[string]string{
@@ -1424,7 +1453,7 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("valid auth but for a different enrollment", func(t *testing.T) {
 		// create a second enrollment and order to get a different auth URL
-		enroll2 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll2 := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll2)
 		privateKey2, accountURL2, nonce2 := s.createAccountForOrder(t, enroll2)
 		payload2 := map[string]any{
@@ -1592,7 +1621,7 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 
 func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	t.Run("successful device attestation", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
 		s.InsertACMEEnrollment(t, enroll)
 
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
@@ -1610,7 +1639,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("challenge not pending", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
@@ -1638,7 +1667,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("device attestation error", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 		payload := map[string]any{
@@ -1653,7 +1682,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("bad base64 payload", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 		// JWS with invalid base64 payload
@@ -1670,7 +1699,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("bad CBOR payload", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 		// JWS with base64 that decodes but is not valid CBOR
@@ -1687,7 +1716,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("unsupported format", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 		// JWS with base64 that decodes to CBOR but has an unsupported format
@@ -1706,7 +1735,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("invalid cert chain", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
@@ -1727,7 +1756,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("freshness nonce mismatch", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, _, nonce := s.createOrderForChallenge(t, enroll)
 
@@ -1745,7 +1774,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("device serial mismatch", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
@@ -1763,7 +1792,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("missing DEP assignment", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial-without-dep"}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial-without-dep"}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, challengeURL, challengeToken, nonce := s.createOrderForChallenge(t, enroll)
 
@@ -1781,7 +1810,7 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("non existing challenge", func(t *testing.T) {
-		enroll := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour))}
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour))}
 		s.InsertACMEEnrollment(t, enroll)
 		privateKey, accountURL, nonce := s.createAccountForOrder(t, enroll)
 
@@ -1799,8 +1828,8 @@ func testDoChallengeDeviceAttestation(t *testing.T, s *integrationTestSuite) {
 	})
 
 	t.Run("challenge for different enrollment fails", func(t *testing.T) {
-		enroll1 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial1"}
-		enroll2 := &types.Enrollment{NotValidAfter: ptr.T(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial2"}
+		enroll1 := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial1"}
+		enroll2 := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "serial2"}
 		s.InsertACMEEnrollment(t, enroll1)
 		s.InsertACMEEnrollment(t, enroll2)
 

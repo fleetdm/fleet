@@ -82,6 +82,11 @@ const PLATFORM_FILTER_OPTIONS = [
     label: "iPadOS",
     value: "ipados",
   },
+  {
+    disabled: false,
+    label: "Android",
+    value: "android",
+  },
 ];
 
 const SoftwareOSTable = ({
@@ -94,7 +99,7 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  platform,
+  platform = "all",
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -168,11 +173,11 @@ const SoftwareOSTable = ({
     router.push(path);
   };
 
-  // Determines if a user should be able to filter the table
   const hasData = data?.os_versions && data?.os_versions.length > 0;
   const hasPlatformFilter = platform !== "all";
 
-  const showFilterHeaders = isSoftwareEnabled && (hasData || hasPlatformFilter);
+  const isTrulyEmpty = !hasData && !hasPlatformFilter;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const renderSoftwareCount = () => {
     if (!data) return null;
@@ -180,7 +185,7 @@ const SoftwareOSTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {showFilterHeaders && data?.counts_updated_at && (
+        {!controlsDisabled && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
@@ -235,6 +240,7 @@ const SoftwareOSTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        isDisabled={controlsDisabled}
       />
     );
   };
@@ -260,7 +266,7 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        customControl={showFilterHeaders ? renderPlatformDropdown : undefined}
+        customControl={renderPlatformDropdown}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}

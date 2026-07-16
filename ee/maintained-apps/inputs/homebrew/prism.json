@@ -1,0 +1,10 @@
+{
+  "name": "GraphPad Prism",
+  "unique_identifier": "com.GraphPad.Prism.autocomplete",
+  "token": "prism",
+  "installer_format": "dmg",
+  "slug": "prism/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

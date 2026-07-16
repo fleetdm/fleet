@@ -38,6 +38,7 @@
           <a href="/customers">Case studies</a>
           <a href="/guides">Guides</a>
           <a href="/whitepapers">Whitepapers</a>
+          <a href="/webinars">Webinars</a>
           <a href="/releases">Releases</a>
         </div>
       </div>
@@ -48,7 +49,8 @@
               <p purpose="article-name">{{article.meta.articleTitle}}</p>
             </div>
             <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
-            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
+            <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp><span purpose="updated-timestamp" v-if="article.showUpdatedTimestamp">Updated <js-timestamp format="billing" :at="article.lastModifiedAt"></js-timestamp></span></div>
+
           </div>
           <div class="d-flex flex-column justify-content-center">
             <svg purpose="animated-arrow" style="stroke: #192147;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">

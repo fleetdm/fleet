@@ -12,11 +12,13 @@ on:
       - prepare-*
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
       - "Dockerfile-desktop-linux"
   pull_request:
     paths:
       - "orbit/**.go"
+      - "client/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
       - "Dockerfile-desktop-linux"
   workflow_dispatch: # Manual
@@ -32,7 +34,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.9.1
+  OSQUERY_VERSION: 5.23.1
 
 permissions:
   contents: read
@@ -47,7 +49,7 @@ jobs:
       enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -65,26 +67,23 @@ jobs:
     strategy:
       matrix:
         mysql: ["mysql:8.0.44"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: gen
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
-        with:
-          node-version-file: package.json
 
       - name: Start tunnel
         env:
@@ -115,13 +114,14 @@ jobs:
           done
 
       - name: Start Infra Dependencies
-        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis &
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis
 
-      - name: Install JS Dependencies
-        run: make deps-js
-
-      - name: Generate and bundle go & js code
-        run: make generate
+      - name: Generate go code
+        # Skip the frontend bundle (generate-js/webpack) and Node setup: this workflow
+        # only tests orbit/osquery enrollment against the API and never serves the web
+        # UI, so building the React bundle is wasted work on the critical path.
+        # generate-go still produces server/bindata so the `full`-tagged build compiles.
+        run: make generate-go
 
       - name: Build fleet and fleetctl
         # fleet-dev builds fleet with "race" enabled.
@@ -129,10 +129,16 @@ jobs:
 
       - name: Run Fleet server
         env:
-          FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
           FLEET_SERVER_ADDRESS: 0.0.0.0:1337
           FLEET_SERVER_TLS: false
           FLEET_LOGGING_DEBUG: true
+          # Re-run host detail queries frequently (default is 1h). orbit_version comes
+          # from the discovery-gated orbit_info detail query, whose discovery misses on
+          # the first cycle because orbit's osquery extension registers a moment after
+          # osquery's first distributed read. A short interval lets a later cycle pick
+          # it up (extension registered by then), so orbit_version populates within the
+          # run. Required by the orbit_version wait gate below.
+          FLEET_OSQUERY_DETAIL_UPDATE_INTERVAL: 30s
         run: |
           mkdir ./fleet_log
           make db-reset
@@ -143,17 +149,65 @@ jobs:
             echo "Retrying setup in 5s..."
             sleep 5
           done
-          # Wait for all of the hosts to be enrolled
-          EXPECTED=3
-          until [ $(./build/fleetctl get hosts --json | grep "hostname" | wc -l | tee hostcount) -ge $EXPECTED ]; do
-            echo -n "Waiting for hosts to enroll: "
-            cat hostcount | xargs echo -n
-            echo " / $EXPECTED"
+          # Register the enroll secret the packages were built with, so agents can enroll.
+          echo '---
+          apiVersion: v1
+          kind: enroll_secret
+          spec:
+            secrets:
+            - secret: ${{ needs.gen.outputs.enroll_secret }}
+          ' > secrets.yml
+          ./build/fleetctl apply -f secrets.yml
+          # Disable software inventory so the heavy software_* detail queries don't run
+          # — notably software_macos_executable_sha256, which walks macOS app bundles and
+          # makes each macOS detail cycle take minutes (delaying orbit_version). This test
+          # only checks enrollment + versions; osquery_info and orbit_info are NOT part of
+          # software inventory, so osquery_version and orbit_version still populate.
+          echo '---
+          apiVersion: v1
+          kind: config
+          spec:
+            features:
+              enable_software_inventory: false
+          ' > config.yml
+          ./build/fleetctl apply -f config.yml
+          # Wait until all three platforms (darwin, ubuntu, windows) are enrolled as
+          # distinct hosts AND have reported both osquery_version and orbit_version.
+          #
+          # osquery_version is on the host list, but orbit_version comes from
+          # host_orbit_info, which is ONLY joined by the by-id host detail query
+          # (GET /api/v1/fleet/hosts/{id}). Neither `fleetctl get hosts` (list) nor
+          # `get hosts <identifier>` (HostByIdentifier) surface it. So we read
+          # osquery_version + id from the list and look up orbit_version per host via
+          # `fleetctl api` against the by-id detail endpoint.
+          while :; do
+            hosts=$(./build/fleetctl get hosts --json || true)
+            ready=0
+            counted=""
+            echo "Enrollment status:"
+            while IFS=$'\t' read -r id platform osq; do
+              [ -n "$id" ] || continue
+              # orbit_version is only returned by the by-id detail endpoint.
+              ov=$(./build/fleetctl api "/api/v1/fleet/hosts/$id" 2>/dev/null | jq -r '.host.orbit_version // ""' || true)
+              echo "  id=$id platform=$platform osquery_version=${osq:-<none>} orbit_version=${ov:-<none>}"
+              case "$platform" in
+                darwin|ubuntu|windows) ;;
+                *) continue ;;
+              esac
+              # count each expected platform once, only when both versions are present
+              if [ -n "$osq" ] && [ -n "$ov" ] && [[ " $counted " != *" $platform "* ]]; then
+                counted="$counted $platform"
+                ready=$((ready + 1))
+              fi
+            done < <(printf '%s' "$hosts" | jq -s -r '.[] | "\(.spec.id // "")\t\(.spec.platform // "?")\t\(.spec.osquery_version // "")"')
+            if [ "$ready" -eq 3 ]; then
+              break
+            fi
+            echo "Waiting for darwin, ubuntu and windows hosts to fully enroll ($ready/3 with osquery_version + orbit_version)..."
             sleep 30
           done
           ./build/fleetctl get hosts
-          ./build/fleetctl get hosts --json
-          echo "Success! $EXPECTED hosts enrolled."
+          echo "Success! darwin, ubuntu and windows hosts fully enrolled (osquery_version + orbit_version)."
 
       - name: Cleanup tunnel
         if: always()
@@ -174,48 +228,6 @@ jobs:
           name: cloudflared.log
           path: cloudflared.log
 
-  # Sets the enroll secret of the Fleet server.
-  #
-  # This job also makes sure the Fleet server is up and running.
-  set-enroll-secret:
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-    needs: gen
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-        with:
-          egress-policy: audit
-
-      - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-      - name: Install Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version-file: 'go.mod'
-
-      - name: Build Fleetctl
-        run: make fleetctl
-
-      - id: enroll
-        name: Set enroll secret
-        run: |
-          ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-          until ./build/fleetctl login --email admin@example.com --password preview1337#
-          do
-            echo "Retrying in 30s..."
-            sleep 30
-          done
-          echo '---
-          apiVersion: v1
-          kind: enroll_secret
-          spec:
-            secrets:
-            - secret: ${{ needs.gen.outputs.enroll_secret }}
-          ' > secrets.yml
-          ./build/fleetctl apply -f secrets.yml
-
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
   build-macos-targets:
@@ -223,12 +235,14 @@ jobs:
     runs-on: macos-14
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -262,16 +276,18 @@ jobs:
   # installed, and installing it is time consuming and unreliable.
   run-tuf-and-gen-pkgs:
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: [gen, build-macos-targets]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -286,13 +302,11 @@ jobs:
 
       - name: Build Repository and run TUF server
         env:
-          SYSTEMS: "macos windows linux linux-arm64"
+          SYSTEMS: "macos windows linux"
           PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
           PKG_TUF_URL: http://localhost:8081
           DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
           DEB_TUF_URL: http://localhost:8081
-          RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
-          RPM_TUF_URL: http://localhost:8081
           MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
           MSI_TUF_URL: http://localhost:8081
           ENROLL_SECRET: ${{ needs.gen.outputs.enroll_secret }}
@@ -300,9 +314,9 @@ jobs:
           MACOS_USE_PREBUILT_OSQUERYD_APP_TAR_GZ: 1
           GENERATE_PKG: 1
           GENERATE_DEB: 1
-          GENERATE_RPM: 1
           GENERATE_MSI: 1
           FLEET_DESKTOP: 1
+          DEBUG: 1
         run: |
           ./tools/tuf/test/main.sh
 
@@ -333,12 +347,16 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - name: Checkout Code
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - name: Checkout uninstall script
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Download pkg
         id: download
@@ -361,12 +379,41 @@ jobs:
 
       - name: Wait enroll
         run: |
-          # Wait until fleet server goes down.
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
+
+      # Warm up osqueryd before "Run orbit shell". The bundled osqueryd is a ~110MB
+      # notarized universal binary; its first launch on the macos-15-arm64 runner is
+      # slow (cold kernel code-signature validation + dyld/page-cache population). Orbit
+      # shell launches osqueryd and waits for its extension-manager socket to come up,
+      # and on a cold first launch that wait times out and orbit SIGKILLs osqueryd
+      # ("start osqueryd shell: signal: killed"). Pre-running --version warms those
+      # caches so the real launch comes up in time. (The binary is valid/notarized and
+      # Gatekeeper-accepted with no quarantine — this is purely a cold-start timing fix.)
+      - name: Warm up osqueryd
+        run: sudo /opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd --version
 
       - name: Run orbit shell
         run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
@@ -395,7 +442,7 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -420,12 +467,30 @@ jobs:
 
       - name: Wait enroll
         run: |
-          # Wait until fleet server goes down.
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
 
       - name: Run orbit shell
         run: sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
@@ -454,7 +519,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -479,11 +544,30 @@ jobs:
 
       - name: Wait enroll
         run: |
-          while curl --fail ${{ needs.gen.outputs.address }};
-          do
-            echo "Retrying in 10s..."
+          # Wait until the fleet server goes down, which signals that run-server has
+          # finished verifying enrollment and torn down the tunnel. Require several
+          # consecutive failures so a transient blip (e.g. a 5xx while the server is
+          # still up) doesn't let us proceed early, and cap the total wait so a stuck
+          # tunnel fails fast instead of riding the 60m job timeout.
+          down=0
+          required_down=3   # ~30s of consecutive failures confirms the server is gone
+          attempts=0
+          max_attempts=180  # ~30 minutes at 10s intervals
+          while [ "$down" -lt "$required_down" ]; do
+            if curl --fail --connect-timeout 10 -s -o /dev/null ${{ needs.gen.outputs.address }}/version; then
+              down=0
+            else
+              down=$((down + 1))
+              echo "Fleet server not responding ($down/$required_down consecutive)..."
+            fi
+            attempts=$((attempts + 1))
+            if [ "$attempts" -ge "$max_attempts" ]; then
+              echo "Fleet server still up after $max_attempts checks; giving up."
+              exit 1
+            fi
             sleep 10
           done
+          echo "Fleet server is down; run-server has finished."
 
       - name: Run orbit shell
         shell: cmd

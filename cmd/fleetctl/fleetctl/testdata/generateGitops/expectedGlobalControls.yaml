@@ -31,6 +31,8 @@ windows_updates:
   deadline_days: 5
   grace_period_days: 2
 windows_enabled_and_configured: true
+windows_entra_client_ids:
+- 7c1de9aa-9b2c-4d3e-8f10-2233445566aa
 windows_entra_tenant_ids:
 - 5b84b6dd-d257-415e-b8b4-0240666ba4d4
 - 9d30f55f-d117-4574-acf0-ff593e3e06e3
@@ -41,6 +43,7 @@ apple_require_hardware_attestation: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
 enable_recovery_lock_password: false
+name_template: ""
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

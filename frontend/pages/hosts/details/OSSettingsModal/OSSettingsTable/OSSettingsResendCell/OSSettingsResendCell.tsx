@@ -1,13 +1,16 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
-import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import {
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
-import { NotificationContext } from "context/notification";
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -70,23 +73,26 @@ const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
 interface IOSSettingsResendCellProps {
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
+  canResendHostNameTemplate?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
+  resendHostNameTemplate?: () => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsResendCell = ({
   canResendProfiles,
   canRotateRecoveryLockPassword = false,
+  canResendHostNameTemplate = false,
   profile,
   resendRequest,
   resendCertificateRequest,
   rotateRecoveryLockPassword,
+  resendHostNameTemplate,
   onProfileResent = noop,
 }: IOSSettingsResendCellProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isResending, setIsResending] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
 
@@ -102,17 +108,14 @@ const OSSettingsResendCell = ({
         profile.certificate_template_id !== undefined
       ) {
         await resendCertificateRequest(profile.certificate_template_id);
-        renderFlash(
-          "success",
-          "Successfully sent request to resend certificate."
-        );
+        notify.success("Successfully sent request to resend certificate.");
         onProfileResent();
       } else if (!isAndroidCertificate) {
         await resendRequest(profile.profile_uuid);
         onProfileResent();
       }
     } catch (e) {
-      renderFlash("error", "Couldn't resend. Please try again.");
+      notify.error("Couldn't resend. Please try again.", { response: e });
     }
     setIsResending(false);
   };
@@ -122,8 +125,7 @@ const OSSettingsResendCell = ({
     setIsRotating(true);
     try {
       await rotateRecoveryLockPassword();
-      renderFlash(
-        "success",
+      notify.success(
         "Successfully sent request to rotate Recovery Lock password."
       );
     } catch (e) {
@@ -131,19 +133,43 @@ const OSSettingsResendCell = ({
         ? "Recovery lock password rotation is already in progress for this host."
         : "Couldn't send request to rotate Recovery Lock password. Please try again.";
 
-      renderFlash("error", msg);
+      notify.error(msg, { response: e });
     }
     setIsRotating(false);
   };
 
+  const onResendHostNameTemplate = async () => {
+    if (!resendHostNameTemplate) return;
+    setIsResending(true);
+    try {
+      await resendHostNameTemplate();
+      onProfileResent();
+    } catch (e) {
+      notify.error("Couldn't resend. Please try again.", { response: e });
+    }
+    setIsResending(false);
+  };
+
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
+  const isRecoveryLockRow =
+    profile.profile_uuid === REC_LOCK_SYNTHETIC_PROFILE_UUID;
+  const isHostNameRow =
+    profile.profile_uuid === HOST_NAME_SYNTHETIC_PROFILE_UUID;
+
+  // The host name row is a synthetic row resent through its own endpoint, so it
+  // must not go through the profile-resend path above.
   const showResendButton =
     canResendProfiles &&
     (isFailed || isVerified) &&
-    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
+    !isRecoveryLockRow &&
+    !isHostNameRow;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
+  // canResendHostNameTemplate is already pre-gated on the host name row by the
+  // caller, mirroring how showRotateButton relies on canRotateRecoveryLockPassword.
+  const showResendHostNameButton =
+    canResendHostNameTemplate && (isFailed || isVerified);
 
   return (
     <div className={baseClass}>
@@ -152,6 +178,12 @@ const OSSettingsResendCell = ({
       )}
       {showRotateButton && (
         <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
+      )}
+      {showResendHostNameButton && (
+        <ResendButton
+          isResending={isResending}
+          onClick={onResendHostNameTemplate}
+        />
       )}
     </div>
   );

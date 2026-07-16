@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -155,12 +156,16 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 		// Check this field for a renameto tag.
 		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
 		if hasRenameTo && renameTo != "" {
+			// Split the new key name from options like ",inline".
+			newKeyName, renameOpts, _ := strings.Cut(renameTo, ",")
+			inline := slices.Contains(strings.Split(renameOpts, ","), "inline")
+
 			jsonTag, hasJSON := structField.Tag.Lookup("json")
-			if hasJSON && jsonTag != "" && jsonTag != "-" {
+			if hasJSON && jsonTag != "" && jsonTag != "-" && newKeyName != "" {
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: newKeyName, Inline: inline}
 					if !seen[rule] {
 						seen[rule] = true
 						*rules = append(*rules, rule)

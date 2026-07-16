@@ -11,8 +11,10 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -21,6 +23,38 @@ var deleteIDsBatchSize = 1000
 // hostUpcomingActivitiesAllowedOrderKeys is empty: the query supplies its own
 // ORDER BY and the service layer forces opt.OrderKey to "".
 var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
+
+var policyAutomationErrorActivityTypes = []string{
+	"failed_automation_webhook",
+	"failed_automation_ticket",
+	"failed_automation_calendar_event",
+	"failed_automation_conditional_access",
+}
+
+var policyAutomationSuccessActivityTypes = []string{
+	"ran_automation_webhook",
+	"ran_automation_ticket",
+	"ran_automation_calendar_event",
+	"ran_automation_conditional_access",
+}
+
+var policyAutomationActivityTypes = func() []string {
+	all := make([]string, 0, len(policyAutomationErrorActivityTypes)+len(policyAutomationSuccessActivityTypes))
+	all = append(all, policyAutomationErrorActivityTypes...)
+	all = append(all, policyAutomationSuccessActivityTypes...)
+	return all
+}()
+
+// The ORDER BY (and cursor WHERE) are applied to the outer subquery that wraps
+// the UNION ALL, which is aliased `t` (see ListPolicyAutomationActivities). The
+// inner per-branch aliases (ap, hsr, ...) are not in scope there, so columns are
+// qualified with `t` — which also keeps the ORDER BY unambiguous if the outer
+// query ever gains a JOIN.
+var policyAutomationActivityAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":            "t.id",
+	"created_at":    "t.created_at",
+	"activity_type": "t.activity_type",
+}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -1334,6 +1368,15 @@ ORDER BY
 	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)
 }
 
+// activateNextInHouseAppInstallActivity is the single fan-in point for every
+// InstallApplication command Fleet sends for an in-house (.ipa) app. All of:
+//
+//   - manual install from host details > software > library (including admin reinstall)
+//   - self-service install
+//
+// land here. Configuration is fetched and per-host $FLEET_VAR_* substitution
+// is performed inside this function so every send path inherits the latest
+// stored config.
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insStmt = `
 INSERT INTO
@@ -1359,65 +1402,29 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
+	// is_user_enrollment must reflect the actual MDM enrollment channel, NOT
+	// host_mdm.is_personal_enrollment: the latter is also set for
+	// manual-profile BYOD, which is device-channel and must install
+	// device-scoped like company-owned manual. Only Account-Driven User
+	// Enrollment (ADUE) is user-scoped, and its primary enrollment row
+	// (id = host UUID) has type 'User Enrollment (Device)' — every other
+	// device-channel enrollment is 'Device'. See #48879.
+	const getHostStmt = `
 SELECT
-	uuid, team_id, platform
+	h.uuid,
+	h.team_id,
+	h.platform,
+	h.hardware_serial,
+	COALESCE((
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.type = 'User Enrollment (Device)' AND ne.enabled = 1
+		LIMIT 1
+	), 0) AS is_user_enrollment
 FROM
-	hosts
+	hosts h
 WHERE
-	id = ?
+	h.id = ?
 `
-
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, :manifest_url, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN in_house_app_upcoming_activities ihua
-		ON ihua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>ManifestURL</key>
-        <string>`
-
-	const rawCmdPart2 = `</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
 
 	const insNanoQueueStmt = `
 INSERT INTO
@@ -1441,23 +1448,15 @@ ORDER BY
 		return nil
 	}
 
-	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		TeamID   *uint  `db:"team_id"`
-		Platform string `db:"platform"`
+		UUID             string `db:"uuid"`
+		TeamID           *uint  `db:"team_id"`
+		Platform         string `db:"platform"`
+		HardwareSerial   string `db:"hardware_serial"`
+		IsUserEnrollment bool   `db:"is_user_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
-	}
-
-	// Set management flags based on platform
-	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
 	}
 
 	// insert the host in-house app row
@@ -1479,50 +1478,92 @@ ORDER BY
 		tid = *hostData.TeamID
 	}
 
-	// Get the title ID for the in-house app being installed
-	var titleID uint
-	getTitleIDStmt := `
+	// Pull the (execution_id, in_house_app_id, software_title_id) tuples for
+	// each pending activation so we can build a per-app InstallApplication
+	// command in Go and inject the managed-app-configuration dict.
+	const pendingStmt = `
 SELECT
-		ihua.software_title_id
+	ua.execution_id,
+	ihua.in_house_app_id,
+	ihua.software_title_id
 FROM
-		upcoming_activities ua
-		INNER JOIN in_house_app_upcoming_activities ihua
-			ON ihua.upcoming_activity_id = ua.id
+	upcoming_activities ua
+	INNER JOIN in_house_app_upcoming_activities ihua
+		ON ihua.upcoming_activity_id = ua.id
 WHERE
-		ua.host_id = ? AND
-		ua.execution_id IN (?)
+	ua.host_id = ? AND ua.execution_id IN (?)
 `
-
-	stmt, args, err = sqlx.In(getTitleIDStmt, hostID, execIDs)
+	type ihPending struct {
+		ExecutionID   string `db:"execution_id"`
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		SoftwareTitle uint   `db:"software_title_id"`
+	}
+	stmt, args, err = sqlx.In(pendingStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare get in-house app title id")
+		return ctxerr.Wrap(ctx, err, "prepare pending in-house install lookup")
+	}
+	var pending []ihPending
+	if err := sqlx.SelectContext(ctx, tx, &pending, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "list pending in-house installs")
+	}
+	if len(pending) == 0 {
+		return nil
 	}
 
-	if err := sqlx.GetContext(ctx, tx, &titleID, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "get in-house app title id")
+	// Bulk-fetch managed configurations for the in-house apps being installed.
+	// In-house Configuration is iOS/iPadOS-only; the builder drops it for
+	// macOS hosts anyway, but in_house_apps are always Apple-mobile so we just
+	// fetch unconditionally.
+	ids := make([]uint, 0, len(pending))
+	for _, p := range pending {
+		ids = append(ids, p.InHouseAppID)
 	}
-
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
-
-	// insert the nano command
-	namedArgs := map[string]any{
-		"manifest_url":  manifestURL,
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
+	configsByAppID, err := ds.BulkGetInHouseAppConfigurationsTx(ctx, tx, ids)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+		return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
 	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+
+	// Build the InstallApplication plist for each pending activation, then do
+	// one batch INSERT into nano_commands. Per-host, per-app build also drives
+	// $FLEET_VAR_* substitution against host context.
+	subHost := apple_mdm.AppConfigSubstitutionHost{
+		UUID:           hostData.UUID,
+		HardwareSerial: hostData.HardwareSerial,
+		Platform:       hostData.Platform,
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+	insValues := make([]string, 0, len(pending))
+	insArgs := make([]any, 0, len(pending)*4)
+	for _, p := range pending {
+		// Mint inside this tx so the token rolls back with the nano_commands
+		// row on activation failure.
+		token := uuid.NewString()
+		if err := ds.CreateInHouseAppInstallToken(ctx, tx, token, p.SoftwareTitle, tid, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "mint in-house app install token")
+		}
+		manifestURL := fmt.Sprintf(
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest/%s",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, token)
+		cfg := configsByAppID[p.InHouseAppID]
+		if len(cfg) > 0 {
+			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "substitute fleet variables in in-house app configuration")
+			}
+			cfg = substituted
+		}
+		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
+			CommandUUID:      p.ExecutionID,
+			HostPlatform:     hostData.Platform,
+			ManifestURL:      manifestURL,
+			Configuration:    cfg,
+			IsUserEnrollment: hostData.IsUserEnrollment,
+		})
+		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
+		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
+	}
+	insCmdStmt := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES ` +
+		strings.Join(insValues, ", ")
+	if _, err := tx.ExecContext(ctx, insCmdStmt, insArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
 	}
 
@@ -1543,4 +1584,276 @@ WHERE
 		}
 	}
 	return nil
+}
+
+// policyAutomationCols is the common SELECT column list for all UNION branches.
+// All branches must project the same columns in the same order.
+const policyAutomationCols = `
+    ap.id,
+    ap.created_at,
+    ap.activity_type,
+    ap.fleet_initiated,
+    ap.details,
+    ahp.host_id,
+    COALESCE(hdn.display_name, '') AS host_display_name`
+
+// policyAutomationHostJoin is the JOIN from activity_past to hosts, shared
+// across all branches. The hosts table is included so whereFilterHostsByTeams
+// can filter by h.team_id.
+const policyAutomationHostJoin = `
+    JOIN  activity_host_past  ahp ON ahp.activity_id = ap.id
+    JOIN  hosts               h   ON h.id            = ahp.host_id
+    LEFT JOIN host_display_names hdn ON hdn.host_id  = ahp.host_id`
+
+// statusOutputCols renders the trailing status/output columns that every UNION
+// branch must project after policyAutomationCols. Modeling it as a struct
+// (rather than a raw SQL fragment) makes the positional contract that UNION ALL
+// relies on impossible to break by hand: the columns are always present, always
+// aliased, and always in this order, so no branch can silently reorder or drop
+// one. All fields are SQL expressions. status and output are required; an empty
+// preInstallOutput/postInstallOutput is projected as NULL (only the
+// installed_software branch surfaces those).
+type statusOutputCols struct {
+	status            string
+	output            string
+	preInstallOutput  string
+	postInstallOutput string
+}
+
+func (c statusOutputCols) sql() string {
+	pre, post := c.preInstallOutput, c.postInstallOutput
+	if pre == "" {
+		pre = "NULL"
+	}
+	if post == "" {
+		post = "NULL"
+	}
+	return fmt.Sprintf("%s AS status, %s AS output, %s AS pre_install_output, %s AS post_install_output",
+		c.status, c.output, pre, post)
+}
+
+// policyAutomationNamedStatusCols projects the status/output pair for the named
+// automation branch. Named activities encode their outcome in the type name —
+// every error type is prefixed "failed_" — and carry no script or install
+// output, so output is NULL.
+var policyAutomationNamedStatusCols = statusOutputCols{
+	status: `IF(ap.activity_type LIKE 'failed\_%', 'error', 'success')`,
+	output: "NULL",
+}
+
+// policyAutomationTaskBranch describes a UNION branch whose link to the policy
+// and whose success/failure state both live in a task result table (scripts,
+// in-house installs, VPP installs) rather than in the activity_past.details column.
+type policyAutomationTaskBranch struct {
+	// activityType is the activity_past.activity_type this branch matches.
+	activityType string
+	// joins are the additional JOINs binding the result table to the policy.
+	// They contain exactly one placeholder, for the policy ID.
+	joins string
+	// errorCond and successCond are the WHERE fragments selecting failed and
+	// successful tasks respectively. They are wrapped in parentheses when
+	// applied, so internal OR/AND precedence is preserved. Together they must
+	// partition the rows the branch surfaces: every row is matched by exactly one
+	// of them, and that must agree with statusCols.
+	errorCond   string
+	successCond string
+	// statusCols projects the status/output pair for this branch. The
+	// statusOutputCols type guarantees the columns and their order stay in sync
+	// with every other branch.
+	statusCols statusOutputCols
+}
+
+// policyAutomationTaskBranches are the non-named-automation sources of policy
+// activities: their rows are joined to the policy through a result table's
+// policy_id column rather than through activity_past.details.policy_id.
+var policyAutomationTaskBranches = []policyAutomationTaskBranch{
+	{
+		activityType: "ran_script",
+		joins: `
+            INNER JOIN host_script_results hsr
+                ON  hsr.host_id      = ahp.host_id
+                AND hsr.execution_id = ap.details->>'$.script_execution_id'
+                AND hsr.policy_id    = ?`,
+		errorCond:   "hsr.exit_code IS NOT NULL AND hsr.exit_code != 0",
+		successCond: "hsr.exit_code = 0",
+		statusCols: statusOutputCols{
+			status: "IF(hsr.exit_code = 0, 'success', 'error')",
+			output: "hsr.output",
+		},
+	},
+	{
+		activityType: "installed_software",
+		joins: `
+            INNER JOIN host_software_installs hsi
+                ON  hsi.host_id      = ahp.host_id
+                AND hsi.execution_id = ap.details->>'$.install_uuid'
+                AND hsi.policy_id    = ?`,
+		// Outcome comes from the recorded details.status (a historical snapshot),
+		// not the live host_software_installs status, which goes NULL once the row
+		// is removed. The activity is only written for a terminal install (see
+		// svc.NewActivity in orbit.go, gated on status != pending_install), and
+		// details.status has been recorded since the activity type was introduced,
+		// so in practice the only values are 'installed' and 'failed_install'.
+		// 'failed_install' is treated as the sole failure and anything else (an
+		// unexpected or empty status) as success, so errorCond and successCond are
+		// null-safe complements that exactly partition what statusCols reports.
+		errorCond:   "ap.details->>'$.status' = 'failed_install'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
+		// A software install can fail at the pre-install query, install script, or
+		// post-install script stage, so surface all three outputs; the modal shows
+		// them as separate sections.
+		statusCols: statusOutputCols{
+			status:            "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output:            "hsi.install_script_output",
+			preInstallOutput:  "hsi.pre_install_query_output",
+			postInstallOutput: "hsi.post_install_script_output",
+		},
+	},
+	{
+		activityType: "installed_app_store_app",
+		joins: `
+            INNER JOIN host_vpp_software_installs hvsi
+                ON  hvsi.host_id      = ahp.host_id
+                AND hvsi.command_uuid = ap.details->>'$.command_uuid'
+                AND hvsi.policy_id    = ?`,
+		// Like installed_software, a VPP activity is only written in a terminal
+		// state — either on a command error (apple_mdm.go) or once the install is
+		// verified/timed out (setStatusForExpectedInstall in
+		// apple_mdm_cmd_results.go) — recording the outcome in details.status. Read
+		// that historical snapshot rather than the live hvsi.verification_* columns,
+		// which mutate over the install's lifetime and go NULL when the row is
+		// removed. 'failed_install' is the sole failure; everything else is a
+		// success. error and success conditions are null-safe complements that
+		// exactly partition what statusCols reports.
+		errorCond:   "ap.details->>'$.status' = 'failed_install'",
+		successCond: "NOT (ap.details->>'$.status' <=> 'failed_install')",
+		// VPP apps are installed via MDM command, not a script, so there is no
+		// script output to surface.
+		statusCols: statusOutputCols{
+			status: "IF(ap.details->>'$.status' = 'failed_install', 'error', 'success')",
+			output: "NULL",
+		},
+	},
+}
+
+// policyAutomationBranch is a single UNION ALL branch: a complete SELECT (minus
+// the optional host-name filter) together with its bound arguments.
+type policyAutomationBranch struct {
+	sql  string
+	args []any
+}
+
+// buildPolicyAutomationBranches assembles every UNION branch contributing to
+// the policy automation activity feed, filtered by status ("error", "success",
+// or "" for both) and scoped to the hosts visible to the viewer via filter.
+func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.TeamFilter, status string) ([]policyAutomationBranch, error) {
+	teamFilterSQL := ds.whereFilterHostsByTeams(filter, "h")
+	// Named automation activities (webhook/ticket/calendar/CA) are selected by
+	// activity_type and linked to the policy through activity_past.details.policy_id. The
+	// status filter chooses which set of types to match.
+	namedTypes := policyAutomationActivityTypes
+	switch status {
+	case "error":
+		namedTypes = policyAutomationErrorActivityTypes
+	case "success":
+		namedTypes = policyAutomationSuccessActivityTypes
+	}
+	namedSQL, namedArgs, err := sqlx.In(fmt.Sprintf(`SELECT %s, %s FROM activity_past ap %s
+        WHERE ap.activity_type IN (?)
+          AND ap.details->>'$.policy_id' = ?
+          AND %s`, policyAutomationCols, policyAutomationNamedStatusCols.sql(), policyAutomationHostJoin, teamFilterSQL), namedTypes, policyID)
+	if err != nil {
+		return nil, err
+	}
+	branches := []policyAutomationBranch{{sql: namedSQL, args: namedArgs}}
+
+	// Task activities are linked to the policy through a result table; their
+	// success/failure condition is appended based on the requested status.
+	for _, b := range policyAutomationTaskBranches {
+		// The policy_id placeholder lives in the joins (before WHERE), so it is
+		// bound before the activity_type placeholder.
+		sql := fmt.Sprintf("SELECT %s, %s FROM activity_past ap %s %s WHERE ap.activity_type = ? AND %s",
+			policyAutomationCols, b.statusCols.sql(), policyAutomationHostJoin, b.joins, teamFilterSQL)
+		args := []any{policyID, b.activityType}
+		switch status {
+		case "error":
+			sql += " AND (" + b.errorCond + ")"
+		case "success":
+			sql += " AND (" + b.successCond + ")"
+		}
+		branches = append(branches, policyAutomationBranch{sql: sql, args: args})
+	}
+	return branches, nil
+}
+
+// ListPolicyAutomationActivities returns automation activities for the given
+// policy. Each row is one (activity, host) pair. The result set combines four
+// branches via UNION ALL:
+//  1. Named policy automation activities (webhook/ticket/calendar/CA), linked
+//     via details.policy_id.
+//  2. Script-run activities (ran_script), linked via host_script_results.
+//  3. In-house software-install activities (installed_software), linked via
+//     host_software_installs.
+//  4. VPP software-install activities (installed_app_store_app), linked via
+//     host_vpp_software_installs.
+func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
+	branches, err := buildPolicyAutomationBranches(ds, policyID, filter, status)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build policy automation branches")
+	}
+
+	// Apply the optional host-name filter (shared by every branch) and collect
+	// each branch's SQL and args in order.
+	parts := make([]string, 0, len(branches))
+	var allArgs []any
+	var likeArg string
+	if opts.MatchQuery != "" {
+		// Escape LIKE wildcards so host names containing '_' or '%' match literally.
+		escaped := strings.ReplaceAll(opts.MatchQuery, "_", "\\_")
+		escaped = strings.ReplaceAll(escaped, "%", "\\%")
+		likeArg = escaped + "%"
+	}
+	for _, b := range branches {
+		sql, args := b.sql, b.args
+		if opts.MatchQuery != "" {
+			sql += " AND hdn.display_name LIKE ?"
+			args = append(args, likeArg)
+		}
+		parts = append(parts, "("+sql+")")
+		allArgs = append(allArgs, args...)
+	}
+
+	// Wrap the UNION in a subquery so ORDER BY / cursor pagination apply to the
+	// combined result set rather than to any single branch.
+	unionCore := strings.Join(parts, " UNION ALL ")
+	listSQL := fmt.Sprintf("SELECT * FROM (%s) AS t", unionCore)
+	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM (%s) AS t_cnt", unionCore)
+
+	listSQL, listArgs, err := appendListOptionsWithCursorToSQLSecure(listSQL, allArgs, &opts, policyAutomationActivityAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
+
+	activities := []*fleet.PolicyAutomationActivity{}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, listSQL, listArgs...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select policy automation activities")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		var count uint
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countSQL, allArgs...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "count policy automation activities")
+		}
+		meta = &fleet.PaginationMetadata{
+			HasPreviousResults: opts.Page > 0,
+			TotalResults:       count,
+		}
+		if len(activities) > int(opts.PerPage) { //nolint:gosec // G115: bounded by maxPolicyAutomationActivitiesPerPage
+			meta.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, meta, nil
 }

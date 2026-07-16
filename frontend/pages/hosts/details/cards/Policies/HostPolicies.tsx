@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 
 import { Row } from "react-table";
 
@@ -26,8 +26,8 @@ interface IPoliciesProps {
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
+  closePolicyDetailsModal: () => void;
   hostPlatform: string;
-
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
@@ -44,8 +44,8 @@ const Policies = ({
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
+  closePolicyDetailsModal,
   hostPlatform,
-
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
@@ -60,11 +60,24 @@ const Policies = ({
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
 
+  useEffect(() => {
+    return () => {
+      closePolicyDetailsModal();
+    };
+  }, [closePolicyDetailsModal]);
+
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
       togglePolicyDetailsModal(row.original);
     },
     [togglePolicyDetailsModal]
+  );
+
+  // Memoize the table data so its reference stays stable across re-renders
+  // that don't change the policies.
+  const tableData = useMemo(
+    () => generatePolicyDataSet(policies, !!conditionalAccessEnabled),
+    [policies, conditionalAccessEnabled]
   );
 
   const renderBanner = () => {
@@ -137,7 +150,7 @@ const Policies = ({
         {renderBanner()}
         <TableContainer
           columnConfigs={tableHeaders}
-          data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
+          data={tableData}
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"

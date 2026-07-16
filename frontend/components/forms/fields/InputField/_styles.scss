@@ -16,12 +16,6 @@
     color: $ui-fleet-black-50;
   }
 
-  &:hover:not(.input-field--read-only) {
-    box-shadow: none;
-    border: 1px solid $ui-fleet-black-75-over;
-  }
-
-  &:active:not(.input-field--read-only),
   &:focus:not(.input-field--read-only),
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
@@ -129,10 +123,6 @@
     flex-shrink: 0;
   }
 
-  &__action-button-wrapper {
-    position: relative;
-  }
-
   &__action-button {
     @include bordered-icon-button;
 
@@ -140,21 +130,6 @@
       width: 16px;
       height: 16px;
     }
-  }
-
-  &__copied-confirmation {
-    @include copy-message;
-  }
-
-  // Positioning for new bordered action buttons — float to the left of the button
-  &__action-button-wrapper &__copied-confirmation {
-    position: absolute;
-    top: 50%;
-    right: calc(100% + $pad-xsmall);
-    transform: translateY(-50%);
-    margin: 0;
-    white-space: nowrap;
-    pointer-events: none;
   }
 }
 

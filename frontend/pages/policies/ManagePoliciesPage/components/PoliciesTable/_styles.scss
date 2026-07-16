@@ -20,26 +20,118 @@
     }
   }
 
+  .data-table tbody td.automations__cell {
+    max-width: 300px;
+  }
+
   &__action-button-container {
     display: flex;
     justify-content: center;
   }
+
+  &__filter-dropdowns {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__platform-dropdown {
+    flex-shrink: 0;
+    width: 200px;
+  }
+
+  // Allow horizontal scrolling when the table is wider than its container so
+  // body cells don't overflow past the table boundary on smaller screens.
+  .table-container__data-table-block .data-table-block .data-table__wrapper {
+    overflow-x: auto;
+  }
+
+  // Stack the search bar above the filter dropdowns on smaller screens so
+  // they don't get scrunched together (matches the Hosts page pattern).
+  .table-container {
+    @media (max-width: $table-controls-break) {
+      &__header {
+        flex-direction: column;
+      }
+
+      &__header-left {
+        order: 2;
+        flex-direction: column;
+        align-items: stretch;
+
+        .results-count {
+          order: 2;
+        }
+
+        .controls {
+          order: -2;
+
+          .policies-table__filter-dropdowns {
+            .form-field--dropdown,
+            .policies-table__platform-dropdown {
+              flex: 1;
+            }
+          }
+        }
+      }
+
+      &__search {
+        align-self: start;
+      }
+    }
+  }
 }
 
-.automations-cell {
-  display: block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.automations__cell-content {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 
   &--none {
     color: $ui-fleet-black-50;
   }
+
+  // Read-only cells (rendered for roles that can't open the automations modal)
+  // are plain, non-interactive <span>s with no pencil icon — keep the default
+  // cursor so they don't appear clickable.
+  &--readonly {
+    cursor: default;
+  }
 }
 
-.no-team-policy {
-  border: 1px solid #e2e4ea;
-  box-sizing: border-box;
-  border-radius: 8px;
+.automations__name {
+  flex: 1;
+  min-width: 0;
+}
+
+// Fixed-size wrapper so layout doesn't shift while a software icon loads
+.automations__software-icon {
+  display: flex;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  background-color: $ui-fleet-black-33;
+  border-radius: 4px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.automations__count {
+  flex: 1;
+  min-width: 0;
+  font-style: italic;
+  color: $ui-fleet-black-75;
+}
+
+.automations__edit-button {
+  visibility: hidden;
+  flex-shrink: 0;
+  margin-left: $pad-small;
+  display: flex;
+  align-items: center;
+  color: $core-vibrant-blue;
+}
+
+.automations__cell-content:hover .automations__edit-button {
+  visibility: visible;
 }
