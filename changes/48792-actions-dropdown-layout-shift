@@ -1,1 +1,1 @@
-* Fixed the page content shifting left when opening the Actions dropdown on the last rows of a table (labels, users, fleets), and the resulting jump when a delete modal opened. The dropdown menu now flips upward when there's no room below instead of stretching the page.
+* Fixed the page content shifting left when opening the Actions dropdown on the last rows of a table (labels, users, fleets), and the resulting jump when a delete modal opened. The dropdown menu now flips upward when there's no room below the trigger.
