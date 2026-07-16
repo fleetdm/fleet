@@ -113,6 +113,11 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		if len(p.Secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 		}
+		for _, s := range p.Secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+			}
+		}
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
@@ -1103,6 +1108,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		if strings.TrimSpace(secret.Secret) == "" {
+			return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+		}
 		newSecretsValues[secret.Secret] = struct{}{}
 
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
@@ -1368,6 +1376,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
+		}
+		for _, s := range secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"), "validate secrets")
+			}
 		}
 		// TODO: should we be we validating the other Apple platforms? if so, we should also include
 		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
