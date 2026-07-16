@@ -119,9 +119,13 @@ const ManageControlsPage = ({
   // Controls pages don't support "All teams". On free tier the page runs as
   // "All teams", so teamIdForApi is undefined and the sub-pages (which gate
   // their render on it being defined) would spin forever. Free tier has only
-  // "No team", so coerce to it. On premium, undefined is transient (it
-  // resolves once the selected fleet loads), so keep gating on it there.
-  const teamIdForApiToUse = isPremiumTier ? teamIdForApi : API_NO_TEAM_ID;
+  // "No team", so coerce to it — but only once we've confirmed the tier is Free
+  // (isPremiumTier === false). While the tier is still unknown (undefined during
+  // config load) or premium, pass teamIdForApi through untouched so the
+  // sub-pages keep waiting instead of firing "No team" queries before the tier
+  // is known (which would flash wrong-team data for premium users on boot).
+  const teamIdForApiToUse =
+    isPremiumTier === false ? API_NO_TEAM_ID : teamIdForApi;
 
   const permittedControlsSubNav = useMemo(() => {
     let renderedSubNav = controlsSubNav;

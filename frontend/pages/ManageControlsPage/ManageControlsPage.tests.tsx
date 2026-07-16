@@ -22,7 +22,7 @@ const TestSubPage = ({ teamIdForApi }: { teamIdForApi?: number }) => (
 );
 
 const renderPage = (
-  isPremiumTier: boolean,
+  isPremiumTier: boolean | undefined,
   teamIdForApi: number | undefined
 ) => {
   mockUseTeamIdParam.mockReturnValue({
@@ -69,5 +69,12 @@ describe("ManageControlsPage - teamIdForApi forwarded to sub-pages", () => {
   it("forwards the resolved teamIdForApi on premium", () => {
     renderPage(true, 5);
     expect(screen.getByTestId("sub-page")).toHaveTextContent("teamIdForApi=5");
+  });
+
+  it("does not coerce to 'No team' while the tier is still unknown (config not loaded yet), to avoid premium users firing No-team queries on boot", () => {
+    renderPage(undefined, undefined);
+    expect(screen.getByTestId("sub-page")).toHaveTextContent(
+      "teamIdForApi=undefined"
+    );
   });
 });
