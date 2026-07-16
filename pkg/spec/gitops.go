@@ -309,14 +309,29 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 		}
 	}
 
-	packageLevel.Categories = spec.Categories
-	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
-	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
-	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
-	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
-	packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
-	packageLevel.SelfService = spec.SelfService
-	packageLevel.Configuration = spec.Configuration
+	// Inherit fleet-level fields onto any package that didn't set them, so a value
+	// set once at the fleet level applies to every package of the title. Which level
+	// a field may live at for a yaml file with multiple packages is validated separately.
+	if !packageLevel.SelfService {
+		packageLevel.SelfService = spec.SelfService
+	}
+	if len(packageLevel.Categories.Value) == 0 {
+		packageLevel.Categories = spec.Categories
+	}
+	if len(packageLevel.LabelsIncludeAny) == 0 && len(packageLevel.LabelsExcludeAny) == 0 && len(packageLevel.LabelsIncludeAll) == 0 {
+		packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
+		packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+		packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
+	}
+	if !packageLevel.InstallDuringSetup.Valid {
+		packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	}
+	if !packageLevel.SetupExperiencePlatform.Set {
+		packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
+	}
+	if packageLevel.Configuration.Path == "" {
+		packageLevel.Configuration = spec.Configuration
+	}
 
 	// This will only override display name set at path: path/to/software.yml level
 	// if display_name is specified at the team level yml
@@ -325,6 +340,32 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	}
 
 	return packageLevel, nil
+}
+
+func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.SoftwarePackageSpec, multiple bool) error {
+	id := pkg.URL
+	if id == "" {
+		id = pkg.SHA256
+	}
+	if id == "" {
+		id = pkg.ReferencedYamlPath
+	}
+
+	if (teamLevel.SelfService && pkg.SelfService) ||
+		(len(teamLevel.Categories.Value) > 0 && len(pkg.Categories.Value) > 0) {
+		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, id)
+	}
+	if multiple && pkg.InstallDuringSetup.Valid {
+		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, id)
+	}
+	// A single package may set labels at either level but not both. If multiple
+	// packages are defined, labels are not allowed at the fleet level.
+	teamLevelLabels := len(teamLevel.LabelsIncludeAny) > 0 || len(teamLevel.LabelsExcludeAny) > 0 || len(teamLevel.LabelsIncludeAll) > 0
+	pkgLabels := len(pkg.LabelsIncludeAny) > 0 || len(pkg.LabelsExcludeAny) > 0 || len(pkg.LabelsIncludeAll) > 0
+	if !multiple && teamLevelLabels && pkgLabels {
+		return fmt.Errorf(fleet.SoftwareLabelsConflictMessage, id)
+	}
+	return nil
 }
 
 type Software struct {
@@ -381,6 +422,10 @@ type GitOps struct {
 	Labels              []*fleet.LabelSpec
 	LabelChangesSummary LabelChangesSummary
 
+	// CustomHostVitals are the custom host vital definitions (names only; per-host
+	// values are never set via GitOps). Global-only: cannot be set on a team/fleet file.
+	CustomHostVitals []fleet.CustomHostVital
+
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -392,6 +437,15 @@ type GitOps struct {
 	SoftwarePresent bool
 	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
 	SecretsPresent bool
+	// CustomHostVitalsPresent indicates that the `custom_host_vitals:` key was explicitly present in the YAML file.
+	CustomHostVitalsPresent bool
+}
+
+// GitOpsCustomHostVital defines the valid keys for an item in the top-level
+// `custom_host_vitals:` list. Definitions only (a name) -- per-host values are
+// never set via GitOps.
+type GitOpsCustomHostVital struct {
+	Name string `json:"name"`
 }
 
 type GitOpsSoftware struct {
@@ -465,7 +519,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels"}
+	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels", "custom_host_vitals"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -528,9 +582,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels" and "software" are special cases where omitting may be a no-op (based on exception settings),
-		// rather than a directive to clear settings. settings keys were handled above.
-		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "settings" || topKey == "org_settings" {
+		// "labels" and "software" are special cases where omitting may be a no-op (based on
+		// exception settings), rather than a directive to clear settings.
+		// "custom_host_vitals" has no exception setting -- omitting it always means clear-all -- but still needs its own
+		// presence tracking (parseCustomHostVitals below), so it's excluded from the generic
+		// null-default handling too. settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "custom_host_vitals" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
 		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
@@ -557,6 +614,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		} else {
 			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 		}
+	}
+	// Get the custom host vitals. CustomHostVitalsPresent tracks whether the key was in the YAML.
+	if _, ok := top["custom_host_vitals"]; ok {
+		result.CustomHostVitalsPresent = true
+		multiError = parseCustomHostVitals(top, result, filePath, multiError)
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
@@ -1064,6 +1126,40 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	} else {
 		result.TeamSettings["secrets"] = enrollSecrets
 	}
+	return multiError
+}
+
+// parseCustomHostVitals parses the top-level `custom_host_vitals:` key.
+// Global-only: custom host vital definitions aren't team-scoped, so the key
+// isn't valid on a team file. An empty (or explicitly null) list is a
+// declarative clear-all, same as an absent secrets/yara_rules list.
+func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
+	raw := top["custom_host_vitals"]
+
+	if !result.global() {
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+	}
+
+	result.CustomHostVitals = []fleet.CustomHostVital{}
+	if len(raw) == 0 || string(raw) == "null" {
+		return multiError
+	}
+
+	var vitals []GitOpsCustomHostVital
+	if err := json.Unmarshal(raw, &vitals); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"custom_host_vitals"}, err))
+	}
+	// Validate unknown keys in the custom_host_vitals section.
+	multiError = multierror.Append(multiError, validateRawKeys(raw, reflect.TypeFor[[]GitOpsCustomHostVital](), filePath, []string{"custom_host_vitals"})...)
+
+	for _, v := range vitals {
+		if err := fleet.ValidateCustomHostVitalName(v.Name); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("'custom_host_vitals': %w", err))
+			continue
+		}
+		result.CustomHostVitals = append(result.CustomHostVitals, fleet.CustomHostVital{Name: v.Name})
+	}
+
 	return multiError
 }
 
@@ -2283,41 +2379,44 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 					continue
 				}
-				var singlePackageSpec SoftwarePackage
-				singlePackageSpec.ReferencedYamlPath = resolvedPath
-				if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[SoftwarePackage](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
-						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-						continue
-					}
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
-				} else if err = YamlUnmarshal(fileBytes, &softwarePackageSpecs); err == nil {
-					// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					for i, spec := range softwarePackageSpecs {
-						if spec.IncludesFieldsDisallowedInPackageFile() {
-							multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-							continue
-						}
 
-						softwarePackageSpecs[i].ReferencedYamlPath = resolvedPath
-					}
+				// A package YAML file is a list of packages. A file written as a single
+				// object is treated as a one-element list.
+				var singlePackageSpec fleet.SoftwarePackageSpec
+				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
+				if listErr == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
 				} else {
-					// If we reached here, we couldn't unmarshal as either format.
-					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
+					// couldn't unmarshal as a list or a single object
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
 					continue
 				}
 
-				for i, spec := range softwarePackageSpecs {
-					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
+				// Collect the packages that validate and hydrate, dropping any that fail.
+				multiple := len(softwarePackageSpecs) > 1
+				// This label rule is at the fleet level, so check it once here rather than per package.
+				if multiple && (len(teamLevelPackage.LabelsIncludeAny) > 0 || len(teamLevelPackage.LabelsExcludeAny) > 0 || len(teamLevelPackage.LabelsIncludeAll) > 0) {
+					multiError = multierror.Append(multiError, fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, *teamLevelPackage.Path))
+				}
+				var valid []*fleet.SoftwarePackageSpec
+				for _, spec := range softwarePackageSpecs {
+					spec.ReferencedYamlPath = resolvedPath
+					if err := validatePackageFieldPlacement(teamLevelPackage, spec, multiple); err != nil {
+						multiError = multierror.Append(multiError, err)
+						continue
+					}
+					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(resolvedPath))
 					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec, ext)
 					if err != nil {
 						multiError = multierror.Append(multiError, err)
 						continue
 					}
-					softwarePackageSpecs[i] = &softwarePackageSpec
+					valid = append(valid, &softwarePackageSpec)
 				}
+				softwarePackageSpecs = valid
 
 			default:
 				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, or .ps1 files are supported", *teamLevelPackage.Path, ext))
