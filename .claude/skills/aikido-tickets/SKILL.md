@@ -1,7 +1,7 @@
 ---
 name: aikido-tickets
 description: Create GitHub issues in fleetdm/confidential for Aikido pen test findings. Use when asked to "create aikido tickets", "aikido ticket", or "create pen test tickets".
-allowed-tools: Bash(gh *), Read, Grep, Glob, WebFetch
+allowed-tools: Bash(gh *), Bash(jq *), Read, Grep, Glob, Agent, Write
 model: sonnet
 effort: high
 ---
@@ -119,34 +119,41 @@ See full details below.
 
 ## Process
 
-1. **Read the finding** from the pen test PDF report. Each finding starts with a header like "2.3.X PT-{N} - {Title}". The detailed findings section starts around page 15. Estimate ~3 pages per finding to locate the right page range.
+1. **Read the finding** from the pen test PDF report. Locate each finding by its `PT-{N}` header rather than guessing page numbers. Scan for `2.3.X PT-{N} - {Title}` headers in the detailed findings section (starts around page 15). Read pages in chunks to find the right section.
 
 2. **Write the ticket body** following the format above:
    - The top section (title, explanation, attack path, fix) is YOUR synthesis of the finding, written concisely
    - The foldable `<details>` section at the bottom contains the ORIGINAL Aikido report content verbatim
 
-3. **Create the issue:**
+3. **Write the body to a temp file and create the issue:**
    ```bash
+   # Write body to temp file to avoid shell escaping issues
+   cat > /tmp/aikido-pt-{N}.md << 'BODY'
+   {body content}
+   BODY
+
    gh issue create --repo fleetdm/confidential \
      --title "Aikido-PT-{N} [{SEVERITY}]: {title}" \
      --assignee {assignee} \
      --label "bug,~security,~vulnerability-management,{team_label},p3" \
-     --body "{body}"
+     --body-file /tmp/aikido-pt-{N}.md
    ```
 
 4. **Add to the correct project board and set status to Ready:**
    ```bash
-   # Get project node ID (needed for item-edit)
-   PROJECT_NODE_ID=$(gh api graphql -f query='{ organization(login: "fleetdm") { projectV2(number: {N}) { id } } }' | jq -r '.data.organization.projectV2.id')
+   # Get project node ID
+   PROJECT_NODE_ID=$(gh api graphql -f query='{ organization(login: "fleetdm") { projectV2(number: {project_number}) { id } } }' | jq -r '.data.organization.projectV2.id')
 
    # Add to project
    ITEM_ID=$(gh project item-add {project_number} --owner fleetdm --url {issue_url} --format json | jq -r '.id')
 
    # Get Status field ID and Ready option ID
-   gh project field-list {project_number} --owner fleetdm --format json | jq '.fields[] | select(.name == "Status")'
+   READY_INFO=$(gh project field-list {project_number} --owner fleetdm --format json | jq '.fields[] | select(.name == "Status")')
+   STATUS_FIELD_ID=$(echo "$READY_INFO" | jq -r '.id')
+   READY_OPTION_ID=$(echo "$READY_INFO" | jq -r '.options[] | select(.name | test("Ready")) | .id')
 
-   # Set to Ready (option ID for "Ready" is typically 567b541e but verify from field-list output)
-   gh project item-edit --project-id $PROJECT_NODE_ID --id $ITEM_ID --field-id {status_field_id} --single-select-option-id {ready_option_id}
+   # Set to Ready
+   gh project item-edit --project-id $PROJECT_NODE_ID --id $ITEM_ID --field-id $STATUS_FIELD_ID --single-select-option-id $READY_OPTION_ID
    ```
 
    If the project scope is not available, inform the user that tickets were created but need to be manually added to the project board.
@@ -155,10 +162,15 @@ See full details below.
 
 ## Batch creation
 
-When creating many tickets at once, use parallel agents (5-6 at a time, each handling ~5-7 findings) for efficiency. Each agent should:
-- Read the relevant PDF pages for its assigned findings
-- Create the issues with correct labels and assignee
+When creating many tickets at once, delegate to subagents via the `Agent` tool. Launch the whole batch of subagents in a single message so findings are processed concurrently.
+
+Split the requested findings into groups of ~5-7 and spawn one subagent per group (aim for 5-6 subagents at a time). Give each subagent its assigned `PT-{N}` list and instruct it to:
+
+- Locate each finding by its `PT-{N}` header and read those pages of the PDF
+- Draft the ticket body and write it to a temp file
+- Create the issue with `--body-file`, correct labels, and assignee
 - Add each issue to the project board and set status to Ready
+- Return the created issue URLs (and any failures) so the run is resumable
 
 ## Important notes
 
@@ -168,4 +180,4 @@ When creating many tickets at once, use parallel agents (5-6 at a time, each han
 - The foldable `<details>` section preserves the full Aikido evidence for reference
 - When creating many tickets, read the PDF pages for each finding to get accurate details
 - For the Fix section: if one fix is clearly the best, only list that one. Only list multiple options if there are genuinely different viable approaches
-- Fetch project field IDs at runtime rather than hardcoding, since they may change
+- Fetch project field IDs at runtime rather than hardcoding, since they can change across projects
