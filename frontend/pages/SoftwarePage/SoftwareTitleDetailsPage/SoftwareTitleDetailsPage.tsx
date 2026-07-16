@@ -159,15 +159,7 @@ const SoftwareTitleDetailsPage = ({
       retry: false,
       select: (data) => data.software_title,
       onError: (error) => {
-        if (error.status === 404) {
-          router.replace(
-            getPathWithQueryParams(paths.SOFTWARE, {
-              fleet_id: teamIdForApi,
-            })
-          );
-          return;
-        }
-        if (!ignoreAxiosError(error, [403])) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },
@@ -673,7 +665,7 @@ const SoftwareTitleDetailsPage = ({
     if (isSoftwareTitleError) {
       return (
         <DetailsNoHosts
-          header="Software not detected"
+          header="Software not found in this fleet"
           details="Expecting to see software? Check back later."
         />
       );
