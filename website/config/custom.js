@@ -516,8 +516,6 @@ module.exports.custom = {
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
-  // cloudCustomerCompliancePartnerSharedSecret: '…',
-  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy
