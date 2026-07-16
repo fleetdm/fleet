@@ -138,31 +138,19 @@ const ManageQueryAutomationsModal = ({
     });
   };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      // Skip autorepeated keys — the trigger button's Enter may still be
-      // held when this listener attaches, which would auto-submit the form.
-      if (event.repeat) return;
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit({
-          newAutomatedQueryIds: queryItems
-            .filter((p) => p.isChecked)
-            .map((p) => p.id),
-          previousAutomatedQueryIds: automatedQueryIds,
-        });
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  });
+  const submitSelected = () =>
+    onSubmit({
+      newAutomatedQueryIds: queryItems
+        .filter((p) => p.isChecked)
+        .map((p) => p.id),
+      previousAutomatedQueryIds: automatedQueryIds,
+    });
 
   return (
     <Modal
       title="Manage automations"
       onExit={onCancel}
+      onEnter={submitSelected}
       className={baseClass}
       width="large"
       isHidden={isShowingPreviewDataModal}

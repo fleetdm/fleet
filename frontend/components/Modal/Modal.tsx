@@ -78,7 +78,12 @@ const Modal = ({
     if (!container) return undefined;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    if (!isHiddenRef.current) container.focus();
+    // Only take focus (and later restore it) if we're the active modal.
+    // A modal mounted with isHidden=true is stacked behind another one that
+    // already owns focus; grabbing focus on unmount would jump the user back
+    // to a stale location.
+    const tookFocus = !isHiddenRef.current;
+    if (tookFocus) container.focus();
 
     const handleFocusOut = (e: FocusEvent) => {
       if (isHiddenRef.current) return;
@@ -89,7 +94,11 @@ const Modal = ({
 
     return () => {
       document.removeEventListener("focusout", handleFocusOut);
-      if (previouslyFocused && document.body.contains(previouslyFocused)) {
+      if (
+        tookFocus &&
+        previouslyFocused &&
+        document.body.contains(previouslyFocused)
+      ) {
         previouslyFocused.focus();
       }
     };
@@ -125,6 +134,8 @@ const Modal = ({
   useEffect(() => {
     if (onEnter) {
       const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
+        // Ignore Enter while a stacked modal is on top of this one.
+        if (isHiddenRef.current) return;
         // Skip autorepeated keys: the trigger button's Enter may still be
         // held when the modal mounts and this listener attaches.
         if (event.repeat) return;
