@@ -67,6 +67,8 @@ const Modal = ({
   // isHidden signals a sibling modal is stacked on top of this one; that
   // modal owns focus, so this one should stay out of the way.
   const isHiddenRef = useRef(isHidden);
+  // Writing during render is deliberate — React's canonical pattern for
+  // mirroring a prop into a ref so long-lived handlers see the latest value.
   isHiddenRef.current = isHidden;
 
   // Focus the container on open so the modal is the keyboard landing point;
