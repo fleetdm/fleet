@@ -217,7 +217,10 @@ $base-class: "button";
   // Looks exactly like a CustomLink but is a <button>
   &--link {
     @include link;
-    @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+    font-weight: $regular;
+    text-decoration: underline;
+    text-decoration-color: $ui-fleet-black-75;
+    text-underline-offset: 3px;
     background: transparent;
     border: 0;
     box-shadow: none;
@@ -230,6 +233,10 @@ $base-class: "button";
     align-items: center;
     gap: $pad-xsmall;
     white-space: normal;
+
+    &:hover {
+      text-decoration-color: $core-fleet-black;
+    }
 
     &:focus {
       outline: none;

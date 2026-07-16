@@ -6,10 +6,10 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.naotanhaocan.BetterMouse' AND version_compare(bundle_short_version, '1.6') < 0);"
       },
-      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.6.8888.zip",
+      "installer_url": "https://better-mouse.com/wp-content/uploads/BetterMouse.1.6.8893.zip",
       "install_script_ref": "f290e8e9",
       "uninstall_script_ref": "598ead04",
-      "sha256": "22449306ee4fbeb1398f919f98209ec5750739b2905542b2ed3484e756c51d3e",
+      "sha256": "ec8309ab4d1bff931547535f3bc41cb24e7a1886e3b1a024b07de31c2a782ca5",
       "default_categories": [
         "Productivity"
       ]

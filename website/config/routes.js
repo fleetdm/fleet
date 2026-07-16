@@ -748,6 +748,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
   'GET /use-cases/osquery-consider-joining-against-the-users-table': '/guides/osquery-consider-joining-against-the-users-table',
@@ -1147,7 +1148,8 @@ module.exports.routes = {
   'GET /autonomous-endpoint-management': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/autonomous-endpoint-management' + originalQueryString); },
   'GET /imagine/open-source': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/lp/open-source' + originalQueryString); },
   'GET /orchestration': '/visibility-and-reporting',
-  'GET /gitops-workshop': '/workshops',
+  'GET /gitops-workshop': (req, res) => { let originalQueryString = req.url.match(/\?(.+)$/) ? '?' + req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl + '/workshops' + originalQueryString); },
+  'GET /gitops-workshops': '/workshops',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -1308,6 +1310,7 @@ module.exports.routes = {
   'GET /learn-more-about/okta-conditional-access': '/guides/okta-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
+  'GET /learn-more-about/byod-transparency': '/better',
   'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
   'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',

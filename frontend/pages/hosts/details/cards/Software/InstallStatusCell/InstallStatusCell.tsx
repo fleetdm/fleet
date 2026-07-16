@@ -575,12 +575,7 @@ const InstallStatusCell = ({
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
-          <Spinner
-            size="x-small"
-            includeContainer={false}
-            centered={false}
-            delay={0}
-          />
+          <Spinner size="x-small" centered={false} delay={0} />
         ) : (
           displayConfig?.iconName && (
             <Icon

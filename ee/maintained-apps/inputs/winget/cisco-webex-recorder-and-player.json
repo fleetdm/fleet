@@ -1,0 +1,11 @@
+{
+  "name": "Cisco Webex Recorder and Player",
+  "slug": "cisco-webex-recorder-and-player/windows",
+  "package_identifier": "Cisco.WebexRecorderAndPlayer",
+  "unique_identifier": "Webex Recorder and Player",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Communication"]
+}

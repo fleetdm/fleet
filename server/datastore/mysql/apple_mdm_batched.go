@@ -656,6 +656,60 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 				d.HasFleetVariables = true
 			}
 		}
+
+		// Custom host vitals ($FLEET_HOST_VITAL_<id>) are a separate variable
+		// namespace that isn't recorded in mdm_configuration_profile_variables, so
+		// detect them by scanning the declaration body. Marking them
+		// HasFleetVariables makes the reconciler stamp variables_updated_at, which
+		// (a) lets handleDeclarationItems load raw_json and drop declarations it
+		// can't resolve for a host from the manifest, and (b) cache-busts the DDM
+		// token so a per-host value change is re-delivered. INSTR matches the
+		// prefix without the leading '$' so it catches both $FOO and ${FOO} forms.
+		const vitalsStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE declaration_uuid IN (?) AND INSTR(raw_json, ?) > 0`
+		q, args, err = sqlx.In(vitalsStmt, declUUIDs, fleet.CustomHostVitalPrefix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration custom host vitals query")
+		}
+		var withVitals []string
+		if err := sqlx.SelectContext(ctx, tx, &withVitals, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with custom host vitals")
+		}
+		for _, u := range withVitals {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+
+		// For declarations that reference DDM assets, load the most recent
+		// uploaded_at across their referenced assets. The reconciler stamps this
+		// onto host_mdm_apple_declarations.assets_updated_at so that editing an
+		// asset (which bumps its uploaded_at) re-syncs the referencing declaration
+		// even when the declaration itself is unchanged. Mirrors the
+		// variables_updated_at handling above.
+		const assetsStmt = `
+			SELECT r.declaration_uuid, MAX(a.uploaded_at) AS assets_updated_at
+			FROM mdm_apple_declaration_asset_references r
+			JOIN mdm_apple_declaration_assets a ON a.asset_uuid = r.asset_uuid
+			WHERE r.declaration_uuid IN (?)
+			GROUP BY r.declaration_uuid`
+		aq, aargs, err := sqlx.In(assetsStmt, declUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration assets query")
+		}
+		type assetRow struct {
+			DeclarationUUID string       `db:"declaration_uuid"`
+			AssetsUpdatedAt sql.NullTime `db:"assets_updated_at"`
+		}
+		var assetRows []assetRow
+		if err := sqlx.SelectContext(ctx, tx, &assetRows, aq, aargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with ddm assets")
+		}
+		for _, ar := range assetRows {
+			if d, ok := byUUID[ar.DeclarationUUID]; ok && ar.AssetsUpdatedAt.Valid {
+				t := ar.AssetsUpdatedAt.Time
+				d.AssetsUpdatedAt = &t
+			}
+		}
 	}
 
 	return out, nil
@@ -693,6 +747,7 @@ func (ds *Datastore) bulkGetHostMDMAppleDeclarationsByUUIDsTransaction(
 			token,
 			secrets_updated_at,
 			variables_updated_at,
+			assets_updated_at,
 			scope
 		FROM host_mdm_apple_declarations
 		WHERE host_uuid IN (?)
@@ -856,7 +911,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 	const baseStmt = `
 		INSERT INTO host_mdm_apple_declarations
 		  (host_uuid, declaration_uuid, declaration_identifier, declaration_name,
-		   status, operation_type, token, secrets_updated_at, variables_updated_at, scope)
+		   status, operation_type, token, secrets_updated_at, variables_updated_at, assets_updated_at, scope)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  status = VALUES(status),
@@ -866,6 +921,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 		  declaration_name = VALUES(declaration_name),
 		  secrets_updated_at = VALUES(secrets_updated_at),
 		  variables_updated_at = VALUES(variables_updated_at),
+		  assets_updated_at = VALUES(assets_updated_at),
 		  scope = VALUES(scope)
 	`
 
@@ -883,10 +939,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostDeclarations(
 			if scope == "" {
 				scope = fleet.PayloadScopeSystem
 			}
-			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+			valueParts = append(valueParts, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			args = append(args,
 				r.HostUUID, r.DeclarationUUID, r.Identifier, r.Name,
-				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, scope,
+				r.Status, r.OperationType, r.Token, r.SecretsUpdatedAt, r.VariablesUpdatedAt, r.AssetsUpdatedAt, scope,
 			)
 			batchByKey[fmt.Sprintf("%s\n%s", r.HostUUID, r.DeclarationUUID)] = r
 		}

@@ -31,7 +31,7 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 ## New and migrated declarative configurations
 
-> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 

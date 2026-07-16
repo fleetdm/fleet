@@ -3970,7 +3970,7 @@ reports:
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, pols, 3)
 	policyIDsByName := map[string]uint{}
@@ -3987,7 +3987,7 @@ reports:
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 	}))
 
-	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
@@ -4860,7 +4860,7 @@ settings:
 	installer, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "")
+	tmPols, err := s.DS.ListMergedTeamPolicies(ctx, 0, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install ruby", tmPols[0].Name)
@@ -4880,7 +4880,7 @@ settings:
 	installer, err = s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &tm.ID, titles[0].ID, false)
 	require.NoError(t, err)
 
-	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "")
+	tmPols, err = s.DS.ListMergedTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, tmPols, 1)
 	require.Equal(t, "Install team ruby", tmPols[0].Name)
@@ -4934,7 +4934,7 @@ labels:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fullFile.Name()}))
 
 	// Verify policy, agent_options, controls, and reports were applied.
-	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "Test Global Policy", policies[0].Name)
@@ -4977,7 +4977,7 @@ org_settings:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", minimalFile.Name()}))
 
 	// Verify policies were cleared.
-	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err = s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -5082,7 +5082,7 @@ policies:
 	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile}))
 
 	// The global policy persisted both its include_any and exclude_all scopes.
-	globalPolicies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	globalPolicies, err := s.DS.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	require.Len(t, globalPolicies, 1)
 	gp := globalPolicies[0]
@@ -5097,7 +5097,7 @@ policies:
 	// The team policy persisted both its include_all and exclude_any scopes.
 	tm, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
-	teamPolicies, _, err := s.DS.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	teamPolicies, _, err := s.DS.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	tp := teamPolicies[0]
@@ -5200,7 +5200,7 @@ labels:
 	fl, err := s.DS.TeamByName(ctx, fleetName)
 	require.NoError(t, err)
 
-	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err := s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 1)
 	require.Equal(t, "Test Fleet Policy", flPols[0].Name)
@@ -5241,7 +5241,7 @@ name: %s
 	}))
 
 	// Verify policies were cleared.
-	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "")
+	flPols, err = s.DS.ListMergedTeamPolicies(ctx, fl.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, flPols, 0)
 
@@ -5809,4 +5809,161 @@ labels:
 
 	realRunOutput := fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
 	require.Contains(t, realRunOutput, "gitops succeeded")
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestMultiplePackagesRoundTrip() {
+	t := s.T()
+	ctx := context.Background()
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const teamName = "roundtrip_multi"
+
+	// Apply a team holding two custom packages of the same title (ruby, with
+	// different content per architecture).
+	// absolute path to a valid PNG fixture for the package icon
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	iconPath, err := filepath.Abs(filepath.Join(filepath.Dir(currentFile), "../../fleetctl/testdata/gitops/lib/icon.png"))
+	require.NoError(t, err)
+
+	// gitops validates that referenced labels exist, so create one to scope a package to
+	_, err = s.DS.NewLabel(ctx, &fleet.Label{Name: "roundtrip_multi_label", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	applyDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(applyDir, "fleets"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(applyDir, "queries"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(applyDir, "scripts"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(applyDir, "queries", "ruby-preinstall.yml"), []byte("- query: SELECT 1 FROM osquery_info\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(applyDir, "scripts", "ruby-postinstall.sh"), []byte("#!/bin/sh\necho postinstall\n"), 0o644))
+	teamFile := filepath.Join(applyDir, "fleets", "team.yml")
+	require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, `
+name: %s
+team_settings:
+  secrets:
+    - secret: roundtrip_secret
+agent_options:
+controls:
+policies:
+queries:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      self_service: true
+      pre_install_query:
+        path: ../queries/ruby-preinstall.yml
+      labels_include_all:
+        - roundtrip_multi_label
+      icon:
+        path: %s
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby_variant.deb
+      categories:
+        - "🔐 Security"
+      post_install_script:
+        path: ../scripts/ruby-postinstall.sh
+`, teamName, iconPath), 0o644))
+
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile})
+	require.NoError(t, err)
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// find the title that ended up with both packages
+	titleID := uint(0)
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	for _, tl := range titles {
+		p, err := s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, tl.ID)
+		require.NoError(t, err)
+		if len(p) == 2 {
+			titleID = tl.ID
+		}
+	}
+	require.NotZero(t, titleID, "the two packages should resolve to one title")
+
+	// assertPackages checks the per-package fields that ride through apply and re-apply:
+	// ruby.deb keeps self_service, a pre-install query, and a scope label; ruby_variant.deb
+	// keeps a category and a post-install script.
+	assertPackages := func(pkgs []*fleet.SoftwareInstaller) {
+		require.True(t, pkgs[0].SelfService)
+		require.False(t, pkgs[1].SelfService)
+		require.Equal(t, "SELECT 1 FROM osquery_info", pkgs[0].PreInstallQuery)
+		require.Empty(t, pkgs[1].PreInstallQuery)
+		require.Len(t, pkgs[0].LabelsIncludeAll, 1)
+		require.Equal(t, "roundtrip_multi_label", pkgs[0].LabelsIncludeAll[0].LabelName)
+		require.Equal(t, "#!/bin/sh\necho postinstall\n", pkgs[1].PostInstallScript)
+		cats, err := s.DS.GetCategoriesForSoftwareInstallers(ctx, []uint{pkgs[1].InstallerID})
+		require.NoError(t, err)
+		require.Equal(t, []string{"🔐 Security"}, cats[pkgs[1].InstallerID])
+		// the icon is title-level, so it is fetched once from the title metadata
+		meta, err := s.DS.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
+		require.NoError(t, err)
+		require.NotNil(t, meta.IconUrl)
+	}
+
+	// first-added first
+	pkgs, err := s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	firstID, secondID := pkgs[0].InstallerID, pkgs[1].InstallerID
+	assertPackages(pkgs)
+
+	// generate the team's config back out (needs an admin to read config), with real
+	// secrets so it re-applies cleanly
+	admin := fleet.User{
+		Name:       "Admin " + uuid.NewString(),
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.DS.NewUser(ctx, &admin)
+	require.NoError(t, err)
+	adminConfig := s.createFleetctlConfig(t, admin)
+
+	genDir := t.TempDir()
+	_, err = fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--fleet", teamName, "--dir", genDir, "--insecure"})
+	require.NoError(t, err)
+
+	genTeamFiles, err := filepath.Glob(filepath.Join(genDir, "fleets", "*.yml"))
+	require.NoError(t, err)
+	require.Len(t, genTeamFiles, 1)
+
+	// re-applying the generated output keeps the same two packages, ids, and per-package fields
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", genTeamFiles[0]})
+	require.NoError(t, err)
+
+	pkgs, err = s.DS.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID)
+	require.NoError(t, err)
+	require.Len(t, pkgs, 2)
+	require.Equal(t, firstID, pkgs[0].InstallerID)
+	require.Equal(t, secondID, pkgs[1].InstallerID)
+	assertPackages(pkgs)
+
+	// generating again from the re-applied state yields byte-identical files: the
+	// round-trip is stable, so re-applying the generated config produced no diff
+	genDir2 := t.TempDir()
+	_, err = fleetctltest.RunAppNoChecks([]string{"generate-gitops", "--config", adminConfig.Name(), "--fleet", teamName, "--dir", genDir2, "--insecure"})
+	require.NoError(t, err)
+
+	readTree := func(dir string) map[string]string {
+		files := map[string]string{}
+		require.NoError(t, filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+			require.NoError(t, err)
+			if info.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(dir, p)
+			require.NoError(t, err)
+			b, err := os.ReadFile(p) //nolint:gosec // reading generated files under t.TempDir()
+			require.NoError(t, err)
+			files[rel] = string(b)
+			return nil
+		}))
+		return files
+	}
+	require.Equal(t, readTree(genDir), readTree(genDir2))
 }

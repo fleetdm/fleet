@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	WithAssets       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -180,6 +181,29 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
+}
+
+func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if !c.WithAssets {
+		return nil, nil
+	}
+	if teamID == nil {
+		return []*fleet.DDMAsset{{AssetUUID: "global-asset-uuid", Name: "Global Asset", Identifier: "com.example.global-asset"}}, nil
+	}
+	if *teamID == 1 {
+		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: "Team Asset", Identifier: "com.example.team-asset"}}, nil
+	}
+	return nil, nil
+}
+
+func (MockClient) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	switch assetUUID {
+	case "global-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.global-asset","Payload":{"Reference":{"DataURL":"https://example.com/global"}}}`), nil
+	case "team-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.team-asset","Payload":{"Reference":{"DataURL":"https://example.com/team"}}}`), nil
+	}
+	return nil, errors.New("asset not found")
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -714,6 +738,13 @@ func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 	}}, nil
 }
 
+func (MockClient) ListCustomHostVitals(query string) ([]fleet.CustomHostVital, error) {
+	return []fleet.CustomHostVital{
+		{ID: 1, Name: "Asset tag"},
+		{ID: 2, Name: "Department"},
+	}, nil
+}
+
 func (MockClient) Me() (*fleet.User, error) {
 	return &fleet.User{
 		ID:         1,
@@ -1033,6 +1064,47 @@ func TestGenerateGitops(t *testing.T) {
 			t.Fatalf("failed to remove temp dir: %v", err)
 		}
 	})
+}
+
+func TestGenerateGitopsWithAssets(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{WithAssets: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	var sawAssetsSection, sawAssetFile bool
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		content := string(b)
+		if strings.Contains(filepath.ToSlash(path), "/assets/") && strings.HasSuffix(path, ".json") {
+			sawAssetFile = true
+			require.Contains(t, content, "com.apple.asset.data")
+		}
+		if strings.Contains(content, "assets:") && strings.Contains(content, "/assets/") {
+			sawAssetsSection = true
+		}
+		return nil
+	}))
+	require.True(t, sawAssetsSection, "expected an assets: section referencing an assets/ path")
+	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
 }
 
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
@@ -1690,6 +1762,46 @@ func TestGenerateControls(t *testing.T) {
 	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
+func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+		OAuthIdPTokenURL: optjson.SetString("https://idp.example.com/oauth2/v1/token"),
+		OAuthIdPClientID: optjson.SetString("client-id"),
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+	require.NoError(t, err)
+
+	aap, ok := controls["apple_account_provisioning"].(map[string]any)
+	require.True(t, ok, "apple_account_provisioning should be emitted for global controls")
+	require.Equal(t, "https://idp.example.com/oauth2/v1/token", aap["oauth_idp_token_url"])
+	require.Equal(t, "client-id", aap["oauth_idp_client_id"])
+
+	// The secret is masked/non-exportable, so it's emitted as a TODO comment
+	// registered against default.yml rather than the real value.
+	secretToken, ok := aap["oauth_idp_client_secret"].(string)
+	require.True(t, ok)
+	var found bool
+	for _, c := range cmd.Comments {
+		if c.Token == secretToken {
+			require.Equal(t, "default.yml", c.Filename)
+			require.Contains(t, c.Comment, "TODO")
+			found = true
+		}
+	}
+	require.True(t, found, "the client secret should be emitted as a registered TODO comment")
+}
+
 func TestGenerateSoftware(t *testing.T) {
 	configureFMAManifestServer(t)
 	// Get the test app config.
@@ -2059,6 +2171,117 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 		return []fleet.SoftwareTitleListResult{}, nil
 	}
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+const (
+	santaHashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+type MockClientMultiPackage struct {
+	MockClient
+}
+
+func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2" {
+		return []fleet.SoftwareTitleListResult{{
+			ID:              7,
+			Name:            "Santa",
+			HashSHA256:      new(santaHashA),
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "santa-2026.2.pkg", Platform: "darwin", Version: "2026.2"},
+		}}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientMultiPackage) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	if id == 7 {
+		return &fleet.SoftwareTitle{
+			ID:          7,
+			Name:        "Santa",
+			DisplayName: "Santa Security",
+			Packages: []fleet.SoftwareInstaller{
+				{
+					StorageID:         santaHashA,
+					URL:               "https://example.com/santa-2026.2.pkg",
+					Platform:          "darwin",
+					InstallScript:     "install A",
+					PostInstallScript: "post A",
+					SelfService:       true,
+					LabelsIncludeAll:  []fleet.SoftwareScopeLabel{{LabelName: "macOS"}},
+				},
+				{
+					StorageID:        santaHashB,
+					URL:              "https://example.com/santa-2026.4.pkg",
+					Platform:         "darwin",
+					InstallScript:    "install B",
+					SelfService:      true,
+					Categories:       []string{"Productivity"},
+					LabelsIncludeAll: []fleet.SoftwareScopeLabel{{LabelName: "macOS"}, {LabelName: "IT test team"}},
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.GetSoftwareTitleByID(id, teamID)
+}
+
+func (c *MockClientMultiPackage) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareMultiplePackages(t *testing.T) {
+	fleetClient := &MockClientMultiPackage{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	res, err := cmd.generateSoftware("fleets/team-a.yml", 2, "team-a", false)
+	require.NoError(t, err)
+
+	// the fleet file references the title's packages by a single path entry
+	packages := res["packages"].([]map[string]any)
+	require.Len(t, packages, 1)
+	require.Equal(t, "Santa Security", packages[0]["display_name"])
+
+	// that path points at a package YAML file holding a two-item list, first-added
+	// first, with the per-package fields inline
+	listPath := strings.TrimPrefix(packages[0]["path"].(string), "../")
+	list := cmd.FilesToWrite[listPath].([]map[string]any)
+	require.Len(t, list, 2)
+
+	require.Equal(t, santaHashA, list[0]["hash_sha256"])
+	require.Equal(t, "https://example.com/santa-2026.2.pkg", list[0]["url"])
+	require.Equal(t, true, list[0]["self_service"])
+	require.Equal(t, []string{"macOS"}, list[0]["labels_include_all"])
+	require.NotContains(t, list[0], "categories")
+
+	require.Equal(t, santaHashB, list[1]["hash_sha256"])
+	require.Equal(t, []string{"Productivity"}, list[1]["categories"])
+	require.Equal(t, []string{"macOS", "IT test team"}, list[1]["labels_include_all"])
+
+	// each package's install script is written to its own file, referenced by a path
+	// relative to the package YAML file's directory
+	pkgDir := filepath.Dir(listPath)
+	installA := filepath.Join(pkgDir, list[0]["install_script"].(map[string]any)["path"].(string))
+	installB := filepath.Join(pkgDir, list[1]["install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "install A", cmd.FilesToWrite[installA])
+	require.Equal(t, "install B", cmd.FilesToWrite[installB])
+	require.NotEqual(t, installA, installB)
+
+	// post_install_script is written per package as its own side file
+	postA := filepath.Join(pkgDir, list[0]["post_install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "post A", cmd.FilesToWrite[postA])
+	require.NotContains(t, list[1], "post_install_script")
 }
 
 func TestGeneratePolicies(t *testing.T) {

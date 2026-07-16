@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
@@ -82,9 +82,7 @@ const WelcomeHost = ({
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
-              notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
-              );
+              notify.error(`Vitals are taking longer than expected to load.`);
               setShowRefetchLoadingSpinner(false);
             }
           }
@@ -274,7 +272,7 @@ const WelcomeHost = ({
           </Button>
           <span>
             Last updated{" "}
-            {formatDistanceToNow(new Date(host.detail_updated_at), {
+            {timeAgo(new Date(host.detail_updated_at), {
               addSuffix: true,
             })}
           </span>

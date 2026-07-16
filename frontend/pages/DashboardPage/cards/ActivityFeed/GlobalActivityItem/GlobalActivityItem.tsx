@@ -1683,6 +1683,9 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  editedAppleAccountProvisioning: () => (
+    <> edited account provisioning settings.</>
+  ),
   configuredMSEntraConditionalAccess: () => (
     <> configured Microsoft Entra conditional access.</>
   ),
@@ -2037,6 +2040,30 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+  createdCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        created a custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  editedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        edited custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  deletedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        deleted custom host vital <b>{custom_host_vital_name}</b>.
       </>
     );
   },
@@ -2541,6 +2568,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
     }
+    case ActivityType.EditedAppleAccountProvisioning: {
+      return TAGGED_TEMPLATES.editedAppleAccountProvisioning();
+    }
     case ActivityType.ConfiguredMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
     }
@@ -2622,6 +2652,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+    case ActivityType.CreatedCustomHostVital: {
+      return TAGGED_TEMPLATES.createdCustomHostVital(activity);
+    }
+    case ActivityType.EditedCustomHostVital: {
+      return TAGGED_TEMPLATES.editedCustomHostVital(activity);
+    }
+    case ActivityType.DeletedCustomHostVital: {
+      return TAGGED_TEMPLATES.deletedCustomHostVital(activity);
     }
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);

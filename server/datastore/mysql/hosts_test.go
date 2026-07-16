@@ -9524,6 +9524,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.UUID)
 	require.NoError(t, err)
 
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_device_names (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
 	var activity fleet.ActivityDetails = fleet.ActivityTypeRanScript{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
@@ -9615,7 +9621,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Create a SCIM user and link it to host
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
-	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID))
+	_, err = associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID)
+	require.NoError(t, err)
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",
@@ -9726,6 +9733,17 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Insert into host_custom_host_vitals table (no host FK, cleaned up via hostRefs).
+	vitalRes, err := ds.writer(context.Background()).Exec(`INSERT INTO custom_host_vitals (name) VALUES (?)`, "delete-host-vital")
+	require.NoError(t, err)
+	vitalID, err := vitalRes.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(
+		`INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value) VALUES (?, ?, ?)`,
+		host.ID, vitalID, "engineering",
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

@@ -50,6 +50,14 @@ const (
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
 func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
+	// Custom host vitals are declarative and global-only, so every `fleetctl gitops`
+	// run against a global config calls these, even when custom_host_vitals: is absent.
+	ds.ListCustomHostVitalsFunc = func(ctx context.Context, opt fleet.ListOptions) ([]fleet.CustomHostVital, *fleet.PaginationMetadata, int, error) {
+		return nil, &fleet.PaginationMetadata{}, 0, nil
+	}
+	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		return nil, nil, nil
+	}
 	var users []*fleet.User
 	var admin *fleet.User
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -138,6 +146,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -163,6 +174,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
@@ -255,6 +269,13 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.Contains(r.URL.Path, "ruby_variant.deb"):
+					// ruby.deb with extra trailing bytes: same package (the deb archive
+					// ignores trailing bytes) but a different hash, so it is a distinct
+					// package of the same title.
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+					_, _ = w.Write([]byte("\n# variant\n"))
 				case strings.HasSuffix(r.URL.Path, ".pkg"):
 					pkgDir := getPathRelative("../testdata/gitops/lib/")
 					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))
@@ -391,9 +412,11 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}

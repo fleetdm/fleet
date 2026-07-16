@@ -2260,4 +2260,43 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/a custom MDM command/i)).toBeInTheDocument();
     expect(screen.getByText("Huck's MacBook Pro")).toBeInTheDocument();
   });
+
+  it("renders a created_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Function" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("created a custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Function")).toBeInTheDocument();
+  });
+
+  it("renders an edited_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Asset tag" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_custom_host_vital activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedCustomHostVital,
+      details: { custom_host_vital_id: 1, custom_host_vital_name: "Asset tag" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted custom host vital", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
+  });
 });
