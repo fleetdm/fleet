@@ -888,6 +888,7 @@ import Slack from "./Slack";
 import Slicer from "./Slicer";
 import Slidepad from "./Slidepad";
 import Sloth from "./Sloth";
+import SmallstepAgent from "./SmallstepAgent";
 import Smartsheet from "./Smartsheet";
 import Smartsvn from "./Smartsvn";
 import Smoothscroll from "./Smoothscroll";
@@ -2017,6 +2018,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slack: Slack,
   slidepad: Slidepad,
   sloth: Sloth,
+  "smallstep agent": SmallstepAgent,
   smartsheet: Smartsheet,
   smartsvn: Smartsvn,
   smoothscroll: Smoothscroll,
