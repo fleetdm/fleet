@@ -68,8 +68,8 @@ func addDeclarativeNotes(root map[string]any) {
 	// is a leaf for our purposes), which stops array leaves like labels.hosts from
 	// being annotated a second time on their items node.
 	hasDeeper := func(path string) bool {
-		for k := range declarativeExceptions {
-			if strings.HasPrefix(k, path+".") {
+		for key := range declarativeExceptions {
+			if strings.HasPrefix(key, path+".") {
 				return true
 			}
 		}
