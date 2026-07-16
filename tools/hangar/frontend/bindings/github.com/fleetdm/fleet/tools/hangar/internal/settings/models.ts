@@ -147,6 +147,43 @@ export class NgrokConfig {
 }
 
 /**
+ * NgrokRunningTunnel is one live tunnel from ngrok's local API, including the
+ * public URL it's forwarding from.
+ */
+export class NgrokRunningTunnel {
+    "name": string;
+    "public_url": string;
+    "proto": string;
+    "addr": string;
+
+    /** Creates a new NgrokRunningTunnel instance. */
+    constructor($$source: Partial<NgrokRunningTunnel> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("public_url" in $$source)) {
+            this["public_url"] = "";
+        }
+        if (!("proto" in $$source)) {
+            this["proto"] = "";
+        }
+        if (!("addr" in $$source)) {
+            this["addr"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new NgrokRunningTunnel instance from a string or object.
+     */
+    static createFrom($$source: any = {}): NgrokRunningTunnel {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new NgrokRunningTunnel($$parsedSource as Partial<NgrokRunningTunnel>);
+    }
+}
+
+/**
  * NgrokTunnel is one tunnel definition from ngrok.yml.
  */
 export class NgrokTunnel {

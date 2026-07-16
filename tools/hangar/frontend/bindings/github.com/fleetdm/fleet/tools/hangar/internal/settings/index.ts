@@ -5,6 +5,7 @@ export {
     EnvVar,
     FleetServeConfig,
     NgrokConfig,
+    NgrokRunningTunnel,
     NgrokTunnel,
     NgrokYamlInfo,
     PythonConfig,

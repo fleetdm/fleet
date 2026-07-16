@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   api,
   type NgrokYamlInfo,
+  type NgrokRunningTunnel,
   type ProcInfo,
   type ServerProfile,
   type Settings,
@@ -1427,6 +1428,30 @@ function NgrokCell({
   onToggleTunnel: (name: string) => void;
 }) {
   const cfg = settings.ngrok;
+  // Live public URLs from ngrok's local API while it's running. Polled because
+  // the URLs can take a moment to appear after start.
+  const [liveTunnels, setLiveTunnels] = useState<NgrokRunningTunnel[]>([]);
+  useEffect(() => {
+    if (!running) {
+      setLiveTunnels([]);
+      return;
+    }
+    let cancelled = false;
+    const load = () =>
+      api
+        .ngrokTunnels()
+        .then((t) => {
+          if (!cancelled) setLiveTunnels(t);
+        })
+        .catch(() => {});
+    load();
+    const id = window.setInterval(load, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [running]);
+
   if (running) {
     const tunnelLabel = cfg.start_all
       ? "all tunnels"
@@ -1443,6 +1468,27 @@ function NgrokCell({
           busy={busy}
           down={false}
         />
+        {liveTunnels.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              padding: "0 var(--pad-medium) var(--pad-medium)",
+            }}
+          >
+            {liveTunnels.map((t) => (
+              <button
+                key={t.public_url}
+                onClick={() => api.openUrl(t.public_url)}
+                title={`${t.name} → ${t.addr}`}
+                style={{ padding: "4px 10px", fontSize: "var(--fs-xx-small)" }}
+              >
+                {t.name} ↗
+              </button>
+            ))}
+          </div>
+        )}
       </Cell>
     );
   }

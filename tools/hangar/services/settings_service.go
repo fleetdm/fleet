@@ -69,6 +69,12 @@ func (s *SettingsService) DetectFleetConfig(repo string) string {
 	return settings.DetectFleetConfig(repo)
 }
 
+// NgrokTunnels returns the currently-running ngrok tunnels (with public URLs)
+// from ngrok's local API. Empty when ngrok isn't running.
+func (s *SettingsService) NgrokTunnels() ([]settings.NgrokRunningTunnel, error) {
+	return settings.FetchNgrokTunnels()
+}
+
 // ParseNgrokYml summarizes an ngrok.yml (empty path = ngrok's default).
 func (s *SettingsService) ParseNgrokYml(path string) settings.NgrokYamlInfo {
 	return settings.ParseNgrokYml(path)

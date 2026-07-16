@@ -57,6 +57,7 @@ export type FleetServeConfig = settingsM.FleetServeConfig;
 export type EnvVar = settingsM.EnvVar;
 export type NgrokTunnel = settingsM.NgrokTunnel;
 export type NgrokYamlInfo = settingsM.NgrokYamlInfo;
+export type NgrokRunningTunnel = settingsM.NgrokRunningTunnel;
 export type RepoProbe = settingsM.RepoProbe;
 
 export type GitopsFile = gitopsM.File;
@@ -161,6 +162,8 @@ export const api = {
     ),
   parseNgrokYml: (path?: string | null) =>
     cast<NgrokYamlInfo>(SettingsService.ParseNgrokYml(path ?? "")),
+  ngrokTunnels: () =>
+    cast<NgrokRunningTunnel[]>(SettingsService.NgrokTunnels()),
   readTextFile: (path: string) => SettingsService.ReadTextFile(path),
   writeTextFile: (path: string, contents: string) =>
     SettingsService.WriteTextFile(path, contents),
