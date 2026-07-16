@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,10 @@ import (
 )
 
 const vulnBatchSize = 500
+
+// errArtifactNotFound signals that no Android OSV artifact exists for the
+// requested major version.
+var errArtifactNotFound = errors.New("no Android OSV artifact found")
 
 // OSVulnStore is the subset of fleet.Datastore needed by the Android analyzer.
 type OSVulnStore interface {
@@ -90,33 +95,39 @@ func Analyze(
 
 	artifact, err := cache.get(majorVersion, vulnPath)
 	if err != nil {
-		logger.DebugContext(ctx, "no Android OSV artifact found",
-			"android_version", majorVersion,
-			"err", err)
-		return nil, nil
+		if errors.Is(err, errArtifactNotFound) {
+			logger.DebugContext(ctx, "no Android OSV artifact found",
+				"android_version", majorVersion,
+				"err", err)
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "loading Android OSV artifact")
 	}
 
 	if len(artifact.Vulnerabilities) == 0 {
 		return nil, nil
 	}
 
-	// Match: host is vulnerable if its SPL is before the fix's SPL.
 	// If the host has no SPL (bare version like "16"), we can't determine
-	// vulnerability status, so we skip matching.
+	// vulnerability status, so we skip matching and leave any existing
+	// findings untouched rather than deleting them via the delta below.
+	if hostSPL == "" {
+		return nil, nil
+	}
+
+	// Match: host is vulnerable if its SPL is before the fix's SPL.
 	var found []fleet.OSVulnerability
-	if hostSPL != "" {
-		for _, vuln := range artifact.Vulnerabilities {
-			if vuln.FixedSPL == "" {
-				continue
-			}
-			if hostSPL < vuln.FixedSPL {
-				found = append(found, fleet.OSVulnerability{
-					OSID:              os.ID,
-					CVE:               vuln.CVE,
-					Source:            fleet.AndroidOSVSource,
-					ResolvedInVersion: resolvedVersion(majorVersion, vuln.FixedSPL),
-				})
-			}
+	for _, vuln := range artifact.Vulnerabilities {
+		if vuln.FixedSPL == "" {
+			continue
+		}
+		if hostSPL < vuln.FixedSPL {
+			found = append(found, fleet.OSVulnerability{
+				OSID:              os.ID,
+				CVE:               vuln.CVE,
+				Source:            fleet.AndroidOSVSource,
+				ResolvedInVersion: resolvedVersion(majorVersion, vuln.FixedSPL),
+			})
 		}
 	}
 
@@ -212,7 +223,7 @@ func loadArtifact(majorVersion, vulnPath string) (*AndroidArtifact, error) {
 		return nil, fmt.Errorf("globbing Android OSV artifacts: %w", err)
 	}
 	if len(matches) == 0 {
-		return nil, fmt.Errorf("no Android OSV artifact found for version %s", majorVersion)
+		return nil, fmt.Errorf("%w for version %s", errArtifactNotFound, majorVersion)
 	}
 
 	// Pick the latest by filename (date is in the name, lexicographic sort works).

@@ -225,6 +225,41 @@ func TestAnalyze(t *testing.T) {
 		require.Len(t, deleted, 2)
 	})
 
+	t.Run("bare version (no SPL) leaves existing vulns untouched", func(t *testing.T) {
+		ds := new(mock.Store)
+		// Existing findings from a previous scan of a patch-level version.
+		ds.ListOSVulnerabilitiesByOSFunc = func(ctx context.Context, osID uint) ([]fleet.OSVulnerability, error) {
+			return []fleet.OSVulnerability{
+				{
+					OSID:              8,
+					CVE:               "CVE-2026-1111",
+					Source:            fleet.AndroidOSVSource,
+					ResolvedInVersion: resolvedVersion("16", "2026-05-01"),
+				},
+			}, nil
+		}
+		var deleted []fleet.OSVulnerability
+		ds.DeleteOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability) error {
+			deleted = append(deleted, vulns...)
+			return nil
+		}
+
+		// Host reports a bare version with no security patch level, so we
+		// can't determine vulnerability status.
+		os := fleet.OperatingSystem{
+			ID:       8,
+			Name:     "Android",
+			Version:  "16",
+			Platform: "android",
+		}
+
+		result, err := Analyze(ctx, ds, os, vulnDir, true, nil, NewArtifactCache())
+		require.NoError(t, err)
+		require.Nil(t, result)
+		require.Empty(t, deleted, "existing findings must not be deleted for a bare version")
+		require.False(t, ds.DeleteOSVulnerabilitiesFuncInvoked)
+	})
+
 	t.Run("no artifact for version returns nil", func(t *testing.T) {
 		ds := new(mock.Store)
 		os := fleet.OperatingSystem{
@@ -239,7 +274,7 @@ func TestAnalyze(t *testing.T) {
 		require.Nil(t, result)
 	})
 
-	t.Run("corrupt artifact is handled gracefully", func(t *testing.T) {
+	t.Run("corrupt artifact propagates the error", func(t *testing.T) {
 		corruptDir := t.TempDir()
 		// Write a file that is not valid gzip
 		require.NoError(t, os.WriteFile(
@@ -255,7 +290,8 @@ func TestAnalyze(t *testing.T) {
 		}
 
 		result, err := Analyze(ctx, ds, os, corruptDir, true, nil, NewArtifactCache())
-		require.NoError(t, err) // should not propagate, just skip
+		require.Error(t, err) // a corrupt artifact is a real failure, not a missing one
+		require.NotErrorIs(t, err, errArtifactNotFound)
 		require.Nil(t, result)
 	})
 
