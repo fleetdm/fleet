@@ -264,8 +264,8 @@ const SoftwareDetailsSummary = ({
     }
   };
 
-  // Remove host count for tgz_packages, sh_packages, and ps1_packages only
-  // or if viewing details summary from edit icon preview modal
+  // Remove host count for sources without version/host data (tgz and script
+  // packages) or if viewing details summary from edit icon preview modal
   const showHostCount =
     !!hostCount && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "");
 

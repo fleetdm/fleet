@@ -147,6 +147,45 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         isSelfService: true,
       });
     });
+    it("marks a py_packages title as a script package", () => {
+      const softwareTitle: ISoftwareTitleDetails = {
+        id: 1,
+        name: "Test Script",
+        icon_url: null,
+        versions: [],
+        software_package: {
+          labels_include_any: null,
+          labels_exclude_any: null,
+          labels_include_all: null,
+          name: "install.py",
+          installer_id: 1,
+          title_id: 2,
+          version: "",
+          self_service: false,
+          uploaded_at: "2021-01-01T00:00:00Z",
+          status: {
+            installed: 1,
+            pending_install: 0,
+            pending_uninstall: 0,
+            failed_install: 0,
+            failed_uninstall: 0,
+          },
+          install_script: "#!/usr/bin/env python3\nprint('hi')",
+          uninstall_script: "",
+          icon_url: null,
+          automatic_install_policies: [],
+          url: "",
+        },
+        packages: null,
+        app_store_app: null,
+        source: "py_packages",
+        hosts_count: 0,
+      };
+      const packageCardInfo = getInstallerCardInfo(softwareTitle);
+      expect(packageCardInfo.source).toEqual("py_packages");
+      expect(packageCardInfo.isScriptPackage).toBe(true);
+      expect(packageCardInfo.name).toEqual("install.py");
+    });
     it("returns the correct data for an app store app (and with a custom display name)", () => {
       const softwareTitle: ISoftwareTitleDetails = {
         id: 1,

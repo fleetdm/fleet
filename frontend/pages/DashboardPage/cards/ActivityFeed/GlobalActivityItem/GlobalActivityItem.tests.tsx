@@ -1817,6 +1817,60 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
   });
 
+  it("renders py script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "installed",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "pending_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "failed_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
   it("renders addedNdesScepProxy activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedNdesScepProxy,

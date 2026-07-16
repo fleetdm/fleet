@@ -752,6 +752,8 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 		return "sh_packages", nil
 	case "ps1":
 		return "ps1_packages", nil
+	case "py":
+		return "py_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
@@ -760,7 +762,7 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm", "tar.gz", "sh":
+	case "deb", "rpm", "tar.gz", "sh", "py":
 		return "linux", nil
 	case "exe", "msi", "ps1", "zip":
 		return "windows", nil
@@ -774,10 +776,10 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 }
 
 // IsScriptPackage returns true if the extension represents a script package
-// (.sh or .ps1 files where the file contents become the install script).
+// (.sh, .ps1, or .py files where the file contents become the install script).
 func IsScriptPackage(ext string) bool {
 	ext = strings.TrimPrefix(ext, ".")
-	return ext == "sh" || ext == "ps1"
+	return ext == "sh" || ext == "ps1" || ext == "py"
 }
 
 // CanonicalPlatform maps a user-friendly platform name to Fleet's canonical

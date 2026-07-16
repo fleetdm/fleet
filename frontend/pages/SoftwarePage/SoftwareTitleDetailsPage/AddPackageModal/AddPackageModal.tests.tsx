@@ -74,8 +74,12 @@ describe("AddPackageModal", () => {
 
     it("falls back to the all-platforms file-type message when the existing name has no recognized extension", () => {
       renderModal({ existingPackageName: "no-extension" });
-      // PackageForm's default message lists every supported platform.
-      expect(screen.getByText(/macOS \(.pkg,/)).toBeInTheDocument();
+      // PackageForm's default message lists every supported platform as
+      // tooltip triggers (extensions live in the tooltips, not the label text).
+      expect(screen.getByText("macOS")).toBeInTheDocument();
+      expect(screen.getByText("iOS/iPadOS")).toBeInTheDocument();
+      expect(screen.getByText("Windows")).toBeInTheDocument();
+      expect(screen.getByText("Linux")).toBeInTheDocument();
     });
 
     it("renders the form's Save button as 'Save' (not 'Add software')", async () => {
