@@ -178,8 +178,14 @@ const (
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
 
-// Supported MS-MDE2 enrollment versions
-var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0", "7.0"}
+// MinSupportedEnrollmentVersion is the lowest MS-MDE2 discovery RequestVersion Fleet accepts.
+//
+// The discovery response pins the protocol to EnrollmentVersionV4 ("4.0") and the client
+// negotiates down from whatever version it advertised, so Fleet accepts any RequestVersion >= 4.0
+// rather than an exact-match allow-list. This keeps enrollment working on newer Windows builds
+// that advertise higher versions (e.g. Windows 11 25H2 sends "9.0") without requiring a code
+// change for each Windows release.
+const MinSupportedEnrollmentVersion = EnrollmentVersionV4
 
 // MS-MDE2 Message constants
 const (

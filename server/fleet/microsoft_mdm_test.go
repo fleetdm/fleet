@@ -830,3 +830,38 @@ func TestIsFleetInternalCmdID(t *testing.T) {
 		})
 	}
 }
+
+func TestEnrollmentVersionAtLeast(t *testing.T) {
+	const minVersion = syncml.MinSupportedEnrollmentVersion // "4.0"
+
+	for _, tc := range []struct {
+		name    string
+		version string
+		want    bool
+		wantErr string
+	}{
+		{"minimum version", "4.0", true, ""},
+		{"historically supported 5.0", "5.0", true, ""},
+		{"historically supported 7.0", "7.0", true, ""},
+		{"newer 8.0", "8.0", true, ""},
+		{"windows 11 25H2 9.0", "9.0", true, ""},
+		{"double-digit major 10.0 above 9.0", "10.0", true, ""},
+		{"below minimum 3.0", "3.0", false, ""},
+		{"below minimum 3.9", "3.9", false, ""},
+		{"higher minor same major", "4.1", true, ""},
+		{"major only equal", "4", true, ""},
+		{"empty", "", false, "version is empty"},
+		{"non-numeric", "abc", false, `invalid version component "abc"`},
+		{"non-numeric minor", "4.x", false, `invalid version component "x"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := enrollmentVersionAtLeast(tc.version, minVersion)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

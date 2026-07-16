@@ -8276,8 +8276,10 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 	t := s.T()
-	// Preparing the Discovery Request message. We are testing all versions Fleet claims to support
-	for _, requestVersion := range syncml.SupportedEnrollmentVersions {
+	// Preparing the Discovery Request message. We test the historically-supported versions plus
+	// newer ones (e.g. Windows 11 25H2 advertises "9.0") to confirm any version >= the minimum is
+	// accepted.
+	for _, requestVersion := range []string{"4.0", "5.0", "6.0", "7.0", "8.0", "9.0", "10.0"} {
 		requestBytes := []byte(`
 		 <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
 		   <s:Header>
