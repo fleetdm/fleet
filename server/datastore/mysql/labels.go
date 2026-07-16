@@ -970,11 +970,16 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
 		matches := results[labelID]
-		if matches != nil && *matches {
+		switch {
+		case matches == nil:
+			// The query errored (e.g. extension socket unavailable), rather than
+			// returning a definitive 0 rows. Leave existing membership untouched.
+			continue
+		case *matches:
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")
 			vals = append(vals, updated, labelID, host.ID)
-		} else {
+		default:
 			// Delete row
 			removes = append(removes, labelID)
 		}

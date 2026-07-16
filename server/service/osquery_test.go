@@ -1667,6 +1667,29 @@ func TestLabelQueries(t *testing.T) {
 	assert.Equal(t, true, *gotResults[2])
 	assert.Equal(t, false, *gotResults[3])
 
+	mockClock.AddTime(1 * time.Second)
+
+	// A label query errors out (e.g. the extension socket is unavailable),
+	// rather than returning a definitive 0 rows. This must be recorded as an
+	// unknown (nil) result, not a non-match, so that existing label
+	// membership is left untouched (see #46399).
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostLabelQueryPrefix + "2": 1,
+		},
+		map[string]string{
+			hostLabelQueryPrefix + "2": "extension socket not available",
+		},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	require.Len(t, gotResults, 1)
+	assert.Nil(t, gotResults[2])
+
 	// We should get no labels now.
 	host.LabelUpdatedAt = mockClock.Now()
 	ctx = hostctx.NewContext(ctx, host)
