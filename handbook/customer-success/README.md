@@ -393,7 +393,7 @@ This process covers backup and restore for Fleet Cloud customer environments: Au
 | Control | Backup and restore capability with defined RTO/RPO |
 | Recovery time objective (RTO) | 1 hour |
 | Recovery point objective (RPO) | 24 hours |
-| Most recent restore test | 2026-07-16, 14:49 to 15:23 EDT (34 minutes end to end; RTO and RPO met, see the restore walkthrough below) |
+| Most recent restore test as of July 16, 2026 | 2026-07-16, 14:49 to 15:23 EDT (34 minutes end to end; RTO and RPO met, see the restore walkthrough below) |
 | Process initiation authority | Fleet CEO or CTO |
 | Restore execution owner | Infrastructure Engineering team |
 
