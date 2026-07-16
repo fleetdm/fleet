@@ -9,25 +9,23 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// GitOpsSpec is our own top-level struct spelling out the real GitOps YAML keys.
-// spec.GitOps has no json tags, so reflecting it directly would give PascalCase
-// keys, so this reuses Fleet's existing typed structs for each section instead.
+// GitOpsSpec spells out the top-level GitOps keys with Fleet's typed structs, since
+// spec.GitOps has no json tags and would reflect to PascalCase keys.
 type GitOpsSpec struct {
 	Name         string                    `json:"name,omitempty"`
 	OrgSettings  *spec.GitOpsOrgSettings   `json:"org_settings,omitempty"`
 	TeamSettings *spec.GitOpsFleetSettings `json:"settings,omitempty"`
 	AgentOptions *fleet.AgentOptions       `json:"agent_options,omitempty"`
-	Controls     Controls                  `json:"controls"`
+	Controls     ControlsWithTypes         `json:"controls"`
 	Policies     []*spec.GitOpsPolicySpec  `json:"policies,omitempty"`
 	Reports      []*spec.Query             `json:"reports,omitempty"`
 	Software     spec.GitOpsSoftware       `json:"software"`
 	Labels       []*fleet.LabelSpec        `json:"labels,omitempty"`
 }
 
-// Controls covers the `controls:` section with real types. spec.GitOpsControls
-// types nearly everything as `any` (so yamlls offers no completion for it) and
-// leaks an internal `Defined` field, so we spell it out here.
-type Controls struct {
+// ControlsWithTypes covers `controls:` with real types. spec.GitOpsControls types
+// most keys as `any` so yamlls can't complete them, and leaks an internal Defined field.
+type ControlsWithTypes struct {
 	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
 	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
 	EnableDiskEncryption        bool `json:"enable_disk_encryption"`
@@ -47,7 +45,7 @@ type Controls struct {
 	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
 	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
 
-	// Remaining keys left loose for now, accepting any value.
+	// Remaining keys accept any value for now.
 	MacOSMigration                  any `json:"macos_migration"`
 	WindowsMigrationEnabled         any `json:"windows_migration_enabled"`
 	EnableTurnOnWindowsMDMManually  any `json:"enable_turn_on_windows_mdm_manually"`
@@ -56,7 +54,6 @@ type Controls struct {
 	AppleRequireHardwareAttestation any `json:"apple_require_hardware_attestation"`
 }
 
-// goTypeToJSON maps a Go scalar type name to its JSON Schema type.
 func goTypeToJSON(name string) string {
 	switch name {
 	case "bool":
@@ -71,21 +68,17 @@ func goTypeToJSON(name string) string {
 	return ""
 }
 
-// typeMapper overrides schemas for Fleet/optjson wrapper types that don't
-// reflect to the JSON they actually marshal to.
 func typeMapper(goType reflect.Type) *jsonschema.Schema {
 	packagePath := goType.PkgPath()
 
-	// json.RawMessage reflects to a bare `true` schema, which yamlls won't offer
-	// in completion. In GitOps these blobs (agent_options.config, command_line_flags,
-	// extensions, update_channels) are objects, so type them as such.
+	// json.RawMessage reflects to a bare `true` schema that yamlls won't complete.
+	// In GitOps these blobs are objects, so type them as such.
 	if packagePath == "encoding/json" && goType.Name() == "RawMessage" {
 		return &jsonschema.Schema{Type: "object"}
 	}
 
-	// fleet.Duration embeds time.Duration (also named "Duration"), so invopop
-	// emits a self-referential $def that overflows yamlls' resolver. It marshals
-	// to a string like "24h".
+	// fleet.Duration embeds time.Duration, so invopop emits a self-referential $def
+	// that overflows yamlls' resolver. It marshals to a string like "24h".
 	if strings.HasSuffix(packagePath, "server/fleet") && goType.Name() == "Duration" {
 		return &jsonschema.Schema{Type: "string"}
 	}
@@ -98,10 +91,8 @@ func typeMapper(goType reflect.Type) *jsonschema.Schema {
 			return schemaForType(valueField.Type)
 		}
 
-		// BoolOr[T]/StringOr[T] marshal to a scalar OR T (e.g. install_software is
-		// `true` or an object). Their generic def names contain the qualified type
-		// param (slashes) which yamlls can't resolve as a $ref, and a bare {} isn't
-		// offered in completion, so express both arms as an anyOf.
+		// BoolOr[T]/StringOr[T] marshal to a scalar or an object, and their generic
+		// $def names can't resolve as a $ref, so express both arms as an anyOf.
 		scalar := "boolean"
 		_, hasString := goType.FieldByName("String")
 		if hasString {
@@ -113,7 +104,6 @@ func typeMapper(goType reflect.Type) *jsonschema.Schema {
 	return nil
 }
 
-// schemaForType maps a reflect.Type to a JSON Schema type (used for optjson Value fields).
 func schemaForType(goType reflect.Type) *jsonschema.Schema {
 	for goType.Kind() == reflect.Pointer {
 		goType = goType.Elem()

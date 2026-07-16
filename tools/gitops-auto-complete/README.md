@@ -8,14 +8,15 @@ offer completion, hover docs, and validation while you write GitOps YAML.
 
 ### Build the schema
 
-Run from this directory (it reads Fleet's source via relative paths):
+The tool is a separate Go module, so run it from its own directory:
 
 ```bash
 cd tools/gitops-auto-complete
-go run . generated-schema.json   # write the schema (omit the arg to print to stdout)
+go run . generated-schema.json
 ```
 
-Re-run it whenever the relevant Fleet structs change.
+The argument is the output file, or omit it to print to stdout. Re-run it whenever
+the relevant Fleet structs change.
 
 ### Set up with yaml-language-server
 
@@ -67,8 +68,8 @@ Reflects a `GitOpsSpec` struct that mirrors the real top-level GitOps keys
 (`org_settings`, `controls`, `software`, `policies`, ...), reusing Fleet's own types
 for each section, via [`invopop/jsonschema`](https://github.com/invopop/jsonschema).
 It then post-processes the result so the schema matches how GitOps files are actually
-written — file-path references, legacy key aliases, required "source" keys, and field
-docs pulled from Go comments.
+written — file-path references, legacy key aliases, a required installer reference
+per software item, and field docs pulled from Go comments.
 
 It's kept as its own Go module (with a `replace` back to the repo) so it builds from
 inside the repo without adding dependencies to the root `go.mod`.

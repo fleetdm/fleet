@@ -75,8 +75,8 @@ func TestValidFixtures(t *testing.T) {
 }
 
 // TestInvalidFixtures asserts the schema still rejects the specific mistakes the
-// tool is designed to catch (unknown keys, wrong-typed source keys, a package
-// with no source).
+// tool is designed to catch (unknown keys, wrong-typed installer-reference keys, a
+// package with no installer reference).
 func TestInvalidFixtures(t *testing.T) {
 	schema := compileSchema(t)
 	files, err := filepath.Glob("testdata/invalid/*.yml")
@@ -141,17 +141,17 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// Required source: software defs gate on an anyOf of single-key branches.
-	t.Run("required source", func(t *testing.T) {
+	// Required installer reference: software defs gate on an anyOf of single-key branches.
+	t.Run("required installer reference", func(t *testing.T) {
 		for _, name := range []string{"SoftwarePackageSpec", "TeamSpecAppStoreApp", "MaintainedAppSpec"} {
 			if _, ok := def(name)["anyOf"].([]any); !ok {
-				t.Errorf("%s: expected an anyOf of required-source branches", name)
+				t.Errorf("%s: expected an anyOf of installer-reference branches", name)
 			}
 		}
 	})
 
-	// Typed source keys survive relaxNulls as strict strings.
-	t.Run("typed source keys", func(t *testing.T) {
+	// Typed installer-reference keys survive relaxNulls as strict strings.
+	t.Run("typed installer-reference keys", func(t *testing.T) {
 		for def, keys := range map[string][]string{
 			"SoftwarePackageSpec": {"url", "hash_sha256"},
 			"TeamSpecAppStoreApp": {"app_store_id"},
@@ -190,7 +190,7 @@ func TestInvariants(t *testing.T) {
 
 	// Path refs added to the file-reference defs.
 	t.Run("path refs", func(t *testing.T) {
-		for _, name := range []string{"Controls", "SoftwarePackageSpec", "LabelSpec"} {
+		for _, name := range []string{"ControlsWithTypes", "SoftwarePackageSpec", "LabelSpec"} {
 			p := props(def(name))
 			if _, ok := p["path"]; !ok {
 				t.Errorf("%s: missing 'path'", name)
@@ -203,7 +203,7 @@ func TestInvariants(t *testing.T) {
 
 	// Rename aliases: old key deprecated, new key present and not deprecated.
 	t.Run("rename aliases", func(t *testing.T) {
-		p := props(def("Controls"))
+		p := props(def("ControlsWithTypes"))
 		old, _ := p["macos_setup"].(map[string]any)
 		if old["deprecated"] != true {
 			t.Errorf("macos_setup should be deprecated, got %v", old["deprecated"])

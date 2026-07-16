@@ -4,7 +4,11 @@
       "additionalProperties": false,
       "properties": {
         "destination_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_activities_webhook": {
           "description": "type: `boolean`",
@@ -99,10 +103,18 @@
                   ]
                 },
                 "augeas_lenses": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_access_key_id": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_debug": {
                   "description": "type: `boolean`",
@@ -126,16 +138,28 @@
                   ]
                 },
                 "aws_firehose_endpoint": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_firehose_period": {
                   "description": "type: `integer`"
                 },
                 "aws_firehose_region": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_firehose_stream": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_imdsv2_request_attempts": {
                   "description": "type: `integer`"
@@ -151,7 +175,11 @@
                   ]
                 },
                 "aws_kinesis_endpoint": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_period": {
                   "description": "type: `integer`"
@@ -164,46 +192,98 @@
                   ]
                 },
                 "aws_kinesis_region": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_stream": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_profile_name": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_proxy_host": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_proxy_password": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_proxy_port": {
                   "description": "type: `integer`"
                 },
                 "aws_proxy_scheme": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_proxy_username": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_region": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_secret_access_key": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_session_token": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_sts_arn_role": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_sts_region": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_sts_session_name": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "aws_sts_timeout": {
                   "description": "type: `integer`"
@@ -288,22 +368,38 @@
                   ]
                 },
                 "distributed_plugin": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "distributed_tls_max_attempts": {
                   "description": "type: `integer`"
                 },
                 "distributed_tls_read_endpoint": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "distributed_tls_write_endpoint": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "dns_resolver_refresh_interval": {
                   "description": "type: `integer`"
                 },
                 "docker_socket": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "enable_file_events": {
                   "description": "type: `boolean`",
@@ -347,7 +443,11 @@
                   ]
                 },
                 "experiment_list": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "extensions_default_index": {
                   "description": "type: `boolean`",
@@ -360,7 +460,11 @@
                   "description": "type: `integer`"
                 },
                 "host_identifier": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "ignore_table_exceptions": {
                   "description": "type: `boolean`",
@@ -377,16 +481,32 @@
                   ]
                 },
                 "logger_kafka_acks": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_kafka_brokers": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_kafka_compression": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_kafka_topic": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_min_status": {
                   "description": "type: `integer`"
@@ -402,7 +522,11 @@
                   ]
                 },
                 "logger_path": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_rotate": {
                   "description": "type: `boolean`",
@@ -445,7 +569,11 @@
                   ]
                 },
                 "logger_tls_endpoint": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "logger_tls_max_lines": {
                   "description": "type: `integer`"
@@ -457,19 +585,35 @@
                   "description": "type: `integer`"
                 },
                 "nullvalue": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "numeric_monitoring_filesystem_path": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "numeric_monitoring_plugins": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "numeric_monitoring_pre_aggregation_time": {
                   "description": "type: `integer`"
                 },
                 "pack_delimiter": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "pack_refresh_interval": {
                   "description": "type: `integer`"
@@ -503,7 +647,11 @@
                   "description": "type: `integer`"
                 },
                 "specified_identifier": {
-                  "description": "type: `string`"
+                  "description": "type: `string`",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "table_delay": {
                   "description": "type: `integer`"
@@ -572,9 +720,19 @@
           "$ref": "#/$defs/AgentOptionsOverrides",
           "description": "Overrides includes any platform-based overrides.\n\ntype: `AgentOptionsOverrides`"
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -673,13 +831,25 @@
       "description": "AppleAccountProvisioning is the macOS local account provisioning / Platform SSO password sync configuration stored on AppConfig.MDM.",
       "properties": {
         "oauth_idp_client_id": {
-          "description": "OAuthIdPClientID is the client/application ID registered with the upstream IdP.\n\ntype: `string`"
+          "description": "OAuthIdPClientID is the client/application ID registered with the upstream IdP.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "oauth_idp_client_secret": {
-          "description": "OAuthIdPClientSecret is the client secret registered with the upstream IdP.\nStored in mdm_config_assets, not here; this field carries the masked value\nin API responses and the caller-supplied value on writes.\n\ntype: `string`"
+          "description": "OAuthIdPClientSecret is the client secret registered with the upstream IdP.\nStored in mdm_config_assets, not here; this field carries the masked value\nin API responses and the caller-supplied value on writes.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "oauth_idp_token_url": {
-          "description": "OAuthIdPTokenURL is the upstream OIDC token endpoint used for the ROPG\n(grant_type=password) flow at sign-in.\nOkta example:  https://dev-12345.okta.com/oauth2/default/v1/token\nEntra example: https://login.microsoftonline.com/\u003ctenant\u003e/oauth2/v2.0/token\n\ntype: `string`"
+          "description": "OAuthIdPTokenURL is the upstream OIDC token endpoint used for the ROPG\n(grant_type=password) flow at sign-in.\nOkta example:  https://dev-12345.okta.com/oauth2/default/v1/token\nEntra example: https://login.microsoftonline.com/\u003ctenant\u003e/oauth2/v2.0/token\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -692,10 +862,18 @@
       "description": "AppleOSUpdateSettings is the common type that contains the settings for OS updates on Apple devices.",
       "properties": {
         "deadline": {
-          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`"
+          "description": "Deadline the required installation date for Nudge to enforce the required\noperating system version.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "minimum_version": {
-          "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`"
+          "description": "MinimumVersion is the required minimum operating system version.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "update_new_hosts": {
           "description": "UpdateNewHosts if true, only enforce the latest macOS version for new hosts (during enrollment)\n\ntype: `boolean`",
@@ -715,10 +893,18 @@
       "description": "BaseItem provides path/paths fields for types that can reference external files in GitOps YAML configurations.",
       "properties": {
         "path": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "paths": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -745,19 +931,39 @@
           ]
         },
         "microsoft_entra_tenant_id": {
-          "description": "MicrosoftEntraTenantID is the Entra's tenant ID.\n\ntype: `string`"
+          "description": "MicrosoftEntraTenantID is the Entra's tenant ID.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "okta_assertion_consumer_service_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "okta_audience_uri": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "okta_certificate": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "okta_idp_id": {
-          "description": "Okta conditional access settings - using optjson for partial updates\nAll four fields must be set together or all must be empty.\n\ntype: `string`"
+          "description": "Okta conditional access settings - using optjson for partial updates\nAll four fields must be set together or all must be empty.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -765,7 +971,7 @@
         "null"
       ]
     },
-    "Controls": {
+    "ControlsWithTypes": {
       "additionalProperties": false,
       "properties": {
         "android_enabled_and_configured": {
@@ -828,9 +1034,19 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -886,7 +1102,11 @@
       "description": "FailingPoliciesWebhookSettings holds the settings for failing policy webhooks.",
       "properties": {
         "destination_url": {
-          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`"
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_failing_policies_webhook": {
           "description": "Enable indicates whether the webhook for failing policies is enabled.\n\ntype: `boolean`",
@@ -923,7 +1143,12 @@
           ]
         },
         "detail_query_overrides": {
-          "additionalProperties": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "description": "type: `object`",
           "type": [
             "object",
@@ -963,10 +1188,18 @@
       "description": "FleetDesktopSettings contains settings used to configure Fleet Desktop.",
       "properties": {
         "alternative_browser_host": {
-          "description": "AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;\nthis is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.\n\ntype: `string`"
+          "description": "AlternativeBrowserHost if set, Fleet Desktop will use this to open any links;\nthis is used in scenarios where we want Fleet Desktop traffic to use a custom proxy, for security reasons.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "transparency_url": {
-          "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`"
+          "description": "TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -989,7 +1222,11 @@
           ]
         },
         "repository_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1054,9 +1291,19 @@
           "$ref": "#/$defs/TeamMDM",
           "description": "type: `TeamMDM`"
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1064,7 +1311,12 @@
         },
         "scripts": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1137,9 +1389,19 @@
           "$ref": "#/$defs/OrgInfo",
           "description": "type: `OrgInfo`"
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1147,7 +1409,12 @@
         },
         "scripts": {
           "description": "Scripts is a slice of script file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for scripts is in MySQL.)\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1229,13 +1496,25 @@
           ]
         },
         "description": {
-          "description": "Description describes the policy.\n\ntype: `string`"
+          "description": "Description describes the policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "fleet": {
-          "description": "Team is the name of the team.\n\ntype: `string`"
+          "description": "Team is the name of the team.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "fleet_maintained_app_slug": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "install_software": {
           "anyOf": [
@@ -1256,7 +1535,12 @@
         },
         "labels_exclude_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1264,7 +1548,12 @@
         },
         "labels_exclude_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1272,7 +1561,12 @@
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1280,31 +1574,62 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "name": {
-          "description": "Name is the name of the policy.\n\ntype: `string`"
+          "description": "Name is the name of the policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "platform": {
-          "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`"
+          "description": "Platform is a comma-separated string to indicate the target platforms.\n\nEmpty string targets all platforms.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "query": {
-          "description": "Query is the policy's SQL query.\n\ntype: `string`"
+          "description": "Query is the policy's SQL query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "resolution": {
-          "description": "Resolution describes how to solve a failing policy.\n\ntype: `string`"
+          "description": "Resolution describes how to solve a failing policy.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "run_script": {
           "$ref": "#/$defs/PolicyRunScript",
@@ -1319,10 +1644,18 @@
         "team": {
           "deprecated": true,
           "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
-          "description": "Team is the name of the team.\n\ntype: `string`"
+          "description": "Team is the name of the team.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "type": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "webhooks_and_tickets_enabled": {
           "description": "WebhooksAndTicketsEnabled indicates whether failing policy webhooks/tickets\nshould be enabled for this policy. This is a gitops-only convenience that\ntranslates to adding the policy's ID to the failing_policies_webhook.policy_ids list.\n\ntype: `boolean`",
@@ -1370,9 +1703,19 @@
             "null"
           ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1389,7 +1732,12 @@
       "description": "GoogleCalendarApiKey is a custom type for the Google Calendar API key JSON.",
       "properties": {
         "values": {
-          "additionalProperties": {},
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "description": "Values contains the actual API key fields when not masked\n\ntype: `object`",
           "type": [
             "object",
@@ -1410,7 +1758,11 @@
           "description": "type: `GoogleCalendarApiKey`\n\nGitOps: kept unchanged when omitted, null, or empty."
         },
         "domain": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1427,10 +1779,18 @@
           "description": "ApiKey holds the service account JSON (client_email, private_key). It reuses\nthe GoogleCalendarApiKey masking type because the credential format and the\nmasking/preserve-on-update behavior are identical.\n\ntype: `GoogleCalendarApiKey`\n\nGitOps: kept unchanged when omitted, null, or empty."
         },
         "domain": {
-          "description": "Domain is the Google Workspace primary domain whose directory is synced.\n\ntype: `string`"
+          "description": "Domain is the Google Workspace primary domain whose directory is synced.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "impersonated_user_email": {
-          "description": "ImpersonatedUserEmail is the Google Workspace admin user that the service\naccount impersonates via domain-wide delegation. The Admin SDK Directory API\nonly accepts requests on behalf of a real admin user (the JWT Subject).\n\ntype: `string`"
+          "description": "ImpersonatedUserEmail is the Google Workspace admin user that the service\naccount impersonates via domain-wide delegation. The Admin SDK Directory API\nonly accepts requests on behalf of a real admin user (the JWT Subject).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1489,7 +1849,11 @@
           "description": "type: `integer`"
         },
         "destination_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_host_status_webhook": {
           "description": "type: `boolean`",
@@ -1508,7 +1872,12 @@
       ]
     },
     "HostsSlice": {
-      "items": {},
+      "items": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "type": [
         "array",
         "null"
@@ -1576,7 +1945,11 @@
       "description": "JiraIntegration configures an instance of an integration with the Jira system.",
       "properties": {
         "api_token": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_failing_policies": {
           "description": "type: `boolean`",
@@ -1593,13 +1966,25 @@
           ]
         },
         "project_key": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "username": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1618,7 +2003,11 @@
           ]
         },
         "description": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "fleet_id": {
           "description": "type: `integer`"
@@ -1637,21 +2026,43 @@
           "description": "type: `integer`"
         },
         "name": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "platform": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "query": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "team_id": {
           "deprecated": true,
@@ -1684,7 +2095,11 @@
           "description": "AppleAccountProvisioning holds the macOS local account provisioning /\nPlatform SSO password sync configuration. The IdP client secret is stored\nin mdm_config_assets, not in this JSON; only the masked value is returned.\n\ntype: `AppleAccountProvisioning`"
         },
         "apple_bm_default_team": {
-          "description": "Deprecated: use AppleBusinessManager instead\n\ntype: `string`"
+          "description": "Deprecated: use AppleBusinessManager instead\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "apple_bm_enabled_and_configured": {
           "description": "AppleBMEnabledAndConfigured is set to true if Fleet has been\nconfigured with the required Apple BM key pair or token. It can't be set\nmanually via the PATCH /config API, it's only set automatically when\nthe server starts.\n\ntype: `boolean`",
@@ -1736,7 +2151,11 @@
           ]
         },
         "apple_server_url": {
-          "description": "AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM\nrequests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the\nsame IP as the Fleet Server URL.\nIf not set, the server will use Fleet server URL (recommended).\n\ntype: `string`"
+          "description": "AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM\nrequests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the\nsame IP as the Fleet Server URL.\nIf not set, the server will use Fleet server URL (recommended).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "apple_settings": {
           "$ref": "#/$defs/MacOSSettings",
@@ -1829,7 +2248,12 @@
         },
         "windows_entra_client_ids": {
           "description": "WindowsEntraClientIDs is the allowlist of Entra application client IDs (GUIDs) whose tokens are accepted for\nWindows automatic enrollment.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1837,7 +2261,12 @@
         },
         "windows_entra_tenant_ids": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1876,19 +2305,39 @@
       "description": "MDMEndUserAuthentication contains settings related to end user authentication to gate certain MDM features (eg: enrollment)",
       "properties": {
         "entity_id": {
-          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`"
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "idp_name": {
-          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`"
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "issuer_uri": {
-          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`"
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "metadata": {
-          "description": "Metadata contains IDP metadata XML\n\ntype: `string`"
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "metadata_url": {
-          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`"
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1902,7 +2351,12 @@
       "properties": {
         "labels": {
           "description": "Deprecated: the Labels field is now deprecated, it is superseded by\nLabelsIncludeAll, so any value set via this field will be transferred to\nLabelsIncludeAll.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1910,7 +2364,12 @@
         },
         "labels_exclude_any": {
           "description": "LabelsExcludeAll is a list of label names that the host must not be a\nmember of in order to receive the profile. It must not be a member of any\nof the listed labels.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1918,7 +2377,12 @@
         },
         "labels_include_all": {
           "description": "LabelsIncludeAll is a list of label names that the host must be a member\nof in order to receive the profile. It must be a member of all listed\nlabels.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -1926,17 +2390,30 @@
         },
         "labels_include_any": {
           "description": "LabelsIncludeAny is a list of label names that the host must be a member\nof in order to receive the profile. It may be a member of\nany listed labels.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "path": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "paths": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -1956,10 +2433,18 @@
           ]
         },
         "mode": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "webhook_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2028,12 +2513,20 @@
           ]
         },
         "apple_setup_assistant": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "bootstrap_package": {
           "deprecated": true,
           "deprecationMessage": "'bootstrap_package' is deprecated, use 'macos_bootstrap_package' instead",
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_create_local_admin_account": {
           "description": "type: `boolean`",
@@ -2068,7 +2561,11 @@
           ]
         },
         "end_user_local_account_type": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "lock_end_user_info": {
           "description": "type: `boolean`",
@@ -2078,7 +2575,11 @@
           ]
         },
         "macos_bootstrap_package": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "macos_manual_agent_install": {
           "description": "type: `boolean`",
@@ -2088,12 +2589,20 @@
           ]
         },
         "macos_script": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "macos_setup_assistant": {
           "deprecated": true,
           "deprecationMessage": "'macos_setup_assistant' is deprecated, use 'apple_setup_assistant' instead",
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "manual_agent_install": {
           "deprecated": true,
@@ -2121,7 +2630,11 @@
         "script": {
           "deprecated": true,
           "deprecationMessage": "'script' is deprecated, use 'macos_script' instead",
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "software": {
           "description": "type: `array\u003cobject\u003e`",
@@ -2161,7 +2674,12 @@
       "properties": {
         "categories": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2177,7 +2695,12 @@
         },
         "labels_exclude_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2185,7 +2708,12 @@
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2193,15 +2721,30 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2230,7 +2773,11 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "slug": {
           "description": "type: `string`",
@@ -2241,7 +2788,11 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "version": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2266,22 +2817,46 @@
       "description": "OrgInfo contains general info about the organization using Fleet.",
       "properties": {
         "contact_url": {
-          "description": "ContactURL is the URL displayed for users to contact support. By default,\nhttps://fleetdm.com/company/contact is used.\n\ntype: `string`"
+          "description": "ContactURL is the URL displayed for users to contact support. By default,\nhttps://fleetdm.com/company/contact is used.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "org_logo_url": {
-          "description": "Deprecated: use OrgLogoURLDarkMode.\n\ntype: `string`"
+          "description": "Deprecated: use OrgLogoURLDarkMode.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "org_logo_url_dark_mode": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "org_logo_url_light_background": {
-          "description": "Deprecated: use OrgLogoURLLightMode.\n\ntype: `string`"
+          "description": "Deprecated: use OrgLogoURLLightMode.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "org_logo_url_light_mode": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "org_name": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2293,7 +2868,11 @@
       "additionalProperties": false,
       "properties": {
         "path": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2312,7 +2891,11 @@
           ]
         },
         "description": {
-          "description": "Description is the description of the query.\n\ntype: `string`"
+          "description": "Description is the description of the query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "discard_data": {
           "description": "DiscardData indicates if the scheduled query results should be discarded (true)\nor kept (false) in a query report.\n\nIf not set, then the default value is false.\n\ntype: `boolean`",
@@ -2322,14 +2905,23 @@
           ]
         },
         "fleet": {
-          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`"
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "interval": {
           "description": "Interval is set to 0 if not set.\n\ntype: `integer`"
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2337,20 +2929,37 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "logging": {
-          "description": "Logging is set to \"snapshot\" if not set.\n\ntype: `string`"
+          "description": "Logging is set to \"snapshot\" if not set.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "min_osquery_version": {
-          "description": "MinOsqueryVersion is set to empty if not set.\n\ntype: `string`"
+          "description": "MinOsqueryVersion is set to empty if not set.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
-          "description": "Name is the name of the query (which is unique in its team or globally).\nThis field must be non-empty.\n\ntype: `string`"
+          "description": "Name is the name of the query (which is unique in its team or globally).\nThis field must be non-empty.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "observer_can_run": {
           "description": "ObserverCanRun is set to false if not set.\n\ntype: `boolean`",
@@ -2360,21 +2969,41 @@
           ]
         },
         "path": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "paths": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "platform": {
-          "description": "Platform is set to empty if not set when creating a query.\n\ntype: `string`"
+          "description": "Platform is set to empty if not set when creating a query.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "query": {
-          "description": "Query is the actual osquery SQL query. This field must be non-empty.\n\ntype: `string`"
+          "description": "Query is the actual osquery SQL query. This field must be non-empty.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "team": {
           "deprecated": true,
           "deprecationMessage": "'team' is deprecated, use 'fleet' instead",
-          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`"
+          "description": "TeamName is the team's name, the default \"\" means the query will be\ncreated globally. This field is only used when creating a query,\nwhen editing a query this field is ignored.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2387,10 +3016,18 @@
       "description": "SMTPSettings is part of the AppConfig which defines the wire representation of the app config endpoints",
       "properties": {
         "authentication_method": {
-          "description": "SMTPAuthenticationMethod authentication method smtp server will use\n\ntype: `string`"
+          "description": "SMTPAuthenticationMethod authentication method smtp server will use\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "authentication_type": {
-          "description": "SMTPAuthenticationType type of authentication for SMTP\n\ntype: `string`"
+          "description": "SMTPAuthenticationType type of authentication for SMTP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "configured": {
           "description": "SMTPConfigured is a flag that indicates if smtp has been successfully\ntested with the settings provided by an admin user.\n\ntype: `boolean`",
@@ -2400,7 +3037,11 @@
           ]
         },
         "domain": {
-          "description": "SMTPDomain optional domain for SMTP\n\ntype: `string`"
+          "description": "SMTPDomain optional domain for SMTP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_smtp": {
           "description": "SMTPEnabled indicates whether the user has selected that SMTP is\nenabled in the UI.\n\ntype: `boolean`",
@@ -2424,19 +3065,35 @@
           ]
         },
         "password": {
-          "description": "SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`"
+          "description": "SMTPPassword must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "port": {
           "description": "SMTPPort port SMTP server will use\n\ntype: `integer`"
         },
         "sender_address": {
-          "description": "SMTPSenderAddress is the email address that will appear in emails sent\nfrom Fleet\n\ntype: `string`"
+          "description": "SMTPSenderAddress is the email address that will appear in emails sent\nfrom Fleet\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "server": {
-          "description": "SMTPServer is the host name of the SMTP server Fleet will use to send mail\n\ntype: `string`"
+          "description": "SMTPServer is the host name of the SMTP server Fleet will use to send mail\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "user_name": {
-          "description": "SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`"
+          "description": "SMTPUserName must be provided if SMTPAuthenticationType is UserNamePassword\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "verify_ssl_certs": {
           "description": "SMTPVerifySSLCerts defaults to true but can be turned off if self signed\nSSL certs are used by the SMTP server\n\ntype: `boolean`",
@@ -2484,25 +3141,53 @@
           ]
         },
         "entity_id": {
-          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`"
+          "description": "EntityID is a uri that identifies this service provider\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "idp_image_url": {
-          "description": "IDPImageURL is a link to a logo or other image that is used for UX\n\ntype: `string`"
+          "description": "IDPImageURL is a link to a logo or other image that is used for UX\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "idp_name": {
-          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`"
+          "description": "IDPName is a human friendly name for the IDP\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "issuer_uri": {
-          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`"
+          "description": "IssuerURI is the uri that identifies the identity provider\n\nDeprecated: Not used, only left here to not break the API\n(\"unsupported key provided\" error)\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "metadata": {
-          "description": "Metadata contains IDP metadata XML\n\ntype: `string`"
+          "description": "Metadata contains IDP metadata XML\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "metadata_url": {
-          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`"
+          "description": "MetadataURL is a URL provided by the IDP which can be used to download\nmetadata\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "sso_server_url": {
-          "description": "SSOServerURL is an optional URL to use for SSO authentication.\nWhen set, SSO will only work from this URL, not from the server URL.\nThis is useful for organizations with separate URLs for admin access vs agent/API access.\n\ntype: `string`"
+          "description": "SSOServerURL is an optional URL to use for SSO authentication.\nWhen set, SSO will only work from this URL, not from the server URL.\nThis is useful for organizations with separate URLs for admin access vs agent/API access.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2591,7 +3276,11 @@
           ]
         },
         "server_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2631,7 +3320,12 @@
         },
         "categories": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2642,7 +3336,11 @@
           "description": "Configuration is the managed app configuration file path; only meaningful for .ipa packages.\n\ntype: `TeamSpecSoftwareAsset`"
         },
         "display_name": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "hash_sha256": {
           "description": "type: `string`",
@@ -2658,7 +3356,12 @@
         },
         "labels_exclude_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2666,7 +3369,12 @@
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2674,15 +3382,30 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2697,7 +3420,11 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "referenced_yaml_path": {
-          "description": "ReferencedYamlPath is the resolved path of the file used to fill the\nsoftware package. Only present after parsing a GitOps file on the fleetctl\nside of processing. This is required to match a setup_experience.software to\nits corresponding software package, as we do this matching by yaml path.\n\nIt must be JSON-marshaled because it gets set during gitops file processing,\nwhich is then re-marshaled to JSON from this struct and later re-unmarshaled\nduring ApplyGroup...\n\ntype: `string`"
+          "description": "ReferencedYamlPath is the resolved path of the file used to fill the\nsoftware package. Only present after parsing a GitOps file on the fleetctl\nside of processing. This is required to match a setup_experience.software to\nits corresponding software package, as we do this matching by yaml path.\n\nIt must be JSON-marshaled because it gets set during gitops file processing,\nwhich is then re-marshaled to JSON from this struct and later re-unmarshaled\nduring ApplyGroup...\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "self_service": {
           "description": "type: `boolean`",
@@ -2714,10 +3441,18 @@
           ]
         },
         "setup_experience_platform": {
-          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`"
+          "description": "SetupExperiencePlatform selects the installer for the setup experience,\nas a comma-separated string of platforms (e.g. \"darwin,linux\"),\nconsistent with the query/policy `platform` field. Additive with\nInstallDuringSetup: the native platform is controlled by that bool, the\nnon-native entries feed the setup_experience_software_installers\ncross-table. Only meaningful for packages whose file can run on more than\none platform (today: .sh).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "slug": {
-          "description": "FMA\n\ntype: `string`"
+          "description": "FMA\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "uninstall_script": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
@@ -2728,7 +3463,11 @@
           "type": "string"
         },
         "version": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2795,7 +3534,11 @@
           ]
         },
         "webhook_url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2856,10 +3599,18 @@
           ]
         },
         "project_key": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -2970,14 +3721,27 @@
           ]
         },
         "auto_update_window_end": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "auto_update_window_start": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "categories": {
           "description": "Categories is the list of names of software categories associated with this VPP app.\n\ntype: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -2988,7 +3752,11 @@
           "description": "type: `TeamSpecSoftwareAsset`"
         },
         "display_name": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "icon": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
@@ -2996,7 +3764,12 @@
         },
         "labels_exclude_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -3004,7 +3777,12 @@
         },
         "labels_include_all": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -3012,22 +3790,41 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
-        "path": {},
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "paths": {
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
           ]
         },
         "platform": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "self_service": {
           "description": "type: `boolean`",
@@ -3053,7 +3850,11 @@
       "additionalProperties": false,
       "properties": {
         "path": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -3093,7 +3894,11 @@
           "description": "type: `integer`"
         },
         "url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -3119,7 +3924,12 @@
         },
         "exclude_vulnerabilities": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -3134,7 +3944,12 @@
         },
         "software_filters": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {},
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": [
             "array",
             "null"
@@ -3151,7 +3966,11 @@
       "description": "VulnerabilitiesWebhookSettings holds the settings for vulnerabilities webhooks.",
       "properties": {
         "destination_url": {
-          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`"
+          "description": "DestinationURL is the webhook's URL.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_vulnerabilities_webhook": {
           "description": "Enable indicates whether the webhook for vulnerabilities is enabled.\n\ntype: `boolean`",
@@ -3174,7 +3993,11 @@
       "description": "VulnerabilitySettings is part of the AppConfig which defines how fleet will behave while scanning for vulnerabilities in the host software",
       "properties": {
         "databases_path": {
-          "description": "DatabasesPath is the directory where fleet will store the different databases\n\ntype: `string`"
+          "description": "DatabasesPath is the directory where fleet will store the different databases\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -3198,7 +4021,11 @@
           "description": "type: `HostStatusWebhookSettings`"
         },
         "interval": {
-          "description": "Interval is the interval for running the webhooks.\n\nThis value currently configures both the host status and failing policies webhooks.\n\ntype: `string`"
+          "description": "Interval is the interval for running the webhooks.\n\nThis value currently configures both the host status and failing policies webhooks.\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "vulnerabilities_webhook": {
           "$ref": "#/$defs/VulnerabilitiesWebhookSettings",
@@ -3267,10 +4094,18 @@
       "additionalProperties": false,
       "properties": {
         "contents": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -3283,10 +4118,18 @@
       "description": "ZendeskIntegration configures an instance of an integration with the external Zendesk service.",
       "properties": {
         "api_token": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "email": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "enable_failing_policies": {
           "description": "type: `boolean`",
@@ -3306,7 +4149,11 @@
           "description": "type: `integer`"
         },
         "url": {
-          "description": "type: `string`"
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": [
@@ -3323,8 +4170,8 @@
       "description": "type: `AgentOptions`"
     },
     "controls": {
-      "$ref": "#/$defs/Controls",
-      "description": "type: `Controls`"
+      "$ref": "#/$defs/ControlsWithTypes",
+      "description": "type: `ControlsWithTypes`"
     },
     "labels": {
       "description": "type: `array\u003cLabelSpec\u003e`",
@@ -3337,7 +4184,11 @@
       ]
     },
     "name": {
-      "description": "type: `string`"
+      "description": "type: `string`",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "org_settings": {
       "$ref": "#/$defs/GitOpsOrgSettings",

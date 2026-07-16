@@ -213,6 +213,7 @@ org_settings:
 software:
   packages:
     - url: https://example.com/pkg.deb
+      version: "1.2.3"
   app_store_apps:
     - app_store_id: "1234567"
   fleet_maintained_apps:

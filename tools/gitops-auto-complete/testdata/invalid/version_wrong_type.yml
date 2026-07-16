@@ -1,0 +1,6 @@
+# An unquoted numeric version parses as a YAML number, and fleetctl rejects it
+# because a number can't decode into a Go string. It has to be quoted: "13.0".
+software:
+  packages:
+    - url: https://example.com/pkg.deb
+      version: 13.0

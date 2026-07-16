@@ -26,6 +26,14 @@ import (
 const generatedOsqueryOptions = "server/fleet/agent_options_generated.go"
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+		fmt.Println(`Usage: gitops-auto-complete [output-file]
+
+Generates a JSON schema from Fleet's GitOps structs for yaml-language-server.
+With an output-file, writes the schema there; otherwise prints to stdout.`)
+		return
+	}
+
 	// Resolve Fleet source paths from this file's own location so the tool works
 	// from any working directory, not just the module root.
 	repoRoot := ""
@@ -59,27 +67,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Merges run first so the injected keys get the same treatment as the rest.
-	// config.options is non-fatal: on failure config stays open rather than typed.
-	options, err := osqueryOptionsSchema(filepath.Join(repoRoot, generatedOsqueryOptions))
+	// Merges run first so the injected keys get the same treatment as the rest. If
+	// config.options can't be built, generation continues
+	osqueryOptions, err := osqueryOptionsSchema(filepath.Join(repoRoot, generatedOsqueryOptions))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "warning: could not type config.options:", err)
-	} else {
-		mergeOsqueryOptions(schemaKeys, options)
 	}
-	mergeGitOpsMDM(schemaKeys)
+	mergeOsqueryOptions(schemaKeys, osqueryOptions)
+	mergeMissingMDMKeys(schemaKeys, spec.GitOpsMDM{})
 
-	// Order matters. annotate and addDeclarativeNotes read types that relaxNulls
+	// Order matters. annotate and addGitOpsKeyNotes read types that relaxNulls
 	// later strips, so they run first. addPathReferences also runs before relaxNulls
-	// so the path keys it adds get relaxed too. typeSourceKeys runs after relaxNulls
-	// to restore the string types it drops. relaxNulls re-collects the tree so it
-	// reaches the aliases and path keys added above.
-	annotate(collectNodes(schemaKeys), renames)
-	addDeclarativeNotes(schemaKeys)
+	// so the path keys it adds get relaxed too. typeInstallerReferenceKeys runs after
+	// relaxNulls to restore the string types it drops.
+	nodes := collectNodes(schemaKeys)
+	annotate(nodes, renames)
+	addGitOpsKeyNotes(schemaKeys)
 	addPathReferences(schemaKeys)
-	addRequiredSources(schemaKeys)
-	relaxNulls(collectNodes(schemaKeys))
-	typeSourceKeys(schemaKeys)
+	addInstallerReferenceRequirement(schemaKeys)
+
+	// Collect again so relaxNulls reaches the aliases and path keys added above.
+	nodes = collectNodes(schemaKeys)
+	relaxNulls(nodes)
+	typeInstallerReferenceKeys(schemaKeys)
 
 	out, err := json.MarshalIndent(schemaKeys, "", "  ")
 	if err != nil {
@@ -245,7 +255,13 @@ func collectRenames(goType reflect.Type, visited map[reflect.Type]bool, renames 
 
 // mergeOsqueryOptions types agent_options.config.options with the generated osquery
 // option list. config keeps its other keys (schedule, decorators, ...) open.
-func mergeOsqueryOptions(schemaKeys map[string]any, options map[string]any) {
+func mergeOsqueryOptions(schemaKeys map[string]any, osqueryOptions map[string]any) {
+	// If the options couldn't be built, leave config open rather than pinning its
+	// options to an empty or null schema.
+	if len(osqueryOptions) == 0 {
+		return
+	}
+
 	agentOptions, ok := definitionProperties(schemaKeys, "AgentOptions")
 	if !ok {
 		return
@@ -253,14 +269,15 @@ func mergeOsqueryOptions(schemaKeys map[string]any, options map[string]any) {
 
 	agentOptions["config"] = map[string]any{
 		"type":       "object",
-		"properties": map[string]any{"options": options},
+		"properties": map[string]any{"options": osqueryOptions},
 	}
 }
 
-// mergeGitOpsMDM adds the extra mdm keys GitOps allows via spec.GitOpsMDM (e.g.
-// end_user_license_agreement) that aren't on the embedded fleet.MDM struct.
-func mergeGitOpsMDM(schemaKeys map[string]any) {
-	extraProperties := reflectProperties(&spec.GitOpsMDM{})
+// mergeMissingMDMKeys copies gitops-only MDM keys into the "MDM" def, whose base
+// fleet.MDM (org_settings.mdm) omits them. spec.GitOpsMDM embeds fleet.MDM and adds
+// them (e.g. end_user_license_agreement), so add whichever the def is missing.
+func mergeMissingMDMKeys(schemaKeys map[string]any, gitOpsMDM spec.GitOpsMDM) {
+	extraProperties := reflectProperties(&gitOpsMDM)
 	if extraProperties == nil {
 		return
 	}
@@ -288,16 +305,19 @@ func collectNodes(schemaKeys any) []map[string]any {
 	stack := []any{schemaKeys}
 
 	for len(stack) > 0 {
+		// Pop the next value off the stack.
 		current := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 
 		switch node := current.(type) {
 		case map[string]any:
+			// Add the object to nodes, then push its values to visit next.
 			nodes = append(nodes, node)
 			for _, child := range node {
 				stack = append(stack, child)
 			}
 		case []any:
+			// Walk through arrays without collecting them.
 			stack = append(stack, node...)
 		}
 	}
@@ -368,24 +388,26 @@ func typeLabel(node map[string]any) string {
 }
 
 // resolveReference follows a chain of $ref links through definitions to the concrete
-// schema object, stopping on a cycle or an unknown ref.
+// schema object. Each iteration replaces node with the definition its $ref points at,
+// and returns when node has no $ref, the ref is unknown, or it was already seen (a
+// cycle), so it visits each definition at most once.
 func resolveReference(definitions map[string]any, node map[string]any) map[string]any {
 	seen := map[string]bool{}
 	for {
-		ref, ok := node["$ref"].(string)
-		if !ok {
-			return node
+		ref, isRef := node["$ref"].(string)
+		if !isRef {
+			return node // reached a concrete node
 		}
 
 		name := strings.TrimPrefix(ref, "#/$defs/")
 		if seen[name] {
-			return node
+			return node // cycle: stop where we are
 		}
 		seen[name] = true
 
-		definition, ok := definitions[name].(map[string]any)
-		if !ok {
-			return node
+		definition, isObject := definitions[name].(map[string]any)
+		if !isObject {
+			return node // dangling ref: nothing to follow
 		}
 		node = definition
 	}
@@ -444,11 +466,11 @@ func annotate(nodes []map[string]any, renames map[string]string) {
 	}
 }
 
-// addDeclarativeNotes appends each declarativeExceptions note to the schema node at
+// addGitOpsKeyNotes appends each declarativeExceptions note to the schema node at
 // its dotted key path. It descends the path from the root, following $refs and
 // stepping transparently through array items, and attaches the note to the property
 // node itself (so shared $defs aren't affected). Missing paths are skipped.
-func addDeclarativeNotes(schemaKeys map[string]any) {
+func addGitOpsKeyNotes(schemaKeys map[string]any) {
 	definitions, _ := schemaKeys["$defs"].(map[string]any)
 
 	for path, note := range declarativeExceptions {
@@ -505,20 +527,21 @@ func addPathReferences(schemaKeys map[string]any) {
 	}
 }
 
-// addRequiredSources injects an anyOf of single-key required branches (each with the
-// same errorMessage) so an item is valid when any one source key is present.
-func addRequiredSources(schemaKeys map[string]any) {
-	for _, source := range requiredSources {
-		definition, ok := definitionByName(schemaKeys, source.definition)
+// addInstallerReferenceRequirement injects an anyOf of single-key required branches (each
+// with the same errorMessage) so an item is valid when any one installer-reference
+// key is present.
+func addInstallerReferenceRequirement(schemaKeys map[string]any) {
+	for _, reference := range installerReferences {
+		definition, ok := definitionByName(schemaKeys, reference.definition)
 		if !ok {
 			continue
 		}
 
-		branches := make([]any, 0, len(source.keys))
-		for _, key := range source.keys {
+		branches := make([]any, 0, len(reference.keys))
+		for _, key := range reference.keys {
 			branches = append(branches, map[string]any{
 				"required":     []any{key},
-				"errorMessage": source.message,
+				"errorMessage": reference.message,
 			})
 		}
 
@@ -526,14 +549,9 @@ func addRequiredSources(schemaKeys map[string]any) {
 	}
 }
 
-// relaxNulls makes empty placeholder keys valid without yamlls offering `null` in
-// value completion. GitOps files routinely leave keys empty, like `minimum_version:`
-// or `scripts:`, which YAML parses as null. yamlls can't validate null without also
-// suggesting it as a value, so scalar leaves drop their `type` entirely. That keeps
-// an empty value valid and stops the null suggestion, at the cost of no longer
-// type-checking the value. Objects and arrays instead keep their type as
-// `[type, null]`, so structure and key completion survive while empty sections
-// still validate.
+// relaxNulls makes empty placeholder keys valid. GitOps files routinely leave keys
+// empty, like `minimum_version:` or `scripts:`, which YAML parses as null, so every
+// leaf has to accept null. How it does that depends on the type.
 func relaxNulls(nodes []map[string]any) {
 	for _, node := range nodes {
 		schemaType, ok := node["type"].(string)
@@ -542,31 +560,33 @@ func relaxNulls(nodes []map[string]any) {
 		}
 
 		switch schemaType {
-		case "string", "integer", "number":
-			// Left untyped. An unquoted YAML string like the version 13.0 parses as a
-			// float and would falsely fail a string check, and several Fleet ints are
-			// really string enums like label_membership_type marshaled as "dynamic".
-			// Value completion would also only ever offer null for these.
+		case "integer", "number":
+			// Left untyped. Some Fleet ints marshal as string enums, like
+			// label_membership_type (a uint that marshals as "dynamic"), so a number
+			// check would reject a value fleetctl accepts. Reflection can't tell those
+			// apart from real ints, so numeric leaves stay unchecked.
 			delete(node, "type")
-		case "boolean", "object", "array":
-			// Keep the type so wrong types are still caught, but tolerate an empty
-			// null placeholder. yamlls will offer null in completion for these, which
-			// is unavoidable once null is valid.
+		case "string", "boolean", "object", "array":
+			// Keep the type as [type, null] so a wrong type is still caught while an
+			// empty null placeholder validates. This makes yamlls offer null in value
+			// completion, a limitation we accept so a real error like an unquoted
+			// version: 13.0 (which fleetctl rejects too, since ghodss decodes it as a
+			// number into a Go string) surfaces in the editor, not at apply time.
 			node["type"] = []any{schemaType, "null"}
 		}
 	}
 }
 
-// typeSourceKeys re-applies a strict string type to the source keys in
-// strictStringKeys, undoing the relaxNulls pass for them.
-func typeSourceKeys(schemaKeys map[string]any) {
-	for definitionName, sourceKeys := range strictStringKeys {
+// typeInstallerReferenceKeys re-applies a strict string type to the keys in
+// strictInstallerReferenceKeys, undoing the relaxNulls pass for them.
+func typeInstallerReferenceKeys(schemaKeys map[string]any) {
+	for definitionName, referenceKeys := range strictInstallerReferenceKeys {
 		properties, ok := definitionProperties(schemaKeys, definitionName)
 		if !ok {
 			continue
 		}
 
-		for _, key := range sourceKeys {
+		for _, key := range referenceKeys {
 			node, ok := properties[key].(map[string]any)
 			if !ok {
 				continue
