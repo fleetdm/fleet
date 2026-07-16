@@ -62,57 +62,30 @@ const Modal = ({
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
-  // Move focus into the modal on open and put it back when it closes. We
-  // deliberately do not intercept Tab or compute a "last tabbable" — native
-  // browser Tab ordering handles that. If focus tries to escape the modal
-  // (Tab past the last control, or a stray focus() call elsewhere), the
-  // focusout handler redirects it back inside.
+  // Focus the container on open so the modal is the keyboard landing point;
+  // on close, restore focus to whatever was focused before. Native Tab handles
+  // ordering inside — the focusout listener just redirects escaping focus
+  // back to the container, which effectively wraps at the modal boundary.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const lastFocusedInside: { current: HTMLElement } = { current: container };
-
-    if (isContentDisabled) {
-      // For disabled-content modals put focus on the header close X so the
-      // user can still dismiss.
-      const closeBtn = container.querySelector<HTMLElement>(
-        `.${baseClass}__ex button`
-      );
-      (closeBtn ?? container).focus();
-    } else {
-      container.focus();
-    }
-
-    const handleFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && container.contains(target)) {
-        lastFocusedInside.current = target;
-      }
-    };
+    container.focus();
 
     const handleFocusOut = (e: FocusEvent) => {
       const next = e.relatedTarget as Node | null;
-      if (next === null) return;
-      if (container.contains(next)) return;
-      // Focus tried to leave the modal. Put it back on the container so the
-      // next Tab starts a fresh cycle from the first tabbable inside — a
-      // simple wrap that doesn't depend on computing a "last" tabbable.
-      container.focus();
+      if (next && !container.contains(next)) container.focus();
     };
-
-    document.addEventListener("focusin", handleFocusIn);
     document.addEventListener("focusout", handleFocusOut);
 
     return () => {
-      document.removeEventListener("focusin", handleFocusIn);
       document.removeEventListener("focusout", handleFocusOut);
       if (previouslyFocused && document.body.contains(previouslyFocused)) {
         previouslyFocused.focus();
       }
     };
-  }, [isContentDisabled]);
+  }, []);
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
