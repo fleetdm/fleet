@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.12.2",
+      "version": "2.12.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli' AND version_compare(bundle_short_version, '2.12.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.cli' AND version_compare(bundle_short_version, '2.12.3') < 0);"
       },
-      "installer_url": "https://desktop-release.q.us-east-1.amazonaws.com/2.12.2/Kiro%20CLI.dmg",
+      "installer_url": "https://desktop-release.q.us-east-1.amazonaws.com/2.12.3/Kiro%20CLI.dmg",
       "install_script_ref": "7bf3d706",
       "uninstall_script_ref": "31b59062",
-      "sha256": "6498b4bf7e927f5dd1581d7ba14b768783a8c4ec29d9a7991e03b77ccb197352",
+      "sha256": "5c3c48fa82b5812bc52e0ccf3458a43217d44cbe07be13b792c88d17d8d02c7a",
       "default_categories": [
         "Productivity"
       ]
