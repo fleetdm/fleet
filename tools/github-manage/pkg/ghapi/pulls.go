@@ -243,6 +243,35 @@ func GetReviewRequestedPRs(repo string, limit int) ([]PullRequest, error) {
 	return listPullRequests(repo, "review-requested:@me", prReviewFields, limit)
 }
 
+// GetPRByBranch returns the open PR whose head branch is `branch`, if any. It's
+// used by the single-item refresh to discover a PR opened since the last full
+// fetch (which BuildWorkItems can then link to the issue by branch). Returns
+// (PullRequest{}, false, nil) when no open PR has that head branch.
+func GetPRByBranch(repo, branch string) (PullRequest, bool, error) {
+	if repo == "" {
+		repo = DefaultRepo
+	}
+	if branch == "" {
+		return PullRequest{}, false, nil
+	}
+	cmd := fmt.Sprintf(
+		"gh pr list --repo %s --state open --head %q --json %s --limit 1",
+		repo, branch, prListFields,
+	)
+	out, err := RunCommandWithRetry(cmd, 3)
+	if err != nil {
+		return PullRequest{}, false, err
+	}
+	prs, err := parsePullRequests(out)
+	if err != nil {
+		return PullRequest{}, false, err
+	}
+	if len(prs) == 0 {
+		return PullRequest{}, false, nil
+	}
+	return prs[0], true, nil
+}
+
 // MergePR merges a pull request using the given method (default "squash").
 // Returns the gh output. This is a GitHub write — callers should confirm first.
 func MergePR(repo string, number int, method string) (string, error) {

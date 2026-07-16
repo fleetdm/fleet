@@ -193,8 +193,12 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if w, ok := m.currentWork(); ok {
 				m.notice = fmt.Sprintf("refreshing #%d…", w.Number)
 				cmds := []tea.Cmd{refreshIssueCmd(m.repo, w.Number, w.Project)}
-				if w.PR != nil {
+				switch {
+				case w.PR != nil:
 					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
+				case w.Branch != "":
+					// No PR linked yet — look for one opened since the last full fetch.
+					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch))
 				}
 				return m, tea.Batch(cmds...)
 			}
@@ -207,7 +211,14 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, refreshPRCmd(m.repo, it.Number)
 			case KindIssue:
 				m.notice = fmt.Sprintf("refreshing #%d…", it.Number)
-				return m, refreshIssueCmd(m.repo, it.Number, m.workByIssue[it.Number].Project)
+				w := m.workByIssue[it.Number]
+				cmds := []tea.Cmd{refreshIssueCmd(m.repo, it.Number, w.Project)}
+				// No PR linked yet but we know the branch — discover a PR opened
+				// since the last full fetch and inject it into the board.
+				if w.PR == nil && w.Branch != "" {
+					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch))
+				}
+				return m, tea.Batch(cmds...)
 			default:
 				m.notice = "nothing to refresh here (r for a full refresh)"
 			}

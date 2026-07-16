@@ -535,6 +535,23 @@ func refreshPRCmd(repo string, number int) tea.Cmd {
 	}
 }
 
+// refreshPRByBranchCmd looks up the open PR for a head branch and injects it into
+// the board (via the KindPR refresh path), so a single-item refresh on an issue
+// can discover a PR opened since the last full fetch. A no-op (nil msg) when the
+// branch has no open PR; BuildWorkItems then links the injected PR by branch.
+func refreshPRByBranchCmd(repo, branch string) tea.Cmd {
+	return func() tea.Msg {
+		pr, ok, err := ghapi.GetPRByBranch(repo, branch)
+		if err != nil || !ok {
+			return nil // no PR yet (or lookup failed) — leave the issue as-is
+		}
+		if c, e := ghapi.GetUnresolvedReviewThreadCount(repo, pr.Number); e == nil {
+			pr.UnresolvedThreads = c
+		}
+		return itemRefreshedMsg{kind: KindPR, number: pr.Number, pr: &pr}
+	}
+}
+
 // refreshIssueCmd re-fetches a single issue's project Status + board memberships,
 // and its open/closed state (so a since-closed issue gets marked done). When
 // project is non-zero (e.g. a Project View row), the status is read from THAT
