@@ -1900,6 +1900,24 @@ func TestRunAndroidExcludeVersions(t *testing.T) {
 	require.True(t, os.IsNotExist(err), "excluded version 14 should not produce an artifact")
 }
 
+func TestRunAndroidEmptyInputErrors(t *testing.T) {
+	// Android ingests the full OSV corpus, so an input directory with no usable
+	// Android OSV files means the input is broken. Fail loudly rather than
+	// silently producing a release with no artifacts.
+	cfg := Config{
+		Platform:           "android",
+		InputDir:           t.TempDir(), // empty
+		OutputDir:          t.TempDir(),
+		DateStr:            "2026-07-14",
+		GeneratedTimestamp: "2026-07-14T00:00:00Z",
+		RunTime:            time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC),
+	}
+
+	err := runAndroid(cfg)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no Android OSV files with CVEs found")
+}
+
 func TestRunAndroidDeltaFlagsRejected(t *testing.T) {
 	cfg := Config{
 		Platform:          "android",

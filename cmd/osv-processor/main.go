@@ -1033,8 +1033,18 @@ func runAndroid(cfg Config) error {
 		totalAffectedEntries, skippedNonAndroid, skippedNonEcosystem, skippedNonVersion)
 	log.Printf("Discovered %d Android versions", len(collected))
 
+	// Android mode always ingests the full OSV corpus (deltas are rejected
+	// above), so reading zero usable files means the input is broken (wrong or
+	// empty directory, or nothing parsable). Fail loudly rather than publishing a
+	// release with no Android artifacts, which would silently disable Android
+	// vulnerability scanning. An empty result after processing files is a
+	// legitimate outcome of version filters, so that only warns.
+	if filesProcessed == 0 {
+		return fmt.Errorf("no Android OSV files with CVEs found in %s — check that the input directory contains valid Android OSV JSON files", cfg.InputDir)
+	}
+
 	if len(collected) == 0 {
-		log.Printf("WARNING: no Android vulnerabilities found — check that the input directory contains valid Android OSV JSON files")
+		log.Printf("WARNING: no Android vulnerabilities collected — all entries were excluded by version filters or contained no matching version prefixes")
 		return nil
 	}
 
