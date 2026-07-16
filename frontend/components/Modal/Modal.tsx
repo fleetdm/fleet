@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { FocusScope } from "@radix-ui/react-focus-scope";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -63,18 +62,57 @@ const Modal = ({
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
-  // Focus the container (tabIndex=-1) on open rather than the first tabbable
-  // child. Matches WAI-ARIA dialog guidance and — importantly — prevents an
-  // in-flight keydown from the trigger (Enter or Space held for the browser's
-  // autorepeat window) from immediately activating a newly-focused content
-  // button like "Save". First user Tab moves into content from here.
-  // Disabled-content modals keep FocusScope's default (first tabbable = the
-  // header close X) so the user can still dismiss.
-  const handleMountAutoFocus = (e: Event) => {
-    if (isContentDisabled) return;
-    e.preventDefault();
-    containerRef.current?.focus();
-  };
+  // Move focus into the modal on open and put it back when it closes. We
+  // deliberately do not intercept Tab or compute a "last tabbable" — native
+  // browser Tab ordering handles that. If focus tries to escape the modal
+  // (Tab past the last control, or a stray focus() call elsewhere), the
+  // focusout handler redirects it back inside.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const lastFocusedInside: { current: HTMLElement } = { current: container };
+
+    if (isContentDisabled) {
+      // For disabled-content modals put focus on the header close X so the
+      // user can still dismiss.
+      const closeBtn = container.querySelector<HTMLElement>(
+        `.${baseClass}__ex button`
+      );
+      (closeBtn ?? container).focus();
+    } else {
+      container.focus();
+    }
+
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && container.contains(target)) {
+        lastFocusedInside.current = target;
+      }
+    };
+
+    const handleFocusOut = (e: FocusEvent) => {
+      const next = e.relatedTarget as Node | null;
+      if (next === null) return;
+      if (container.contains(next)) return;
+      // Focus tried to leave the modal. Put it back on the container so the
+      // next Tab starts a fresh cycle from the first tabbable inside — a
+      // simple wrap that doesn't depend on computing a "last" tabbable.
+      container.focus();
+    };
+
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+      if (previouslyFocused && document.body.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+    };
+  }, [isContentDisabled]);
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
@@ -211,34 +249,32 @@ const Modal = ({
       onMouseDown={handleBackgroundMouseDown}
       onMouseUp={handleBackgroundMouseUp}
     >
-      <FocusScope asChild loop trapped onMountAutoFocus={handleMountAutoFocus}>
-        <div
-          ref={containerRef}
-          className={modalContainerClasses}
-          tabIndex={-1} // Make focusable
-          onMouseDown={handleContainerMouseDown}
-          onMouseUp={handleContainerMouseUp}
-          onInput={handleContainerInput}
-          onClick={handleContainerClick}
-        >
-          <div className={`${baseClass}__header`}>
-            <span>{title}</span>
-            {!disableClosingModal && (
-              <div className={`${baseClass}__ex`}>
-                <Button variant="icon" onClick={handleClose} iconStroke>
-                  <Icon name="close" color="core-fleet-black" size="medium" />
-                </Button>
-              </div>
-            )}
-          </div>
-          <div className={contentWrapperClasses}>
-            {isContentDisabled && (
-              <div className={`${baseClass}__disabled-overlay`} />
-            )}
-            <div className={contentClasses}>{children}</div>
-          </div>
+      <div
+        ref={containerRef}
+        className={modalContainerClasses}
+        tabIndex={-1} // Make focusable as the initial keyboard landing target
+        onMouseDown={handleContainerMouseDown}
+        onMouseUp={handleContainerMouseUp}
+        onInput={handleContainerInput}
+        onClick={handleContainerClick}
+      >
+        <div className={`${baseClass}__header`}>
+          <span>{title}</span>
+          {!disableClosingModal && (
+            <div className={`${baseClass}__ex`}>
+              <Button variant="icon" onClick={handleClose} iconStroke>
+                <Icon name="close" color="core-fleet-black" size="medium" />
+              </Button>
+            </div>
+          )}
         </div>
-      </FocusScope>
+        <div className={contentWrapperClasses}>
+          {isContentDisabled && (
+            <div className={`${baseClass}__disabled-overlay`} />
+          )}
+          <div className={contentClasses}>{children}</div>
+        </div>
+      </div>
     </div>
   );
 };
