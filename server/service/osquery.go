@@ -2622,12 +2622,8 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 }
 
 func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
-	// Check if the needed server configuration for Conditional Access is set.
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return false, false, nil
-	}
-
-	// Check if the integration is fully configured.
+	// Check if the integration is fully configured. The integration can only be
+	// set up on Fleet Premium, so its presence implies the feature is licensed.
 	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
 		if fleet.IsNotFound(err) {

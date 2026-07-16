@@ -23403,10 +23403,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 		s.clearOktaConditionalAccess()
 	})
 
-	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.True(t, acResp.License.ManagedCloud)
 
 	// Test global maintainer fails to create the integration.
 	u := &fleet.User{
