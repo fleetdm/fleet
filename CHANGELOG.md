@@ -1,3 +1,12 @@
+## Fleet 4.89.1 (Jul 16, 2026)
+
+### Bug fixes
+
+- Fixed a bug where fresh Windows 11 25H2 (and other recent builds) failed MDM enrollment with error
+  80180006 because the device's discovery `RequestVersion` (e.g. "9.0") was rejected by an exact-match
+  allow-list. Fleet now accepts any MS-MDE2 discovery `RequestVersion` at or above the minimum supported
+  version ("4.0").
+
 ## Fleet 4.89.0 (Jul 15, 2026)
 
 ### IT Admins
