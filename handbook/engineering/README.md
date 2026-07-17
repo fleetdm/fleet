@@ -66,7 +66,7 @@ The engineering output and architecture DRI reviews and triages engineering-init
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming sprint.
+2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
@@ -114,14 +114,14 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 
 #### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be completed in a single release cycle. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
 3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-apple-at-work, #g-auto-patching, #g-orchestration, or #g-security-compliance Slack channel.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-apple-at-work, #g-auto-patching, #g-orchestration, or #g-supply-chain Slack channel.
 
-> Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
+> Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
 
 ### Community contributions
@@ -144,7 +144,7 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
 - Set the PR to draft.
-- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#scrum-items) and bring it through drafting or put the change to the side (not prioritize).
+- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) and bring it through drafting or put the change to the side (not prioritize).
 - Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
@@ -218,7 +218,7 @@ Because remote-triggered sessions run as you, on your machine, take the followin
 
 #### On-call engineer
 
-Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each release cycle accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
 On-call engineers are available during the business hours of 9am - 5pm Central. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
@@ -229,12 +229,12 @@ The on-call engineer is responsible for:
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next engineer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
+To provide full-time focus to the role, the on-call engineer is not expected to work on release issues during their on-call assignment.
 
 
 #### Incident on-call engineer
 
-Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
+Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each release cycle accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full release cycle's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next release cycle if necessary.
 
 Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 

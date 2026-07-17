@@ -335,11 +335,11 @@ After every GitOps workshop, Fleet issues a certificate to all participants who 
 -->
 
 
-### Publish sprint demo video
+### Publish release demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. **Download the sprint demo recording**
+1. **Download the release demo recording**
 
    This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
    
@@ -370,7 +370,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 6. **Upload the video to Youtube**
    Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
-   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
 
    Add a brief description highlighting the new features.
 
@@ -379,7 +379,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 
 ### Upload to YouTube
 
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as:
