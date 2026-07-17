@@ -1,6 +1,9 @@
 package tables
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+)
 
 func init() {
 	MigrationClient.AddMigration(Up_20260717152653, Down_20260717152653)
@@ -13,6 +16,11 @@ func init() {
 // regardless of the install script's outcome, that masked failed installs as
 // successful. A non-zero install-script exit code is now terminal (failed_install)
 // and evaluated before the post-install script result.
+//
+// Both columns are changed in one ALTER TABLE: each ALTER TABLE implicitly
+// commits, so separate statements could leave status on the new definition while
+// execution_status kept the old one if the second failed. A single statement also
+// rebuilds the table once rather than twice.
 func Up_20260717152653(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE host_software_installs
@@ -33,13 +41,7 @@ func Up_20260717152653(tx *sql.Tx) error {
 				WHEN host_id IS NOT NULL AND uninstall = 1 THEN 'pending_uninstall'
 				ELSE NULL
 			END
-		) STORED
-	`); err != nil {
-		return err
-	}
-
-	if _, err := tx.Exec(`
-		ALTER TABLE host_software_installs
+		) STORED,
 		MODIFY COLUMN ` + "`execution_status`" + ` ENUM('pending_install','failed_install','installed','pending_uninstall','failed_uninstall','canceled_install','canceled_uninstall')
 		GENERATED ALWAYS AS (
 			CASE
@@ -58,7 +60,7 @@ func Up_20260717152653(tx *sql.Tx) error {
 			END
 		) VIRTUAL
 	`); err != nil {
-		return err
+		return fmt.Errorf("fixing install status precedence generated columns: %w", err)
 	}
 
 	return nil
