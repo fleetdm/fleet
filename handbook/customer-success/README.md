@@ -189,6 +189,20 @@ Document the completion of a customer promise through the following steps:
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
 5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
+### Submit a feature request for CSA review (For CSMs)
+
+Before proceeding, try to locate existing relevant issues. Create your requests if one doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
+- Navigate to the help-customers board in GitHub
+- Press "Add item" under the "New requests" column
+- Select "Custom request" as the issue type
+- Title your request "FR for (customer-codename-here)"
+- In the description field, Add the following information
+    - What is the specific feature being requested?
+    - Why is this impactful to the customer?
+    - What priority is this issue to the customer?
+    - Any additional infromation that may be helpful for the CSA to understand your customer's request
+- Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
+- Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 
 ### File a customer bug report
 
