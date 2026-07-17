@@ -1172,6 +1172,36 @@ Please see [handbook/company/product-groups/orchestration](https://fleetdm.com/h
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
 
+##### Security & compliance group
+Please see [handbook/company/product-groups#supply-chain-group](https://fleetdm.com/handbook/company/product-groups#supply-chain-group)
+
+##### Working groups
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Working group rollout
+Please see [handbook/company/product-groups#current-product-groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)
+
+##### Scrum at Fleet
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Scrum items
+Please see [handbook/company/product-groups#work-items](https://fleetdm.com/handbook/company/product-groups#work-items)
+
+##### Sprints
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Sprint numbering
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Sprint ceremonies
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Working through the sprint
+Please see [handbook/company/product-groups#working-the-board](https://fleetdm.com/handbook/company/product-groups#working-the-board)
+
+##### Estimation points
+Please see [handbook/company/product-groups#t-shirt-sizing-capacity-planning](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning)
+
 
 <meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="🛩️ Product groups">

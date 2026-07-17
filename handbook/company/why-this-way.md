@@ -512,5 +512,8 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 ##### What is a P1?
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
 
+##### Why scrum?
+Please see [handbook/company/why-this-way#why-continuous-flow](https://fleetdm.com/handbook/company/why-this-way#why-continuous-flow).
+
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="💭 Why this way?">

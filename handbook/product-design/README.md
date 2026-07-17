@@ -212,6 +212,8 @@ When a new major macOS version is announced, it's the Head of Product Design's r
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
+##### Notify stakeholders when a user story is pushed to the next sprint
+Please see [handbook/product-design#notify-stakeholders-when-a-user-story-is-pushed-to-the-next-release](https://fleetdm.com/handbook/product-design#notify-stakeholders-when-a-user-story-is-pushed-to-the-next-release).
 
 
 <meta name="maintainedBy" value="noahtalerman">

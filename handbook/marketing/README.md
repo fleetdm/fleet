@@ -423,6 +423,9 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 #### Stubs
 The following stubs are included only to make links backward compatible
 
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
+
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
 
