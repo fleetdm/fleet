@@ -100,8 +100,6 @@ const generateTableHeaders = ({
         return (
           <div className="custom-host-vitals-tab__actions">
             <GitOpsModeTooltipWrapper
-              position="left"
-              tipOffset={8}
               renderChildren={(disableChildren) => (
                 <>
                   <Button
