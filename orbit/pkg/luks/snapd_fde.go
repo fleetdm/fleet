@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Masterminds/semver"
 	"github.com/rs/zerolog/log"
 )
 
@@ -20,6 +21,15 @@ import (
 // line is 2.75.x/2.76), not just master
 // (daemon/api_system_volumes.go, overlord/fdestate/fdestate.go).
 const systemVolumesPath = "/v2/system-volumes"
+
+// snapdMinVersion is the earliest snapd version that supports the runtime
+// recovery-key management actions on /v2/system-volumes (generate/add/replace/
+// check-recovery-key). Older snapd builds have `ubuntu-fde` LUKS2 tokens on
+// disk — so IsSnapdManaged still returns true — but reject the actions with
+// "this action is not supported on this system". Preflighting the version
+// lets us surface a clear "your snapd is too old" error to the admin instead
+// of the raw snapd 400.
+const snapdMinVersion = "2.74.0"
 
 // snapd /v2/system-volumes action values.
 const (
@@ -68,6 +78,16 @@ func newSnapdSocketFDE() *snapdSocketFDE {
 // ensureFleetRecoveryKey generates a recovery key and enrolls it under the
 // dedicated Fleet-owned key slot name, returning the recovery key to escrow.
 func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, error) {
+	// Step 0: preflight snapd's version. The /v2/system-volumes actions we
+	// use (generate/add/check-recovery-key) landed in snapd 2.74. Older snapd
+	// still has `ubuntu-fde` LUKS2 tokens on disk (so IsSnapdManaged returns
+	// true) but rejects the action with a 400 "not supported on this system".
+	// Fail fast with a version-specific message so the operator sees what
+	// actually needs to change.
+	if err := s.checkSnapdVersion(ctx); err != nil {
+		return "", err
+	}
+
 	// Step 1: generate a recovery key. snapd answers synchronously with the key
 	// value and a transient id used to enroll it.
 	log.Debug().Str("action", actionGenerateRecoveryKey).Msg("requesting snapd to generate a recovery key")
@@ -124,4 +144,33 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 
 	log.Info().Str("keyslot", FleetRecoveryKeyName).Msg("snapd-managed recovery key enrolled and validated")
 	return gen.RecoveryKey, nil
+}
+
+// checkSnapdVersion queries snapd's system-info and returns an error whose
+// message explicitly names the minimum required version if the running snapd
+// is older than snapdMinVersion. snapd's version string may carry a
+// distribution suffix (e.g. "2.68.5+24.04") which the Masterminds/semver
+// parser handles as a build/pre-release tag; comparison is on the numeric
+// major.minor.patch part.
+func (s *snapdSocketFDE) checkSnapdVersion(ctx context.Context) error {
+	info, err := s.client.systemInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("querying snapd system info: %w", err)
+	}
+	if info.Version == "" {
+		return errors.New("snapd system-info did not return a version")
+	}
+
+	got, err := semver.NewVersion(info.Version)
+	if err != nil {
+		return fmt.Errorf("parsing snapd version %q: %w", info.Version, err)
+	}
+	minVer := semver.MustParse(snapdMinVersion)
+	if got.LessThan(minVer) {
+		log.Warn().Str("snapd_version", info.Version).Str("min_version", snapdMinVersion).
+			Msg("snapd is too old for TPM-backed FDE recovery-key management")
+		return fmt.Errorf("snapd %s does not support TPM-backed FDE recovery-key management; upgrade snapd to %s or later (Ubuntu 26.04+)", info.Version, snapdMinVersion)
+	}
+	log.Debug().Str("snapd_version", info.Version).Msg("snapd version supports recovery-key management")
+	return nil
 }

@@ -73,6 +73,21 @@ type snapdResponse struct {
 	Change     string          `json:"change"` // change id, set on async responses
 }
 
+// snapdSystemInfo is the relevant subset of GET /v2/system-info. Only "version"
+// is consumed today, to preflight the recovery-key management API.
+type snapdSystemInfo struct {
+	Version string `json:"version"`
+}
+
+// systemInfo fetches GET /v2/system-info and returns the parsed system info.
+func (c *snapdClient) systemInfo(ctx context.Context) (snapdSystemInfo, error) {
+	var info snapdSystemInfo
+	if err := c.requestSync(ctx, http.MethodGet, "/v2/system-info", nil, &info); err != nil {
+		return snapdSystemInfo{}, err
+	}
+	return info, nil
+}
+
 // snapdError is the shape of the "result" field when a request fails.
 type snapdError struct {
 	Message string `json:"message"`

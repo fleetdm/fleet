@@ -27,6 +27,14 @@ func decodeAction(t *testing.T, r *http.Request) recoveryKeyActionRequest {
 	return req
 }
 
+// writeSystemInfo returns a canned system-info response with the given snapd
+// version. Test handlers should route GET /v2/system-info to this so the
+// version preflight in ensureFleetRecoveryKey sees a version that permits the
+// rest of the flow to run.
+func writeSystemInfo(w http.ResponseWriter, version string) {
+	_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"version":"` + version + `"}}`))
+}
+
 func TestEnsureFleetRecoveryKeyViaSocket(t *testing.T) {
 	const wantKey = "55055-39320-64491-48436-47667-15525-36879-32875"
 	var sawGenerate, sawAdd, sawCheck bool
@@ -36,6 +44,11 @@ func TestEnsureFleetRecoveryKeyViaSocket(t *testing.T) {
 
 		if r.URL.Path == "/v2/changes/9" {
 			_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"ready":true,"status":"Done"}}`))
+			return
+		}
+
+		if r.URL.Path == "/v2/system-info" {
+			writeSystemInfo(w, "2.75.0")
 			return
 		}
 
@@ -82,6 +95,10 @@ func TestEnsureFleetRecoveryKeyViaSocketFallsBackToReplace(t *testing.T) {
 			_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"ready":true,"status":"Done"}}`))
 			return
 		}
+		if r.URL.Path == "/v2/system-info" {
+			writeSystemInfo(w, "2.75.0")
+			return
+		}
 		req := decodeAction(t, r)
 		switch req.Action {
 		case actionGenerateRecoveryKey:
@@ -107,4 +124,62 @@ func TestEnsureFleetRecoveryKeyViaSocketFallsBackToReplace(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "11111-22222", key)
 	assert.True(t, sawReplace, "fell back to replace-recovery-key when add reported a conflict")
+}
+
+func TestEnsureFleetRecoveryKeyRejectsOldSnapd(t *testing.T) {
+	// Regression: snapd < 2.74 has the /v2/system-volumes endpoint but rejects
+	// generate-recovery-key with 400 "this action is not supported on this
+	// system". Preflight the version so the operator sees a clear
+	// upgrade-required message instead of the raw snapd 400.
+	cases := []struct {
+		name    string
+		version string
+		wantErr bool
+	}{
+		{name: "2.73 is too old", version: "2.73.4", wantErr: true},
+		{name: "2.68 with ubuntu suffix is too old", version: "2.68.5+24.04", wantErr: true},
+		{name: "2.74.0 exactly is accepted", version: "2.74.0", wantErr: false},
+		{name: "2.75.1 is accepted", version: "2.75.1", wantErr: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var sawGenerate bool
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				if r.URL.Path == "/v2/system-info" {
+					writeSystemInfo(w, tc.version)
+					return
+				}
+				if r.URL.Path == "/v2/changes/9" {
+					_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"ready":true,"status":"Done"}}`))
+					return
+				}
+				req := decodeAction(t, r)
+				switch req.Action {
+				case actionGenerateRecoveryKey:
+					sawGenerate = true
+					_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"recovery-key":"55055-39320","key-id":"kid-3"}}`))
+				case actionAddRecoveryKey:
+					_, _ = w.Write([]byte(`{"type":"async","status-code":202,"change":"9"}`))
+				case actionCheckRecoveryKey:
+					_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":null}`))
+				default:
+					t.Errorf("unexpected action %q", req.Action)
+				}
+			}))
+			defer srv.Close()
+
+			fde := &snapdSocketFDE{client: newTestSnapdClient(srv)}
+			_, err := fde.ensureFleetRecoveryKey(context.Background())
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.version, "error names the too-old version")
+				assert.Contains(t, err.Error(), snapdMinVersion, "error names the required minimum version")
+				assert.False(t, sawGenerate, "preflight fails before generate-recovery-key is called")
+			} else {
+				require.NoError(t, err)
+				assert.True(t, sawGenerate, "flow proceeds past preflight on supported versions")
+			}
+		})
+	}
 }
