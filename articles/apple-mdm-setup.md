@@ -273,17 +273,17 @@ for details.
 > **Note:** Releasing a host from Apple Business does not unenroll it from Fleet or wipe it. 
 > Admins must manually unenroll or wipe the host after releasing.
 
-### Re-enrolling AB hosts
+### Re-enrolling Apple Business hosts
 
-When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+When an Apple Business host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
   - Cancels pending MDM commands, script runs, and software installs
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before 
+This means you **do not need to delete** an Apple Business host from Fleet before 
 re-enrolling it. Fleet handles clearing stale state automatically.
 
-> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+> This automatic state clearing does not apply to hosts undergoing Apple Business MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
