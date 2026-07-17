@@ -341,7 +341,7 @@
 #  ╠═╣║  ║  ║ ║║ ║║║║ ║   ║  ╠╦╝║╣ ╠═╣ ║ ║║ ║║║║ & ╠═╝╠═╣╚═╗╚═╗║║║║ ║╠╦╝ ║║  ╚═╗╚╦╝║║║║  
 #  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝╩╚═╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝   ╩  ╩ ╩╚═╝╚═╝╚╩╝╚═╝╩╚══╩╝  ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: Account creation & password sync
-  description: Automatically create macOS local accounts and sync passwords with any IdP that supports OAuth ROPG, so end users have one password for their Mac and third-party tools.
+  description: Automatically create macOS local accounts and sync passwords with any IdP that supports OAuth ROPG (e.g. Okta), so end users have one password for their Mac and third-party tools.
   documentationUrl: https://fleetdm.com/docs/deploying-apple-account-provisioning-with-fleet
   productCategories: [Device management]
   pricingTableCategories: [Device management]
