@@ -558,7 +558,8 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ##### Change which fields are visable when editing selected quote line items
 
-TODO Image
+<img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
+
 
 1. Click `Setup` => `Object manager` => `Quote line item` => `Page layouts` => `Quote Line Item Layout` => `Edit Multi-Line Layout`
 2. Once here, arrange the available fields in the "Selected fields" column in the order you would like them to appear in SFDC and save.
