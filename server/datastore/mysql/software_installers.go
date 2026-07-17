@@ -791,6 +791,12 @@ func (ds *Datastore) redirectPendingInstallsToActiveInstaller(ctx context.Contex
 // returns the input id unchanged when that installer is already active, has no
 // active sibling, or no longer exists.
 func (ds *Datastore) ResolveActiveInstallerForFrozen(ctx context.Context, frozenInstallerID uint) (uint, error) {
+	// Only Fleet-maintained apps have the single-active-version semantics this
+	// resolves against: an FMA title has exactly one is_active=1 row, so the active
+	// sibling is unambiguous. Custom titles can have several packages all flagged
+	// is_active=1, and each is a distinct package (not a version of the other), so a
+	// retry must stay on its own installer — the query returns no row for them and
+	// the frozen id is used unchanged.
 	var activeID uint
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &activeID, `
 		SELECT active.id
@@ -798,8 +804,10 @@ func (ds *Datastore) ResolveActiveInstallerForFrozen(ctx context.Context, frozen
 		JOIN software_installers active
 			ON active.global_or_team_id = frozen.global_or_team_id
 			AND active.title_id = frozen.title_id
+			AND active.fleet_maintained_app_id = frozen.fleet_maintained_app_id
 			AND active.is_active = 1
 		WHERE frozen.id = ?
+			AND frozen.fleet_maintained_app_id IS NOT NULL
 		LIMIT 1`, frozenInstallerID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
