@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.8.0",
+      "version": "5.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app' AND version_compare(bundle_short_version, '5.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app' AND version_compare(bundle_short_version, '5.9.0') < 0);"
       },
-      "installer_url": "https://github.com/massCodeIO/massCode/releases/download/v5.8.0/massCode-5.8.0-arm64.dmg",
+      "installer_url": "https://github.com/massCodeIO/massCode/releases/download/v5.9.0/massCode-5.9.0-arm64.dmg",
       "install_script_ref": "0a664ca4",
       "uninstall_script_ref": "02f458b9",
-      "sha256": "f699b7b4d66f0c649591e86983a9675a7af4504e6166f09b8925d781829346a1",
+      "sha256": "ed6dc3f2b6ed243f126b79d9a104534dc45771b1bceedbd4dbd6fd8e01c09c45",
       "default_categories": [
         "Developer tools"
       ]
