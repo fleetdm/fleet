@@ -84,7 +84,7 @@ When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, 
 
 ## Known limitations and issues
 
-> Support for custom host vitals in host name templates is coming soon.
+> Support for custom host vitals in host name templates is [coming soon](https://github.com/fleetdm/fleet/issues/49489).
 
 > Support for custom host vitals in Android configuration profiles is [coming soon](https://github.com/fleetdm/fleet/issues/49421).
 
