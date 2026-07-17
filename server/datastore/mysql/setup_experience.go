@@ -230,8 +230,8 @@ AND (
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
-			-- tar.gz and sh can be installed on any Linux distribution
-			(si.extension = 'tar.gz' OR si.extension = 'sh')
+			-- tar.gz, sh, and py can be installed on any Linux distribution
+			(si.extension IN ('tar.gz', 'sh', 'py'))
 			OR
 			(
 				-- deb packages can only be installed on Debian-based hosts.
@@ -257,8 +257,8 @@ AND %s`
 			softwareArgs = append(softwareArgs, hostUUID)
 		}
 
-		// .sh installers are stored with platform='linux' but can run on darwin too,
-		// so include any cross-selected for macOS setup experience.
+		// .sh and .py installers are stored with platform='linux' but can run on darwin
+		// too, so include any cross-selected for macOS setup experience.
 		if fleetPlatform == "darwin" {
 			crossInstallerSelect := `
 SELECT
@@ -279,7 +279,7 @@ INNER JOIN setup_experience_software_installers seti
 	ON seti.software_installer_id = si.id AND seti.platform = 'darwin' AND seti.global_or_team_id = ?
 WHERE si.is_active = TRUE
 AND si.platform = 'linux'
-AND si.extension = 'sh'
+AND si.extension IN ('sh', 'py')
 AND %s`
 			if resetFailedSetupSteps {
 				crossInstallerSelect = fmt.Sprintf(crossInstallerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
