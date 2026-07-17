@@ -290,11 +290,7 @@ const ConfigurationProfiles = ({
               <EmptyState
                 variant="header-list"
                 header="Additional configuration required"
-                info={
-                  canTurnOnMdm
-                    ? "MDM must be turned on to add configuration profiles."
-                    : "To add configuration profiles, ask your admin to turn on MDM."
-                }
+                info="MDM must be turned on to add configuration profiles."
                 primaryButton={
                   canTurnOnMdm ? (
                     <Button

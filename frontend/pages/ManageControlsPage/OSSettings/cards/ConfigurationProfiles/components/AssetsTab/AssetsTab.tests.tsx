@@ -97,7 +97,7 @@ describe("AssetsTab", () => {
     render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
 
     expect(
-      screen.getByText("To manage assets, ask your admin to turn on Apple MDM.")
+      screen.getByText("Supported on macOS, iOS, and iPadOS.")
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Turn on Apple MDM" })
