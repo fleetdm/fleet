@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -196,6 +197,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.MDMAppleListDevicesFunc = func(ctx context.Context) ([]fleet.MDMAppleDevice, error) {
 		return nil, nil
 	}
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
 	}
@@ -931,9 +933,21 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return []*fleet.DDMAsset{
+			{
+				Identifier: "valid-asset",
+			},
+		}, nil
+	}
+
+	// decl using a missing asset
+	b = declarationForTestWithAssetReference("D1", "missing-asset")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
+	require.ErrorContains(t, err, `Asset ("missing-asset") doesn't exist`)
 
 	// Good declaration
-	b = declBytesForTest("D1", "d1content")
+	b = declarationForTestWithAssetReference("D1", "valid-asset")
 	d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, d)
@@ -996,7 +1010,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Status subscription declarations are forbidden
 		b := []byte(`{
 			"Type": "com.apple.configuration.management.status-subscriptions",
-			"Identifier": "test-status-sub"
+			"Identifier": "test-status-sub",
+			"Payload": {}
 		}`)
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
@@ -1021,7 +1036,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Status subscription declarations are forbidden but should be allowed when skip is enabled
 		b := []byte(`{
 			"Type": "com.apple.configuration.management.status-subscriptions",
-			"Identifier": "test-status-sub"
+			"Identifier": "test-status-sub",
+			"Payload": {}
 		}`)
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-status-sub", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
@@ -1039,7 +1055,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Non com.apple.configuration.* types are invalid
 		b := []byte(`{
 			"Type": "com.example.invalid",
-			"Identifier": "test-invalid"
+			"Identifier": "test-invalid",
+			"Payload": {}
 		}`)
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
@@ -1064,7 +1081,8 @@ func TestNewMDMAppleDeclarationSkipValidation(t *testing.T) {
 		// Invalid type should be allowed when skip is enabled
 		b := []byte(`{
 			"Type": "com.example.invalid",
-			"Identifier": "test-invalid"
+			"Identifier": "test-invalid",
+			"Payload": {}
 		}`)
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "test-invalid", fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
@@ -1081,11 +1099,13 @@ func TestNewMDMAppleDeclarationSoftwareUpdate(t *testing.T) {
 	const (
 		osUpdateDecl = `{
 			"Type": "com.apple.configuration.softwareupdate.enforcement.specific",
-			"Identifier": "test-os-update"
+			"Identifier": "test-os-update",
+			"Payload": {}
 		}`
 		otherDecl = `{
 			"Type": "com.apple.configuration.passcode.settings",
-			"Identifier": "test-passcode"
+			"Identifier": "test-passcode",
+			"Payload": {}
 		}`
 	)
 
@@ -1312,6 +1332,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
 		return nil, nil
 	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
@@ -1442,6 +1465,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 
 	var mdmEnabled atomic.Bool
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		// This function is called twice during EnqueueMDMAppleCommandRemoveEnrollmentProfile.
 		// It first is called to check that the device is enrolled as a pre-condition to enqueueing the
@@ -1820,6 +1844,8 @@ func TestAppleMDMUnenrollment(t *testing.T) {
 		return nil, nil, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		enrollmentType := mdm.EnrollType(mdm.Device).String()
 		if hostUUID == "test-host-no-team-2" {
@@ -1881,6 +1907,8 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
@@ -2080,6 +2108,7 @@ func TestMDMTokenUpdateResetOnReenrollment(t *testing.T) {
 		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}
@@ -2211,6 +2240,7 @@ func TestMDMTokenUpdateResetOnReenrollment(t *testing.T) {
 					SCEPRenewalInProgress: c.scepRenewalInProgress,
 				}, nil
 			}
+			ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 			ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 				if c.nanoEnrollNil {
 					return nil, nil
@@ -2313,6 +2343,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		}, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 	}
@@ -2370,6 +2402,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 		}, nil
 	}
 
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
+
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 2}, nil
 	}
@@ -2402,6 +2436,8 @@ func TestMDMTokenUpdateIOS(t *testing.T) {
 			Platform:           "ios",
 		}, nil
 	}
+
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
@@ -2463,6 +2499,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			Platform: "ios",
 		}, nil
 	}
+	ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 	ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{
 			Enabled:          true,
@@ -2589,6 +2626,7 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		ds.SetHostManagedAppleIDFunc = func(context.Context, uint, string) error {
 			return nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}
@@ -2666,6 +2704,7 @@ func TestMDMTokenUpdateUserEnrollmentSetupExperience(t *testing.T) {
 
 	doTokenUpdate := func(t *testing.T, enrollType string, tokenUpdateTally int) {
 		t.Helper()
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(context.Context, string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{
 				Enabled:          true,
@@ -3865,6 +3904,281 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			require.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestUpdateMDMHostNameTemplate(t *testing.T) {
+	svc, baseCtx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	// currentTemplate is what the team already carries when loaded; individual
+	// subtests adjust it to exercise the idempotency and clear paths.
+	currentTemplate := ""
+	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: id, Name: "team", Config: fleet.TeamConfig{
+			MDM: fleet.TeamMDM{HostNameTemplate: currentTemplate},
+		}}, nil
+	}
+	var savedTeam *fleet.Team
+	ds.SaveTeamFunc = func(ctx context.Context, tm *fleet.Team) (*fleet.Team, error) {
+		savedTeam = tm
+		return tm, nil
+	}
+	// currentAppConfigTemplate is the "No team" template loaded from app config;
+	// No-team subtests adjust it to exercise idempotency and clear paths.
+	currentAppConfigTemplate := ""
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		ac := &fleet.AppConfig{}
+		ac.MDM.EnabledAndConfigured = true
+		ac.MDM.HostNameTemplate = optjson.SetString(currentAppConfigTemplate)
+		return ac, nil
+	}
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, ac *fleet.AppConfig) error {
+		savedAppConfig = ac
+		return nil
+	}
+	ds.BulkUpsertHostDeviceNameEnforcementFunc = func(ctx context.Context, teamID *uint) error { return nil }
+	ds.DeleteHostDeviceNameEnforcementForTeamFunc = func(ctx context.Context, teamID *uint) error { return nil }
+
+	var lastActivity activity_api.ActivityDetails
+	svcOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		lastActivity = activity
+		return nil
+	}
+
+	resetInvoked := func() {
+		savedTeam = nil
+		savedAppConfig = nil
+		lastActivity = nil
+		ds.SaveTeamFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+		ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked = false
+		ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked = false
+		svcOpts.ActivityMock.NewActivityFuncInvoked = false
+	}
+
+	premiumAdminCtx := func() context.Context {
+		ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		return license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	}
+
+	t.Run("license and authz matrix", func(t *testing.T) {
+		teamOne := new(uint(1))
+		teamZero := new(uint(0))
+		testCases := []struct {
+			name    string
+			user    *fleet.User
+			premium bool
+			teamID  *uint
+			wantErr string
+		}{
+			{"free tier", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, teamOne, fleet.ErrMissingLicense.Error()},
+			{"no fleet_id targets No team, global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, nil, ""},
+			{"No team is a global-scope write, team admin denied", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, nil, authz.ForbiddenErrorMessage},
+			{"fleet_id 0 targets No team, global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, teamZero, ""},
+			// fleet_id 0 is No team (global scope), so a team admin can't write it —
+			// the team-scoped authz never matches the virtual team 0.
+			{"fleet_id 0 is a global-scope write, team admin denied", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, teamZero, authz.ForbiddenErrorMessage},
+			{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, true, teamOne, ""},
+			{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true, teamOne, ""},
+			{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true, teamOne, authz.ForbiddenErrorMessage},
+			{"team admin, own team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, teamOne, ""},
+			{"team admin, other team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}}, true, teamOne, authz.ForbiddenErrorMessage},
+			{"team maintainer, own team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}, true, teamOne, ""},
+			{"team maintainer, other team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}}, true, teamOne, authz.ForbiddenErrorMessage},
+			{"team observer, own team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true, teamOne, authz.ForbiddenErrorMessage},
+			{"team gitops, own team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}}, true, teamOne, ""},
+			{"user no roles", &fleet.User{ID: 1337}, true, teamOne, authz.ForbiddenErrorMessage},
+		}
+
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				resetInvoked()
+				ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user})
+				tier := fleet.TierFree
+				if tt.premium {
+					tier = fleet.TierPremium
+				}
+				ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
+
+				// clearing an already-empty template is a valid no-op write, so
+				// allowed cases exercise authz without needing side effects.
+				err := svc.UpdateMDMHostNameTemplate(ctx, tt.teamID, "")
+				if tt.wantErr == "" {
+					require.NoError(t, err)
+					return
+				}
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+			})
+		}
+	})
+
+	t.Run("invalid templates are rejected", func(t *testing.T) {
+		for _, tc := range []struct{ name, tmpl string }{
+			{"unsupported variable", "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"},
+			{"control characters", "WS-\x07"},
+			{"too long", strings.Repeat("a", 256)},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				resetInvoked()
+				err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), tc.tmpl)
+				require.Error(t, err)
+				var invalid *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &invalid)
+				require.False(t, ds.SaveTeamFuncInvoked)
+				require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("custom (secret) variables", func(t *testing.T) {
+		// Restore the permissive default after each subtest overrides it.
+		defaultValidate := ds.ValidateEmbeddedSecretsFunc
+		defer func() { ds.ValidateEmbeddedSecretsFunc = defaultValidate }()
+
+		t.Run("undefined secret is rejected as invalid argument", func(t *testing.T) {
+			resetInvoked()
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error {
+				return &fleet.MissingSecretsError{MissingSecrets: []string{"FOO"}}
+			}
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.Error(t, err)
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.Contains(t, err.Error(), "missing from database")
+			require.False(t, ds.SaveTeamFuncInvoked)
+			require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+		})
+
+		t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+			resetInvoked()
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error {
+				return errors.New("database is down")
+			}
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.Error(t, err)
+			var invalid *fleet.InvalidArgumentError
+			require.NotErrorAs(t, err, &invalid, "a DB error must not be reported as invalid input")
+			require.False(t, ds.SaveTeamFuncInvoked)
+		})
+
+		t.Run("defined secret is accepted and saved", func(t *testing.T) {
+			resetInvoked()
+			currentTemplate = ""
+			ds.ValidateEmbeddedSecretsFunc = func(context.Context, []string) error { return nil }
+			err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_SECRET_FOO")
+			require.NoError(t, err)
+			require.True(t, ds.SaveTeamFuncInvoked)
+			require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+			require.True(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+			// the unexpanded placeholder is what gets persisted, never the value
+			require.NotNil(t, savedTeam)
+			require.Equal(t, "WS-$FLEET_SECRET_FOO", savedTeam.Config.MDM.HostNameTemplate)
+		})
+	})
+
+	t.Run("setting a template saves, emits activity and queues rows", func(t *testing.T) {
+		resetInvoked()
+		currentTemplate = ""
+		// surrounding whitespace is normalized away before persisting.
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "  WS-$FLEET_VAR_HOST_HARDWARE_SERIAL ")
+		require.NoError(t, err)
+		require.NotNil(t, savedTeam)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.NotNil(t, act.FleetID)
+		require.Equal(t, uint(1), *act.FleetID)
+		require.NotNil(t, act.HostNameTemplate)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", *act.HostNameTemplate)
+	})
+
+	t.Run("saving the identical template is a no-op", func(t *testing.T) {
+		resetInvoked()
+		currentTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+		require.NoError(t, err)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+	})
+
+	t.Run("clearing deletes rows and logs a null template", func(t *testing.T) {
+		resetInvoked()
+		currentTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(1)), "")
+		require.NoError(t, err)
+		require.NotNil(t, savedTeam)
+		require.Empty(t, savedTeam.Config.MDM.HostNameTemplate)
+		require.True(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.HostNameTemplate)
+	})
+
+	t.Run("No team: setting saves to app config, queues rows, emits activity with nil fleet_id", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = ""
+		// nil fleet_id targets No team; whitespace is normalized like the team path.
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "  WS-$FLEET_VAR_HOST_HARDWARE_SERIAL ")
+		require.NoError(t, err)
+		require.False(t, ds.SaveTeamFuncInvoked, "No team must not touch a team row")
+		require.NotNil(t, savedAppConfig)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.FleetID, "No team activity carries a nil fleet_id")
+		require.Nil(t, act.FleetName)
+		require.NotNil(t, act.HostNameTemplate)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL", *act.HostNameTemplate)
+	})
+
+	t.Run("No team: fleet_id 0 is treated as No team", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = ""
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), new(uint(0)), "WS-$FLEET_VAR_HOST_UUID")
+		require.NoError(t, err)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.NotNil(t, savedAppConfig)
+		require.Equal(t, "WS-$FLEET_VAR_HOST_UUID", savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+	})
+
+	t.Run("No team: saving the identical template is a no-op", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL")
+		require.NoError(t, err)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+		require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+		require.False(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+	})
+
+	t.Run("No team: clearing deletes rows and logs a null template", func(t *testing.T) {
+		resetInvoked()
+		currentAppConfigTemplate = "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL"
+		err := svc.UpdateMDMHostNameTemplate(premiumAdminCtx(), nil, "")
+		require.NoError(t, err)
+		require.NotNil(t, savedAppConfig)
+		require.Empty(t, savedAppConfig.MDM.HostNameTemplate.Value)
+		require.True(t, ds.DeleteHostDeviceNameEnforcementForTeamFuncInvoked)
+		require.False(t, ds.BulkUpsertHostDeviceNameEnforcementFuncInvoked)
+
+		act, ok := lastActivity.(fleet.ActivityTypeEditedHostNameTemplate)
+		require.True(t, ok, "expected edited_host_name_template activity, got %T", lastActivity)
+		require.Nil(t, act.FleetID)
+		require.Nil(t, act.HostNameTemplate)
+	})
 }
 
 func TestUpdateMDMAppleSetup(t *testing.T) {
@@ -5351,6 +5665,11 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 		require.Equal(t, commandUUID, currentCommandUUID)
 		return nil
 	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+		require.Equal(t, hostUUID, incomingHostUUID)
+		require.Equal(t, "Work iPad", reportedName)
+		return nil
+	}
 
 	_, err := svc.CommandAndReportResults(
 		&mdm.Request{Context: ctx},
@@ -5471,6 +5790,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersion(t *testing.T)
 		return nil
 	}
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
 
@@ -5733,6 +6055,9 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetchDefensive(t *testing.T) {
 			ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
 				return nil
 			}
+			ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+				return nil
+			}
 
 			ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
 				assert.Equal(t, tc.expect.expectComputerName, host.ComputerName, "ComputerName")
@@ -5817,6 +6142,9 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID, commandUUIDPrefix, currentCommandUUID string) error {
 		return nil
 	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
+		return nil
+	}
 
 	var updatedHost *fleet.Host
 	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
@@ -5884,6 +6212,123 @@ func TestMDMCommandAndReportResultsIOSRefetchMissingProductNameIPhone(t *testing
 	assert.Equal(t, "ios", updatedOS.Platform)
 }
 
+func TestHandleDeviceNameCommandResult(t *testing.T) {
+	cmdUUID := fleet.DeviceNameCommandUUIDPrefix + "cmd-1"
+
+	// settingsAck builds a Settings command acknowledgment whose single item
+	// carries the given per-item status and (optional) error chain.
+	settingsAck := func(itemStatus string, chain []mdm.ErrorChain) []byte {
+		var errChainXML string
+		for _, e := range chain {
+			errChainXML += fmt.Sprintf(`<dict>
+				<key>ErrorCode</key><integer>%d</integer>
+				<key>ErrorDomain</key><string>%s</string>
+				<key>USEnglishDescription</key><string>%s</string>
+			</dict>`, e.ErrorCode, e.ErrorDomain, e.USEnglishDescription)
+		}
+		itemErrChain := ""
+		if errChainXML != "" {
+			itemErrChain = "<key>ErrorChain</key><array>" + errChainXML + "</array>"
+		}
+		return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+	<key>CommandUUID</key><string>%s</string>
+	<key>Status</key><string>Acknowledged</string>
+	<key>Settings</key>
+	<array><dict><key>Item</key><string>DeviceName</string><key>Status</key><string>%s</string>%s</dict></array>
+</dict></plist>`, cmdUUID, itemStatus, itemErrChain))
+	}
+
+	cases := []struct {
+		name         string
+		status       string
+		raw          []byte
+		errorChain   []mdm.ErrorChain
+		notFound     bool // UpdateHostDeviceNameStatusFromCommand returns not-found (stale)
+		wantStatus   fleet.MDMDeliveryStatus
+		wantDetail   string
+		wantNoUpdate bool
+	}{
+		{
+			name:       "acknowledged clean renames and verifies",
+			status:     fleet.MDMAppleStatusAcknowledged,
+			raw:        settingsAck(fleet.MDMAppleStatusAcknowledged, nil),
+			wantStatus: fleet.MDMDeliveryVerifying,
+		},
+		{
+			name:   "acknowledged with per-item Settings error fails",
+			status: fleet.MDMAppleStatusAcknowledged,
+			raw: settingsAck("Error", []mdm.ErrorChain{
+				{ErrorCode: 12026, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "The device is not supervised."},
+			}),
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "The device is not supervised.",
+		},
+		{
+			name:       "command error fails with the apple error chain",
+			status:     fleet.MDMAppleStatusError,
+			errorChain: []mdm.ErrorChain{{ErrorCode: 99, ErrorDomain: "MCMDMErrorDomain", USEnglishDescription: "boom"}},
+			wantStatus: fleet.MDMDeliveryFailed,
+			wantDetail: "boom",
+		},
+		{
+			name:         "stale result for a superseded command is ignored",
+			status:       fleet.MDMAppleStatusAcknowledged,
+			raw:          settingsAck(fleet.MDMAppleStatusAcknowledged, nil),
+			notFound:     true,
+			wantNoUpdate: true,
+		},
+		{
+			name:         "not-now is a no-op",
+			status:       fleet.MDMAppleStatusNotNow,
+			wantNoUpdate: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+			var gotAcknowledged bool
+			var gotDetail string
+			ds.UpdateHostDeviceNameStatusFromCommandFunc = func(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
+				require.Equal(t, cmdUUID, commandUUID)
+				gotAcknowledged, gotDetail = acknowledged, detail
+				if tc.notFound {
+					return &notFoundError{}
+				}
+				return nil
+			}
+
+			err := svc.handleDeviceNameCommandResult(t.Context(), &mdm.CommandResults{
+				CommandUUID: cmdUUID,
+				Status:      tc.status,
+				ErrorChain:  tc.errorChain,
+				Raw:         tc.raw,
+			})
+			require.NoError(t, err)
+
+			if tc.wantNoUpdate {
+				if tc.notFound {
+					// the update was attempted but returned not-found; no rename
+					require.True(t, ds.UpdateHostDeviceNameStatusFromCommandFuncInvoked)
+				} else {
+					require.False(t, ds.UpdateHostDeviceNameStatusFromCommandFuncInvoked)
+				}
+				return
+			}
+
+			require.True(t, ds.UpdateHostDeviceNameStatusFromCommandFuncInvoked)
+			// The datastore now receives a bool: verifying == acknowledged.
+			require.Equal(t, tc.wantStatus == fleet.MDMDeliveryVerifying, gotAcknowledged)
+			if tc.wantDetail != "" {
+				require.Contains(t, gotDetail, tc.wantDetail)
+			}
+		})
+	}
+}
+
 func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *testing.T) {
 	ctx := context.Background()
 	hostID := uint(99)
@@ -5915,6 +6360,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 		return nil
 	}
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
 
@@ -5992,6 +6440,9 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 		return nil
 	}
 	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+		return nil
+	}
+	ds.UpdateHostDeviceNameStatusFromReportFunc = func(ctx context.Context, incomingHostUUID, reportedName string) error {
 		return nil
 	}
 
@@ -7751,6 +8202,7 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			require.Equal(t, wantTeamID, teamID)
 			return true, nil
 		}
+		ds.ReconcileHostDeviceNamesForHostsFunc = func(context.Context, []uint) error { return nil }
 		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 			return &fleet.NanoEnrollment{Enabled: true, Type: "Device", TokenUpdateTally: 1}, nil
 		}

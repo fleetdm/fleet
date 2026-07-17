@@ -66,12 +66,12 @@ func testAuth(t *testing.T, s *Suite) {
 	scimDetails := contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
 	// Make sure unauthenticated response wasn't saved as the last SCIM request
-	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for unauthenticated requests")
 
-	// Unauthorized
+	// Unauthorized (observer)
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestObserverUserEmail, test.GoodPassword)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
@@ -79,7 +79,7 @@ func testAuth(t *testing.T, s *Suite) {
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
 	// Make sure unauthorized response WAS saved as the last SCIM request
-	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	require.NotNil(t, scimDetails.LastRequest)
@@ -87,9 +87,27 @@ func testAuth(t *testing.T, s *Suite) {
 	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
 	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
 
-	// Authorized
+	// Unauthorized (maintainer - no longer allowed)
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	// Maintainer denied on read (Schemas endpoint)
+	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+	assert.EqualValues(t, []any{"urn:ietf:params:scim:api:messages:2.0:Error"}, resp["schemas"])
+	// Maintainer denied on write (create user)
+	resp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), map[string]any{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "maintainer-attempt@example.com",
+	}, http.StatusForbidden, &resp)
+	assert.Contains(t, resp["detail"], "forbidden")
+	// Maintainer denied on details endpoint
+	resp = nil
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &resp)
+
+	// Authorized (admin only)
+	resp = nil
+	s.Token = s.GetTestAdminToken(t)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 }

@@ -196,6 +196,7 @@ type GitOpsControls struct {
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -210,7 +211,8 @@ func (c GitOpsControls) Set() bool {
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
 		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
-		c.AppleAccountProvisioning != nil
+		c.AppleAccountProvisioning != nil ||
+		c.NameTemplate != nil
 }
 
 type Policy struct {
@@ -312,6 +314,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
 	packageLevel.SelfService = spec.SelfService
 	packageLevel.Configuration = spec.Configuration
 
@@ -1185,6 +1188,13 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	// Validate that name_template, if present, is a string.
+	if result.Controls.NameTemplate != nil {
+		if _, ok := result.Controls.NameTemplate.(string); !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
@@ -1218,6 +1228,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				return multierror.Append(multiError, err)
 			}
 		}
+
+		// Apple DDM assets follow the same path/paths + secret handling as
+		// profiles, so reuse the same expansion and resolution helpers.
+		macOSSettings.Assets, errs = expandBaseItems(macOSSettings.Assets, controlsDir, "asset", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".json": true},
+			LogFn:             logFn,
+		})
+		multiError = multierror.Append(multiError, errs...)
+		for i := range macOSSettings.Assets {
+			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}

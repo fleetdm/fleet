@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.6.0",
+      "version": "2026.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet' AND version_compare(bundle_short_version, '2026.6.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet' AND version_compare(bundle_short_version, '2026.7.0') < 0);"
       },
-      "installer_url": "https://github.com/jitsi/jitsi-meet-electron/releases/download/v2026.6.0/jitsi-meet.dmg",
+      "installer_url": "https://github.com/jitsi/jitsi-meet-electron/releases/download/v2026.7.0/jitsi-meet.dmg",
       "install_script_ref": "61536dfb",
       "uninstall_script_ref": "ed2d9125",
-      "sha256": "d47288330b863e92ab98bd5d127fe5eaed086bdff0dd5f1a50878e9414497f84",
+      "sha256": "b52316e73317effeb324f8a085dace1827ba6fd9440f4d0e32d46aef21589690",
       "default_categories": [
         "Communication"
       ]

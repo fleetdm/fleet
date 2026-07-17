@@ -454,7 +454,7 @@ type DeleteTeamScheduledQueriesFunc func(ctx context.Context, teamID uint, id ui
 
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
 
-type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error)
+type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error)
 
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
@@ -468,7 +468,7 @@ type ListPolicyAutomationActivitiesFunc func(ctx context.Context, policyID uint,
 
 type ApplyPolicySpecsFunc func(ctx context.Context, policies []*fleet.PolicySpec) error
 
-type CountGlobalPoliciesFunc func(ctx context.Context, matchQuery string) (int, error)
+type CountGlobalPoliciesFunc func(ctx context.Context, matchQuery string, platform string) (int, error)
 
 type AutofillPolicySqlFunc func(ctx context.Context, sql string) (description string, resolution string, err error)
 
@@ -534,7 +534,7 @@ type ListSoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) (
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error)
 
-type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
+type ListTeamPoliciesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error)
 
 type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 
@@ -542,7 +542,7 @@ type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p flee
 
 type GetTeamPolicyByIDFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
-type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
+type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error)
 
 type LookupGeoIPFunc func(ctx context.Context, ip string) *fleet.GeoLocation
 
@@ -666,6 +666,8 @@ type MDMAppleDisableFileVaultAndEscrowFunc func(ctx context.Context, teamID *uin
 
 type UpdateMDMDiskEncryptionFunc func(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
 
+type UpdateMDMHostNameTemplateFunc func(ctx context.Context, fleetID *uint, nameTemplate string) error
+
 type VerifyMDMAppleConfiguredFunc func(ctx context.Context) error
 
 type VerifyMDMWindowsConfiguredFunc func(ctx context.Context) error
@@ -773,6 +775,8 @@ type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*
 type GetMDMDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error)
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostID uint, profileUUID string) error
+
+type ResendHostNameTemplateFunc func(ctx context.Context, hostID uint) error
 
 type ResendDeviceHostMDMProfileFunc func(ctx context.Context, host *fleet.Host, profileUUID string) error
 
@@ -961,6 +965,8 @@ type DownloadAppleDDMAssetFunc func(ctx context.Context, assetUUID string) (file
 type CreateAppleDDMAssetFunc func(ctx context.Context, teamID *uint, name string, data []byte) (string, error)
 
 type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
+
+type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -1932,6 +1938,9 @@ type Service struct {
 	UpdateMDMDiskEncryptionFunc        UpdateMDMDiskEncryptionFunc
 	UpdateMDMDiskEncryptionFuncInvoked bool
 
+	UpdateMDMHostNameTemplateFunc        UpdateMDMHostNameTemplateFunc
+	UpdateMDMHostNameTemplateFuncInvoked bool
+
 	VerifyMDMAppleConfiguredFunc        VerifyMDMAppleConfiguredFunc
 	VerifyMDMAppleConfiguredFuncInvoked bool
 
@@ -2093,6 +2102,9 @@ type Service struct {
 
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
+
+	ResendHostNameTemplateFunc        ResendHostNameTemplateFunc
+	ResendHostNameTemplateFuncInvoked bool
 
 	ResendDeviceHostMDMProfileFunc        ResendDeviceHostMDMProfileFunc
 	ResendDeviceHostMDMProfileFuncInvoked bool
@@ -2375,6 +2387,9 @@ type Service struct {
 
 	DeleteAppleDDMAssetFunc        DeleteAppleDDMAssetFunc
 	DeleteAppleDDMAssetFuncInvoked bool
+
+	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
+	BatchSetAppleDDMAssetsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3898,11 +3913,11 @@ func (s *Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*
 	return s.NewGlobalPolicyFunc(ctx, p)
 }
 
-func (s *Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func (s *Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	s.mu.Lock()
 	s.ListGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListGlobalPoliciesFunc(ctx, opts)
+	return s.ListGlobalPoliciesFunc(ctx, opts, platform)
 }
 
 func (s *Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
@@ -3947,11 +3962,11 @@ func (s *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Policy
 	return s.ApplyPolicySpecsFunc(ctx, policies)
 }
 
-func (s *Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
+func (s *Service) CountGlobalPolicies(ctx context.Context, matchQuery string, platform string) (int, error) {
 	s.mu.Lock()
 	s.CountGlobalPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountGlobalPoliciesFunc(ctx, matchQuery)
+	return s.CountGlobalPoliciesFunc(ctx, matchQuery, platform)
 }
 
 func (s *Service) AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error) {
@@ -4178,11 +4193,11 @@ func (s *Service) NewTeamPolicy(ctx context.Context, teamID uint, p fleet.NewTea
 	return s.NewTeamPolicyFunc(ctx, teamID, p)
 }
 
-func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+func (s *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, mergeInherited bool, automationType string, platform string) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 	s.mu.Lock()
 	s.ListTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited, automationType)
+	return s.ListTeamPoliciesFunc(ctx, teamID, opts, iopts, mergeInherited, automationType, platform)
 }
 
 func (s *Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
@@ -4206,11 +4221,11 @@ func (s *Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID u
 	return s.GetTeamPolicyByIDFunc(ctx, teamID, policyID)
 }
 
-func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {
+func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string, platform string) (int, int, error) {
 	s.mu.Lock()
 	s.CountTeamPoliciesFuncInvoked = true
 	s.mu.Unlock()
-	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited, automationType)
+	return s.CountTeamPoliciesFunc(ctx, teamID, matchQuery, mergeInherited, automationType, platform)
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -4640,6 +4655,13 @@ func (s *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, ena
 	return s.UpdateMDMDiskEncryptionFunc(ctx, teamID, enableDiskEncryption, requireBitLockerPIN)
 }
 
+func (s *Service) UpdateMDMHostNameTemplate(ctx context.Context, fleetID *uint, nameTemplate string) error {
+	s.mu.Lock()
+	s.UpdateMDMHostNameTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMHostNameTemplateFunc(ctx, fleetID, nameTemplate)
+}
+
 func (s *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 	s.mu.Lock()
 	s.VerifyMDMAppleConfiguredFuncInvoked = true
@@ -5016,6 +5038,13 @@ func (s *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profile
 	s.ResendHostMDMProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostMDMProfileFunc(ctx, hostID, profileUUID)
+}
+
+func (s *Service) ResendHostNameTemplate(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.ResendHostNameTemplateFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostNameTemplateFunc(ctx, hostID)
 }
 
 func (s *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
@@ -5674,4 +5703,11 @@ func (s *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) err
 	s.DeleteAppleDDMAssetFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteAppleDDMAssetFunc(ctx, assetUUID)
+}
+
+func (s *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error {
+	s.mu.Lock()
+	s.BatchSetAppleDDMAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, teamName, assets, dryRun)
 }

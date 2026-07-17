@@ -24,6 +24,7 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'App not found', responseType: 'notFound' },
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
   },
 
@@ -54,13 +55,6 @@ module.exports = {
       throw 'unauthorized';
     }
 
-    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
-    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
-    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
-    if(!isEnterpriseManagedByFleet) {
-      throw 'notFound';
-    }
-
     // Get the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
     let getApplicationsResponse = await sails.helpers.flow.build(async () => {
@@ -85,6 +79,9 @@ module.exports = {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
       return new Error(`When attempting to get an application for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
     }).intercept({status: 404}, () => {
       return {'notFound': 'App not found.'};
     }).intercept((err) => {
