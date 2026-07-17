@@ -26,18 +26,6 @@
 			<dict>
 				<key>AuthenticationMethod</key>
 				<string>Password</string>
-				<key>LoginPolicy</key>
-				<array>
-					<string>AttemptAuthentication</string>
-				</array>
-				<key>UnlockPolicy</key>
-				<array>
-					<string>AttemptAuthentication</string>
-				</array>
-				<key>FileVaultPolicy</key>
-				<array>
-					<string>AttemptAuthentication</string>
-				</array>
 				<key>UseSharedDeviceKeys</key>
 				<true/>
 				<key>EnableRegistrationDuringSetup</key>
