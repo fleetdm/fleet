@@ -2463,12 +2463,12 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 	require.Equal(t, initial.ProfileUUID, updated.ProfileUUID)
-	require.Equal(t, newSyncML, []byte(updated.SyncML))
+	require.Equal(t, newSyncML, updated.SyncML)
 
 	// confirms values actually stored in the DB match what was returned from the update call
 	stored, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
 	require.NoError(t, err)
-	require.Equal(t, newSyncML, []byte(stored.SyncML))
+	require.Equal(t, newSyncML, stored.SyncML)
 
 	// mismatched name is rejected -- Windows profiles have no separate identifier
 	// field, so name is the only identity a profile has. This is the only layer
@@ -2655,7 +2655,7 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 
 	stored, err = ds.GetMDMWindowsConfigProfile(ctx, combined.ProfileUUID)
 	require.NoError(t, err)
-	require.Equal(t, combinedSyncML, []byte(stored.SyncML))
+	require.Equal(t, combinedSyncML, stored.SyncML)
 	require.Len(t, stored.LabelsIncludeAll, 1)
 	require.Equal(t, combinedLabel.Name, stored.LabelsIncludeAll[0].LabelName)
 	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, combined.ProfileUUID)

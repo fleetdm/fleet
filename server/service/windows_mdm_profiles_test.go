@@ -633,7 +633,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
-		assert.Equal(t, syncML, []byte(updated.SyncML))
+		assert.Equal(t, syncML, updated.SyncML)
 		assert.Equal(t, existing.Name, updated.Name)
 
 		require.NotNil(t, firedActivity)
@@ -664,7 +664,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
-		assert.Equal(t, syncML, []byte(updated.SyncML))
+		assert.Equal(t, syncML, updated.SyncML)
 		require.NotNil(t, updated.TeamID)
 		assert.EqualValues(t, 5, *updated.TeamID)
 
@@ -693,7 +693,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
 		require.NoError(t, err)
-		assert.Equal(t, syncML, []byte(updated.SyncML))
+		assert.Equal(t, syncML, updated.SyncML)
 		require.Len(t, updated.LabelsIncludeAny, 1)
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 		require.Len(t, updated.LabelsExcludeAny, 1)
@@ -815,7 +815,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 
 			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil)
 			require.NoError(t, err)
-			assert.Equal(t, osUpdateSyncML, []byte(updated.SyncML))
+			assert.Equal(t, osUpdateSyncML, updated.SyncML)
 		})
 
 		t.Run("update is rejected when OS updates are already configured", func(t *testing.T) {

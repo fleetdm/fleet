@@ -3916,7 +3916,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
-		assert.Equal(t, newContent, []byte(updated.RawJSON))
+		assert.Equal(t, newContent, updated.RawJSON)
 		assert.Equal(t, existing.Name, updated.Name)
 
 		require.NotNil(t, firedActivity)
@@ -3947,7 +3947,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, nil, fleet.LabelsIncludeAll, nil)
 		require.NoError(t, err)
-		assert.Equal(t, newContent, []byte(updated.RawJSON))
+		assert.Equal(t, newContent, updated.RawJSON)
 		require.NotNil(t, updated.TeamID)
 		assert.EqualValues(t, 5, *updated.TeamID)
 
@@ -3976,7 +3976,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, newContent, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"})
 		require.NoError(t, err)
-		assert.Equal(t, newContent, []byte(updated.RawJSON))
+		assert.Equal(t, newContent, updated.RawJSON)
 		require.Len(t, updated.LabelsIncludeAny, 1)
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 		require.Len(t, updated.LabelsExcludeAny, 1)
