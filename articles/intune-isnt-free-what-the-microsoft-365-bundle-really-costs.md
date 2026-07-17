@@ -11,7 +11,7 @@
 - **Rightsizing recovers six or seven figures a year.** Moving users who don't consume the E5 delta to E3 plus Fleet Premium ($7 per host per month) saves around $588,000 a year at list prices for a 5,000-person organization.
 - **Your renewal is the moment of leverage.** Pull feature-consumption data, price components individually, and treat E7 as a negotiating anchor. That last one is Gartner's advice, not ours.
 
-**[See Fleet's pricing](https://fleetdm.com/pricing)**
+<a purpose="cta-button" href="/pricing">See Fleet's pricing</a>
 
 If you run IT or security at a Microsoft shop, two announcements probably landed on your desk this year. In March, Microsoft [introduced Microsoft 365 E7](https://www.theregister.com/2026/03/09/microsoft_adds_a_premium_tier/), a new $99 per user per month tier above E5. It's the first new top tier since E5 launched in 2015. Then on July 1, the price of nearly every Microsoft 365 enterprise plan [went up](https://www.microsoft.com/en-us/licensing/news/2026-m365-packaging-pricing-updates): E3 rose 8.3% to $39, E5 rose 5.3% to $60, and Office 365 E3 jumped 13%. That's the first across-the-board increase since 2021. It stacks on top of the [volume discounts Microsoft removed from Enterprise Agreements](https://samexpert.com/microsoft-365-july-2026-price-increase/) in late 2025. Licensing advisors estimate the combined impact approaches 20% for many organizations.
 
