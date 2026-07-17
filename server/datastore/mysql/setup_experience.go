@@ -541,8 +541,8 @@ VALUES %s`
 				switch {
 				case tuple.Platform == platform:
 					nativeSoftwareIDs = append(nativeSoftwareIDs, tuple.ID)
-				case platform == string(fleet.MacOSPlatform) && tuple.Platform == "linux" && tuple.Extension == "sh":
-					// .sh scripts can run on macOS; track the selection in the cross-platform table.
+				case platform == string(fleet.MacOSPlatform) && tuple.Platform == "linux" && (tuple.Extension == "sh" || tuple.Extension == "py"):
+					// .sh and .py scripts can run on macOS; track the selection in the cross-platform table.
 					crossSoftwareIDs = append(crossSoftwareIDs, tuple.ID)
 				default:
 					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
