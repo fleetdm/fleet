@@ -98,30 +98,30 @@ const generateTableHeaders = ({
       Cell: (cellProps) => {
         const vital = cellProps.row.original;
         return (
-          <div className="custom-host-vitals-tab__actions">
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <>
-                  <Button
-                    variant="icon"
-                    disabled={disableChildren}
-                    onClick={() => onEdit(vital)}
-                    ariaLabel={`Edit ${vital.name}`}
-                  >
-                    <Icon name="pencil" color="ui-fleet-black-75" />
-                  </Button>
-                  <Button
-                    variant="icon"
-                    disabled={disableChildren}
-                    onClick={() => onDelete(vital)}
-                    ariaLabel={`Delete ${vital.name}`}
-                  >
-                    <Icon name="trash" color="ui-fleet-black-75" />
-                  </Button>
-                </>
-              )}
-            />
-          </div>
+          <GitOpsModeTooltipWrapper
+            position="top"
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <div className="custom-host-vitals-tab__actions">
+                <Button
+                  variant="icon"
+                  disabled={disableChildren}
+                  onClick={() => onEdit(vital)}
+                  ariaLabel={`Edit ${vital.name}`}
+                >
+                  <Icon name="pencil" color="ui-fleet-black-75" />
+                </Button>
+                <Button
+                  variant="icon"
+                  disabled={disableChildren}
+                  onClick={() => onDelete(vital)}
+                  ariaLabel={`Delete ${vital.name}`}
+                >
+                  <Icon name="trash" color="ui-fleet-black-75" />
+                </Button>
+              </div>
+            )}
+          />
         );
       },
     });
