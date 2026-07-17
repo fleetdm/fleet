@@ -3054,12 +3054,12 @@ This activity contains the following fields:
 
 ## released_from_AB
 
-Generated when a host has been released from AB.
+Generated when a host has been released from Apple Business (AB).
 
 This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "host_serial": Hardware serial number of the host being released.
+- "host_id": ID of the host being released from AB.
+- "host_display_name": Display name of the host being released from AB.
+- "host_serial": Hardware serial number of the host being released from AB.
 
 #### Example
 
