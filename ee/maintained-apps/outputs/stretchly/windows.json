@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.21.0",
+      "version": "1.22.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik' AND version_compare(version, '1.21.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Stretchly %' AND publisher = 'Jan Hovancik' AND version_compare(version, '1.22.0') < 0);"
       },
-      "installer_url": "https://github.com/hovancik/stretchly/releases/download/v1.21.0/Stretchly-Setup-1.21.0.exe",
+      "installer_url": "https://github.com/hovancik/stretchly/releases/download/v1.22.0/Stretchly-Setup-1.22.0.exe",
       "install_script_ref": "45257f64",
       "uninstall_script_ref": "4d8fe7a0",
-      "sha256": "fdd4d6d9b48aea7e83d3315f02a640792968ff6b84d04c61a1b0dc061b257c65",
+      "sha256": "175a544fe0d32cbf978ead5001361f7b4b64dcf31d4c937d6a64c6fcfbadbb10",
       "default_categories": [
         "Productivity"
       ]
