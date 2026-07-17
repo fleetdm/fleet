@@ -480,9 +480,11 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 -->
 
 
-## Go-To-Market architecture and automation
+## Go-To-Market runbook
 
-### Capture Eventbrite attendees in Salesforce campaigns
+### Automation
+
+#### Capture Eventbrite attendees in Salesforce campaigns
 
 > ***TL;DR: It's not working, Who should I call and what can I check?***
 > 
@@ -533,7 +535,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
     ```
 
 
-### LinkedIn comments from tracked posts
+#### LinkedIn comments from tracked posts
 
 We track certian social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
 - LinkedIn post URL provided to Clay.
@@ -550,12 +552,25 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ## Salesforce
 
+### Changes
+
+#### Quotes
+
+##### Change which fields are visable when editing selected quote line items
+
+TODO Image
+
+1. Click `Setup` => `Object manager` => `Quote line item` => `Page layouts` => `Quote Line Item Layout` => `Edit Multi-Line Layout`
+2. Once here, arrange the available fields in the "Selected fields" column in the order you would like them to appear in SFDC and save.
+
+
+
 ### SFDC access
 
 Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](https://fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
 
 
-#### Profiles and when to use them
+#### Profiles
 
 | Profile | SSO | Who gets this | When to assign |
 |:---|:---|:---|:---|
@@ -1310,7 +1325,7 @@ ActiveCampaign automations manage lifecycle progression, nurture enrollment, and
 | 3+ opens or clicks in 30 days | Add `engaged: hot` |
 
 
-## 🐰 Video hosting
+## Video hosting
 
 ### Why do we host videos on a service other than YouTube?
 
