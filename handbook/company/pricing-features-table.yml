@@ -337,6 +337,25 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
 #
+#  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗  ╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔   ╔═╗╔═╗╔═╗╔═╗╦ ╦╔═╗╦═╗╔╦╗  ╔═╗╦ ╦╔╗╔╔═╗
+#  ╠═╣║  ║  ║ ║║ ║║║║ ║   ║  ╠╦╝║╣ ╠═╣ ║ ║║ ║║║║ & ╠═╝╠═╣╚═╗╚═╗║║║║ ║╠╦╝ ║║  ╚═╗╚╦╝║║║║  
+#  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝╩╚═╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝   ╩  ╩ ╩╚═╝╚═╝╚╩╝╚═╝╩╚══╩╝  ╚═╝ ╩ ╝╚╝╚═╝
+- industryName: Account creation & password sync
+  description: Automatically create macOS local accounts and sync passwords with any IdP that supports OAuth ROPG (e.g. Okta), so end users have one password for their Mac and third-party tools.
+  documentationUrl: https://fleetdm.com/docs/deploying-apple-account-provisioning-with-fleet
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  isExperimental: yes
+  waysToUse:
+    - description: Create macOS local accounts during zero-touch setup using IdP credentials.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/45524
+    - description: Sync macOS local account passwords with IdP credentials from any IdP that supports OAuth ROPG.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/45524
+#
 #  ╦ ╦╦ ╦╔╦╗╔═╗╔╗╔   ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦╔╗╔╔═╗
 #  ╠═╣║ ║║║║╠═╣║║║───║╣ ║║║ ║║╠═╝║ ║║║║║ ║   ║║║╠═╣╠═╝╠═╝║║║║║ ╦
 #  ╩ ╩╚═╝╩ ╩╩ ╩╝╚╝   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩   ╩ ╩╩ ╩╩  ╩  ╩╝╚╝╚═╝
