@@ -36,14 +36,14 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
     config,
     isPremiumTier,
     isGlobalAdmin,
-    isAnyTeamAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
-  // Mirrors the route guard on /settings/integrations/mdm/apple (AuthAnyAdminRoutes).
-  const canTurnOnMdm = isGlobalAdmin || isAnyTeamAdmin;
+  // Team admins can reach /settings/integrations/mdm/apple, but only global
+  // admins can actually turn on Apple MDM there.
+  const canTurnOnMdm = !!isGlobalAdmin;
   const mdmAppleEnabled = !!config?.mdm.enabled_and_configured;
 
   const [showAddAssetModal, setShowAddAssetModal] = useState(false);

@@ -63,46 +63,39 @@ describe("AssetsTab", () => {
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
-  it("prompts team admins to turn on Apple MDM when it is not configured", () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isPremiumTier: true,
-          isAnyTeamAdmin: true,
-          config: { mdm: { enabled_and_configured: false } } as any,
+  it("does not show the turn on Apple MDM button to non-global-admins", () => {
+    const nonGlobalAdminContexts = [
+      { isAnyTeamAdmin: true },
+      { isGlobalTechnician: true },
+      { isTeamTechnician: true },
+    ];
+
+    nonGlobalAdminContexts.forEach((roleContext) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            ...roleContext,
+            config: { mdm: { enabled_and_configured: false } } as any,
+          },
         },
-      },
+      });
+
+      const { unmount } = render(
+        <AssetsTab currentTeamId={0} router={createMockRouter()} />
+      );
+
+      expect(
+        screen.getByText("Supported on macOS, iOS, and iPadOS.")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Turn on Apple MDM" })
+      ).not.toBeInTheDocument();
+      expect(mdmAPI.getAssets).not.toHaveBeenCalled();
+
+      unmount();
     });
-
-    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
-
-    expect(
-      screen.getByRole("button", { name: "Turn on Apple MDM" })
-    ).toBeInTheDocument();
-  });
-
-  it("does not show the turn on Apple MDM button to technicians", () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          isPremiumTier: true,
-          isGlobalTechnician: true,
-          config: { mdm: { enabled_and_configured: false } } as any,
-        },
-      },
-    });
-
-    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
-
-    expect(
-      screen.getByText("Supported on macOS, iOS, and iPadOS.")
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Turn on Apple MDM" })
-    ).not.toBeInTheDocument();
-    expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
   it("renders the empty state when there are no assets", async () => {
