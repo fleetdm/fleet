@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "4.8.0.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Huddle' AND publisher = 'Huddle';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Huddle' AND publisher = 'Huddle' AND version_compare(version, '4.8.0.0') < 0);"
+      },
+      "installer_url": "https://public.huddle.com/apps/huddledesktop/uk/HuddleSetup.exe",
+      "install_script_ref": "c097a695",
+      "uninstall_script_ref": "4940d41c",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{6B4CFFC8-3AE9-4C01-AA54-63EA642CADF0}"
+    }
+  ],
+  "refs": {
+    "4940d41c": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{6B4CFFC8-3AE9-4C01-AA54-63EA642CADF0}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n",
+    "c097a695": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Huddle ships as an InstallShield wrapper around an MSI. /exenoui runs the\n# wrapper without its UI and /quiet /norestart installs the inner MSI silently\n# machine-wide.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"/exenoui /quiet /norestart\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

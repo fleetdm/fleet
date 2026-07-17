@@ -3950,6 +3950,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "HashTools",
+      "slug": "hashtools/windows",
+      "platform": "windows",
+      "unique_identifier": "HashTools",
+      "description": ""
+    },
+    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
@@ -3962,6 +3969,13 @@
       "platform": "darwin",
       "unique_identifier": "com.pointum.hazeover",
       "description": "HazeOver is a windows manager and desktop organiser."
+    },
+    {
+      "name": "HeidiSQL",
+      "slug": "heidisql/windows",
+      "platform": "windows",
+      "unique_identifier": "HeidiSQL",
+      "description": ""
     },
     {
       "name": "Helium",
@@ -4055,6 +4069,13 @@
       "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
     },
     {
+      "name": "HP Prime Virtual Calculator",
+      "slug": "hp-prime-virtual-calculator/windows",
+      "platform": "windows",
+      "unique_identifier": "HP Prime Virtual Calculator",
+      "description": ""
+    },
+    {
       "name": "Hubstaff",
       "slug": "hubstaff/darwin",
       "platform": "darwin",
@@ -4062,11 +4083,25 @@
       "description": "Hubstaff is a work time tracker."
     },
     {
+      "name": "Huddle",
+      "slug": "huddle/windows",
+      "platform": "windows",
+      "unique_identifier": "Huddle",
+      "description": ""
+    },
+    {
       "name": "Huly",
       "slug": "huly/darwin",
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
+      "name": "HWMonitor",
+      "slug": "hwmonitor/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID HWMonitor",
+      "description": ""
     },
     {
       "name": "Hyper",

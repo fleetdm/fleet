@@ -1,0 +1,16 @@
+{
+  "name": "Huddle",
+  "slug": "huddle/windows",
+  "package_identifier": "Ideagen.Huddle",
+  "unique_identifier": "Huddle",
+  "program_publisher": "Huddle",
+  "ignore_hash": true,
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "uninstall_type": "msi",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/huddle_install.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

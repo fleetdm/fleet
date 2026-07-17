@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.8.3.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'HashTools' AND publisher = 'Binary Fortress Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'HashTools' AND publisher = 'Binary Fortress Software' AND version_compare(version, '4.8.3.0') < 0);"
+      },
+      "installer_url": "https://binaryfortressdownloads.com/Download/BFSFiles/109/HashToolsSetup-4.8.3c.exe",
+      "install_script_ref": "c587b259",
+      "uninstall_script_ref": "d5602e17",
+      "sha256": "0d9c4ab08d6d9b4d38ed0a0320a030bf73f78c6be291e750a400fc5be17cc529",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "c587b259": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# HashTools uses an Inno Setup installer; these switches run it silently.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "d5602e17": "# Uninstalls HashTools (Inno Setup). Locates the ARP entry by exact\n# DisplayName and runs its (Quiet)UninstallString with the Inno silent flags.\n$softwareName = \"HashTools\"\n\n$uninstallArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $foundUninstaller = $true\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Split the command from its args (command is usually quoted).\n        $splitArgs = $uninstallCommand.Split('\"')\n        if ($splitArgs.Length -gt 1) {\n            if ($splitArgs.Length -eq 3) {\n                $uninstallArgs = \"$( $splitArgs[2] ) $uninstallArgs\".Trim()\n            } elseif ($splitArgs.Length -gt 3) {\n                Throw \"Uninstall command contains multiple quoted strings. Update the script.`nUninstall command: $uninstallCommand\"\n            }\n            $uninstallCommand = $splitArgs[1]\n        }\n        Write-Host \"Uninstall command: $uninstallCommand\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallCommand\n            PassThru = $true\n            Wait = $true\n        }\n        if ($uninstallArgs -ne '') { $processOptions.ArgumentList = \"$uninstallArgs\" }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for '$softwareName' not found.\"\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}
