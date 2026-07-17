@@ -469,6 +469,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 
 Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
 
+- [Leave behind deck (PDF)](https://fleetdm.com/pdfs/fleet-leave-behind-deck.pdf)
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
