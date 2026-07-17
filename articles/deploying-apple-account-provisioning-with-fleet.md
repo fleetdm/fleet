@@ -170,7 +170,7 @@ Confirm the Fleet Desktop app is set as setup experience software (step 4), the 
 
 **Sign-in fails with valid credentials.**
 
-Check the Okta app configuration from step 1: the **Resource Owner Password** grant must be enabled, client authentication must be set to **Client secret**, the user must be assigned to the app, and the app's authentication policy must allow password-only sign-in. Also confirm the token URL in Fleet points to the right authorization server and that its access policy allows the password grant.
+Check the Okta app configuration (step 1). The **Resource Owner Password** grant must be enabled, client authentication must be set to **Client secret**, the user must be assigned to the app, and the app's authentication policy must allow password-only sign-in. Also confirm the token URL in Fleet points to the right authorization server and that its access policy allows the password grant.
 
 **The account name is the full email address.**
 
