@@ -62,11 +62,15 @@ const ConfigurationProfiles = ({
   const {
     config,
     isPremiumTier,
+    isGlobalAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  // The "Turn on" button links to /settings/integrations/mdm, which is
+  // gated to global admins only (AuthGlobalAdminRoutes).
+  const canTurnOnMdm = !!isGlobalAdmin;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -286,13 +290,19 @@ const ConfigurationProfiles = ({
               <EmptyState
                 variant="header-list"
                 header="Additional configuration required"
-                info="MDM must be turned on to add configuration profiles."
+                info={
+                  canTurnOnMdm
+                    ? "MDM must be turned on to add configuration profiles."
+                    : "To add configuration profiles, ask your admin to turn on MDM."
+                }
                 primaryButton={
-                  <Button
-                    onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-                  >
-                    Turn on
-                  </Button>
+                  canTurnOnMdm ? (
+                    <Button
+                      onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+                    >
+                      Turn on
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : (

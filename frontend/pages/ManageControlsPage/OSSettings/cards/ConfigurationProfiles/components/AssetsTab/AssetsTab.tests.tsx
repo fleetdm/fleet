@@ -40,13 +40,14 @@ describe("AssetsTab", () => {
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
-  it("prompts to turn on Apple MDM when it is not configured", async () => {
+  it("prompts global admins to turn on Apple MDM when it is not configured", async () => {
     const router = createMockRouter();
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
         app: {
           isPremiumTier: true,
+          isGlobalAdmin: true,
           config: { mdm: { enabled_and_configured: false } } as any,
         },
       },
@@ -59,6 +60,48 @@ describe("AssetsTab", () => {
     expect(router.push).toHaveBeenCalledWith(
       PATHS.ADMIN_INTEGRATIONS_MDM_APPLE
     );
+    expect(mdmAPI.getAssets).not.toHaveBeenCalled();
+  });
+
+  it("prompts team admins to turn on Apple MDM when it is not configured", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isAnyTeamAdmin: true,
+          config: { mdm: { enabled_and_configured: false } } as any,
+        },
+      },
+    });
+
+    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
+
+    expect(
+      screen.getByRole("button", { name: "Turn on Apple MDM" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not show the turn on Apple MDM button to technicians", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalTechnician: true,
+          config: { mdm: { enabled_and_configured: false } } as any,
+        },
+      },
+    });
+
+    render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
+
+    expect(
+      screen.getByText("To manage assets, ask your admin to turn on Apple MDM.")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Turn on Apple MDM" })
+    ).not.toBeInTheDocument();
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
