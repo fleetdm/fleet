@@ -23,15 +23,18 @@ var Aliases = map[string]int{
 	"orch":            71,
 	"sec":             97,
 	"g-supply-chain":  97,
+	"byod":            112,
+	"g-byod":          112,
 	"releases":        87,
 }
 
 // ProjectLabels maps project IDs to their corresponding label filters for the drafting project
 var ProjectLabels = map[int]string{
-	58: "#g-mdm",           // mdm project
-	70: "#g-software",      // g-software project
-	71: "#g-orchestration", // g-orchestration project
-	97: "#g-supply-chain",  // g-supply-chain project
+	58:  "#g-mdm",           // mdm project
+	70:  "#g-software",      // g-software project
+	71:  "#g-orchestration", // g-orchestration project
+	97:  "#g-supply-chain",  // g-supply-chain project
+	112: "#g-byod",          // g-byod project
 }
 
 // ResolveProjectID resolves a project identifier (alias or numeric string) to a project ID.

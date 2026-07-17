@@ -134,6 +134,8 @@ func TestAliases(t *testing.T) {
 		"orch":            71,
 		"sec":             97,
 		"g-supply-chain":  97,
+		"byod":            112,
+		"g-byod":          112,
 		"releases":        87,
 	}
 
