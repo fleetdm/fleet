@@ -1,3 +1,17 @@
+## 1.58.0 (Jul 17, 2026)
+
+* Fixed Orbit and Fleet Desktop stripping the subpath from `--fleet-url`, which caused 404s on all API calls when Fleet is deployed at a subpath (e.g. `https://host/subpath`).
+
+* Fixed orbit repeatedly reading `/proc/stat` (and `/proc/uptime` on containerized hosts) once per running process every time it enumerated the process table (for example, the Fleet Desktop watchdog that polls every 15s). Orbit now caches the system boot time, eliminating the redundant reads.
+
+* Fixed a bug where fleetd could not start on-demand Windows MDM sessions on some Windows hosts, leaving queued Windows MDM commands pending for up to 8 hours. fleetd now recognizes the Fleet enrollment by any enrolled (non-zero) `EnrollmentState`.
+
+* Added support for escrowing snapd-managed TPM-backed FDE recovery keys (Ubuntu 26+). Orbit now detects snapd-managed LUKS2 volumes from token metadata and enrolls a dedicated `fleet-escrow` recovery key via the snapd `/v2/system-volumes` socket, escrowing silently without any end-user dialog.
+
+* Updated Go to 1.26.5.
+
+* Added exponential backoff with jitter to orbit's config polling loop. On server errors (5xx, network failures), orbit now doubles its retry interval (capped at 5 minutes) instead of retrying at a fixed 30s rate. A single success resets to the normal 30s interval.
+
 ## 1.57.0 (Jun 29, 2026)
 
 * Bumped github.com/containerd/containerd from 1.7.32 to 1.7.33.
