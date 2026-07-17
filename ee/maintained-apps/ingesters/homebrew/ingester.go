@@ -147,6 +147,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	if input.Token == "swiftdialog" {
+		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment
+		// profile renewal; don't treat orbit's copy as the installed app for install or patch status.
+		// The patch policy generated below inherits this exclusion.
+		out.Queries.Exists = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';",
+			out.UniqueIdentifier,
+		)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
