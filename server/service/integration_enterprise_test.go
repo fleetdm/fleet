@@ -2361,7 +2361,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			},
 		},
 	}
-	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	// team_gitops can modify its team but must not be able to read the team's
+	// enroll secrets (matching the enroll_secret authorization policy).
+	team_gitops := &fleet.User{
+		Name:  "Team GitOps",
+		Email: "team_gitops@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	// team_admin can modify its team and is allowed to read enroll secrets, so
+	// it should still receive the plaintext secret in write responses.
+	team_admin := &fleet.User{
+		Name:  "Team Admin",
+		Email: "team_admin@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	// global_gitops can create and modify any team but must not be able to read
+	// enroll secrets.
+	global_gitops := &fleet.User{
+		Name:       "Global GitOps",
+		Email:      "global_gitops@example.com",
+		GlobalRole: new(fleet.RoleGitOps),
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus, team_gitops, team_admin, global_gitops}
 	for _, u := range users {
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -2477,6 +2508,82 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 				}
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------
+	// A team gitops user can modify a team but must not receive plaintext
+	// enroll secrets in the PATCH response (regression test for the write
+	// endpoint leaking secrets to a role that cannot read them).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_gitops.Email, test.GoodPassword)
+
+	// gitops is forbidden from reading the team and its secrets directly.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID), nil, http.StatusForbidden, &getTeamResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teams[0].ID), nil, http.StatusForbidden, &teamEnrollSecretsResponse{})
+
+	// ...but the PATCH write response must mask the secret.
+	var gitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by gitops")}, http.StatusOK, &gitopsPatchResp)
+	require.NotEmpty(t, gitopsPatchResp.Team.Secrets)
+	for _, secret := range gitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// The modify agent options write endpoint must mask the secret too.
+	var gitopsAgentResp teamResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", teams[0].ID),
+		json.RawMessage(`{}`), http.StatusOK, &gitopsAgentResp)
+	require.NotEmpty(t, gitopsAgentResp.Team.Secrets)
+	for _, secret := range gitopsAgentResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A global gitops user must not receive plaintext secrets from the
+	// PATCH response nor when creating a team (the create response can leak
+	// the server-generated enroll secret).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, global_gitops.Email, test.GoodPassword)
+
+	var globalGitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by global gitops")}, http.StatusOK, &globalGitopsPatchResp)
+	require.NotEmpty(t, globalGitopsPatchResp.Team.Secrets)
+	for _, secret := range globalGitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	var gitopsCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("gitops-created-team")}, http.StatusOK, &gitopsCreateResp)
+	require.NotEmpty(t, gitopsCreateResp.Team.Secrets)
+	for _, secret := range gitopsCreateResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A team admin can read enroll secrets, so the PATCH response must
+	// still contain the plaintext secret.
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_admin.Email, test.GoodPassword)
+
+	var adminPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by admin")}, http.StatusOK, &adminPatchResp)
+	require.NotEmpty(t, adminPatchResp.Team.Secrets)
+	for _, secret := range adminPatchResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// A global admin creating a team can read the generated secret.
+	s.token = s.getTestAdminToken()
+	var adminCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("admin-created-team")}, http.StatusOK, &adminCreateResp)
+	require.NotEmpty(t, adminCreateResp.Team.Secrets)
+	for _, secret := range adminCreateResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
 	}
 }
 
