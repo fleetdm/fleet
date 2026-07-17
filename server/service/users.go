@@ -442,9 +442,14 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 		if p.Password != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
 		}
-	} else if p.Password == nil || *p.Password == "" {
-		// Non-SSO invites require a password.
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
 	}
 
 	user, err := svc.NewUser(ctx, p)
