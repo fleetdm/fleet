@@ -6925,22 +6925,13 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Add a second cached version (inactive) for the same no-team title.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_installers
-				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
-				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
-			SELECT team_id, global_or_team_id, 'storageid2', 'test2.pkg', extension, '2.0', platform, title_id,
-				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, ?
-			FROM software_installers WHERE id = ?
-		`, v2Query, v1ID)
-		return err
+	// Cache a second version (inactive) for the same no-team title, the same way the
+	// auto-update cron does, carrying its own version-baked patch query.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, v1ID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", StorageID: "storageid2", Filename: "test2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: v2Query,
 	})
-	var v2ID uint
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &v2ID, `SELECT id FROM software_installers WHERE title_id=? AND global_or_team_id=0 AND version='2.0'`, titleID)
-	})
+	require.NoError(t, err)
 
 	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
 	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, false)
@@ -6980,6 +6971,26 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
 
+	// Have a host report a pass for the policy and aggregate stats; the next flip
+	// changes the query, so both must be cleared for hosts to re-evaluate.
+	host := test.NewHost(t, ds, "patchhost", "1", "patchhostkey", "patchhostuuid", time.Now())
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{patchPolicy.ID: new(true)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policyResultCounts := func() (membership int, stats int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &membership, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, patchPolicy.ID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &stats, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, patchPolicy.ID)
+		})
+		return membership, stats
+	}
+	membership, stats := policyResultCounts()
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
+
 	// A nil pin flips the active installer but leaves the pin row untouched —
 	// this is what the auto-update cron relies on to avoid clobbering an admin's pin.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
@@ -6990,6 +7001,10 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
+	// The query changed on the flip, so the policy's stale results were cleared.
+	membership, stats = policyResultCounts()
+	require.Zero(t, membership, "version flip must clear stale policy membership")
+	require.Zero(t, stats, "version flip must clear stale policy stats")
 
 	// A non-nil empty pin clears it (Latest).
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("")}, v1ID))

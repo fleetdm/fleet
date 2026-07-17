@@ -28184,7 +28184,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	}, http.StatusOK, &patchPolicy)
 	patchPolicyQuery := func() string {
 		var resp fleet.GetTeamPolicyByIDResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
 		return resp.Policy.Query
 	}
 	require.Equal(t, warpQueryV1, patchPolicyQuery())
@@ -33633,7 +33633,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	}
 	patchPolicyQuery := func(policyID uint) string {
 		var resp fleet.GetTeamPolicyByIDResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
 		return resp.Policy.Query
 	}
 
