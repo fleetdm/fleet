@@ -28,7 +28,7 @@ What you don't get (yet):
 - Fleet's [setup experience](https://fleetdm.com/guides/setup-experience) configured for the target fleet
 - The Fleet Desktop app, which contains Fleet's Platform SSO extension, available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps)
 
-> Account provisioning can currently only be configured for "All fleets" and only supports macOS hosts.
+> Account provisioning can currently only be configured for "All fleets" and only supports single-user macOS hosts.
 
 ## Step 1: Create an OAuth ROPG app in Okta
 
