@@ -702,6 +702,16 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
 		}
 
+		// Edit the patch policy if it exists to use the pinned installer's query
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE policies p
+			JOIN software_installers si ON si.id = ?
+			SET p.query = si.patch_query
+			WHERE p.team_id = ? AND p.patch_software_title_id = ?
+		`, activeInstallerID, tmID, payload.TitleID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating patch policy query for active fleet-maintained app installer")
+		}
+
 		// A nil pin means the caller manages the pin row separately and it must be
 		// left as-is. The auto-update cron relies on this so it can flip the active
 		// installer without clobbering a pin an admin changed concurrently. A

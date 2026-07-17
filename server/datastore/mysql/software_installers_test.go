@@ -6905,6 +6905,10 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	const patchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '%s') < 0);"
+	v1Query := fmt.Sprintf(patchQueryFmt, "1.0")
+	v2Query := fmt.Sprintf(patchQueryFmt, "2.0")
+
 	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
 	})
@@ -6917,6 +6921,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
 		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+		PatchQuery: v1Query,
 	})
 	require.NoError(t, err)
 
@@ -6927,9 +6932,9 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
 				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
 			SELECT team_id, global_or_team_id, 'storageid2', 'test2.pkg', extension, '2.0', platform, title_id,
-				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, patch_query
+				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, ?
 			FROM software_installers WHERE id = ?
-		`, v1ID)
+		`, v2Query, v1ID)
 		return err
 	})
 	var v2ID uint
@@ -6954,9 +6959,23 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		return id
 	}
 
+	// No patch policy for the title yet: flipping the active installer must not error, the policy update is a no-op.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
+	require.Equal(t, v2ID, activeID())
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v1ID))
+	require.Equal(t, v1ID, activeID())
+
+	// The patch policy query is generated from the active installer and must follow it across flips.
+	patchPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
+
 	// A non-nil pin is authoritative: it upserts the pin row.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
 	require.Equal(t, v1ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
 	pin, err := ds.GetPinnedVersion(ctx, nil, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
@@ -6965,6 +6984,9 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	// this is what the auto-update cron relies on to avoid clobbering an admin's pin.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
 	require.Equal(t, v2ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v2Query, patchPolicy.Query)
 	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
@@ -6972,6 +6994,9 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	// A non-nil empty pin clears it (Latest).
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("")}, v1ID))
 	require.Equal(t, v1ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
 	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
