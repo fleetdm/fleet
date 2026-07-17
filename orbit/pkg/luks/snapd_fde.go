@@ -94,6 +94,17 @@ func (s *snapdSocketFDE) ensureFleetRecoveryKey(ctx context.Context) (string, er
 	var gen generateRecoveryKeyResponse
 	if err := s.client.requestSync(ctx, http.MethodPost, systemVolumesPath,
 		generateRecoveryKeyRequest{Action: actionGenerateRecoveryKey}, &gen); err != nil {
+		// snapd rejects the action with "not supported on this system" when
+		// it sees `ubuntu-fde` tokens but does not consider itself the
+		// authoritative FDE manager (e.g. `snap-tpmctl status` reports the
+		// FDE system as indeterminate). Version-upgrading snapd does not fix
+		// this; the operator has to resolve the FDE state on the host, so
+		// surface a specific message instead of the raw snapd 400.
+		var apiErr *snapdAPIError
+		if errors.As(err, &apiErr) && apiErr.isUnsupportedOperation() {
+			log.Warn().Err(err).Msg("snapd refuses to manage recovery keys on this host; the FDE system is likely not fully snapd-managed (check `snap-tpmctl status`)")
+			return "", fmt.Errorf("snapd does not consider this host a snapd-managed FDE system, so recovery-key escrow is unavailable. Run `snap-tpmctl status` on the host — if it reports \"the fde system is indeterminate\", the LUKS2 volume is not owned by snapd's secboot stack and orbit cannot escrow a recovery key here. Underlying snapd error: %s", apiErr.Message)
+		}
 		return "", fmt.Errorf("generating snapd recovery key: %w", err)
 	}
 	if gen.RecoveryKey == "" || gen.KeyID == "" {

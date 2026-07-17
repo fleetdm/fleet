@@ -126,6 +126,36 @@ func TestEnsureFleetRecoveryKeyViaSocketFallsBackToReplace(t *testing.T) {
 	assert.True(t, sawReplace, "fell back to replace-recovery-key when add reported a conflict")
 }
 
+func TestEnsureFleetRecoveryKeyReportsUnsupportedFDEState(t *testing.T) {
+	// Regression: on some hosts snapd is new enough to expose the endpoint
+	// but reports "this action is not supported on this system" because the
+	// FDE state is indeterminate (`ubuntu-fde` LUKS2 tokens exist but snapd
+	// is not the authoritative manager). The error message must call that
+	// out and point at snap-tpmctl so the admin has somewhere to look.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/v2/system-info" {
+			writeSystemInfo(w, "2.75.0")
+			return
+		}
+		req := decodeAction(t, r)
+		if req.Action == actionGenerateRecoveryKey {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"type":"error","status-code":400,"result":{"message":"this action is not supported on this system"}}`))
+			return
+		}
+		t.Errorf("did not expect action %q after generate-recovery-key failed", req.Action)
+	}))
+	defer srv.Close()
+
+	fde := &snapdSocketFDE{client: newTestSnapdClient(srv)}
+	_, err := fde.ensureFleetRecoveryKey(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "snap-tpmctl status", "error points the admin at the diagnostic command")
+	assert.Contains(t, err.Error(), "indeterminate", "error names the state operators will see")
+	assert.Contains(t, err.Error(), "not supported", "underlying snapd message is preserved for debugging")
+}
+
 func TestEnsureFleetRecoveryKeyRejectsOldSnapd(t *testing.T) {
 	// Regression: snapd < 2.74 has the /v2/system-volumes endpoint but rejects
 	// generate-recovery-key with 400 "this action is not supported on this

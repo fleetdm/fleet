@@ -114,6 +114,26 @@ func (e *snapdAPIError) Error() string {
 	return fmt.Sprintf("snapd %s returned status %d", e.Path, e.StatusCode)
 }
 
+// isUnsupportedOperation reports whether the error is snapd's
+// "this action is not supported on this system" response. That response is
+// returned regardless of snapd version when the /v2/system-volumes endpoint
+// exists but snapd does not consider itself the authoritative FDE manager on
+// this host — for example, a system with `ubuntu-fde` LUKS2 tokens where the
+// FDE state is "indeterminate" (as reported by `snap-tpmctl status`). No
+// amount of retrying against snapd will change this; the operator has to
+// resolve the underlying FDE state.
+func (e *snapdAPIError) isUnsupportedOperation() bool {
+	if e == nil {
+		return false
+	}
+	msg := strings.ToLower(e.Message)
+	kind := strings.ToLower(e.Kind)
+	// The canonical wording as of snapd 2.75 is "this action is not supported
+	// on this system"; use "not supported" as the prefix so we survive small
+	// phrasing drift while still not matching unrelated errors.
+	return strings.Contains(msg, "not supported") || strings.Contains(kind, "not-supported")
+}
+
 // isConflict reports whether the error looks like a snapd "resource already
 // exists" response, which is the only case in which the add-recovery-key
 // caller should fall back to replace-recovery-key.
