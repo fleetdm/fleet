@@ -62,8 +62,11 @@ func (ds *Datastore) SessionByMFAToken(ctx context.Context, token string, sessio
 			return ctxerr.Wrap(ctx, err, "selecting verification token")
 		}
 
+		if lockedUserID != user.ID {
+			return ctxerr.Wrap(ctx, notFound("Verification Token"))
+		}
+
 		// Consume the token before creating the session, and confirm exactly one
-		// row was deleted.
 		result, err := tx.ExecContext(ctx, "DELETE FROM verification_tokens WHERE token = ?", token)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting verification token")
