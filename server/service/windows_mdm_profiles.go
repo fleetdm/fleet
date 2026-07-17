@@ -135,7 +135,7 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 	}
 	cp.LabelsExcludeAny = excludeLabels
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{string(cp.SyncML)}); err != nil {
 		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 

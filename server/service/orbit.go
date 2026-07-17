@@ -344,12 +344,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				svc.logger.ErrorContext(ctx, "failed to find SCIM user for EUA token enrollment",
 					"err", err, "host_id", host.ID)
 			} else if err == nil && scimUser != nil {
-				if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
+				if _, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
 					svc.logger.ErrorContext(ctx, "failed to set SCIM user mapping for EUA token enrollment",
 						"err", err, "host_id", host.ID)
 				}
 			} else {
-				if err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
+				if _, err := svc.ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
 					svc.logger.ErrorContext(ctx, "failed to delete SCIM user mapping for EUA token enrollment",
 						"err", err, "host_id", host.ID)
 				}
@@ -971,17 +971,39 @@ func (svc *Service) filterExtensionsForHost(ctx context.Context, extensions json
 
 	// Filter the extensions by labels (premium only feature).
 	if license, _ := license.FromContext(ctx); license != nil && license.IsPremium() {
-		for extensionName, extensionInfo := range extensionsInfo {
-			hostIsMemberOfAllLabels, err := svc.ds.HostMemberOfAllLabels(ctx, host.ID, extensionInfo.Labels)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "check host labels")
+		// Collect all unique label names across all extensions.
+		allLabels := make(map[string]struct{})
+		for _, extInfo := range extensionsInfo {
+			for _, l := range extInfo.Labels {
+				allLabels[l] = struct{}{}
 			}
-			if hostIsMemberOfAllLabels {
-				// Do not filter out, but there's no need to send the label names to the devices.
-				extensionInfo.Labels = nil
-				extensionsInfo[extensionName] = extensionInfo
-			} else {
-				delete(extensionsInfo, extensionName)
+		}
+
+		if len(allLabels) > 0 {
+			labelNames := make([]string, 0, len(allLabels))
+			for l := range allLabels {
+				labelNames = append(labelNames, l)
+			}
+
+			memberOf, err := svc.ds.HostMembershipForLabels(ctx, host.ID, labelNames)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check host label membership")
+			}
+
+			for extensionName, extensionInfo := range extensionsInfo {
+				allMatch := true
+				for _, l := range extensionInfo.Labels {
+					if _, ok := memberOf[l]; !ok {
+						allMatch = false
+						break
+					}
+				}
+				if allMatch {
+					extensionInfo.Labels = nil
+					extensionsInfo[extensionName] = extensionInfo
+				} else {
+					delete(extensionsInfo, extensionName)
+				}
 			}
 		}
 	}
@@ -1093,6 +1115,11 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 	if err != nil {
 		// This error should never occur because we validate secret variables on script upload.
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand embedded secrets for host %d and script %s", host.ID, execID))
+	}
+
+	script.ScriptContents, err = svc.ds.ExpandCustomHostVitals(ctx, host.ID, script.ScriptContents)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
 	}
 
 	return script, nil
@@ -1733,6 +1760,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       hsi.SoftwareTitle,
 				SoftwarePackage:     hsi.SoftwarePackage,
+				HashSHA256:          hsi.HashSHA256,
 				InstallUUID:         result.InstallUUID,
 				Status:              string(status),
 				Source:              hsi.Source,

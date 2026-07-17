@@ -1,1 +1,0 @@
-- Restricted authorization for team membership management operations.

@@ -67,7 +67,7 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
           <Radio
             name="iosIpadosEnrollmentType"
             id="iosIpadosCompanyOwned"
-            label="Company-owned"
+            label="Company-owned (fully-managed)"
             value="companyOwned"
             checked={enrollmentType === "companyOwned"}
             onChange={() => setEnrollmentType("companyOwned")}

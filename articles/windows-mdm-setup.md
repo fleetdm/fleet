@@ -205,7 +205,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
-2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Custom branding** in the sidebar.
+2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding** in the sidebar.
 
 3. On the **Company Branding** page, select **Configure** or **Edit** under **Default sign-in experience**.
 

@@ -26,6 +26,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   currentTeam: undefined,
   config: createMockConfig(),
   canAccessControls: true,
+  canAccessVariables: true,
   canWrite: true,
   canRunLiveReport: true,
   canAccessSettings: true,
@@ -34,6 +35,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canManageReportAutomations: true,
   canEditCustomVariable: true,
   canAddSoftware: true,
+  isAdminOrMaintainer: true,
   isTechnician: false,
   isPremiumTier: true,
   isMacMdmEnabledAndConfigured: true,
@@ -327,6 +329,19 @@ describe("CommandPalette helpers", () => {
       expect(keywords).not.toContain("sso");
     });
 
+    it("surfaces Add custom package when searching py / python (.py is an accepted upload type)", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+      const addCustomPackage = items.find((i) => i.id === "add-custom-package");
+      expect(addCustomPackage).toBeDefined();
+      const keywords = addCustomPackage?.keywords ?? [];
+      expect(keywords).toContain("py");
+      expect(keywords).toContain("python");
+    });
+
     it("hides calendar keywords on Unassigned (Calendar section is disabled there) but keeps conditional access", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
@@ -365,6 +380,7 @@ describe("CommandPalette helpers", () => {
       const items = buildPaletteItems({
         ...BASE_CONTEXT,
         isTechnician: true,
+        isAdminOrMaintainer: false,
         hasTeamSelected: true,
         currentTeam: { id: 1, name: "Engineering" },
       });
@@ -387,6 +403,73 @@ describe("CommandPalette helpers", () => {
       const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
       expect(subIds).toContain("controls-certificates");
       expect(subIds).toContain("controls-passwords");
+    });
+
+    it("includes Variables with its Global variables and Custom host vitals sub-tabs when canAccessVariables", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const variables = items.find((i) => i.id === "controls-variables");
+      const subIds = variables?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).toContain("controls-global-variables");
+      expect(subIds).toContain("controls-custom-host-vitals");
+    });
+
+    it("hides Variables entirely when !canAccessVariables (technicians)", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canAccessVariables: false,
+        isTechnician: true,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("controls-variables");
+    });
+
+    it("includes Host names for admin/maintainer on a fleet", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const osSettings = items.find((i) => i.id === "controls-os-settings");
+      const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).toContain("controls-host-name-template");
+    });
+
+    it("includes Host names for admin/maintainer on 'No team'", () => {
+      // The template is supported for "No team" too. Unassigned satisfies
+      // hasTeamOrUnassigned, so the Controls group and the Host names entry
+      // both render.
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: false,
+        currentTeam: { id: 0, name: "No team" },
+      });
+
+      const osSettings = items.find((i) => i.id === "controls-os-settings");
+      const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).toContain("controls-host-name-template");
+    });
+
+    it("excludes Host names for technicians", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isTechnician: true,
+        isAdminOrMaintainer: false,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
+
+      const osSettings = items.find((i) => i.id === "controls-os-settings");
+      const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
+      expect(subIds).not.toContain("controls-host-name-template");
     });
 
     it("appends fleet_id via withTeamId for team-scoped paths", () => {
@@ -630,7 +713,7 @@ describe("CommandPalette helpers", () => {
       // of the parent is sufficient.
     });
 
-    it("hides Disk encryption, Certificates, and Passwords OS-settings sub-items", () => {
+    it("hides Disk encryption, Certificates, Passwords, and Host names OS-settings sub-items", () => {
       const osSettings = buildPaletteItems(FREE_CONTEXT).find(
         (i) => i.id === "controls-os-settings"
       );
@@ -638,6 +721,7 @@ describe("CommandPalette helpers", () => {
       expect(subIds).not.toContain("controls-disk-encryption");
       expect(subIds).not.toContain("controls-certificates");
       expect(subIds).not.toContain("controls-passwords");
+      expect(subIds).not.toContain("controls-host-name-template");
       // Configuration profiles is not premium-gated; keep it.
       expect(subIds).toContain("controls-custom-settings");
     });
@@ -708,6 +792,12 @@ describe("CommandPalette helpers", () => {
           ?.subItems?.map((s) => s.id) ?? [];
       expect(scriptsSubIds).toContain("controls-scripts-library");
       expect(scriptsSubIds).toContain("controls-scripts-batch-progress");
+      const variablesSubIds =
+        items
+          .find((i) => i.id === "controls-variables")
+          ?.subItems?.map((s) => s.id) ?? [];
+      expect(variablesSubIds).toContain("controls-global-variables");
+      expect(variablesSubIds).toContain("controls-custom-host-vitals");
     });
 
     it("surfaces Add script on Free (script library is Free-available)", () => {

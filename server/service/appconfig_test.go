@@ -1008,6 +1008,99 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
+// template stored while premium is cleared on a Free-tier ModifyAppConfig (so
+// the cron, which enforces on MDM.EnabledAndConfigured rather than the license,
+// stops applying it) and preserved on Premium.
+func TestModifyAppConfigHostNameTemplateDowngrade(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	for _, tt := range []struct {
+		name        string
+		licenseTier string
+		expected    string
+	}{
+		{"cleared on Free", fleet.TierFree, ""},
+		{"preserved on Premium", fleet.TierPremium, "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			// Seed a template as though it had been set while premium.
+			dsAppConfig.MDM.HostNameTemplate = optjson.SetString("iPad $FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			// A benign change that doesn't touch the template: the downgrade reset,
+			// not validation, is what clears it.
+			modified, err := svc.ModifyAppConfig(ctx, []byte(`{"org_info": {"org_name": "Test2"}}`), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, modified.MDM.HostNameTemplate.Value)
+			require.Equal(t, tt.expected, dsAppConfig.MDM.HostNameTemplate.Value)
+		})
+	}
+}
+
+// TestModifyAppConfigHostNameTemplateSecretErrors verifies that when the "No team"
+// host name template references a secret variable, a missing secret is reported as
+// invalid input (422) while a datastore failure propagates as a server error rather
+// than being misclassified as invalid input.
+func TestModifyAppConfigHostNameTemplateSecretErrors(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, validateErr error) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return validateErr }
+		return svc, ctx, ds
+	}
+
+	// A change to a template that references a secret, so validation runs.
+	body := []byte(`{"mdm":{"name_template":"WS-$FLEET_SECRET_TOKEN"}}`)
+
+	t.Run("missing secret is invalid input (422)", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, &fleet.MissingSecretsError{MissingSecrets: []string{"TOKEN"}})
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, errors.New("database is down"))
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &argErr, "a datastore error must not be reported as invalid input")
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+}
+
 // TestTransparencyURLDowngradeLicense tests scenarios where a transparency url value has previously
 // been stored (for example, if a licensee downgraded without manually resetting the transparency url)
 func TestTransparencyURLDowngradeLicense(t *testing.T) {
@@ -1121,6 +1214,7 @@ func TestMDMConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1180,6 +1274,7 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1222,6 +1317,7 @@ func TestMDMConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1271,6 +1367,7 @@ func TestMDMConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1316,6 +1413,7 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1365,6 +1463,7 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},
@@ -1443,6 +1542,7 @@ func TestMDMConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
 				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
 					OAuthIdPTokenURL: optjson.String{Set: true},
 					OAuthIdPClientID: optjson.String{Set: true},

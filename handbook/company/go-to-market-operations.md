@@ -334,9 +334,15 @@ NFR (Not For Resale) instances are Fleet environments deployed for partners and 
 **To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
-### Create a quote
+## Quoting
+
+### Generate a quote
 
 Navigate to the opportunity you are creating a quote for, then follow the steps below.
+
+> Are you generating a quote for a customer?
+>
+> If so, be sure you're doing it from the renewal oppty. Do not generate quotes from an expansion opportunity. 
 
 1. Advance through each pipeline stage sequentially using the stage progression bar. Salesforce enforces sequential progression — skipping a stage will trigger an error.
 
@@ -354,7 +360,21 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
    The **"Discount Percentage"** field is locked and updates automatically based on the difference between list price and unit price. Click **"Save"**. MRR, ARR, Total Price, and Grand Total will update automatically.
 
-6. Click **"Submit for Approval"**. Complete any remaining required fields:
+6. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, and save it to the quote.
+
+   | Template | When to use |
+   | -------- | ----------- |
+   | Direct | Renewing an existing non-channel customer with no partner involved |
+   | Direct w/ custom terms | Selling directly to the customer with special commitments included |
+   | Authorized partner | Selling through an authorized channel partner |
+   | Unauthorized partner | Selling through a channel partner pending authorization |
+
+> Custom terms:
+>
+> If you're adding custom terms to a quote, be sure to add all necessary language in the **"Terms"** field. No "General terms" are added to the template by default.
+> Any quote with custom terms must be reviewed by the CFO in addition to other approvers.
+
+7. Click **"Submit for Approval"**. Complete any remaining required fields:
    - Billing address
    - Contact name (selected from associated Salesforce contact records)
    - Quote expiration date
@@ -365,19 +385,10 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
    > Chaz is the approver for new business opportunities. Zay is the approver for renewals and upsells.
 
-7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
+8. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit.
 
-8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
-
-   | Template | When to use |
-   | -------- | ----------- |
-   | Direct | Renewing an existing non-channel customer with no partner involved |
-   | Promises or custom terms | Selling directly to the customer with special commitments included |
-   | Authorized partner | Selling through an authorized channel partner |
-   | Unauthorized partner | Selling through a channel partner pending authorization |
-   | 3eye distributorship | Selling through the 3EYE distributor |
-
-
+9. Once the quote is approved, send it to the relevant stakeholders.
+ 
 
 ### Remove a contact from the "Top contacts" list in Salesforce
 
@@ -458,6 +469,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 
 Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
 
+- [Leave behind deck (PDF)](https://fleetdm.com/pdfs/fleet-leave-behind-deck.pdf)
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
@@ -469,9 +481,11 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 -->
 
 
-## Go-To-Market architecture and automation
+## Go-To-Market runbook
 
-### Capture Eventbrite attendees in Salesforce campaigns
+### Automation
+
+#### Capture Eventbrite attendees in Salesforce campaigns
 
 > ***TL;DR: It's not working, Who should I call and what can I check?***
 > 
@@ -522,7 +536,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
     ```
 
 
-### LinkedIn comments from tracked posts
+#### LinkedIn comments from tracked posts
 
 We track certian social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
 - LinkedIn post URL provided to Clay.
@@ -539,12 +553,26 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ## Salesforce
 
+### Making changes
+
+#### Quotes
+
+##### Change which fields are visable when editing selected quote line items
+
+<img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
+
+
+1. Click `Setup` => `Object manager` => `Quote line item` => `Page layouts` => `Quote Line Item Layout` => `Edit Multi-Line Layout`
+2. Once here, arrange the available fields in the "Selected fields" column in the order you would like them to appear in SFDC and save.
+
+
+
 ### SFDC access
 
 Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](https://fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
 
 
-#### Profiles and when to use them
+#### Profiles
 
 | Profile | SSO | Who gets this | When to assign |
 |:---|:---|:---|:---|
@@ -1299,7 +1327,7 @@ ActiveCampaign automations manage lifecycle progression, nurture enrollment, and
 | 3+ opens or clicks in 30 days | Add `engaged: hot` |
 
 
-## 🐰 Video hosting
+## Video hosting
 
 ### Why do we host videos on a service other than YouTube?
 

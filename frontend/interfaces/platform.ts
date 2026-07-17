@@ -259,11 +259,11 @@ export const VULN_SUPPORTED_PLATFORMS: Platform[] = [
   "darwin",
   "windows",
   "linux", // Added 4.73
+  "android",
 ];
 export const VULN_UNSUPPORTED_PLATFORMS: Platform[] = [
   "ipados",
   "ios",
-  "android",
   "chrome",
 ];
 
