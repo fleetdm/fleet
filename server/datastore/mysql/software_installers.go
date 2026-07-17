@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -683,7 +684,7 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
 	tmID := ptr.ValOrZero(payload.TeamID)
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE software_installers
 			SET is_active = (id = ?)
@@ -718,7 +719,33 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Update patch policy for the installer, if it exists
+	patchPolicy, err := ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "getting patch policy")
+	}
+
+	activeInstaller, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, activeInstallerID, false)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting active installer for patch policy")
+	}
+
+	generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, activeInstaller)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating patch policy query")
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating patch policy query")
+	}
+	return ds.ResetPolicy(ctx, patchPolicy.ID)
 }
 
 func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
