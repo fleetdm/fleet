@@ -119,7 +119,7 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
 3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-apple-at-work, #g-auto-patching, #g-orchestration, or #g-supply-chain Slack channel.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
