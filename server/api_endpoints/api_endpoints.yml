@@ -164,7 +164,7 @@
   path: "/api/v1/fleet/hosts/:id/query"
   display_name: "Run live query on host (ad hoc)"
 - method: "POST"
-  path: "/api/v1/fleet/hosts/:id/release_ab"
+  path: "/api/v1/fleet/hosts/release_ab"
   display_name: "Batch-release hosts from AB"
 - method: "POST"
   path: "/api/v1/fleet/hosts/identifier/:identifier/query"
