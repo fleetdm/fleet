@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 import { ICustomHostVital } from "interfaces/custom_host_vitals";
@@ -37,7 +36,6 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   location,
 }) => {
   const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
-  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
@@ -140,11 +138,10 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
     () =>
       generateTableHeaders({
         canEdit: !!canEdit,
-        gitOpsModeEnabled,
         onEdit: setVitalToEdit,
         onDelete: setVitalToDelete,
       }),
-    [canEdit, gitOpsModeEnabled, setVitalToEdit, setVitalToDelete]
+    [canEdit, setVitalToEdit, setVitalToDelete]
   );
 
   const renderCount = useCallback(
