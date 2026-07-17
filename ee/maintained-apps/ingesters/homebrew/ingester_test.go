@@ -468,12 +468,15 @@ func TestFirefoxNightlyMacBundleVersion(t *testing.T) {
 // back to a base-version patch comparison instead of failing ingestion.
 func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
 	brewSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, json.NewEncoder(w).Encode(brewCask{
+		err := json.NewEncoder(w).Encode(brewCask{
 			Token:   "firefox@developer-edition",
 			Name:    []string{"Mozilla Firefox Developer Edition"},
 			URL:     "https://example.com",
 			Version: "153.0b13",
-		}))
+		})
+		if err != nil {
+			t.Errorf("encoding fixture: %v", err)
+		}
 	}))
 	t.Cleanup(brewSrv.Close)
 
