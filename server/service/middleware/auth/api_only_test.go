@@ -295,6 +295,25 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.ErrorAs(t, err, &permErr)
 	})
 
+	t.Run("api-only user, chart endpoint not in catalog is rejected", func(t *testing.T) {
+		// Chart endpoints (fleet/charts/{metric}) are not in the API catalog,
+		// so an api-only user with restrictions must be denied access.
+		next, called := newNext()
+		ctx := ctxWithMethod("GET", muxTemplate("fleet/charts/{metric}"))
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly: true,
+			APIEndpoints: []fleet.APIEndpointRef{
+				{Method: "GET", Path: "/api/v1/fleet/hosts"},
+			},
+		}})
+
+		_, err := newEndpoint(next)(ctx, nil)
+		require.Error(t, err)
+		require.False(t, *called)
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
+	})
+
 	t.Run("api-only user with multiple allowed endpoints, accessing one of them", func(t *testing.T) {
 		next, called := newNext()
 		ctx := ctxWithMethod("POST", muxTemplate("fleet/scripts/run"))
