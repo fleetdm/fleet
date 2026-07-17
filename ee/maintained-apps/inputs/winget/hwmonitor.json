@@ -10,5 +10,6 @@
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/hwmonitor_uninstall.ps1",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "fuzzy_match_name": "CPUID HWMonitor%"
 }

@@ -18,7 +18,7 @@ try {
 
 $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
-    if ($key.DisplayName -eq $softwareName) {
+    if ($key.DisplayName -like "$softwareName*") {
         $foundUninstaller = $true
         $uninstallCommand = if ($key.QuietUninstallString) {
             $key.QuietUninstallString

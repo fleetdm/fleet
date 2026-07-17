@@ -3950,13 +3950,6 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
-      "name": "HashTools",
-      "slug": "hashtools/windows",
-      "platform": "windows",
-      "unique_identifier": "HashTools",
-      "description": ""
-    },
-    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
@@ -3975,7 +3968,7 @@
       "slug": "heidisql/windows",
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
-      "description": ""
+      "description": "Lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
       "name": "Helium",
@@ -4073,7 +4066,7 @@
       "slug": "hp-prime-virtual-calculator/windows",
       "platform": "windows",
       "unique_identifier": "HP Prime Virtual Calculator",
-      "description": ""
+      "description": "Windows simulator of the HP Prime graphing calculator, driven by keyboard and mouse."
     },
     {
       "name": "Hubstaff",
@@ -4081,13 +4074,6 @@
       "platform": "darwin",
       "unique_identifier": "com.netsoft.Hubstaff",
       "description": "Hubstaff is a work time tracker."
-    },
-    {
-      "name": "Huddle",
-      "slug": "huddle/windows",
-      "platform": "windows",
-      "unique_identifier": "Huddle",
-      "description": ""
     },
     {
       "name": "Huly",
@@ -4101,7 +4087,7 @@
       "slug": "hwmonitor/windows",
       "platform": "windows",
       "unique_identifier": "CPUID HWMonitor",
-      "description": ""
+      "description": "Hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",

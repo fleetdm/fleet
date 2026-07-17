@@ -463,7 +463,6 @@ import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
 import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
-import Hashtools from "./Hashtools";
 import Hazel from "./Hazel";
 import Hazeover from "./Hazeover";
 import Heidisql from "./Heidisql";
@@ -482,7 +481,6 @@ import Houdahspot from "./Houdahspot";
 import HpEasyAdmin from "./HpEasyAdmin";
 import HpPrimeVirtualCalculator from "./HpPrimeVirtualCalculator";
 import Hubstaff from "./Hubstaff";
-import Huddle from "./Huddle";
 import Huly from "./Huly";
 import Hwmonitor from "./Hwmonitor";
 import Hyper from "./Hyper";
@@ -1591,7 +1589,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
-  hashtools: Hashtools,
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
@@ -1610,7 +1607,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "hp easy admin": HpEasyAdmin,
   "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
-  huddle: Huddle,
   huly: Huly,
   hwmonitor: Hwmonitor,
   hyper: Hyper,
