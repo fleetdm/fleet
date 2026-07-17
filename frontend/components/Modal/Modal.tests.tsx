@@ -216,35 +216,26 @@ describe("Modal", () => {
       expect(screen.getByRole("button", { name: "Submit" })).not.toHaveFocus();
     });
 
-    it("redirects focus back to the container when it tries to escape", async () => {
+    it("does not steal focus from a child that autofocused itself", async () => {
+      const Autofocused = () => {
+        const ref = React.useRef<HTMLInputElement>(null);
+        React.useEffect(() => {
+          ref.current?.focus();
+        }, []);
+        return <input ref={ref} data-testid="autofocused" />;
+      };
+
       render(
-        <>
-          <button type="button" data-testid="outside">
-            Outside
-          </button>
-          <Modal title="Confirm" onExit={noop}>
-            <button type="button">Submit</button>
-          </Modal>
-        </>
+        <Modal title="Confirm" onExit={noop}>
+          <Autofocused />
+        </Modal>
       );
 
-      const modalContainer = document.querySelector(
-        ".modal__modal_container"
-      ) as HTMLElement;
-      await waitFor(() => expect(modalContainer).toHaveFocus());
-
-      // Simulate focus escaping the modal (Tab past the last control, or a
-      // stray focus() call landing on background UI).
-      fireEvent.focusOut(modalContainer, {
-        relatedTarget: screen.getByTestId("outside"),
-      });
-
-      expect(modalContainer).toHaveFocus();
+      const autofocused = screen.getByTestId("autofocused");
+      await waitFor(() => expect(autofocused).toHaveFocus());
     });
 
     it("does not steal focus on mount when isHidden (stacked modal on top)", () => {
-      // When another modal is stacked on top (this modal receives isHidden),
-      // that top modal owns focus. This modal must not grab it on mount.
       render(
         <>
           <button type="button" data-testid="stacked">
@@ -261,32 +252,16 @@ describe("Modal", () => {
       expect(stacked).toHaveFocus();
     });
 
-    it("does not refocus on focusout when isHidden", () => {
-      // The bottom modal's focusout listener also has to stand down while a
-      // stacked modal is on top; otherwise every focus movement inside the
-      // top modal would trigger a refocus on the bottom one.
+    it("does not close on Escape while isHidden", () => {
+      const onExit = jest.fn();
       render(
-        <>
-          <button type="button" data-testid="stacked">
-            Stacked modal control
-          </button>
-          <Modal title="Bottom" isHidden onExit={noop}>
-            <button type="button">Submit</button>
-          </Modal>
-        </>
+        <Modal title="Bottom" isHidden onExit={onExit}>
+          <div>content</div>
+        </Modal>
       );
 
-      const stacked = screen.getByTestId("stacked");
-      const modalContainer = document.querySelector(
-        ".modal__modal_container"
-      ) as HTMLElement;
-
-      stacked.focus();
-      // Focus moving between two elements outside the hidden modal — the
-      // hidden modal's listener must not react.
-      fireEvent.focusOut(stacked, { relatedTarget: document.body });
-
-      expect(modalContainer).not.toHaveFocus();
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(onExit).not.toHaveBeenCalled();
     });
 
     it("does not fire onEnter for autorepeated Enter keys", () => {

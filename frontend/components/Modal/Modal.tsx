@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -62,42 +68,31 @@ const Modal = ({
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
-  // Latest-value ref so the focusout listener can consult isHidden without
-  // re-running the mount effect (which would steal focus on every toggle).
-  // isHidden signals a sibling modal is stacked on top of this one; that
-  // modal owns focus, so this one should stay out of the way.
+  // Latest-value ref for document-level handlers to consult isHidden without
+  // re-running their mount effects. isHidden signals a sibling modal is
+  // stacked on top of this one; that modal owns focus and keyboard input.
   const isHiddenRef = useRef(isHidden);
-  // Writing during render is deliberate — React's canonical pattern for
-  // mirroring a prop into a ref so long-lived handlers see the latest value.
-  isHiddenRef.current = isHidden;
+  useLayoutEffect(() => {
+    isHiddenRef.current = isHidden;
+  }, [isHidden]);
 
-  // Focus the container on open so the modal is the keyboard landing point;
-  // on close, restore focus to whatever was focused before. Native Tab handles
-  // ordering inside — the focusout listener just redirects escaping focus
-  // back to the container, which effectively wraps at the modal boundary.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    // Only take focus (and later restore it) if we're the active modal.
-    // A modal mounted with isHidden=true is stacked behind another one that
-    // already owns focus; grabbing focus on unmount would jump the user back
-    // to a stale location.
-    const tookFocus = !isHiddenRef.current;
+    // Skip if a stacked modal is on top or if a child already claimed focus
+    // (e.g. an autoFocused InputField). Restore on unmount only when we took
+    // focus and are not hidden at close time, so a stacked-then-unmount flow
+    // doesn't yank focus away from the top modal.
+    const tookFocus =
+      !isHiddenRef.current && !container.contains(document.activeElement);
     if (tookFocus) container.focus();
 
-    const handleFocusOut = (e: FocusEvent) => {
-      if (isHiddenRef.current) return;
-      const next = e.relatedTarget as Node | null;
-      if (next && !container.contains(next)) container.focus();
-    };
-    document.addEventListener("focusout", handleFocusOut);
-
     return () => {
-      document.removeEventListener("focusout", handleFocusOut);
       if (
         tookFocus &&
+        !isHiddenRef.current &&
         previouslyFocused &&
         document.body.contains(previouslyFocused)
       ) {
@@ -117,6 +112,7 @@ const Modal = ({
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
+      if (isHiddenRef.current) return;
       if (e.key === "Escape") {
         handleClose();
       }
@@ -246,7 +242,7 @@ const Modal = ({
       <div
         ref={containerRef}
         className={modalContainerClasses}
-        tabIndex={-1} // Make focusable as the initial keyboard landing target
+        tabIndex={-1}
         onMouseDown={handleContainerMouseDown}
         onMouseUp={handleContainerMouseUp}
         onInput={handleContainerInput}

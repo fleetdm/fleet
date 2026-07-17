@@ -124,31 +124,25 @@ const ManageQueryAutomationsModal = ({
     );
   };
 
-  const submitSelected = () =>
+  const onSubmitQueryAutomations = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
     onSubmit({
       newAutomatedQueryIds: queryItems
         .filter((p) => p.isChecked)
         .map((p) => p.id),
       previousAutomatedQueryIds: automatedQueryIds,
     });
-
-  const onSubmitQueryAutomations = (
-    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
-  ) => {
-    evt.preventDefault();
-    submitSelected();
   };
 
   return (
     <Modal
       title="Manage automations"
       onExit={onCancel}
-      onEnter={submitSelected}
       className={baseClass}
       width="large"
       isHidden={isShowingPreviewDataModal}
     >
-      <div className={`${baseClass} form`}>
+      <form className={`${baseClass} form`} onSubmit={onSubmitQueryAutomations}>
         <div className={`${baseClass}__heading`}>
           Report automations let you send data gathered from macOS, Windows, and
           Linux hosts to a log destination. Data is sent according to a
@@ -222,7 +216,6 @@ const ManageQueryAutomationsModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                onClick={onSubmitQueryAutomations}
                 className="save-loading"
                 isLoading={isUpdatingAutomations}
                 disabled={disableChildren}
@@ -235,7 +228,7 @@ const ManageQueryAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 };
