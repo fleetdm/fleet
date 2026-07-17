@@ -2817,6 +2817,35 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	retained := priorContents(retainProfile.ProfileUUID)
 	require.Len(t, retained, 1, "a content-changing edit must retain the outgoing version")
 	require.Equal(t, retainOriginal, retained[0])
+
+	// uploaded_at is preserved on a no-op edit (identical content) and bumped
+	// on a real content change, matching the upsert's convention
+	uploadedAtSyncML := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/UploadedAt</LocURI></Target></Item></Replace>")
+	uploadedAtProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Uploaded At Profile",
+		SyncML: uploadedAtSyncML,
+	}, nil)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+
+	noOp, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		SyncML:      uploadedAtSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2020, noOp.UploadedAt.Year(), "a no-op edit must not bump uploaded_at")
+
+	contentChangedProf, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/UploadedAtChanged</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 // identified by its (unique) name.

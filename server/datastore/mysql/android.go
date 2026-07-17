@@ -756,8 +756,14 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 		}
 
 		if len(cp.RawJSON) > 0 {
-			stmt := `UPDATE mdm_android_configuration_profiles SET raw_json = ?, uploaded_at = CURRENT_TIMESTAMP() WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.ProfileUUID, cp.Name)
+			// uploaded_at is preserved when the content didn't change, matching
+			// the batch upsert's IF(raw_json = VALUES(raw_json) ...) convention --
+			// a no-op edit must not read as a fresh upload. Its assignment is
+			// evaluated first (left to right) so it sees the pre-update raw_json,
+			// and the parameter must be CAST to JSON: comparing a json column to
+			// a bare string compares against a JSON scalar string, never equal.
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ? WHERE profile_uuid = ? AND name = ?`
+			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.ProfileUUID, cp.Name)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
 			}

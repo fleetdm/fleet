@@ -353,11 +353,17 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				}
 			}
 
+			// uploaded_at is preserved when nothing changed, matching the batch
+			// upsert's IF(checksum = VALUES(checksum) AND name = VALUES(name), ...)
+			// convention -- a no-op edit must not read as a fresh upload. Its
+			// assignment is evaluated first (left to right) so it sees the
+			// pre-update column values.
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
-SET mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, uploaded_at = CURRENT_TIMESTAMP(), secrets_updated_at = ?
+SET uploaded_at = IF(checksum = UNHEX(MD5(?)) AND name = ?, uploaded_at, CURRENT_TIMESTAMP()),
+	mobileconfig = ?, checksum = UNHEX(MD5(?)), name = ?, secrets_updated_at = ?
 WHERE profile_uuid = ? AND identifier = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier)
+			res, err := tx.ExecContext(ctx, stmt, cp.Mobileconfig, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, cp.SecretsUpdatedAt, cp.ProfileUUID, cp.Identifier)
 			if err != nil {
 				switch {
 				case IsDuplicate(err):
