@@ -295,10 +295,21 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		require.ErrorAs(t, err, &permErr)
 	})
 
-	t.Run("api-only user, chart endpoint not in catalog is rejected", func(t *testing.T) {
-		// Chart endpoints (fleet/charts/{metric}) are not in the API catalog,
-		// so an api-only user with restrictions must be denied access.
+	t.Run("api-only user with restrictions, chart endpoint not in allow-list is rejected", func(t *testing.T) {
+		// Chart endpoints (fleet/charts/:metric) are in the API catalog, so the
+		// catalog check passes. The user's allow-list does not include charts,
+		// so the allow-list check must reject the request.
+		catalogWithCharts := append(testCatalogEndpoints,
+			fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/charts/:metric"),
+		)
+		set := make(map[string]struct{}, len(catalogWithCharts))
+		for _, ep := range catalogWithCharts {
+			set[ep.Fingerprint()] = struct{}{}
+		}
+		isInCatalog := func(fp string) bool { _, ok := set[fp]; return ok }
+
 		next, called := newNext()
+		ep := apiOnlyEndpointCheck(isInCatalog, next)
 		ctx := ctxWithMethod("GET", muxTemplate("fleet/charts/{metric}"))
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 			APIOnly: true,
@@ -307,7 +318,7 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 			},
 		}})
 
-		_, err := newEndpoint(next)(ctx, nil)
+		_, err := ep(ctx, nil)
 		require.Error(t, err)
 		require.False(t, *called)
 		var permErr *fleet.PermissionError
