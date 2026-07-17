@@ -37,7 +37,12 @@ module.exports = {
     if(connectionforThisInstanceExists) {
       // Before throwing conflict, verify the enterprise still exists in Google
       // If it doesn't exist, clean up the stale proxy record and continue with signup
-      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(connectionforThisInstanceExists.androidEnterpriseId);
+      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(connectionforThisInstanceExists.androidEnterpriseId)
+      .intercept({status: 429}, (err)=>{
+        // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+        sails.log.warn(`p1: Android management API rate limit exceeded!`);
+        return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
+      })
       if(isEnterpriseManagedByFleet) {
         // Enterprise still exists in Google - throw conflict
         throw 'enterpriseAlreadyExists';
