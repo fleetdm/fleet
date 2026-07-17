@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -48,11 +49,13 @@ func TestSecretVariables(t *testing.T) {
 func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	err := ds.UpsertSecretVariables(ctx, nil)
-	assert.NoError(t, err)
+	createdNames, updatedNames, err := ds.UpsertSecretVariables(ctx, nil)
+	require.NoError(t, err)
+	require.Empty(t, createdNames)
+	require.Empty(t, updatedNames)
 	results, err := ds.GetSecretVariables(ctx, nil)
-	assert.NoError(t, err)
-	assert.Empty(t, results)
+	require.NoError(t, err)
+	require.Empty(t, results)
 
 	secretMap := map[string]string{
 		"test1": "testValue1",
@@ -67,43 +70,50 @@ func testUpsertSecretVariables(t *testing.T, ds *Datastore) {
 		return secrets
 	}
 	secrets := createExpectedSecrets()
-	err = ds.UpsertSecretVariables(ctx, secrets)
-	assert.NoError(t, err)
+	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, secrets)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"test1", "test2", "test3"}, createdNames)
+	require.Empty(t, updatedNames)
 
 	results, err = ds.GetSecretVariables(ctx, []string{"test1", "test2", "test3"})
-	assert.NoError(t, err)
-	assert.Len(t, results, 3)
+	require.NoError(t, err)
+	require.Len(t, results, 3)
 	for _, result := range results {
-		assert.Equal(t, secretMap[result.Name], result.Value)
+		require.Equal(t, secretMap[result.Name], result.Value)
 	}
 
 	// Update a secret and insert a new one
 	secretMap["test2"] = "newTestValue2"
 	secretMap["test4"] = "testValue4"
-	err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test2", Value: secretMap["test2"]},
 		{Name: "test4", Value: secretMap["test4"]},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"test4"}, createdNames)
+	require.ElementsMatch(t, []string{"test2"}, updatedNames)
 	results, err = ds.GetSecretVariables(ctx, []string{"test2", "test4"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.Len(t, results, 2)
 	for _, result := range results {
-		assert.Equal(t, secretMap[result.Name], result.Value)
+		require.Equal(t, secretMap[result.Name], result.Value)
 	}
 
-	// Make sure updated_at timestamp does not change when we update a secret with the same value
+	// Make sure updated_at timestamp does not change when we update a secret with the same value,
+	// and that an unchanged value produces neither a created nor an updated result.
 	original, err := ds.GetSecretVariables(ctx, []string{"test1"})
 	require.NoError(t, err)
 	require.Len(t, original, 1)
-	err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
+	createdNames, updatedNames, err = ds.UpsertSecretVariables(ctx, []fleet.SecretVariable{
 		{Name: "test1", Value: secretMap["test1"]},
 	})
 	require.NoError(t, err)
+	require.Empty(t, createdNames)
+	require.Empty(t, updatedNames)
 	updated, err := ds.GetSecretVariables(ctx, []string{"test1"})
 	require.NoError(t, err)
-	require.Len(t, original, 1)
-	assert.Equal(t, original[0], updated[0])
+	require.Len(t, updated, 1)
+	require.Equal(t, original[0], updated[0])
 }
 
 func testValidateEmbeddedSecrets(t *testing.T, ds *Datastore) {
@@ -133,7 +143,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 		secrets = append(secrets, fleet.SecretVariable{Name: name, Value: value})
 	}
 
-	err := ds.UpsertSecretVariables(ctx, secrets)
+	_, _, err := ds.UpsertSecretVariables(ctx, secrets)
 	require.NoError(t, err)
 
 	err = ds.ValidateEmbeddedSecrets(ctx, []string{noSecrets})
@@ -192,7 +202,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 		secrets = append(secrets, fleet.SecretVariable{Name: name, Value: value})
 	}
 
-	err := ds.UpsertSecretVariables(ctx, secrets)
+	_, _, err := ds.UpsertSecretVariables(ctx, secrets)
 	require.NoError(t, err)
 
 	expanded, err := ds.ExpandEmbeddedSecrets(ctx, noSecrets)
@@ -483,9 +493,11 @@ func testListSecretVariables(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, id1, secrets[0].ID)
 		require.Equal(t, name1, secrets[0].Name)
+		require.NotEmpty(t, secrets[0].CreatedAt)
 		require.NotZero(t, secrets[0].UpdatedAt)
 		require.Equal(t, id2, secrets[1].ID)
 		require.Equal(t, name2, secrets[1].Name)
+		require.NotEmpty(t, secrets[1].CreatedAt)
 		require.NotZero(t, secrets[1].UpdatedAt)
 
 		_, err = ds.DeleteSecretVariable(ctx, id1)
@@ -807,6 +819,46 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 
 		err = ds.DeleteScript(ctx, script.ID)
 		require.NoError(t, err)
+	})
+
+	t.Run("host name templates", func(t *testing.T) {
+		// Set a team host name template that uses the variable.
+		foobarTeam.Config.MDM.HostNameTemplate = "iPad $FLEET_SECRET_FOOBAR"
+		_, err := ds.SaveTeam(ctx, foobarTeam)
+		require.NoError(t, err)
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s := &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "host_name_template", s.Entity.Type)
+		require.Equal(t, "Foobar", s.Entity.TeamName)
+
+		// Clear the team template.
+		foobarTeam.Config.MDM.HostNameTemplate = ""
+		_, err = ds.SaveTeam(ctx, foobarTeam)
+		require.NoError(t, err)
+
+		// Set an "Unassigned" (global) host name template that uses the variable.
+		ac, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		ac.MDM.HostNameTemplate = optjson.SetString("iPad ${FLEET_SECRET_FOOBAR}")
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
+
+		// Attempt to delete the variable, should fail.
+		_, err = ds.DeleteSecretVariable(ctx, id)
+		require.Error(t, err)
+		s = &fleet.SecretUsedError{}
+		require.ErrorAs(t, err, &s)
+		require.Equal(t, "FOOBAR", s.SecretName)
+		require.Equal(t, "host_name_template", s.Entity.Type)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
+
+		// Clear the "Unassigned" template.
+		ac.MDM.HostNameTemplate = optjson.SetString("")
+		require.NoError(t, ds.SaveAppConfig(ctx, ac))
 	})
 
 	// Finally attempt to delete the secret again now that no entity is using it.

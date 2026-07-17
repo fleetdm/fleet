@@ -657,6 +657,29 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			}
 		}
 
+		// Custom host vitals ($FLEET_HOST_VITAL_<id>) are a separate variable
+		// namespace that isn't recorded in mdm_configuration_profile_variables, so
+		// detect them by scanning the declaration body. Marking them
+		// HasFleetVariables makes the reconciler stamp variables_updated_at, which
+		// (a) lets handleDeclarationItems load raw_json and drop declarations it
+		// can't resolve for a host from the manifest, and (b) cache-busts the DDM
+		// token so a per-host value change is re-delivered. INSTR matches the
+		// prefix without the leading '$' so it catches both $FOO and ${FOO} forms.
+		const vitalsStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE declaration_uuid IN (?) AND INSTR(raw_json, ?) > 0`
+		q, args, err = sqlx.In(vitalsStmt, declUUIDs, fleet.CustomHostVitalPrefix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration custom host vitals query")
+		}
+		var withVitals []string
+		if err := sqlx.SelectContext(ctx, tx, &withVitals, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with custom host vitals")
+		}
+		for _, u := range withVitals {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+
 		// For declarations that reference DDM assets, load the most recent
 		// uploaded_at across their referenced assets. The reconciler stamps this
 		// onto host_mdm_apple_declarations.assets_updated_at so that editing an

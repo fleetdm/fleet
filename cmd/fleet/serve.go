@@ -428,23 +428,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)

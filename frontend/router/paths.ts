@@ -16,6 +16,7 @@ export default {
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
+  CONTROLS_HOST_NAME_TEMPLATE: `${URL_PREFIX}/controls/os-settings/host-name-template`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
@@ -29,6 +30,8 @@ export default {
   CONTROLS_SCRIPTS_BATCH_DETAILS: (batchExecutionId: string) =>
     `${URL_PREFIX}/controls/scripts/progress/${batchExecutionId}`,
   CONTROLS_VARIABLES: `${URL_PREFIX}/controls/variables`,
+  CONTROLS_VARIABLES_GLOBAL_VARIABLES: `${URL_PREFIX}/controls/variables/global-variables`,
+  CONTROLS_VARIABLES_CUSTOM_HOST_VITALS: `${URL_PREFIX}/controls/variables/custom-host-vitals`,
 
   // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,

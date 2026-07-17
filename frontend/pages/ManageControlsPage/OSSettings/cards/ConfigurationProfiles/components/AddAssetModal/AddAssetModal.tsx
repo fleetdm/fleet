@@ -32,8 +32,8 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
       <Graphic name="file-json" className={`${baseClass}__graphic`} />
       <span className={`${baseClass}__file-chooser--title`}>Upload asset</span>
       <span className={`${baseClass}__file-chooser--message`}>
-        Currently, only asset declarations (com.apple.asset) are supported. All
-        other assets must be user hosted.{" "}
+        Only JSON files with com.apple.asset.* are supported. Referenced data
+        (Reference.DataURL) must be self-hosted.{" "}
         <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
       </span>
       <Button
