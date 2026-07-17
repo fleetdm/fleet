@@ -1,14 +1,12 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-$softwareName = "Mozilla Firefox"
+$softwareName = "Firefox Developer Edition"
 
-# Match only the release channel ("Mozilla Firefox (x64 en-US)"); the prefix
-# match plus the ESR exclusion below keeps ESR, Developer Edition, and Nightly
-# entries untouched.
+# Developer Edition registers as "Firefox Developer Edition (x64 en-US)"; the
+# prefix match cannot hit the release, ESR, or Nightly entries.
 $softwareNameLike = "$softwareName*"
 
-# Some uninstallers require a flag to run silently.
-# Each uninstaller might use different argument (usually it's "/S" or "/s")
+# Firefox's NSIS uninstaller (helper.exe) runs silently with /S.
 $uninstallArgs = "/S"
 
 $machineKey = `
@@ -29,8 +27,7 @@ $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
     # If needed, add -notlike to the comparison to exclude certain similar
     # software
-    if ($key.DisplayName -like $softwareNameLike -and
-        $key.DisplayName -notlike "*ESR*") {
+    if ($key.DisplayName -like $softwareNameLike) {
         $foundUninstaller = $true
         # Get the uninstall command. Some uninstallers do not include
         # 'QuietUninstallString' and require a flag to run silently.
@@ -46,7 +43,7 @@ foreach ($key in $uninstallKeys) {
         $splitArgs = $uninstallCommand.Split('"')
         if ($splitArgs.Length -gt 1) {
             if ($splitArgs.Length -eq 3) {
-                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
+            $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
             } elseif ($splitArgs.Length -gt 3) {
                 Throw `
                     "Uninstall command contains multiple quoted strings. " +
