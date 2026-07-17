@@ -17,7 +17,7 @@
     position: relative;
     display: flex;
     align-items: center;
-    gap: $pad-small;
+    gap: $pad-medium;
     margin-bottom: $pad-medium;
 
     // Scoped to a direct child so this doesn't also catch the plus icon

@@ -8,7 +8,7 @@
   &__button-wrap {
     display: flex;
     align-items: center;
-    gap: $pad-small;
+    gap: $pad-medium;
   }
 
   .ace-fleet {
@@ -96,10 +96,6 @@
   }
 
   .table-container {
-    &__header {
-      gap: $pad-small;
-    }
-
     &__header-left {
       .controls {
         display: flex;
@@ -108,13 +104,13 @@
         .manage-hosts__table-actions {
           display: flex;
           align-items: center;
-          gap: $pad-small; // grouping secondary buttons
+          gap: $pad-medium; // grouping secondary buttons
         }
 
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
-          margin-left: $pad-small;
+          margin-left: $gap-table-elements;
           align-items: center;
 
           // Dropdown height matches search bar height
@@ -247,7 +243,7 @@
   }
 
   &__label-filter-dropdown {
-    margin-left: $pad-small;
+    margin-left: $gap-table-elements;
   }
 
   &__info-banners {

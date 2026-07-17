@@ -251,12 +251,6 @@ $shadow-transition-width: 16px;
         display: flex;
         align-items: center;
       }
-
-      // Tighter gap between the grouped secondary buttons (e.g. Run script,
-      // Transfer, Delete) than between those and the rest of the bar
-      &__inner-left button {
-        margin-right: $pad-small;
-      }
     }
 
     tbody {

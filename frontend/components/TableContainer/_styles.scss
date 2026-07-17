@@ -18,7 +18,7 @@
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: $pad-small;
+    gap: $gap-table-elements;
 
     > div {
       display: flex;
@@ -81,7 +81,7 @@
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    gap: $pad-small;
+    gap: $gap-table-elements;
 
     &.stack-table-controls {
       align-items: start;
