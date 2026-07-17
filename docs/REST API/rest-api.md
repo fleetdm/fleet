@@ -3741,7 +3741,7 @@ Returns the information of the specified host.
     "disk_encryption_enabled": true,
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
-    "ab_source": "Apple",
+    "apple_business_source": "Apple",
     "additional": {},
     "issues": {
       "failing_policies_count": 1,
