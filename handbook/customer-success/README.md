@@ -191,7 +191,7 @@ Document the completion of a customer promise through the following steps:
 
 ### Submit a feature request for CSA review (For CSMs)
 
-Before proceeding, try to locate existing relevant issues. Create your requests if one doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure to do the following:
+Submit a feature request to the CSA team for review following these steps:
 - Navigate to the help-customers board in GitHub
 - Press "Add item" under the "New requests" column
 - Select "Custom request" as the issue type
