@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "18.12.0",
+      "version": "18.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app' AND version_compare(bundle_short_version, '18.12.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.super-productivity.app' AND version_compare(bundle_short_version, '18.14.0') < 0);"
       },
-      "installer_url": "https://github.com/super-productivity/super-productivity/releases/download/v18.12.0/superProductivity-arm64.dmg",
+      "installer_url": "https://github.com/super-productivity/super-productivity/releases/download/v18.14.0/superProductivity-arm64.dmg",
       "install_script_ref": "149e0795",
       "uninstall_script_ref": "98941c96",
-      "sha256": "1d15de1322b6efc2833bd7496186f5d9ce3dcdb58a09c9e4d33e71f5131c3ccc",
+      "sha256": "3fab5cd07a00d5edab1ae9c10e121e85114cadbbe4310010ed6f730ee12e6798",
       "default_categories": [
         "Productivity"
       ]

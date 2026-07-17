@@ -103,6 +103,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
+  HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/name_template/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -182,9 +184,14 @@ export default {
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
+  // Apple DDM asset endpoints
+  MDM_ASSETS: `/${API_VERSION}/fleet/assets`,
+  MDM_ASSET: (uuid: string) => `/${API_VERSION}/fleet/assets/${uuid}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+  HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (
     token: string,

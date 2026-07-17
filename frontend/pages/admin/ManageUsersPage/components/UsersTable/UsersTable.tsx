@@ -73,6 +73,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     () => usersAPI.loadAll({ globalFilter: querySearchText }),
     {
       select: (data: IUser[]) => data,
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -88,6 +89,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       select: (data: IInvite[]) => {
         return data;
       },
+      refetchOnWindowFocus: false,
     }
   );
 

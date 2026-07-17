@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -160,6 +160,8 @@ const ActivityFeed = ({
     host_uuid?: string;
     command_uuid: string;
     actor_full_name?: string;
+    host_display_name?: string;
+    request_type?: string;
   } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -337,6 +339,8 @@ const ActivityFeed = ({
           command_uuid: details.command_uuid,
           host_uuid: details?.host_uuid,
           actor_full_name,
+          host_display_name: details?.host_display_name,
+          request_type: details?.request_type,
         });
         break;
       }
@@ -513,15 +517,52 @@ const ActivityFeed = ({
         <MdmCommandDetailsModal
           command={mdmCommandActivityDetails}
           contentBody={(cls, result) => {
+            const isDeleted = result.status === "Deleted";
             const isPending = getIconName(result.status) === "pending-outline";
             const cmdDisplayName = getMdmCommandDisplayName(
-              result.request_type
+              isDeleted
+                ? mdmCommandActivityDetails.request_type
+                : result.request_type
             );
-            const timeAgo = result.updated_at
-              ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+            const timeAgoText = result.updated_at
+              ? ` (${timeAgo(new Date(result.updated_at), {
                   addSuffix: true,
                 })})`
               : "";
+
+            if (isDeleted) {
+              // no result -- likely the host was wiped and re-enrolled since.
+              // Use the activity's own details, captured at click-time,
+              // instead of the (empty) fetched result. Both fields are
+              // optional on that captured state, so guard against a leading
+              // "ran ..." with no actor and a bare "on ." with no hostname.
+              const {
+                actor_full_name: actorText,
+                host_display_name: hostText,
+              } = mdmCommandActivityDetails;
+              return (
+                <>
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName="info-outline"
+                    message={
+                      <span>
+                        {actorText && <b>{actorText}</b>}
+                        {actorText ? " ran " : "Ran "}
+                        {formatMdmCommandNameForActivityItem(
+                          mdmCommandActivityDetails.request_type
+                        )}
+                        {" on "}
+                        {hostText ? <b>{hostText}</b> : "this host"}
+                        {"."}
+                      </span>
+                    }
+                  />
+                  <div>This command has been deleted.</div>
+                </>
+              );
+            }
+
             return (
               <IconStatusMessage
                 className={`${cls}__status-message`}
@@ -540,7 +581,7 @@ const ActivityFeed = ({
                       )}
                       {" is pending on "}
                       <b>{result.hostname}</b>
-                      {`${timeAgo}.`}
+                      {`${timeAgoText}.`}
                     </span>
                   ) : (
                     <span>

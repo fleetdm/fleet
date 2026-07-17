@@ -1,0 +1,13 @@
+{
+  "name": "FreeCAD",
+  "slug": "freecad/windows",
+  "package_identifier": "FreeCAD.FreeCAD",
+  "unique_identifier": "FreeCAD",
+  "fuzzy_match_name": "FreeCAD%",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/freecad_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/freecad_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

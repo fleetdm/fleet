@@ -90,6 +90,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.23.1 +", value: "5.23.1" },
   { label: "5.23.0 +", value: "5.23.0" },
   { label: "5.22.1 +", value: "5.22.1" },
   { label: "5.21.0 +", value: "5.21.0" },
@@ -338,13 +339,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, user email, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP = (
   <>
     Search hosts by name, user email, hostname,
     <br />
-    UUID, serial number, or private IP address.
+    UUID, serial number, or IP address.
   </>
 );
 

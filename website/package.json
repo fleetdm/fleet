@@ -31,6 +31,14 @@
     "sails-hook-grunt": "^5.0.0",
     "yaml": "1.10.2"
   },
+  "overrides": {
+    "jsforce": {
+      "form-data": "4.0.6"
+    },
+    "request": {
+      "form-data": "2.5.6"
+    }
+  },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",
     "build-for-prod": "echo 'Now compiling markdown content and building+minifying assets for production...' && echo '(Hang tight, this could take a while.)' && echo && ./node_modules/sails/bin/sails.js run build-static-content ${BUILD_SCRIPT_ARGS} && echo && node node_modules/grunt/bin/grunt buildProd || (echo && echo '------------------------------------------' && echo 'IMPORTANT!  IMPORTANT!  IMPORTANT!' && echo 'ERROR: Could not compile assets for production!' && echo && echo 'Please fix the issues logged above' && echo 'and push that up.  Then, try deploying again.' && echo '------------------------------------------' && echo) && mv www .www && node -e 'sailsrc = JSON.parse(require(\"fs\").readFileSync(\"./.sailsrc\", \"utf8\"));  if (sailsrc.paths&&sailsrc.paths.public !== undefined || sailsrc.hooks&&sailsrc.hooks.grunt !== undefined) { throw new Error(\"Cannot complete deployment script: .sailsrc file has conflicting contents!  Please remove the conflicting stuff from .sailsrc, then commit and push that up.\"); }  sailsrc.paths = sailsrc.paths || {};  sailsrc.paths.public = \"./.www\";   sailsrc.hooks = sailsrc.hooks || {};  sailsrc.hooks.grunt = false;  require(\"fs\").writeFileSync(\"./.sailsrc\", JSON.stringify(sailsrc))' && echo 'Build is complete.  Ready to deploy.'",

@@ -32,7 +32,11 @@ A more extreme method is wiping the device, which performs an Erase All Contents
 
 #### 3. Sending the install command
 
-By default, the install profile is not sent after the first enrollment. However, you can manually send a command to reinstall `fleetd`. Here is the XML command for macOS:
+By default, the install profile is not sent after the first enrollment. However, you can manually send a command to reinstall `fleetd`.
+
+> There's a basic third-party macOS app called [Fleet Agent Installer](https://github.com/spalmesano0/FleetAgentInstaller) that automates the steps below for Mac hosts.
+
+Here is the XML command for macOS:
 
 ```xml
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

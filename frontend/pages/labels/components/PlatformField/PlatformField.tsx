@@ -10,6 +10,7 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
   darwin: "macOS",
   windows: "MS Windows",
   ubuntu: "Ubuntu Linux",
+  zorin: "Zorin OS",
   centos: "CentOS Linux",
 };
 
