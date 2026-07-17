@@ -1144,6 +1144,35 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
 	require.NoError(t, err)
 	require.Empty(t, varNames, "a content edit that drops the last Fleet variable must clear the stale association")
+
+	// uploaded_at is preserved on a no-op edit (identical content) and bumped
+	// on a real content change, matching the batch upsert's convention
+	uploadedAtRawJSON := []byte(`{"uploadedAt": true}`)
+	uploadedAtProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Uploaded At Profile",
+		RawJSON: uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_android_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+
+	noOp, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2020, noOp.UploadedAt.Year(), "a no-op edit must not bump uploaded_at")
+
+	contentChangedProf, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     []byte(`{"uploadedAt": false}`),
+	}, nil)
+	require.NoError(t, err)
+	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {

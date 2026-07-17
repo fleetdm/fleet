@@ -2527,19 +2527,24 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 		}
 
 		if len(cp.SyncML) > 0 {
+			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
+
 			// For content that is actually changing, retain the outgoing version
 			// before the UPDATE overwrites it, so the profile-manager cron can
 			// build <Delete> commands for LocURIs the new content drops -- the
 			// same guarantee as SetOrUpdateMDMWindowsConfigProfile and
 			// batchSetMDMWindowsProfilesDB's edit path.
-			if !bytes.Equal(existing.SyncML, cp.SyncML) {
+			if contentChanged {
 				if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
 					return ctxerr.Wrap(ctx, err, "retaining prior content for updated profile")
 				}
 			}
 
-			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, uploaded_at = CURRENT_TIMESTAMP() WHERE profile_uuid = ? AND name = ?`
-			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, cp.ProfileUUID, cp.Name)
+			// uploaded_at is preserved when the content didn't change, matching
+			// the upsert's IF(syncml = VALUES(syncml), ...) convention -- a
+			// no-op edit must not read as a fresh upload.
+			stmt := `UPDATE mdm_windows_configuration_profiles SET syncml = ?, uploaded_at = IF(?, CURRENT_TIMESTAMP(), uploaded_at) WHERE profile_uuid = ? AND name = ?`
+			res, err := tx.ExecContext(ctx, stmt, cp.SyncML, contentChanged, cp.ProfileUUID, cp.Name)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows mdm config profile contents")
 			}
