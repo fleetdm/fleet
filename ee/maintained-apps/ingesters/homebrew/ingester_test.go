@@ -95,6 +95,22 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
+		case "firefox@developer-edition":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Mozilla Firefox Developer Edition"},
+				URL:     "https://example.com",
+				Version: "153.0b13",
+			}
+
+		case "firefox@nightly":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Mozilla Firefox Nightly"},
+				URL:     "https://example.com",
+				Version: "154.0a1,2026-07-17-09-27-13",
+			}
+
 		default:
 			w.WriteHeader(http.StatusBadRequest)
 			t.Fatalf("unexpected app token %s", appToken)
@@ -104,6 +120,12 @@ func TestIngestValidations(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(srv.Close)
+
+	// buildhub stub: DevEd 153.0b13 build id -> CFBundleVersion "15326.7.15".
+	buildhubSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"hits":{"hits":[{"_source":{"build":{"id":"20260715125817"}}}]}}`))
+	}))
+	t.Cleanup(buildhubSrv.Close)
 
 	ctx := context.Background()
 
@@ -121,6 +143,8 @@ func TestIngestValidations(t *testing.T) {
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.electron.dockerdesktop", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
+		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
+		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
@@ -133,6 +157,7 @@ func TestIngestValidations(t *testing.T) {
 				logger:           slog.New(slog.DiscardHandler),
 				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 				baseURL:          srv.URL + "/",
+				buildhubURL:      buildhubSrv.URL,
 				retryInterval:    time.Millisecond,
 				retryMaxAttempts: 3,
 			}
@@ -158,6 +183,21 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dockerdesktop' AND path NOT LIKE '%.back' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "firefox@developer-edition":
+				// Patched query compares the buildhub-resolved CFBundleVersion.
+				require.Equal(t, "153.0b13", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_version, '15326.7.15') < 0);",
+					out.Queries.Patched,
+				)
+			case "firefox@nightly":
+				// Patched query compares the CFBundleVersion derived from the cask
+				// version's build timestamp.
+				require.Equal(t, "154.0a1", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.nightly' AND version_compare(bundle_version, '15426.7.17') < 0);",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":
@@ -360,4 +400,132 @@ func TestIngestCaskPath(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "empty name")
 	require.Equal(t, 0, httpHits)
+}
+
+func TestFirefoxBetaBaseVersion(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"153.0b13", "153.0"},
+		{"154.0b1", "154.0"},
+		{"153.0.1b2", "153.0.1"},
+		{"153.0", "153.0"},
+		{"152.0.6", "152.0.6"},
+		{"154.0a1", "154.0a1"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		require.Equal(t, c.want, firefoxBetaBaseVersion(c.in), "input %q", c.in)
+	}
+}
+
+func TestFirefoxMacBundleVersion(t *testing.T) {
+	cases := []struct {
+		version   string
+		buildDate string
+		want      string
+		wantErr   bool
+	}{
+		{"153.0b13", "20260715125817", "15326.7.15", false},
+		{"154.0a1", "20260717", "15426.7.17", false},
+		{"153.0.1b2", "20261201000000", "15326.12.1", false},
+		{"153.0b13", "2026071", "", true},        // build date too short
+		{"153.0b13", "2026x715", "", true},       // build date not numeric
+		{"153.0b13", "20261315000000", "", true}, // month out of range
+		{"153.0b13", "20260732000000", "", true}, // day out of range
+		{"153.0b13", "20260231000000", "", true}, // impossible calendar date
+		{"x.0b13", "20260715125817", "", true},   // non-numeric major
+		{"", "20260715125817", "", true},
+	}
+	for _, c := range cases {
+		got, err := firefoxMacBundleVersion(c.version, c.buildDate)
+		if c.wantErr {
+			require.Error(t, err, "version %q buildDate %q", c.version, c.buildDate)
+			continue
+		}
+		require.NoError(t, err, "version %q buildDate %q", c.version, c.buildDate)
+		require.Equal(t, c.want, got, "version %q buildDate %q", c.version, c.buildDate)
+	}
+}
+
+func TestFirefoxNightlyMacBundleVersion(t *testing.T) {
+	cases := []struct {
+		caskVersion string
+		want        string
+		wantErr     bool
+	}{
+		{"154.0a1,2026-07-17-09-27-13", "15426.7.17", false},
+		{"154.0a1,2026-07-17", "15426.7.17", false},
+		{"154.0a1", "", true},                     // no build timestamp
+		{"154.0a1,not-a-date", "", true},          // malformed timestamp
+		{"154.0a1,2026-13-17-09-27-13", "", true}, // month out of range
+	}
+	for _, c := range cases {
+		got, err := firefoxNightlyMacBundleVersion(c.caskVersion)
+		if c.wantErr {
+			require.Error(t, err, "caskVersion %q", c.caskVersion)
+			continue
+		}
+		require.NoError(t, err, "caskVersion %q", c.caskVersion)
+		require.Equal(t, c.want, got, "caskVersion %q", c.caskVersion)
+	}
+}
+
+// TestFirefoxDevEditionBuildhubFallback verifies that a buildhub failure falls
+// back to a base-version patch comparison instead of failing ingestion.
+func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
+	brewSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewEncoder(w).Encode(brewCask{
+			Token:   "firefox@developer-edition",
+			Name:    []string{"Mozilla Firefox Developer Edition"},
+			URL:     "https://example.com",
+			Version: "153.0b13",
+		})
+		if err != nil {
+			t.Errorf("encoding fixture: %v", err)
+		}
+	}))
+	t.Cleanup(brewSrv.Close)
+
+	cases := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{"buildhub has no matching build", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"hits":{"hits":[]}}`))
+		}},
+		{"buildhub is unavailable", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			buildhubSrv := httptest.NewServer(c.handler)
+			t.Cleanup(buildhubSrv.Close)
+
+			i := &brewIngester{
+				logger:           slog.New(slog.DiscardHandler),
+				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				baseURL:          brewSrv.URL + "/",
+				buildhubURL:      buildhubSrv.URL,
+				retryInterval:    time.Millisecond,
+				retryMaxAttempts: 2,
+			}
+
+			out, err := i.ingestOne(context.Background(), inputApp{
+				Token:            "firefox@developer-edition",
+				UniqueIdentifier: "org.mozilla.firefoxdeveloperedition",
+				InstallerFormat:  "dmg",
+				Name:             "Mozilla Firefox Developer Edition",
+				Slug:             "firefox@developer-edition/darwin",
+			})
+			require.NoError(t, err)
+			require.Equal(t, "153.0b13", out.Version)
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_short_version, '153.0') < 0);",
+				out.Queries.Patched,
+			)
+		})
+	}
 }

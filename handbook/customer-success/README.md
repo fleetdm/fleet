@@ -167,7 +167,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or working group.
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or product group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -588,7 +588,7 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
 1. **fleetdm.com**
     - Create a confidential website request issue
-    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website product group will delete the account and let you know in a comment when the user account is deleted.
 2.  **Salesforce**
     1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
 3. **Stripe** 

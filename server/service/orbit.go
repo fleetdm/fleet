@@ -1811,7 +1811,7 @@ func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, ho
 	// Retry the version currently targeted by the title, not the (possibly
 	// superseded) installer this attempt was frozen on, so a retry after an
 	// auto-update installs the active version rather than looping on the old one.
-	installerID, err := svc.ds.ResolveActiveInstallerForFrozen(ctx, *hsi.SoftwareInstallerID)
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
 	if err != nil {
 		return err
 	}
@@ -1840,7 +1840,7 @@ func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.H
 func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
 	// Retry the version currently targeted by the title, not the (possibly
 	// superseded) installer this attempt was frozen on.
-	installerID, err := svc.ds.ResolveActiveInstallerForFrozen(ctx, *hsi.SoftwareInstallerID)
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
 	if err != nil {
 		return err
 	}

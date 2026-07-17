@@ -948,8 +948,8 @@ func TestRetrySoftwareInstall(t *testing.T) {
 		return "new-uuid", nil
 	}
 	// By default the frozen installer is still the active one for its title.
-	ds.ResolveActiveInstallerForFrozenFunc = func(ctx context.Context, frozenInstallerID uint) (uint, error) {
-		return frozenInstallerID, nil
+	ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, installerID uint) (uint, error) {
+		return installerID, nil
 	}
 
 	t.Run("preserves self-service and user ID", func(t *testing.T) {
@@ -974,8 +974,8 @@ func TestRetrySoftwareInstall(t *testing.T) {
 
 	t.Run("retries the active installer after a version change", func(t *testing.T) {
 		const activeID = uint(99)
-		ds.ResolveActiveInstallerForFrozenFunc = func(ctx context.Context, frozenInstallerID uint) (uint, error) {
-			require.Equal(t, installerID, frozenInstallerID)
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, gotID uint) (uint, error) {
+			require.Equal(t, installerID, gotID)
 			return activeID, nil
 		}
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
@@ -1010,7 +1010,7 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 	}
 
 	t.Run("retries the frozen installer when it is still active", func(t *testing.T) {
-		ds.ResolveActiveInstallerForFrozenFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
 		ds.InsertSoftwareInstallRequestFuncInvoked = false
 		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -1020,7 +1020,7 @@ func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
 
 	t.Run("retries the active installer after a version change", func(t *testing.T) {
 		const activeID = uint(99)
-		ds.ResolveActiveInstallerForFrozenFunc = func(ctx context.Context, id uint) (uint, error) {
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) {
 			require.Equal(t, frozenID, id)
 			return activeID, nil
 		}

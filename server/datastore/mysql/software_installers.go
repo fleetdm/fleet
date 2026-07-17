@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -684,9 +685,9 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	tmID := ptr.ValOrZero(payload.TeamID)
 
 	var affectedHostIDs []uint
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// Capture the currently-active installer before flipping so installs frozen
-		// on it can be redirected to the new active version in the same transaction.
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Capture the currently-active installer before flipping so installs queued
+		// against it can be redirected to the new active version in the same transaction.
 		var previousActiveID uint
 		switch err := sqlx.GetContext(ctx, tx, &previousActiveID, `
 			SELECT id FROM software_installers
@@ -740,9 +741,34 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 		}
 
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return err
+	}
+
+	// Regenerate the patch policy query for the newly-active installer, if one exists.
+	patchPolicy, err := ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
+	switch {
+	case fleet.IsNotFound(err):
+		// No patch policy for this title; nothing to regenerate.
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy")
+	default:
+		activeInstaller, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, activeInstallerID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting active installer for patch policy")
+		}
+
+		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, activeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating patch policy query")
+		}
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating patch policy query")
+		}
+		if err := ds.ResetPolicy(ctx, patchPolicy.ID); err != nil {
+			return err
+		}
 	}
 
 	// Activation must run outside the transaction (it reads/writes via the
@@ -750,7 +776,7 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
 }
 
-// redirectPendingInstallsToActiveInstaller moves installs frozen on a superseded
+// redirectPendingInstallsToActiveInstaller moves installs queued against a superseded
 // Fleet-maintained app installer to the newly-active one, so a host never
 // installs a version other than the one Fleet currently displays. Not-yet-activated
 // install activities are re-pointed (and their cached version/filename refreshed)
@@ -785,35 +811,35 @@ func (ds *Datastore) redirectPendingInstallsToActiveInstaller(ctx context.Contex
 	return ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, previousActiveID, true, false, true)
 }
 
-// ResolveActiveInstallerForFrozen returns the currently-active installer for the
-// title of the given (possibly superseded) installer, so a retried install
-// targets the version Fleet currently displays rather than the frozen one. It
-// returns the input id unchanged when that installer is already active, has no
-// active sibling, or no longer exists.
-func (ds *Datastore) ResolveActiveInstallerForFrozen(ctx context.Context, frozenInstallerID uint) (uint, error) {
+// ResolveActiveInstallerForRetry returns the currently-active installer for the
+// title of the given (possibly superseded) installer, so a retried install targets
+// the version Fleet currently displays rather than the one the original attempt was
+// queued against. It returns the input id unchanged when that installer is already
+// active, has no active sibling, or no longer exists.
+func (ds *Datastore) ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error) {
 	// Only Fleet-maintained apps have the single-active-version semantics this
 	// resolves against: an FMA title has exactly one is_active=1 row, so the active
 	// sibling is unambiguous. Custom titles can have several packages all flagged
 	// is_active=1, and each is a distinct package (not a version of the other), so a
 	// retry must stay on its own installer — the query returns no row for them and
-	// the frozen id is used unchanged.
+	// the given id is used unchanged.
 	var activeID uint
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &activeID, `
 		SELECT active.id
-		FROM software_installers frozen
+		FROM software_installers given
 		JOIN software_installers active
-			ON active.global_or_team_id = frozen.global_or_team_id
-			AND active.title_id = frozen.title_id
-			AND active.fleet_maintained_app_id = frozen.fleet_maintained_app_id
+			ON active.global_or_team_id = given.global_or_team_id
+			AND active.title_id = given.title_id
+			AND active.fleet_maintained_app_id = given.fleet_maintained_app_id
 			AND active.is_active = 1
-		WHERE frozen.id = ?
-			AND frozen.fleet_maintained_app_id IS NOT NULL
-		LIMIT 1`, frozenInstallerID)
+		WHERE given.id = ?
+			AND given.fleet_maintained_app_id IS NOT NULL
+		LIMIT 1`, installerID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return frozenInstallerID, nil
+		return installerID, nil
 	case err != nil:
-		return 0, ctxerr.Wrap(ctx, err, "resolving active installer for frozen installer")
+		return 0, ctxerr.Wrap(ctx, err, "resolving active installer for retry")
 	default:
 		return activeID, nil
 	}

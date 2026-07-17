@@ -1626,7 +1626,7 @@ type InsertFleetMaintainedAppVersionFunc func(ctx context.Context, activeInstall
 
 type SetFleetMaintainedAppActiveInstallerFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
-type ResolveActiveInstallerForFrozenFunc func(ctx context.Context, frozenInstallerID uint) (uint, error)
+type ResolveActiveInstallerForRetryFunc func(ctx context.Context, installerID uint) (uint, error)
 
 type GetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 
@@ -4634,8 +4634,8 @@ type DataStore struct {
 	SetFleetMaintainedAppActiveInstallerFunc        SetFleetMaintainedAppActiveInstallerFunc
 	SetFleetMaintainedAppActiveInstallerFuncInvoked bool
 
-	ResolveActiveInstallerForFrozenFunc        ResolveActiveInstallerForFrozenFunc
-	ResolveActiveInstallerForFrozenFuncInvoked bool
+	ResolveActiveInstallerForRetryFunc        ResolveActiveInstallerForRetryFunc
+	ResolveActiveInstallerForRetryFuncInvoked bool
 
 	GetPinnedVersionFunc        GetPinnedVersionFunc
 	GetPinnedVersionFuncInvoked bool
@@ -11150,11 +11150,11 @@ func (s *DataStore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, pa
 	return s.SetFleetMaintainedAppActiveInstallerFunc(ctx, payload, activeInstallerID)
 }
 
-func (s *DataStore) ResolveActiveInstallerForFrozen(ctx context.Context, frozenInstallerID uint) (uint, error) {
+func (s *DataStore) ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error) {
 	s.mu.Lock()
-	s.ResolveActiveInstallerForFrozenFuncInvoked = true
+	s.ResolveActiveInstallerForRetryFuncInvoked = true
 	s.mu.Unlock()
-	return s.ResolveActiveInstallerForFrozenFunc(ctx, frozenInstallerID)
+	return s.ResolveActiveInstallerForRetryFunc(ctx, installerID)
 }
 
 func (s *DataStore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error) {

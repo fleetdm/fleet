@@ -13,7 +13,7 @@ import (
 
 // TestFMAActiveInstallerRedirect verifies that flipping the active installer for a
 // Fleet-maintained app title (auto-update promotion / pin change) redirects installs
-// frozen on the superseded version to the new one, that ResolveActiveInstallerForFrozen
+// frozen on the superseded version to the new one, that ResolveActiveInstallerForRetry
 // reports the current active sibling for a retry, and that custom (non-FMA) titles —
 // which can have several packages all flagged is_active=1 — are never redirected across
 // siblings.
@@ -28,7 +28,7 @@ func TestFMAActiveInstallerRedirect(t *testing.T) {
 
 	requireResolves := func(frozen, want uint) {
 		t.Helper()
-		got, err := ds.ResolveActiveInstallerForFrozen(ctx, frozen)
+		got, err := ds.ResolveActiveInstallerForRetry(ctx, frozen)
 		require.NoError(t, err)
 		require.Equal(t, want, got)
 	}
