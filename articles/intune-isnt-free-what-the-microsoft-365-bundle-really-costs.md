@@ -98,7 +98,7 @@ Intune isn't free. Neither is anything else in the bundle. Once you price the pi
 <meta name="articleTitle" value="Intune isn't free: what the Microsoft 365 bundle really costs in 2026">
 <meta name="authorFullName" value="Mitch Francese">
 <meta name="authorGitHubUsername" value="tux234">
-<meta name="publishedOn" value="2026-07-07">
+<meta name="publishedOn" value="2026-07-16">
 <meta name="category" value="articles">
 <meta name="articleImageUrl" value="../website/assets/images/articles/intune-isnt-free-what-the-microsoft-365-bundle-really-costs-1200x627@2x.png">
 <meta name="description" value="Microsoft's E7 tier and 2026 price increases expose the bundle fallacy. Price E3, E5, and E7 individually and rightsize device management.">
