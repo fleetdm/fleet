@@ -434,6 +434,7 @@ func TestFirefoxMacBundleVersion(t *testing.T) {
 		{"153.0b13", "2026x715", "", true},       // build date not numeric
 		{"153.0b13", "20261315000000", "", true}, // month out of range
 		{"153.0b13", "20260732000000", "", true}, // day out of range
+		{"153.0b13", "20260231000000", "", true}, // impossible calendar date
 		{"x.0b13", "20260715125817", "", true},   // non-numeric major
 		{"", "20260715125817", "", true},
 	}

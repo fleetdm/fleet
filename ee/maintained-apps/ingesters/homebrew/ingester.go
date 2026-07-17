@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -300,16 +299,15 @@ func firefoxMacBundleVersion(version, buildDate string) (string, error) {
 	if major == "" || strings.Trim(major, "0123456789") != "" {
 		return "", fmt.Errorf("cannot parse major version from %q", version)
 	}
-	if len(buildDate) < 8 || strings.Trim(buildDate[:8], "0123456789") != "" {
+	if len(buildDate) < 8 {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	date, err := time.Parse("20060102", buildDate[:8])
+	if err != nil {
 		return "", fmt.Errorf("invalid build date %q", buildDate)
 	}
 	yy := buildDate[2:4]
-	month, _ := strconv.Atoi(buildDate[4:6])
-	day, _ := strconv.Atoi(buildDate[6:8])
-	if month < 1 || month > 12 || day < 1 || day > 31 {
-		return "", fmt.Errorf("invalid build date %q", buildDate)
-	}
-	return fmt.Sprintf("%s%s.%d.%d", major, yy, month, day), nil
+	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
 }
 
 // firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
