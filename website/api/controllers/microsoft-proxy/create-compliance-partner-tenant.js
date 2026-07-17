@@ -16,7 +16,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'Details about a new Microsoft compliance tenant have been returned to a Fleet isntance' },
+    success: { description: 'Details about a new Microsoft complaince tsenant have been returned to a Fleet isntance' },
     connectionAlreadyExists: {description: 'A Microsoft compliance tenant already exists for the provided entra tenant id.', statusCode: 409},
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest'},
   },
