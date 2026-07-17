@@ -84,10 +84,13 @@ When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, 
 
 ## Known limitations and issues
 
+> Support for custom host vitals in host name templates is coming soon.
+
+> Support for custom host vitals in Android configuration profiles is [coming soon](https://github.com/fleetdm/fleet/issues/49421).
+
 - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
 - A custom host vital **can't be deleted while it's referenced** by a script or configuration profile. Edit or delete the referencing script/profile first, then delete the vital.
 - Referencing a `$FLEET_HOST_VITAL_<id>` that doesn't exist (for example, a typo like `$FLEET_HOST_VITAL_asset_tag`) is rejected when the script or profile is added.
-- Custom host vitals aren't supported in Android configuration profiles and are rejected on upload.
 - Custom host vitals can't be used in certificate authority (SCEP/ACME/DigiCert) payloads; those fields accept [built-in variables](https://fleetdm.com/guides/fleet-variables) only.
 
 <meta name="category" value="guides">
