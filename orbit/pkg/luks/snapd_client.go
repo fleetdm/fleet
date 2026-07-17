@@ -111,11 +111,17 @@ func (e *snapdAPIError) isConflict() bool {
 	// substring match on either the kind or the message keeps us resilient to
 	// small wording drift across snapd versions while still not matching
 	// unrelated auth or transport errors.
+	//
+	// The message check uses "already exist" (no trailing s) as the prefix so
+	// it matches both the singular ("key slot X already exists") and the
+	// plural ("key slots [...] already exist") wording — snapd 2.75 returns
+	// the plural form when a name-only keyslotRef expands to both the
+	// system-data and system-save containers, which is exactly our case.
 	kind := strings.ToLower(e.Kind)
 	msg := strings.ToLower(e.Message)
 	return strings.Contains(kind, "already-exists") ||
 		strings.Contains(kind, "conflict") ||
-		strings.Contains(msg, "already exists")
+		strings.Contains(msg, "already exist")
 }
 
 // snapdChange is the relevant subset of a snapd change (GET /v2/changes/{id}).
