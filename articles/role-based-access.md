@@ -204,7 +204,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
 | View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
-| View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         |             |
+| View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         | ✅         |
 | Set custom host vital values on hosts                                                                                            |               |                |                 | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
