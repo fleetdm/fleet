@@ -468,7 +468,9 @@ const HostDetailsPage = ({
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(`Vitals are taking longer than expected to load.`);
+              notify.error(
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+              );
               resetHostRefetchStates();
             }
           }

@@ -82,7 +82,9 @@ const WelcomeHost = ({
                 setShowRefetchLoadingSpinner(false);
               }
             } else {
-              notify.error(`Vitals are taking longer than expected to load.`);
+              notify.error(
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+              );
               setShowRefetchLoadingSpinner(false);
             }
           }
