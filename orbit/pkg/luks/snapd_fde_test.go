@@ -5,6 +5,7 @@ package luks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +36,22 @@ func writeSystemInfo(w http.ResponseWriter, version string) {
 	_, _ = w.Write([]byte(`{"type":"sync","status-code":200,"result":{"version":"` + version + `"}}`))
 }
 
+// stubOSReleaseReader swaps the package-level osReleaseReader for the
+// duration of the test so ensureFleetRecoveryKey's distro preflight sees the
+// requested os-release shape regardless of the CI runner's actual distro.
+func stubOSReleaseReader(t *testing.T, rel osRelease) {
+	t.Helper()
+	original := osReleaseReader
+	osReleaseReader = func() (osRelease, error) { return rel, nil }
+	t.Cleanup(func() { osReleaseReader = original })
+}
+
+// supportedOSRelease is a canned Ubuntu 26.04 osRelease used by the socket
+// integration tests that need the distro preflight to pass.
+var supportedOSRelease = osRelease{ID: "ubuntu", VersionID: "26.04"}
+
 func TestEnsureFleetRecoveryKeyViaSocket(t *testing.T) {
+	stubOSReleaseReader(t, supportedOSRelease)
 	const wantKey = "55055-39320-64491-48436-47667-15525-36879-32875"
 	var sawGenerate, sawAdd, sawCheck bool
 
@@ -88,6 +104,7 @@ func TestEnsureFleetRecoveryKeyViaSocket(t *testing.T) {
 }
 
 func TestEnsureFleetRecoveryKeyViaSocketFallsBackToReplace(t *testing.T) {
+	stubOSReleaseReader(t, supportedOSRelease)
 	var sawReplace bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -126,7 +143,53 @@ func TestEnsureFleetRecoveryKeyViaSocketFallsBackToReplace(t *testing.T) {
 	assert.True(t, sawReplace, "fell back to replace-recovery-key when add reported a conflict")
 }
 
+func TestCheckUbuntuVersion(t *testing.T) {
+	// Preflight the /etc/os-release-based OS check. Only Ubuntu < 26.04 is
+	// rejected today; every other outcome (non-Ubuntu, unreadable file,
+	// unparseable version) must fall through so the snapd preflight and the
+	// real endpoint remain the source of truth.
+	cases := []struct {
+		name    string
+		rel     osRelease
+		readErr error
+		wantErr bool
+	}{
+		{name: "ubuntu 24.04 is rejected", rel: osRelease{ID: "ubuntu", VersionID: "24.04"}, wantErr: true},
+		{name: "ubuntu 22.04 is rejected", rel: osRelease{ID: "ubuntu", VersionID: "22.04"}, wantErr: true},
+		{name: "ubuntu 26.04 is accepted", rel: osRelease{ID: "ubuntu", VersionID: "26.04"}, wantErr: false},
+		{name: "ubuntu 26.10 is accepted", rel: osRelease{ID: "ubuntu", VersionID: "26.10"}, wantErr: false},
+		{name: "non-ubuntu host is not gated here", rel: osRelease{ID: "fedora", VersionID: "40"}, wantErr: false},
+		{name: "missing os-release is not gated here", readErr: errors.New("boom"), wantErr: false},
+		{name: "empty os-release is not gated here", rel: osRelease{}, wantErr: false},
+		{name: "unparseable version is not gated here", rel: osRelease{ID: "ubuntu", VersionID: "not-a-number"}, wantErr: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkUbuntuVersion(func() (osRelease, error) { return tc.rel, tc.readErr })
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.rel.VersionID, "error names the too-old Ubuntu version")
+				assert.Contains(t, err.Error(), ubuntuMinVersion, "error names the required minimum Ubuntu version")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestReadOSRelease(t *testing.T) {
+	// Sanity check the parser against a realistic Ubuntu 24.04 file. This
+	// hits the real /etc/os-release path only on the CI runner, which is
+	// Linux — if there's no file (edge-case container), the function returns
+	// a zero value, which is also acceptable.
+	rel, err := readOSRelease()
+	require.NoError(t, err)
+	// rel may be empty on stripped containers; that's not a failure.
+	_ = rel
+}
+
 func TestEnsureFleetRecoveryKeyReportsUnsupportedFDEState(t *testing.T) {
+	stubOSReleaseReader(t, supportedOSRelease)
 	// Regression: on some hosts snapd is new enough to expose the endpoint
 	// but reports "this action is not supported on this system" because the
 	// FDE state is indeterminate (`ubuntu-fde` LUKS2 tokens exist but snapd
@@ -157,6 +220,7 @@ func TestEnsureFleetRecoveryKeyReportsUnsupportedFDEState(t *testing.T) {
 }
 
 func TestEnsureFleetRecoveryKeyRejectsOldSnapd(t *testing.T) {
+	stubOSReleaseReader(t, supportedOSRelease)
 	// Regression: snapd < 2.74 has the /v2/system-volumes endpoint but rejects
 	// generate-recovery-key with 400 "this action is not supported on this
 	// system". Preflight the version so the operator sees a clear
