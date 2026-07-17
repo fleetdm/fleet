@@ -23,7 +23,7 @@ What you don't get (yet):
 ## Prerequisites
 
 - Fleet Premium
-- macOS hosts running macOS 26 or later, enrolling via ADE through Apple Business Manager
+- macOS hosts running macOS 26 or later, enrolling via ADE through Apple Business
 - An IdP that supports OAuth ROPG (this guide uses Okta)
 - Fleet's [setup experience](https://fleetdm.com/guides/setup-experience) configured for the target fleet
 - The Fleet Desktop app, which contains Fleet's Platform SSO extension, available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps)
@@ -54,7 +54,7 @@ Next, confirm the app can complete a password-only sign-in:
 
 2. Make sure the authentication policy assigned to the app allows sign-in with **Password** as a single factor. If the policy requires MFA, ROPG requests will fail.
 
-Finally, find your token URL. Fleet recommends the `default` custom authorization server because it supports the custom claims used for name mapping in step 2:
+Finally, find your token URL. Fleet recommends the `default` authorization server because it supports the custom claims used for name mapping in step 2:
 
 1. Go to **Security > API > Authorization Servers** and open **default**.
 
