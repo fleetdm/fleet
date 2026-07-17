@@ -85,7 +85,6 @@ Fleet supports the following operating system versions on hosts.
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
 > Full MDM support for Windows 11 25H2+ Requires Fleet v4.89.1 or later due to changes in Microsoft MDM protocol
-> 
 ### Linux support
 
 Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
