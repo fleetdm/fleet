@@ -726,18 +726,6 @@
             "null"
           ]
         },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
         "script_execution_timeout": {
           "description": "ScriptExecutionTimeout is the maximum time in seconds that a script can run.\n\ntype: `integer`"
         },
@@ -1040,18 +1028,6 @@
             "null"
           ]
         },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
         "scripts": {
           "description": "type: `array\u003cBaseItem\u003e`",
           "items": {
@@ -1297,18 +1273,6 @@
             "null"
           ]
         },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
         "scripts": {
           "description": "type: `array\u003cstring\u003e`",
           "items": {
@@ -1395,18 +1359,6 @@
             "null"
           ]
         },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
         "scripts": {
           "description": "Scripts is a slice of script file paths.\n\nNOTE: These are only present here for informational purposes.\n(The source of truth for scripts is in MySQL.)\n\ntype: `array\u003cstring\u003e`",
           "items": {
@@ -1466,6 +1418,26 @@
     },
     "GitOpsPolicySpec": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A policy must set name (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
       "properties": {
         "calendar_events_enabled": {
           "description": "CalendarEventsEnabled indicates whether calendar events are enabled for the policy.\n\nOnly applies to team policies.\n\ntype: `boolean`",
@@ -1587,10 +1559,7 @@
         },
         "name": {
           "description": "Name is the name of the policy.\n\ntype: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "path": {
           "type": [
@@ -1599,14 +1568,8 @@
           ]
         },
         "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "type": [
-            "array",
+            "string",
             "null"
           ]
         },
@@ -1697,24 +1660,6 @@
           "description": "type: `array\u003cSoftwarePackageSpec\u003e`",
           "items": {
             "$ref": "#/$defs/SoftwarePackageSpec"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "type": [
             "array",
@@ -1994,6 +1939,26 @@
     },
     "LabelSpec": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "name"
+          ]
+        },
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A label must set name (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
       "properties": {
         "criteria": {
           "description": "type: `object`",
@@ -2027,10 +1992,7 @@
         },
         "name": {
           "description": "type: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "path": {
           "type": [
@@ -2039,14 +2001,8 @@
           ]
         },
         "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "type": [
-            "array",
+            "string",
             "null"
           ]
         },
@@ -2659,15 +2615,9 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "A fleet_maintained_apps entry must set slug (or path).",
+          "errorMessage": "A fleet_maintained_apps entry must set slug.",
           "required": [
             "slug"
-          ]
-        },
-        {
-          "errorMessage": "A fleet_maintained_apps entry must set slug (or path).",
-          "required": [
-            "path"
           ]
         }
       ],
@@ -2721,24 +2671,6 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "paths": {
           "items": {
             "type": [
               "string",
@@ -2882,6 +2814,27 @@
     },
     "Query": {
       "additionalProperties": false,
+      "anyOf": [
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "name",
+            "query"
+          ]
+        },
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "errorMessage": "A report must set name and query (or reference a file with path/paths).",
+          "required": [
+            "paths"
+          ]
+        }
+      ],
       "properties": {
         "automations_enabled": {
           "description": "AutomationsEnabled is set to false if not set.\n\ntype: `boolean`",
@@ -2956,10 +2909,7 @@
         },
         "name": {
           "description": "Name is the name of the query (which is unique in its team or globally).\nThis field must be non-empty.\n\ntype: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "observer_can_run": {
           "description": "ObserverCanRun is set to false if not set.\n\ntype: `boolean`",
@@ -2991,10 +2941,7 @@
         },
         "query": {
           "description": "Query is the actual osquery SQL query. This field must be non-empty.\n\ntype: `string`",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "team": {
           "deprecated": true,
@@ -3399,18 +3346,6 @@
             "null"
           ]
         },
-        "paths": {
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
         "post_install_script": {
           "$ref": "#/$defs/TeamSpecSoftwareAsset",
           "description": "type: `TeamSpecSoftwareAsset`"
@@ -3696,15 +3631,9 @@
       "additionalProperties": false,
       "anyOf": [
         {
-          "errorMessage": "An app_store_apps entry must set app_store_id (or path).",
+          "errorMessage": "An app_store_apps entry must set app_store_id.",
           "required": [
             "app_store_id"
-          ]
-        },
-        {
-          "errorMessage": "An app_store_apps entry must set app_store_id (or path).",
-          "required": [
-            "path"
           ]
         }
       ],
@@ -3790,24 +3719,6 @@
         },
         "labels_include_any": {
           "description": "type: `array\u003cstring\u003e`",
-          "items": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "path": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "paths": {
           "items": {
             "type": [
               "string",
@@ -4092,15 +4003,16 @@
     },
     "YaraRule": {
       "additionalProperties": false,
-      "properties": {
-        "contents": {
-          "description": "type: `string`",
-          "type": [
-            "string",
-            "null"
+      "anyOf": [
+        {
+          "errorMessage": "A yara_rules entry must set path.",
+          "required": [
+            "path"
           ]
-        },
-        "name": {
+        }
+      ],
+      "properties": {
+        "path": {
           "description": "type: `string`",
           "type": [
             "string",

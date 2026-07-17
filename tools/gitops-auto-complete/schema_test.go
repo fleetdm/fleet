@@ -75,8 +75,8 @@ func TestValidFixtures(t *testing.T) {
 }
 
 // TestInvalidFixtures asserts the schema still rejects the specific mistakes the
-// tool is designed to catch (unknown keys, wrong-typed installer-reference keys, a
-// package with no installer reference).
+// tool is designed to catch (unknown keys, wrong-typed required keys, an item
+// missing its required key).
 func TestInvalidFixtures(t *testing.T) {
 	schema := compileSchema(t)
 	files, err := filepath.Glob("testdata/invalid/*.yml")
@@ -141,17 +141,17 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// Required installer reference: software defs gate on an anyOf of single-key branches.
-	t.Run("required installer reference", func(t *testing.T) {
+	// Required keys: these defs gate on an anyOf of single-key branches.
+	t.Run("required keys", func(t *testing.T) {
 		for _, name := range []string{"SoftwarePackageSpec", "TeamSpecAppStoreApp", "MaintainedAppSpec"} {
 			if _, ok := def(name)["anyOf"].([]any); !ok {
-				t.Errorf("%s: expected an anyOf of installer-reference branches", name)
+				t.Errorf("%s: expected an anyOf of required-key branches", name)
 			}
 		}
 	})
 
-	// Typed installer-reference keys survive relaxNulls as strict strings.
-	t.Run("typed installer-reference keys", func(t *testing.T) {
+	// Typed strict-string keys survive relaxNulls as strict strings.
+	t.Run("typed strict-string keys", func(t *testing.T) {
 		for def, keys := range map[string][]string{
 			"SoftwarePackageSpec": {"url", "hash_sha256"},
 			"TeamSpecAppStoreApp": {"app_store_id"},
@@ -188,9 +188,18 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// Path refs added to the file-reference defs.
+	// Path refs: path-only defs carry `path` but not `paths`; path+paths defs carry both.
 	t.Run("path refs", func(t *testing.T) {
-		for _, name := range []string{"ControlsWithTypes", "SoftwarePackageSpec", "LabelSpec"} {
+		for _, name := range []string{"ControlsWithTypes", "SoftwarePackageSpec"} {
+			p := props(def(name))
+			if _, ok := p["path"]; !ok {
+				t.Errorf("%s: missing 'path'", name)
+			}
+			if _, ok := p["paths"]; ok {
+				t.Errorf("%s: unexpected 'paths' on a path-only def", name)
+			}
+		}
+		for _, name := range []string{"GitOpsPolicySpec", "LabelSpec"} {
 			p := props(def(name))
 			if _, ok := p["path"]; !ok {
 				t.Errorf("%s: missing 'path'", name)

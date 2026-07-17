@@ -75,21 +75,22 @@ With an output-file, writes the schema there; otherwise prints to stdout.`)
 	}
 	mergeOsqueryOptions(schemaKeys, osqueryOptions)
 	mergeMissingMDMKeys(schemaKeys, spec.GitOpsMDM{})
+	fixYaraRules(schemaKeys)
 
 	// Order matters. annotate and addGitOpsKeyNotes read types that relaxNulls
 	// later strips, so they run first. addPathReferences also runs before relaxNulls
-	// so the path keys it adds get relaxed too. typeInstallerReferenceKeys runs after
+	// so the path keys it adds get relaxed too. typeStrictStringKeys runs after
 	// relaxNulls to restore the string types it drops.
 	nodes := collectNodes(schemaKeys)
 	annotate(nodes, renames)
 	addGitOpsKeyNotes(schemaKeys)
 	addPathReferences(schemaKeys)
-	addInstallerReferenceRequirement(schemaKeys)
+	addRequiredKeys(schemaKeys)
 
 	// Collect again so relaxNulls reaches the aliases and path keys added above.
 	nodes = collectNodes(schemaKeys)
 	relaxNulls(nodes)
-	typeInstallerReferenceKeys(schemaKeys)
+	typeStrictStringKeys(schemaKeys)
 
 	out, err := json.MarshalIndent(schemaKeys, "", "  ")
 	if err != nil {
@@ -504,48 +505,66 @@ func addGitOpsKeyNotes(schemaKeys map[string]any) {
 	}
 }
 
-// addPathReferences adds path/paths to the definitions in pathReferenceDefinitions.
-// The Go structs don't model the file-reference pattern, so without this real GitOps
-// files using e.g. `- path: ./lib/foo.yml` light up with "Property path is not
-// allowed".
+// fixYaraRules rewrites the reflected YaraRule shape. AppConfig.YaraRules reflects to
+// {name, contents}, but gitops org_settings.yara_rules items are {path} file references
+// (fleet.YaraRuleSpec), so swap the properties to match what gitops accepts.
+func fixYaraRules(schemaKeys map[string]any) {
+	definition, ok := definitionByName(schemaKeys, "YaraRule")
+	if !ok {
+		return
+	}
+
+	definition["properties"] = map[string]any{"path": map[string]any{"type": "string"}}
+	definition["additionalProperties"] = false
+	delete(definition, "required")
+}
+
+// addPathReferences adds the file-reference keys the Go structs don't model, so a real
+// GitOps file using e.g. `- path: ./lib/foo.yml` doesn't light up with "Property path
+// is not allowed". `path` is one external file; `paths` is a single glob string.
 func addPathReferences(schemaKeys map[string]any) {
 	for _, name := range pathReferenceDefinitions {
-		properties, ok := definitionProperties(schemaKeys, name)
-		if !ok {
-			continue
-		}
-
-		_, hasPath := properties["path"]
-		if !hasPath {
-			properties["path"] = map[string]any{"type": "string"}
-		}
-
-		_, hasPaths := properties["paths"]
-		if !hasPaths {
-			properties["paths"] = map[string]any{"type": "array", "items": map[string]any{"type": "string"}}
-		}
+		addStringProperty(schemaKeys, name, "path")
+	}
+	for _, name := range pathsReferenceDefinitions {
+		addStringProperty(schemaKeys, name, "path")
+		addStringProperty(schemaKeys, name, "paths")
 	}
 }
 
-// addInstallerReferenceRequirement injects an anyOf of single-key required branches (each
-// with the same errorMessage) so an item is valid when any one installer-reference
-// key is present.
-func addInstallerReferenceRequirement(schemaKeys map[string]any) {
-	for _, reference := range installerReferences {
-		definition, ok := definitionByName(schemaKeys, reference.definition)
+func addStringProperty(schemaKeys map[string]any, definitionName string, key string) {
+	properties, ok := definitionProperties(schemaKeys, definitionName)
+	if !ok {
+		return
+	}
+
+	if _, exists := properties[key]; !exists {
+		properties[key] = map[string]any{"type": "string"}
+	}
+}
+
+// addRequiredKeys injects an anyOf of single-key required branches (each with the
+// same errorMessage) so an item is valid when any one of the required keys is present.
+func addRequiredKeys(schemaKeys map[string]any) {
+	for _, rule := range requiredKeys {
+		definition, ok := definitionByName(schemaKeys, rule.definition)
 		if !ok {
 			continue
 		}
 
-		branches := make([]any, 0, len(reference.keys))
-		for _, key := range reference.keys {
-			branches = append(branches, map[string]any{
-				"required":     []any{key},
-				"errorMessage": reference.message,
+		anyOf := make([]any, 0, len(rule.validKeyCombinations))
+		for _, combination := range rule.validKeyCombinations {
+			required := make([]any, len(combination))
+			for i, key := range combination {
+				required[i] = key
+			}
+			anyOf = append(anyOf, map[string]any{
+				"required":     required,
+				"errorMessage": rule.message,
 			})
 		}
 
-		definition["anyOf"] = branches
+		definition["anyOf"] = anyOf
 	}
 }
 
@@ -577,16 +596,16 @@ func relaxNulls(nodes []map[string]any) {
 	}
 }
 
-// typeInstallerReferenceKeys re-applies a strict string type to the keys in
-// strictInstallerReferenceKeys, undoing the relaxNulls pass for them.
-func typeInstallerReferenceKeys(schemaKeys map[string]any) {
-	for definitionName, referenceKeys := range strictInstallerReferenceKeys {
+// typeStrictStringKeys re-applies a strict string type to the keys in strictStringKeys,
+// undoing the relaxNulls pass for them.
+func typeStrictStringKeys(schemaKeys map[string]any) {
+	for definitionName, keys := range strictStringKeys {
 		properties, ok := definitionProperties(schemaKeys, definitionName)
 		if !ok {
 			continue
 		}
 
-		for _, key := range referenceKeys {
+		for _, key := range keys {
 			node, ok := properties[key].(map[string]any)
 			if !ok {
 				continue

@@ -30,34 +30,91 @@ var declarativeExceptions = map[string]string{
 	"labels.hosts": declarativeKeepOnOmit,
 }
 
-// pathReferenceDefinitions are the $defs where GitOps accepts a file reference
-// instead of inline content. path/paths go only here, not on every object.
+// pathReferenceDefinitions are the $defs that accept a `path` (one external file) in
+// place of inline content. pathsReferenceDefinitions additionally accept `paths` (a
+// single glob string). Defs whose Go type embeds fleet.BaseItem (reports, scripts,
+// configuration_profiles) already get both from reflection, so they aren't listed.
 var pathReferenceDefinitions = []string{
-	"GitOpsOrgSettings", "GitOpsFleetSettings", "AgentOptions", "ControlsWithTypes", "GitOpsSoftware",
-	"GitOpsPolicySpec", "Query", "LabelSpec",
-	"SoftwarePackageSpec", "TeamSpecAppStoreApp", "MaintainedAppSpec",
+	"GitOpsOrgSettings", "GitOpsFleetSettings", "AgentOptions", "ControlsWithTypes",
+	"SoftwarePackageSpec",
 }
 
-// An installer reference tells Fleet where a software item comes from: a url, hash,
-// App Store id, FMA slug, or path. Each software $def needs one, and Fleet enforces
-// it in validation code rather than struct tags, so they're listed here.
-type installerReference struct {
-	definition string
-	keys       []string
-	message    string
+var pathsReferenceDefinitions = []string{
+	"GitOpsPolicySpec", "LabelSpec",
 }
 
-var installerReferences = []installerReference{
-	{"SoftwarePackageSpec", []string{"url", "hash_sha256", "path"}, "A package must set one of: url, hash_sha256, or path."},
-	{"TeamSpecAppStoreApp", []string{"app_store_id", "path"}, "An app_store_apps entry must set app_store_id (or path)."},
-	{"MaintainedAppSpec", []string{"slug", "path"}, "A fleet_maintained_apps entry must set slug (or path)."},
+// requiredKeyRule gates a $def: an item is valid if it has all the keys of any one of
+// its validKeyCombinations. So {{"a"},{"b"}} means "a or b" and {{"a","b"}} means
+// "a and b". Fleet enforces these at gitops apply time in validation code rather than
+// struct tags. Where an item can also be a file reference, path/paths are listed as
+// their own combinations.
+type requiredKeyRule struct {
+	definition           string
+	message              string
+	validKeyCombinations [][]string
 }
 
-// strictInstallerReferenceKeys are the installer-reference keys kept as strict
-// strings, so a wrong-typed value like `url: 12345` is caught. `path` is excluded
-// so it stays nullable.
-var strictInstallerReferenceKeys = map[string][]string{
+var requiredKeys = []requiredKeyRule{
+	{
+		definition: "SoftwarePackageSpec",
+		message:    "A package must set one of: url, hash_sha256, or path.",
+		validKeyCombinations: [][]string{
+			{"url"},
+			{"hash_sha256"},
+			{"path"},
+		},
+	},
+	{
+		definition:           "TeamSpecAppStoreApp",
+		message:              "An app_store_apps entry must set app_store_id.",
+		validKeyCombinations: [][]string{{"app_store_id"}},
+	},
+	{
+		definition:           "MaintainedAppSpec",
+		message:              "A fleet_maintained_apps entry must set slug.",
+		validKeyCombinations: [][]string{{"slug"}},
+	},
+	{
+		definition: "LabelSpec",
+		message:    "A label must set name (or reference a file with path/paths).",
+		validKeyCombinations: [][]string{
+			{"name"},
+			{"path"},
+			{"paths"},
+		},
+	},
+	{
+		definition: "GitOpsPolicySpec",
+		message:    "A policy must set name (or reference a file with path/paths).",
+		validKeyCombinations: [][]string{
+			{"name"},
+			{"path"},
+			{"paths"},
+		},
+	},
+	{
+		definition: "Query",
+		message:    "A report must set name and query (or reference a file with path/paths).",
+		validKeyCombinations: [][]string{
+			{"name", "query"},
+			{"path"},
+			{"paths"},
+		},
+	},
+	{
+		definition:           "YaraRule",
+		message:              "A yara_rules entry must set path.",
+		validKeyCombinations: [][]string{{"path"}},
+	},
+}
+
+// strictStringKeys are the keys kept as strict strings, so a wrong-typed value like
+// `url: 12345` is caught. `path`/`paths` are excluded so they stay nullable.
+var strictStringKeys = map[string][]string{
 	"SoftwarePackageSpec": {"url", "hash_sha256"},
 	"TeamSpecAppStoreApp": {"app_store_id"},
 	"MaintainedAppSpec":   {"slug"},
+	"LabelSpec":           {"name"},
+	"GitOpsPolicySpec":    {"name"},
+	"Query":               {"name", "query"},
 }
