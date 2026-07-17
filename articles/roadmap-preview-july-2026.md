@@ -28,7 +28,7 @@ In the next 3 months, Fleet will ship...
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
 - 💻 Deploy Microsoft Store apps ([#43493](https://github.com/fleetdm/fleet/issues/43493))
-- 🪩 AI-assisted reports, policies, labels, configuration profiles, and scripts ([#49316](https://github.com/fleetdm/fleet/issues/49316))
+- 🪩 AI-generated reports, policies, labels, configuration profiles, and scripts ([#49316](https://github.com/fleetdm/fleet/issues/49316))
 - 📦 Zero-touch enrollment for Android ([#49165](https://github.com/fleetdm/fleet/issues/49165))
 
 Any feedback or questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
