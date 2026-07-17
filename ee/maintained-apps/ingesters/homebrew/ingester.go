@@ -147,6 +147,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	if input.Token == "swiftdialog" {
+		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment
+		// profile renewal; don't treat orbit's copy as the installed app for install or patch status.
+		// The patch policy generated below inherits this exclusion.
+		out.Queries.Exists = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';",
+			out.UniqueIdentifier,
+		)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -213,7 +222,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
-
 	if input.Token == "docker-desktop" {
 		// Docker's updater can leave Docker.app.back; do not treat it as the installed app for patch status.
 		out.Queries.Patched = fmt.Sprintf(
@@ -228,13 +236,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// patch status reflects the actual installed build.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
-			out.UniqueIdentifier, out.Version,
-		)
-	}
-	if input.Token == "swiftdialog" {
-		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment profile renewal; do not consider it for patch status.
-		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0 AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app');",
 			out.UniqueIdentifier, out.Version,
 		)
 	}
