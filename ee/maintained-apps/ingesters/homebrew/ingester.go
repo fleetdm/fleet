@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +36,7 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 
 	i := &brewIngester{
 		baseURL:          baseBrewAPIURL,
+		buildhubURL:      buildhubAPIURL,
 		logger:           logger,
 		client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 		retryInterval:    2 * time.Second,
@@ -91,12 +95,17 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	return manifestApps, nil
 }
 
-const baseBrewAPIURL = "https://formulae.brew.sh/api/"
+const (
+	baseBrewAPIURL = "https://formulae.brew.sh/api/"
+	// buildhubAPIURL is Mozilla's build metadata search API.
+	buildhubAPIURL = "https://buildhub.moz.tools/api/search"
+)
 
 type brewIngester struct {
-	baseURL string
-	logger  *slog.Logger
-	client  *http.Client
+	baseURL     string
+	buildhubURL string
+	logger      *slog.Logger
+	client      *http.Client
 
 	// retryInterval and retryMaxAttempts control retries of transient brew API
 	// failures (network errors and 5xx/429 responses). formulae.brew.sh is
@@ -230,8 +239,194 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "firefox@developer-edition" {
+		// The bundle reports only the base version ("153.0") for cask version
+		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
+		// via buildhub) to distinguish betas; fall back to a cycle-granular
+		// base-version comparison if buildhub is unavailable.
+		column := "bundle_version"
+		patchVersion, err := i.firefoxDevEditionMacBundleVersion(ctx, out.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "resolving Firefox Developer Edition bundle version failed; patch policy falls back to base-version comparison", "err", err.Error())
+			column, patchVersion = "bundle_short_version", firefoxBetaBaseVersion(out.Version)
+		}
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(%s, '%s') < 0);",
+			out.UniqueIdentifier, column, patchVersion,
+		)
+	}
+	if input.Token == "firefox@nightly" {
+		// Nightly's CFBundleShortVersionString ("154.0a1") is constant all cycle;
+		// derive CFBundleVersion from the cask version's build timestamp for
+		// day-level patch status.
+		bundleVersion, err := firefoxNightlyMacBundleVersion(cask.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "deriving Firefox Nightly bundle version failed; patch policy falls back to short-version comparison", "err", err.Error())
+		} else {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, bundleVersion,
+			)
+		}
+	}
 
 	return out, nil
+}
+
+var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)
+
+// firefoxBetaBaseVersion strips the beta suffix from a Firefox pre-release
+// version ("153.0b13" -> "153.0"); non-matching versions pass through unchanged.
+func firefoxBetaBaseVersion(version string) string {
+	if m := firefoxBetaVersionPattern.FindStringSubmatch(version); m != nil {
+		return m[1]
+	}
+	return version
+}
+
+// firefoxMacBundleVersion computes a Firefox mac build's CFBundleVersion:
+// "<major><yy>.<month>.<day>", unpadded ("153.0b13" + "20260715" -> "15326.7.15").
+func firefoxMacBundleVersion(version, buildDate string) (string, error) {
+	major, _, _ := strings.Cut(version, ".")
+	if major == "" || strings.Trim(major, "0123456789") != "" {
+		return "", fmt.Errorf("cannot parse major version from %q", version)
+	}
+	if len(buildDate) < 8 || strings.Trim(buildDate[:8], "0123456789") != "" {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	yy := buildDate[2:4]
+	month, _ := strconv.Atoi(buildDate[4:6])
+	day, _ := strconv.Atoi(buildDate[6:8])
+	if month < 1 || month > 12 || day < 1 || day > 31 {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	return fmt.Sprintf("%s%s.%d.%d", major, yy, month, day), nil
+}
+
+// firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
+// Nightly cask version ("154.0a1,2026-07-17-09-27-13").
+var firefoxNightlyCaskVersionPattern = regexp.MustCompile(`^[^,]+,(\d{4})-(\d{2})-(\d{2})(?:-|$)`)
+
+// firefoxNightlyMacBundleVersion derives CFBundleVersion from a Nightly cask
+// version ("154.0a1,2026-07-17-09-27-13" -> "15426.7.17").
+func firefoxNightlyMacBundleVersion(caskVersion string) (string, error) {
+	m := firefoxNightlyCaskVersionPattern.FindStringSubmatch(caskVersion)
+	if m == nil {
+		return "", fmt.Errorf("cask version %q has no build timestamp", caskVersion)
+	}
+	return firefoxMacBundleVersion(caskVersion, m[1]+m[2]+m[3])
+}
+
+// firefoxDevEditionMacBundleVersion resolves a Developer Edition mac build's
+// CFBundleVersion ("153.0b13" -> "15326.7.15") by looking up its build id in
+// buildhub, where DevEd is indexed as product "firefox", channel "aurora".
+func (i *brewIngester) firefoxDevEditionMacBundleVersion(ctx context.Context, version string) (string, error) {
+	type term map[string]map[string]string
+	reqBody, err := json.Marshal(map[string]any{
+		"size": 1,
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []term{
+					{"term": {"source.product": "firefox"}},
+					{"term": {"target.channel": "aurora"}},
+					{"term": {"target.platform": "mac"}},
+					{"term": {"target.version": version}},
+				},
+			},
+		},
+		"sort": []term{{"build.id": {"order": "desc"}}},
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal buildhub query")
+	}
+
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+
+	var body []byte
+	attempt := 0
+	err = retry.Do(func() error {
+		attempt++
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, i.buildhubURL, bytes.NewReader(reqBody))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create buildhub http request")
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "buildhub request failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute buildhub http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "reading buildhub response failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read buildhub response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			i.logger.WarnContext(ctx, "buildhub returned transient error, retrying", "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		Hits struct {
+			Hits []struct {
+				Source struct {
+					Build struct {
+						ID string `json:"id"`
+					} `json:"build"`
+				} `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshal buildhub response")
+	}
+	if len(resp.Hits.Hits) == 0 {
+		return "", ctxerr.Errorf(ctx, "no buildhub build found for version %s", version)
+	}
+
+	return firefoxMacBundleVersion(version, resp.Hits.Hits[0].Source.Build.ID)
 }
 
 // fetchCask resolves the brew cask JSON for the given input app from

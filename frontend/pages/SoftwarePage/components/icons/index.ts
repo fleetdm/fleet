@@ -382,6 +382,8 @@ import Firealpaca from "./Firealpaca";
 import FireflyIotaDesktop from "./FireflyIotaDesktop";
 import FireflyShimmer from "./FireflyShimmer";
 import Firefox from "./Firefox";
+import FirefoxDeveloperEdition from "./FirefoxDeveloperEdition";
+import FirefoxNightly from "./FirefoxNightly";
 import Fission from "./Fission";
 import FleetDesktop from "./FleetDesktop";
 import Flexoptix from "./Flexoptix";
@@ -1508,6 +1510,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   firefly: FireflyIotaDesktop,
   "firefly shimmer": FireflyShimmer,
   firefox: Firefox,
+  "firefox developer edition": FirefoxDeveloperEdition,
+  "firefox nightly": FirefoxNightly,
   fission: Fission,
   "fleet desktop": FleetDesktop,
   "flexoptix app": Flexoptix,
@@ -1773,6 +1777,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mos: Mos,
   "mountain duck": MountainDuck,
   "mozilla firefox": Firefox,
+  "mozilla firefox developer edition": FirefoxDeveloperEdition,
+  "mozilla firefox nightly": FirefoxNightly,
   "mozilla vpn": MozillaVpn,
   mqttx: Mqttx,
   "mullvad browser": MullvadBrowser,
