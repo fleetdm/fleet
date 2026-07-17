@@ -164,7 +164,7 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 ### Recruiting
 
-Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
+Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are an important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
 
 ### Receiving job applications

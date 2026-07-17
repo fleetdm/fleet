@@ -1,1 +1,0 @@
-- Fixed a bug where fleetd could not start on-demand Windows MDM sessions on some Windows hosts, leaving queued Windows MDM commands pending for up to 8 hours. fleetd now recognizes the Fleet enrollment by any enrolled (non-zero) `EnrollmentState`.

@@ -8,6 +8,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 export const getTokenFromVitalId = (id: number): string =>
   `$FLEET_HOST_VITAL_${id}`;
@@ -36,14 +37,12 @@ interface IDataColumn {
 
 interface IGenerateTableHeadersParams {
   canEdit: boolean;
-  gitOpsModeEnabled: boolean;
   onEdit: (vital: ICustomHostVital) => void;
   onDelete: (vital: ICustomHostVital) => void;
 }
 
 const generateTableHeaders = ({
   canEdit,
-  gitOpsModeEnabled,
   onEdit,
   onDelete,
 }: IGenerateTableHeadersParams): IDataColumn[] => {
@@ -87,8 +86,10 @@ const generateTableHeaders = ({
     },
   ];
 
-  // Non-write roles and GitOps mode don't get row actions.
-  if (canEdit && !gitOpsModeEnabled) {
+  // Non-write roles don't get row actions. In GitOps mode the actions are shown
+  // but disabled with the standard GitOps tooltip (matching the "Add vital"
+  // button), since custom host vitals are then managed via the config file.
+  if (canEdit) {
     columns.push({
       title: "Actions",
       Header: "",
@@ -97,22 +98,30 @@ const generateTableHeaders = ({
       Cell: (cellProps) => {
         const vital = cellProps.row.original;
         return (
-          <div className="custom-host-vitals-tab__actions">
-            <Button
-              variant="icon"
-              onClick={() => onEdit(vital)}
-              ariaLabel={`Edit ${vital.name}`}
-            >
-              <Icon name="pencil" color="ui-fleet-black-75" />
-            </Button>
-            <Button
-              variant="icon"
-              onClick={() => onDelete(vital)}
-              ariaLabel={`Delete ${vital.name}`}
-            >
-              <Icon name="trash" color="ui-fleet-black-75" />
-            </Button>
-          </div>
+          <GitOpsModeTooltipWrapper
+            position="top"
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <div className="custom-host-vitals-tab__actions">
+                <Button
+                  variant="icon"
+                  disabled={disableChildren}
+                  onClick={() => onEdit(vital)}
+                  ariaLabel={`Edit ${vital.name}`}
+                >
+                  <Icon name="pencil" color="ui-fleet-black-75" />
+                </Button>
+                <Button
+                  variant="icon"
+                  disabled={disableChildren}
+                  onClick={() => onDelete(vital)}
+                  ariaLabel={`Delete ${vital.name}`}
+                >
+                  <Icon name="trash" color="ui-fleet-black-75" />
+                </Button>
+              </div>
+            )}
+          />
         );
       },
     });
