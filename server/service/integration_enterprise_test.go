@@ -27596,17 +27596,23 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	// Each cached version carries its own patch query with the version baked in, as real FMA manifests do.
+	const warpPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND version_compare(version, '%s') < 0);"
+	warpQueryV1 := fmt.Sprintf(warpPatchQueryFmt, "1.0")
+	warpQueryV2 := fmt.Sprintf(warpPatchQueryFmt, "2.0")
+
 	// Mock the FMA manifest + installer CDN via the shared helper. The state is
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi"}
+	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
 	setManifest := func(version string, b []byte) {
 		warp.version = version
 		warp.installerBytes = b
+		warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, version)
 		warp.ComputeSHA(b)
 	}
 	runCron := func() {
@@ -27677,6 +27683,18 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	titleID := title.ID
 	require.True(t, activeSelfService(team.ID, titleID))
 
+	// A patch policy generated from the active v1.0 installer; the cron must keep its query on the active version.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
 	runCron()
@@ -27685,6 +27703,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 	// Per-team config is carried forward onto the new version.
 	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
+	// The cron flip must rewrite the patch policy query to the newly active 2.0 version.
+	require.Equal(t, warpQueryV2, patchPolicyQuery())
 
 	// The cached bytes are real and installable: a host install serves v2.0 bytes.
 	host := createOrbitEnrolledHost(t, "windows", "orbit-autoupdate", s.ds)
@@ -33532,13 +33552,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Each cached zoom version ships its own patch query with the version baked in, as real FMA manifests do.
+	const zoomPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom' AND version_compare(version, '%s') < 0);"
+	zoomQueryV1 := fmt.Sprintf(zoomPatchQueryFmt, "1.0")
+	zoomQueryV2 := fmt.Sprintf(zoomPatchQueryFmt, "2.0")
+
 	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
 	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
 	zoom := &fmaTestState{
 		version:        "1.0",
 		installerBytes: []byte("zoom-1.0"),
 		installerPath:  "/zoom.msi",
-		patchQuery:     "SELECT 1 FROM osquery_info;",
+		patchQuery:     zoomQueryV1,
 	}
 	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
 	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
@@ -33571,6 +33596,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	bumpVersion := func(version string, bytes []byte) {
 		zoom.version = version
 		zoom.installerBytes = bytes
+		zoom.patchQuery = fmt.Sprintf(zoomPatchQueryFmt, version)
 		zoom.ComputeSHA(bytes)
 	}
 
@@ -33617,6 +33643,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
 		return *id
 	}
+	patchPolicyQuery := func(policyID uint) string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
 
 	// Two cached versions (1.0, 2.0); the no-version GitOps applies above left the title on Latest (active = newest,
 	// no pin).
@@ -33642,6 +33673,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	patchVersion := func(version string) {
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -33673,6 +33705,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV1, patchPolicyQuery(patchPol.Policy.ID))
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
@@ -33681,6 +33714,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")
