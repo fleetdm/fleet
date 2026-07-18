@@ -9411,22 +9411,84 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	require.NoError(t, err)
 	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
 
-	// Second checkin: all profiles delivered, device should be released.
+	// findUserRelease returns the user-scope ServerHasFinishedProvisioning Replace from a command batch, nil
+	// when absent. This is the command that completes the ESP "Account setup" phase; its 200 ack is what
+	// commits the Active -> None transition (#49134).
+	findUserRelease := func(cmds map[string]fleet.ProtoCmdOperation) *fleet.ProtoCmdOperation {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			if c.Verb == fleet.CmdReplace && strings.Contains(uri, "./User/") && strings.Contains(uri, "ServerHasFinishedProvisioning") {
+				return &c
+			}
+		}
+		return nil
+	}
+	// ackAll acks every non-Status command in the batch with 200, except the command with statusOverrideUUID
+	// which is acked with the given status. Returns the server's response to the ack message.
+	ackAll := func(cmds map[string]fleet.ProtoCmdOperation, statusOverrideUUID, overrideStatus string) map[string]fleet.ProtoCmdOperation {
+		ackMsgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				continue
+			}
+			status := "200"
+			if c.Cmd.CmdID.Value == statusOverrideUUID {
+				status = overrideStatus
+			}
+			d.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &ackMsgID, CmdRef: &c.Cmd.CmdID.Value,
+				Cmd: &c.Verb, Data: &status,
+				CmdID: fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		resp, err := d.SendResponse()
+		require.NoError(t, err)
+		return resp
+	}
+
+	// Second checkin: all release gates pass, the release commands are sent, including the user-scope
+	// ServerHasFinishedProvisioning Replace.
 	cmds, err = d.StartManagementSession()
 	require.NoError(t, err)
+	userRelease := findUserRelease(cmds)
+	require.NotNil(t, userRelease, "should release device with the user-scope ServerHasFinishedProvisioning")
 
-	var foundRelease bool
-	for _, c := range cmds {
-		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
-			foundRelease = true
-			break
-		}
-	}
-	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+	// Sending the release must NOT complete the ESP on Fleet's side: during OOBE the device rejects
+	// user-scope writes with SyncML 405 until its user MDM context initializes, so the enrollment stays
+	// Active until the Replace is acked 200.
+	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration,
+		"enrollment must stay Active until the user-scope release is acked 200")
+
+	// The device 405s the user-scope Replace (user MDM context not ready) and acks everything else 200.
+	afterNack := ackAll(cmds, userRelease.Cmd.CmdID.Value, "405")
 
 	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
 	require.NoError(t, err)
-	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration,
+		"a 405 on the user-scope release must NOT complete the ESP -- recording it as delivered is the #49134 hang")
+
+	// The server re-sends the user-scope Replace: possibly immediately (the ack message is still within the
+	// per-session retry budget), otherwise at the start of the next session.
+	retry := findUserRelease(afterNack)
+	if retry == nil {
+		nextSession, err := d.StartManagementSession()
+		require.NoError(t, err)
+		retry = findUserRelease(nextSession)
+	}
+	require.NotNil(t, retry, "the user-scope release must be re-sent after a 405 until the device acks it")
+
+	// The user MDM context is now up: the device accepts the retried Replace. The 200 ack completes the ESP
+	// within the same message exchange (results are recorded before the ESP handler runs).
+	ackAll(map[string]fleet.ProtoCmdOperation{retry.Cmd.CmdID.Value: *retry}, "", "")
+
+	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration,
+		"the 200 ack of the user-scope release completes the ESP")
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {

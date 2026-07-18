@@ -1651,6 +1651,11 @@ func TestGetESPCommands(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
+		// No release attempt queued yet: handleESPRelease proceeds to the wait gates / finalize. Tests for the
+		// user-scope release retry phase override this to return Attempted=true with the ack state under test.
+		ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+			return &fleet.MDMWindowsESPReleaseAckStatus{}, nil
+		}
 		// Finalize side-effects: default no-op success. Tests that need to capture, fail, or assert ordering
 		// install their own override.
 		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
@@ -1688,7 +1693,7 @@ func TestGetESPCommands(t *testing.T) {
 			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationNone,
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoError(t, err)
 		assert.Nil(t, cmds)
 	})
@@ -1701,7 +1706,7 @@ func TestGetESPCommands(t *testing.T) {
 			AwaitingConfiguration: fleet.WindowsMDMAwaitingConfigurationPending,
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return hold commands")
 	})
@@ -1723,7 +1728,7 @@ func TestGetESPCommands(t *testing.T) {
 		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
 		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
 		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
@@ -1739,7 +1744,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait while profiles are pending")
 	})
@@ -1752,7 +1757,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait while profiles are verifying")
 	})
@@ -1790,7 +1795,7 @@ func TestGetESPCommands(t *testing.T) {
 			}, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait while the freshly queued profile is pending")
 		require.NotEmpty(t, queued, "per-host reconcile must queue the unqueued profile")
@@ -1807,7 +1812,7 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, errors.New("boom")
 		}
 
-		_, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		_, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.Error(t, err, "a reconcile failure must block the release; the next checkin retries")
 		assert.False(t, ds.GetHostMDMWindowsProfilesFuncInvoked, "should not evaluate delivery status when reconcile failed")
 	})
@@ -1830,35 +1835,134 @@ func TestGetESPCommands(t *testing.T) {
 				{ProfileUUID: "prof-1", Name: "WiFi", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
 			}, nil
 		}
-		// Capture ordering: persist must run BEFORE the CAS so a persist failure can't leave the device finalized
-		// without the dropped-response retry safety net.
-		persisted := false
-		ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
-			persisted = true
-			return nil
-		}
-		ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
-			require.True(t, persisted, "persist must run BEFORE CAS Active->None")
-			return true, nil
-		}
-
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands")
 		assert.True(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
 			"release path must persist final commands as the dropped-response retry backup")
-		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
-			"should transition awaiting_configuration out of Active")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"release path must stay Active until the user-scope ServerHasFinishedProvisioning Replace acks 200; "+
+				"CASing to None here is the #49134 bug (a 405 was recorded as delivered and the device hung)")
 	})
 
 	t.Run("active with no profiles releases device", func(t *testing.T) {
 		ds, svc := newSvc(t)
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "should return release commands when no profiles configured")
-		assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
-			"should transition awaiting_configuration out of Active")
+		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+			"release path must stay Active until the user-scope release is acked")
+	})
+
+	// The user-scope release retry phase: once release commands have been queued (ack.Attempted), the handler
+	// bypasses the wait gates entirely and drives the Active -> None transition off the ack of the user-scope
+	// ServerHasFinishedProvisioning Replace. Live-validated behavior on Win11 26200 (#49134): the device 405s
+	// the user-scope write until its user MDM context initializes, then accepts an identical Replace.
+	t.Run("user-scope release retry phase", func(t *testing.T) {
+		// newRetrySvc wires newSvc with the given ack status and fails the test if the wait gates are consulted:
+		// the retry phase must decide from the ack alone.
+		newRetrySvc := func(t *testing.T, ack fleet.MDMWindowsESPReleaseAckStatus) (*mock.Store, *Service) {
+			ds, svc := newSvc(t)
+			ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+				require.Contains(t, targetLocURI, "./User/", "ack status must be looked up for the user-scope release URI")
+				return &ack, nil
+			}
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+				t.Fatal("retry phase must not re-run the profile wait gate")
+				return nil, nil
+			}
+			ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+				t.Fatal("retry phase must not re-run the setup experience wait gate")
+				return nil, nil
+			}
+			return ds, svc
+		}
+		// sessionMsg builds a minimal incoming message with the given device MsgID.
+		sessionMsg := func(msgID string) *fleet.SyncML {
+			return &fleet.SyncML{SyncHdr: fleet.SyncHdr{MsgID: msgID}}
+		}
+
+		t.Run("acked 200 transitions to None", func(t *testing.T) {
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, Acked200: true, LatestStatus: "200"})
+			var casFrom, casTo fleet.WindowsMDMAwaitingConfiguration
+			ds.SetMDMWindowsAwaitingConfigurationFunc = func(ctx context.Context, mdmDeviceID string, from, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {
+				casFrom, casTo = from, to
+				return true, nil
+			}
+
+			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), sessionMsg("5"))
+			require.NoError(t, err)
+			assert.Empty(t, cmds, "nothing to send once the release is acked")
+			require.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked, "200 ack must commit the ESP completion")
+			assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, casFrom)
+			assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, casTo)
+		})
+
+		t.Run("attempt in flight waits", func(t *testing.T) {
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true})
+
+			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), sessionMsg("2"))
+			require.NoError(t, err)
+			assert.Empty(t, cmds, "must not stack another attempt while one is in flight")
+			assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked)
+			assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
+		})
+
+		t.Run("acked 405 re-sends the user-scope Replace at session start", func(t *testing.T) {
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
+			var persistedUUIDs []string
+			ds.MDMWindowsInsertCommandsForHostFunc = func(ctx context.Context, hostUUIDOrDeviceID string, persistCmds []*fleet.MDMWindowsCommand) error {
+				for _, c := range persistCmds {
+					persistedUUIDs = append(persistedUUIDs, c.CommandUUID)
+				}
+				return nil
+			}
+
+			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), sessionMsg("2"))
+			require.NoError(t, err)
+			require.Len(t, cmds, 1, "retry sends exactly the user-scope Replace")
+			assert.Equal(t, fleet.CmdReplace, cmds[0].XMLName.Local)
+			assert.Contains(t, cmds[0].GetTargetURI(), "./User/Vendor/MSFT/DMClient/Provider/")
+			assert.Contains(t, cmds[0].GetTargetURI(), "ServerHasFinishedProvisioning")
+			require.Equal(t, []string{cmds[0].CmdID.Value}, persistedUUIDs,
+				"the retry must be persisted with the inline CmdID so the ack clears the backup and is recorded in results")
+			assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked, "must stay Active until a 200 ack")
+		})
+
+		t.Run("acked 405 mid-session waits for the next session", func(t *testing.T) {
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
+
+			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), sessionMsg("5"))
+			require.NoError(t, err)
+			assert.Empty(t, cmds,
+				"a mid-session retry would ping-pong the failing Replace for as long as the device keeps the session open")
+			assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
+		})
+
+		t.Run("nil request message still retries", func(t *testing.T) {
+			// Defensive default: a missing message must err toward retrying (never retrying wedges the device).
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
+
+			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
+			require.NoError(t, err)
+			require.Len(t, cmds, 1)
+			assert.True(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
+		})
+
+		t.Run("timeout gives up and transitions to None", func(t *testing.T) {
+			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
+			device := newActiveDevice()
+			past := time.Now().Add(-4 * time.Hour)
+			device.AwaitingConfigurationAt = &past
+
+			cmds, err := svc.getESPCommands(t.Context(), device, sessionMsg("2"))
+			require.NoError(t, err)
+			assert.Empty(t, cmds, "timeout stops the retry loop")
+			assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
+				"the 3-hour timeout must bound the retry loop for devices whose user context never initializes")
+			assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
+		})
 	})
 
 	// findCmdByLocURI returns the first SyncMLCmd whose target LocURI contains
@@ -1884,7 +1988,7 @@ func TestGetESPCommands(t *testing.T) {
 		}
 		setRequireAll(ds, true)
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds, "profile failure alone should release the device")
 
@@ -1918,7 +2022,7 @@ func TestGetESPCommands(t *testing.T) {
 		}
 		setRequireAll(ds, true)
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds)
 
@@ -1958,7 +2062,7 @@ func TestGetESPCommands(t *testing.T) {
 		activitySvc := &mock.MockActivityService{}
 		svc.SetActivityService(activitySvc)
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds)
 
@@ -2004,7 +2108,7 @@ func TestGetESPCommands(t *testing.T) {
 		device := newActiveDevice()
 		device.AwaitingConfigurationAt = &past
 
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds)
 
@@ -2044,7 +2148,7 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, newNotFoundError()
 		}
 
-		_, err := svc.getESPCommands(t.Context(), device)
+		_, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoError(t, err,
 			"notFound from CancelHostUpcomingActivity must be tolerated -- otherwise mid-loop crashes loop forever on retry")
 		assert.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked,
@@ -2082,7 +2186,7 @@ func TestGetESPCommands(t *testing.T) {
 			return ac, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		require.NotEmpty(t, cmds)
 		assert.True(t, ds.TeamLiteFuncInvoked, "TeamLite must be called on the team path")
@@ -2110,7 +2214,7 @@ func TestGetESPCommands(t *testing.T) {
 			return false, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.Error(t, err, "must return error so device retries on next session")
 		assert.Nil(t, cmds)
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
@@ -2141,7 +2245,7 @@ func TestGetESPCommands(t *testing.T) {
 			return false, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.Error(t, err, "must return error so device retries on next session")
 		assert.Nil(t, cmds)
 		assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
@@ -2160,7 +2264,7 @@ func TestGetESPCommands(t *testing.T) {
 			return nil, errors.New("transient db error")
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.Error(t, err, "must return error so device retries on next session")
 		assert.Nil(t, cmds)
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
@@ -2175,7 +2279,7 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 
-		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice())
+		cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), nil)
 		require.NoError(t, err)
 		assert.Nil(t, cmds, "should wait for orbit to initialize setup experience")
 		// Must NOT have proceeded to the Active->None transition.
