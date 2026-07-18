@@ -684,7 +684,21 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
 	tmID := ptr.ValOrZero(payload.TeamID)
 
+	var affectedHostIDs []uint
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Capture the currently-active installer before flipping so installs queued
+		// against it can be redirected to the new active version in the same transaction.
+		var previousActiveID uint
+		switch err := sqlx.GetContext(ctx, tx, &previousActiveID, `
+			SELECT id FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
+			LIMIT 1 FOR UPDATE`, tmID, payload.TitleID); {
+		case errors.Is(err, sql.ErrNoRows):
+			// No active row yet (nothing to redirect away from).
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "getting current active fleet-maintained app installer")
+		}
+
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE software_installers
 			SET is_active = (id = ?)
@@ -701,6 +715,14 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 			)
 		`, activeInstallerID, tmID, payload.TitleID, activeInstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "re-pointing policies to active fleet-maintained app installer")
+		}
+
+		if previousActiveID != 0 && previousActiveID != activeInstallerID {
+			hostIDs, err := ds.redirectPendingInstallsToActiveInstaller(ctx, tx, previousActiveID, activeInstallerID)
+			if err != nil {
+				return err
+			}
+			affectedHostIDs = hostIDs
 		}
 
 		// A nil pin means the caller manages the pin row separately and it must be
@@ -723,29 +745,104 @@ func (ds *Datastore) SetFleetMaintainedAppActiveInstaller(ctx context.Context, p
 		return err
 	}
 
-	// Update patch policy for the installer, if it exists
+	// Regenerate the patch policy query for the newly-active installer, if one exists.
 	patchPolicy, err := ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
-	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
-		}
+	switch {
+	case fleet.IsNotFound(err):
+		// No patch policy for this title; nothing to regenerate.
+	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting patch policy")
+	default:
+		activeInstaller, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, activeInstallerID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting active installer for patch policy")
+		}
+
+		generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, activeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating patch policy query")
+		}
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating patch policy query")
+		}
+		if err := ds.ResetPolicy(ctx, patchPolicy.ID); err != nil {
+			return err
+		}
 	}
 
-	activeInstaller, err := ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, activeInstallerID, false)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting active installer for patch policy")
+	// Activation must run outside the transaction (it reads/writes via the
+	// datastore's own connection), mirroring ProcessInstallerUpdateSideEffects.
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHostIDs)
+}
+
+// redirectPendingInstallsToActiveInstaller moves installs queued against a superseded
+// Fleet-maintained app installer to the newly-active one, so a host never
+// installs a version other than the one Fleet currently displays. Not-yet-activated
+// install activities are re-pointed (and their cached version/filename refreshed)
+// so they install the new version; already-dispatched installs and any uninstalls
+// are canceled via the shared side-effects path (they can't be recalled from the
+// host, so their automation re-queues them against the active installer). Returns
+// the hosts whose activity queue must be advanced after the transaction commits.
+func (ds *Datastore) redirectPendingInstallsToActiveInstaller(ctx context.Context, tx sqlx.ExtContext, previousActiveID, activeInstallerID uint) ([]uint, error) {
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE upcoming_activities ua
+		JOIN software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+		JOIN software_installers si ON si.id = ?
+		SET ua.payload = JSON_SET(ua.payload, '$.version', si.version, '$.installer_filename', si.filename)
+		WHERE siua.software_installer_id = ?
+			AND ua.activated_at IS NULL
+			AND ua.activity_type = 'software_install'
+	`, activeInstallerID, previousActiveID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "refreshing queued install payload to active installer")
 	}
 
-	generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, activeInstaller)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating patch policy query")
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE software_install_upcoming_activities siua
+		JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		SET siua.software_installer_id = ?
+		WHERE siua.software_installer_id = ?
+			AND ua.activated_at IS NULL
+			AND ua.activity_type = 'software_install'
+	`, activeInstallerID, previousActiveID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "re-pointing queued installs to active installer")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, `UPDATE policies SET query = ? WHERE id = ?`, generated.Query, patchPolicy.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating patch policy query")
+	return ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, previousActiveID, true, false, true)
+}
+
+// ResolveActiveInstallerForRetry returns the currently-active installer for the
+// title of the given (possibly superseded) installer, so a retried install targets
+// the version Fleet currently displays rather than the one the original attempt was
+// queued against. It returns the input id unchanged when that installer is already
+// active, has no active sibling, or no longer exists.
+func (ds *Datastore) ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error) {
+	// Only Fleet-maintained apps have the single-active-version semantics this
+	// resolves against: an FMA title has exactly one is_active=1 row, so the active
+	// sibling is unambiguous. Custom titles can have several packages all flagged
+	// is_active=1, and each is a distinct package (not a version of the other), so a
+	// retry must stay on its own installer — the query returns no row for them and
+	// the given id is used unchanged.
+	var activeID uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &activeID, `
+		SELECT active.id
+		FROM software_installers given
+		JOIN software_installers active
+			ON active.global_or_team_id = given.global_or_team_id
+			AND active.title_id = given.title_id
+			AND active.fleet_maintained_app_id = given.fleet_maintained_app_id
+			AND active.is_active = 1
+		WHERE given.id = ?
+			AND given.fleet_maintained_app_id IS NOT NULL
+		LIMIT 1`, installerID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return installerID, nil
+	case err != nil:
+		return 0, ctxerr.Wrap(ctx, err, "resolving active installer for retry")
+	default:
+		return activeID, nil
 	}
-	return ds.ResetPolicy(ctx, patchPolicy.ID)
 }
 
 func (ds *Datastore) ListFleetMaintainedAppActiveInstallers(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {

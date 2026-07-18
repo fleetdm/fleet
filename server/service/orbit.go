@@ -1808,14 +1808,21 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 
 // retryPolicyAutomationSoftwareInstall queues a retry for a policy automation software install.
 func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
+	// Retry the version currently targeted by the title, not the (possibly
+	// superseded) installer this attempt was frozen on, so a retry after an
+	// auto-update installs the active version rather than looping on the old one.
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
+	if err != nil {
+		return err
+	}
 	svc.logger.InfoContext(ctx,
 		"queuing policy automation software install retry",
 		"host_id", host.ID,
 		"policy_id", *hsi.PolicyID,
-		"software_installer_id", *hsi.SoftwareInstallerID,
+		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
 		PolicyID: hsi.PolicyID,
 	})
 	return err
@@ -1831,14 +1838,20 @@ func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.H
 
 // retrySoftwareInstall queues a retry for a non-policy software install.
 func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
+	// Retry the version currently targeted by the title, not the (possibly
+	// superseded) installer this attempt was frozen on.
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
+	if err != nil {
+		return err
+	}
 	svc.logger.InfoContext(ctx,
 		"queuing software install retry",
 		"host_id", host.ID,
-		"software_installer_id", *hsi.SoftwareInstallerID,
+		"software_installer_id", installerID,
 		"self_service", hsi.SelfService,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
 		SelfService:        hsi.SelfService,
 		UserID:             hsi.UserID,
 		ForSetupExperience: fromSetupExperience,
