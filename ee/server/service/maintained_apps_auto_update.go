@@ -117,12 +117,11 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 		TeamID:  c.TeamID,
 		TitleID: c.TitleID,
 	}
+	// SetFleetMaintainedAppActiveInstaller atomically flips the active installer,
+	// re-points policies, and redirects installs frozen on the old version to the
+	// new one, so a host never installs a version other than the one displayed.
 	if err := ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, target.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting active installer")
-	}
-	// Cancel pending installs of the version we advanced away from.
-	if err := ds.ProcessInstallerUpdateSideEffects(ctx, c.InstallerID, true, false); err != nil {
-		return ctxerr.Wrap(ctx, err, "processing installer update side effects")
 	}
 
 	logger.InfoContext(ctx, "advanced fleet-maintained app to newer cached version",

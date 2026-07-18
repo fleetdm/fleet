@@ -866,17 +866,23 @@ func TestRetrySoftwareInstall(t *testing.T) {
 	}
 
 	var capturedOpts fleet.HostSoftwareInstallOptions
+	var capturedInstallerID uint
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 		require.Equal(t, host.ID, hostID)
-		require.Equal(t, installerID, softwareInstallerID)
+		capturedInstallerID = softwareInstallerID
 		capturedOpts = opts
 		return "new-uuid", nil
+	}
+	// By default the frozen installer is still the active one for its title.
+	ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, installerID uint) (uint, error) {
+		return installerID, nil
 	}
 
 	t.Run("preserves self-service and user ID", func(t *testing.T) {
 		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
 		require.NoError(t, err)
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, installerID, capturedInstallerID)
 		require.True(t, capturedOpts.SelfService)
 		require.NotNil(t, capturedOpts.UserID)
 		require.Equal(t, userID, *capturedOpts.UserID)
@@ -890,6 +896,65 @@ func TestRetrySoftwareInstall(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.True(t, capturedOpts.ForSetupExperience)
+	})
+
+	t.Run("retries the active installer after a version change", func(t *testing.T) {
+		const activeID = uint(99)
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, gotID uint) (uint, error) {
+			require.Equal(t, installerID, gotID)
+			return activeID, nil
+		}
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, activeID, capturedInstallerID, "retry targets the current active installer, not the frozen one")
+	})
+}
+
+func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	ctx := context.Background()
+
+	frozenID := uint(42)
+	policyID := uint(5)
+	host := &fleet.Host{ID: 1}
+	hsi := &fleet.HostSoftwareInstallerResult{
+		SoftwareInstallerID: &frozenID,
+		PolicyID:            &policyID,
+		AttemptNumber:       new(1),
+	}
+
+	var capturedInstallerID uint
+	var capturedOpts fleet.HostSoftwareInstallOptions
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		require.Equal(t, host.ID, hostID)
+		capturedInstallerID = softwareInstallerID
+		capturedOpts = opts
+		return "new-uuid", nil
+	}
+
+	t.Run("retries the frozen installer when it is still active", func(t *testing.T) {
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, frozenID, capturedInstallerID)
+		require.Equal(t, &policyID, capturedOpts.PolicyID)
+	})
+
+	t.Run("retries the active installer after a version change", func(t *testing.T) {
+		const activeID = uint(99)
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) {
+			require.Equal(t, frozenID, id)
+			return activeID, nil
+		}
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, activeID, capturedInstallerID, "policy retry targets the current active installer, not the frozen one")
+		require.Equal(t, &policyID, capturedOpts.PolicyID)
 	})
 }
 
