@@ -935,9 +935,12 @@ ORDER BY
 // processed earlier in the same request must be visible, otherwise a replica-lag read would miss the 200 and
 // re-send the release for an extra session.
 //
-// The queue-GC cron deletes acked rows after a retention window far longer than the ESP's 3-hour lifetime, so
-// attempts cannot age out of this aggregate while the retry loop is running; if that assumption ever broke, the
-// handler would merely re-run the full (idempotent) finalize.
+// Retention interplay: CleanupWindowsMDMCommandQueue deletes ACKED queue rows after 1 hour, which is shorter
+// than the ESP's 3-hour timeout. While the retry loop is live this doesn't matter -- every session with a
+// non-200 ack queues a fresh attempt, so an un-aged row always exists. The marker only vanishes if the device
+// goes silent for over an hour mid-retry; when it returns, Attempted=false makes the handler re-run the full
+// finalize, which is idempotent and drops it right back into the retry phase, and the 3-hour timeout still
+// applies because it is computed from awaiting_configuration_at, not from these rows.
 func (ds *Datastore) MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
 	const query = `
 SELECT
