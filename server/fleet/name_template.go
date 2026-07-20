@@ -73,6 +73,12 @@ func varAlternationRegexp(vars []FleetVarName) *regexp.Regexp {
 // so this is used to strip secret tokens out of a template when computing its fixed-text byte floor.
 var nameTemplateSecretRegexp = regexp.MustCompile(`\$` + ServerSecretPrefix + `\w+|\$\{` + ServerSecretPrefix + `\w+\}`)
 
+// nameTemplateVitalRegexp matches a $FLEET_HOST_VITAL_<id> / ${FLEET_HOST_VITAL_<id>}
+// custom host vital token. Vital values, like secrets, are only known at
+// resolve time, so this is used to strip vital tokens out of a template when
+// computing its fixed-text byte floor.
+var nameTemplateVitalRegexp = regexp.MustCompile(`\$` + CustomHostVitalPrefix + `\w+|\$\{` + CustomHostVitalPrefix + `\w+\}`)
+
 // ValidateHostNameTemplate validates a host name template and returns the
 // normalized (trimmed) template that callers should persist.
 func ValidateHostNameTemplate(tmpl string) (string, error) {
@@ -112,6 +118,7 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 	// still caught by the cron when it resolves against a host's actual values.
 	literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, "")
 	literal = nameTemplateSecretRegexp.ReplaceAllString(literal, "")
+	literal = nameTemplateVitalRegexp.ReplaceAllString(literal, "")
 	if len(literal) > MaxResolvedHostNameBytes {
 		return "", NewInvalidArgumentError("name_template",
 			fmt.Sprintf("Host name template's fixed text can't be longer than %d bytes (the device name limit).", MaxResolvedHostNameBytes))
@@ -124,7 +131,9 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 // syntactically (see ValidateHostNameTemplate) and additionally verifies that
 // every custom (secret, $FLEET_SECRET_*) variable it references is defined in
 // the datastore, mirroring how scripts and profiles validate embedded secrets at
-// save time. It returns the normalized template to persist.
+// save time, and that every custom host vital ($FLEET_HOST_VITAL_<id>) it
+// references is a known vital ID. It returns the normalized template to
+// persist.
 func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl string) (string, error) {
 	validated, err := ValidateHostNameTemplate(tmpl)
 	if err != nil {
@@ -142,6 +151,12 @@ func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl
 			}
 			return "", err
 		}
+	}
+	// Vital IDs are dynamic (not a fixed allow-list), so an unknown or malformed
+	// $FLEET_HOST_VITAL_<id> reference is only caught here, same as scripts and
+	// profiles validate their own embedded vital references.
+	if err := ds.ValidateReferencedCustomHostVitals(ctx, []string{validated}); err != nil {
+		return "", NewInvalidArgumentError("name_template", err.Error())
 	}
 	return validated, nil
 }

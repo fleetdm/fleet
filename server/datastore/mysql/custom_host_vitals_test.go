@@ -30,6 +30,7 @@ func TestCustomHostVitals(t *testing.T) {
 		{"DeleteCustomHostVital", testDeleteCustomHostVital},
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
+		{"SetHostValueResendsReferencingDeviceName", testSetHostCustomHostVitalValueResendsDeviceName},
 		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
 		{"ValidateReferencedCustomHostVitalsRejectsMalformed", testValidateReferencedCustomHostVitalsRejectsMalformed},
 	}
@@ -588,6 +589,38 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 			host.UUID, declVital.DeclarationUUID)
 	})
 	require.Nil(t, declStatus, "declaration should be reset (NULL status) so the DDM reconciler re-delivers it")
+}
+
+// testSetHostCustomHostVitalValueResendsDeviceName covers the device-name side
+// of the resend-on-value-change hook: setting the value of a vital referenced
+// by the host's (team) name template re-queues its device-name enforcement
+// row, but setting a vital the template doesn't reference leaves the row
+// untouched, mirroring the precision of the profile-resend case above.
+func testSetHostCustomHostVitalValueResendsDeviceName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	otherID := createCustomHostVital(t, ds, "OTHER")
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "device-name-vital-team"})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`,
+		fmt.Sprintf("WS-$%s%d", fleet.CustomHostVitalPrefix, vitalID), team.ID)
+	require.NoError(t, err)
+
+	host := enrollAppleHostForDeviceName(t, ds, "vital-mac", "darwin", team.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryVerifying, nil, "WS-Engineering", ""))
+
+	// Setting a vital the template doesn't reference leaves the settled row alone.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, otherID, "ignored"))
+	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Setting the referenced vital's value re-queues the row (status reset to
+	// NULL) so the cron re-resolves the name with the new value.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
 }
 
 // The DDM reconcile snapshot must flag declarations that reference a custom host

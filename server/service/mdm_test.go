@@ -2955,6 +2955,70 @@ func TestResendHostNameTemplate(t *testing.T) {
 	})
 }
 
+func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	// Simulate the real datastore: only vital id 1 exists.
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		var malformed []string
+		var missing []uint
+		for _, d := range documents {
+			malformed = append(malformed, fleet.ContainsMalformedCustomHostVitalRefs(d)...)
+			for _, id := range fleet.ContainsCustomHostVitalIDs(d) {
+				if id != 1 {
+					missing = append(missing, id)
+				}
+			}
+		}
+		if len(malformed) > 0 {
+			return &fleet.InvalidCustomHostVitalRefError{Refs: malformed}
+		}
+		if len(missing) > 0 {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: missing}
+		}
+		return nil
+	}
+
+	t.Run("unknown vital id is rejected", func(t *testing.T) {
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_999")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_HOST_VITAL_999")
+		require.Contains(t, err.Error(), "is not defined")
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+	})
+
+	t.Run("malformed vital ref is rejected", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_asset_tag")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must be a custom host vital ID")
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+	})
+
+	t.Run("known vital id passes validation and is persisted", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		var savedTemplate string
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			savedTemplate = conf.MDM.HostNameTemplate.Value
+			return nil
+		}
+		svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+			ApplyHostNameTemplateChange: func(ctx context.Context, team *fleet.Team, nameTemplate string) error { return nil },
+		})
+
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_1")
+		require.NoError(t, err)
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+		require.Equal(t, "WS-$FLEET_HOST_VITAL_1", savedTemplate)
+	})
+}
+
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.

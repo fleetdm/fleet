@@ -297,6 +297,13 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 		if err := resendMDMProfilesForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend mdm profiles for custom host vital value change")
 		}
+
+		// Re-queue the host's device-name enforcement row (if its name template
+		// references the vital), so the cron re-resolves the name with the new
+		// value. Same transaction as the value write, for the same reason as above.
+		if err := resendDeviceNameForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend device name for custom host vital value change")
+		}
 		return nil
 	})
 }
