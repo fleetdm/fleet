@@ -32,6 +32,12 @@
         width: 16px;
         height: 26px;
         left: 2px;
+
+        // The filter glyph is a hardcoded black PNG, so it's near-invisible
+        // against the dark-mode control. Invert it to a light glyph (#47581).
+        body.dark-mode & {
+          filter: invert(1);
+        }
       }
     }
 
