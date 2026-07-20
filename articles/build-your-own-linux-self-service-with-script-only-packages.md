@@ -249,4 +249,4 @@ _Managing devices as code, one pull request at a time. Start with the [GitOps re
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-07-20">
-<meta name="description" value="Use Fleet 4.89.0 script-only packages to turn apt and dnf commands into a Linux self-service catalog, managed in Git and generated from a package name.">
+<meta name="description" value="Use Fleet 4.89.0 script-only packages to turn apt and dnf commands into a Linux self-service catalog.">
