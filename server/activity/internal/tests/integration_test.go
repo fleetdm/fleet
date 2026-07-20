@@ -50,6 +50,11 @@ func testListActivities(t *testing.T, s *integrationTestSuite) {
 	assert.Equal(t, "edited_pack", result.Activities[0].Type)
 	assert.Equal(t, "deleted_pack", result.Activities[1].Type)
 	assert.Equal(t, "applied_spec_pack", result.Activities[2].Type)
+
+	// An order_key outside the allowlist is rejected as a client error rather
+	// than being passed through to the SQL ORDER BY clause.
+	_, statusCode = s.getActivities(t, "order_key=details")
+	assert.Equal(t, http.StatusUnprocessableEntity, statusCode)
 }
 
 func testListActivitiesPagination(t *testing.T, s *integrationTestSuite) {
@@ -203,6 +208,11 @@ func testListHostPastActivities(t *testing.T, s *integrationTestSuite) {
 	t.Run("returns 404 for non-existent host", func(t *testing.T) {
 		_, statusCode := s.getHostPastActivities(t, 99999, "per_page=100")
 		assert.Equal(t, http.StatusNotFound, statusCode)
+	})
+
+	t.Run("rejects order_key outside allowlist", func(t *testing.T) {
+		_, statusCode := s.getHostPastActivities(t, hostA, "order_key=details")
+		assert.Equal(t, http.StatusUnprocessableEntity, statusCode)
 	})
 
 	t.Run("pagination", func(t *testing.T) {
