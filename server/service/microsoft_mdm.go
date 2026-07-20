@@ -2137,8 +2137,7 @@ func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device 
 //
 // For awaiting_configuration=Active: run the wait gates (profiles + setup-experience software) and release or block
 // the device when ready, including the 3-hour timeout. After the release is sent, the enrollment stays Active until
-// the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200 (handleESPUserReleaseRetry), which
-// is why the incoming message is threaded through: retries are limited to the first message of a session.
+// the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200.
 func (svc *Service) getESPCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
 	switch device.AwaitingConfiguration {
 	case fleet.WindowsMDMAwaitingConfigurationPending:
@@ -2249,13 +2248,9 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	// If the release has already been sent (a queued command targeting the user-scope release URI exists), the
-	// enrollment is in the resend phase: stay Active and re-send the user-scope Replace until the device acks it
-	// with a 200, then transition to None. During OOBE the device rejects user-scope writes with SyncML 405 until
-	// the user MDM context initializes (observed on Win11 26200: the release fires seconds after enrollment, deep
-	// in the device phase, and the Replace 405s even though the node reads as present); without the retry the
-	// Account-setup ESP phase never gets its completion signal and the device hangs until the 3-hour OS timeout
-	// (#49134). Only the release path enters this phase: the block paths do not send the user-scope release and
-	// they transition to None in the same checkin that sends them.
+	// enrollment is in the resend phase: stay Active and re-send the user-scope Replace until the device acks it with a
+	// 200, then transition to None. During OOBE the device rejects user-scope writes with SyncML 405 until the user MDM
+	// context initializes.
 	ack, err := svc.ds.MDMWindowsGetESPReleaseAckStatus(ctx, device.ID,
 		espUserReleaseLocURI(syncml.DocProvisioningAppProviderID), espReleaseAttemptCmdIDPrefix)
 	if err != nil {
@@ -2665,19 +2660,19 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"blocking", shouldBlock,
 		"soft_blocking", shouldWarn)
 
-	// The release path does NOT transition to None here: the enrollment stays Active until the device acks the
-	// user-scope ServerHasFinishedProvisioning Replace with a 200 (handleESPUserReleaseRetry, entered on the next
-	// checkin via the queued-attempt marker persisted above). Committing None before the ack is how devices got
-	// permanently stuck on Account setup (#49134): the 405 was recorded, never retried, and Fleet believed the ESP
-	// had completed. Staying Active also keeps the DMClient poll un-relaxed (reconcileWindowsMDMPollSchedule gates
-	// on None), so a not-yet-released device is never moved to the slow poll (#48760).
+	// Release path: no CAS here. The enrollment stays Active until the device acks the user-scope
+	// ServerHasFinishedProvisioning Replace with a 200 (handleESPUserReleaseRetry, entered on later checkins via
+	// the attempt rows persisted above). Committing None before that ack was the #49134 hang: the device's 405 was
+	// recorded as delivered and never retried. Staying Active also keeps the fast DMClient poll
+	// (reconcileWindowsMDMPollSchedule gates on None), so a not-yet-released device can't be relaxed to the slow
+	// poll (#48760).
 	if !shouldBlock && !shouldWarn {
 		return cmds, nil
 	}
 
-	// Block paths: CAS Active -> None so only one concurrent checkin commits the finalize. Cancel and persist above
-	// ran for both concurrent winners, but cancel is idempotent and persist's losers get harmlessly delivered as
-	// orphan Replaces.
+	// Block paths commit immediately: CAS Active -> None so exactly one concurrent checkin finalizes. Cancel and
+	// persist above may have run for both racers; cancel is idempotent and the loser's persisted Replaces deliver
+	// harmlessly.
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
 	if err != nil {
@@ -2706,14 +2701,13 @@ func espUserReleaseLocURI(provID string) string {
 // windows_mdm_commands (their acks must be recorded in windows_mdm_command_results).
 const espReleaseAttemptCmdIDPrefix = "esp-release-"
 
-// espRetryAllowedForMessage bounds user-scope release retries to the start of an OMA-DM session (device MsgID 1 or
-// 2). The device acks commands within the same session (message N's commands are acked in message N+1, which runs
-// this handler again), so retrying on every message would ping-pong a failing Replace for as long as the device
-// keeps the session open. One attempt per session is enough: the deciding condition (user MDM context readiness)
-// changes on session boundaries, not between messages of one session.
+// espRetryAllowedForMessage bounds user-scope release retries to the start of an OMA-DM session (device MsgID 1 or 2; in
+// practice MsgID 1 is auth and MsgID 2 is trusted request). The device acks commands within the same session (message
+// N's commands are acked in message N+1, which runs this handler again), so retrying on every message would ping-pong a
+// failing Replace for as long as the device keeps the session open. One attempt per session is enough: the deciding
+// condition (user MDM context readiness) changes on session boundaries, not between messages of one session.
 //
-// Defaults to true on a missing/unreadable header: occasionally retrying too often is recoverable noise, never
-// retrying would wedge the device on the ESP.
+// Defaults to true on a missing/unreadable header: occasionally retrying too often is better than never.
 func espRetryAllowedForMessage(reqMsg *fleet.SyncML) bool {
 	if reqMsg == nil {
 		return true
@@ -2722,7 +2716,6 @@ func espRetryAllowedForMessage(reqMsg *fleet.SyncML) bool {
 	if err != nil {
 		return true
 	}
-	// Parse numerically rather than comparing literals so a padded value ("01", "02") still matches.
 	n, err := strconv.Atoi(strings.TrimSpace(msgID))
 	if err != nil {
 		return true
@@ -2742,8 +2735,8 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 ) ([]*mdm_types.SyncMLCmd, error) {
 	switch {
 	case ack.Acked200:
-		// The device accepted the user-scope release: the ESP is complete. CAS so only one concurrent checkin
-		// commits (and logs) the completion.
+		// CAS Active -> None: commit ESP completion, now confirmed by the device's ack. The CAS also picks a
+		// single winner among concurrent checkins so completion is committed and logged exactly once.
 		transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
 		if err != nil {
@@ -2756,8 +2749,9 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 		return nil, nil
 
 	case timedOut:
-		// Same bound as the pre-release timeout: stop retrying and let the device's own ESP timeout handling take
-		// over. Without this, an enrollment whose user context never initializes would retry forever.
+		// Same 3-hour bound as the pre-release path: CAS Active -> None to stop retrying and let the device's own
+		// ESP timeout handling take over. Without this, an enrollment whose user context never appears would retry
+		// forever.
 		svc.logger.WarnContext(ctx, "ESP: timeout waiting for user-scope release ack, finalizing without it",
 			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
 		if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
