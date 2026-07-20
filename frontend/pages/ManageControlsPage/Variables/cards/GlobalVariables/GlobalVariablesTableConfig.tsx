@@ -101,7 +101,7 @@ const generateTableHeaders = ({
               onClick={() => onDelete(variable)}
               ariaLabel={`Delete ${variable.name}`}
             >
-              <Icon name="trash" color="ui-fleet-black-75" size="small" />
+              <Icon name="trash" size="small" />
             </Button>
           </div>
         );

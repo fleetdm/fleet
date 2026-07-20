@@ -134,7 +134,7 @@ const LoginForm = ({
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="inverse"
+            variant="subdued"
             className="back-link"
           >
             <Icon name="chevron-left" color="ui-fleet-black-75" />

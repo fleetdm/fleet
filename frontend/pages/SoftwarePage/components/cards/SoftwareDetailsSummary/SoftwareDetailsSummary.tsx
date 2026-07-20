@@ -346,7 +346,7 @@ const SoftwareDetailsSummary = ({
                   position="top"
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="inverse"
+                      variant="subdued"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
                     >

@@ -152,7 +152,7 @@ const HostReportCard = ({
         >
           <Button
             className={`${baseClass}__view-full-report`}
-            variant="inverse"
+            variant="subdued"
             size="small"
             onClick={() => onShowDetails(report)}
           >

@@ -80,11 +80,11 @@ const FileDetails = ({
         <Button
           disabled={disabled}
           className={`${baseClass}__edit-button`}
-          variant="icon"
+          variant="subdued"
           onClick={() => handleClickEdit(disabled)}
           title="Replace file"
         >
-          <Icon name="pencil" color="ui-fleet-black-75" />
+          <Icon name="pencil" />
         </Button>
         <input
           ref={inputRef}

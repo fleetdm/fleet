@@ -398,7 +398,7 @@ const RunScriptBatchModal = ({
               </Button>
               <Button
                 onClick={() => setScriptForDetails(undefined)}
-                variant="inverse"
+                variant="subdued"
               >
                 Go back
               </Button>

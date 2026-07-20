@@ -54,7 +54,7 @@ const DiscardDataOption = ({
               e.preventDefault();
               setForceEditDiscardData(true);
             }}
-            variant="text-icon"
+            variant="subdued"
             size="small"
             className={`${baseClass}__edit-anyway`}
             iconStroke

@@ -236,7 +236,7 @@ const SelfServiceCategoriesPage = ({
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button
-                  variant="icon"
+                  variant="subdued"
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
@@ -244,7 +244,7 @@ const SelfServiceCategoriesPage = ({
                   <Icon name="pencil" />
                 </Button>
                 <Button
-                  variant="icon"
+                  variant="subdued"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"

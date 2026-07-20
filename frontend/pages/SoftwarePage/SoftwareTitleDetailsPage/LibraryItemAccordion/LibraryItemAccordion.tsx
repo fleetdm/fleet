@@ -228,12 +228,12 @@ const LibraryItemAccordion = ({
     if (onBadgeClick) {
       return (
         <Button
-          variant="inverse"
+          variant="subdued"
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
         >
-          <Icon name={iconName} color="ui-fleet-black-75" />
+          <Icon name={iconName} />
           <span>{label}</span>
         </Button>
       );
@@ -242,7 +242,7 @@ const LibraryItemAccordion = ({
       <span
         className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
       >
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
         <span>{label}</span>
       </span>
     );
@@ -276,15 +276,15 @@ const LibraryItemAccordion = ({
     >
       {onClick && canClick ? (
         <Button
-          variant="inverse"
+          variant="subdued"
           onClick={handleBadgeClick(onClick)}
           className={`${baseClass}__icon-button`}
           ariaLabel={ariaLabel}
         >
-          <Icon name={iconName} color="ui-fleet-black-75" />
+          <Icon name={iconName} />
         </Button>
       ) : (
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
       )}
     </TooltipWrapper>
   );
@@ -350,19 +350,19 @@ const LibraryItemAccordion = ({
           >
             {canEditSoftware ? (
               <Button
-                variant="inverse"
+                variant="subdued"
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
               <span
                 className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </span>
             )}
@@ -371,19 +371,19 @@ const LibraryItemAccordion = ({
         {showAllHostsBadge &&
           (canEditSoftware ? (
             <Button
-              variant="inverse"
+              variant="subdued"
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
             <span
               className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </span>
           ))}

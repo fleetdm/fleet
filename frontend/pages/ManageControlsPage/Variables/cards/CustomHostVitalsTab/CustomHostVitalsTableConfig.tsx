@@ -110,7 +110,7 @@ const generateTableHeaders = ({
                   onClick={() => onEdit(vital)}
                   ariaLabel={`Edit ${vital.name}`}
                 >
-                  <Icon name="pencil" color="ui-fleet-black-75" size="small" />
+                  <Icon name="pencil" size="small" />
                 </Button>
                 <Button
                   variant="secondary"
@@ -119,7 +119,7 @@ const generateTableHeaders = ({
                   onClick={() => onDelete(vital)}
                   ariaLabel={`Delete ${vital.name}`}
                 >
-                  <Icon name="trash" color="ui-fleet-black-75" size="small" />
+                  <Icon name="trash" size="small" />
                 </Button>
               </div>
             )}
