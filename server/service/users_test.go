@@ -1041,6 +1041,38 @@ func TestResetPasswordConcurrent(t *testing.T) {
 	require.Equal(t, 1, succeeded, "exactly one concurrent reset should succeed for a single-use token")
 }
 
+// TestResetPasswordTokenSurvivesRejection verifies that a reset request rejected by
+// validation (a password that is too weak, or a reused current password) does NOT
+// consume the token. The user can retry with the same token and a valid password.
+// This guards the deliberate ordering in ResetPassword: the token is consumed only
+// after all read-only validation has passed.
+func TestResetPasswordTokenSurvivesRejection(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	createTestUsers(t, ds) // user ID 1's current password is test.GoodPassword
+
+	const token = "survives-rejection-token"
+	_, err := ds.NewPasswordResetRequest(t.Context(), &fleet.PasswordResetRequest{
+		ExpiresAt: time.Now().Add(time.Hour * 24),
+		UserID:    1,
+		Token:     token,
+	})
+	require.NoError(t, err)
+
+	// A password that fails the strength requirements is rejected before consuming the token.
+	require.Error(t, svc.ResetPassword(ctx, token, "short"))
+
+	// Reusing the current password is rejected before consuming the token.
+	require.Error(t, svc.ResetPassword(ctx, token, test.GoodPassword))
+
+	// The token was not burned by the rejected attempts: a valid new password succeeds.
+	require.NoError(t, svc.ResetPassword(ctx, token, test.GoodPassword2))
+
+	// After a successful reset the token is consumed and can no longer be used.
+	require.Error(t, svc.ResetPassword(ctx, token, test.GoodPassword))
+}
+
 func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
 	reloadedUser, err := ds.UserByEmail(ctx, user.Email)
 	require.NoError(t, err)
