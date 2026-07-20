@@ -2,16 +2,7 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
-Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
-
-> Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
-
-`scripts`, `configuration_profiles`, `labels`, `policies`, and `reports` support both `path` (singular) and `paths` (plural).
-
-- `path` references a single file path.
-- `paths` accepts a wildcard ([glob pattern](https://code.visualstudio.com/docs/editor/glob-patterns)) to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
-
-Paths are always relative to the file you’re editing. You can't specify both `path` and `paths` on the same entry. Filenames containing `*`, `?`, `[`, or `{` can't be referenced using `path`. If your filenames contain these characters (e.g. a Windows configuration profile named `[AllowSpotlightCollection].xml`), either rename the files, or use `paths` with a wildcard pattern like `*.xml`.
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
 ## labels
 
