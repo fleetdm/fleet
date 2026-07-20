@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 6.3.4</string>
+      <key>PayloadType</key>
+      <string>com.apple.Safari</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-6.3.4.check</string>
+      <key>PayloadUUID</key>
+      <string>696305FF-951F-4FAB-8227-606A58864362</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>BlockStoragePolicy</key>
+      <integer>2</integer>
+      <key>WebKitPreferences.storageBlockingPolicy</key>
+      <integer>1</integer>
+      <key>WebKitStorageBlockingPolicy</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 6.3.4 - Ensure Prevent Cross-site Tracking in Safari Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Prevent Cross-site Tracking in Safari Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-6.3.4</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>C3B1A7BB-0839-4DD8-9A51-FE1FA288C3D9</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

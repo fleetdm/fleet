@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -46,6 +47,7 @@ export enum ActivityType {
   EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
   ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
@@ -127,6 +129,7 @@ export enum ActivityType {
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  InstalledAllSelfServiceSoftware = "installed_all_self_service_software",
   UninstalledSoftware = "uninstalled_software",
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
@@ -164,11 +167,23 @@ export enum ActivityType {
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  AddedMicrosoftEntraClientId = "added_microsoft_entra_client_id",
+  DeletedMicrosoftEntraClientId = "deleted_microsoft_entra_client_id",
   ClearedPasscode = "cleared_passcode",
   EnabledManagedLocalAccount = "enabled_managed_local_account",
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
+  RotatedManagedLocalAccountPassword = "rotated_managed_local_account_password",
+  FailedToRotateManagedLocalAccountPassword = "failed_to_rotate_managed_local_account_password",
+  FailedEnrollmentProfileRenewal = "failed_enrollment_profile_renewal",
+  CreatedLabel = "created_label",
+  EditedLabel = "edited_label",
+  DeletedLabel = "deleted_label",
+  ChangedOrgLogo = "changed_org_logo",
+  DeletedOrgLogo = "deleted_org_logo",
+  EnabledHistoricalDataset = "enabled_historical_dataset",
+  DisabledHistoricalDataset = "disabled_historical_dataset",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -177,12 +192,15 @@ export type IHostPastActivityType =
   | ActivityType.LockedHost
   | ActivityType.WipedHost
   | ActivityType.FailedWipe
+  | ActivityType.MdmUnenrolled
   | ActivityType.ReadHostDiskEncryptionKey
+  | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAllSelfServiceSoftware
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
   | ActivityType.CanceledRunScript
@@ -194,7 +212,10 @@ export type IHostPastActivityType =
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
-  | ActivityType.CreatedManagedLocalAccount;
+  | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.RotatedManagedLocalAccountPassword
+  | ActivityType.FailedToRotateManagedLocalAccountPassword
+  | ActivityType.FailedEnrollmentProfileRenewal;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -259,9 +280,10 @@ export interface IActivityDetails {
   installed_from_dep?: boolean;
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
-  location?: string; // name of location associated with VPP token
+  location?: string; // name of organization unit associated with VPP token
   mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
+  mode?: IOrgLogoMode;
   name?: string;
   pack_id?: number;
   pack_name?: string;
@@ -279,9 +301,12 @@ export interface IActivityDetails {
   script_execution_id?: string;
   script_name?: string;
   self_service?: boolean;
+  self_service_category_id?: number | null;
+  self_service_category_name?: string | null;
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
   source?: SoftwareSource;
@@ -294,6 +319,15 @@ export interface IActivityDetails {
   teams?: ITeamSummary[];
   triggered_by?: string;
   from_setup_experience?: boolean;
+  from_auto_update?: boolean;
+  /**
+   * Set on a failed install activity (`installed_app_store_app` /
+   * `installed_software`) when Fleet failed the install before reaching the
+   * device — currently, the managed app configuration references a Fleet
+   * variable that can't be resolved for this host. Empty for device-reported
+   * failures, which surface their reason through the MDM command error chain.
+   */
+  failure_reason?: string;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -301,11 +335,28 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  client_id?: string;
   certificate_name?: string;
   certificate_template_id?: number;
   detail?: string;
   exception?: string;
+  label_id?: number;
+  label_name?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
+  dataset?: string;
 }
+
+/**
+ * IActivityDetails plus the activity-envelope actor fields the
+ * install-details modal needs to render the actor-driven failure copy
+ * ("Fleet failed to install…" vs "<Admin> failed to install…"). Used by
+ * activity-feed entry points that stash a clicked activity into modal state.
+ */
+export type IActivityDetailsWithActor = IActivityDetails & {
+  actor_full_name?: string;
+  fleet_initiated?: boolean;
+};
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
 export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
@@ -315,6 +366,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
+  added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
   added_ndes_scep_proxy: "Added certificate authority (CA): NDES",
   added_script: "Added script",
   added_software: "Added software",
@@ -330,6 +382,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_uninstall_software: "Canceled activity: uninstall software",
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
+  changed_org_logo: "Updated organization logo",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",
   created_declaration_profile: "Added declaration (DDM) profile",
@@ -349,8 +402,10 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
+  deleted_microsoft_entra_client_id: "Deleted Microsoft Entra client ID",
   deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
+  deleted_org_logo: "Deleted organization logo",
   deleted_pack: "Deleted pack",
   deleted_policy: "Deleted policy",
   deleted_saved_query: "Deleted report",
@@ -409,6 +464,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   fleet_enrolled: "Host enrolled",
   installed_app_store_app: "Installed App Store (VPP) app",
   installed_software: "Install software",
+  installed_all_self_service_software: "Installed all self-service software",
   live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
@@ -418,6 +474,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
+  retrieved_host_my_device_url: "Retrieved My device URL",
   viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
   rotated_host_recovery_lock_password:
@@ -485,4 +542,15 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.RotatedManagedLocalAccountPassword]:
+    "Triggered managed local account password rotation",
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]:
+    "Failed to rotate managed local account password",
+  [ActivityType.FailedEnrollmentProfileRenewal]:
+    "Enrollment profile renewal failed",
+  [ActivityType.CreatedLabel]: "Created label",
+  [ActivityType.EditedLabel]: "Edited label",
+  [ActivityType.DeletedLabel]: "Deleted label",
+  [ActivityType.EnabledHistoricalDataset]: "Enabled chart data collection",
+  [ActivityType.DisabledHistoricalDataset]: "Disabled chart data collection",
 };

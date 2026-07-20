@@ -60,3 +60,4 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string

@@ -15,10 +15,12 @@ import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import ReadHostDiskEncryptionKeyActivityItem from "./ActivityItems/ReadHostDiskEncryptionKey";
+import RetrievedHostMyDeviceURLActivityItem from "./ActivityItems/RetrievedHostMyDeviceURLActivityItem";
 import ViewedHostRecoveryLockPasswordActivityItem from "./ActivityItems/ViewedHostRecoveryLockPassword";
 import SetHostRecoveryLockPasswordActivityItem from "./ActivityItems/SetHostRecoveryLockPassword";
 import RotatedHostRecoveryLockPasswordActivityItem from "./ActivityItems/RotatedHostRecoveryLockPassword";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
+import InstalledAllSelfServiceSoftwareActivityItem from "./ActivityItems/InstalledAllSelfServiceSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
 import CanceledSetupExperienceActivityItem from "./ActivityItems/CanceledSetupExperienceActivityItem";
@@ -29,6 +31,10 @@ import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivity
 import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
+import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
+import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
+import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
+import MdmUnenrolledActivityItem from "./ActivityItems/MdmUnenrolledActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -61,11 +67,13 @@ export const pastActivityComponentMap: Record<
   [ActivityType.WipedHost]: WipedHostActivityItem,
   [ActivityType.FailedWipe]: FailedWipeActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
+  [ActivityType.RetrievedHostMyDeviceURL]: RetrievedHostMyDeviceURLActivityItem,
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
   [ActivityType.RotatedHostRecoveryLockPassword]: RotatedHostRecoveryLockPasswordActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAllSelfServiceSoftware]: InstalledAllSelfServiceSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
   [ActivityType.CanceledRunScript]: CanceledRunScriptActivityItem,
@@ -78,6 +86,10 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
   [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
   [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
+  [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
+  [ActivityType.MdmUnenrolled]: MdmUnenrolledActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

@@ -1,0 +1,1 @@
+- Fixed `fleetctl preview` disabling dashboard chart data collection (Hosts online, Vulnerability exposure) on startup.

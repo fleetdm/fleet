@@ -18,21 +18,20 @@ export const agentOptionsToYaml = (agentOpts: any) => {
     delete agentOpts.overrides;
   }
 
-  // add a comment besides the "command_line_flags" if it is empty
-  let addFlagsComment = false;
-  if (
-    !agentOpts.command_line_flags ||
-    Object.keys(agentOpts.command_line_flags).length === 0
-  ) {
-    // delete it so it does not render, and will add it explicitly after (along with the comment)
-    delete agentOpts.command_line_flags;
-    addFlagsComment = true;
-  }
+  const flagsComment = "# Requires fleetd agent\n";
 
+  // always show the informational comment above "command_line_flags". When
+  // the key is present — even set to {} or null — render it as-is, since
+  // those empty values have special semantics; when absent, suggest it with
+  // a commented-out placeholder.
   let yamlString = yaml.dump(agentOpts);
-  if (addFlagsComment) {
-    yamlString +=
-      "# Requires Fleet's osquery installer\n# command_line_flags: {}\n";
+  if ("command_line_flags" in agentOpts) {
+    yamlString = yamlString.replace(
+      /^command_line_flags:/m,
+      `${flagsComment}command_line_flags:`
+    );
+  } else {
+    yamlString += `${flagsComment}# command_line_flags: {}\n`;
   }
 
   return yamlString;

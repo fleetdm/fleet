@@ -6,6 +6,8 @@
       "org_name": "",
       "org_logo_url": "",
       "org_logo_url_light_background": "",
+      "org_logo_url_dark_mode": "",
+      "org_logo_url_light_mode": "",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "server_settings": {
@@ -42,7 +44,8 @@
     },
     "activity_expiry_settings": {
       "activity_expiry_enabled": false,
-      "activity_expiry_window": 0
+      "activity_expiry_window": 0,
+      "preserve_host_activities_on_reenrollment": false
     },
     "conditional_access": {
       "microsoft_entra_tenant_id": "",
@@ -55,10 +58,15 @@
     },
     "features": {
       "enable_host_users": true,
-      "enable_software_inventory": false
+      "enable_software_inventory": false,
+      "historical_data": {
+        "uptime": true,
+        "vulnerabilities": true
+      }
     },
     "mdm": {
       "android_enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
       "apple_server_url": "",
       "volume_purchasing_program": null,
@@ -70,6 +78,7 @@
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
+      "windows_entra_client_ids": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,

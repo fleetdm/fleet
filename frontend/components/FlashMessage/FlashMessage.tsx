@@ -90,16 +90,23 @@ const SingleFlashMessage = ({
     return null;
   }
 
+  // Three cases needed here (warning-filled, success, error) so we can't use a
+  // simple ternary like the close button below — no-nested-ternary lint rule.
+  let iconColor: "static-black" | "ui-success" | "ui-error";
+  if (alertType === "warning-filled") {
+    iconColor = "static-black";
+  } else if (alertType === "success") {
+    iconColor = "ui-success";
+  } else {
+    iconColor = "ui-error";
+  }
+
   return (
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         <Icon
           name={alertType === "success" ? "success" : "error"}
-          // Static (un-themed) so icon stays light on the colored toast
-          // surface in both light and dark mode.
-          color={
-            alertType === "warning-filled" ? "static-black" : "static-white"
-          }
+          color={iconColor}
         />
         <span>{message}</span>
       </div>
@@ -112,7 +119,9 @@ const SingleFlashMessage = ({
             <Icon
               name="close"
               color={
-                alertType === "warning-filled" ? "static-black" : "static-white"
+                alertType === "warning-filled"
+                  ? "static-black"
+                  : "core-fleet-black"
               }
             />
           </button>

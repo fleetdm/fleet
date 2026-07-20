@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.6.4</string>
+      <key>PayloadType</key>
+      <string>com.apple.applicationaccess</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.6.4.check</string>
+      <key>PayloadUUID</key>
+      <string>7FE2B8ED-87FA-4AF3-8D82-9255BC166D4D</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>allowApplePersonalizedAdvertising</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.6.4 - Ensure Limit Ad Tracking Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Limit Ad Tracking Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.6.4</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>85906341-8CEA-4B1F-A687-1CE30D9B0531</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

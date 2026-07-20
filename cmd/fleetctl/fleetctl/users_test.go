@@ -43,7 +43,7 @@ func TestUserDelete(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
 	assert.Equal(t, uint(42), deletedUser)
 }
 
@@ -123,7 +123,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 			return user, nil
 		}
 
-		stdout := RunAppForTest(t, append(
+		stdout := runAppForTest(t, append(
 			[]string{"user", "create"},
 			tc.args...,
 		))
@@ -175,8 +175,8 @@ func TestCreateBulkUsers(t *testing.T) {
 	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"fleets":null,"global_role":"admin","teams":null},"user11@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user12@example.com":{"fleets":null,"global_role":"observer","teams":null},"user13@example.com":{"fleets":null,"global_role":"admin","teams":null},"user14@example.com":{"fleets":[{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"maintainer","team":""}]},"user15@example.com":{"fleets":[{"fleet":"","role":"admin","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""}]},"user16@example.com":{"fleets":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}]},"user1@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user2@example.com":{"fleets":null,"global_role":"observer","teams":null}}}}
 `
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
-	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
+	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
 }
 
 func TestDeleteBulkUsers(t *testing.T) {
@@ -235,7 +235,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
+	assert.Empty(t, runAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
 	for indx, user := range users {
 		deletedUser = deletedUserIds[indx]
 		assert.Equal(t, user.ID, deletedUser)

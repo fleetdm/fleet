@@ -400,7 +400,7 @@ const InstallStatusCell = ({
     !!software.app_store_app && isAndroid(software.app_store_app.platform);
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
-  const softwarePackageName = getSoftwarePackageName(software); // @RachelElysia I renamed this function and the variable name its return value is set to here because it is looking at the software_package.name, which has a suffix like ".pkg". software.name has the more human-readable version. Not sure how else this data is being used so I am not going to refactor anything. Please update if needed.
+  const softwarePackageName = getSoftwarePackageName(software);
   const displayStatus = software.ui_status;
 
   if (displayStatus === "uninstalled" || displayStatus === "never_ran_script") {
@@ -496,16 +496,10 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppleAppStoreApp && !software.app_store_app?.last_install;
 
-    // These temporary statuses are not clickable because it will show outdated info in modal
-    const recentlyTakenAction =
-      software.ui_status === "recently_installed" ||
-      software.ui_status === "recently_updated" ||
-      software.ui_status === "recently_uninstalled";
-
+    // keep clickable except for App Store apps missing last_install (modal would be empty)
     const shouldOnClickBeDisabled =
-      (isMissingLastInstallInfo &&
-        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
-      recentlyTakenAction;
+      isMissingLastInstallInfo &&
+      (software.status === "failed_install" || isInstalledInFleetAndUI);
 
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 

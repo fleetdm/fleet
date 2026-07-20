@@ -56,7 +56,9 @@ These issues are usually caused by leftover enrollment data or third-party manag
 To fix this:
 
 1. Run the [fix-windows-mdm-migration.ps1](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fix-windows-mdm-migration.ps1) script on affected hosts.
+
 2. Reboot the device.
+
 3. In Fleet, open the host and select **Refetch** on the **Host details** page.
 
 Learn how to [run scripts in Fleet](https://fleetdm.com/guides/scripts#manually-run-scripts).
@@ -109,27 +111,44 @@ Some Intune/Entra deployments enable automatic enrollment into Intune. Check to 
 In your Intune settings, select **Devices**, and under **Device onboarding**, open the **Enrollment** submenu. Select **Automatic Enrollment** and ensure both **MDM user scope** and **Windows Information Protection (WIP) user scope** are set to **None**.
 
 1. [Sign in to Microsoft Entra](https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool).
+
 2. On the home page, find and copy the **Tenant ID**.
+
 3. In Fleet, navigate to **Settings** > **Integrations** > **MDM**. Under **Windows Enrollment**, select **Connect**.
+
 4. Under **Entra tenants**, select **Add**, paste tenant ID, and select **Add**.  If you don't add the Entra Tenant ID, end users will see the "Device management could not be enabled" error, and won't be able to enroll their host.
+
 5. Head to Entra, and on the top of the page, search "Domain names" and select **Domain names**. Select **+ Add custom domain**, type your Fleet URL (e.g. fleet.acme.com), and select **Add domain**.
+
 6. Use the information presented in Azure AD to create a new TXT/MX record with your domain registrar, then select **Verify**. If you're a managed-cloud customer, please reach out to Fleet to create a TXT/MX record for you.
+
 7. At the top of the page, search for "Mobility" and select **Mobility (MDM and WIP)**.
+
 8. Select **+ Add application**, then select **+ Create your own application**.
+
 9. Enter "Fleet" as the name of your application and select **Create**.
+
 10. Set MDM user scope to **All**, then in Fleet head to **Settings** > **Integrations** > **MDM** > **Windows Enrollment > Edit** and copy the **MDM URLs**. Paste them in Entra, and select **Save**.
+
 11. While on this same page, select the **Custom MDM application settings** link.
+
 12. Click on the **Application ID URI**, which will bring you to the **Expose an API** submenu with an edit button next to the text box.
+
 13. Replace with your Fleet URL (e.g., fleet.acme.com) and select **Save**.
+
 14. Select **API permissions** from the sidebar, then select **+ Add a permission**.
+
 15.  Select **Microsoft Graph**, then select **Delegated permissions**, and select **Group > Group.Read.All** and **Group > Group.ReadWrite.All** and **Add permissions**.
+
 16. Again select **+ Add a permission** and then **Microsoft Graph** and **Application permissions**, select the following:
     + Device > Device.Read.All
     + Device > Device.ReadWrite.All
     + Directory > Directory.Read.All
     + Group > Group.Read.All
     + User > User.Read.All
+
 17. Select **Add permissions**.
+
 18. Select **Grant admin consent for [your tenant name]**, and confirm.
 
 Now you're ready to automatically enroll Windows hosts to Fleet.
@@ -221,11 +240,33 @@ Once the automatic migration is enabled, Fleet sends a notification to each host
 
 You can [track migration progress in Fleet](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
 
+## Repurposing or re-enrolling a Windows device via Autopilot
+
+When resetting a device that was previously enrolled in Fleet via Autopilot, follow these steps to avoid enrollment conflicts:
+
+1. In **Fleet > Host details > Actions**, select **Delete** to delete the host record for the device.
+
+2. In **Entra ID > Devices > All devices**, find and delete the stale device object.
+
+3. In **Intune > Devices > Enrollment > Windows Autopilot > Devices**, confirm the hardware hash is still registered, and the correct profile is assigned. Do NOT delete the Autopilot registration.
+
+4. Click **Sync** on the Autopilot devices page and wait for the sync to complete.
+
+5. Reset the device (**Settings > System > Recovery > Reset this PC**, or **wipe/reimage**).
+
+6. Boot into OOBE. The device should display company branding and begin the Autopilot enrollment flow.
+
+If the device skips Autopilot on the first boot, restart it and try again. 
+The Autopilot service may need a few minutes to sync after the device record cleanup.
+
 ## Turn off Windows MDM
 
 1. Turn off MDM for each host by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) from Fleet on all your Windows hosts.
+
 2. Head to **Settings > Integrations > MDM**.
+
 3. In the **Mobile device management (MDM)** section, select **Edit** next to "Windows MDM turned on."
+
 4. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.
 
 <meta name="articleTitle" value="Windows MDM setup">

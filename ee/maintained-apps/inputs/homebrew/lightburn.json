@@ -1,0 +1,10 @@
+{
+  "name": "LightBurn",
+  "unique_identifier": "com.LightBurnSoftware.LightBurn",
+  "token": "lightburn",
+  "installer_format": "dmg",
+  "slug": "lightburn/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

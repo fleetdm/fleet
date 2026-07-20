@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -155,12 +156,16 @@ func extractAliasRulesRecursive(t reflect.Type, seen map[AliasRule]bool, rules *
 		// Check this field for a renameto tag.
 		renameTo, hasRenameTo := structField.Tag.Lookup("renameto")
 		if hasRenameTo && renameTo != "" {
+			// Split the new key name from options like ",inline".
+			newKeyName, renameOpts, _ := strings.Cut(renameTo, ",")
+			inline := slices.Contains(strings.Split(renameOpts, ","), "inline")
+
 			jsonTag, hasJSON := structField.Tag.Lookup("json")
-			if hasJSON && jsonTag != "" && jsonTag != "-" {
+			if hasJSON && jsonTag != "" && jsonTag != "-" && newKeyName != "" {
 				// Strip options like ",omitempty" from the json tag.
 				jsonFieldName, _, _ := strings.Cut(jsonTag, ",")
 				if jsonFieldName != "" && jsonFieldName != "-" {
-					rule := AliasRule{OldKey: jsonFieldName, NewKey: renameTo}
+					rule := AliasRule{OldKey: jsonFieldName, NewKey: newKeyName, Inline: inline}
 					if !seen[rule] {
 						seen[rule] = true
 						*rules = append(*rules, rule)
@@ -909,6 +914,10 @@ type CommonEndpointer[H any] struct {
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
 
+	// HTTPPreAuthMiddleware wraps the final http.Handler, running BEFORE the
+	// kithttp decode-body step.
+	HTTPPreAuthMiddleware func(http.Handler) http.Handler
+
 	// HandlerRegistry, if set, records handlers by method+path for deprecated
 	// path alias lookup. The pointer is shared across shallow copies (created
 	// by builder methods like WithAltPaths) so all registrations land in the
@@ -991,7 +1000,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
 		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
 	}
-	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	h := newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
+	// short-circuit requests before the decode-body step reads any bytes.
+	if e.HTTPPreAuthMiddleware != nil {
+		h = e.HTTPPreAuthMiddleware(h)
+	}
+	return h
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -1059,6 +1074,14 @@ func (e *CommonEndpointer[H]) WithRequestBodySizeLimit(limit int64) *CommonEndpo
 func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
 	ae := *e
 	ae.requestBodySizeLimit = -1
+	return &ae
+}
+
+// WithHTTPPreAuth installs a raw http.Handler middleware that runs outside the
+// kithttp server, before the decoder reads the body.
+func (e *CommonEndpointer[H]) WithHTTPPreAuth(mw func(http.Handler) http.Handler) *CommonEndpointer[H] {
+	ae := *e
+	ae.HTTPPreAuthMiddleware = mw
 	return &ae
 }
 

@@ -1,0 +1,18 @@
+.confirm-data-collection-disable-modal {
+  &__dataset-list {
+    margin: 0 0 $pad-medium 0;
+    padding-left: $pad-large;
+
+    li {
+      margin-bottom: $pad-xsmall;
+    }
+
+    code {
+      background-color: var(--ui-off-white);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: $x-small;
+      padding: 2px $pad-xsmall;
+    }
+  }
+}

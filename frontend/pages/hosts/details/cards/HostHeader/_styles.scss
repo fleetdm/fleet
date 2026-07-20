@@ -12,17 +12,20 @@
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: $xx-small;
-    color: $core-fleet-black;
+    // Warning + error surfaces shift between themes; text stays dark so the
+    // badge reads cleanly in both modes without glare in dark mode.
+    color: $static-black;
     font-weight: $bold;
     border-radius: $border-radius;
 
     &.warning {
       background-color: $ui-warning;
+      color: $static-black;
     }
 
     &.error {
-      color: $core-fleet-white;
       background-color: $core-vibrant-red;
+      color: $static-black;
     }
   }
 

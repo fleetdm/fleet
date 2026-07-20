@@ -22,6 +22,7 @@ const (
 	//
 
 	SoftwareNameMaxLength             = 255
+	SoftwareCategoryNameMaxLength     = 255
 	SoftwareVersionMaxLength          = 255
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
@@ -41,6 +42,12 @@ const (
 	// UpgradeCode is a GUID, only uses hexadecimal digits, hyphens, curly braces, all ASCII, so 1char
 	// == 1rune –> 38chars
 	UpgradeCodeExpectedLength = 38
+
+	// softwareLastOpenedAtNeverEpoch is a sentinel Unix epoch (in seconds) that
+	// some macOS apps report for software that was never opened. It corresponds
+	// to 1980-01-01 00:00:00 UTC (the DOS/FAT epoch). Together with non-positive
+	// values such as -1.0, it indicates the app was never opened.
+	softwareLastOpenedAtNeverEpoch = 315532800
 )
 
 type Vulnerabilities []CVE
@@ -563,6 +570,10 @@ type HostSoftwareTitleListOptions struct {
 	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
 
+	// MacOSApplicationsOnly limits the returned software to apps installed at the
+	// top level of the macOS /Applications folder. Ignored for non-macOS hosts.
+	MacOSApplicationsOnly bool `query:"macos_applications,optional"`
+
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool
 }
@@ -629,7 +640,7 @@ func (hse *HostSoftwareEntry) UnmarshalJSON(b []byte) error {
 
 type PathSignatureInformation struct {
 	InstalledPath  string `json:"installed_path"`
-	TeamIdentifier string `json:"team_identifier"`
+	TeamIdentifier string `json:"team_identifier"` //nolint:apiparamcheck // Apple developer team identifier (code-signing)
 	// json struct tag difference here is for backwards compatibility. API field was initially "hash_sha256", though it is specifically the CD hash (sha256).
 	CDHashSHA256     *string `json:"hash_sha256"`
 	ExecutableSHA256 *string `json:"executable_sha256"`
@@ -722,10 +733,17 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 }
 
 // ParseSoftwareLastOpenedAtRowValue attempts to parse the last_opened_at
-// software column value. If the value is empty or if the parsed value is
-// less or equal than 0 it returns (time.Time{}, nil). We do this because
-// some macOS apps return "-1.0" when the app was never opened and we hardcode
-// to 0 for some tables that don't have such info.
+// software column value. It returns (time.Time{}, nil) when the value indicates
+// the software was never opened: an empty string, a non-positive value (some
+// macOS apps return "-1.0", and we hardcode 0 for tables without this info), or
+// the softwareLastOpenedAtNeverEpoch sentinel ("315532800.0", 1980-01-01 UTC).
+// Treating these as zero lets the UI display "Never" instead of a nonsensical
+// date many decades in the past.
+//
+// We only match these known sentinels rather than applying a broad minimum-date
+// cutoff, because this parser is shared with non-macOS sources (e.g. Linux
+// deb/rpm last_opened_at derived from file atime) where older timestamps can be
+// legitimate.
 func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if value == "" {
 		return time.Time{}, nil
@@ -734,7 +752,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	if lastOpenedEpoch <= 0 {
+	if lastOpenedEpoch <= 0 || int64(lastOpenedEpoch) == softwareLastOpenedAtNeverEpoch {
 		return time.Time{}, nil
 	}
 	return time.Unix(int64(lastOpenedEpoch), 0).UTC(), nil
@@ -855,6 +873,67 @@ type VPPBatchPayloadWithPlatform struct {
 }
 
 type SoftwareCategory struct {
-	ID   uint   `db:"id"`
-	Name string `db:"name"`
+	ID     uint   `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
+	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	UpdateCreateTimestamps
+}
+
+func (c *SoftwareCategory) AuthzType() string {
+	return "software_category"
+}
+
+func (c SoftwareCategory) Validate() error {
+	if c.Name == "" {
+		return NewInvalidArgumentError("name", "name is required")
+	}
+	if utf8.RuneCountInString(c.Name) > SoftwareCategoryNameMaxLength {
+		return NewInvalidArgumentError("name", fmt.Sprintf("name must be at most %d characters", SoftwareCategoryNameMaxLength))
+	}
+	return nil
+}
+
+var DefaultSelfServiceCategoryNames = []string{
+	"🌎 Browsers",
+	"👬 Communication",
+	"🧰 Developer tools",
+	"💻 Productivity",
+	"🔐 Security",
+	"🛟 Support",
+}
+
+// Map the old default category names that don't include emojis to the new ones
+// that are stored in the database with emojis. This is required to not break
+// existing FMA manifests and GitOps files.
+var LegacySoftwareCategoryNames = map[string]string{
+	"Browsers":        "🌎 Browsers",
+	"Communication":   "👬 Communication",
+	"Developer tools": "🧰 Developer tools",
+	"Productivity":    "💻 Productivity",
+	"Security":        "🔐 Security",
+	"Utilities":       "🛟 Support",
+}
+
+func TranslateLegacySoftwareCategoryNames(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = n
+		for legacy, newName := range LegacySoftwareCategoryNames {
+			if strings.EqualFold(n, legacy) {
+				out[i] = newName
+				break
+			}
+		}
+	}
+	return out
+}
+
+func SoftwareCategoryReferenceMatches(reference string, name string) bool {
+	if strings.EqualFold(reference, name) {
+		return true
+	}
+	if t, ok := LegacySoftwareCategoryNames[reference]; ok && strings.EqualFold(t, name) {
+		return true
+	}
+	return false
 }

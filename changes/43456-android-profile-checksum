@@ -1,0 +1,1 @@
+- Android profiles now use content checksums to determine when to re-sync, avoiding unnecessary re-delivery on unrelated policy changes.

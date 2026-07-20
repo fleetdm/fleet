@@ -80,6 +80,7 @@ org_settings:
       destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
       enable_activities_webhook: true
 policies:
+  - path: ./lib/all/policies/npm-supply-chain-compromised-packages.yml
 reports:
   - path: ./lib/all/reports/collect-fleetd-information.yml
   - path: ./lib/all/reports/collect-operating-system-information.yml
@@ -87,6 +88,7 @@ reports:
   - path: ./lib/macos/reports/detect-apns-certificate.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
+  apple_require_hardware_attestation: true
   enable_disk_encryption: true
   macos_migration:
     enable: true
@@ -106,12 +108,15 @@ labels:
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
   - path: ./lib/all/labels/keynote-14-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/macos-screen-lock-exclusions.yml
+  - path: ./lib/all/labels/windows-screen-lock-exclusions.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/team-g-software.yml
-  - path: ./lib/all/labels/nudge-test-devices.yml
   - path: ./lib/all/labels/macs-with-microsoft-autoupdate-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/macs-with-fleet-desktop-installed.yml
+  - path: ./lib/all/labels/macs-with-fleet-desktop-launch-agent-profile.yml
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
   - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml
+  - path: ./lib/all/labels/hosts-with-npm-package-inventory.yml

@@ -41,6 +41,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_ALL: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install_all`,
   DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
     return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
   },
@@ -55,6 +57,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/uninstall/${scriptExecutionId}/results`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
+  DEVICE_SELF_SERVICE_CATEGORIES: (token: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/self_service_categories`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -117,6 +121,11 @@ export default {
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABELS_SUMMARY: `/${API_VERSION}/fleet/labels/summary`,
+
+  // self-service categories
+  SELF_SERVICE_CATEGORIES: `/${API_VERSION}/fleet/software/self_service_categories`,
+  SELF_SERVICE_CATEGORY: (id: number) =>
+    `/${API_VERSION}/fleet/software/self_service_categories/${id}`,
   LABEL_HOSTS: (id: number): string => {
     return `/${API_VERSION}/fleet/labels/${id}/hosts`;
   },
@@ -126,6 +135,7 @@ export default {
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
+  LOGO: `/${API_VERSION}/fleet/logo`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -143,13 +153,13 @@ export default {
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
   // Apple Business (AB) endpoints
-  MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
-  MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
-  MDM_ABM_TOKEN_RENEW: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
-  MDM_ABM_TOKEN_TEAMS: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/fleets`,
-  MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
+  MDM_AB_TOKENS: `/${API_VERSION}/fleet/ab_tokens`,
+  MDM_AB_TOKEN: (id: number) => `/${API_VERSION}/fleet/ab_tokens/${id}`,
+  MDM_AB_TOKEN_RENEW: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/renew`,
+  MDM_AB_TOKEN_TEAMS: (id: number) =>
+    `/${API_VERSION}/fleet/ab_tokens/${id}/fleets`,
+  MDM_APPLE_AB_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/ab_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
@@ -184,7 +194,8 @@ export default {
 
     return `/api/mdm/apple/enroll?${query}`;
   },
-  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic`,
+  MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic/default`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
@@ -200,8 +211,12 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
   HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_DEVICE_URL: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/device_url`,
   HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
+  HOST_MANAGED_LOCAL_ACCOUNT_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password/rotate`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
@@ -233,7 +248,7 @@ export default {
 
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
@@ -341,6 +356,6 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables (secrets) endpoints
-  SECRETS: `/${API_VERSION}/fleet/custom_variables`,
+  // custom variables endpoints
+  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
 };

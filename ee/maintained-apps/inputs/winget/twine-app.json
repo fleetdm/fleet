@@ -1,0 +1,12 @@
+{
+  "name": "Twine",
+  "slug": "twine-app/windows",
+  "package_identifier": "ChrisKlimas.Twine",
+  "unique_identifier": "Twine",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/twine-app_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/twine-app_uninstall.ps1"
+}

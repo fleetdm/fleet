@@ -26,4 +26,4 @@ To trigger a redelivery of enrollment profile, run the following command on the 
 sudo profiles renew -type enrollment
 ```
 
-If the host does not have the right enrollment profile, try transferring the host to another team, wait for 10 minutes, then transfer it back and wait another 10 minutes.
+If the host does not have the right enrollment profile, try transferring the host to another fleet, wait for 10 minutes, then transfer it back and wait another 10 minutes.

@@ -1,0 +1,23 @@
+- name: Collect listening TCP/UDP ports
+  description: |-
+    Processes listening on network ports for anomaly detection and firewall reviews.
+  query: |-
+    SELECT
+      lp.port,
+      lp.protocol,
+      lp.family,
+      lp.address,
+      lp.path AS unix_socket_path,
+      p.pid,
+      p.name AS process_name,
+      p.path AS process_path,
+      p.cmdline
+    FROM listening_ports lp
+    LEFT JOIN processes p ON lp.pid = p.pid
+    WHERE lp.port > 0
+    ORDER BY lp.port;
+  interval: 3600
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux,windows

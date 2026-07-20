@@ -1,0 +1,9 @@
+- name: macOS - Gatekeeper enabled
+  query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+  critical: false
+  description: |-
+    Verifies Gatekeeper is enabled so only trusted software runs.
+  resolution: |-
+    Gatekeeper should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin

@@ -36,6 +36,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 		user                 *fleet.User
 		shouldFailGlobalRead bool
 		shouldFailTeamRead   bool
+		shouldFailGetByID    bool
 		shouldFailWrite      bool
 	}{
 		{
@@ -46,6 +47,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      false,
 		},
 		{
@@ -56,6 +58,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      true,
 		},
 		{
@@ -66,6 +69,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      true,
 		},
 		{
@@ -79,6 +83,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      true,
 		},
 		{
@@ -92,6 +97,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      true,
 		},
 		{
@@ -105,6 +111,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 			shouldFailWrite:      true,
 		},
 		{
@@ -118,6 +125,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 			shouldFailWrite:      true,
 		},
 		{
@@ -131,6 +139,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 			shouldFailWrite:      true,
 		},
 		{
@@ -144,6 +153,48 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
+			shouldFailWrite:      true,
+		},
+		{
+			// GitOps can list software titles but cannot fetch a single title
+			// because SoftwareTitleByID also requires Host:list permission.
+			name: "global-gitops",
+			user: &fleet.User{
+				ID:         1,
+				GlobalRole: ptr.String(fleet.RoleGitOps),
+			},
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+			shouldFailGetByID:    true,
+			shouldFailWrite:      true,
+		},
+		{
+			name: "team-gitops-belongs-to-team",
+			user: &fleet.User{
+				ID: 1,
+				Teams: []fleet.UserTeam{{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleGitOps,
+				}},
+			},
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+			shouldFailGetByID:    true,
+			shouldFailWrite:      true,
+		},
+		{
+			name: "team-gitops-does-not-belong-to-team",
+			user: &fleet.User{
+				ID: 1,
+				Teams: []fleet.UserTeam{{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleGitOps,
+				}},
+			},
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 			shouldFailWrite:      true,
 		},
 	} {
@@ -172,7 +223,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 
 			// Get a software title for a team
 			_, err = svc.SoftwareTitleByID(ctx, 1, ptr.Uint(1))
-			checkAuthErr(t, tc.shouldFailTeamRead, err)
+			checkAuthErr(t, tc.shouldFailGetByID, err)
 
 			// Update a software title's name
 			err = svc.UpdateSoftwareName(ctx, 1, "2 Chrome 2 Furious")

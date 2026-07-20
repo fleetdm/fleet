@@ -49,7 +49,7 @@ func (c *Client) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
 }
 
 func (c *Client) CountABMTokens() (int, error) {
-	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	verb, path := "GET", "/api/latest/fleet/ab_tokens/count"
 	var responseBody countABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.Count, err
@@ -67,7 +67,7 @@ func (c *Client) RequestAppleCSR() ([]byte, error) {
 // RequestAppleABM requests a signed CSR from the Fleet server and returns the
 // public key bytes
 func (c *Client) RequestAppleABM() ([]byte, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/ab_public_key"
 	var resp generateABMKeyPairResponse
 	err := c.authenticatedRequest(nil, verb, path, &resp)
 	return resp.PublicKey, err
@@ -404,7 +404,7 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 }
 
 func (c *Client) MDMLockHost(hostID uint) error {
-	var response lockHostResponse
+	var response fleet.LockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
 		return fmt.Errorf("lock host request: %w", err)
 	}
@@ -412,7 +412,7 @@ func (c *Client) MDMLockHost(hostID uint) error {
 }
 
 func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
-	var response unlockHostResponse
+	var response fleet.UnlockHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
 		return "", fmt.Errorf("lock host request: %w", err)
 	}
@@ -420,11 +420,21 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 }
 
 func (c *Client) MDMWipeHost(hostID uint) error {
-	var response wipeHostResponse
+	var response fleet.WipeHostResponse
 	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
 		return fmt.Errorf("wipe host request: %w", err)
 	}
 	return nil
+}
+
+// MDMClearPasscodeHost issues a clear-passcode MDM command for the given host. Supported on
+// Apple mobile (iOS/iPadOS) and Android hosts; the server returns 4xx for other platforms.
+func (c *Client) MDMClearPasscodeHost(hostID uint) (*fleet.CommandEnqueueResult, error) {
+	var response fleet.ClearPasscodeResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", hostID), &response); err != nil {
+		return nil, fmt.Errorf("clear passcode request: %w", err)
+	}
+	return response.CommandEnqueueResult, nil
 }
 
 type eulaContent struct {

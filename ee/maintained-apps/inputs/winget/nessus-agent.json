@@ -1,0 +1,11 @@
+{
+  "name": "Nessus Agent",
+  "slug": "nessus-agent/windows",
+  "package_identifier": "Tenable.NessusAgent",
+  "unique_identifier": "Nessus Agent (x64)",
+  "program_publisher": "Tenable",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Security"]
+}

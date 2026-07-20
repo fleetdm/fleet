@@ -138,7 +138,7 @@ const IntegrationForm = ({
         url,
         email: email || "",
         api_token: apiToken,
-        group_id: groupId || 0,
+        group_id: Number(groupId) || 0,
       });
     } else {
       // Create new zendesk integration at end of array
@@ -148,7 +148,7 @@ const IntegrationForm = ({
           url,
           email: email || "",
           api_token: apiToken,
-          group_id: parseInt(groupId as any, 10) || 0,
+          group_id: Number(groupId) || 0,
         },
       ];
     }

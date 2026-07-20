@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -73,6 +73,7 @@ const EditSoftwareModal = ({
   iconUrl = undefined,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   // Viewing an FMA in GitOps mode only allows viewing options, not editing
   const isGitOpsCompatible = gitOpsModeEnabled && isFleetMaintainedApp;
@@ -235,6 +236,14 @@ const EditSoftwareModal = ({
           </>
         );
       }
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
@@ -300,6 +309,14 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      // Invalidate both list caches so edits (e.g. self-service toggle)
+      // are reflected when navigating back to Inventory or Library tabs
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
@@ -359,6 +376,7 @@ const EditSoftwareModal = ({
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
           gitopsCompatible={isGitOpsCompatible}
+          teamId={teamId}
         />
       );
     }
@@ -371,6 +389,7 @@ const EditSoftwareModal = ({
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
         onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
+        teamId={teamId}
       />
     );
   };
@@ -401,6 +420,7 @@ const EditSoftwareModal = ({
           source={source}
           iconUrl={iconUrl} // Must be software title icon url not installer icon url
           onCancel={togglePreviewEndUserExperienceModal}
+          teamId={teamId}
           isIosOrIpadosApp={isIosOrIpadosApp}
           mobileVersion={
             ("latest_version" in softwareInstaller &&

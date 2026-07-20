@@ -155,7 +155,6 @@ export const SoftwareActionButtons = ({
 interface ISoftwareInstallerCardProps {
   softwareId: number;
   teamId: number;
-  teamIdForApi?: number;
   onDelete: () => void;
   isLoading: boolean;
   onToggleViewYaml: () => void;

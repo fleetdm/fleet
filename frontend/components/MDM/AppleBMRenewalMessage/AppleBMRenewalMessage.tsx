@@ -16,7 +16,7 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
       color="yellow"
       cta={
         <CustomLink
-          url="/settings/integrations/mdm/abm"
+          url="/settings/integrations/mdm/ab"
           text="Renew AB"
           className={`${baseClass}`}
           variant="banner-link"

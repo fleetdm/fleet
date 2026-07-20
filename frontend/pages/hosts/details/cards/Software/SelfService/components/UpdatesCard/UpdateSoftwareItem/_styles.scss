@@ -71,6 +71,9 @@
     align-items: center;
     gap: $pad-small;
     font-size: $x-small;
+    // Match the small Button's height so height doesn't shift when the
+    // button is replaced with spinner/"Updating..." or icon/"Updated" text.
+    min-height: 28px;
   }
 
   &__status-content {

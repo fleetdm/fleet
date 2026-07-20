@@ -48,6 +48,10 @@ export interface IInputFieldProps {
   /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
   enableShowSecret?: boolean;
   enableCopy?: boolean;
+  /**
+   * Whether 1Password should skip this field.
+   * Defaults to `true` because most Fleet inputs are not credential fields.
+   */
   ignore1password?: boolean;
   /** Only effective on input type number */
   step?: string | number;
@@ -82,7 +86,7 @@ const InputField = ({
   helpText = "",
   enableShowSecret = false,
   enableCopy = false,
-  ignore1password = false,
+  ignore1password = true,
   step,
   min,
   max,
@@ -236,6 +240,7 @@ const InputField = ({
             }}
             {...(inputOptions as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
             value={value as string | number}
+            data-1p-ignore={ignore1password || undefined}
           />
           {enableCopy && renderTextareaCopyButton()}
         </div>
@@ -267,7 +272,10 @@ const InputField = ({
           {...inputOptions}
           value={value as string | number}
           autoComplete={blockAutoComplete ? "new-password" : ""}
-          data-1p-ignore={ignore1password}
+          // 1Password only checks for the presence (not the value) of `data-1p-ignore`,
+          // so we omit the attribute entirely when the field is not meant to be ignored.
+          // See https://developer.1password.com/docs/web/compatible-website-design/
+          data-1p-ignore={ignore1password || undefined}
           step={step}
           min={min}
           max={max}

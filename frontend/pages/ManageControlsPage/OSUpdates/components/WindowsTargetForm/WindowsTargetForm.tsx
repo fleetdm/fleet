@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
+import { AxiosResponse } from "axios";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
@@ -8,10 +9,12 @@ import { NotificationContext } from "context/notification";
 
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
+import { IApiError } from "interfaces/errors";
 
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "windows-target-form";
 
@@ -138,8 +141,8 @@ const WindowsTargetForm = ({
         ? await configAPI.update(updateData)
         : await teamsAPI.update(updateData, currentTeamId);
       renderFlash("success", "Successfully updated Windows OS update options.");
-    } catch {
-      renderFlash("error", "Couldn’t update. Please try again.");
+    } catch (err) {
+      renderFlash("error", getErrorMessage(err as AxiosResponse<IApiError>));
     } finally {
       currentTeamId === APP_CONTEXT_NO_TEAM_ID
         ? refetchAppConfig()

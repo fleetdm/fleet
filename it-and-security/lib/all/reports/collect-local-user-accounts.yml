@@ -1,0 +1,21 @@
+- name: Collect local user accounts and admin membership
+  description: |-
+    Inventory of local user accounts with admin-equivalent membership for access reviews.
+  query: |-
+    SELECT
+      u.uid,
+      u.username,
+      u.uuid,
+      CASE WHEN EXISTS (
+        SELECT 1
+        FROM user_groups ug
+        INNER JOIN groups g ON ug.gid = g.gid
+        WHERE ug.uid = u.uid
+          AND g.groupname IN ('admin', 'Administrators', 'sudo', 'wheel')
+      ) THEN 'yes' ELSE 'no' END AS is_admin
+    FROM users u;
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux,windows

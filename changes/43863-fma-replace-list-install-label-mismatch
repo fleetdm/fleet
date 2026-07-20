@@ -1,0 +1,1 @@
+* Fixed host software list surfacing stale installer metadata after a Fleet-maintained app was replaced, which caused label scope to be evaluated against the previous installer and disagree with the install endpoint.

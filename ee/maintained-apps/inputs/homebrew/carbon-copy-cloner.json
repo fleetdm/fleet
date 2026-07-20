@@ -1,0 +1,10 @@
+{
+  "name": "Carbon Copy Cloner",
+  "unique_identifier": "com.bombich.ccc",
+  "token": "carbon-copy-cloner",
+  "installer_format": "zip",
+  "slug": "carbon-copy-cloner/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

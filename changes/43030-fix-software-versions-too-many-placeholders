@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/software/versions` returning HTTP 422 "too many placeholders" when called without a `per_page` parameter on instances with large software inventories.

@@ -1,0 +1,1 @@
+* Added exponential backoff with jitter to Fleet Desktop's server polling. On error (401, 5xx, network failure), Desktop now doubles its retry interval (capped at 30 minutes) instead of retrying at a fixed rate. A single success resets to the normal interval. This prevents request storms that can overwhelm the database when many hosts have expired tokens.

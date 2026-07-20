@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -22,6 +22,7 @@ import {
 import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -32,12 +33,10 @@ import PageDescription from "components/PageDescription";
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import {
-  buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
-  getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
-} from "./SoftwareTitles/SoftwareTable/helpers";
+} from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
@@ -45,10 +44,10 @@ interface ISoftwareSubNavItem {
   pathname: string;
 }
 
-const softwareSubNav: ISoftwareSubNavItem[] = [
+export const softwareSubNav: ISoftwareSubNavItem[] = [
   {
-    name: "Software",
-    pathname: PATHS.SOFTWARE_TITLES,
+    name: "Inventory",
+    pathname: PATHS.SOFTWARE_INVENTORY,
   },
   {
     name: "OS",
@@ -60,13 +59,25 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
   },
 ];
 
-const getTabIndex = (path: string): number => {
-  return softwareSubNav.findIndex((navItem) => {
+export const premiumSoftwareSubNav: ISoftwareSubNavItem[] = [
+  ...softwareSubNav,
+  {
+    name: "Library",
+    pathname: PATHS.SOFTWARE_LIBRARY,
+  },
+];
+
+export const getTabIndex = (
+  path: string,
+  navItems: ISoftwareSubNavItem[]
+): number => {
+  return navItems.findIndex((navItem) => {
     // This check ensures that for software versions path we still
     // highlight the software tab.
-    if (navItem.name === "Software" && PATHS.SOFTWARE_VERSIONS === path) {
+    if (navItem.name === "Inventory" && PATHS.SOFTWARE_VERSIONS === path) {
       return true;
     }
+
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
@@ -75,7 +86,9 @@ const getTabIndex = (path: string): number => {
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const DEFAULT_PAGE_SIZE = 20;
+// Increased from 20 to 50 per design spec (#32128). Load test the software
+// endpoints before shipping to confirm acceptable response times at this threshold.
+const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_PAGE = 0;
 
 const baseClass = "software-page";
@@ -106,6 +119,7 @@ interface ISoftwarePageProps {
       self_service?: string;
       vulnerable?: string;
       exploit?: string;
+      manage_automations?: string;
       min_cvss_score?: string;
       max_cvss_score?: string;
       page?: string;
@@ -152,15 +166,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
   const platform = queryParams?.platform || "all";
-  // TODO: move these down into the Software Titles component.
+  // TODO: move query/filter parsing down into individual tab components
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
 
-  // TODO: there should be better validation of the params depending on the route (e.g., self_service
-  // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
-  // defined redirect behavior if the params are invalid
-  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+  // Library uses a self-service toggle (boolean), not the old dropdown filter
+  const selfServiceOnly = queryParams?.self_service === "true";
 
   const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
     queryParams
@@ -187,10 +199,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
     includeAllTeams: true,
     includeNoTeam: true,
-    // When switching to "All teams" context, remove any unsupported query params that might be set
+    // When switching to "All fleets", remove self_service param (Library-only)
     overrideParamsOnTeamChange: {
-      available_for_install: (newTeamId: number | undefined) =>
-        newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
       self_service: (newTeamId: number | undefined) =>
         newTeamId === APP_CONTEXT_ALL_TEAMS_ID,
     },
@@ -224,6 +234,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const isSoftwareConfigLoaded =
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
+
+  // Open manage automations modal via deep-link (e.g. from the command
+  // palette). Mirror the in-page action's gate: software automations
+  // are global-admin only, and only available on All fleets (or the
+  // single fleet in Primo). Wait for config to load before deciding,
+  // then always strip the param so a team-scoped or unauthorized load
+  // doesn't leave it stuck in the URL.
+  useEffect(() => {
+    if (queryParams?.manage_automations !== "1") return;
+    if (!isSoftwareConfigLoaded) return;
+    if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
+      setShowManageAutomationsModal(true);
+    }
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [
+    queryParams,
+    isSoftwareConfigLoaded,
+    isAllTeamsSelected,
+    isPrimoMode,
+    isGlobalAdmin,
+    location.pathname,
+    router,
+  ]);
 
   const toggleManageAutomationsModal = useCallback(() => {
     setShowManageAutomationsModal(!showManageAutomationsModal);
@@ -283,6 +317,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
+  // Redirect away from Library tab if not allowed:
+  // - Free tier doesn't have Library
+  // - "All fleets" can't view Library
+  const isOnLibraryTab = location.pathname.startsWith(PATHS.SOFTWARE_LIBRARY);
+  useEffect(() => {
+    // Wait for config to load before deciding — isPremiumTier is undefined
+    // until then, and !undefined would incorrectly bounce premium users.
+    if (isPremiumTier === undefined) return;
+
+    if (isOnLibraryTab && (!isPremiumTier || isAllTeamsSelected)) {
+      router.replace(
+        getPathWithQueryParams(PATHS.SOFTWARE_INVENTORY, {
+          fleet_id: currentTeamId,
+        })
+      );
+    }
+  }, [
+    isPremiumTier,
+    isAllTeamsSelected,
+    isOnLibraryTab,
+    currentTeamId,
+    router,
+  ]);
+
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams: ISoftwareApiParams = {
       query,
@@ -290,7 +348,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams(softwareFilter),
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
@@ -304,6 +361,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     toggleSoftwareFiltersModal();
   };
 
+  const navItems = isPremiumTier ? premiumSoftwareSubNav : softwareSubNav;
+
   const navigateToNav = useCallback(
     (i: number): void => {
       // Only query param to persist between tabs is team id
@@ -312,14 +371,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         page: 0, // Fixes flakey page reset in API call when switching between tabs
       };
 
-      const navPath = getPathWithQueryParams(
-        softwareSubNav[i].pathname,
-        teamIdParam
-      );
-
+      const navPath = getPathWithQueryParams(navItems[i].pathname, teamIdParam);
       router.replace(navPath);
     },
-    [location, router]
+    [location?.query.fleet_id, navItems, router]
   );
 
   const renderPageActions = () => {
@@ -344,16 +399,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
+            <AutomationsButton
               // TODO(Product) - Why not enable managing global automations when on any team like this
               // for everyone?
               disabled={!isAllTeamsSelected && !isPrimoMode}
               onClick={toggleManageAutomationsModal}
               className={`${baseClass}__manage-automations`}
-              variant="inverse"
-            >
-              Manage automations
-            </Button>
+            />
           </TooltipWrapper>
         )}
         {canAddSoftware && (
@@ -389,15 +441,36 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderBody = () => {
+    const isLibraryDisabled = isAllTeamsSelected;
+
     return (
       <div>
         <TabNav>
           <Tabs
-            selectedIndex={getTabIndex(location?.pathname || "")}
-            onSelect={navigateToNav}
+            selectedIndex={getTabIndex(location?.pathname || "", navItems)}
+            onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {softwareSubNav.map((navItem) => {
+              {navItems.map((navItem) => {
+                const isDisabledTab =
+                  navItem.name === "Library" && isLibraryDisabled;
+
+                if (isDisabledTab) {
+                  return (
+                    <Tab key={navItem.name} data-text={navItem.name} disabled>
+                      <TooltipWrapper
+                        tipContent="Select a fleet to view its software library."
+                        showArrow
+                        position="top"
+                        tipOffset={12}
+                        underline={false}
+                      >
+                        <TabText>{navItem.name}</TabText>
+                      </TooltipWrapper>
+                    </Tab>
+                  );
+                }
+
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
                     <TabText>{navItem.name}</TabText>
@@ -422,7 +495,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             platform,
             query,
             showExploitedVulnerabilitiesOnly,
-            softwareFilter,
+            selfServiceOnly,
             vulnFilters: softwareVulnFilters,
             onAddFiltersClick: toggleSoftwareFiltersModal,
           })}

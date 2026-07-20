@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "2.68.00237.26118",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Power Automate for desktop' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.68.00237.26118') < 0);"
+      },
+      "installer_url": "https://download.microsoft.com/download/838dff97-79b5-455a-8126-ad8e395554d8/Setup.Microsoft.PowerAutomate.exe",
+      "install_script_ref": "20b20659",
+      "uninstall_script_ref": "b6666f99",
+      "sha256": "5905fd9f8be19548b503b4b3d3ced91bdff7e375b22ef37be2cb6b929e9e0395",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "20b20659": "$exeFilePath = \"${env:INSTALLER_PATH}\"\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"-Silent -Install -ACCEPTEULA\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "b6666f99": "$displayNameLike = \"Power Automate for desktop*\"\n$publisherLike = \"Microsoft Corporation*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$ExpectedExitCodes = @(0, 1641, 3010, 1223)\n\n$entry = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike\n  }\n  if ($items) { $entry = $items | Select-Object -First 1; break }\n}\n\nif (-not $entry -or (-not $entry.UninstallString -and -not $entry.QuietUninstallString)) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\nStop-Process -Name \"PAD.Console.Host\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }\n\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '^\\s*(\\S+)\\s*(.*)$') {\n    $exePath = $matches[1]; $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\nif ($existingArgs -notmatch '(?i)-Uninstall') { $existingArgs = (\"$existingArgs -Uninstall\").Trim() }\nif ($existingArgs -notmatch '(?i)-Silent') { $existingArgs = (\"$existingArgs -Silent\").Trim() }\n\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $exePath\n        ArgumentList = $existingArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    if ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

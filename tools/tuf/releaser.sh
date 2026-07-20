@@ -236,14 +236,16 @@ create_fleetd_release_pr () {
 
 release_osqueryd_to_edge () {
     echo "Releasing osqueryd to edge..."
-    prompt "A branch and PR for bumping the osquery version will be created."
     BRANCH_NAME=release-osqueryd-v$VERSION
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
+        prompt "A branch and PR for bumping the osquery version will be created."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         # Update the version used to build osqueryd targets.
         "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-osqueryd-targets.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
-        git add .github/workflows/generate-osqueryd-targets.yml
+        # Update the version used to test fleetd changes.
+        "$GO_TOOLS_DIRECTORY/replace" .github/workflows/fleet-and-orbit.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
+        git add .github/workflows/generate-osqueryd-targets.yml .github/workflows/fleet-and-orbit.yml
         git commit -m "Bump osqueryd version to $VERSION"
         git push origin "$BRANCH_NAME"
         prompt "A PR will be created to trigger a Github Action to build osqueryd."

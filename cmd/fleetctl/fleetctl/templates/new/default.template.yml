@@ -67,7 +67,7 @@ org_settings:
     #   • https://fleetdm.com/docs/configuration/yaml-files#apple-business-manager
     #   • https://fleetdm.com/guides/apple-mdm-setup#apple-business-manager-abm
     ###########################################################
-    # apple_business_manager:
+    # apple_business:
     #   - organization_name: "My Company, Inc." # This must exactly match the organization name in Apple Business (AB).
     #     macos_fleet: "💻 Workstations" # Where new macOS devices from AB will appear
 
@@ -81,7 +81,7 @@ org_settings:
     #   • https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp
     ###########################################################
     # volume_purchasing_program:
-    #   - location: "My location." # This must exactly match a "Location" name in Apple Business (AB).
+    #   - location: "My organization unit." # This must exactly match an "Organization Unit" name in Apple Business (AB). Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
     #     fleets:
     #       - "💻 Workstations"
     #       - "📱🔐 Personal mobile devices"

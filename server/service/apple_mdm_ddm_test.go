@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -19,7 +19,7 @@ import (
 
 func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	ctx := t.Context()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	ddmService := MDMAppleDDMService{
 		ds:     ds,
 		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
@@ -57,14 +57,14 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	// Helper function to set up device and enrollment records
 	setupDeviceAndEnrollment := func(t *testing.T, hostUUID, hardwareSerial string) {
 		// Insert the device record first (required for foreign key constraints)
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, serial_number, authenticate) VALUES (?, ?, ?)`,
 				hostUUID, hardwareSerial, "test")
 			return err
 		})
 
 		// Insert a record into nano_enrollments table (required for foreign key constraints)
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				hostUUID, hostUUID, "Device", "topic", "push_magic", "token_hex", 1, time.Now())
 			return err
@@ -78,7 +78,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 		if status != "" {
 			statusPtr = ptr.String(status)
 		}
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			// First, get the right token of the declaration
 			err := sqlx.GetContext(ctx, q, &token,
 				"SELECT HEX(token) as token FROM mdm_apple_declarations WHERE declaration_uuid = ?", declarationUUID)
@@ -127,7 +127,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	// Helper function to check if a declaration has status "pending"
 	checkDeclarationStatus := func(t *testing.T, hostUUID, declarationUUID, expectedStatus string) {
 		var status string
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			db := q.(*sqlx.DB)
 			return db.QueryRowContext(ctx, `
 				SELECT status FROM host_mdm_apple_declarations 
@@ -139,7 +139,7 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 
 	// Helper function to set the uploaded_at timestamp for a host declaration
 	setDeclarationUploadedAt := func(t *testing.T, declarationUUID string, timestamp time.Time) {
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				UPDATE mdm_apple_declarations 
 				SET uploaded_at = ?

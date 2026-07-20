@@ -182,11 +182,13 @@ func testListActivitiesDateRangeFilter(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Only create activities in the past/present (activities can't have future creation dates)
+	// Includes a future-dated row to verify that the default upper bound caps
+	// at now regardless of whether StartCreatedAt is provided.
 	dates := []time.Time{
 		now.Add(-48 * time.Hour),
 		now.Add(-24 * time.Hour),
 		now,
+		now.Add(24 * time.Hour),
 	}
 	for _, dt := range dates {
 		env.InsertActivityWithTime(t, &userID, "test_activity", map[string]any{}, dt)
@@ -198,10 +200,12 @@ func testListActivitiesDateRangeFilter(t *testing.T, env *testEnv) {
 		end       string
 		wantCount int
 	}{
-		{"no filter", "", "", 3},
-		{"start only", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
+		{"no filter excludes future", "", "", 3},
+		{"start only excludes future", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
 		{"start and end", now.Add(-72 * time.Hour).Format(time.RFC3339), now.Add(-12 * time.Hour).Format(time.RFC3339), 2},
 		{"end only", "", now.Add(-30 * time.Hour).Format(time.RFC3339), 1},
+		{"end inclusive of exact match", "", now.Format(time.RFC3339), 3},
+		{"end in future includes future", "", now.Add(48 * time.Hour).Format(time.RFC3339), 4},
 	}
 
 	for _, tc := range cases {

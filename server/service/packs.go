@@ -15,7 +15,7 @@ type packResponse struct {
 	fleet.Pack
 	QueryCount uint `json:"query_count" renameto:"report_count"`
 
-	// All current hosts in the pack. Hosts which are selected explicty and
+	// All current hosts in the pack. Hosts which are selected explicitly and
 	// hosts which are part of a label.
 	TotalHostsCount uint `json:"total_hosts_count"`
 
@@ -171,6 +171,12 @@ func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 func (svc *Service) NewPack(ctx context.Context, p fleet.PackPayload) (*fleet.Pack, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Pack{}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if p.Name == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "pack payload verification: pack name cannot be empty",
+		})
 	}
 
 	if err := p.Verify(); err != nil {

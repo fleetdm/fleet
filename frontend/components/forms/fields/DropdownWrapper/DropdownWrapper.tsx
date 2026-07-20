@@ -130,7 +130,9 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
+  if (state.isFocused) return COLORS["ui-fleet-black-5"];
+  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  return "transparent";
 };
 
 const getOptionFontWeight = (
@@ -199,16 +201,12 @@ export const generateCustomDropdownStyles = (
               stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
-          ...(state.isFocused && {
-            backgroundColor: COLORS["ui-fleet-black-5"],
-            boxShadow: "none",
-            ".dropdown-wrapper__placeholder": {
-              color: COLORS["ui-fleet-black-75-down"],
-            },
-            ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["ui-fleet-black-75-down"],
-            },
-          }),
+          // Note: state.isFocused is intentionally not used as a highlight
+          // trigger here. react-select's internal input retains focus after
+          // the menu closes (outside click, post-modal-close, etc.), so
+          // styling on it would leave the trigger visually highlighted
+          // indefinitely (#45853). Hover + menuIsOpen cover the meaningful
+          // interactive states for an action button.
           ...(state.menuIsOpen && {
             backgroundColor: COLORS["ui-fleet-black-5"],
             ".dropdown-wrapper__placeholder": {
@@ -326,6 +324,7 @@ export const generateCustomDropdownStyles = (
     input: (provided) => {
       return {
         ...provided,
+        color: COLORS["core-fleet-black"],
         fontSize: "13px",
         margin: 0,
         padding: 0,
@@ -456,6 +455,7 @@ const DropdownWrapper = ({
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
+    [`${baseClass}__button`]: variant === "button",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
 
@@ -474,6 +474,13 @@ const DropdownWrapper = ({
 
   // Ability to handle value of type string or CustomOptionType
   const getCurrentValue = () => {
+    // Button variant is a fire-and-forget action menu (selection isn't displayed
+    // via `controlShouldRenderValue`). Forcing null prevents react-select from
+    // tracking the last click as the selected value and re-focusing it on reopen
+    // (#45853).
+    if (variant === "button") {
+      return null;
+    }
     if (typeof value === "string") {
       return options.find((option) => option.value === value) || null;
     }

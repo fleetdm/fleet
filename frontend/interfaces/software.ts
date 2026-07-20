@@ -148,6 +148,8 @@ export interface ISoftwarePackage {
   fleet_maintained_app_id?: number | null;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   hash_sha256?: string | null;
+  /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
+  configuration?: string;
 }
 
 export interface IAppStoreApp {
@@ -176,6 +178,8 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
+  /** Typed as string but Android configs arrive as a parsed object at runtime
+   * (backend sends json.RawMessage which Axios auto-parses). */
   configuration?: string;
 }
 
@@ -768,6 +772,53 @@ export const getInstallUninstallStatusPredicate = (
     INSTALL_STATUS_PREDICATES[
       status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES
     ] || INSTALL_STATUS_PREDICATES.pending
+  );
+};
+
+// Passive-voice variants used for self-service activity rendering, where the
+// activity reads "<software> was installed on this host (self-service)." with
+// no actor.
+const INSTALL_STATUS_PREDICATES_PASSIVE: Record<
+  EnhancedSoftwareInstallUninstallStatus | "pending",
+  string
+> = {
+  pending: "is pending",
+  installed: "was installed",
+  uninstalled: "was uninstalled",
+  pending_install: "is pending install",
+  failed_install: "installation failed",
+  pending_uninstall: "is pending uninstall",
+  failed_uninstall: "uninstallation failed",
+  ran_script: "was run",
+  failed_script: "run failed",
+  pending_script: "is pending run",
+} as const;
+
+export const getInstallUninstallStatusPredicatePassive = (
+  status: string | undefined,
+  isScriptPackage = false
+) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES_PASSIVE.pending;
+  }
+
+  if (isScriptPackage) {
+    switch (status.toLowerCase()) {
+      case "installed":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.ran_script;
+      case "pending_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.pending_script;
+      case "failed_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.failed_script;
+      default:
+        break;
+    }
+  }
+
+  return (
+    INSTALL_STATUS_PREDICATES_PASSIVE[
+      status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES_PASSIVE
+    ] || INSTALL_STATUS_PREDICATES_PASSIVE.pending
   );
 };
 

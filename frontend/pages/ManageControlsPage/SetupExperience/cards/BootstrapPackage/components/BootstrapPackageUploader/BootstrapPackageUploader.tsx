@@ -9,8 +9,6 @@ import FileUploader from "components/FileUploader";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
-const baseClass = "bootstrap-package-uploader";
-
 interface IBootstrapPackageUploaderProps {
   currentTeamId: number;
   onUpload: () => void;
@@ -54,20 +52,13 @@ const BootstrapPackageUploader = ({
   };
 
   return (
-    <div className={baseClass}>
-      <p>
-        Upload a bootstrap package to install a configuration management tool
-        (e.g. Munki, Chef, or Puppet) on macOS hosts that automatically enroll
-        to Fleet.
-      </p>
-      <FileUploader
-        message="Package (.pkg)"
-        graphicName="file-pkg"
-        accept=".pkg"
-        onFileUpload={onUploadFile}
-        isLoading={showLoading}
-      />
-    </div>
+    <FileUploader
+      message="Package (.pkg)"
+      graphicName="file-pkg"
+      accept=".pkg"
+      onFileUpload={onUploadFile}
+      isLoading={showLoading}
+    />
   );
 };
 

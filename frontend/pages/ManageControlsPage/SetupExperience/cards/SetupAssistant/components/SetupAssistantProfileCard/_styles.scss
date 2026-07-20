@@ -3,6 +3,10 @@
   gap: $pad-medium;
   align-items: center;
 
+  &--default-profile {
+    background-color: $ui-off-white;
+  }
+
   // TODO: create reusable list item component and use instead of all these styles.
   &__info {
     display: flex;
@@ -15,6 +19,9 @@
   }
   &__uploaded-at {
     font-size: $xx-small;
+  }
+  &__description {
+    font-size: $x-small;
   }
 
   &__actions {

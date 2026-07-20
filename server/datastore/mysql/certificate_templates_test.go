@@ -488,6 +488,7 @@ func testGetCertificateTemplatesByTeamID(t *testing.T, ds *Datastore) {
 			func(t *testing.T, ds *Datastore) {
 				templates, _, err := ds.GetCertificateTemplatesByTeamID(ctx, 1, fleet.ListOptions{Page: 0, PerPage: 10})
 				require.NoError(t, err)
+				require.NotNil(t, templates, "expected empty slice, not nil (nil marshals to JSON null)")
 				require.Len(t, templates, 0)
 			},
 		},

@@ -5,6 +5,7 @@ package table
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
@@ -38,6 +39,7 @@ import (
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
+	"github.com/macadmins/osquery-extension/tables/networkquality"
 	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
 	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
@@ -51,6 +53,7 @@ import (
 func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
+		adobe_plugins.TablePlugin(log.Logger),
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
@@ -107,6 +110,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
 		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
+		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

@@ -72,6 +72,25 @@ func TestParseSoftwareLastOpenedAtRowValue(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, lastOpenedAt)
 
+	// Some macOS apps return last_opened_at=315532800.0 (1980-01-01 UTC, the
+	// DOS/FAT epoch) for apps that were never opened, so this sentinel is also
+	// treated as "never" rather than a date decades in the past.
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("315532800.0")
+	require.NoError(t, err)
+	require.Zero(t, lastOpenedAt)
+
+	// Values just after the sentinel are valid timestamps, not "never".
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("315532801")
+	require.NoError(t, err)
+	require.Equal(t, time.Unix(315532801, 0).UTC(), lastOpenedAt)
+
+	// Legitimate pre-2001 timestamps (e.g. Linux deb/rpm last_opened_at derived
+	// from file atime) must be preserved, not silently discarded. 946684800 is
+	// 2000-01-01 UTC.
+	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("946684800")
+	require.NoError(t, err)
+	require.Equal(t, time.Unix(946684800, 0).UTC(), lastOpenedAt)
+
 	lastOpenedAt, err = ParseSoftwareLastOpenedAtRowValue("foobar")
 	require.Error(t, err)
 	require.Zero(t, lastOpenedAt)
@@ -136,6 +155,17 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			},
 			expectedPreInstallQueryOutput:   nil,
 			expectedOutput:                  ptr.String(SoftwareInstallerScriptsDisabledCopy),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with installer not found exit code",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeInstallerNotFound),
+				Output:                ptr.String(""),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  ptr.String(SoftwareInstallerNotFoundCopy),
 			expectedPostInstallScriptOutput: nil,
 		},
 		{

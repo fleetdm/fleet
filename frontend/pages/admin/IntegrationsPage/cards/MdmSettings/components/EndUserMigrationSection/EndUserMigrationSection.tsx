@@ -21,8 +21,10 @@ import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import EmptyTable from "components/EmptyTable/EmptyTable";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+import CustomLink from "components/CustomLink";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -149,7 +151,8 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     return (
       <div className={baseClass}>
         <SectionHeader title="End user migration workflow" />
-        <EmptyTable
+        <EmptyState
+          variant="list"
           className={`${baseClass}__abm-connect-message`}
           header="Migration workflow for macOS hosts"
           info="Connect to Apple Business to get started."
@@ -162,7 +165,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   return (
     <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
-        <p>Control the end user migration workflow for macOS hosts.</p>
+        <p>
+          Control the end user migration workflow for macOS hosts.{" "}
+          <CustomLink
+            url="https://fleetdm.com/learn-more-about/end-user-migration-workflow"
+            text="Learn more"
+            newTab
+          />
+        </p>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           src={MdmMigrationVideo}

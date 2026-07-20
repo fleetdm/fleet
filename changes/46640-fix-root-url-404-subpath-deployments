@@ -1,0 +1,1 @@
+* Fixed a bug where navigating to the Fleet root URL returned a 404 in subpath deployments.

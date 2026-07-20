@@ -9,6 +9,7 @@ import { NotificationContext } from "context/notification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
 
 import { ILabel } from "interfaces/label";
 
@@ -65,11 +66,8 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         await labelsAPI.destroy(labelToDelete);
         renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
         refetch();
-      } catch {
-        renderFlash(
-          "error",
-          `Could not delete ${labelToDelete.name}. Please try again.`
-        );
+      } catch (err) {
+        renderFlash("error", getDeleteLabelErrorMessages(err));
       } finally {
         setLabelToDelete(null);
         setIsUpdating(false);

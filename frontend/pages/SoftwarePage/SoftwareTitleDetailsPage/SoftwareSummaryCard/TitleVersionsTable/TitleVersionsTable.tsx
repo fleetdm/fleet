@@ -11,10 +11,9 @@ import { getPathWithQueryParams } from "utilities/url";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
-import Card from "components/Card";
 
 import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
@@ -43,29 +42,27 @@ export const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
 // Keeping here for convenience in case that decision is ever changed.
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
-    <Card borderRadiusSize="medium">
-      <EmptyTable
-        header={
-          isAvailableForInstall
-            ? "No versions detected."
-            : "No versions detected for this software item."
-        }
-        info={
-          isAvailableForInstall ? (
-            "Install this software on a host to see versions."
-          ) : (
-            <>
-              Expecting to see versions?{" "}
-              <CustomLink
-                url={GITHUB_NEW_ISSUE_LINK}
-                text="File an issue on GitHub"
-                newTab
-              />
-            </>
-          )
-        }
-      />
-    </Card>
+    <EmptyState
+      header={
+        isAvailableForInstall
+          ? "No versions detected"
+          : "No versions detected for this software item"
+      }
+      info={
+        isAvailableForInstall ? (
+          "Install this software on a host to see versions."
+        ) : (
+          <>
+            Expecting to see versions?{" "}
+            <CustomLink
+              url={GITHUB_NEW_ISSUE_LINK}
+              text="File an issue on GitHub"
+              newTab
+            />
+          </>
+        )
+      }
+    />
   );
 };
 

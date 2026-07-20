@@ -53,6 +53,8 @@ app_store_apps:
     platform: android
     self_service: true
     setup_experience: true
+    configuration:
+      path: ../lib/some-team/software/my-setup-experience-app-android-config.json
   - app_store_id: "9999888877"
     labels_include_all:
       - Label C
@@ -61,3 +63,5 @@ app_store_apps:
     auto_update_window_start: "01:00"
     auto_update_window_end: "03:00"
     platform: ios
+    configuration:
+      path: ../lib/some-team/software/my-ios-auto-update-app-ios-config.xml

@@ -28,6 +28,7 @@ import DataError from "./DataError";
 import Calendar from "./Calendar";
 import Lock from "./Lock";
 import Settings from "./Settings";
+import FleetLogo from "./FleetLogo";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -63,6 +64,7 @@ export const GRAPHIC_MAP = {
   calendar: Calendar,
   lock: Lock,
   settings: Settings,
+  "fleet-logo": FleetLogo,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

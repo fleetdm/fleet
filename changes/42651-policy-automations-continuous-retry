@@ -1,0 +1,1 @@
+* Added a "Continuous" option to policy automations that re-runs script and software automations on every subsequent policy failure, with editable automations now available directly on the policy create, edit, and details pages.

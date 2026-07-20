@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
@@ -10,12 +11,12 @@ import {
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 import {
   HostPlatform,
-  isAndroid,
   PLATFORM_DISPLAY_NAMES,
+  isMacOS,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
@@ -24,15 +25,16 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import DropdownWrapper, {
+  CustomOptionType,
+} from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
+import EmptyState from "components/EmptyState";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -76,6 +78,8 @@ interface IHostSoftwareTableProps {
   pagePath: string;
   vulnFilters: ISoftwareVulnFiltersParams;
   teamId?: number;
+  /** Current value of the macOS /Applications filter. Only defined for macOS hosts. */
+  macosApplicationsFilter?: boolean;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
   onShowInventoryVersions: (software: IHostSoftware) => void;
@@ -94,6 +98,7 @@ const HostSoftwareTable = ({
   pagePath,
   vulnFilters,
   teamId,
+  macosApplicationsFilter,
   onAddFiltersClick,
   isMyDevicePage,
   onShowInventoryVersions,
@@ -127,11 +132,14 @@ const HostSoftwareTable = ({
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
         fleet_id: teamId,
+        ...(macosApplicationsFilter !== undefined && {
+          macos_applications: macosApplicationsFilter,
+        }),
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
     },
-    [vulnFilters]
+    [vulnFilters, teamId, macosApplicationsFilter]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -161,21 +169,21 @@ const HostSoftwareTable = ({
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
-  const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
-    return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
-
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const showFilterHeaders = hasData || hasQuery || hasVulnFilters;
+  // Truly empty: no software at all, no active search/filters
+  const isTrulyEmpty = isSoftwareNotDetected && !hasVulnFilters;
+
+  const showFilterHeaders =
+    isTrulyEmpty || hasData || hasQuery || hasVulnFilters;
+
+  const memoizedSoftwareCount = useCallback(() => {
+    return <TableCount name="items" count={count} />;
+  }, [count]);
 
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
@@ -195,7 +203,11 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="inverse" onClick={onAddFiltersClick}>
+        <Button
+          variant="inverse"
+          onClick={onAddFiltersClick}
+          disabled={isTrulyEmpty}
+        >
           <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
@@ -203,8 +215,68 @@ const HostSoftwareTable = ({
     );
   };
 
+  // The /Applications filter is only relevant for macOS hosts.
+  const showApplicationsFilter =
+    !isMyDevicePage &&
+    isMacOS(platform) &&
+    macosApplicationsFilter !== undefined;
+
+  const applicationsFilterOptions: CustomOptionType[] = [
+    { label: "Full inventory", value: "false" },
+    { label: "Applications", value: "true" },
+  ];
+
+  const onApplicationsFilterChange = (
+    newValue: SingleValue<CustomOptionType>
+  ) => {
+    if (!newValue) return;
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: pagePath,
+        routeTemplate: "",
+        queryParams: {
+          query: searchQuery,
+          order_direction: sortDirection,
+          order_key: sortHeader,
+          page: 0, // resets page index
+          fleet_id: teamId,
+          macos_applications: newValue.value,
+          ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+        },
+      })
+    );
+  };
+
+  const renderApplicationsFilter = () => (
+    <DropdownWrapper
+      name="host-software-applications-filter"
+      className={`${baseClass}__software-filter`}
+      options={applicationsFilterOptions}
+      value={macosApplicationsFilter ? "true" : "false"}
+      onChange={onApplicationsFilterChange}
+      variant="table-filter"
+      isSearchable={false}
+      iconName="filter-alt"
+    />
+  );
+
+  // Visual order is search, dropdown, filters button. The dropdown and filters
+  // button are rendered here in DOM order; the search (rendered by
+  // TableContainer after these controls) is moved ahead of them via CSS when
+  // the `--with-applications-filter` modifier is present.
+  const renderCustomControls = () => (
+    <>
+      {showApplicationsFilter && renderApplicationsFilter()}
+      {renderCustomFiltersButton()}
+    </>
+  );
+
   return (
-    <div className={baseClass}>
+    <div
+      className={`${baseClass}${
+        showApplicationsFilter ? ` ${baseClass}--with-applications-filter` : ""
+      }`}
+    >
       <TableContainer
         renderCount={memoizedSoftwareCount}
         columnConfigs={tableConfig}
@@ -218,20 +290,26 @@ const HostSoftwareTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        emptyComponent={() => (
-          <EmptyComponent
-            hasVulnFilters={hasVulnFilters}
-            platform={platform}
-            searchQuery={searchQuery}
-          />
-        )}
-        customFiltersButton={
-          showFilterHeaders ? renderCustomFiltersButton : undefined
+        emptyComponent={() =>
+          isTrulyEmpty ? (
+            <EmptyState
+              header="No software found"
+              info="Expecting to see software? Check back later."
+            />
+          ) : (
+            <EmptyComponent
+              hasVulnFilters={hasVulnFilters}
+              platform={platform}
+              searchQuery={searchQuery}
+            />
+          )
         }
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
         stackControls
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
+        disableSearch={isTrulyEmpty}
         manualSortBy
         keyboardSelectableRows={isMyDevicePage}
         // my device page row clickability

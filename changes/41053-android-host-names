@@ -1,0 +1,1 @@
+* Android host display name now uses "{IdP first name}'s {hardware model}" when an IdP account is associated.

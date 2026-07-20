@@ -40,6 +40,9 @@ For detailed usage of specific tools:
 # Start test osqueryd instances
 cd tools/osquery && docker-compose up
 
+# Seed test data (users/teams/policies/profiles/etc.) — see tools/dibble/README.md
+make dibble && ./tools/dibble/dibble
+
 # Serve files locally
 go run ./tools/file-server 8081 ./my-files
 
@@ -57,6 +60,10 @@ go run ./tools/snapshot r
 ```bash
 # Run osquery load tests
 ./tools/loadtest/osquery/gnuplot_osqueryd_cpu_memory.sh
+
+# Collect CloudWatch metrics for a load test environment, then compare runs
+./tools/loadtest/metrics/collect-metrics.sh --workspace 486loadtest --category baseline
+./tools/loadtest/metrics/compare-metrics.sh --filter loadtest --depth 4 --unique
 
 # Test webhooks
 go run ./tools/webhook 8082
@@ -121,8 +128,8 @@ export FLEET_ENV_PATH=./tools/api/env
 
 # Test API endpoints
 ./tools/api/fleet/me
-./tools/api/fleet/queries/list
-./tools/api/fleet/queries/create 'my_query' 'SELECT * FROM processes;'
+./tools/api/fleet/reports/list
+./tools/api/fleet/reports/create 'my_report' 'SELECT * FROM processes;'
 ```
 
 ### Integration Testing
@@ -167,7 +174,7 @@ go run ./tools/bump-migration -source-migration 20240101120000_MyMigration.go -r
 ### GitOps Migration
 ```bash
 # Migrate software YAML files to Fleet 4.74.0+ format
-./tools/gitops-migrate/migrate.sh it-and-security/teams/
+./tools/gitops-migrate/migrate.sh it-and-security/fleets/
 ```
 
 ### Software & Vulnerability Testing
@@ -220,7 +227,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `dbutils/` | Database schema generator | `go run ./tools/dbutils/schema_generator.go <dumpfile>` |
 | `mysql-replica-testing/` | MySQL replica testing | See [mysql-replica-testing/README.md](mysql-replica-testing/README.md) |
 | `mysql-tests/` | MySQL testing configs | Docker configs for MySQL testing |
-| `redis-stress/` | Redis stress testing | `go run` tools in directory |
+| `redis-stress/` | Redis stress testing — cluster-aware `write` (steady SET load) and `race` (SET-then-GET visibility race detection) modes | `go run ./tools/redis-stress write -addr 127.0.0.1:7001 -workers 5 -duration 1m` or `go run ./tools/redis-stress race -addr 127.0.0.1:7001 -workers 50 -iterations 2000` — see [redis-stress/README.md](redis-stress/README.md) |
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |
@@ -237,7 +244,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `fleet-docker/` | Fleet Docker configs | Docker configuration for Fleet |
 | `github-manage/` | GitHub management automation | `./gm issues --search "is:open"` or `./gm project 58` - See [README](github-manage/README.md) |
 | `github-releases/` | GitHub release tools | `go run ./tools/github-releases --last-minor-releases <n>` or `--all-cpes` |
-| `gitops-migrate/` | GitOps YAML migration | `./tools/gitops-migrate/migrate.sh <teams_dir>` - See [README](gitops-migrate/README.md) |
+| `gitops-migrate/` | GitOps YAML migration | `./tools/gitops-migrate/migrate.sh <fleets_dir>` - See [README](gitops-migrate/README.md) |
 | `mailpit/` | Local email testing | Mailpit SMTP server for local dev (uses `auth.txt` config) |
 | `open/` | Test "open" package | `go run ./tools/open -url <url>` - Opens URL in default browser |
 | `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
@@ -245,13 +252,13 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
 | `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
 | `telemetry/` | Jaeger + Prometheus for tracing | `docker compose up` - See [telemetry/README.md](telemetry/README.md) |
-| `terraform/` | Terraform provider for Fleet teams | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
+| `terraform/` | Terraform provider for fleet | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
 | **MDM Tools** | | |
 | `android/` | Android management API tool | `go run ./tools/android -command <cmd> -enterprise_id <id> -device_id <id>` |
 | `mdm/apple/applebmapi/` | Query Apple Business API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
 | `mdm/apple/appmanifest/` | Generate app manifest XML from .pkg | `go run ./tools/mdm/apple/appmanifest -pkg-file app.pkg -pkg-url https://example.com/app.pkg` |
 | `mdm/apple/apnspush/` | Send APNS push to enrolled devices | `go run ./tools/mdm/apple/apnspush -mysql localhost:3306 -server-private-key <key> <HOST_UUID>` |
-| `mdm/apple/loadtest/` | MDM load testing | `go run ./tools/mdm/apple/loadtest` |
+| `mdm/apple/loadtest/` | MDM load testing (deprecated — see [dibble](dibble/README.md) for seeding teams + profiles) | `go run ./tools/mdm/apple/loadtest` |
 | `mdm/apple/macos-vm-auto-enroll/` | Auto-enroll macOS VMs in MDM | `./tools/mdm/apple/macos-vm-auto-enroll/macos-vm-auto-enroll.sh` |
 | `mdm/apple/setupexperience/` | Test setup experience flows | `go run ./tools/mdm/apple/setupexperience` |
 | `mdm/assets/` | Export/import MDM assets (SCEP, APNS, etc.) | `go run ./tools/mdm/assets export -key=<key> -dir=<dir>` or `import` |
@@ -277,7 +284,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `run-scripts/` | Test Orbit script execution | `go run ./tools/run-scripts -exec-id <id> -content 'echo "Hello"'` |
 | **Packaging & Installers** | | |
 | `bomutils-docker/` | Docker image for BOM utils (macOS pkg) | Docker build for BOM utilities |
-| `team-builder/` | Bulk team creation + installer generation | `./build_teams.sh -s teams.txt -u fleet.example.com` |
+| `team-builder/` | Bulk fleet (formerly "team") creation + installer generation (deprecated for plain seeding — see [dibble](dibble/README.md)) | `./build_teams.sh -s teams.txt -u fleet.example.com` |
 | `wix-docker/` | Docker image for WiX (Windows MSI) | Docker build for WiX toolset |
 | **Release & Distribution** | | |
 | `fleetctl-docker/` | Docker image for fleetctl packaging | `docker run fleetdm/fleetctl package --type=pkg` |
@@ -299,16 +306,18 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `nvd/` | NVD (National Vulnerability Database) tools | See [nvd/nvdvuln/README.md](nvd/nvdvuln/README.md) |
 | `software/icons/` | Software icon management | See [software/icons/README.md](software/icons/README.md) |
 | `software/packages/` | Software package utilities | See [software/packages/README.md](software/packages/README.md) |
-| `software/vulnerabilities/` | Seed vulnerable software for dev | `go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1` |
-| `software/vulnerabilities/performance_test/` | Vuln performance testing | See [software/vulnerabilities/performance_test/README.md](software/vulnerabilities/performance_test/README.md) |
+| `software/vulnerabilities/` | Seed vulnerable software for dev (deprecated — use [dibble](dibble/README.md) `vulns`) | `go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1` |
+| `software/vulnerabilities/performance_test/` | Vuln performance testing (`seeder/` deprecated — use [dibble](dibble/README.md) `vulns`) | See [software/vulnerabilities/performance_test/README.md](software/vulnerabilities/performance_test/README.md) |
 | `vex-parser/` | Parse OpenVEX documents | `go run ./tools/vex-parser <vex-file>` |
 | **Testing & Load Testing** | | |
 | `desktop-rate-limit/` | Test Fleet Desktop rate limiting | `go run ./tools/desktop-rate-limit -fleet_url https://localhost:8080` |
 | `kubequery/` | Kubequery + Fleet config | `kubectl apply -f kubequery-fleet.yml` |
-| `loadtest/fleetd_labels/` | Apply manual labels for load testing | `go run ./tools/loadtest/fleetd_labels` |
+| `dibble/` | One-stop seeder: users, teams, policies, reports, labels, scripts, profiles, software, enroll-secrets, vulns | `make dibble && ./tools/dibble/dibble` |
+| `loadtest/fleetd_labels/` | Apply manual labels for load testing (deprecated — use [dibble](dibble/README.md) `labels`) | `go run ./tools/loadtest/fleetd_labels` |
+| `loadtest/metrics/` | Collect & compare AWS CloudWatch metrics for load test environments | `./tools/loadtest/metrics/collect-metrics.sh --workspace <ws>` — see [loadtest/metrics/README.md](loadtest/metrics/README.md) |
 | `loadtest/osquery/` | Load test osquery on macOS/Windows/Linux | See [loadtest/osquery/README.md](loadtest/osquery/README.md) |
-| `loadtest/scripts_and_profiles/` | Load test scripts and profiles | `go run ./tools/loadtest/scripts_and_profiles` |
-| `loadtest/unified_queue/` | Load test unified queue story | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |
+| `loadtest/scripts_and_profiles/` | Load test scripts and profiles (deprecated — use [dibble](dibble/README.md) `scripts` + `profiles`) | `go run ./tools/loadtest/scripts_and_profiles` |
+| `loadtest/unified_queue/` | Load test unified queue story (see [dibble](dibble/README.md) for seeding the prerequisite software/scripts) | See [loadtest/unified_queue/README.md](loadtest/unified_queue/README.md) |
 | `osquery/` | Containerized osqueryd testing | `docker-compose up` - See [osquery/README.md](osquery/README.md) |
 | `osquery-testing/` | osquery integration tests | `docker-compose up` in directory |
 | `test-certs/` | Fake certificate chain for TLS testing | See [test-certs/README.md](test-certs/README.md) |

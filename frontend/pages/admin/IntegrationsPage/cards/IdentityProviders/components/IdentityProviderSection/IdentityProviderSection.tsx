@@ -4,10 +4,11 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { dateAgo } from "utilities/date_format";
 import { internationalTimeFormat } from "utilities/helpers";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import idpAPI from "services/entities/idp";
-
-import PATHS from "router/paths";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 import DataError from "components/DataError";
@@ -16,6 +17,7 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import PageDescription from "components/PageDescription";
+import EmptyState from "components/EmptyState";
 
 import SectionCard from "../../../MdmSettings/components/SectionCard";
 
@@ -23,22 +25,16 @@ const baseClass = "identity-provider-section";
 
 const AddEndUserInfoCard = () => {
   return (
-    <SectionCard
-      header="Connect your IdP"
-      cta={
+    <EmptyState
+      header="No IdP connected"
+      info={
         <CustomLink
-          text="Learn more"
+          text="Learn how to connect your IdP"
           newTab
-          url="https://fleetdm.com/learn-more-about/connect-idp"
-          className={`${baseClass}__learn-more-link`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/connect-idp`}
         />
       }
-    >
-      <p className={`${baseClass}__section-card-content`}>
-        Fleet can be connected to Okta, Entra ID, or another Identity Provider
-        (IdP).
-      </p>
-    </SectionCard>
+    />
   );
 };
 
@@ -56,8 +52,7 @@ const ReceivedEndUserInfoCard = ({
         <CustomLink
           text="Learn more"
           newTab
-          url="https://fleetdm.com/learn-more-about/troubleshoot-idp-connection"
-          className={`${baseClass}__learn-more-link`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-idp-connection`}
         />
       }
     >
@@ -94,8 +89,7 @@ const FailedEndUserInfoCard = ({
         <CustomLink
           text="Learn more"
           newTab
-          url="https://fleetdm.com/learn-more-about/troubleshoot-idp-connection"
-          className={`${baseClass}__learn-more-link`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-idp-connection`}
         />
       }
     >
@@ -165,23 +159,8 @@ const IdentityProviderSection = () => {
         <PageDescription
           content={
             <>
-              Connect your IdP to populate IdP host vitals and delete{" "}
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    A <strong>Fleet user</strong> manages Fleet.
-                  </>
-                }
-              >
-                Fleet users
-              </TooltipWrapper>{" "}
-              when they are removed from your IdP. To configure authentication
-              for Fleet users and end users, head to{" "}
-              <CustomLink
-                text="Single sign-on (SSO)"
-                url={PATHS.ADMIN_INTEGRATIONS_SSO}
-              />
-              .
+              Connect Fleet to your IdP to sync end user information (e.g.
+              groups) to hosts.
             </>
           }
           variant="right-panel"

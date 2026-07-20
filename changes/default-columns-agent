@@ -1,0 +1,2 @@
+* Replaced the "Osquery" column with a richer "Agent" column on the Hosts page that shows Orbit version with a tooltip displaying osquery, Orbit, and Fleet Desktop versions.
+* Hidden "Issues" and "Private IP address" columns by default for new Fleet instances.

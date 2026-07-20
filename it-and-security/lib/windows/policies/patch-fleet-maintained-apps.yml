@@ -55,3 +55,12 @@
   install_software: false
   labels_include_any:
     - x86 Windows hosts with Visual Studio Code installed
+- name: Windows - Adobe Acrobat Reader up to date
+  description: This device may have an outdated version of Adobe Acrobat Reader, posing a critical security risk. Adobe Reader is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Reader is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-reader/windows
+  install_software: true
+  labels_include_any:
+    - x86 Windows hosts with Adobe Acrobat Reader installed

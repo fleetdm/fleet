@@ -87,6 +87,17 @@ In general, we try to allow internal contributors to merge their own PRs after a
 
 For external contributors, the merge must be performed by a teammate with merge permissions. Typically this would be the internal reviewer that approves the PR.
 
+### Enable merge commits for large feature branches
+
+To preserve git history when merging a large feature branch with multiple contributors:
+
+1. A GitHub admin must go to **Settings → General** and enable the `allow merge commits` checkbox near the bottom.
+2. A GitHub admin must go to the branch settings for `main` and uncheck `require linear history`.
+3. Merge the PR using the merge dropdown option **Create a merge commit**.
+4. A GitHub admin must re-enable `require linear history` on the branch.
+5. A GitHub admin must disable `allow merge commits`.
+
+
 ### Commit messages
 
 GitHub is configured only to allow "Squash Merges." meaning each PR (potentially containing multiple commits) becomes a single commit for merge. Occasionally it may be appropriate to "Rebase Merge," a complex PR that is best left as multiple commits. Please discuss within the PR if this seems appropriate.

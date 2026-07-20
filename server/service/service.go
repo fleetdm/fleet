@@ -77,6 +77,9 @@ type Service struct {
 
 	// acmeSvc is the ACME service module for write operations.
 	acmeSvc fleet.ACMEWriteService
+
+	// orgLogoStore stores the bytes of customer-uploaded org logos.
+	orgLogoStore fleet.OrgLogoStore
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -151,6 +154,7 @@ func NewService(
 	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 	keyValueStore fleet.KeyValueStore,
 	androidSvc android.Service,
+	orgLogoStore fleet.OrgLogoStore,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -190,6 +194,7 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		androidSvc:                      androidSvc,
+		orgLogoStore:                    orgLogoStore,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

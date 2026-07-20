@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.11.2</string>
+      <key>PayloadType</key>
+      <string>com.apple.screensaver</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.11.2.check</string>
+      <key>PayloadUUID</key>
+      <string>FC2AA9FE-8A8C-4D67-A8E9-77D9F3444D16</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>askForPassword</key>
+      <true/>
+      <key>askForPasswordDelay</key>
+      <integer>5</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.11.2 - Ensure Require Password After Screen Saver Begins Is Enabled for 5 Seconds or Immediately</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Require Password After Screen Saver Begins</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.11.2</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>3A4D15B6-6883-4D6F-9E54-359D998A4490</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

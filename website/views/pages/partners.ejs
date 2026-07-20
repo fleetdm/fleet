@@ -35,6 +35,9 @@
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
               <img alt="Deeploi logo" src="/images/logos/partner-logo-deeploi-117x32@2x.png ">
               <img alt="Treeline logo" src="/images/logos/partner-logo-treeline-157x32@2x.png">
+              <img alt="Stratix logo" src="/images/logos/partner-logo-stratix-172x58@2x.png">
+              <img alt="AWS logo" src="/images/logo-aws-36x36@2x.png">
+              <img alt="JSOC IT logo" src="/images/logos/partner-logo-jsoc-it-108x60@2x.png">
             </div>
             <div purpose="logo-row" class="d-flex flex-row align-items-center" :class="[isIosThirteen ? 'ios-13-scroll-animation' : isSafariThirteen ? 'safari-13-scroll-animation' : '']">
               <img alt="Amaris logo" src="/images/logos/partner-logo-amaris-86x32.png">
@@ -49,6 +52,9 @@
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
               <img alt="Deeploi logo" src="/images/logos/partner-logo-deeploi-117x32@2x.png ">
               <img alt="Treeline logo" src="/images/logos/partner-logo-treeline-157x32@2x.png">
+              <img alt="Stratix logo" src="/images/logos/partner-logo-stratix-172x58@2x.png">
+              <img alt="AWS logo" src="/images/logo-aws-36x36@2x.png">
+              <img alt="JSOC IT logo" src="/images/logos/partner-logo-jsoc-it-108x60@2x.png">
             </div>
             <div purpose="fade-left"></div>
             <div purpose="fade-right"></div>
@@ -395,11 +401,10 @@
             <div class="invalid-feedback" v-if="formErrors.expectedClose" focus-first>Please select an option</div>
           </div>
           <div class="form-group">
-            <label for="reseller-number-of-devices">Estimated number of devices *</label>
-            <select class="form-control custom-select" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.numberOfHosts">
+            <label for="number-of-devices">Estimated number of devices *</label>
+            <select id="number-of-devices" class="form-control custom-select" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.numberOfHosts">
               <option :value="undefined">Select</option>
-              <option value="1 - 100">1 - 100</option>
-              <option value="100 - 1000">100 - 1,000</option>
+              <option value="500 - 1000">500 - 1,000</option>
               <option value="1000 - 5000">1,000 - 5,000</option>
               <option value="5000+">5,000+</option>
             </select>

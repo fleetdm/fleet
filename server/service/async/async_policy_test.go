@@ -11,6 +11,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -200,7 +201,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 
 	selectRows := func(t *testing.T) ([]policyMembership, map[int]time.Time) {
 		var rows []policyMembership
-		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, policy_id, passes, updated_at
         FROM policy_membership
         ORDER BY host_id, policy_id`)
@@ -210,7 +211,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 			ID              int       `db:"id"`
 			PolicyUpdatedAt time.Time `db:"policy_updated_at"`
 		}
-		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, policy_updated_at FROM hosts`)
 		})
 
@@ -532,7 +533,7 @@ func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 	ctx := context.Background()
 
 	ids := make([]uint, count)
-	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		for i := 0; i < count; i++ {
 			res, err := tx.ExecContext(
 				ctx, `INSERT INTO policies (name, description, query, checksum) VALUES (?, ?, ?, ?)`,

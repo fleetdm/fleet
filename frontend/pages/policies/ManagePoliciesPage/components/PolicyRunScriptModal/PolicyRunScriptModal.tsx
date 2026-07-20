@@ -20,6 +20,7 @@ import DropdownWrapper, {
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -124,19 +125,22 @@ const PolicyRunScriptModal = ({
     }
     if (!availableScripts?.length) {
       return (
-        <div className={`${baseClass}__no-scripts`}>
-          <b>No scripts available for install</b>
-          <div>
-            Go to{" "}
-            <CustomLink
-              url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
-                fleet_id: teamId,
-              })}
-              text="Controls &gt; Scripts"
-            />{" "}
-            to add scripts to this fleet.
-          </div>
-        </div>
+        <EmptyState
+          header="No scripts available for install"
+          width="small"
+          info={
+            <div>
+              Go to{" "}
+              <CustomLink
+                url={getPathWithQueryParams(paths.CONTROLS_SCRIPTS, {
+                  fleet_id: teamId,
+                })}
+                text="Controls &gt; Scripts"
+              />{" "}
+              to add scripts to this fleet.
+            </div>
+          }
+        />
       );
     }
 

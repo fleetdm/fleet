@@ -70,9 +70,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
-const unusedFlagKeyword = "dummy"
-
 type logError string
 
 const (
@@ -441,7 +438,7 @@ func orbitAction(c *cli.Context) error {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 	}
 
-	if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
+	if email := c.String("end-user-email"); email != "" && email != constant.UnusedFlagKeyword && !fleet.IsLooseEmail(email) {
 		return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 	}
 
@@ -1149,7 +1146,7 @@ func orbitAction(c *cli.Context) error {
 	// Set the function that will be called to open the SSO window if an enroll
 	// request returns an "end user authentication required" error.
 	orbitClient.SetOpenSSOWindowFunc(func() error {
-		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
+		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=" + fleet.SSOInitiatorOrbitSetupExperience + "&host_uuid=" + orbitHostInfo.HardwareUUID)
 		if err != nil {
 			return fmt.Errorf("opening browser: %w", err)
 		}
@@ -1158,7 +1155,7 @@ func orbitAction(c *cli.Context) error {
 
 	// Set the EUA token from the MSI installer (Windows MDM enrollment).
 	// Must be set before any authenticated request triggers enrollment.
-	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != unusedFlagKeyword {
+	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != constant.UnusedFlagKeyword {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
@@ -1172,6 +1169,9 @@ func orbitAction(c *cli.Context) error {
 		renewEnrollmentProfileCommandFrequency = 3 * time.Minute
 		windowsMDMEnrollmentCommandFrequency   = time.Hour
 		windowsMDMBitlockerCommandFrequency    = time.Hour
+		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
+		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
+		windowsMDMSyncCommandFrequency = time.Minute
 	)
 
 	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
@@ -1221,13 +1221,11 @@ func orbitAction(c *cli.Context) error {
 		}
 	}
 
-	if c.Bool("fleet-desktop") {
-		// Ensure that the token rotation checker is started,
-		// so that we have a valid token to launch the
-		// My Device page.
-		stopRotation := trw.StartRotation()
-		defer stopRotation()
-	}
+	// Always keep the device identifier (e.g. /opt/orbit/identifier) up to date
+	// with periodic rotation, so it's valid for refetch-host, device auth, and
+	// Fleet Desktop when enabled.
+	stopRotation := trw.StartRotation()
+	defer stopRotation()
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -1245,6 +1243,7 @@ func orbitAction(c *cli.Context) error {
 
 	case "windows":
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
+		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMSyncFetcherMiddleware(windowsMDMSyncCommandFrequency))
 		comWorker, err := bitlocker.NewCOMWorker()
 		if err != nil {
 			return fmt.Errorf("create BitLocker COM worker: %w", err)
@@ -1260,6 +1259,10 @@ func orbitAction(c *cli.Context) error {
 		RootDir: c.String("root-dir"),
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+	// Floor for server-driven debug toggling: --debug at startup pins debug on.
+	startedInDebug := c.Bool("debug")
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
@@ -1485,7 +1488,7 @@ func orbitAction(c *cli.Context) error {
 	// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 	// email from the enrollment profile)
 	endUserEmail := c.String("end-user-email")
-	if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
+	if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != constant.UnusedFlagKeyword {
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 			log.Debug().Msg("sending end-user email to Fleet")
 			if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {

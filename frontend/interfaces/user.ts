@@ -66,7 +66,7 @@ export interface IUser {
 /**
  * The shape of the request body when updating a user.
  */
-export interface IUserUpdateBody {
+export interface IUserUpdateFormData {
   global_role?: UserRole | null;
   teams?: ITeam[];
   name: string;
@@ -126,6 +126,7 @@ export interface ICreateUserWithInvitationFormData {
   email: string;
   invite_token: string;
   name: string;
-  password: string;
-  password_confirmation: string;
+  password?: string;
+  password_confirmation?: string;
+  sso_invite?: boolean;
 }

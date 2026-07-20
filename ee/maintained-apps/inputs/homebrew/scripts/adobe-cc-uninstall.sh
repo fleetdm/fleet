@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 quit_app() {
   b="$1"

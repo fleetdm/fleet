@@ -1,0 +1,1 @@
+- Removed orphaned duplicate SCEP certificates from the per-user keychain automatically after an Okta conditional access profile is reinstalled or renewed on macOS hosts.

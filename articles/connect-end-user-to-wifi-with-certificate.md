@@ -21,7 +21,7 @@ To deploy certificates on a self-hosted Fleet instance, you'll need to configure
 
 The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
 
-We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/enable-okta-verify-on-macos-with-configuration-profile).
+We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
 ### Step 1: Get Okta credentials
 
@@ -44,7 +44,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -83,7 +83,7 @@ The following steps show how to deploy DigiCert certificates.
 4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to log in to your DigiCert One.
 5. In **API token**, paste your DigiCert server user's API token (from step 1).
 6. In **Profile GUID**, paste your DigiCert One certificate profile GUID (from step 2). To find your GUID, open the profile in DigiCert and copy **GUID** from the [Certificate profiles](https://one.digicert.com/mpki/policies/profiles) page.
-7. In **CN**, **UPN**, and **Certificate seat ID**, enter fixed values or any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables). Most organizations use the host's serial number or end user's email to deliver a certificate that's unique to the host.
+7. In **CN**, **UPN**, and **Certificate seat ID**, enter fixed values or any of the [supported variables](https://fleetdm.com/guides/fleet-variables). Most organizations use the host's serial number or end user's email to deliver a certificate that's unique to the host.
 8. Select **Add CA**. Your DigiCert certificate authority (CA) should appear in your list of CAs in Fleet.
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
@@ -226,7 +226,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
 
-2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
+2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) such as `$FLEET_VAR_HOST_HARDWARE_SERIAL`. For Apple hosts, you can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables)..
 
 3. For Windows profiles, you also need to set `CAThumbprint` to the SHA1 fingerprint of your **root CA certificate** (not the RA signing certificate). See [How to get the CAThumbprint for Windows SCEP profiles](#how-to-get-the-cathumbprint-for-windows-scep-profiles).
 
@@ -460,7 +460,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 2. Replace the `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -584,7 +584,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydrant-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -595,6 +595,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydra
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 
@@ -644,7 +646,7 @@ For Android hosts, we use a configuration profile and a certificate template. Fo
 
 2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
 
-3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
@@ -664,8 +666,8 @@ How to deploy SCEP certificates to Android hosts:
 
 2. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
 3. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
-4. In **Certificate authority**, select the SCEP CA you created in step 1.
-5. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+4. In **Certificate authority**, select the custom SCEP CA you created in step 1.
+5. In **Subject name**, enter the certificate's subject name (SN). Separate subject fields by a ",". You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) to make the certificate unique to each host. For example: `CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL`.
 6. Select **Save**. Fleet will deploy the certificate to your Android hosts.
 
 If something goes wrong, errors will appear on each host's **Host details > OS settings**.
@@ -857,6 +859,44 @@ You can add any other options listed under Device/SCEP in the [Microsoft documen
 
 </details>
 
+1. Create a configuration profile (see examples above) with the SCEP payload. In the profile, for `Challenge`, use `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_{CA_NAME}`. For `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_{CA_NAME}`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `OU`.
+
+2. Replace the `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+
+3. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When the profile is delivered to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+### Android: Deploy certificate
+
+How to deploy SCEP certificates to Android hosts:
+
+1. Create a `add-certificates-to-work-profile.json` file, copy/paste the below JSON into it, and then, in Fleet, head to **Controls > OS settings > Custom settings**, select **Add profile**, and upload your new `add-certificates-to-work-profile.json` profile.
+
+```json
+{
+  "privateKeySelectionEnabled": true
+}
+```
+
+2. In Fleet, head to **Controls > OS settings > Certificates** and select **Add certificate**.
+3. In **Name**, enter a name for the certificate (e.g., "wifi-certificate"). This name is used as the certificate alias to reference in configuration profiles (e.g. [WiFi configuration](https://developers.google.com/android/management/configure-networks#eap_authentication)).
+4. In **Certificate authority**, select the custom SCEP CA you created in step 1.
+5. In **Subject name (SN)**, enter the certificate's subject name (SN). Separate subject fields with a comma (`,`). 
+6. In **SubjSubject alternative name (SAN)**, enter the certificate's SAN. Separate SAN fields with a comma (`,`). Each field is a key-value pair. See [supported keys](https://fleetdm.com/docs/configuration/yaml-files#android-settings-certificates).
+7. Select **Save**. Fleet will deploy the certificate to your Android hosts.
+
+You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in **Subject name** and **Subject alternative name** to make the certificate unique to each host.
+
+If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+How does this work? Fleet installs the "Fleet" Android app on each host. Every 15 minutes, the app checks for new certificates, retrieves any from the custom SCEP CA, and installs them in the [Android Keystore](https://developer.android.com/privacy-and-security/keystore).
+
+> For additional data on the device itself, open the Fleet Android app, and select **App version** 8 times. The first time a toast will appear saying, "Fleet Agent version copied", but after the eighth time it's selected, a debug information screen will appear. Here you can see information about the certificates and their states, the last error, and logs. To view logs, select the menu icon near the copy icon in the upper right. On the Logs screen, select "Info" in the upper right to change the log level that's displayed.
+
+
 ## Any EST (Enrollment over Secure Transport) CA
 
 The following steps show how to deploy certificates from any certificate authority (CA) that supports the [EST protocol](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport).
@@ -908,7 +948,7 @@ openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out Cu
 
 # Escape CSR for request
 CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
-REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'", "return_pem_certificate": true }'
 
 curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-CA-ID>/request_certificate' \
   -X 'POST' \
@@ -919,6 +959,8 @@ curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<EST-C
 
 jq -r .certificate response.json > /opt/company/certificate.pem
 ```
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope, not a standard `x509` certificate. The script above passes `"return_pem_certificate": true` so Fleet returns a `-----BEGIN CERTIFICATE-----` block that can be written directly to `certificate.pem`.
 
 This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
 

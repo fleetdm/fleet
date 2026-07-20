@@ -42,7 +42,17 @@ interface IVitalsProps {
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
   className?: string;
+  /**
+   * Opens the Location modal. Presence of this handler also makes the
+   * Location row interactive — omit it for read-only contexts (e.g., the
+   * My device page) so the row renders as plain text instead of a link.
+   */
   toggleLocationModal?: () => void;
+  /**
+   * Opens the MDM status modal. Presence of this handler also makes the
+   * MDM status row interactive — omit it for read-only contexts (e.g.,
+   * the My device page) so the row renders as plain text instead of a link.
+   */
   toggleMDMStatusModal?: () => void;
 }
 
@@ -364,11 +374,16 @@ const Vitals = ({
     const isAdeIDevice =
       isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
 
-    if (isAdeIDevice || geolocation) {
-      const geoLocationButton = (
+    if (isAdeIDevice ? toggleLocationModal : geolocation) {
+      const label = isAdeIDevice
+        ? "Show location"
+        : getCityCountryLocation(geolocation);
+      const locationValue = toggleLocationModal ? (
         <Button variant="link" onClick={toggleLocationModal}>
-          {isAdeIDevice ? "Show location" : getCityCountryLocation(geolocation)}
+          {label}
         </Button>
+      ) : (
+        label
       );
       vitals.push({
         sortKey: "Location",
@@ -377,7 +392,7 @@ const Vitals = ({
             className={`${baseClass}__location`}
             key="location"
             title="Location"
-            value={geoLocationButton}
+            value={locationValue}
           />
         ),
       });
@@ -403,6 +418,8 @@ const Vitals = ({
 
     // MDM
     if (mdm?.enrollment_status) {
+      const mdmStatusLabel =
+        MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName;
       vitals.push(
         {
           sortKey: "MDM status",
@@ -414,12 +431,13 @@ const Vitals = ({
               value={
                 <>
                   {mdm.dep_profile_error && <Icon name="error" />}
-                  <Button variant="link" onClick={toggleMDMStatusModal}>
-                    {
-                      MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status]
-                        .displayName
-                    }
-                  </Button>
+                  {toggleMDMStatusModal ? (
+                    <Button variant="link" onClick={toggleMDMStatusModal}>
+                      {mdmStatusLabel}
+                    </Button>
+                  ) : (
+                    mdmStatusLabel
+                  )}
                 </>
               }
             />

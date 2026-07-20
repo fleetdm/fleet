@@ -170,11 +170,9 @@ describe("QueriesTable", () => {
 
     testData.forEach((tableProps) => {
       render(<QueriesTable {...tableProps} />);
-      expect(
-        screen.getByText("You don't have any reports")
-      ).toBeInTheDocument();
+      expect(screen.getByText("No reports yet")).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
   });
 
@@ -198,10 +196,10 @@ describe("QueriesTable", () => {
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
       expect(
-        screen.getByText("You don't have any reports that apply to all fleets")
+        screen.getByText("No reports apply to all fleets")
       ).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
   });
 
@@ -224,12 +222,78 @@ describe("QueriesTable", () => {
 
     testData.forEach((tableProps) => {
       renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
-      expect(
-        screen.getByText("You don't have any reports that apply to this fleet")
-      ).toBeInTheDocument();
+      expect(screen.getByText("No reports for this fleet")).toBeInTheDocument();
       expect(screen.queryByText("Interval")).toBeNull();
-      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+      expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
     });
+  });
+
+  it("Renders generic empty state header in Primo mode (all fleets)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={undefined}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports apply to all fleets")
+    ).not.toBeInTheDocument();
+  });
+
+  it("Renders generic empty state header in Primo mode (specific team)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+          config: { partnerships: { enable_primo: true } },
+        },
+      },
+    });
+
+    render(
+      <QueriesTable
+        queries={[]}
+        totalQueriesCount={0}
+        hasNextResults={false}
+        curTeamScopeQueriesPresent
+        isLoading={false}
+        onDeleteQueryClick={jest.fn()}
+        isOnlyObserver={false}
+        isObserverPlus={false}
+        isAnyTeamObserverPlus={false}
+        currentTeamId={1}
+        isPremiumTier
+      />
+    );
+
+    expect(screen.getByText("No reports yet")).toBeInTheDocument();
+    expect(
+      screen.queryByText("No reports for this fleet")
+    ).not.toBeInTheDocument();
   });
 
   it("Renders inherited global queries and team queries when viewing a team", async () => {

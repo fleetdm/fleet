@@ -9,12 +9,16 @@ import {
   InstallerType,
 } from "interfaces/software";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { INotification } from "interfaces/notification";
 import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -261,6 +265,20 @@ const EditIconModal = ({
           : "",
     }
   );
+
+  const { data: categories } = useQuery<
+    ISelfServiceCategoriesResponse,
+    Error,
+    ISelfServiceCategory[]
+  >(
+    ["selfServiceCategories", teamIdForApi],
+    () => selfServiceCategoriesAPI.getCategories(teamIdForApi),
+    {
+      select: (response) => response.self_service_categories,
+      staleTime: 60_000,
+    }
+  );
+  const hasCategories = (categories?.length ?? 0) > 0;
 
   const onExitEditIconModal = () => {
     resetIconState(); // Ensure cached state is cleared
@@ -510,6 +528,7 @@ const EditIconModal = ({
             previewInfo.selfServiceVersion ||
             "Version (unknown)"
       }
+      hasCategories={hasCategories}
       renderIcon={() =>
         iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
           <img
@@ -707,10 +726,13 @@ const EditIconModal = ({
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
-        // Invalidate software titles list cache so the edit is reflected
+        // Invalidate software list caches so the edit is reflected
         // if the user navigates back before the stale time has passed.
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
         });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
@@ -720,6 +742,9 @@ const EditIconModal = ({
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
         });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
@@ -727,6 +752,9 @@ const EditIconModal = ({
         renderFlash("success", nameSuccessMessage);
         queryClient.invalidateQueries({
           queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
         });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());

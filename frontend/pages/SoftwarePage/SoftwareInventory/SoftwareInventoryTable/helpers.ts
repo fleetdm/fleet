@@ -1,0 +1,196 @@
+import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
+import stringUtils from "utilities/strings/stringUtils";
+import { tooltipTextWithLineBreaks } from "utilities/helpers";
+import numberUtils from "utilities/numbers";
+
+const { isValidNumber } = numberUtils;
+
+export const CUSTOM_SEVERITY_OPTION = {
+  disabled: false,
+  label: "Custom severity",
+  value: "custom",
+  helpText: "Custom CVSS score range",
+  minSeverity: undefined,
+  maxSeverity: undefined,
+};
+
+export const ANY_SEVERITY_OPTION = {
+  disabled: false,
+  label: "Any severity",
+  value: "any",
+  helpText: "CVSS score 0-10",
+  minSeverity: 0,
+  maxSeverity: 10,
+};
+
+export const SEVERITY_DROPDOWN_OPTIONS = [
+  ANY_SEVERITY_OPTION,
+  {
+    disabled: false,
+    label: "Critical severity",
+    value: "critical",
+    helpText: "CVSS score 9.0-10",
+    minSeverity: 9.0,
+    maxSeverity: 10,
+  },
+  {
+    disabled: false,
+    label: "High severity",
+    value: "high",
+    helpText: "CVSS score 7.0-8.9",
+    minSeverity: 7.0,
+    maxSeverity: 8.9,
+  },
+  {
+    disabled: false,
+    label: "Medium severity",
+    value: "medium",
+    helpText: "CVSS score 4.0-6.9",
+    minSeverity: 4.0,
+    maxSeverity: 6.9,
+  },
+  {
+    disabled: false,
+    label: "Low severity",
+    value: "low",
+    helpText: "CVSS score 0.1-3.9",
+    minSeverity: 0.1,
+    maxSeverity: 3.9,
+  },
+  CUSTOM_SEVERITY_OPTION,
+];
+
+export const getSoftwareVulnFiltersFromQueryParams = (
+  queryParams: QueryParams
+) => {
+  const { vulnerable, exploit, min_cvss_score, max_cvss_score } = queryParams;
+
+  return {
+    vulnerable: stringUtils.strToBool(vulnerable as string),
+    exploit: stringUtils.strToBool(exploit as string),
+    minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score, 0, 10),
+    maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score, 0, 10),
+  };
+};
+
+export type ISoftwareVulnFilters = {
+  vulnerable?: boolean;
+  exploit?: boolean;
+  min_cvss_score?: number;
+  max_cvss_score?: number;
+};
+
+export type ISoftwareVulnFiltersParams = {
+  vulnerable?: boolean;
+  exploit?: boolean;
+  minCvssScore?: number;
+  maxCvssScore?: number;
+};
+
+export const buildSoftwareVulnFiltersQueryParams = (
+  vulnFilters: ISoftwareVulnFiltersParams
+) => {
+  const { vulnerable, exploit, minCvssScore, maxCvssScore } = vulnFilters;
+
+  if (!vulnerable) {
+    return {};
+  }
+
+  return {
+    vulnerable: true,
+    ...(exploit && { exploit: true }),
+    ...(isValidNumber(minCvssScore, 0, maxCvssScore || 10) && {
+      min_cvss_score: minCvssScore.toString(),
+    }),
+    ...(isValidNumber(maxCvssScore, minCvssScore || 0, 10) && {
+      max_cvss_score: maxCvssScore.toString(),
+    }),
+  };
+};
+
+export const findOptionBySeverityRange = (
+  minSeverityValue: number | undefined,
+  maxSeverityValue: number | undefined
+) => {
+  // Check for "empty" (undefined/null) min and max, treat as "Any severity"
+  if (
+    (minSeverityValue === undefined || minSeverityValue === null) &&
+    (maxSeverityValue === undefined || maxSeverityValue === null)
+  ) {
+    return ANY_SEVERITY_OPTION;
+  }
+
+  const severityOption = SEVERITY_DROPDOWN_OPTIONS.find(
+    (option) =>
+      option.minSeverity === minSeverityValue &&
+      option.maxSeverity === maxSeverityValue
+  ) || {
+    disabled: true,
+    label: "Custom severity",
+    value: "custom",
+    helpText: `CVSS score ${minSeverityValue || 0}-${maxSeverityValue || 10}`,
+    minSeverity: minSeverityValue || 0,
+    maxSeverity: maxSeverityValue || 10,
+  };
+
+  return severityOption;
+};
+
+export const getVulnFilterRenderDetails = (
+  vulnFilters?: ISoftwareVulnFiltersParams
+) => {
+  let filterCount = 0;
+  const tooltipText = [];
+
+  if (vulnFilters) {
+    if (vulnFilters.vulnerable) {
+      filterCount += 1;
+      tooltipText.push("Vulnerable software");
+
+      if (vulnFilters.minCvssScore || vulnFilters.maxCvssScore) {
+        filterCount += 1;
+        const severityOption = findOptionBySeverityRange(
+          vulnFilters.minCvssScore,
+          vulnFilters.maxCvssScore
+        );
+        const severityText = stringUtils.capitalize(severityOption?.value);
+        tooltipText.push(`Severity: ${severityText}`);
+      }
+
+      if (vulnFilters.exploit) {
+        filterCount += 1;
+        tooltipText.push("Has known exploit");
+      }
+    }
+  }
+
+  const buttonText =
+    filterCount > 0
+      ? `${filterCount} filter${filterCount > 1 ? "s" : ""}`
+      : "Add filters";
+
+  return {
+    filterCount,
+    buttonText,
+    tooltipText: tooltipTextWithLineBreaks(tooltipText),
+  };
+};
+
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+): string[] => {
+  if (!versions) {
+    return [];
+  }
+
+  const vulnerabilities = versions.reduce((acc, current) => {
+    if (current.vulnerabilities?.length) {
+      current.vulnerabilities.forEach((vuln) => acc.add(vuln));
+    }
+    return acc;
+  }, new Set<string>());
+
+  return [...vulnerabilities];
+};

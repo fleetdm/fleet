@@ -7,7 +7,7 @@
 - Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
 - Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
 - Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
-- Part 6: [Data and Endpoint Sovereignty: Owning Your Destiny](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
+- Part 6: [Software and data sovereignty for Linux management](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
 
 -----
 

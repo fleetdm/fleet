@@ -21,7 +21,7 @@ func TestGenerateMDMAppleBM(t *testing.T) {
 	publicKeyPath := filepath.Join(outdir, "public-key.crt")
 	_, _ = testing_utils.RunServerWithMockedDS(t)
 
-	out := RunAppForTest(t, []string{
+	out := runAppForTest(t, []string{
 		"generate", "mdm-apple-bm",
 		"--public-key", publicKeyPath,
 	})
@@ -51,7 +51,7 @@ func TestGenerateMDMApple(t *testing.T) {
 		}))
 		t.Setenv("TEST_FLEETDM_API_URL", srv.URL)
 		t.Cleanup(srv.Close)
-		RunAppCheckErr(
+		runAppCheckErr(
 			t,
 			[]string{
 				"generate", "mdm-apple",
@@ -73,7 +73,7 @@ func TestGenerateMDMApple(t *testing.T) {
 		require.NoError(t, err)
 		defer os.Remove(outdir)
 		csrPath := filepath.Join(outdir, "csr.csr")
-		out := RunAppForTest(t, []string{
+		out := runAppForTest(t, []string{
 			"generate", "mdm-apple",
 			"--csr", csrPath,
 			"--debug",

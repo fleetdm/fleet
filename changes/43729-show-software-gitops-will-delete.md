@@ -1,0 +1,1 @@
+- GitOps now prints a message for each software package it will delete.

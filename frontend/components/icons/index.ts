@@ -1,5 +1,6 @@
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
+import ArrowLeft from "./ArrowLeft";
 import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
@@ -77,6 +78,7 @@ import Android from "./Android";
 export const ICON_MAP = {
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
+  "arrow-left": ArrowLeft,
   calendar: Calendar,
   "calendar-check": CalendarCheck,
   "chevron-left": ChevronLeft,

@@ -1,26 +1,26 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { getTeamDisplayName } from "interfaces/team";
+import { getFleetDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
 
-type IAbmTableConfig = Column<IMdmAbmToken>;
-type ITableStringCellProps = IStringCellProps<IMdmAbmToken>;
-type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
+type IAbmTableConfig = Column<IMdmAbToken>;
+type ITableStringCellProps = IStringCellProps<IMdmAbToken>;
+type IRenewDateCellProps = CellProps<IMdmAbToken, IMdmAbToken["renew_date"]>;
 
-type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
+type ITableHeaderProps = IHeaderProps<IMdmAbToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "editTeams", label: "Edit fleets", disabled: false },
@@ -28,8 +28,27 @@ const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "delete", label: "Delete", disabled: false },
 ];
 
-const generateActions = () => {
-  return DEFAULT_ACTION_OPTIONS;
+const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
+  if (!gitopsModeEnabled) {
+    return DEFAULT_ACTION_OPTIONS;
+  }
+
+  return DEFAULT_ACTION_OPTIONS.map((option) => {
+    if (option.value !== "editTeams") {
+      return option;
+    }
+
+    return {
+      ...option,
+      disabled: true,
+      ...(repoURL
+        ? {
+            tooltip: true,
+            tooltipContent: getGitOpsModeTipContent(repoURL),
+          }
+        : {}),
+    };
+  });
 };
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
@@ -52,7 +71,9 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 };
 
 export const generateTableConfig = (
-  actionSelectHandler: (value: string, team: IMdmAbmToken) => void
+  actionSelectHandler: (value: string, team: IMdmAbToken) => void,
+  gitopsModeEnabled: boolean,
+  repoURL?: string
 ): IAbmTableConfig[] => {
   return [
     {
@@ -71,8 +92,13 @@ export const generateTableConfig = (
     },
     {
       accessor: "renew_date",
-      Header: "Renew date",
-      disableSortBy: true,
+      sortType: "dateStrings",
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Renew date"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       Cell: (cellProps: IRenewDateCellProps) => (
         <RenewDateCell
           value={cellProps.cell.value}
@@ -82,17 +108,10 @@ export const generateTableConfig = (
       ),
     },
     {
-      accessor: "apple_id",
-      Header: "Apple ID",
-      disableSortBy: true,
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
       id: "macos_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
-      Header: () => {
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.macos_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -107,17 +126,22 @@ export const generateTableConfig = (
             macOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
-      Header: () => {
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.ios_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -132,17 +156,22 @@ export const generateTableConfig = (
             iOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
-      Header: () => {
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.ipados_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
@@ -157,9 +186,41 @@ export const generateTableConfig = (
             iPadOS fleet
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
       },
-      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      id: "byod_team",
+      sortType: "caseInsensitive",
+      accessor: (originalRow) => getFleetDisplayName(originalRow.byod_fleet),
+      Header: (cellProps: ITableHeaderProps) => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                iOS/iPadOS hosts that enroll via Managed Apple Account are
+                automatically added to this fleet.
+              </>
+            }
+          >
+            BYOD fleet
+          </TooltipWrapper>
+        );
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={cellProps.column.isSortedDesc}
+          />
+        );
+      },
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -171,33 +232,22 @@ export const generateTableConfig = (
       // but we don't use it.
       accessor: "id",
       Cell: (cellProps) => (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <div
-              className={
-                disableChildren
-                  ? "disabled-by-gitops-mode abm-actions-wrapper"
-                  : "abm-actions-wrapper"
-              }
-            >
-              <ActionsDropdown
-                options={generateActions()}
-                onChange={(value: string) =>
-                  actionSelectHandler(value, cellProps.row.original)
-                }
-                placeholder="Actions"
-                disabled={disableChildren}
-                variant="small-button"
-              />
-            </div>
-          )}
-        />
+        <div className="abm-actions-wrapper">
+          <ActionsDropdown
+            options={generateActions(gitopsModeEnabled, repoURL)}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder="Actions"
+            disabled={false}
+            variant="small-button"
+          />
+        </div>
       ),
     },
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmAbToken[]) => {
   return data;
 };

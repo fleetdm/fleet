@@ -1,0 +1,10 @@
+{
+  "name": "MacVim",
+  "unique_identifier": "org.vim.MacVim",
+  "token": "macvim-app",
+  "installer_format": "dmg",
+  "slug": "macvim-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

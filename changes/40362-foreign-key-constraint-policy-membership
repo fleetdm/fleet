@@ -1,0 +1,1 @@
+- Fixed a race condition where deleting a policy while a host had an outstanding distributed query for that policy caused a foreign key constraint error during `/api/v1/osquery/distributed/write`.

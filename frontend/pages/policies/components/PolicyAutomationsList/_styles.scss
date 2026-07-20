@@ -1,0 +1,61 @@
+.policy-automations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: $x-small;
+
+  &__header {
+    color: $core-fleet-black;
+    font-weight: $bold;
+  }
+
+  &__list {
+    max-width: 600px;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    padding: 0 $pad-large;
+    height: 40px;
+    border-top: 1px solid $ui-fleet-black-10;
+
+    &:first-child {
+      border-top: none;
+    }
+  }
+
+  &__row-graphic {
+    vertical-align: middle;
+    color: $ui-fleet-black-50;
+  }
+
+  &__row-name {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    color: $ui-fleet-black-75;
+
+    a {
+      @include link;
+      @include animated-bottom-border;
+    }
+  }
+
+  &__empty-state {
+    display: flex;
+    align-items: center;
+    max-width: 600px;
+    height: 40px;
+    padding: 0 $pad-large;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    color: $ui-fleet-black-50;
+  }
+
+  &__footer-text {
+    color: $ui-fleet-black-75;
+  }
+}

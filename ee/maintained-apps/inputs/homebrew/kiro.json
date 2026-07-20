@@ -1,0 +1,10 @@
+{
+  "name": "kiro",
+  "unique_identifier": "dev.kiro.desktop",
+  "token": "kiro",
+  "installer_format": "dmg",
+  "slug": "kiro/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

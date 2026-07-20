@@ -6,6 +6,7 @@ import {
   IWebhookActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
+import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
   tier: string;
@@ -82,8 +83,10 @@ export interface IMdmConfig {
     apple_enable_release_device_manually: boolean | null;
     macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
+    require_all_software_windows: boolean | null;
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
+    end_user_local_account_type?: EndUserLocalAccountType;
   };
   macos_setup?: {
     enable_managed_local_account?: boolean;
@@ -94,6 +97,7 @@ export interface IMdmConfig {
     grace_period_days: number | null;
   };
   windows_entra_tenant_ids: string[] | null;
+  windows_entra_client_ids: string[] | null;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -122,6 +126,10 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
   enable_conditional_access: boolean;
   enable_conditional_access_bypass: boolean;
+  historical_data: {
+    uptime: boolean;
+    vulnerabilities: boolean;
+  };
 }
 
 export interface IConfigServerSettings {
@@ -137,8 +145,12 @@ export interface IConfigServerSettings {
 export interface IConfig {
   org_info: {
     org_name: string;
+    /** @deprecated use `org_logo_url_dark_mode` */
     org_logo_url: string;
+    /** @deprecated use `org_logo_url_light_mode` */
     org_logo_url_light_background: string;
+    org_logo_url_dark_mode?: string;
+    org_logo_url_light_mode?: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;
@@ -192,6 +204,7 @@ export interface IConfig {
   activity_expiry_settings: {
     activity_expiry_enabled: boolean;
     activity_expiry_window?: number;
+    preserve_host_activities_on_reenrollment: boolean;
   };
   features: IConfigFeatures;
   agent_options: unknown; // Can pass empty object
@@ -218,6 +231,7 @@ export interface IConfig {
     config: {
       region: string;
       source_arn: string;
+      sender_domain: string;
     };
   };
   mdm: IMdmConfig;

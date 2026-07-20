@@ -1,5 +1,6 @@
 - calendar_events_enabled: false
   conditional_access_enabled: true
+  continuous_automations_enabled: false
   critical: false
   description: This is a global policy
   install_software:
@@ -11,5 +12,21 @@
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  continuous_automations_enabled: false
+  critical: false
+  description: This is a global policy with include_all scope
+  labels_include_all:
+  - Label C
+  - Label D
+  labels_exclude_all:
+  - Label E
+  name: Global Policy Include All
+  platform: darwin
+  query: SELECT * FROM global_policy WHERE id = 2
+  resolution: Do another global thing
   type: dynamic
   webhooks_and_tickets_enabled: false

@@ -1,0 +1,1 @@
+* Fixed software title icon not-found errors (and other 4xx errors) being reported as server-side exceptions in OTEL traces, APM, Sentry, and the Redis-backed debug errors endpoint.

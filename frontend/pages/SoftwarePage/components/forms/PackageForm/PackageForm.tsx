@@ -26,7 +26,7 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
-import TargetLabelSelector from "components/TargetLabelSelector";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
@@ -152,6 +152,8 @@ interface IPackageFormProps {
   className?: string;
   /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
@@ -175,6 +177,7 @@ const PackageForm = ({
   defaultCategories,
   className,
   gitopsCompatible = false,
+  teamId,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
@@ -420,11 +423,12 @@ const PackageForm = ({
       onClickPreviewEndUserExperience={() =>
         onClickPreviewEndUserExperience(isIpaPackage)
       }
+      teamId={teamId}
     />
   );
 
   const renderTargetLabelSelector = () => (
-    <TargetLabelSelector
+    <DropdownTargetLabelSelector
       selectedTargetType={formData.targetType}
       selectedCustomTarget={formData.customTarget}
       selectedLabels={formData.labelTargets}
@@ -465,6 +469,7 @@ const PackageForm = ({
         versionOptions={versionOptions}
         onSelectVersion={onSelectVersion}
         className={`${baseClass}__version-selector`}
+        isGitOpsMode={gitOpsModeEnabled}
       />
     );
   };

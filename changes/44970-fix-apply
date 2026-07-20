@@ -1,0 +1,1 @@
+* Fixed bug in `apply` to prevent `setup_experience` in software items from being renamed to `macos_setup`.

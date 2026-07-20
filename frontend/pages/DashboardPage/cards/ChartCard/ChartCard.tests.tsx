@@ -138,7 +138,64 @@ describe("ChartCard", () => {
     // Only one dataset is wired up today, so it renders as a heading rather
     // than a dropdown. Days selection is fixed at 30 and has no UI yet.
     await waitFor(() => {
-      expect(screen.getByText("Hosts active")).toBeInTheDocument();
+      expect(screen.getByText("Hosts online")).toBeInTheDocument();
     });
+  });
+
+  it("renders the empty state with a Turn on button for admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: true } },
+    });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Turn on/i })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the Turn on button and swaps copy for non-admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: false, isTeamAdmin: false } },
+    });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Ask an admin to turn on/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Turn on/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the chart normally when collection is enabled", async () => {
+    mockServer.use(chartHandler);
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: true, vulnerabilities: true }}
+      />
+    );
+
+    await waitFor(() => {
+      const rects = container.querySelectorAll("rect");
+      expect(rects.length).toBeGreaterThan(0);
+    });
+    expect(
+      screen.queryByText(/Data collection is disabled/i)
+    ).not.toBeInTheDocument();
   });
 });

@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
@@ -41,6 +41,7 @@ jobs:
           fetch-depth: 1
           ref: ${{ github.ref }}
           path: fleet
+          persist-credentials: false
 
       - name: Setup Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
@@ -65,6 +66,42 @@ jobs:
             echo "Removing $app..."
             sudo rm -rf "$app"
           done
+
+      # Icon Composer ships bundled inside Xcode, and GitHub macOS runners
+      # come with Xcode pre-installed. Only runs when icon-composer/darwin is being
+      # validated in this PR.
+      - name: Remove pre-installed Xcode mac
+        run: |
+          ls /Applications | grep -i "Xcode" || true
+          find /Applications -maxdepth 1 -iname "Xcode*.app" -type d | while read app;
+          do
+            echo "Removing $app..."
+            sudo rm -rf "$app"
+          done
+
+      # Fleet Desktop's installer refuses to run unless the
+      # com.fleetdm.fleetd.config managed preferences profile is present
+      # (it's normally delivered via MDM). CI runners aren't MDM-enrolled,
+      # so we drop a stub plist in place before the validate step so the
+      # install script succeeds. This workflow validates every FMA every
+      # run, so fleet-desktop is always exercised.
+      - name: Create Fleet Desktop MDM config stub (CI-only)
+        run: |
+          sudo mkdir -p "/Library/Managed Preferences"
+          sudo tee "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist" > /dev/null <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>EnrollSecret</key>
+              <string>ci-test-placeholder</string>
+              <key>FleetURL</key>
+              <string>https://ci.test.example.com</string>
+          </dict>
+          </plist>
+          PLIST
+          sudo chmod 644 "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
+          ls -l "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
 
       - name: Verify Fleet Maintained Apps mac
         run: |

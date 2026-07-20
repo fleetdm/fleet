@@ -98,8 +98,13 @@ const AdminWrapper = ({
             </TabList>
           </Tabs>
         </TabNav>
-        <div key={pathname} className="tab-nav-routed-content">
-          {children}
+        <div className="tab-nav-routed-content">
+          <div
+            key={getTabIndex(pathname)}
+            className="tab-nav-routed-content__fade"
+          >
+            {children}
+          </div>
         </div>
       </>
     </MainContent>

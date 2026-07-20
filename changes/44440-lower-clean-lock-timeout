@@ -1,0 +1,1 @@
+- Reduced the Apple MDM lock state cleanup timeout from 5 minutes to 1 minute, decreasing the time a recently unlocked host may still appear as locked in Fleet.

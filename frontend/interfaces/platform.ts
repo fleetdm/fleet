@@ -80,7 +80,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
   munki_info: ["darwin"],
   munki_install: ["darwin"],
   crowdstrike_falcon: ["darwin", "linux"],
-  // network_quality: ["darwin"], // TODO: add this table if/when it is incorporated into orbit
+  network_quality: ["darwin"],
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
   puppet_state: ["darwin", "linux", "windows"],

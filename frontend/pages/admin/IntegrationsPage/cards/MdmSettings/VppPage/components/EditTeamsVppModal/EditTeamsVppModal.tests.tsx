@@ -16,6 +16,7 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 1",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
+    country_code: "us",
     teams: [], // all teams
   };
 
@@ -24,6 +25,7 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 2",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
+    country_code: "us",
     teams: null, // unassigned
   };
 
@@ -32,6 +34,7 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 3",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
+    country_code: "us",
     teams: [{ team_id: 0, name: "Unassigned" }],
   };
 
@@ -40,6 +43,7 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 4",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
+    country_code: "us",
     teams: [
       { team_id: 2, name: "Pirates" },
       { team_id: 1, name: "Ninjas" },
@@ -51,7 +55,19 @@ describe("EditTeamsVppModal", () => {
     org_name: "Org 5",
     location: "https://example.com/mdm/apple/mdm",
     renew_date: "2024-11-29T00:00:00Z",
+    country_code: "us",
     teams: [{ team_id: 3, name: "Pandas" }],
+  };
+
+  // Legacy tokens surface as country_code "" until backfill runs, so
+  // pin the graceful path through getOptions.
+  const legacyEmptyCountryToken: IMdmVppToken = {
+    id: 6,
+    org_name: "Org 6",
+    location: "https://example.com/mdm/apple/mdm",
+    renew_date: "2024-11-29T00:00:00Z",
+    country_code: "",
+    teams: [{ team_id: 4, name: "Penguins" }],
   };
 
   const availableTeams = [
@@ -121,6 +137,20 @@ describe("EditTeamsVppModal", () => {
         asArr(currentToken)
       );
       expect(options).toEqual(allOptions);
+    });
+
+    it("treats a legacy token with empty country_code like any other token", () => {
+      const tokens = [legacyEmptyCountryToken, pandasToken];
+      const currentToken = legacyEmptyCountryToken;
+      const options = getOptions(
+        availableTeams,
+        tokens,
+        currentToken,
+        asArr(currentToken)
+      );
+      // pandasToken already claims team 3, legacyEmptyCountryToken claims team 4
+      expect(options.map((o) => o.value)).not.toContain(3);
+      expect(options.map((o) => o.value)).toContain(4);
     });
 
     it("excludes all teams option when any token is assigned", () => {

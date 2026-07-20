@@ -190,6 +190,9 @@ const FleetMaintainedAppDetailsPage = ({
         queryKey: [{ scope: "software-titles" }],
       });
       queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      queryClient.invalidateQueries({
         queryKey: [{ scope: "fleet-maintained-apps" }],
       });
 

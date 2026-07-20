@@ -55,7 +55,8 @@
       "Bash(gh pr *)",
       "Bash(gh issue *)",
       "Bash(gh run *)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(openspec *)"
     ],
     "deny": [
       "Bash(git push --force*)",

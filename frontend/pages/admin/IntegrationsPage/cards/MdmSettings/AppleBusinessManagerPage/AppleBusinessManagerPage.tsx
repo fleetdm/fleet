@@ -8,9 +8,9 @@ import { AxiosError } from "axios";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { IMdmAbmToken } from "interfaces/mdm";
+import { IMdmAbToken } from "interfaces/mdm";
 import mdmAbmAPI, {
-  IGetAbmTokensResponse,
+  IGetAbTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
 import BackButton from "components/BackButton";
@@ -19,7 +19,7 @@ import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
 import { getEarliestExpiry } from "components/App/App";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
@@ -36,14 +36,11 @@ interface IAddAbmMessageProps {
 
 const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
-    <div className={`${baseClass}__add-adm-message`}>
-      <h2>Add your AB</h2>
-      <p>
-        Automatically enroll newly purchased Apple hosts when they&apos;re first
-        unboxed and set up by your end users.
-      </p>
-      <Button onClick={onAddAbm}>Add AB</Button>
-    </div>
+    <EmptyState
+      header="Add your AB"
+      info="Automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users."
+      primaryButton={<Button onClick={onAddAbm}>Add AB</Button>}
+    />
   );
 };
 
@@ -55,22 +52,22 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const [showAddAbmModal, setShowAddAbmModal] = useState(false);
   const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
 
-  const selectedToken = useRef<IMdmAbmToken | null>(null);
+  const selectedToken = useRef<IMdmAbToken | null>(null);
 
   const {
-    data: abmTokens,
+    data: abTokens,
     error: errorAbmTokens,
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery<IGetAbmTokensResponse, AxiosError, IMdmAbmToken[]>(
-    ["abmTokens"],
+  } = useQuery<IGetAbTokensResponse, AxiosError, IMdmAbToken[]>(
+    ["abTokens"],
     () => mdmAbmAPI.getTokens(),
     {
       refetchOnWindowFocus: false,
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
-      select: (data) => data?.abm_tokens,
+      select: (data) => data?.ab_tokens,
       onSuccess: (data) => {
         // we need to call setABMExpiry here to update the expiry info so the terms banner
         // displays correctly
@@ -87,7 +84,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     }
   );
 
-  const onEditTokenTeam = (abmToken: IMdmAbmToken) => {
+  const onEditTokenTeam = (abmToken: IMdmAbToken) => {
     selectedToken.current = abmToken;
     setShowEditTeamsModal(true);
   };
@@ -112,7 +109,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowAddAbmModal(false);
   };
 
-  const onRenewToken = (abmToken: IMdmAbmToken) => {
+  const onRenewToken = (abmToken: IMdmAbToken) => {
     selectedToken.current = abmToken;
     setShowRenewModal(true);
   };
@@ -128,7 +125,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowRenewModal(false);
   }, [refetch]);
 
-  const onDeleteToken = (abmToken: IMdmAbmToken) => {
+  const onDeleteToken = (abmToken: IMdmAbToken) => {
     selectedToken.current = abmToken;
     setShowDeleteModal(true);
   };
@@ -157,13 +154,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <GenericMsgWithNavButton
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          buttonText="Turn on"
-          router={router}
+        <EmptyState
           header="Turn on Apple MDM"
-          info="To add your ABM and enable automatic enrollment for macOS, iOS, and
-        iPadOS hosts, first turn on Apple MDM."
+          info="To add your AB and enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -177,20 +175,19 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
-    if (abmTokens?.length === 0) {
+    if (abTokens?.length === 0) {
       return <AddAbmMessage onAddAbm={onAddAbm} />;
     }
 
-    if (abmTokens) {
+    if (abTokens) {
       return (
         <>
           <p>
             Add your AB to enable automatic enrollment for company-owned hosts
-            and enrollment, via a Managed Apple Account, for personal (BYOD)
-            hosts.
+            and enrollment, via a Managed Apple Account, for BYOD hosts.
           </p>
           <AppleBusinessManagerTable
-            abmTokens={abmTokens}
+            abTokens={abTokens}
             onEditTokenTeam={onEditTokenTeam}
             onRenewToken={onRenewToken}
             onDeleteToken={onDeleteToken}
@@ -216,7 +213,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           <div className={`${baseClass}__page-header-section`}>
             <h1>Apple Business (AB)</h1>
             {isPremiumTier &&
-              abmTokens?.length !== 0 &&
+              abTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
                 <Button onClick={onAddAbm}>Add AB</Button>
               )}

@@ -32,7 +32,7 @@
       }
     }
 
-    .variables__copy-secret-icon {
+    .variables__copy-variable-icon {
       margin: -12px 0 -12px 4px;
       vertical-align: bottom;
       .children-wrapper {
@@ -79,7 +79,7 @@
       min-width: 0;
     }
 
-    .secret-details__text {
+    .variable-details__text {
       flex: 1 1 auto;
       min-width: 0;
       white-space: nowrap;

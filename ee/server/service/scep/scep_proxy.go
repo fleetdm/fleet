@@ -508,10 +508,13 @@ func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy 
 
 func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
-	// Get the challenge from NDES
+	// Get the challenge from NDES. AllowBasicAuth: true opts into the
+	// upstream Negotiator's Basic-auth fallback, which is currently
+	// opt-in.
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
-		RoundTripper: fleethttp.NewTransport(),
+		RoundTripper:   fleethttp.NewTransport(),
+		AllowBasicAuth: true,
 	}
 	req, err := http.NewRequest(http.MethodGet, adminURL, http.NoBody)
 	if err != nil {
@@ -524,12 +527,17 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "sending request")
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		s.logger.WarnContext(ctx, "NDES admin URL returned non-200",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", resp.StatusCode,
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx, NDESInvalidError{msg: fmt.Sprintf(
 			"unexpected status code: %d; could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again",
 			resp.StatusCode)})
 	}
-	defer resp.Body.Close()
 
 	// Read raw bytes first to detect encoding
 	rawBody, err := io.ReadAll(resp.Body)
@@ -554,8 +562,12 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 				NewNDESInsufficientPermissionsError("this account does not have sufficient permissions to enroll with SCEP. Please use a different account with NDES SCEP enroll permissions."))
 		}
 
-		// If we can't find a specific error, we log more context in terms of the request to further diagnose
-		s.logger.DebugContext(ctx, "failed to parse NDES challenge from admin URL response", "ca_type", fleet.CATypeNDESSCEPProxy, "raw_response", htmlString, "request_duration", endRequestTime.Sub(startRequestTime).Seconds())
+		s.logger.WarnContext(ctx, "failed to parse NDES challenge from admin URL response",
+			"ca_type", fleet.CATypeNDESSCEPProxy,
+			"status_code", http.StatusOK,
+			"raw_response_length", len(htmlString),
+			"request_duration", endRequestTime.Sub(startRequestTime).Seconds(),
+		)
 		return "", ctxerr.Wrap(ctx,
 			NewNDESInvalidError("could not retrieve the enrollment challenge password; invalid admin URL or credentials; please correct and try again"))
 	}

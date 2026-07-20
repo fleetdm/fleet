@@ -40,6 +40,12 @@ const (
 )
 
 // AppleMDM is the job processor for the apple_mdm job.
+// CertProfilesLimit is the per-tick CA-profile throttle used by the
+// shared apple_mdm.ReconcileProfilesForEnrollingHost path. Set by the cron
+// constructor in cmd/fleet/cron.go from the config (defaults to 0 in
+// tests, which disables CA throttling — fine since tests rarely exercise
+// CA profiles and the per-host path bypasses throttling for recently
+// enrolled hosts anyway).
 type AppleMDM struct {
 	Datastore             fleet.Datastore
 	Log                   *slog.Logger
@@ -58,7 +64,7 @@ func (a *AppleMDM) Name() string {
 type appleMDMArgs struct {
 	Task     AppleMDMTask `json:"task"`
 	HostUUID string       `json:"host_uuid"`
-	TeamID   *uint        `json:"team_id,omitempty"`
+	TeamID   *uint        `json:"team_id,omitempty"` //nolint:apiparamcheck
 	// EnrollReference is the UUID of the MDM IdP account used to enroll the
 	// device. It is used to set the username and full name of the user
 	// associated with the device.
@@ -133,6 +139,11 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
 		}
+		// Refetch is handled by the iphone_ipad_refetcher cron, which now
+		// picks up freshly-enrolled hosts on its next tick (see
+		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
+		// catch-up to the synchronous enrollment path and keeps a single
+		// source of truth for refetch command emission.
 	}
 
 	return nil
@@ -208,6 +219,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
 
 	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
+	var primaryAccountType fleet.PrimaryAccountType
 	var ssoAccount *fleet.MDMIdPAccount
 	var adminAccount *apple_mdm.AdminAccountConfig
 
@@ -239,18 +251,17 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				return err
 			}
 			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+			primaryAccountType = fleet.PrimaryAccountType(appCfg.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		} else {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+			primaryAccountType = fleet.PrimaryAccountType(team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		}
 	}
 
-	const (
-		fleetAdminShortName = "_fleetadmin"
-		fleetAdminFullName  = "Fleet Admin"
-	)
+	const fleetAdminFullName = "Fleet Admin"
 
 	// Only send AccountConfiguration for macOS devices.
 	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
@@ -262,11 +273,13 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			if err != nil {
 				return err
 			}
+
 			adminAccount = &apple_mdm.AdminAccountConfig{
-				ShortName:    fleetAdminShortName,
-				FullName:     fleetAdminFullName,
-				PasswordHash: passwordHash,
-				Hidden:       true,
+				ShortName:          fleet.ManagedLocalAccountUsername,
+				FullName:           fleetAdminFullName,
+				PasswordHash:       passwordHash,
+				Hidden:             true,
+				PrimaryAccountType: primaryAccountType,
 			}
 			// Save the password before sending the command so the plaintext is
 			// escrowed even if the command enqueue succeeds but a later step fails.
@@ -502,14 +515,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		)
 	}
 
-	profilesMissingInstallation, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, args.HostUUID) // Get profiles that are missing to be installed on this host
+	profilesMissingInstallation, _, err := apple_mdm.PendingProfilesForHost(ctx, a.Datastore, args.HostUUID) // Get profiles that are missing to be installed on this host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to list profiles missing installation")
 	}
 	profilesMissingInstallation = fleet.FilterOutUserScopedProfiles(profilesMissingInstallation)
-	if !isMacOS(args.Platform) {
-		profilesMissingInstallation = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesMissingInstallation)
-	}
 
 	if len(profilesMissingInstallation) > 0 {
 		a.Log.InfoContext(ctx, "re-enqueuing due to profiles missing installation", "host_uuid", args.HostUUID)
@@ -749,108 +759,37 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 
 // installProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
 // to speed up the setup experience process. This runs before the reconciler cycle.
+//
+// It delegates to apple_mdm.ReconcileProfilesForEnrollingHost, which reuses the
+// same in-memory desired-state / label / diff pipeline that the batched
+// cron uses — so the worker and cron can never drift on what should be
+// installed for a given host. The worker still emits the
+// DeclarativeManagement command afterwards so DDM syncs start as soon
+// as enrollment completes.
 func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
-	// Get all profiles that need to be installed for this host
-	profilesToInstall, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, hostUUID)
+	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID)
+
+	cmdUUIDs, err := apple_mdm.ReconcileProfilesForEnrollingHost(ctx, a.Datastore, a.Commander, a.Log, hostUUID, 0)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing profiles to install for host")
+		return nil, ctxerr.Wrap(ctx, err, "reconcile apple profiles for enrolling host")
 	}
 
-	profilesToInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesToInstall)
-
-	// Filter out user-scoped profiles as they require special handling
-	profilesToInstall = fleet.FilterOutUserScopedProfiles(profilesToInstall)
-
-	if len(profilesToInstall) == 0 {
-		a.Log.InfoContext(ctx, "no profiles to install", "host_uuid", hostUUID)
-		return nil, nil
+	if len(cmdUUIDs) == 0 {
+		// We just skip sending the decl. management as well here even though there might be some, but it's not blocking so doesn't matter as much.
+		a.Log.InfoContext(ctx, "no profiles to install for enrolling host", "host_uuid", hostUUID)
+		return cmdUUIDs, nil
 	}
 
-	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID, "profile_count", len(profilesToInstall))
+	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker",
+		"host_uuid", hostUUID, "profiles_sent", len(cmdUUIDs))
 
-	appConfig, err := a.Datastore.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "reading app config")
-	}
-
-	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(profilesToInstall))
-	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
-	installTargets := make(map[string]*fleet.CmdTarget, len(profilesToInstall))
-	for _, profile := range profilesToInstall {
-		target := &fleet.CmdTarget{
-			CmdUUID:           uuid.NewString(),
-			ProfileIdentifier: profile.ProfileIdentifier,
-			ProfileName:       profile.ProfileName,
-			EnrollmentIDs:     []string{hostUUID},
-		}
-		installTargets[profile.ProfileUUID] = target
-		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
-			ProfileUUID:       profile.ProfileUUID,
-			ProfileIdentifier: profile.ProfileIdentifier,
-			ProfileName:       profile.ProfileName,
-			HostUUID:          hostUUID,
-			CommandUUID:       target.CmdUUID,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            nil, // intentionally nil here, to avoid stuck pending, but we need to upsert before processing so inner code can match rows for failures
-			Checksum:          profile.Checksum,
-			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
-			Scope:             profile.Scope,
-		}
-		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
-		hostProfiles = append(hostProfiles, hostProfile)
-	}
-
-	if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bulk upsert host profiles before installation")
-	}
-
-	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build cmdUUID→profile index AFTER preprocessing has rewritten CommandUUIDs.
-	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfilesToInstallMap))
-	for _, hp := range hostProfilesToInstallMap {
-		if hp.CommandUUID != "" {
-			profileByCmdUUID[hp.CommandUUID] = hp
-		}
-	}
-
-	// Log failures
-	for cmdUUID, enqErr := range enqueueResult.FailedCmdUUIDs {
-		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
-			a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", enqErr)
-		}
-	}
-
-	// Collect successes for bulk upsert
-	var cmdUUIDs []string
-	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
-	for _, cmdUUID := range enqueueResult.SucceededCmdUUIDs {
-		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
-			profile.Status = &fleet.MDMDeliveryPending
-			cmdUUIDs = append(cmdUUIDs, cmdUUID)
-			bulkPayloads = append(bulkPayloads, profile)
-		}
-	}
-
-	// Bulk update database to track all profile installations
-	if len(bulkPayloads) > 0 {
-		if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, bulkPayloads); err != nil {
-			a.Log.ErrorContext(ctx, "failed to bulk update profile statuses", "host_uuid", hostUUID, "error", err)
-			// Continue even if database update fails - the commands were sent
-		}
-	}
-
-	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker", "host_uuid", hostUUID, "profiles_sent", len(cmdUUIDs))
-
-	// send a DeclarativeManagement command to start a sync, we don't block on DDM missing, and the declarations might not have been reconciled
-	// We can come back to this if we want to include DDM declarations here in the future.
+	// Send a DeclarativeManagement command to start a DDM sync. We don't
+	// block on DDM declarations being reconciled — they have their own
+	// cron — but kicking off the sync here means freshly-enrolled hosts
+	// don't wait a full cron tick for it.
 	declarativeManagementCmdUUID := uuid.NewString()
 	if err := a.Commander.DeclarativeManagement(ctx, []string{hostUUID}, declarativeManagementCmdUUID); err != nil {
 		a.Log.ErrorContext(ctx, "failed to send DeclarativeManagement command after installing profiles for enrolling host", "host_uuid", hostUUID, "error", err)
-		// Make sure we return the profile commands even if DDM fails
 		return cmdUUIDs, nil
 	}
 	cmdUUIDs = append(cmdUUIDs, declarativeManagementCmdUUID)

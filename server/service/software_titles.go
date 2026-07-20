@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -139,7 +140,6 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		fmt.Println("auth")
 		return nil, err
 	}
 
@@ -230,6 +230,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 				}
 				meta.Status = summary
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					switch meta.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						wrapped, err := json.Marshal(string(meta.Configuration))
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
+						}
+						meta.Configuration = wrapped
+					}
+				}
 			}
 			software.AppStoreApp = meta
 		}
@@ -249,6 +261,15 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					Installed:      summary.Installed,
 					PendingInstall: summary.Pending,
 					FailedInstall:  summary.Failed,
+				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping in-house app configuration for response")
+					}
+					meta.Configuration = wrapped
 				}
 			}
 			software.SoftwarePackage = meta

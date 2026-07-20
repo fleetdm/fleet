@@ -1,0 +1,1 @@
+- Fixed an issue where GitOps would fail on the first run after deleting the bootstrap package in the UI.

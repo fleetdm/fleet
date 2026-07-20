@@ -1,0 +1,1 @@
+- Self-service: replace the static category sidebar on the My device > Self-service page with a custom-category dropdown driven by the org's self-service categories, and add an "Install all (n)" button per category (with a confirmation modal) that posts to `/device/{token}/software/install_all?category_id=:id`.

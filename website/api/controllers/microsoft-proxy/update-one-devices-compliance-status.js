@@ -14,7 +14,7 @@ module.exports = {
     },
     fleetServerSecret: {
       type: 'string',
-      requried: true,
+      required: true,
     },
     deviceId: {
       type: 'string',

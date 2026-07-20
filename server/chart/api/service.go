@@ -16,12 +16,35 @@ type Service interface {
 	// RegisterDataset registers a chart dataset.
 	RegisterDataset(ds Dataset)
 
-	// CollectDatasets runs Collect on all registered datasets for the given timestamp.
-	CollectDatasets(ctx context.Context, now time.Time) error
+	// CollectDatasets runs Collect on registered datasets for the given timestamp.
+	//
+	// `scope` is a function that takes a dataset name and returns two values:
+	// 1. `skip` (bool): Indicates whether the dataset should be skipped entirely.
+	//     If `true`, the service will not call the Collect method for this dataset.
+	// 2. `disabledFleetIDs` ([]uint): A slice of fleet IDs that are disabled for this dataset.
+	//     This is forwarded to the Collect method for each dataset.
+	//
+	// If `scope` is nil, it is treated as a function that returns (false, nil) for every dataset.
+	CollectDatasets(ctx context.Context, now time.Time, scope CollectScopeFn) error
 
 	// CleanupData deletes chart data rows older than the specified number of days.
 	CleanupData(ctx context.Context, days int) error
+
+	// ScrubDatasetGlobal removes every collected row for the given dataset.
+	// Invoked by the chart_scrub_dataset_global worker after an admin disables
+	// the dataset globally. Idempotent — a retry on partially-completed work
+	// converges to the same end state (no rows for the dataset).
+	ScrubDatasetGlobal(ctx context.Context, dataset string) error
+
+	// ScrubDatasetFleet clears bits for every host currently in any of
+	// fleetIDs from every host_scd_data row for the dataset. Invoked by the
+	// chart_scrub_dataset_fleet worker after an admin disables the dataset
+	// for one or more fleets in a single operation. Idempotent.
+	ScrubDatasetFleet(ctx context.Context, dataset string, fleetIDs []uint) error
 }
+
+// CollectScopeFn resolves per-dataset collection scope. See Service.CollectDatasets.
+type CollectScopeFn func(datasetName string) (skip bool, disabledFleetIDs []uint)
 
 // ViewerProvider exposes authorization-relevant information about the current
 // authenticated viewer. Implementations typically read the viewer context, so

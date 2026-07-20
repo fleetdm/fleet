@@ -173,6 +173,62 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
 
+	// Test Python version sanitizer - recovers marketing version from the name
+	// (registry DisplayName "Python 3.14.5 (64-bit)" with DisplayVersion
+	// "3.14.5150.0").
+	pythonWin := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWin, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5", pythonWin.Version)
+
+	// Test Python sanitizer handles the .0 micro collapse (3.14.0 -> "3.14.150.0")
+	pythonWinDotZero := &fleet.Software{
+		Name:    "Python 3.14.0 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Python Software Foundation",
+		Version: "3.14.150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), pythonWinDotZero, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.0", pythonWinDotZero.Version)
+
+	// Test Python sanitizer normalizes the component MSI ARP entries (which the
+	// python.org installer registers alongside the bundle, all sharing the same
+	// bogus DisplayVersion) to the same marketing version as the bundle, so a
+	// single install doesn't appear in inventory under two different versions.
+	for _, componentName := range []string{
+		"Python 3.14.5 Core Interpreter (64-bit)",
+		"Python 3.14.5 Standard Library (64-bit)",
+		"Python 3.14.5 Executables (64-bit)",
+		"Python 3.14.5 Tcl/Tk (64-bit)",
+		"Python 3.14.5 pip Bootstrap (64-bit)",
+		"Python 3.14.5 Development Libraries (64-bit)",
+		"Python 3.14.5 Documentation (64-bit)",
+		"Python 3.14.5 Utility Scripts (64-bit)",
+	} {
+		pythonComponent := &fleet.Software{
+			Name:    componentName,
+			Source:  "programs",
+			Vendor:  "Python Software Foundation",
+			Version: "3.14.5150.0",
+		}
+		MutateSoftwareOnIngestion(t.Context(), pythonComponent, slog.New(slog.DiscardHandler))
+		assert.Equal(t, "3.14.5", pythonComponent.Version, "component %q", componentName)
+	}
+
+	// Test Python sanitizer doesn't touch non-PSF software named like Python
+	notPython := &fleet.Software{
+		Name:    "Python 3.14.5 (64-bit)",
+		Source:  "programs",
+		Vendor:  "Some Other Vendor",
+		Version: "3.14.5150.0",
+	}
+	MutateSoftwareOnIngestion(t.Context(), notPython, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.14.5150.0", notPython.Version)
+
 	// Test JetBrains software without version in name is not transformed
 	jetbrainsNoVersionInName := &fleet.Software{
 		Name:    "IntelliJ IDEA",
@@ -1918,6 +1974,177 @@ func TestDirectIngestSoftware(t *testing.T) {
 	})
 }
 
+func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	baseRows := []map[string]string{
+		{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		{"uid": "502", "username": "_fleetadmin", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "fleetadmin-uuid"},
+	}
+
+	t.Run("darwin with row and NULL account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return nil, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and different account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return new("some-uuid"), nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and existing account_uuid -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		existing := "fleetadmin-uuid"
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return &existing, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when account_uuid already set")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin with no row -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, common_mysql.NotFound("ManagedLocalAccount")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when no row exists")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin without _fleetadmin row -> no Get/Set calls", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called when _fleetadmin is absent")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		rows := []map[string]string{
+			{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		}
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, rows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("non-darwin -> no Get/Set calls even when _fleetadmin present", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "linux"}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called on non-darwin")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			// _fleetadmin is not skipped on non-darwin (guard is darwin-only),
+			// so it passes through unchanged.
+			require.Len(t, users, 2)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin Get error -> ingest still succeeds, no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, errors.New("boom")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called after Get error")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+	})
+}
+
 func TestIngestKubequeryInfo(t *testing.T) {
 	err := ingestKubequeryInfo(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{}, nil)
 	require.Error(t, err)
@@ -1958,6 +2185,17 @@ func TestDirectDiskEncryption(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+}
+
+// TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken guards against reintroducing
+// the user_uuid predicate that caused https://github.com/fleetdm/fleet/issues/45369.
+// In the post-ADE window the disk_encryption.user_uuid column can be empty while
+// FileVault is on; filtering on it makes the host appear unencrypted and blocks
+// recovery-key escrow until the user logs out/in.
+func TestUsesMacOSDiskEncryptionQueryDoesNotGateOnSecureToken(t *testing.T) {
+	require.NotContains(t, usesMacOSDiskEncryptionQuery, "user_uuid",
+		"usesMacOSDiskEncryptionQuery must not filter on user_uuid; see issue #45369")
+	require.Contains(t, usesMacOSDiskEncryptionQuery, "filevault_status = 'on'")
 }
 
 func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
@@ -2605,9 +2843,10 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 2)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
@@ -2684,7 +2923,8 @@ func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
 		"path":              "/Library/Keychains/System.keychain",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 1)
 		cert := certs[0]
 
@@ -2767,9 +3007,10 @@ func TestDirectIngestHostCertificatesWindows(t *testing.T) {
 
 	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error {
 		require.Equal(t, host.ID, hostID)
 		require.Equal(t, host.UUID, hostUUID)
+		require.Equal(t, fleet.HostCertificateOriginOsquery, origin)
 		require.Len(t, certs, 3)
 
 		// We expect that the ingest function will deduplicate certs based on SHA1+username

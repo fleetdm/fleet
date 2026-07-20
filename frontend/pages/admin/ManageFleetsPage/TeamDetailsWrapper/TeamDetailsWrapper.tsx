@@ -1,0 +1,539 @@
+import React, { useState, useCallback, useContext } from "react";
+import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
+import { InjectedRouter } from "react-router";
+import { Tab, TabList, Tabs } from "react-tabs";
+
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
+import { ITeam, ITeamSummary } from "interfaces/team";
+import PATHS from "router/paths";
+import enrollSecretsAPI from "services/entities/enroll_secret";
+import teamsAPI, {
+  ILoadTeamsResponse,
+  ITeamFormData,
+} from "services/entities/teams";
+import usersAPI, { IGetMeResponse } from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
+import sortUtils from "utilities/sort";
+
+import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import BackButton from "components/BackButton";
+import TeamsDropdown from "components/TeamsDropdown";
+import MainContent from "components/MainContent";
+import DeleteFleetModal from "../components/DeleteFleetModal";
+import RenameFleetModal from "../components/RenameFleetModal";
+import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
+import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
+import AddHostsModal from "../../../../components/AddHostsModal";
+import EnrollSecretModal from "../../../../components/EnrollSecrets/EnrollSecretModal";
+
+const baseClass = "team-details";
+
+interface ITeamDetailsSubNavItem {
+  name: string;
+  getPathname: (id?: number) => string;
+}
+
+const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
+  {
+    name: "Users",
+    getPathname: PATHS.FLEET_DETAILS_USERS,
+  },
+  {
+    name: "Agent options",
+    getPathname: PATHS.FLEET_DETAILS_OPTIONS,
+  },
+  {
+    name: "Settings",
+    getPathname: PATHS.FLEET_DETAILS_SETTINGS,
+  },
+];
+
+interface ITeamDetailsPageProps {
+  children: JSX.Element;
+  location: {
+    pathname: string;
+    search: string;
+    hash?: string;
+    query: { fleet_id?: string };
+  };
+  router: InjectedRouter;
+}
+
+const generateUpdateData = (
+  currentTeam: ITeamSummary,
+  formData: ITeamFormData
+): ITeamFormData | null => {
+  if (currentTeam.name !== formData.name) {
+    return {
+      name: formData.name,
+    };
+  }
+  return null;
+};
+
+const getTabIndex = (path: string, teamId: number): number => {
+  return teamDetailsSubNav.findIndex((navItem) => {
+    return navItem.getPathname(teamId).includes(path);
+  });
+};
+
+const TeamDetailsWrapper = ({
+  router,
+  children,
+  location,
+}: ITeamDetailsPageProps): JSX.Element => {
+  const { renderFlash } = useContext(NotificationContext);
+  const handlePageError = useErrorHandler();
+  const {
+    isGlobalAdmin,
+    isPremiumTier,
+    setAvailableTeams,
+    setUserSettings,
+    setCurrentUser,
+    config,
+  } = useContext(AppContext);
+
+  const {
+    currentTeamId,
+    currentTeamName,
+    isAnyTeamSelected,
+    isRouteOk,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: false,
+    includeNoTeam: false,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: false,
+      observer: false,
+      observer_plus: false,
+      technician: false,
+    },
+  });
+
+  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
+  const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [
+    showManageEnrollSecretsModal,
+    setShowManageEnrollSecretsModal,
+  ] = useState(false);
+  const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
+  const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
+  const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
+  const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
+  const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
+
+  const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
+    enabled: false,
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
+      setCurrentUser(user);
+      setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
+    },
+  });
+
+  const {
+    data: teams,
+    isLoading: isLoadingTeams,
+    refetch: refetchTeams,
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
+    ["teams"],
+    () => teamsAPI.loadAll(),
+    {
+      enabled: isRouteOk,
+      select: (data: ILoadTeamsResponse) =>
+        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+      onSuccess: (responseTeams: ITeam[]) => {
+        if (!responseTeams?.find((team) => team.id === teamIdForApi)) {
+          handlePageError({ status: 404 });
+        }
+      },
+      onError: (error) => handlePageError(error),
+    }
+  );
+  const currentTeamDetails = teams?.find((team) => team.id === teamIdForApi);
+
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", teamIdForApi],
+    () => {
+      return enrollSecretsAPI.getTeamEnrollSecrets(teamIdForApi);
+    },
+    {
+      enabled: isRouteOk,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const navigateToNav = (i: number): void => {
+    const navPath = teamDetailsSubNav[i].getPathname(teamIdForApi);
+    router.push(navPath);
+  };
+
+  const toggleAddHostsModal = useCallback(() => {
+    setShowAddHostsModal(!showAddHostsModal);
+  }, [showAddHostsModal, setShowAddHostsModal]);
+
+  const toggleManageEnrollSecretsModal = useCallback(() => {
+    setShowManageEnrollSecretsModal(!showManageEnrollSecretsModal);
+  }, [showManageEnrollSecretsModal, setShowManageEnrollSecretsModal]);
+
+  const toggleDeleteSecretModal = useCallback(() => {
+    // open and closes delete modal
+    setShowDeleteSecretModal(!showDeleteSecretModal);
+    // open and closes main enroll secret modal
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  }, [
+    setShowDeleteSecretModal,
+    showDeleteSecretModal,
+    setShowEnrollSecretModal,
+    showEnrollSecretModal,
+  ]);
+
+  // this is called when we click add or edit
+  const toggleSecretEditorModal = useCallback(() => {
+    // open and closes add/edit modal
+    setShowSecretEditorModal(!showSecretEditorModal);
+    // open and closes main enroll secret modall
+    setShowEnrollSecretModal(!showEnrollSecretModal);
+  }, [
+    setShowSecretEditorModal,
+    showSecretEditorModal,
+    setShowEnrollSecretModal,
+    showEnrollSecretModal,
+  ]);
+
+  const toggleDeleteFleetModal = useCallback(() => {
+    setShowDeleteFleetModal(!showDeleteFleetModal);
+  }, [showDeleteFleetModal, setShowDeleteFleetModal]);
+
+  const toggleRenameFleetModal = useCallback(() => {
+    setShowRenameFleetModal(!showRenameFleetModal);
+    setBackendValidators({});
+  }, [showRenameFleetModal, setShowRenameFleetModal, setBackendValidators]);
+
+  const onSaveSecret = async (enrollSecretString: string) => {
+    // Creates new list of secrets removing selected secret and adding new secret
+    const currentSecrets = teamSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+
+    if (enrollSecretString) {
+      newSecrets.push({ secret: enrollSecretString });
+    }
+    setIsUpdatingSecret(true);
+    try {
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdForApi, newSecrets);
+      refetchTeamSecrets();
+
+      toggleSecretEditorModal();
+      isPremiumTier && refetchTeams();
+      renderFlash(
+        "success",
+        `Successfully ${selectedSecret ? "edited" : "added"} enroll secret.`
+      );
+    } catch (error) {
+      console.error(error);
+      renderFlash(
+        "error",
+        `Could not ${
+          selectedSecret ? "edit" : "add"
+        } enroll secret. Please try again.`
+      );
+    } finally {
+      setIsUpdatingSecret(false);
+    }
+  };
+
+  const onDeleteSecret = async () => {
+    // create new list of secrets removing selected secret
+    const currentSecrets = teamSecrets || [];
+
+    const newSecrets = currentSecrets.filter(
+      (s) => s.secret !== selectedSecret?.secret
+    );
+    setIsUpdatingSecret(true);
+    try {
+      await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdForApi, newSecrets);
+      refetchTeamSecrets();
+      toggleDeleteSecretModal();
+      refetchTeams();
+      renderFlash("success", `Successfully deleted enroll secret.`);
+    } catch (error) {
+      console.error(error);
+      renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
+    }
+  };
+
+  const onDeleteSubmit = useCallback(async () => {
+    if (!teamIdForApi) {
+      return;
+    }
+
+    setIsUpdatingTeams(true);
+
+    try {
+      await teamsAPI.destroy(teamIdForApi);
+      router.push(PATHS.ADMIN_FLEETS);
+      renderFlash("success", "Fleet removed");
+    } catch (response) {
+      renderFlash("error", "Something went wrong removing the fleet");
+      console.error(response);
+    } finally {
+      toggleDeleteFleetModal();
+      setIsUpdatingTeams(false);
+    }
+  }, [teamIdForApi, renderFlash, router, toggleDeleteFleetModal]);
+
+  const onEditSubmit = useCallback(
+    async (formData: ITeamFormData) => {
+      if (!currentTeamDetails) {
+        return;
+      }
+      const updatedAttrs = generateUpdateData(currentTeamDetails, formData);
+      // no updates, so no need for a request.
+      if (!updatedAttrs) {
+        toggleRenameFleetModal();
+        return;
+      }
+
+      setIsUpdatingTeams(true);
+      try {
+        await teamsAPI.update(updatedAttrs, teamIdForApi);
+        renderFlash(
+          "success",
+          `Successfully updated fleet name to ${updatedAttrs?.name}`
+        );
+        setBackendValidators({});
+        refetchTeams();
+        refetchMe();
+        toggleRenameFleetModal();
+      } catch (response) {
+        console.error(response);
+        const errorObject = formatErrorResponse(response);
+        if (errorObject.base.includes("Duplicate")) {
+          setBackendValidators({
+            name: `A fleet with this name already exists`,
+          });
+        } else if (errorObject.base.includes("all teams")) {
+          setBackendValidators({
+            name: `"All fleets" is a reserved fleet name. Please try another name.`,
+          });
+        } else if (errorObject.base.includes("no team")) {
+          setBackendValidators({
+            name: `"Unassigned" is a reserved fleet name. Please try another name.`,
+          });
+        } else {
+          renderFlash("error", "Could not create fleet. Please try again.");
+        }
+      } finally {
+        setIsUpdatingTeams(false);
+      }
+    },
+    [
+      currentTeamDetails,
+      toggleRenameFleetModal,
+      teamIdForApi,
+      renderFlash,
+      refetchTeams,
+      refetchMe,
+    ]
+  );
+
+  if (
+    !isRouteOk ||
+    isLoadingTeams ||
+    isTeamSecretsLoading ||
+    !userTeams?.length ||
+    currentTeamDetails === undefined
+  ) {
+    return (
+      <div className={`${baseClass}__loading-spinner`}>
+        <Spinner />
+      </div>
+    );
+  }
+
+  const hostCount = currentTeamDetails.host_count;
+  let hostsTotalDisplay: string | undefined;
+  if (hostCount !== undefined) {
+    hostsTotalDisplay =
+      hostCount === 1 ? `${hostCount} host` : `${hostCount} hosts`;
+  }
+
+  return (
+    <MainContent className={baseClass}>
+      <>
+        {isGlobalAdmin ? (
+          <div className={`${baseClass}__header-links`}>
+            <BackButton text="Back to fleets" path={PATHS.ADMIN_FLEETS} />
+          </div>
+        ) : (
+          <></>
+        )}
+        <div className={`${baseClass}__team-header`}>
+          <div className={`${baseClass}__team-details`}>
+            {userTeams?.length === 1 ? (
+              <h1>{currentTeamDetails.name}</h1>
+            ) : (
+              <TeamsDropdown
+                selectedTeamId={currentTeamId}
+                currentUserTeams={userTeams || []}
+                isDisabled={isLoadingTeams}
+                includeAllTeams={false}
+                onChange={handleTeamChange}
+              />
+            )}
+            {!!hostsTotalDisplay && (
+              <span className={`${baseClass}__host-count`}>
+                {hostsTotalDisplay}
+              </span>
+            )}
+          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "inverse",
+                iconName: "eye",
+                onClick: toggleManageEnrollSecretsModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Rename fleet",
+                buttonVariant: "inverse",
+                iconName: "pencil",
+                onClick: toggleRenameFleetModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Delete fleet",
+                buttonVariant: "inverse",
+                iconName: "trash",
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteFleetModal,
+                gitOpsModeCompatible: true,
+              },
+            ]}
+          />
+        </div>
+        <TabNav>
+          <Tabs
+            selectedIndex={getTabIndex(
+              location.pathname,
+              currentTeamDetails.id
+            )}
+            onSelect={(i) => navigateToNav(i)}
+          >
+            <TabList>
+              {teamDetailsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return (
+                  <Tab key={navItem.name} data-text={navItem.name}>
+                    <TabText>{navItem.name}</TabText>
+                  </Tab>
+                );
+              })}
+            </TabList>
+          </Tabs>
+        </TabNav>
+        {showAddHostsModal && (
+          <AddHostsModal
+            currentTeamName={currentTeamName}
+            enrollSecret={teamSecrets?.[0]?.secret}
+            isAnyTeamSelected={isAnyTeamSelected}
+            isLoading={isLoadingTeams}
+            onCancel={toggleAddHostsModal}
+            openEnrollSecretModal={toggleManageEnrollSecretsModal}
+          />
+        )}
+        {showManageEnrollSecretsModal && (
+          <EnrollSecretModal
+            selectedTeamId={teamIdForApi || 0} // TODO: confirm teamIdForApi vs currentTeamId throughout
+            primoMode={config?.partnerships?.enable_primo || false}
+            teams={teams || []} // TODO: confirm teams vs available teams throughout
+            onReturnToApp={toggleManageEnrollSecretsModal}
+            toggleSecretEditorModal={toggleSecretEditorModal}
+            toggleDeleteSecretModal={toggleDeleteSecretModal}
+            setSelectedSecret={setSelectedSecret}
+          />
+        )}
+        {showSecretEditorModal && (
+          <SecretEditorModal
+            selectedTeam={currentTeamDetails.id}
+            teams={teams || []}
+            onSaveSecret={onSaveSecret}
+            toggleSecretEditorModal={toggleSecretEditorModal}
+            selectedSecret={selectedSecret}
+            isUpdatingSecret={isUpdatingSecret}
+          />
+        )}
+        {showDeleteSecretModal && (
+          <DeleteSecretModal
+            onDeleteSecret={onDeleteSecret}
+            toggleDeleteSecretModal={toggleDeleteSecretModal}
+            isUpdatingSecret={isUpdatingSecret}
+          />
+        )}
+        {showDeleteFleetModal && (
+          <DeleteFleetModal
+            onCancel={toggleDeleteFleetModal}
+            onSubmit={onDeleteSubmit}
+            name={currentTeamDetails.name}
+            isUpdatingFleets={isUpdatingTeams}
+          />
+        )}
+        {showRenameFleetModal && (
+          <RenameFleetModal
+            onCancel={toggleRenameFleetModal}
+            onSubmit={onEditSubmit}
+            defaultName={currentTeamDetails.name}
+            backendValidators={backendValidators}
+            isUpdatingFleets={isUpdatingTeams}
+          />
+        )}
+        <div key={location.pathname} className="tab-nav-routed-content">
+          {children}
+        </div>
+      </>
+    </MainContent>
+  );
+};
+
+export default TeamDetailsWrapper;

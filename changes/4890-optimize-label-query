@@ -1,0 +1,1 @@
+- Improved the performance of listing labels with host counts by aggregating membership counts in a single pass instead of a per-label subquery, and skipping the unnecessary join to the hosts table when the requesting user can see all hosts.

@@ -14,9 +14,7 @@ export interface IRevealButtonProps {
   disabled?: boolean;
   tooltipContent?: React.ReactNode;
   disabledTooltipContent?: React.ReactNode;
-  onClick?:
-    | ((value?: any) => void)
-    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+  onClick?: (evt: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 const baseClass = "reveal-button";

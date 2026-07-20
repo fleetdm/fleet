@@ -30,7 +30,7 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	ds.ListAvailableFleetMaintainedAppsFunc = func(ctx context.Context, teamID *uint, opt fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 		return []fleet.MaintainedApp{}, &fleet.PaginationMetadata{}, nil
 	}
 	authorizer, err := authz.NewAuthorizer()
@@ -86,6 +86,20 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
+			true,
+		},
 	}
 
 	var forbiddenError *authz.Forbidden
@@ -93,7 +107,7 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, _, err := svc.ListFleetMaintainedApps(ctx, nil, fleet.ListOptions{})
+			_, _, err := svc.ListFleetMaintainedApps(ctx, nil, fleet.MaintainedAppListOptions{})
 			if tt.shouldFailWithNoTeam {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &forbiddenError)
@@ -101,7 +115,7 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			_, _, err = svc.ListFleetMaintainedApps(ctx, ptr.Uint(1), fleet.ListOptions{})
+			_, _, err = svc.ListFleetMaintainedApps(ctx, new(uint(1)), fleet.MaintainedAppListOptions{})
 			if tt.shouldFailWithMatchingTeam {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &forbiddenError)
@@ -109,7 +123,7 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			_, _, err = svc.ListFleetMaintainedApps(ctx, ptr.Uint(2), fleet.ListOptions{})
+			_, _, err = svc.ListFleetMaintainedApps(ctx, new(uint(2)), fleet.MaintainedAppListOptions{})
 			if tt.shouldFailWithDifferentTeam {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &forbiddenError)
@@ -224,6 +238,20 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 			true,
 			true,
 		},
+		{
+			"global gitops",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+			false,
+			false,
+		},
+		{
+			"team gitops",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			false,
+			false,
+			true,
+		},
 	}
 
 	var forbiddenError *authz.Forbidden
@@ -282,7 +310,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 			UniqueIdentifier: "Internet Exploder",
 		}, nil
 	}
-	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
 
@@ -367,7 +395,7 @@ func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
 			UniqueIdentifier: "com.example.dummy",
 		}, nil
 	}
-	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil
 	}
 

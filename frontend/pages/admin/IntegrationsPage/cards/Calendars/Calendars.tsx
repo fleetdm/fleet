@@ -313,7 +313,6 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
                         parseTarget
                         type="textarea"
                         placeholder={API_KEY_JSON_PLACEHOLDER}
-                        ignore1password
                         inputClassName={`${baseClass}__api-key-json`}
                         error={formErrors.apiKeyJson}
                         disabled={gomEnabled}
@@ -446,7 +445,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Calendars">
+    <SettingsSection title="Calendars" className={baseClass}>
       <PageDescription
         content={
           <>

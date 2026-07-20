@@ -20,6 +20,7 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { SoftwareAggregateStatus } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
   HOSTS_QUERY_PARAMS,
@@ -352,11 +353,10 @@ const HostsFilterBlock = ({
     if (!softwareDetails) return null;
 
     const { name, display_name, version } = softwareDetails;
-    let label = display_name || name;
+    let label = getDisplayedSoftwareName(name, display_name);
     if (version) {
       label += ` ${version}`;
     }
-    label = label.trim() || "Unknown software";
 
     const clearParams = [
       "software_id",

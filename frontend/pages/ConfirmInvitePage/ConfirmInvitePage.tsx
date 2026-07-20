@@ -7,7 +7,7 @@ import { NotificationContext } from "context/notification";
 import { ICreateUserWithInvitationFormData } from "interfaces/user";
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
-import inviteAPI, { IValidateInviteResp } from "services/entities/invites";
+import inviteAPI, { IValidateInviteResponse } from "services/entities/invites";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
@@ -36,12 +36,12 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     data: validInvite,
     error: validateInviteError,
     isLoading: isVerifyingInvite,
-  } = useQuery<IValidateInviteResp, AxiosError, IInvite>(
+  } = useQuery<IValidateInviteResponse, AxiosError, IInvite>(
     "invite",
     () => inviteAPI.verify(invite_token),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (resp: IValidateInviteResp) => resp.invite,
+      select: (resp: IValidateInviteResponse) => resp.invite,
     }
   );
 

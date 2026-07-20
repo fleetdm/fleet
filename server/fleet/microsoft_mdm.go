@@ -844,6 +844,18 @@ const (
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
 
+// MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config check-in for a connected Windows
+// host: the Autopilot ESP awaiting-configuration value and whether the host's most recent Windows MDM enrollment has queued, unacknowledged
+// MDM commands. Reading both in one query keeps the hot orbit config path to a single round trip.
+type MDMWindowsHostConfigState struct {
+	AwaitingConfiguration WindowsMDMAwaitingConfiguration
+	HasPendingCommands    bool
+	// FleetdSyncCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsMDMSync flag for this enrollment, persisted by
+	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
+	// reads it to gate poll relaxation.
+	FleetdSyncCapable bool
+}
+
 type MDMWindowsEnrolledDevice struct {
 	ID                      uint                            `db:"id"`
 	HostUUID                string                          `db:"host_uuid"`
@@ -861,8 +873,20 @@ type MDMWindowsEnrolledDevice struct {
 	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
 	CredentialsHash         *[]byte                         `db:"credentials_hash"`
 	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
-	CreatedAt               time.Time                       `db:"created_at"`
-	UpdatedAt               time.Time                       `db:"updated_at"`
+	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll
+	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
+	// by the standard Windows MDM command queue, so this only records what we last asked for; the management session re-enqueues only when
+	// desired differs from it.
+	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
+	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
+	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
+	FleetdSyncCapable bool `db:"fleetd_sync_capable"`
+	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
+	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
+	// writer-side statements.
+	HasPendingCommands bool      `db:"has_pending_commands"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
@@ -876,6 +900,9 @@ type MDMWindowsSaveResponseResult struct {
 	// WipeFailed is non-nil when a wipe command was processed and the status
 	// code indicates failure (not 2xx).
 	WipeFailed *MDMWindowsWipeResult
+	// WipeSucceeded is non-nil when a wipe command was processed and the
+	// status code indicates success (2xx).
+	WipeSucceeded *MDMWindowsWipeResult
 }
 
 type MDMWindowsWipeResult struct {
@@ -1008,6 +1035,19 @@ const (
 	CmdResults = "Results" // Protocol Command verb Results
 	CmdStatus  = "Status"  // Protocol Command verb Status
 )
+
+// FleetInternalCmdIDPrefix marks Fleet-injected SyncML commands that are sent inline in a management response but never
+// persisted to windows_mdm_commands. The device's <Status>/<Results> for these commands will reference a CmdID that
+// won't match any row in windows_mdm_commands. MDMWindowsSaveResponse uses this prefix to skip them before warning
+// about "unmatched Windows MDM commands". Example: the DevDetail/SMBIOSSerialNumber Get used to link unlinked Windows
+// MDM enrollments (see server/service/microsoft_mdm.go).
+const FleetInternalCmdIDPrefix = "fleet-internal-"
+
+// IsFleetInternalCmdID reports whether a SyncML CmdID was injected by Fleet itself and is intentionally absent from
+// windows_mdm_commands.
+func IsFleetInternalCmdID(cmdID string) bool {
+	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
+}
 
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
 type ProtoCmdOperation struct {
@@ -1780,7 +1820,7 @@ func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
 // targeted by other active profiles in the same team. These LocURIs will be
 // skipped when generating <Delete> commands, so that deleting one profile
 // does not undo settings enforced by a different profile.
-func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]bool) (*MDMWindowsCommand, error) {
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
 	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
 	// This is the only Fleet variable that appears in LocURIs (enforced by
 	// upload validation). The install path replaces it with the profile UUID
@@ -1799,14 +1839,14 @@ func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string,
 	}
 
 	// Filter out LocURIs that are still targeted by other active profiles.
-	inUse := make(map[string]bool)
+	inUse := make(map[string]struct{})
 	if len(locURIsInUseByOtherProfiles) > 0 && locURIsInUseByOtherProfiles[0] != nil {
 		inUse = locURIsInUseByOtherProfiles[0]
 	}
 
 	var safeURIs []string
 	for _, uri := range allURIs {
-		if !inUse[uri] {
+		if _, ok := inUse[uri]; !ok {
 			safeURIs = append(safeURIs, uri)
 		}
 	}

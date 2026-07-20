@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "0.12.333",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kiro (User)' AND publisher = 'Amazon Web Services' AND version_compare(version, '0.12.333') < 0);"
+      },
+      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/win32-x64/signed/0.12.333/kiro-ide-0.12.333-stable-win32-x64.exe",
+      "install_script_ref": "c5bc3c21",
+      "uninstall_script_ref": "afe8f2fa",
+      "sha256": "73265e891ba3973d14023d48e955299b834e1f54c66d3ed92f6c6b98bf3c32c9",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "afe8f2fa": "# Attempts to locate Kiro's Inno Setup uninstaller from registry and execute it silently.\n# Kiro is user-scope; the ARP DisplayName is \"Kiro (User)\".\n\n$displayName = \"Kiro\"\n$publisher   = \"Amazon\"\n\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName *\") -and\n    ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n# Kill any running Kiro processes before uninstalling\nStop-Process -Name \"Kiro\" -Force -ErrorAction SilentlyContinue\nStart-Sleep -Seconds 2\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\n# Parse the uninstall command to separate executable from existing arguments\nif ($uninstallCommand -match '^\"([^\"]+)\"\\s*(.*)$') {\n    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()\n    if ($extra) { $uninstallArgs = \"$extra $uninstallArgs\".Trim() }\n} elseif ($uninstallCommand -match '^(.+?\\.exe)\\s*(.*)$') {\n    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()\n    if ($extra) { $uninstallArgs = \"$extra $uninstallArgs\".Trim() }\n} else {\n    Write-Host \"Error: Could not parse uninstall command: $uninstallCommand\"; Exit 1\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n",
+    "c5bc3c21": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Kiro ships as an Inno Setup-based installer (user scope, VS Code fork).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n# Inno Setup silent install. /mergetasks=!runcode prevents launching after install.\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /MERGETASKS=!runcode\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

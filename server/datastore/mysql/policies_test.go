@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // (only used for tests)
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -51,6 +52,7 @@ func TestPolicies(t *testing.T) {
 		{"Save", testPoliciesSave},
 		{"DelUser", testPoliciesDelUser},
 		{"FlippingPoliciesForHost", testFlippingPoliciesForHost},
+		{"NarrowedMembershipUpsert", testPoliciesNarrowedMembershipUpsert},
 		{"PlatformUpdate", testPolicyPlatformUpdate},
 		{"CleanupPolicyMembership", testPolicyCleanupPolicyMembership},
 		{"DeleteAllPolicyMemberships", testDeleteAllPolicyMemberships},
@@ -88,12 +90,15 @@ func TestPolicies(t *testing.T) {
 		{"ResetAttemptsOnFailingToPassingAsync", testResetAttemptsOnFailingToPassingAsync},
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
+		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
+		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
 		{"ApplyPolicySpecsNeedsFullMembershipCleanupFlag", testApplyPolicySpecsNeedsFullMembershipCleanupFlag},
 		{"CleanupPolicyMembershipCrashRecovery", testCleanupPolicyMembershipCrashRecovery},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
+		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -755,17 +760,21 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	requireLabels(t, []string{label1.Name, label2.Name}, gpol.LabelsIncludeAny)
 
-	// Cannot create a policy with inclusive and exclusive labels set
+	// A policy can combine an include scope with an exclude scope; both persist.
 	gpol1, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:             "global-query-bad-both-labels",
+		Name:             "global-query-both-labels",
 		Query:            "select 1;",
 		Description:      "query1 desc",
 		Resolution:       "query1 resolution",
-		LabelsExcludeAny: []string{label1.Name},
 		LabelsIncludeAny: []string{label2.Name},
+		LabelsExcludeAny: []string{label1.Name},
 	})
-	require.Error(t, err)
-	require.Nil(t, gpol1)
+	require.NoError(t, err)
+	requireLabels(t, []string{label2.Name}, gpol1.LabelsIncludeAny)
+	requireLabels(t, []string{label1.Name}, gpol1.LabelsExcludeAny)
+	// Remove it so the global-policy count assertions below still hold.
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{gpol1.ID})
+	require.NoError(t, err)
 
 	// Cannot create policy with invalid label set
 	gpol1, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
@@ -891,17 +900,79 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.Nil(t, p3)
 
-	// Can't create a policy with both include and excldue any labels
-	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-		Name:             "query-bothlabel",
+	// A policy can combine an include scope with an exclude scope; both persist
+	// and round-trip from the DB.
+	pCombined, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-combined",
 		Query:            "select 2;",
-		Description:      "query2 other description",
-		Resolution:       "query2 other resolution",
-		LabelsExcludeAny: []string{label1.Name},
+		Description:      "combined description",
+		Resolution:       "combined resolution",
 		LabelsIncludeAny: []string{label2.Name},
+		LabelsExcludeAny: []string{label1.Name},
 	})
-	require.Error(t, err)
-	require.Nil(t, p3)
+	require.NoError(t, err)
+	requireLabels(t, []string{label2.Name}, pCombined.LabelsIncludeAny)
+	requireLabels(t, []string{label1.Name}, pCombined.LabelsExcludeAny)
+	pCombinedReloaded, err := ds.Policy(ctx, pCombined.ID)
+	require.NoError(t, err)
+	requireLabels(t, []string{label2.Name}, pCombinedReloaded.LabelsIncludeAny)
+	requireLabels(t, []string{label1.Name}, pCombinedReloaded.LabelsExcludeAny)
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{pCombined.ID})
+	require.NoError(t, err)
+
+	// The datastore guard (updatePolicyLabelsTx) rejects invalid scope
+	// combinations even when a caller skips PolicyPayload.Verify: two include
+	// scopes is not allowed.
+	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-two-include-scopes",
+		Query:            "select 2;",
+		LabelsIncludeAny: []string{label2.Name},
+		LabelsIncludeAll: []string{label1.Name},
+	})
+	require.ErrorIs(t, err, fleet.ErrPolicyConflictingIncludeLabels)
+
+	// Can create a policy with include_all labels.
+	pIncludeAll, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-include-all",
+		Query:            "select 1;",
+		Description:      "include_all desc",
+		Resolution:       "include_all resolution",
+		LabelsIncludeAll: []string{label1.Name, label2.Name},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, pIncludeAll)
+	requireLabels(t, []string{label1.Name, label2.Name}, pIncludeAll.LabelsIncludeAll)
+	require.Empty(t, pIncludeAll.LabelsIncludeAny)
+	require.Empty(t, pIncludeAll.LabelsExcludeAny)
+
+	// Reading the policy back round-trips include_all from the DB.
+	pReloaded, err := ds.Policy(ctx, pIncludeAll.ID)
+	require.NoError(t, err)
+	requireLabels(t, []string{label1.Name, label2.Name}, pReloaded.LabelsIncludeAll)
+	require.Empty(t, pReloaded.LabelsIncludeAny)
+	require.Empty(t, pReloaded.LabelsExcludeAny)
+
+	// A policy can combine include_all with exclude_all; both persist and
+	// round-trip, exercising the exclude_all encoding (exclude=1, require_all=1).
+	pExclAll, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-include-all-exclude-all",
+		Query:            "select 1;",
+		LabelsIncludeAll: []string{label1.Name},
+		LabelsExcludeAll: []string{label2.Name},
+	})
+	require.NoError(t, err)
+	requireLabels(t, []string{label1.Name}, pExclAll.LabelsIncludeAll)
+	requireLabels(t, []string{label2.Name}, pExclAll.LabelsExcludeAll)
+	pExclAllReloaded, err := ds.Policy(ctx, pExclAll.ID)
+	require.NoError(t, err)
+	requireLabels(t, []string{label1.Name}, pExclAllReloaded.LabelsIncludeAll)
+	requireLabels(t, []string{label2.Name}, pExclAllReloaded.LabelsExcludeAll)
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{pExclAll.ID})
+	require.NoError(t, err)
+
+	// Cleanup the include_all policy so later assertions on team1 policy counts hold.
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{pIncludeAll.ID})
+	require.NoError(t, err)
 
 	// Can't create a policy with a non-existant label
 	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
@@ -1706,21 +1777,24 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
-	// team policies are removed if the host is enrolled in a different team
+	// all host policies are removed on re-enroll even when the enroll secret
+	// belongs to a different team — but team_id stays put (orbit/osquery
+	// re-enrollment no longer changes a host's team).
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryHostID("2"),
 		fleet.WithEnrollOsqueryNodeKey("2"),
 		fleet.WithEnrollOsqueryTeamID(&team2.ID),
 	)
 	require.NoError(t, err)
-	// both hosts are now in team2
+	// host1 is in team2, host2 stays in team1 (sticky)
 	checkPassingCount(0, 0, 1, 1)
 
-	// team policies are removed if the host is re-enrolled without a team
+	// Re-record policy executions for host2; host2 is still in team1.
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{team1Policy.ID: new(true), globalPolicy.ID: new(true)}, time.Now(), false, nil))
-	checkPassingCount(1, 0, 2, 2)
+	checkPassingCount(1, 1, 1, 2)
 
-	// all host policies are removed when a host is re-enrolled
+	// all host policies are removed when a host is re-enrolled. The host's
+	// team_id is unchanged even though the re-enroll specifies no team.
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryHostID("2"),
 		fleet.WithEnrollOsqueryNodeKey("2"),
@@ -2479,11 +2553,21 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
 	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
 
-	// Cannot save a policy with both include and exclude labels
+	// A policy can be saved with both an include and an exclude scope; both persist.
 	gp2.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
 	gp2.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
 	err = ds.SavePolicy(ctx, &gp2, false, false)
-	require.Error(t, err)
+	require.NoError(t, err)
+	gpCombined, err := ds.Policy(ctx, gp.ID)
+	require.NoError(t, err)
+	requireLabels(t, []string{label2.Name}, gpCombined.LabelsIncludeAny)
+	requireLabels(t, []string{label1.Name}, gpCombined.LabelsExcludeAny)
+
+	// Restore the exclude-only scope so the remaining assertions are unaffected.
+	gp2.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	gp2.LabelsIncludeAny = nil
+	err = ds.SavePolicy(ctx, &gp2, false, false)
+	require.NoError(t, err)
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -2868,6 +2952,101 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, newFailing)
 	require.Empty(t, newPassing)
+}
+
+// testPoliciesNarrowedMembershipUpsert pins the five delta cases that
+// RecordPolicyQueryExecutions handles (via policiesNeedingMembershipWrite)
+// after the #44191 optimization: first-run-pass writes a row, steady-state
+// re-reports skip the UPSERT (preserving updated_at), real flips update the
+// row, nil-incoming clears existing rows to NULL, and first-run-nil does
+// not create a row.
+func testPoliciesNarrowedMembershipUpsert(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("narrowed-upsert-host"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("narrowed-upsert-host"),
+		UUID:            "narrowed-upsert-host",
+		Hostname:        "narrowed-upsert-host.local",
+	})
+	require.NoError(t, err)
+
+	policyA, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "narrowed-upsert-policyA",
+		Query: "select 1;",
+	})
+	require.NoError(t, err)
+	policyB, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "narrowed-upsert-policyB",
+		Query: "select 2;",
+	})
+	require.NoError(t, err)
+
+	type membershipRow struct {
+		Passes    sql.NullBool `db:"passes"`
+		UpdatedAt time.Time    `db:"updated_at"`
+	}
+	getRow := func(t *testing.T, policyID uint) (membershipRow, bool) {
+		var row membershipRow
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &row,
+			`SELECT passes, updated_at FROM policy_membership WHERE host_id = ? AND policy_id = ?`,
+			host.ID, policyID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return membershipRow{}, false
+		}
+		require.NoError(t, err)
+		return row, true
+	}
+
+	// 1. First-run passing → row created with passes=true.
+	t1 := time.Now().UTC().Truncate(time.Second)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(true)}, t1, false, nil))
+	row, ok := getRow(t, policyA.ID)
+	require.True(t, ok, "first-run passing should create the row")
+	require.True(t, row.Passes.Valid)
+	require.True(t, row.Passes.Bool)
+	originalUpdatedAt := row.UpdatedAt
+
+	// 2. Steady-state re-report → no UPSERT, updated_at unchanged. We pass a
+	// clearly different timestamp; if our optimization works, the stored
+	// updated_at should still match the original (not the new t2).
+	t2 := t1.Add(2 * time.Minute)
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(true)}, t2, false, nil))
+	row, _ = getRow(t, policyA.ID)
+	require.True(t, row.Passes.Valid)
+	require.True(t, row.Passes.Bool)
+	require.Equal(t, originalUpdatedAt.Unix(), row.UpdatedAt.Unix(),
+		"steady-state re-report should not refresh updated_at")
+
+	// 3. Real flip (passing → failing) → row updated.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: new(false)}, time.Now(), false, nil))
+	row, ok = getRow(t, policyA.ID)
+	require.True(t, ok)
+	require.True(t, row.Passes.Valid)
+	require.False(t, row.Passes.Bool, "flip should update stored value to false")
+
+	// 4. Nil-incoming over existing known value → cleared to NULL.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyA.ID: nil}, time.Now(), false, nil))
+	row, ok = getRow(t, policyA.ID)
+	require.True(t, ok, "row should still exist after nil-clear")
+	require.False(t, row.Passes.Valid, "passes should be NULL after nil-incoming clears it")
+
+	// 5. First-run nil → no row created (nothing to record).
+	_, exists := getRow(t, policyB.ID)
+	require.False(t, exists, "precondition: no row for policyB")
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host,
+		map[uint]*bool{policyB.ID: nil}, time.Now(), false, nil))
+	_, exists = getRow(t, policyB.ID)
+	require.False(t, exists, "first-run nil should not create a row")
 }
 
 func testPolicyPlatformUpdate(t *testing.T, ds *Datastore) {
@@ -6341,14 +6520,31 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	policyExcludeBoth.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
 	require.NoError(t, ds.SavePolicy(ctx, policyExcludeBoth, false, false))
 
+	policyIncludeAllBoth := newTestPolicy(t, ds, user1, "policy include all both", "", nil)
+	policyIncludeAllBoth.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeAllBoth, false, false))
+
+	policyIncludeAllOnly1 := newTestPolicy(t, ds, user1, "policy include all only1", "", nil)
+	policyIncludeAllOnly1.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeAllOnly1, false, false))
+
+	// exclude_all: a host is excluded only when it is a member of ALL the listed labels.
+	policyExcludeAllBoth := newTestPolicy(t, ds, user1, "policy exclude all both", "", nil)
+	policyExcludeAllBoth.LabelsExcludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeAllBoth, false, false))
+
+	policyExcludeAllOnly1 := newTestPolicy(t, ds, user1, "policy exclude all only1", "", nil)
+	policyExcludeAllOnly1.LabelsExcludeAll = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeAllOnly1, false, false))
+
 	// The testing grid of truth
 	//
-	// | hosts \ policies | No labels | include 1 | exclude 2 | include both | exclude both |
-	// |------------------+-----------+-----------+-----------+--------------+--------------|
-	// | no label         | X         |           | X         |              | X            |
-	// | label 1          | X         | X         | X         | X            |              |
-	// | label 2          | X         |           |           | X            |              |
-	// | label both       | X         | X         |           | X            |              |
+	// | hosts \ policies | No labels | include 1 | exclude 2 | include both | exclude both | include_all both | include_all 1 | exclude_all both | exclude_all 1 |
+	// |------------------+-----------+-----------+-----------+--------------+--------------+------------------+---------------+------------------+---------------|
+	// | no label         | X         |           | X         |              | X            |                  |               | X                | X             |
+	// | label 1          | X         | X         | X         | X            |              |                  | X             | X                |               |
+	// | label 2          | X         |           |           | X            |              |                  |               | X                | X             |
+	// | label both       | X         | X         |           | X            |              | X                | X             |                  |               |
 
 	tcs := []struct {
 		Host     *fleet.Host
@@ -6360,6 +6556,8 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 				policyNoLabel,
 				policyExcludeLabel2,
 				policyExcludeBoth,
+				policyExcludeAllBoth,
+				policyExcludeAllOnly1,
 			},
 		},
 		{
@@ -6369,6 +6567,8 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 				policyIncludeLabel1,
 				policyExcludeLabel2,
 				policyIncludeBoth,
+				policyIncludeAllOnly1,
+				policyExcludeAllBoth,
 			},
 		},
 		{
@@ -6376,6 +6576,8 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 			Policies: []*fleet.Policy{
 				policyNoLabel,
 				policyIncludeBoth,
+				policyExcludeAllBoth,
+				policyExcludeAllOnly1,
 			},
 		},
 		{
@@ -6384,6 +6586,8 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 				policyNoLabel,
 				policyIncludeLabel1,
 				policyIncludeBoth,
+				policyIncludeAllBoth,
+				policyIncludeAllOnly1,
 			},
 		},
 	}
@@ -6469,6 +6673,27 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
 
+	// Re-record membership for all hosts, then switch to exclude_all of both
+	// labels: a host is removed only if it is a member of BOTH labels.
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	policy.LabelsExcludeAny = nil
+	policy.LabelsExcludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
+	// Only the host that is a member of BOTH labels (hostLabelBoth) is removed.
+	wantHostsByPol[policy.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// Reset the policy's label scope so later steps start from a clean slate.
+	policy.LabelsExcludeAll = nil
+	require.NoError(t, ds.SavePolicy(ctx, policy, false, false))
+
 	// Test ApplyPolicySpecs with label changes
 	// First, re-record membership for all hosts
 	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
@@ -6526,6 +6751,69 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 	// Only windows hosts with label1 should remain
 	wantHostsByPol[policy2.Name] = []uint{hostWinLabel1.ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// include_all cleanup: switch policy to require BOTH label1 and label2.
+	// Only hostLabelBoth qualifies; hosts with one of the two should have their membership cleaned up.
+	policy3 := newTestPolicy(t, ds, user1, "cleanup test policy 3 include_all", "", nil)
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy3.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	polsByName[policy3.Name] = policy3
+	wantHostsByPol[policy3.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	policy3.LabelsIncludeAll = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policy3, false, false))
+	// Only the host with BOTH labels should retain membership.
+	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// include_all cleanup via ApplyPolicySpecs (GitOps path).
+	// Re-record membership for all hosts so cleanup has something to remove.
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy3.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy3.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy3.Name,
+			Query:            policy3.Query,
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	// Spec apply should trigger the same membership cleanup — only hostLabelBoth remains.
+	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	freshName := "cleanup test policy 4 include_all create"
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             freshName,
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	var freshPolicy *fleet.Policy
+	for _, p := range allPolicies {
+		if p.Name == freshName {
+			freshPolicy = p
+			break
+		}
+	}
+	require.NotNil(t, freshPolicy, "fresh policy created via spec should exist")
+	require.Len(t, freshPolicy.LabelsIncludeAll, 2)
+	require.Empty(t, freshPolicy.LabelsIncludeAny)
+	require.Empty(t, freshPolicy.LabelsExcludeAny)
 }
 
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {
@@ -7824,6 +8112,185 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, previousChecksum, newChecksum)
 }
 
+// testApplyPolicySpecsDynamicAndPatchSameFMA is a regression test for a unique
+// index collision on (team_id, patch_software_title_id). A dynamic policy that
+// carries fleet_maintained_app_slug (e.g. install_software automation) must not
+// reuse the FMA's title id in patch_software_title_id, otherwise a separate
+// patch policy on the same team and FMA collides with it.
+func testApplyPolicySpecsDynamicAndPatchSameFMA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-collision"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	_, fmaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-fma-collision",
+		Filename:             "maintained1",
+		Title:                "Maintained1",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained1",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	// Apply a dynamic install_software policy that references the FMA slug. With
+	// the bug, the FMA's title id was written into patch_software_title_id even
+	// though spec.Type was dynamic.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "install-fma-dynamic",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Platform:               "darwin",
+			Type:                   fleet.PolicyTypeDynamic,
+			FleetMaintainedAppSlug: "maintained1",
+			SoftwareTitleID:        &fmaTitleID,
+		},
+	})
+	require.NoError(t, err)
+
+	// Apply a patch policy on the same team for the same FMA slug. With the bug
+	// this collided with the dynamic row on (team_id, patch_software_title_id).
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "patch-fma",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained1",
+		},
+	})
+	require.NoError(t, err)
+
+	// Verify both policies exist and that patch_software_title_id is only set on
+	// the patch policy.
+	type policyRow struct {
+		Name                 string `db:"name"`
+		Type                 string `db:"type"`
+		PatchSoftwareTitleID *uint  `db:"patch_software_title_id"`
+	}
+	var rows []policyRow
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT name, type, patch_software_title_id FROM policies WHERE team_id = ? ORDER BY type`,
+			team1.ID,
+		)
+	})
+	require.Len(t, rows, 2)
+
+	byType := make(map[string]policyRow, len(rows))
+	for _, r := range rows {
+		byType[r.Type] = r
+	}
+
+	dyn, ok := byType[fleet.PolicyTypeDynamic]
+	require.True(t, ok, "dynamic policy must be persisted")
+	require.Equal(t, "install-fma-dynamic", dyn.Name)
+	require.Nil(t, dyn.PatchSoftwareTitleID, "dynamic policy must not set patch_software_title_id")
+
+	patch, ok := byType[fleet.PolicyTypePatch]
+	require.True(t, ok, "patch policy must be persisted")
+	require.Equal(t, "patch-fma", patch.Name)
+	require.NotNil(t, patch.PatchSoftwareTitleID, "patch policy must set patch_software_title_id")
+	require.Equal(t, fmaTitleID, *patch.PatchSoftwareTitleID)
+}
+
+// testApplyPolicySpecsRenamePatchPolicyRegression43687 reproduces the customer
+// scenario from issue #43687: GitOps renaming a patch policy that references
+// an FMA (e.g. "Adobe Reader up to date" -> "Adobe Reader") used to 5xx with
+// "applying policy specs: select policies id: sql: no rows in result set"
+// because the upsert UPDATE matched by (team_id, patch_software_title_id) but
+// did not update the name, and the post-upsert SELECT then looked up the row
+// by the new name and found nothing.
+func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-43687"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Adobe Reader",
+		Slug:             "adobe-reader/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.adobe.Reader",
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-43687",
+		Filename:             "adobe-reader",
+		Title:                "Adobe Reader",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "com.adobe.Reader",
+		UserID:               user1.ID,
+		TeamID:               &team.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	// Apply the original patch policy with the auto-generated-style name.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "Adobe Reader up to date",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "adobe-reader/darwin",
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "Adobe Reader up to date", policies[0].Name)
+	originalID := policies[0].ID
+
+	// Rename the policy via GitOps. Same FMA slug, only the name changes. The
+	// pre-fix code path failed here with "select policies id: sql: no rows in
+	// result set" because the ON DUPLICATE KEY UPDATE matched by
+	// (team_id, patch_software_title_id) but did not update name, and the
+	// follow-up SELECT WHERE name = "Adobe Reader" returned no rows.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "Adobe Reader",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "adobe-reader/darwin",
+		},
+	})
+	require.NoError(t, err)
+
+	// The same row must now carry the new name (update, not delete + recreate).
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, originalID, policies[0].ID)
+	require.Equal(t, "Adobe Reader", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
+}
+
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -8134,4 +8601,50 @@ func testApplyPolicySpecNoSpuriousStatsReset(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, uint(1), policies[0].FailingHostCount, "policy stats should not have been reset")
+}
+
+func testRecordPolicyQueryExecutionsDeletedPolicy(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	user := test.NewUser(t, ds, "User", "test@example.com", true)
+
+	validPolicy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "valid-policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	deletedPolicy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "deleted-policy",
+		Query: "SELECT 2;",
+	})
+	require.NoError(t, err)
+
+	// Simulate policy deleted after query was distributed but before results arrived.
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{deletedPolicy.ID})
+	require.NoError(t, err)
+
+	// A mixed batch (valid + deleted policy) must not return an error.
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		validPolicy.ID:   new(true),
+		deletedPolicy.ID: new(true),
+	}, time.Now(), false, nil))
+
+	// The valid policy's membership row must have been written.
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
+		validPolicy.ID, host.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 1, count, "valid policy membership row must exist")
+
+	// The deleted policy's row must not exist (INSERT IGNORE skipped it).
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
+		deletedPolicy.ID, host.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "deleted policy membership row must not exist")
 }
