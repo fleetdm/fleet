@@ -11653,7 +11653,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
-- [Install self-service software](#install-self-service-software)
+- [Install self-service software by Fleet Desktop token](#install-self-service-software-by-fleet-desktop-token)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
@@ -12993,19 +12993,17 @@ Uninstalls software from a host.
 
 `Status: 202`
 
-### Install self-service software
+### Install self-service software by Fleet Desktop token
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-This endpoint uses the device's authentication token instead of the usual Fleet API token.
-
-`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
+`POST /api/v1/fleet/device/:token/software/install/{software_title_id}`
 
 #### Parameters
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | **Required**. The device's authentication token. |
+| token | string | path | **Required**. The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 | software_title_id | string | path | **Required**. The software title's ID. |
 
 #### Request headers
