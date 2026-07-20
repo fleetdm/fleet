@@ -196,7 +196,7 @@ Submit a feature request to the CSA team for review following these steps:
 - Press "Add item" under the "New requests" column
 - Select "Custom request" as the issue type
 - Title your request "FR for (customer-codename-here)"
-- In the description field, Add the following information
+- In the description field, add the following information
     - What is the specific feature being requested?
     - Why is this impactful to the customer?
     - What priority is this issue to the customer?
