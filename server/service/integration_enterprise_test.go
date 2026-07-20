@@ -2361,7 +2361,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			},
 		},
 	}
-	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	// team_gitops can modify its team but must not be able to read the team's
+	// enroll secrets (matching the enroll_secret authorization policy).
+	team_gitops := &fleet.User{
+		Name:  "Team GitOps",
+		Email: "team_gitops@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	// team_admin can modify its team and is allowed to read enroll secrets, so
+	// it should still receive the plaintext secret in write responses.
+	team_admin := &fleet.User{
+		Name:  "Team Admin",
+		Email: "team_admin@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	// global_gitops can create and modify any team but must not be able to read
+	// enroll secrets.
+	global_gitops := &fleet.User{
+		Name:       "Global GitOps",
+		Email:      "global_gitops@example.com",
+		GlobalRole: new(fleet.RoleGitOps),
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus, team_gitops, team_admin, global_gitops}
 	for _, u := range users {
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -2477,6 +2508,82 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 				}
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------
+	// A team gitops user can modify a team but must not receive plaintext
+	// enroll secrets in the PATCH response (regression test for the write
+	// endpoint leaking secrets to a role that cannot read them).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_gitops.Email, test.GoodPassword)
+
+	// gitops is forbidden from reading the team and its secrets directly.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID), nil, http.StatusForbidden, &getTeamResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teams[0].ID), nil, http.StatusForbidden, &teamEnrollSecretsResponse{})
+
+	// ...but the PATCH write response must mask the secret.
+	var gitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by gitops")}, http.StatusOK, &gitopsPatchResp)
+	require.NotEmpty(t, gitopsPatchResp.Team.Secrets)
+	for _, secret := range gitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// The modify agent options write endpoint must mask the secret too.
+	var gitopsAgentResp teamResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", teams[0].ID),
+		json.RawMessage(`{}`), http.StatusOK, &gitopsAgentResp)
+	require.NotEmpty(t, gitopsAgentResp.Team.Secrets)
+	for _, secret := range gitopsAgentResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A global gitops user must not receive plaintext secrets from the
+	// PATCH response nor when creating a team (the create response can leak
+	// the server-generated enroll secret).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, global_gitops.Email, test.GoodPassword)
+
+	var globalGitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by global gitops")}, http.StatusOK, &globalGitopsPatchResp)
+	require.NotEmpty(t, globalGitopsPatchResp.Team.Secrets)
+	for _, secret := range globalGitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	var gitopsCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("gitops-created-team")}, http.StatusOK, &gitopsCreateResp)
+	require.NotEmpty(t, gitopsCreateResp.Team.Secrets)
+	for _, secret := range gitopsCreateResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A team admin can read enroll secrets, so the PATCH response must
+	// still contain the plaintext secret.
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_admin.Email, test.GoodPassword)
+
+	var adminPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by admin")}, http.StatusOK, &adminPatchResp)
+	require.NotEmpty(t, adminPatchResp.Team.Secrets)
+	for _, secret := range adminPatchResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// A global admin creating a team can read the generated secret.
+	s.token = s.getTestAdminToken()
+	var adminCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("admin-created-team")}, http.StatusOK, &adminCreateResp)
+	require.NotEmpty(t, adminCreateResp.Team.Secrets)
+	for _, secret := range adminCreateResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
 	}
 }
 
@@ -8876,7 +8983,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitLinuxClient is no longer a member of the 'Foobar' label.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
-		foobarLabel.ID: nil,
+		foobarLabel.ID: new(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -23545,10 +23652,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 		s.clearOktaConditionalAccess()
 	})
 
-	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.True(t, acResp.License.ManagedCloud)
 
 	// Test global maintainer fails to create the integration.
 	u := &fleet.User{
@@ -28093,17 +28197,23 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	// Each cached version carries its own patch query with the version baked in, as real FMA manifests do.
+	const warpPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND version_compare(version, '%s') < 0);"
+	warpQueryV1 := fmt.Sprintf(warpPatchQueryFmt, "1.0")
+	warpQueryV2 := fmt.Sprintf(warpPatchQueryFmt, "2.0")
+
 	// Mock the FMA manifest + installer CDN via the shared helper. The state is
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi"}
+	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
 	setManifest := func(version string, b []byte) {
 		warp.version = version
 		warp.installerBytes = b
+		warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, version)
 		warp.ComputeSHA(b)
 	}
 	runCron := func() {
@@ -28174,6 +28284,18 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	titleID := title.ID
 	require.True(t, activeSelfService(team.ID, titleID))
 
+	// A patch policy generated from the active v1.0 installer; the cron must keep its query on the active version.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
 	runCron()
@@ -28182,6 +28304,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 	// Per-team config is carried forward onto the new version.
 	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
+	// The cron flip must rewrite the patch policy query to the newly active 2.0 version.
+	require.Equal(t, warpQueryV2, patchPolicyQuery())
 
 	// The cached bytes are real and installable: a host install serves v2.0 bytes.
 	host := createOrbitEnrolledHost(t, "windows", "orbit-autoupdate", s.ds)
@@ -33523,13 +33647,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Each cached zoom version ships its own patch query with the version baked in, as real FMA manifests do.
+	const zoomPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom' AND version_compare(version, '%s') < 0);"
+	zoomQueryV1 := fmt.Sprintf(zoomPatchQueryFmt, "1.0")
+	zoomQueryV2 := fmt.Sprintf(zoomPatchQueryFmt, "2.0")
+
 	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
 	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
 	zoom := &fmaTestState{
 		version:        "1.0",
 		installerBytes: []byte("zoom-1.0"),
 		installerPath:  "/zoom.msi",
-		patchQuery:     "SELECT 1 FROM osquery_info;",
+		patchQuery:     zoomQueryV1,
 	}
 	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
 	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
@@ -33562,6 +33691,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	bumpVersion := func(version string, bytes []byte) {
 		zoom.version = version
 		zoom.installerBytes = bytes
+		zoom.patchQuery = fmt.Sprintf(zoomPatchQueryFmt, version)
 		zoom.ComputeSHA(bytes)
 	}
 
@@ -33608,6 +33738,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
 		return *id
 	}
+	patchPolicyQuery := func(policyID uint) string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
 
 	// Two cached versions (1.0, 2.0); the no-version GitOps applies above left the title on Latest (active = newest,
 	// no pin).
@@ -33633,6 +33768,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	patchVersion := func(version string) {
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -33670,6 +33806,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV1, patchPolicyQuery(patchPol.Policy.ID))
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
@@ -33678,6 +33815,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")

@@ -88,6 +88,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	// On Premium, AppConfig assembly reads the Microsoft conditional access
+	// integration. Default to an empty (not set up) integration so tests that
+	// don't care about it don't panic on a nil mock.
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{

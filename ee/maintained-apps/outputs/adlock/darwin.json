@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.1.7.3",
+      "version": "2.1.8.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankuper.adlock.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankuper.adlock.desktop' AND version_compare(bundle_short_version, '2.1.7.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankuper.adlock.desktop' AND version_compare(bundle_short_version, '2.1.8.8') < 0);"
       },
       "installer_url": "https://downloads.adlock.com/mac/AdLock_Installer.dmg",
       "install_script_ref": "ec52d1d9",

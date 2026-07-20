@@ -2864,6 +2864,12 @@ type Datastore interface {
 	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
 
+	// ResolveActiveInstallerForRetry returns the currently-active installer id for
+	// the title of the given installer, so a retried install targets the version
+	// Fleet currently displays. It returns the input id unchanged when that
+	// installer is already active, has no active sibling, or no longer exists.
+	ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error)
+
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 

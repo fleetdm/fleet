@@ -186,7 +186,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			stats.ConditionalAccessBypassDisabled = !appConfig.ConditionalAccess.BypassEnabled()
 		}
 
-		stats.EntraConditionalAccessConfigured, err = ds.entraConditionalAccessConfigured(ctx, config)
+		stats.EntraConditionalAccessConfigured, err = ds.entraConditionalAccessConfigured(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "entra conditional access configured")
 		}
@@ -325,9 +325,11 @@ func fleetMaintainedAppsInUseDB(ctx context.Context, db sqlx.QueryerContext) (ma
 	return macOSApps, windowsApps, nil
 }
 
-func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context, fleetConfig config.FleetConfig) (bool, error) {
-	// Check if the needed server configuration for Conditional Access is set.
-	if !fleetConfig.MicrosoftCompliancePartner.IsSet() {
+func (ds *Datastore) entraConditionalAccessConfigured(ctx context.Context) (bool, error) {
+	// Conditional access is a Fleet Premium feature. Gate on the current license
+	// tier so that an integration left over from a previous Premium license
+	// (e.g. after a downgrade or expiry) isn't reported as configured.
+	if !license.IsPremium(ctx) {
 		return false, nil
 	}
 

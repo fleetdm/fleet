@@ -15883,24 +15883,19 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 	}
 }
 
-func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
-	t := s.T()
-
-	var resp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
-	require.False(t, resp.License.ManagedCloud)
-
-	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
+	// Microsoft compliance partner APIs should fail on Fleet Free (this suite
+	// runs without a premium license).
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
 		MicrosoftTenantID: "foobar",
-	}, http.StatusBadRequest, &r)
+	}, http.StatusPaymentRequired, &r)
 	var c conditionalAccessMicrosoftConfirmResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &c)
+		http.StatusPaymentRequired, &c)
 	var d conditionalAccessMicrosoftDeleteResponse
-	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &d)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
+		http.StatusPaymentRequired, &d)
 }
 
 func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {

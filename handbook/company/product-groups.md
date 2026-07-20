@@ -24,8 +24,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Role                 | Responsibilities |
 |:---------------------|:-----------------|
-| Product Designer     | Wireframe changes to the product, API, configuration surface, GitOps YAML, CLI, and UI. [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) for product changes in the current sprint. |
-| Engineering Manager  | Oversee sprint progress, plan and coordinate efforts, technical communication with stakeholders, recruit and mentor engineers. |
+| Product Designer     | Wireframe changes to the product, API, configuration surface, GitOps YAML, CLI, and UI. [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) for in-progress product changes. |
+| Engineering Manager  | Oversee day-to-day progress, plan and coordinate efforts, technical communication with stakeholders, recruit and mentor engineers. |
 | Tech Lead            | Oversee day-to-day engineering efforts, assist with user story drafting, support engineers. Capacity is 1/3 support, 2/3 Individual Contributor. |
 | Quality Assurance    | Write and conduct test plans for user stories, report new unreleased bugs, test released bug fixes, conduct smoke testing before each release. |
 | Software Engineer    | [Implement changes](https://fleetdm.com/handbook/company/product-groups#implementing) to the product, provide technical expertise, research user stories, fix bugs, assist with quality assurance. |
@@ -33,12 +33,15 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group                                         | Goal _(value for customers and/or community)_                                                                          | Capacity |
-|:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 60       |
-| [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 38       |
-
-\* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
+| Product group                              | Goal _(value for customers and/or community)_                                                                          |
+|:-------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|
+| [Orchestration](#orchestration-group)      | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               |
+| [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet.                                            |
+| [Apple @ Work](#apple--work-group)         | Increase the number of Apple devices managed by Fleet.                                                                 |
+| [Auto Patching](#auto-patching-group)      | Reduce the time before software is patched after vulnerabilities are discovered.                                       |
+| [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM.                                                                |
+| [BYOD](#byod-group)                        | Enable Fleet to manage personally-owned Android devices used at work.                                                  |
+| [Website](#website-group)                  | Increase and exceed Fleet's product maturity goals for fleetdm.com.                                                    |
 
 
 ### Orchestration group
@@ -67,9 +70,9 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 > The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
 
-### Security & compliance group
+### Supply Chain group
 
-The goal of the security and compliance group is to increase and exceed Fleet's product maturity goals in the security and compliance category.
+The goal of the Supply Chain group is to help customers secure the software and dependencies running on their fleet, reducing exposure to vulnerabilities and ensuring compliance across the device lifecycle.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -77,9 +80,8 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_
 | Quality Assurance                 | [Marcus Allen](https://www.linkedin.com/in/marcus-a-785b3b7/) _([@MarcusAllen](https://github.com/marcusallen97))_
-| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-security-compliance) for this product group is `#g-security-compliance`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-supply-chain) for this product group is `#g-supply-chain`.
 
 **Areas of expertise**:
 - Software inventory ingestion
@@ -94,40 +96,18 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 
 ### Product group capacity 
 
-Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each sprint's total capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story). Allocating less than 50% when above our bug open time KPI requires approval from the CEO.
+Product group capacity is allocated based on our [bug open time KPI](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing). If the average bug open time is greater than 32 days, 50% of each product group's capacity is allocated to bugs and [engineering-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story). Allocating less than 50% when above our bug open time KPI requires approval from the CEO.
 
 
-## Working groups
+## Continuous flow
 
-Like a product group at Fleet, a working group is an arrangement of people from different functions. What makes a working group unique is that it is tasked with achieving a high-impact business goal fast. A working group disbands when the goal is achieved so Fleet stays fast and avoids unnecessary process.
+Fleet's product groups use a continuous flow process. Well-drafted stories can often be implemented in a day or two, so batching work into fixed multi-week iterations creates unnecessary latency. Instead, issues flow continuously across each product group's board from intake to release.
 
-Working groups are for important work that needs to be done quickly, when asynchronous work would be too slow.
+Planning is decoupled from the release boundary. We ship what is complete at each [three-week release](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence), and fleetd changes follow their own cadence.
 
-Working groups have their own section in the handbook that includes the name, goal, resources, and contributors. See the commented out section in the handbook for an example.
+### Roles
 
-Items to cover in the section:
-- Name of the working group
-- Desired business outcomes (goals)
-- Link to the working group Slack channel and GitHub project
-- Who is involved. This should include who the DRI is.
-- Timeline. When will the working group start? When do we think we'll be done by?
-
-
-### Continuous flow
-
-Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. Well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, issues flow continuously across the working group's board from intake to release.
-
-#### What is the same
-
-- **Group roles**: Same group roles and overall responsibilities. 
-- **Standups**: Daily standups become 30 minutes so fast draft can happen.
-- **Weekly planning**: Sprint planning becomes a weekly 1-hour standup.
-- **3-week release cadence**: Planning is decoupled from the release boundary. We ship what is complete at each release. fleetd changes follow their own cadence.
--  **Release retros**: 30-minute retrospective at the end of each 3-week release. 
-
-#### Roles
-
-Working groups use the same [product group roles](#product-group-roles), with the following continuous-flow responsibilities:
+Product groups use the [group roles](#product-group-roles) above, with the following continuous-flow responsibilities:
 
 | Role                 | Responsibility in continuous flow |
 |:---------------------|:----------------------------------|
@@ -139,9 +119,9 @@ Working groups use the same [product group roles](#product-group-roles), with th
 
 > While the PD is responsible for ensuring an issue reaches **Ready**, in practice the EM is most often the one physically moving the issue into the column during standup or weekly planning.
 
-#### DRI areas
+### DRI areas
 
-The Roles table covers day-to-day responsibilities. Use this section to determine who owns a given decision within the working group. When two roles overlap, the named DRI has the final call; collaboration is still expected.
+The Roles table covers day-to-day responsibilities. Use this section to determine who owns a given decision within the product group. When two roles overlap, the named DRI has the final call; collaboration is still expected.
 
 **Engineering Manager**
 - Cadence and health of all rituals (standup, weekly planning, release demo, release retro).
@@ -175,18 +155,18 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - Whether a story meets minimum criteria for testability before it leaves drafting.
 - Whether a regression warrants a [release-blocker](#all-bugs) call, in coordination with the EM.
 
-#### Item types
+### Item types
 
-Working groups use the same six [scrum items](#scrum-items) as product groups: user stories, sub-tasks, timeboxes, bugs, quick wins, and reliability issues.
+Product groups use six [work item types](#work-items): user stories, sub-tasks, timeboxes, bugs, quick wins, and reliability issues.
 
-#### Board columns
+### Board columns
 
-Each working group runs its own GitHub project board with the following columns, ordered left-to-right:
+Each product group runs its own GitHub project board with the following columns, ordered left-to-right:
 
 | Column | What it means |
 |:---|:---|
-| 📨 Inbox | Any issue labeled with the working group's `#g-*` label lands here. |
-| 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the working group board until drafting is complete. |
+| 📨 Inbox | Any issue labeled with the product group's `#g-*` label lands here. |
+| 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the product group board until drafting is complete. |
 | 🪿 Fast draft | The team hasn't looked at the issue together yet. Drafting happens in-place on the issue, often during standup or async in the group's Slack channel. |
 | 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Try to resolve async first; otherwise raise at the next standup. |
 | 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
@@ -198,7 +178,7 @@ Each working group runs its own GitHub project board with the following columns,
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
 
-#### Drafting tracks: full draft vs. fast draft
+### Drafting tracks: full draft vs. fast draft
 
 The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making skills.
 
@@ -206,11 +186,11 @@ The PD decides which stories go through full drafting and is responsible for dra
 
 **Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. The PD and EM are responsible for escalating to the HPD and/or CTO if needed. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
 
-#### Estimation
+### Estimation
 
 Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) is part of **full draft** and happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing — full draft (and the estimation that comes with it) is reserved for customer promises, activation blockers, and other high-risk work.
 
-#### How issues move
+### How issues move
 
 - **Inbox → Fast draft or Full draft**: every issue moves into a drafting lane. The PD picks the lane (see above). Bugs and priority issues (P2 or greater) are triaged at the daily standup; stories are triaged at the weekly planning meeting.
 - **Fast draft → Ready**: stories move to **Ready** only during weekly planning, or during standup if they are a priority story (P2 or greater) or if there is nothing else for the group to work on. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
@@ -218,43 +198,28 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 - **Ready → In progress → Ready for review → Awaiting QA**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 - **Awaiting QA → Ready for release**: the QA Engineer is responsible for moving the issue from **Awaiting QA** to **Ready for release** once they have verified the change.
 
-#### Working the board
+### Working the board
 
 - **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
 - **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
 - **Hit a blocker or have a question?** It's okay — blockers happen. Move the issue to **Blocked** and try to resolve it async (in the group's Slack channel, with the relevant collaborator, etc.) rather than waiting for standup. If it isn't resolved async, the next standup is the latest it should go without being addressed.
 
-#### Daily standup (30 minutes)
+### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater).
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). ["Full draft" user stories](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft) that were approved at design review are reviewed. 
 
-#### Weekly planning (1 hour, Monday)
+### Weekly planning (1 hour, Monday)
 
-The working group walks the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged during this meeting and either moved straight to **Ready** or assigned a drafting lane.
+The product group walks the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged during this meeting and either moved straight to **Ready** or assigned a drafting lane.
 
-#### Release demo (every 3 weeks)
+### Release demo (every 3 weeks)
 
-On the last day of each three-week release cycle, working groups demo shipped changes alongside product groups at the [release demo](#sprint-ceremonies).
+On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 
-#### Release retro (30 minutes, every 3 weeks)
+### Release retro (30 minutes, every 3 weeks)
 
-At the end of every three-week release cycle, the working group holds a 30-minute retro. Action items are created as [`~timebox`](https://github.com/fleetdm/fleet/labels/~timebox) issues, added to the board, and assigned to the EM for the next release cycle.
-
-
-### Working group rollout
-
-The transition to working groups happens over the following release cycles, following a buffer cycle in 4.87.0 to give everyone time to absorb the handbook change before any team changes:
-
-| Release | Change |
-|:---|:---|
-| 4.87.0 | Handbook change published. No team changes this cycle (buffer/ramp-up). |
-| 4.89.0 | First Impressions pauses. Power to the PC continues with Konstantin Sykulev and Victor Lyuboslavsky, and continues to own Android. |
-| 4.90.0 | MDM becomes Apple @ Work. Software becomes Auto Patching. |
-| 4.91.0 | Orchestration product group becomes Digital Employee Experience (DEX). Security & Compliance product group becomes Supply Chain. Both become working groups. |
-| TBD | BYOD group spins out from Power to the PC to lead Android device management. |
-
-> When an engineer moves into a new area of the code, allocate one release cycle for ramp-up. Reduced output during that cycle is expected and planned for.
+At the end of every three-week release cycle, the product group holds a 30-minute retro. Action items are created as [`~timebox`](https://github.com/fleetdm/fleet/labels/~timebox) issues, added to the board, and assigned to the EM for the next release cycle.
 
 
 ### Website group
@@ -268,7 +233,7 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 | Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 | Software Engineer                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this working group is `#g-website`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
 
 <!--
@@ -276,7 +241,7 @@ Paused as of the 4.89.0 release cycle.
 
 ### First Impressions group
 
-The goal of the First Impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
+The goal of the First Impressions product group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -285,29 +250,27 @@ The goal of the First Impressions working group is to make changes to the core F
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Software Engineer                 | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this working group is `#g-first-impressions`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this product group is `#g-first-impressions`.
 -->
-
 
 
 ### Power to the PC group
 
-The goal of the Power to the PC working group is to empower Windows users to fully leverage Fleet as an MDM. This group also owns Android device management for the time being, until the BYOD group spins out.
+The goal of the Power to the PC group is to empower Windows users to fully leverage Fleet as an MDM.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_, [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_ (Windows), [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ (Android)
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Joe Grant](https://www.linkedin.com/in/thisisjoegrant/) _([@thisisjoegrant](https://github.com/thisisjoegrant))_
-| Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this product group is `#g-power-to-pc`.
 
 
 ### Apple @ Work group
 
-The goal of the Apple @ Work working group is to increase the number of Apple devices managed by Fleet.
+The goal of the Apple @ Work group is to increase the number of Apple devices managed by Fleet.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -324,12 +287,12 @@ The goal of the Apple @ Work working group is to increase the number of Apple de
 - Apple setup experience
 - macOS, iOS, and iPadOS configuration & updates
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this working group is `#g-apple-at-work`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-apple-at-work) for this product group is `#g-apple-at-work`.
 
 
 ### Auto Patching group
 
-The goal of the Auto Patching working group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
+The goal of the Auto Patching group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -348,85 +311,26 @@ The goal of the Auto Patching working group is to reduce the amount of time befo
 - End user self-service
 - Scripts
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this working group is `#g-auto-patching`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-auto-patching) for this product group is `#g-auto-patching`.
 
-
-<!--
-Spin-out date TBD. The BYOD group will spin out from Power to the PC, which owns Android device management in the meantime. See the working group rollout above.
 
 ### BYOD group
 
-The goal of the BYOD working group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
+The goal of the BYOD group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [LeAnn Gove]([https://www.linkedin.com/in/leann-gove/](https://www.linkedin.com/in/leann-gove-61a750142/)) _([@leanngove](https://github.com/leanngove))_
-| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Product Designer                  | [LeAnn Gove](https://www.linkedin.com/in/leann-gove-61a750142/) _([@leanngove](https://github.com/leanngove))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
-| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
-
-> Slack channel, kanban board, and GitHub label for this working group: TBD.
--->
-
-
-<!--
-Planned for the 4.91.0 release cycle. See the working group rollout above. Inherits from the Orchestration product group.
-
-### Digital Employee Experience (DEX) group
-
-The goal of the Digital Employee Experience working group is to improve the day-to-day experience of end users by making the devices and tools they rely on at work more reliable, responsive, and easy to use.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
-| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Tech Lead                         | [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_
-| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Software Engineer                 | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Nicolás Ulmete](https://www.linkedin.com/in/nicolasulmete/) _([@nulmete](https://github.com/nulmete))_
-
-**Areas of expertise**:
-- Fleetd
-- Authn / authz
-- Host data ingestion
-- Foreign vitals / IdP vitals
-- Automations
-- Policies
-- Queries
-- Labels
-- GitOps engine
-
-> The Slack channel ([TBD]), kanban board ([TBD]), and GitHub label for this working group is `#g-dex`.
-
-
-### Supply Chain group
-
-The goal of the Supply Chain working group is to help customers secure the software and dependencies running on their fleet — reducing exposure to vulnerabilities and ensuring compliance across the device lifecycle.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
-| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Tech Lead                         | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
-**Areas of expertise**:
-- Software inventory ingestion
-- CVE/CPE ingestion & matching
-- Vulnerability reporting
-- Conditional access
-- Certificate Authorities (CAs)
-- Certificate delivery & renewal
-- Host disk encryption
-- CIS benchmarks
-
-> The Slack channel ([TBD]), kanban board ([TBD]), and GitHub label for this working group is `#g-supply-chain`.
--->
+> The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
 
 
 <!--
-Example working group section
+Example product group section
 ### Name
 
 Goal
@@ -456,13 +360,13 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the relevant [product group label](https://fleetdm.com/handbook/company/product-groups#current-product-groups), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
 ### Planned and unplanned changes
 
-Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release sprint _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
+Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
 
 Occasionally, changes are unplanned.  Like a patch for an unexpected bug, or a hotfix for a security issue.  Or if an open source contributor suggests an unplanned change in the form of a pull request.  These unplanned changes are sometimes OK to merge as-is.  But if they change the user interface, the CLI usage, or the REST API, then they need to go through drafting and reconsideration before merging.
 
@@ -529,15 +433,13 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) label added
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
 - [ ] Reviewed and approved during [weekly user story review](#user-story-reviews)
 - [ ] [All checklists are complete](#defining-done)
-- [ ] [Estimated](https://fleetdm.com/handbook/company/why-this-way#why-scrum)
+- [ ] [T-shirt sized](#t-shirt-sizing-capacity-planning)
 - [ ] [Scheduled](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence) for development
-
-> All user stories intended for the next sprint are estimated by the last estimation session before the sprint begins. This makes sure contributors have adequate time to complete the current sprint and provide accurate estimates for the next sprint.
 
 
 #### Writing a good user story
@@ -552,7 +454,7 @@ Good user stories are short, with clear, unambiguous language.
 #### Is it actually a story?
 
 User stories are small and independently valuable.
-- Is it small enough? Will this task be likely to fit in 1 sprint when estimated?
+- Is it small enough? Will this task be likely to ship within a single release cycle?
 - Is it valuable enough? Will this task drive business value when released, independent of other tasks?
 
 
@@ -609,16 +511,14 @@ Anyone in the product group can initiate an air guitar session.
 
 T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting. That way, we can [plan releases](https://github.com/orgs/fleetdm/projects/87) weeks in advance.
 
-[Estimation points](https://fleetdm.com/handbook/product-groups#estimation-points) are used if a task has already gone through drafting.
-
-| T-shirt size | Time | Story points |
-|:---|:-----------------------------|:-|
-| XXS | ≤1 day for 1 contributor | 1-3 |
-| XS | ≤1 week for 1 contributor | 3-8 |
-| S  | ≤1 sprint for 1 contributor | 8-25 |
-| M  | 1 sprint for 2 contributors | 25-50 |
-| L  | 1 sprint for 3 contributors | 50-75 |
-| XL | >1 sprint for 3 contributors | >75 |
+| T-shirt size | Time |
+|:---|:-----------------------------|
+| XXS | ≤1 day for 1 contributor |
+| XS | ≤1 week for 1 contributor |
+| S  | ≤1 release cycle for 1 contributor |
+| M  | 1 release cycle for 2 contributors |
+| L  | 1 release cycle for 3 contributors |
+| XL | >1 release cycle for 3 contributors |
 
 
 ### Implementing
@@ -652,7 +552,7 @@ After these considerations, if you still think you've found a blocker, alert the
 
 The simplest way to manage work is to use a single user story issue, then pass it around between contributors/assignees as seldom as possible.  But on a case-by-case basis, for particular user stories and teams, it can sometimes be worthwhile to invest additional overhead in creating separate **unestimated sub-task** issues ("sub-tasks").
 
-A user story is estimated to fit within 1 sprint and drives business value when released, independent of other stories.  Sub-tasks are not.
+A user story is small enough to ship within a release cycle and drives business value when released, independent of other stories.  Sub-tasks are not.
 
 Sub-tasks:
 - can be created by anyone
@@ -665,22 +565,6 @@ Sub-tasks:
 - will NOT be looked at or QA'd by quality assurance
 
 
-### Estimation points
-
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
-
-| Story point | Time |
-|:---|:--------------|
-| 1  | 1 to 2 hours  |
-| 2  | 2 to 4 hours  |
-| 3  | 1 day         |
-| 5  | 2 to 3 days   |
-| 8  | Up to a week  |
-| 13 | 1 to 2 weeks  |
-
-> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
-
-
 ### High-priority user stories and bugs
 
 All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
@@ -688,17 +572,17 @@ All issues are treated as standard priority by default. Some issues are assigned
 - Emergency: `P0`
   - Examples: Customer outage, inability to modify Fleet configuration, confirmed critical security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
   - Response: Create [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
+  - Impact: Significant impact. Displaces other in-progress work.
 
 - Critical: `P1`
   - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
+  - Response: Issue brought to the next standup and pulled into progress immediately. Necessary team members are assigned as their top priority.
+  - Impact: High impact. Reduces overall throughput and requires deprioritizing other work.
 
 - Urgent: `P2`
   - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opportunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
+  - Response: Issue is prioritized at the top of the group's **Ready** column. If the opportunity cost of waiting is too high, it may be pulled into progress immediately.
+  - Impact: Low to medium impact. May reduce overall throughput and require deprioritizing other work.
 
 Any fleetie can follow the process below to add a priority label to an issue.
 
@@ -751,7 +635,7 @@ All unreleased bugs are addressed before publishing a release. Released bugs tha
 
 ### Notify the community about a critical bug
 
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-apple-at-work`, `#g-auto-patching`, `#g-orchestration`, or `#g-security-compliance` channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
@@ -768,7 +652,7 @@ When a critical bug is identified, we will then follow the patch release process
 
 ## Feature fest
 
-To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis.
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on an ongoing basis.
 
 Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting.
 
@@ -802,7 +686,7 @@ If an issue has the `:product` and `story` label, then it's a user story that is
 
 ### How feature requests are prioritized
 
-Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting. Before the meeting, during the [🦢📊 Product design sprint review ritual](https://fleetdm.com/handbook/product-design#rituals), the [Feature prioritization DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and Product Designers add requests associated with upcoming user stories on Fleet's [release planning project](https://github.com/orgs/fleetdm/projects/87).
+Prioritization of new feature requests happens at the 🎁🗣 Feature Fest meeting. Before the meeting, during the [🦢📊 Product design review ritual](https://fleetdm.com/handbook/product-design#rituals), the [Feature prioritization DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and Product Designers add requests associated with upcoming user stories on Fleet's [release planning project](https://github.com/orgs/fleetdm/projects/87).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
@@ -811,19 +695,19 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
-> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the `#g-apple-at-work`, `#g-auto-patching`, `#g-orchestration`, or `#g-security-compliance` channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design cycle and notify requesters.
 
 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, create one or more user stories with the relevant `customer-` labels (keep the original request as the parent issue), and add stories to the [release planning board](https://github.com/orgs/fleetdm/projects/87). during the "Design sprint kick-off" ritual, the user stories are assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
+- Prioritized features: Remove the `~feature fest` label, create one or more user stories with the relevant `customer-` labels (keep the original request as the parent issue), and add stories to the [release planning board](https://github.com/orgs/fleetdm/projects/87). During the "Design kickoff" ritual, the user stories are assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
 
-A story may be de-prioritized when its relative priority falls below new requests and there is not enough room in the upcoming engineering sprint. Since Fleet does not maintain a feature backlog, a story is only prioritized if it seems like it can be shipped in the upcoming 3 week engineering sprint. The relative priority of a story and engineering capacity may change over the course of a design sprint.
-  - This may be because new higher-priority work (bugs or stories) was prioritized and/or the work in the current engineering sprint took longer than expected.
+A story may be de-prioritized when its relative priority falls below new requests and there is not enough room in an upcoming release. Since Fleet does not maintain a feature backlog, a story is only prioritized if it seems like it can be shipped in the upcoming 3-week release. The relative priority of a story and engineering capacity may change over the course of a design cycle.
+  - This may be because new higher-priority work (bugs or stories) was prioritized and/or the work in the current release took longer than expected.
 
 Just as when a feature request is not accepted in the 🎁🗣 Feature Fest meeting, whenever a feature is de-prioritized after it has been accepted, it only means that the feature has been _de-prioritized at this time_. It is up to the requester to bring the request back again at another 🎁🗣 Feature Fest meeting.
 
@@ -863,8 +747,6 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 
 #### Inbox
-
-> Working groups use the bug triage process below. For product groups (#g-orchestration and #g-security-compliance) Product Designers are responsible for triaging bugs [as they do today](https://github.com/fleetdm/fleet/blob/dbe9a3434217f2dc934c9af9778541aea60f4fc9/handbook/company/product-groups.md#inbox). Learn more about the [working group rollout](https://fleetdm.com/handbook/company/product-groups#working-group-rollout).
 
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
@@ -908,13 +790,13 @@ If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/co
 
 #### In engineering
 
-A bug is in engineering after it has gone through product drafting, has received an estimation, and has been moved to a release board during sprint planning.
+A bug is in engineering after it has gone through product drafting and has been moved to a release board during weekly planning.
 
 If this is a customer-reported bug that is related to performance at scale, it must be reproduced in a load test environment before a Fleet release can be published containing a fix. Request review of relevant production data to determine what changes are necessary in our load test environment's data set to reproduce the bug. If there is an ongoing outage, a hotfix branch may be deployed without load testing reproduction if approved by the relevant EM.
 
 #### Awaiting QA
 
-Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
+Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the board.
 
 
 ## Engineering on-call
@@ -931,7 +813,7 @@ The current on-call rotation is reflected in the [📈 KPIs spreadsheet (confide
 
 New engineers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
-> The on-call rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
+> The on-call rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the release cycle so that capacity can be planned accordingly.
 
 #### On-call responsibilities
 
@@ -1016,7 +898,7 @@ The Customer Success team member who reports the incident will continue communic
 
 Each product group maintains two engineers assigned to incident on-call. Engineers in this rotation should be comfortable leading mitigation efforts during a production incident.
 
-> The incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
+> The incident on-call rotation and handoff are handled automatically by incident.io. The on-call rotation may be adjusted in incident.io with approval from the EMs of any product groups affected. Any changes should be made before the start of the release cycle so that capacity can be planned accordingly.
 
 #### Incident on-call responsibilities
 
@@ -1143,9 +1025,9 @@ All participants are expected to review the user story and associated designs an
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI), REST API or YAML.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
 
-User stories in the current design sprint are always reviewed first during design reviews.
+User stories in the current design cycle are always reviewed first during design reviews.
 
-For questions about stories or bugs in the current engineering sprint, start a Slack thread or schedule an ad-hoc meeting.
+For questions about stories or bugs currently in progress, start a Slack thread or schedule an ad-hoc meeting.
 
 Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
@@ -1164,14 +1046,6 @@ Here are some tips for making this meeting effective:
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
-
-### User story reviews
-
-User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "User story review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
-
-The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
-
-The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story is moved back to the "In progress" column for additional drafting. If there are no design changes, the story remains with the Engineering DRI to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
 
 
 ### Group weeklies
@@ -1208,7 +1082,7 @@ The Account Executive (AE) or Customer Success Manager (CSM) schedules this meet
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
-On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items). CSM's must reserve customer promise requests for issues that are required for a renewal to close or for an expansion to close. 
+On the order form, customer promises are represented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#work-items). CSM's must reserve customer promise requests for issues that are required for a renewal to close or for an expansion to close. 
 
 **Participants:** AE or CSM, SC, CEO, CTO, VP of Customer Success, Head of Product Design, and relevant EM (+ temporarily: CRO).
 
@@ -1243,72 +1117,26 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 - **Control the noise.** Bring the needs surface level, tuck away things you don't need by default (when possible, given time). For example, hide Windows controls if there are no Windows devices (based on number of Windows hosts).
 
 
-## Scrum at Fleet
+## Work items
 
-Fleet product groups employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
-
-New tickets are estimated, specified, and prioritized on the [drafting board](https://github.com/orgs/fleetdm/projects/67).
-
-
-### Scrum items
-
-Our scrum boards are exclusively composed of the following types of scrum items:
+Product group boards are exclusively composed of the following types of work items:
 
 1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers.
 
 2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier-to-estimate work units. Sub-tasks are always assigned to exactly one user story.
 
-3. **Timeboxes**: Tasks that are specified to complete within a pre-defined amount of time are marked with the `~timebox` label. Timeboxes are research or investigation tasks necessary to move a prioritized user story forward, sometimes called "spikes" in scrum methodology. We use the term "timebox" because it better communicates its purpose. Timeboxes are always assigned to exactly one user story.
+3. **Timeboxes**: Tasks that are specified to complete within a pre-defined amount of time are marked with the `~timebox` label. Timeboxes are research or investigation tasks necessary to move a prioritized user story forward, sometimes called "spikes." We use the term "timebox" because it better communicates its purpose. Timeboxes are always assigned to exactly one user story.
 
-4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed during a sprint.
+4. **Bugs**: Representing errors or flaws that result in incorrect or unexpected outcomes, bugs are marked with the `bug` label. Like user stories and sub-tasks, bugs are documented, prioritized, and addressed as they move across the board.
 
-5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Quick wins skip user story review and go straight to the current sprint. It's up to the individual who opened the pull request (PR) to make sure the quick win is moved to "Awaiting QA" when the PR is merged. Like other product changes, quick wins are brought to [design review](https://fleetdm.com/handbook/product-design#rituals). To keep momentum, the PR can be approved and merged before design review.
+5. **Quick wins**: These are small copy or UX improvements that aren't quite bugs but they're so small that they're worthwhile. Quick wins skip user story review and go straight to **Ready**. It's up to the individual who opened the pull request (PR) to make sure the quick win is moved to "Awaiting QA" when the PR is merged. Like other product changes, quick wins are brought to [design review](https://fleetdm.com/handbook/product-design#rituals). To keep momentum, the PR can be approved and merged before design review.
 
 6. **Reliability issues**: These represent scaling, performance, or reliability concerns, including post-mortem action items, marked with the `reliability` label. Reliability issues are prioritized by severity by both product and engineering. They are used to track work that improves system stability, addresses incident follow-ups, and resolves operational risks.
 
-> Our sprint boards do not accommodate any other type of ticket. By strictly adhering to these scrum items, we maintain an organized and focused workflow that consistently adds value for our users.
+> Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 
 
-## Sprints
-
-Sprints align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence).
-
-On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group.
-
-Sprints are managed in [GitHub Projects](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).
-
-
-### Sprint numbering
-
-Sprints are numbered according to the release version. For example, for the sprint ending on June 30th, 2023, on which date we expect to release Fleet v4.34, the sprint is called the 4.34 sprint.
-
-
-### Sprint ceremonies
-
-See the [rituals contributor docs](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/rituals) for detailed instructions on running each ceremony.
-
-Each release cycle is marked by five essential ceremonies:
-
-1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-apple-at-work`, `#g-orchestration`, `#g-auto-patching`, `#g-security-compliance`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
-3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
-4. **Scrum of scrums**: Each product group's Tech Lead, and optionally the EMs, meet once per sprint. This is a coordination technique used to scale scrum for multiple teams working on a large, complex product by having representatives from each team meet regularly to share progress, discuss dependencies, and solve inter-team issues. 
-5. **Release demo**: On the last day of each release cycle, product groups and working groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
-6. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
-
-
-### Working through the sprint
-
-At sprint kickoff, the EM or TL may assign planned issues to specific contributors. Other planned sprint work may remain unassigned until a contributor is ready to pick it up.
-
-1. **Aim for one issue in progress at a time.** When possible, complete the current task before starting another. Do not self-assign issues until you are ready to work on them.
-2. **Pick up unassigned sprint work as tasks complete.** When an issue moves to the next stage (e.g., ready for QA), if you have no other planned issues assigned to you, select the next unassigned item from the sprint board.
-3. **Help finish sprint work when all planned items are assigned.** If no unassigned sprint work remains:
-   - Assist with engineering QA for in-flight issues.
-   - Help complete sub-issues for active user stories.
-4. **Look ahead when sprint work is done.** If all sprint work is complete or blocked, check the team's drafting board for issues in the "Estimated" column. Prioritize unreleased bugs over released bugs.
-
-#### Bug prioritization
+## Bug prioritization
 
 When selecting which bug to work on next, prioritize in the following order:
 
@@ -1335,6 +1163,36 @@ Please see [handbook/company/product-groups/orchestration](https://fleetdm.com/h
 
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
+
+##### Security & compliance group
+Please see [handbook/company/product-groups#supply-chain-group](https://fleetdm.com/handbook/company/product-groups#supply-chain-group)
+
+##### Working groups
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Working group rollout
+Please see [handbook/company/product-groups#current-product-groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)
+
+##### Scrum at Fleet
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Scrum items
+Please see [handbook/company/product-groups#work-items](https://fleetdm.com/handbook/company/product-groups#work-items)
+
+##### Sprints
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Sprint numbering
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Sprint ceremonies
+Please see [handbook/company/product-groups#continuous-flow](https://fleetdm.com/handbook/company/product-groups#continuous-flow)
+
+##### Working through the sprint
+Please see [handbook/company/product-groups#working-the-board](https://fleetdm.com/handbook/company/product-groups#working-the-board)
+
+##### Estimation points
+Please see [handbook/company/product-groups#t-shirt-sizing-capacity-planning](https://fleetdm.com/handbook/company/product-groups#t-shirt-sizing-capacity-planning)
 
 
 <meta name="maintainedBy" value="lukeheath">
