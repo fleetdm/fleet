@@ -54,6 +54,22 @@ func (s *SettingsService) NewServerProfile() (settings.ServerProfile, error) {
 	return p, nil
 }
 
+// NewScepProfile returns a fresh SCEP launch profile (unique id, next free port
+// starting at 2016, challenge/debug defaults), leaving name/depot for the caller
+// to fill before saving. The slot is derived from the currently-saved profiles
+// so id/port never collide.
+func (s *SettingsService) NewScepProfile() (settings.ScepProfile, error) {
+	dir, err := paths.ConfigDir()
+	if err != nil {
+		return settings.ScepProfile{}, err
+	}
+	cur, err := settings.Load(dir)
+	if err != nil {
+		return settings.ScepProfile{}, err
+	}
+	return settings.NextScepProfile(cur.ScepProfiles), nil
+}
+
 // ProbeFleetRepo validates a single path, or (when path is empty) discovers
 // Fleet clones under the well-known dev roots.
 func (s *SettingsService) ProbeFleetRepo(path string) []settings.RepoProbe {

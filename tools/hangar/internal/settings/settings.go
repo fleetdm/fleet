@@ -189,6 +189,19 @@ type PythonConfig struct {
 	Directory *string `json:"directory"`
 }
 
+// TufConfig is the saved inputs for a local TUF build (drives
+// tools/tuf/test/main.sh). Platforms are UI keys (macos|windows|windows-arm64|
+// linux|linux-arm64) that expand to SYSTEMS + GENERATE_* env; the URLs are the
+// public (ngrok) Fleet/TUF endpoints baked into the generated installers.
+type TufConfig struct {
+	Platforms    []string `json:"platforms"`
+	FleetURL     string   `json:"fleet_url"`
+	TufURL       string   `json:"tuf_url"`
+	EnrollSecret string   `json:"enroll_secret"`
+	FleetDesktop bool     `json:"fleet_desktop"`
+	Debug        bool     `json:"debug"`
+}
+
 // Settings is the full persisted configuration.
 //
 // Servers is the multi-server source of truth. The legacy single-server fields
@@ -205,11 +218,20 @@ type Settings struct {
 	FleetServe       FleetServeConfig `json:"fleet_serve"`
 	Theme            ThemePreference  `json:"theme"`
 	FavoriteCrons    []string         `json:"favorite_crons"`
+	Tuf              TufConfig        `json:"tuf"`
 
 	// Servers is nil in a pre-multi-server file; migrate() backfills it from
 	// the legacy fields on Load so callers always see at least one server.
 	Servers        []ServerProfile `json:"servers"`
 	ActiveServerID string          `json:"active_server_id"`
+
+	// ScepProfiles are saved SCEP server launch configs (see scep.go). The
+	// in-repo scepserver binary is shared; profiles differ by depot/port so
+	// several CAs can run at once.
+	ScepProfiles []ScepProfile `json:"scep_profiles"`
+	// ScepDepotsDir overrides where managed CA depots live; empty means the
+	// service default under app-data (<app-data>/scep-depots).
+	ScepDepotsDir *string `json:"scep_depots_dir"`
 }
 
 // Default returns the zero-config Settings, matching Rust's Default impls:
@@ -235,6 +257,13 @@ func Default() Settings {
 		},
 		Theme:         ThemeSystem,
 		FavoriteCrons: []string{},
+		ScepProfiles:  []ScepProfile{},
+		Tuf: TufConfig{
+			// Mirror the common my_tuf.sh run: all platforms, desktop + debug on.
+			Platforms:    []string{"macos", "windows", "windows-arm64", "linux", "linux-arm64"},
+			FleetDesktop: true,
+			Debug:        true,
+		},
 	}
 }
 
@@ -299,6 +328,15 @@ func migrate(s *Settings) {
 	}
 	if s.ActiveServerID == "" || !hasServerID(s.Servers, s.ActiveServerID) {
 		s.ActiveServerID = s.Servers[0].ID
+	}
+	// A pre-SCEP file (or fresh Default()) has no profiles; normalize nil to an
+	// empty slice so the frontend always gets a JSON array.
+	if s.ScepProfiles == nil {
+		s.ScepProfiles = []ScepProfile{}
+	}
+	// Normalize nil TUF platforms to an empty slice for the frontend.
+	if s.Tuf.Platforms == nil {
+		s.Tuf.Platforms = []string{}
 	}
 }
 

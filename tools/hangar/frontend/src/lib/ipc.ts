@@ -20,6 +20,9 @@ import {
   DepsService,
   TrayService,
   DialogService,
+  ScepService,
+  MdmAssetsService,
+  TufService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
 import type * as settingsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/settings/models";
@@ -33,6 +36,9 @@ import type * as perfM from "../../bindings/github.com/fleetdm/fleet/tools/hanga
 import type * as perfconfigM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/perfconfig/models";
 import type * as traymenuM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/traymenu/models";
 import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/troubleshoot/models";
+import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
+import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
+import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
 // type. Safe: the underlying value is the same JSON.
@@ -104,6 +110,18 @@ export type CapturedRun = fleetctlM.CapturedRun;
 
 export type DetectedProcess = troubleshootM.DetectedProcess;
 export type KillOutcome = troubleshootM.KillOutcome;
+
+export type ScepProfile = settingsM.ScepProfile;
+export type ScepBinaryInfo = scepM.BinaryInfo;
+export type ScepDepotInfo = scepM.DepotInfo;
+export type ScepInitCAParams = scepM.InitCAParams;
+
+export type MdmAssetsConfig = mdmassetsM.Config;
+export type MdmAssetsExportResult = mdmassetsM.ExportResult;
+export type MdmAssetsFile = mdmassetsM.AssetFile;
+
+export type TufConfig = settingsM.TufConfig;
+export type TufServerStatus = tufM.ServerStatus;
 
 export type DepCheck = depsM.DepCheck;
 export type DepReport = depsM.DepReport;
@@ -208,6 +226,50 @@ export const api = {
   // Server profiles.
   newServerProfile: () =>
     cast<ServerProfile>(SettingsService.NewServerProfile()),
+
+  // SCEP servers (one shared in-repo binary, many depot-based profiles).
+  newScepProfile: () =>
+    cast<ScepProfile>(SettingsService.NewScepProfile()),
+  scepBinaryStatus: () =>
+    cast<ScepBinaryInfo>(ScepService.BinaryStatus()),
+  scepEnsureBinary: () => cast<ScepBinaryInfo>(ScepService.EnsureBinary()),
+  scepRebuildBinary: () => cast<ScepBinaryInfo>(ScepService.RebuildBinary()),
+  scepResolveDepot: (profile: ScepProfile) =>
+    cast<string>(ScepService.ResolveDepot(profile as never)),
+  scepDepotInfo: (depotPath: string) =>
+    cast<ScepDepotInfo>(ScepService.DepotInfo(depotPath)),
+  scepProfileDepotInfo: (profile: ScepProfile) =>
+    cast<ScepDepotInfo>(ScepService.ProfileDepotInfo(profile as never)),
+  scepInitCa: (depotPath: string, params: ScepInitCAParams) =>
+    cast<ScepDepotInfo>(ScepService.InitCA(depotPath, params as never)),
+  scepStartProfile: (profile: ScepProfile) =>
+    ScepService.StartProfile(profile as never),
+  scepStopProfile: (profileId: string) =>
+    ScepService.StopProfile(profileId),
+  scepLanIp: () => cast<string>(ScepService.LanIP()),
+
+  // MDM assets export (tools/mdm/assets).
+  mdmAssetsConfigsList: () =>
+    cast<MdmAssetsConfig[]>(MdmAssetsService.MdmAssetsConfigsList()),
+  mdmAssetsConfigSave: (cfg: MdmAssetsConfig) =>
+    cast<MdmAssetsConfig>(MdmAssetsService.MdmAssetsConfigSave(cfg as never)),
+  mdmAssetsConfigDelete: (id: string) =>
+    MdmAssetsService.MdmAssetsConfigDelete(id),
+  mdmAssetsDefaultDir: () =>
+    cast<string>(MdmAssetsService.MdmAssetsDefaultDir()),
+  mdmAssetsExport: (cfg: MdmAssetsConfig) =>
+    cast<MdmAssetsExportResult>(MdmAssetsService.MdmAssetsExport(cfg as never)),
+  mdmAssetsReadFile: (path: string) =>
+    cast<string>(MdmAssetsService.MdmAssetsReadFile(path)),
+
+  // Local TUF server + fleetd package generation (tools/tuf/test).
+  tufServerStatus: () => cast<TufServerStatus>(TufService.TufServerStatus()),
+  tufStartBuild: (cfg: TufConfig) => TufService.TufStartBuild(cfg as never),
+  tufStopBuild: () => TufService.TufStopBuild(),
+  tufStartServer: () => TufService.TufStartServer(),
+  tufKillServer: () => cast<KillOutcome[]>(TufService.TufKillServer()),
+  tufDeleteAssets: () => TufService.TufDeleteAssets(),
+  tufAssetsExist: () => cast<boolean>(TufService.TufAssetsExist()),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {

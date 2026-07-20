@@ -15,6 +15,9 @@ import {
 } from "./components/tabs/SettingsTab";
 import { OsqueryPerfTab } from "./components/tabs/OsqueryPerfTab";
 import { GitopsTab } from "./components/tabs/GitopsTab";
+import { ScepTab } from "./components/tabs/ScepTab";
+import { MdmAssetsTab } from "./components/tabs/MdmAssetsTab";
+import { TufTab } from "./components/tabs/TufTab";
 import {
   api,
   type BranchStatus,
@@ -371,6 +374,21 @@ export default function App() {
         )}
         {active === "osquery-perf" && (
           <OsqueryPerfTab settings={settings} procs={procs} />
+        )}
+        {active === "scep" && (
+          <ScepTab
+            settings={settings}
+            onSettingsChange={setSettings}
+            procs={procs}
+          />
+        )}
+        {active === "mdm-assets" && <MdmAssetsTab />}
+        {active === "tuf" && (
+          <TufTab
+            settings={settings}
+            onSettingsChange={setSettings}
+            procs={procs}
+          />
         )}
       </main>
       <StatusRail

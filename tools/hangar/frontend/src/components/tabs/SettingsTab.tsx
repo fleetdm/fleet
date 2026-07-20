@@ -2427,6 +2427,21 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         subtitle: "perf agents (matches --os_templates on the command line)",
         mode: { kind: "pattern", pattern: "os_templates" },
       },
+      {
+        // Catches both Hangar's cached <app-data>/bin/scepserver and any
+        // external scepserver-<os>-<arch> binary run by hand.
+        id: "scep",
+        title: "SCEP servers",
+        subtitle: "any scepserver process (matches the command line)",
+        mode: { kind: "pattern", pattern: "scepserver" },
+      },
+      {
+        // The local TUF file-server the tools/tuf/test scripts leave running.
+        id: "tuf",
+        title: "TUF server (port 8081)",
+        subtitle: "whoever is listening on the TUF port",
+        mode: { kind: "port", port: 8081 },
+      },
     ],
     [pythonPort],
   );
@@ -2461,7 +2476,57 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         {cards.map((c) => (
           <TroubleshootCardView key={c.id} card={c} />
         ))}
+        <TufAssetsCard />
       </div>
+    </div>
+  );
+}
+
+// TufAssetsCard removes the generated local TUF repo (<repo>/test_tuf) — the
+// asset cleanup that pairs with killing the TUF server above.
+function TufAssetsCard() {
+  const [phase, setPhase] = useState<"idle" | "armed" | "deleting">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const del = async () => {
+    setPhase("deleting");
+    setMsg(null);
+    try {
+      await api.tufDeleteAssets();
+      setMsg("Deleted test_tuf");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPhase("idle");
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: "var(--pad-medium)", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ fontWeight: 600, fontSize: "var(--fs-x-small)" }}>TUF assets</span>
+        <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
+          delete the generated repo (<span className="mono">test_tuf</span>) in the Fleet repo root
+        </span>
+        {msg && (
+          <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>{msg}</span>
+        )}
+      </div>
+      <div style={{ flex: 1 }} />
+      {phase === "armed" ? (
+        <>
+          <button onClick={del} className="danger" style={{ padding: "5px 12px" }}>
+            Confirm delete
+          </button>
+          <button onClick={() => setPhase("idle")} style={{ padding: "5px 12px" }}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button onClick={() => setPhase("armed")} disabled={phase === "deleting"} style={{ padding: "5px 12px" }}>
+          {phase === "deleting" ? "Deleting…" : "Delete assets"}
+        </button>
+      )}
     </div>
   );
 }

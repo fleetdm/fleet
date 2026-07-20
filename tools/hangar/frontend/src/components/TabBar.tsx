@@ -6,6 +6,9 @@ export type TabId =
   | "fleetctl"
   | "gitops"
   | "osquery-perf"
+  | "scep"
+  | "mdm-assets"
+  | "tuf"
   | "settings";
 
 // Tabs whose content is scoped to the active server — the top server pills
@@ -22,6 +25,9 @@ const GLOBAL_TABS: { id: TabId; label: string }[] = [
   { id: "fleetctl", label: "fleetctl" },
   { id: "gitops", label: "GitOps" },
   { id: "osquery-perf", label: "osquery-perf" },
+  { id: "scep", label: "SCEP" },
+  { id: "mdm-assets", label: "MDM assets" },
+  { id: "tuf", label: "TUF" },
 ];
 
 const SERVER_TAB_IDS = new Set<TabId>(SERVER_TABS.map((t) => t.id));

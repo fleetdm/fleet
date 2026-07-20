@@ -10,8 +10,10 @@ export {
     NgrokYamlInfo,
     PythonConfig,
     RepoProbe,
+    ScepProfile,
     ServerPorts,
     ServerProfile,
     Settings,
-    ThemePreference
+    ThemePreference,
+    TufConfig
 } from "./models.js";
