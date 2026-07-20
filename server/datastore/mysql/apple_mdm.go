@@ -5144,7 +5144,20 @@ ON DUPLICATE KEY UPDATE
 	uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name) AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
 	raw_json = VALUES(raw_json)`
 
-	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, false)
+	// OS-update tracking must follow the new content so an edit away from (or
+	// into) an OS-update declaration reconciles the tracking row -- except for
+	// Fleet-reserved declarations: the settings-managed OS updates declarations
+	// are softwareupdate-typed too, but the tracking table records only custom
+	// profiles (it's what blocks the settings path), so tracking them would
+	// make OS updates settings block themselves.
+	isSoftwareUpdate := false
+	if _, reserved := fleetmdm.FleetReservedProfileNames()[declaration.Name]; !reserved {
+		if rawDecl, err := fleet.GetRawDeclarationValues(declaration.RawJSON); err == nil {
+			isSoftwareUpdate = rawDecl.Type == apple_mdm.DeclarationTypeSoftwareUpdate
+		}
+	}
+
+	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration, usesFleetVars, isSoftwareUpdate)
 }
 
 func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insOrUpsertStmt string, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, isSoftwareUpdate bool) (*fleet.MDMAppleDeclaration, error) {
@@ -5244,6 +5257,11 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			if err := trackAppleUpdateConfigProfileDB(ctx, tx, tmID, declUUID); err != nil {
 				return err
 			}
+		} else if err := untrackAppleUpdateConfigProfileDB(ctx, tx, declUUID); err != nil {
+			// an upsert may have edited an OS-update declaration into content
+			// that no longer targets OS updates; a stale tracking row would
+			// keep blocking the team's OS updates settings
+			return err
 		}
 
 		return nil
@@ -7949,6 +7967,16 @@ func trackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, te
 		ON DUPLICATE KEY UPDATE apple_declaration_uuid = apple_declaration_uuid`
 	if _, err := tx.ExecContext(ctx, insertStmt, declUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting software update profile")
+	}
+	return nil
+}
+
+// untrackAppleUpdateConfigProfileDB removes declUUID's OS-update tracking row
+// within the caller's transaction
+func untrackAppleUpdateConfigProfileDB(ctx context.Context, tx sqlx.ExtContext, declUUID string) error {
+	const stmt = `DELETE FROM mdm_configuration_profile_update_settings WHERE apple_declaration_uuid = ?`
+	if _, err := tx.ExecContext(ctx, stmt, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting software update profile tracking")
 	}
 	return nil
 }

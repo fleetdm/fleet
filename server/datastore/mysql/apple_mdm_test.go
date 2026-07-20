@@ -95,6 +95,7 @@ func TestMDMApple(t *testing.T) {
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
+		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
@@ -6714,6 +6715,91 @@ func testNewMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastor
 	// A non OS-update declaration is unaffected by the existing tracked one.
 	_, err = ds.NewMDMAppleDeclaration(ctx, declForTest("other", "other", ""), nil)
 	require.NoError(t, err)
+}
+
+func testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "su-tracking"})
+	require.NoError(t, err)
+
+	suJSON := func(identifier, deadline string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{
+			"Type": %q,
+			"Identifier": %q,
+			"Payload": {"TargetOSVersion": "14.0", "TargetLocalDateTime": %q}
+		}`, apple_mdm.DeclarationTypeSoftwareUpdate, identifier, deadline))
+	}
+	otherJSON := func(identifier string) json.RawMessage {
+		return json.RawMessage(fmt.Sprintf(`{
+			"Type": "com.apple.configuration.test",
+			"Identifier": %q,
+			"Payload": {"Echo": "test"}
+		}`, identifier))
+	}
+
+	configured := func() bool {
+		c, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, tm.ID)
+		require.NoError(t, err)
+		return c
+	}
+
+	// a custom OS-update declaration is tracked on create
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.su",
+		Name:       "su",
+		TeamID:     &tm.ID,
+		RawJSON:    suJSON("com.fleet.su", "2025-01-01T12:00:00"),
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, configured())
+
+	// an edit that keeps OS-update content stays tracked
+	updated, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.su",
+		Name:       "su",
+		TeamID:     &tm.ID,
+		RawJSON:    suJSON("com.fleet.su", "2026-06-01T12:00:00"),
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, decl.DeclarationUUID, updated.DeclarationUUID)
+	require.True(t, configured())
+
+	// an edit away from OS-update content clears the tracking row, so the
+	// team's OS updates settings are no longer blocked
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.su",
+		Name:       "su",
+		TeamID:     &tm.ID,
+		RawJSON:    otherJSON("com.fleet.su"),
+	}, nil)
+	require.NoError(t, err)
+	require.False(t, configured())
+
+	// an edit back into OS-update content re-tracks
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.su",
+		Name:       "su",
+		TeamID:     &tm.ID,
+		RawJSON:    suJSON("com.fleet.su", "2027-01-01T12:00:00"),
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, configured())
+
+	// the settings-managed (Fleet-reserved name) OS-update declaration is
+	// never tracked -- tracking it would block the settings that created it
+	tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "su-tracking-reserved"})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleetdm.fleet.mdm.apple.osupdates",
+		Name:       fleetmdm.FleetMacOSUpdatesProfileName,
+		TeamID:     &tm2.ID,
+		RawJSON:    suJSON("com.fleetdm.fleet.mdm.apple.osupdates", "2027-01-01T12:00:00"),
+	}, nil)
+	require.NoError(t, err)
+	reservedConfigured, err := ds.HasAppleUpdateConfigProfileConfigured(ctx, tm2.ID)
+	require.NoError(t, err)
+	require.False(t, reservedConfigured)
 }
 
 func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
