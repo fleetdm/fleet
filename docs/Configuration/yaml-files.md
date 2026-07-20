@@ -4,6 +4,8 @@ In Fleet, you can manage your devices as code.  This section of the docs is a re
 
 Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
+> Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
+
 ## labels
 
 Labels can be specified in your `default.yml` and `fleets/fleet-name.yml` files using inline configuration or references to separate files in your `lib/` folder. Labels cannot be specified in `fleets/unassigned.yml`.
