@@ -1,0 +1,1 @@
+* Fixed newly created or updated reports not appearing in the host details "Live report" modal or the reports list until a hard refresh.

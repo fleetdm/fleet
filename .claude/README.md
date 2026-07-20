@@ -156,7 +156,7 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 24 workflow skills (invoke with /) — see "Skills reference" below
+├── skills/                    # 25 workflow skills (invoke with /) — see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
@@ -189,7 +189,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/new-endpoint` | `/new-endpoint` | Scaffolds a Fleet API endpoint: request/response structs, endpoint function, service method, datastore interface, handler registration, and test stubs. User-invoked only (no auto-trigger). |
 | `/new-migration` | `/new-migration` | Creates a timestamped migration file and test file with proper naming, init registration, and Up function (Down is always a no-op). |
 | `/bump-migration` | `/bump-migration YYYYMMDDHHMMSS_Name.go` | Bumps a migration's timestamp to current time when it conflicts with a migration already merged to main. Renames files and updates function names in both migration and test files. |
-| `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into implementable sub-issues: maps codebase impact, decomposes into atomic tasks per layer (migration/datastore/service/API/frontend), and writes specs with acceptance criteria and a dependency graph. Requires `gh`. |
+| `/spec-story` | `/spec-story 12345` | Breaks down a GitHub story into sub-issues via a four-stage gated workflow (Understand → Skeleton → Draft → Create) that pauses for your approval at each gate. Researches prior art (GitHub, Slack, git history) and Figma dev notes, decomposes by specialization (backend/frontend/fleetctl-GitOps/agent) plus a mandatory Documentation & QA sub-issue, writes specs with exact `file:line` references and grouped conditions of satisfaction (no estimation), then creates the sub-issues and wires them as native tasks off the parent. Requires `gh`; uses Figma/Slack MCP tools. |
 | `/lint` | `/lint` or `/lint go` | Runs the appropriate linters (golangci-lint, eslint, prettier) on recently changed files. Accepts `go`, `frontend`, or a file path to narrow scope. |
 | `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-minor-fleet-v*` or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
 | `/push-reference-docs` | `/push-reference-docs` | Moves reference-doc updates from one release docs branch to another (e.g., 4.89 → 4.90) when a feature slips to a later release. Handles open/closed/merged PR states. Requires `gh`. |
@@ -200,6 +200,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
 | `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
 | `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
+| `/aikido-tickets` | `/aikido-tickets` | Creates GitHub issues in `fleetdm/confidential` from Aikido pen test PDF reports. Reads findings, synthesizes attack path and fix recommendations, preserves full Aikido evidence in a collapsible section. Supports batch creation via parallel agents. Requires `gh` with `project` scope for board placement. |
 | `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 
 ### Using `/project` for workstream context

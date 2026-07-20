@@ -448,7 +448,7 @@ const UserForm = ({
           <div className="form-field__label">Account</div>
           <Radio
             className={`${baseClass}__radio-input`}
-            label="Create user"
+            label="Add user"
             id="create-user"
             checked={formData.newUserType !== NewUserType.AdminInvited}
             value={NewUserType.AdminCreated}

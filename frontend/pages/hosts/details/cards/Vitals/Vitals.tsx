@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import { IAppleDeviceUpdates } from "interfaces/config";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
   isAndroid,
@@ -54,6 +55,8 @@ interface IVitalsProps {
    * the My device page) so the row renders as plain text instead of a link.
    */
   toggleMDMStatusModal?: () => void;
+  customHostVitals?: IHostCustomVital[];
+  onEditCustomHostVital?: (vital: IHostCustomVital) => void;
 }
 
 type VitalForSort = { sortKey: string; element: React.ReactNode };
@@ -101,10 +104,12 @@ const getHostDiskEncryptionTooltipMessage = (
   if (
     platform === "rhel" ||
     platform === "ubuntu" ||
+    platform === "zorin" ||
     platform === "arch" ||
     platform === "archarm" ||
     platform === "manjaro" ||
-    platform === "manjaro-arm"
+    platform === "manjaro-arm" ||
+    platform === "cachyos"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
@@ -125,6 +130,8 @@ const Vitals = ({
   className,
   toggleLocationModal,
   toggleMDMStatusModal,
+  customHostVitals,
+  onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
   const isAndroidHost = isAndroid(vitalsData.platform);
@@ -493,7 +500,7 @@ const Vitals = ({
       const version = vitalsData.os_version;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
         <>
-          {version.slice(0, -8)}
+          {version.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
@@ -628,6 +635,38 @@ const Vitals = ({
         ),
       });
     }
+
+    customHostVitals?.forEach((vital) => {
+      const displayValue =
+        vital.value === "" ? DEFAULT_EMPTY_CELL_VALUE : vital.value;
+      const title = onEditCustomHostVital ? (
+        <span className={`${baseClass}__custom-vital-title`}>
+          {vital.name}
+          <Button
+            variant="icon"
+            size="small"
+            onClick={() => onEditCustomHostVital(vital)}
+            ariaLabel={`Edit ${vital.name}`}
+          >
+            <Icon name="pencil" size="small" />
+          </Button>
+        </span>
+      ) : (
+        vital.name
+      );
+
+      vitals.push({
+        sortKey: vital.name,
+        element: (
+          <DataSet
+            className={`${baseClass}__custom-vital`}
+            key={`custom-host-vital-${vital.custom_host_vital_id}`}
+            title={title}
+            value={displayValue}
+          />
+        ),
+      });
+    });
 
     // Sort alphabetically by title and render
     return (

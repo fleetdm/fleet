@@ -480,17 +480,20 @@ type S3Config struct {
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
 
-	CarvesBucket           string `yaml:"carves_bucket"`
-	CarvesPrefix           string `yaml:"carves_prefix"`
-	CarvesRegion           string `yaml:"carves_region"`
-	CarvesEndpointURL      string `yaml:"carves_endpoint_url"`
-	CarvesAccessKeyID      string `yaml:"carves_access_key_id"`
-	CarvesSecretAccessKey  string `yaml:"carves_secret_access_key"`
-	CarvesStsAssumeRoleArn string `yaml:"carves_sts_assume_role_arn"`
-	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
-	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
-	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
-	CarvesGCSIAMAuth       bool   `yaml:"carves_gcs_iam_auth"`
+	CarvesBucket             string `yaml:"carves_bucket"`
+	CarvesPrefix             string `yaml:"carves_prefix"`
+	CarvesRegion             string `yaml:"carves_region"`
+	CarvesEndpointURL        string `yaml:"carves_endpoint_url"`
+	CarvesAccessKeyID        string `yaml:"carves_access_key_id"`
+	CarvesSecretAccessKey    string `yaml:"carves_secret_access_key"`
+	CarvesStsAssumeRoleArn   string `yaml:"carves_sts_assume_role_arn"`
+	CarvesStsExternalID      string `yaml:"carves_sts_external_id"`
+	CarvesDisableSSL         bool   `yaml:"carves_disable_ssl"`
+	CarvesForceS3PathStyle   bool   `yaml:"carves_force_s3_path_style"`
+	CarvesGCSIAMAuth         bool   `yaml:"carves_gcs_iam_auth"`
+	CarvesCleanupDisabled    bool   `yaml:"carves_cleanup_disabled"`
+	CarvesCleanupMaxPerRun   int    `yaml:"carves_cleanup_max_per_run"`
+	CarvesCleanupConcurrency int    `yaml:"carves_cleanup_concurrency"`
 
 	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
 	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
@@ -684,6 +687,16 @@ type KafkaRESTConfig struct {
 	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
+// SplunkConfig defines configs for the Splunk HEC logging plugin.
+type SplunkConfig struct {
+	URL                string `json:"url" yaml:"url"`
+	Token              string `json:"token" yaml:"token"`
+	Index              string `json:"index" yaml:"index"`
+	Source             string `json:"source" yaml:"source"`
+	SourceType         string `json:"source_type" yaml:"source_type"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify" yaml:"insecure_skip_verify"`
+}
+
 // NatsConfig defines configs for the NATS logging plugin.
 type NatsConfig struct {
 	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
@@ -796,6 +809,7 @@ type FleetConfig struct {
 	Webhook                    WebhookConfig
 	KafkaREST                  KafkaRESTConfig
 	Nats                       NatsConfig
+	Splunk                     SplunkConfig
 	License                    LicenseConfig
 	Vulnerabilities            VulnerabilitiesConfig
 	Upgrades                   UpgradesConfig
@@ -849,18 +863,9 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
-// Currently only set on Cloud environments.
 type MicrosoftCompliancePartnerConfig struct {
-	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
-	ProxyAPIKey string `yaml:"proxy_api_key"`
 	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
 	ProxyURI string `yaml:"proxy_uri"`
-}
-
-// IsSet returns if the compliance partner configuration is set.
-// Currently only set on Cloud environments.
-func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
-	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -939,14 +944,18 @@ type MDMConfig struct {
 	// Deprecated: Use EnableCustomFileVault instead, as Custom OS updates is now allowed by default, and has no effect.
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 	EnableCustomFileVault             bool `yaml:"enable_custom_filevault"`
-	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
+	// EnableCustomDiskEncryption is a cross-platform alias for EnableCustomFileVault.
+	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
+	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
 
-func (m MDMConfig) IsCustomFileVaultEnabled() bool {
-	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault
+// IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
+// (and deprecated) options enables the behavior.
+func (m MDMConfig) IsCustomDiskEncryptionEnabled() bool {
+	return m.EnableCustomOSUpdatesAndFileVault || m.EnableCustomFileVault || m.EnableCustomDiskEncryption
 }
 
 // ValidateAndroidBatchSize checks that the configured batch size is non-negative.
@@ -1617,6 +1626,9 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 	man.addConfigBool("s3.carves_gcs_iam_auth", false, "Use Google ADC bearer tokens for GCS endpoint authentication instead of S3 HMAC keys")
+	man.addConfigBool("s3.carves_cleanup_disabled", false, "Disable the periodic cleanup that marks carves whose S3 object no longer exists as expired")
+	man.addConfigInt("s3.carves_cleanup_max_per_run", 1000, "Maximum number of carves the S3 cleanup reconciles (and S3 HeadObject requests it makes) per run")
+	man.addConfigInt("s3.carves_cleanup_concurrency", 32, "Number of concurrent S3 HeadObject probes the carve cleanup performs")
 
 	// S3 for software installers
 	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
@@ -1682,6 +1694,14 @@ func (man Manager) addConfigs() {
 	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
 	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
 	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
+
+	// Splunk
+	man.addConfigString("splunk.url", "", "Splunk HEC URL (e.g. https://splunk.example.com:8088)")
+	man.addConfigString("splunk.token", "", "Splunk HEC authentication token")
+	man.addConfigString("splunk.index", "", "Splunk index to send events to")
+	man.addConfigString("splunk.source", "", "Splunk source value for events")
+	man.addConfigString("splunk.source_type", "", "Splunk sourcetype value for events")
+	man.addConfigBool("splunk.insecure_skip_verify", false, "Skip TLS certificate verification for Splunk HEC (for self-signed certs)")
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
@@ -1782,6 +1802,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
 	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
@@ -1800,7 +1821,6 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 
 	// Microsoft Compliance Partner
-	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
@@ -2056,6 +2076,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			JetStream:        man.getConfigBool("nats.jetstream"),
 			Timeout:          man.getConfigDuration("nats.timeout"),
 		},
+		Splunk: SplunkConfig{
+			URL:                man.getConfigString("splunk.url"),
+			Token:              man.getConfigString("splunk.token"),
+			Index:              man.getConfigString("splunk.index"),
+			Source:             man.getConfigString("splunk.source"),
+			SourceType:         man.getConfigString("splunk.source_type"),
+			InsecureSkipVerify: man.getConfigBool("splunk.insecure_skip_verify"),
+		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
 			EnforceHostLimit: man.getConfigBool("license.enforce_host_limit"),
@@ -2119,6 +2147,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
 			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
 			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
+			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
 			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
@@ -2134,8 +2163,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
-			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
-			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
@@ -2152,17 +2180,20 @@ func (man Manager) LoadConfig() FleetConfig {
 
 func (man Manager) loadS3Config() S3Config {
 	return S3Config{
-		CarvesBucket:           man.getConfigString("s3.carves_bucket"),
-		CarvesPrefix:           man.getConfigString("s3.carves_prefix"),
-		CarvesRegion:           man.getConfigString("s3.carves_region"),
-		CarvesEndpointURL:      man.getConfigString("s3.carves_endpoint_url"),
-		CarvesAccessKeyID:      man.getConfigString("s3.carves_access_key_id"),
-		CarvesSecretAccessKey:  man.getConfigString("s3.carves_secret_access_key"),
-		CarvesStsAssumeRoleArn: man.getConfigString("s3.carves_sts_assume_role_arn"),
-		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
-		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
-		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
-		CarvesGCSIAMAuth:       man.getConfigBool("s3.carves_gcs_iam_auth"),
+		CarvesBucket:             man.getConfigString("s3.carves_bucket"),
+		CarvesPrefix:             man.getConfigString("s3.carves_prefix"),
+		CarvesRegion:             man.getConfigString("s3.carves_region"),
+		CarvesEndpointURL:        man.getConfigString("s3.carves_endpoint_url"),
+		CarvesAccessKeyID:        man.getConfigString("s3.carves_access_key_id"),
+		CarvesSecretAccessKey:    man.getConfigString("s3.carves_secret_access_key"),
+		CarvesStsAssumeRoleArn:   man.getConfigString("s3.carves_sts_assume_role_arn"),
+		CarvesStsExternalID:      man.getConfigString("s3.carves_sts_external_id"),
+		CarvesDisableSSL:         man.getConfigBool("s3.carves_disable_ssl"),
+		CarvesForceS3PathStyle:   man.getConfigBool("s3.carves_force_s3_path_style"),
+		CarvesGCSIAMAuth:         man.getConfigBool("s3.carves_gcs_iam_auth"),
+		CarvesCleanupDisabled:    man.getConfigBool("s3.carves_cleanup_disabled"),
+		CarvesCleanupMaxPerRun:   man.getConfigInt("s3.carves_cleanup_max_per_run"),
+		CarvesCleanupConcurrency: man.getConfigInt("s3.carves_cleanup_concurrency"),
 
 		Bucket:           man.getConfigString("s3.bucket"),
 		Prefix:           man.getConfigString("s3.prefix"),

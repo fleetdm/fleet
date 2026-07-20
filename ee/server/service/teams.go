@@ -34,35 +34,42 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 		return &authz.Forbidden{}
 	}
 
-	isGlobalObs := user.IsGlobalObserver()
-	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
+	// Only global admins/maintainers and team admins/maintainers are allowed to
+	// read enroll secrets (see the enroll_secret authorization policy). We mask
+	// the secret for every other user, including gitops, observers, observer+,
+	// and technicians, so that being able to modify a team does not imply being
+	// able to read its enroll secrets.
+	canReadGlobal := user.GlobalRole != nil &&
+		(*user.GlobalRole == fleet.RoleAdmin || *user.GlobalRole == fleet.RoleMaintainer)
 
-	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return true
-	})
-	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
-	})
-	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleTechnician
+	canReadTeam := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleAdmin || t.Role == fleet.RoleMaintainer
 	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// We mask the password for the following users:
-		// - User has no roles.
-		// - User is a global observer/observer+/technician.
-		// - User does not belong to the team or is a team observer/observer+/technician.
-		if isGlobalObs || isGlobalTechnician ||
-			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
-			for _, s := range t.Secrets {
-				s.Secret = fleet.MaskedPassword
-			}
+		if canReadGlobal || canReadTeam[t.ID] {
+			continue
+		}
+		for _, s := range t.Secrets {
+			s.Secret = fleet.MaskedPassword
 		}
 	}
 	return nil
+}
+
+// maskTeamSecretsForViewer masks the enroll secrets of the given teams for the
+// current viewer, unless they are allowed to read them. It is used on team
+// write endpoints so that being able to modify a team does not imply being able
+// to read its enroll secrets (e.g. gitops).
+func (svc *Service) maskTeamSecretsForViewer(ctx context.Context, teams ...*fleet.Team) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	return obfuscateSecrets(vc.User, teams)
 }
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -113,6 +120,11 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		if len(p.Secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
 		}
+		for _, s := range p.Secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+			}
+		}
 		team.Secrets = p.Secrets
 	} else {
 		// Set up a default enroll secret
@@ -141,6 +153,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team creation")
+	}
+
+	// Mask enroll secrets for users that are not allowed to read them (e.g.
+	// gitops), so that creating a team does not leak the (possibly
+	// server-generated) plaintext enroll secret to a role that cannot read it.
+	if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+		return nil, err
 	}
 
 	return team, nil
@@ -208,6 +227,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		macOSEnableEndUserAuthUpdated   bool
 		macOSManagedLocalAccountUpdated bool
 		conditionalAccessUpdated        bool
+		nameTemplateUpdated             bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -321,6 +341,21 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 		if payload.MDM.RequireBitLockerPIN.Valid {
 			team.Config.MDM.RequireBitLockerPIN = payload.MDM.RequireBitLockerPIN.Value
+		}
+
+		if payload.MDM.HostNameTemplate.Set {
+			nameTemplate := payload.MDM.HostNameTemplate.Value
+			// Only validate (a DB round-trip to confirm referenced secrets exist)
+			// when the template actually changed, mirroring the app-config path.
+			if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
+				validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err)
+				}
+				nameTemplate = validated
+			}
+			nameTemplateUpdated = team.Config.MDM.HostNameTemplate != nameTemplate
+			team.Config.MDM.HostNameTemplate = nameTemplate
 		}
 
 		if payload.MDM.MacOSSetup != nil {
@@ -612,6 +647,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
 		}
 	}
+	if nameTemplateUpdated {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
+			return nil, err
+		}
+	}
 	if macOSEnableEndUserAuthUpdated {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
@@ -648,6 +688,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 	}
+
+	// Mask enroll secrets for users that are not allowed to read them (e.g.
+	// gitops), so that the write response does not leak plaintext secrets to a
+	// role that cannot read them via the GET endpoints.
+	if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+		return nil, err
+	}
+
 	return team, err
 }
 
@@ -674,6 +722,11 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		}
 	}
 	if applyOptions.DryRun {
+		// Mask enroll secrets so the write response does not leak plaintext
+		// secrets to a role that cannot read them (e.g. gitops).
+		if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+			return nil, err
+		}
 		return team, nil
 	}
 
@@ -698,6 +751,12 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
+	}
+
+	// Mask enroll secrets so the write response does not leak plaintext secrets
+	// to a role that cannot read them (e.g. gitops).
+	if err := svc.maskTeamSecretsForViewer(ctx, tm); err != nil {
+		return nil, err
 	}
 
 	return tm, nil
@@ -1082,6 +1141,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		if strings.TrimSpace(secret.Secret) == "" {
+			return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+		}
 		newSecretsValues[secret.Secret] = struct{}{}
 
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
@@ -1348,6 +1410,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
+		for _, s := range secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"), "validate secrets")
+			}
+		}
 		// TODO: should we be we validating the other Apple platforms? if so, we should also include
 		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
@@ -1504,6 +1571,15 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	nameTemplate := spec.MDM.HostNameTemplate.Value
+	if nameTemplate != "" {
+		validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		nameTemplate = validated
+	}
+
 	invalid := &fleet.InvalidArgumentError{}
 	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
 		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
@@ -1585,6 +1661,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSetup:                 macOSSetup,
 				WindowsSettings:            spec.MDM.WindowsSettings,
 				AndroidSettings:            spec.MDM.AndroidSettings,
+				HostNameTemplate:           nameTemplate,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1643,6 +1720,12 @@ func (svc *Service) createTeamFromSpec(
 			fleet.ActivityTypeEnabledRecoveryLockPasswords{TeamID: &tm.ID, TeamName: &tm.Name},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team recovery lock password")
+		}
+	}
+
+	if nameTemplate != "" {
+		if err := svc.applyHostNameTemplateChange(ctx, tm, nameTemplate); err != nil {
+			return nil, err
 		}
 	}
 	return tm, nil
@@ -1770,6 +1853,22 @@ func (svc *Service) editTeamFromSpec(
 				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
+	}
+
+	var didUpdateHostNameTemplate bool
+	if spec.MDM.HostNameTemplate.Set {
+		nameTemplate := spec.MDM.HostNameTemplate.Value
+		// Only validate (a DB round-trip to confirm referenced secrets exist) when
+		// the template actually changed — GitOps re-applies the spec on every run.
+		if nameTemplate != "" && nameTemplate != team.Config.MDM.HostNameTemplate {
+			validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, nameTemplate)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			nameTemplate = validated
+		}
+		didUpdateHostNameTemplate = team.Config.MDM.HostNameTemplate != nameTemplate
+		team.Config.MDM.HostNameTemplate = nameTemplate
 	}
 
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
@@ -2037,6 +2136,12 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if didUpdateHostNameTemplate {
+		if err := svc.applyHostNameTemplateChange(ctx, team, team.Config.MDM.HostNameTemplate); err != nil {
+			return err
+		}
+	}
+
 	// if the macos setup assistant was cleared, remove it for that team
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set &&
 		spec.MDM.MacOSSetup.MacOSSetupAssistant.Value == "" &&
@@ -2270,6 +2375,54 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 				}
 			}
 		}
+	}
+	return nil
+}
+
+func (svc *Service) updateTeamMDMHostNameTemplate(ctx context.Context, tm *fleet.Team, nameTemplate string) error {
+	if tm.Config.MDM.HostNameTemplate == nameTemplate {
+		return nil
+	}
+
+	tm.Config.MDM.HostNameTemplate = nameTemplate
+	if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
+		return err
+	}
+
+	return svc.applyHostNameTemplateChange(ctx, tm, nameTemplate)
+}
+
+// applyHostNameTemplateChange reconciles host-name enforcement rows and emits
+// the edited_host_name_template activity for a template change.
+func (svc *Service) applyHostNameTemplateChange(ctx context.Context, team *fleet.Team, nameTemplate string) error {
+	var fleetID *uint
+	var fleetName *string
+	if team != nil {
+		fleetID, fleetName = &team.ID, &team.Name
+	}
+
+	if nameTemplate == "" {
+		if err := svc.ds.DeleteHostDeviceNameEnforcementForTeam(ctx, fleetID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host name enforcement for team")
+		}
+	} else if err := svc.ds.BulkUpsertHostDeviceNameEnforcement(ctx, fleetID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue host name enforcement for team")
+	}
+
+	var tmpl *string
+	if nameTemplate != "" {
+		tmpl = &nameTemplate
+	}
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedHostNameTemplate{
+			FleetID:          fleetID,
+			FleetName:        fleetName,
+			HostNameTemplate: tmpl,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for team host name template")
 	}
 	return nil
 }

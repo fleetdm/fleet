@@ -39,7 +39,7 @@ describe("Integrations Page", () => {
   describe("Conditional access", () => {
     it("Does not render the conditional access sidenav for self-hosted Fleet instances", () => {
       const mockConfig = createMockConfig({
-        license: { ...DEFAULT_LICENSE_MOCK, managed_cloud: false },
+        license: { ...DEFAULT_LICENSE_MOCK },
       });
 
       const render = createCustomRenderer({
@@ -90,7 +90,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Single sign-on (SSO)")).toHaveLength(
+      expect(await screen.findAllByText("Authentication (SSO)")).toHaveLength(
         2
       );
     });
@@ -111,7 +111,7 @@ describe("Integrations Page", () => {
         />
       );
 
-      expect(await screen.findAllByText("Host status webhook")).toHaveLength(2);
+      expect(await screen.findAllByText("Host status alerts")).toHaveLength(2);
     });
   });
 });

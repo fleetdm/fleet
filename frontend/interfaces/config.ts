@@ -15,8 +15,6 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
-  // Whether the Fleet instance is managed by FleetDM
-  managed_cloud: boolean;
   allow_disable_telemetry: boolean;
 }
 
@@ -50,6 +48,9 @@ export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  /** Host name template applied to "No team" Apple hosts. Mirrors
+  `enable_disk_encryption` as a global-scope Controls > OS setting. */
+  name_template?: string;
   enable_recovery_lock_password: boolean;
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
@@ -99,6 +100,7 @@ export interface IMdmConfig {
   };
   windows_entra_tenant_ids: string[] | null;
   windows_entra_client_ids: string[] | null;
+  apple_account_provisioning?: IAppleAccountProvisioning;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -247,6 +249,12 @@ interface IFleetPartnerships {
   enable_primo: boolean;
 }
 
+export interface IAppleAccountProvisioning {
+  oauth_idp_token_url: string;
+  oauth_idp_client_id: string;
+  oauth_idp_client_secret: string;
+}
+
 export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
   host_status_webhook: IWebhookHostStatus | null;
@@ -267,6 +275,7 @@ export type LogDestination =
   | "pubsub"
   | "kafka"
   | "nats"
+  | "splunk"
   | "stdout"
   | "webhook"
   | "";

@@ -105,6 +105,12 @@
     }
   }
 
+  &__custom-vital-title {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
   .text-muted {
     color: $ui-fleet-black-50;
   }

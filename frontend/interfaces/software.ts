@@ -124,6 +124,10 @@ export interface IFleetMaintainedVersion {
 }
 
 export interface ISoftwarePackage {
+  /** Per-installer id — distinct from `title_id`. Used by per-package edit
+   * and delete endpoints so the request targets one specific package on a
+   * title that may have several. */
+  installer_id: number;
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
    * Custom name set per team by admin
@@ -212,7 +216,11 @@ export interface ISoftwareTitle {
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title (trimmed shape on list responses).
+   * `null` when the title has no custom packages. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   /** @deprecated Use extension_for instead */
   browser?: string;
@@ -225,7 +233,13 @@ export interface ISoftwareTitleDetails {
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title, in first-added order (smallest
+   * `installer_id` first). `null` when the title has no custom packages.
+   * When present, treat as the source of truth; `software_package` is a
+   * convenience alias to `packages[0]`. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -299,6 +313,7 @@ export const SOURCE_TYPE_CONVERSION = {
   vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
+  py_packages: "Script-only package (macOS & Linux)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   go_binaries: "Binary (Go)",
 } as const;
@@ -332,11 +347,23 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   vscode_extensions: null,
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
+  py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
   go_binaries: null,
 } as const;
 
-export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+export const SCRIPT_PACKAGE_SOURCES = [
+  "sh_packages",
+  "ps1_packages",
+  "py_packages",
+];
+
+/** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
+ * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
+ * conflict error — the UI uses this constant to disable "+ Add package" and
+ * surface a matching tooltip before the user hits the API. Keep in sync if
+ * the backend limit changes. */
+export const MAX_PACKAGES_PER_TITLE = 10;
 
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
@@ -525,6 +552,10 @@ export interface ISoftwareInstallResult {
   created_at: string;
   updated_at: string | null;
   self_service: boolean;
+  /** SHA-256 of the installer package. Present when the payload was
+   * hydrated from a package-backed install; absent for VPP / older results
+   * whose backend join hasn't been extended. */
+  hash_sha256?: string;
 }
 
 // Script results are only install results, never uninstall
@@ -891,6 +922,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -925,6 +957,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

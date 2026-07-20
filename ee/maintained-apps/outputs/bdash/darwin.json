@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.35.0",
+      "version": "1.35.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bdash' AND version_compare(bundle_short_version, '1.35.1') < 0);"
       },
-      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.0/Bdash-1.35.0-universal-mac.zip",
+      "installer_url": "https://github.com/bdash-app/bdash/releases/download/v1.35.1/Bdash-1.35.1-universal-mac.zip",
       "install_script_ref": "67b33ea8",
       "uninstall_script_ref": "a9fd6c1d",
-      "sha256": "e8676ad4420a727590fea4db1c4e49393e18abad7309778584cda4784af8d7a3",
+      "sha256": "ba56bebc97f714a95ad5dfdcb52b49d55cfd08ebad4235211488632d1128d990",
       "default_categories": [
         "Productivity"
       ]

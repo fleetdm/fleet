@@ -553,6 +553,7 @@ Custom hook names should be camel-cased and use the `use` prefix, and should liv
 
 Current custom hooks include:
 
+- [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
 - [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
 - [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
 - [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.

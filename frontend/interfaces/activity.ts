@@ -148,6 +148,7 @@ export enum ActivityType {
   CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
@@ -159,7 +160,9 @@ export enum ActivityType {
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
+  UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
+  EditedCustomHostVitalValue = "edited_custom_host_vital_value",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
@@ -196,6 +199,9 @@ export enum ActivityType {
   RanAutomationTicket = "ran_automation_ticket",
   RanAutomationCalendarEvent = "ran_automation_calendar_event",
   RanAutomationConditionalAccess = "ran_automation_conditional_access",
+  CreatedCustomHostVital = "created_custom_host_vital",
+  EditedCustomHostVital = "edited_custom_host_vital",
+  DeletedCustomHostVital = "deleted_custom_host_vital",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -228,7 +234,16 @@ export type IHostPastActivityType =
   | ActivityType.RotatedManagedLocalAccountPassword
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
-  | ActivityType.RanCustomMdmCommand;
+  | ActivityType.RanCustomMdmCommand
+  | ActivityType.EditedCustomHostVitalValue
+  | ActivityType.RanAutomationWebhook
+  | ActivityType.RanAutomationTicket
+  | ActivityType.RanAutomationCalendarEvent
+  | ActivityType.RanAutomationConditionalAccess
+  | ActivityType.FailedAutomationWebhook
+  | ActivityType.FailedAutomationTicket
+  | ActivityType.FailedAutomationCalendarEvent
+  | ActivityType.FailedAutomationConditionalAccess;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -353,6 +368,8 @@ export interface IActivityDetails {
   ticket_key?: string;
   ticket_id?: number;
   custom_variable_name?: string;
+  custom_host_vital_id?: number;
+  custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
@@ -515,13 +532,16 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
+  edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   created_custom_variable: "Created custom variable",
+  updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
+  [ActivityType.EditedCustomHostVitalValue]: "Edited custom host vital value",
   [ActivityType.HostDeleted]: "Host deleted",
   [ActivityType.AddedHydrant]: "Added certificate authority (CA): Hydrant",
   [ActivityType.DeletedHydrant]: "Deleted certificate authority (CA): Hydrant",
@@ -594,4 +614,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Policy automation: calendar event created",
   [ActivityType.RanAutomationConditionalAccess]:
     "Policy automation: single sign-on blocked",
+  [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
+  [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
+  [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
 };

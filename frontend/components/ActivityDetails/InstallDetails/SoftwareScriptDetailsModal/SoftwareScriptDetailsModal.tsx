@@ -1,5 +1,5 @@
 /** This component is intentionally separate from SoftwareInstallDetailsModal
- * because it handles script-only package installs (e.g. sh_packages or ps1_packages)
+ * because it handles script-only package installs (e.g. sh_packages, ps1_packages, or py_packages)
  *
  * Key differences from SoftwareInstallDetailsModal:
  * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
@@ -11,7 +11,7 @@
 
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { AxiosError } from "axios";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -88,7 +88,7 @@ export const StatusMessage = ({
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
   )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
+    ? ` (${timeAgo(new Date(updated_at || created_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`

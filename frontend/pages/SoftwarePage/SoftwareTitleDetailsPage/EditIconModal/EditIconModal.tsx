@@ -681,6 +681,10 @@ const EditIconModal = ({
             ? softwareAPI.editSoftwarePackage({
                 data: { displayName: trimmedDisplayName },
                 softwareId,
+                // Multi-package titles require `installer_id` on any edit; display_name
+                // is title-level, so target the first-added package (`software` is
+                // `software_package`, which mirrors `packages[0]`).
+                installerId: (software as ISoftwarePackage).installer_id,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
@@ -766,11 +770,7 @@ const EditIconModal = ({
       title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      {isFirstLoadWithCustomIcon ? (
-        <Spinner includeContainer={false} />
-      ) : (
-        renderForm()
-      )}
+      {isFirstLoadWithCustomIcon ? <Spinner /> : renderForm()}
       <ModalFooter
         primaryButtons={
           <Button

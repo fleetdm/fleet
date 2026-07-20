@@ -30,6 +30,7 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "tar.gz":
     case "sh":
     case "ps1":
+    case "py":
     case "ipa":
       return "";
     default:

@@ -8,11 +8,16 @@ import classnames from "classnames";
 import Checkbox from "components/forms/fields/Checkbox";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import {
+  CommaSeparatedPlatformString,
+  isQueryablePlatform,
+} from "interfaces/platform";
 import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
 import PATHS from "router/paths";
 
@@ -56,9 +61,20 @@ interface ICellProps {
   };
 }
 
+interface IPlatformCellProps {
+  cell: {
+    value: CommaSeparatedPlatformString;
+  };
+  row: {
+    original: IPolicyStats;
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -299,6 +315,19 @@ const generateTableHeaders = (
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Targeted platforms",
+      Header: "Targeted platforms",
+      disableSortBy: true,
+      accessor: "platform",
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(isQueryablePlatform);
+        return <PlatformCell platforms={platforms} />;
+      },
     },
     {
       title: "Automations",

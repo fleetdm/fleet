@@ -70,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -330,6 +331,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
 	}
 
+	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableCustomDiskEncryption = false
+		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
@@ -422,23 +428,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -604,6 +608,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -735,7 +740,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool, carveStore,
 			[]endpointer.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc), activityRoutes, acmeRoutes, chartRoutes}, extra...)
 
-		if err := apiendpoints.Validate(apiHandler); err != nil {
+		// SCIM endpoints are served by a prefix-mounted handler (see
+		// scim.RegisterSCIM) that gorilla/mux can't introspect, so surface
+		// their routes to the validator explicitly.
+		if err := apiendpoints.Validate(apiHandler, scim.RegisterValidationRoutes); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
 		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
@@ -881,6 +889,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}
@@ -1034,6 +1043,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		select {
 		case <-sig:
 		case <-dbFatalCh:
+		// cmd.Context() is context.Background() in production (the root command
+		// is run via Execute, not ExecuteContext), so this case never fires
+		// there. Tests run the command with a cancelable context to trigger a
+		// graceful shutdown without sending an OS signal.
+		case <-cmd.Context().Done():
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -1186,7 +1200,7 @@ func printFleetv4732FixNeededMessage() {
 func initLicense(config *configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {
 	if devLicense {
 		// This license key is valid for development only
-		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzgyNzc3NjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCwgSW5jLiBEZXZlbG9wZXIiLCJkZXZpY2VzIjoxMDAwLCJub3RlIjoiQ3JlYXRlZCB3aXRoIEZsZWV0IExpY2Vuc2Uga2V5IGRpc3BlbnNlciIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzY3MjAzODg2fQ.X9O3CXJOzIfgkzlXgL45iBaSvAbZyQn4UjcvH_gEXJGIQw0xMW4r3tJBSEuUqQXoaQnADVR1Oocfp6j_hMZX0A"
+		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzk4NTk3MDU1LCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMDAsIm5vdGUiOiJmb3IgZGV2ZWxvcG1lbnQgb25seSIsInRpZXIiOiJwcmVtaXVtIiwiaWF0IjoxNzgyODI5MDU1fQ.SCwrVBV3fIb7JSS5tOLx0EmlyS6m20h34C9WOW1RqlLf009gEldWk2eO3ma8caW5_te4aEbjcvTBDeIkvM7NIA"
 	} else if devExpiredLicense {
 		// An expired license key
 		config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
