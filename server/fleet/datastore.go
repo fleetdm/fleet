@@ -550,6 +550,9 @@ type Datastore interface {
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
 	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	// ConsumePasswordResetRequest atomically consumes (deletes) the valid, non-expired
+	// password reset request matching the given token.
+	ConsumePasswordResetRequest(ctx context.Context, token string) error
 	// CleanupExpiredPasswordResetRequests deletes any password reset requests that have expired.
 	CleanupExpiredPasswordResetRequests(ctx context.Context) error
 

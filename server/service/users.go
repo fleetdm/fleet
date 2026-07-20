@@ -1521,6 +1521,19 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
+	// Atomically consume the token before applying the change. This is the single
+	// point that enforces one-time-use semantics: under concurrent requests with the
+	// same token, exactly one caller succeeds here and the rest are rejected, which
+	// prevents a race where several requests overwrite the password simultaneously.
+	// All validation above is read-only, so a rejected password (e.g. reused or too
+	// weak) never burns the token.
+	if err := svc.ds.ConsumePasswordResetRequest(ctx, token); err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewAuthFailedError("invalid password reset token"), "password reset token already used")
+		}
+		return ctxerr.Wrap(ctx, err, "consuming password reset token")
+	}
+
 	// password requirements are validated as part of `setNewPassword``
 	err = svc.setNewPassword(ctx, user, password, true)
 	if err != nil {

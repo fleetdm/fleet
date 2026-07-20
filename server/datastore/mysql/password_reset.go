@@ -57,6 +57,26 @@ func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string)
 	return passwordResetRequest, nil
 }
 
+func (ds *Datastore) ConsumePasswordResetRequest(ctx context.Context, token string) error {
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM password_reset_requests
+		WHERE token = ? AND CURRENT_TIMESTAMP < expires_at
+	`, token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "consuming password reset request")
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading affected rows for password reset request")
+	}
+	if n == 0 {
+		return ctxerr.Wrap(ctx, notFound("PasswordResetRequest"), "password reset token already used or invalid")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM password_reset_requests
 		WHERE CURRENT_TIMESTAMP >= expires_at`)

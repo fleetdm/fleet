@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -994,6 +996,51 @@ func TestResetPassword(t *testing.T) {
 	}
 }
 
+// TestResetPasswordConcurrent verifies that a single password reset token can be
+// consumed by at most one concurrent request. Firing many requests with the same
+// valid token and distinct new passwords must result in exactly one success; the
+// rest must fail because the token has already been consumed.
+func TestResetPasswordConcurrent(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	createTestUsers(t, ds)
+
+	const token = "concurrent-reset-token"
+	_, err := ds.NewPasswordResetRequest(t.Context(), &fleet.PasswordResetRequest{
+		ExpiresAt: time.Now().Add(time.Hour * 24),
+		UserID:    1,
+		Token:     token,
+	})
+	require.NoError(t, err)
+
+	const n = 10
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// Each request sets a distinct new password so none is rejected by
+			// the "cannot reuse old password" check.
+			pw := fmt.Sprintf("racePassword%d!", i)
+			<-start
+			errs[i] = svc.ResetPassword(ctx, token, pw)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var succeeded int
+	for _, e := range errs {
+		if e == nil {
+			succeeded++
+		}
+	}
+	require.Equal(t, 1, succeeded, "exactly one concurrent reset should succeed for a single-use token")
+}
+
 func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
 	reloadedUser, err := ds.UserByEmail(ctx, user.Email)
 	require.NoError(t, err)
@@ -1830,6 +1877,13 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 
 		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
 			return nil
+		}
+
+		ds.ConsumePasswordResetRequestFunc = func(ctx context.Context, token string) error {
+			if token == resetToken {
+				return nil
+			}
+			return errors.New("token not found")
 		}
 
 		var deletedPasswordResetForUserID uint
