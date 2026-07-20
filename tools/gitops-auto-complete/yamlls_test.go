@@ -51,7 +51,7 @@ func TestYAMLLS(t *testing.T) {
 					t.Fatal(err)
 				}
 				doc := "# yaml-language-server: $schema=" + schemaPath + "\n" + string(content)
-				errs := yamlls.diagnose(t, doc)
+				errs := yamlls.diagnose(t, doc, wantErrors)
 				switch {
 				case wantErrors && errs == 0:
 					t.Errorf("%s: expected yamlls schema errors, got none", file)
@@ -146,8 +146,11 @@ func (c *yamllsClient) request(t *testing.T, method string, params any) {
 }
 
 // diagnose opens a fresh document and returns how many Error-severity diagnostics
-// yamlls publishes for it.
-func (c *yamllsClient) diagnose(t *testing.T, doc string) int {
+// yamlls publishes for it. wantErrors reflects the caller's expectation: yamlls often
+// publishes an empty set on didOpen before the schema loads, so when errors are
+// expected an empty set is treated as premature and diagnose keeps waiting for the
+// real one rather than finalizing early (which would let an invalid fixture pass).
+func (c *yamllsClient) diagnose(t *testing.T, doc string, wantErrors bool) int {
 	t.Helper()
 	c.uri++
 	uri := fmt.Sprintf("file:///tmp/gitops-schema-test-%d.yaml", c.uri)
@@ -156,13 +159,14 @@ func (c *yamllsClient) diagnose(t *testing.T, doc string) int {
 	})
 
 	var latest []any
-	found := false
+	published := false
 	hard := time.After(15 * time.Second)
 	for {
 		var quiet <-chan time.Time
-		if found {
-			// yamlls may publish an empty set first, then the real one after the
-			// schema loads; wait for a quiet period before finalizing.
+		// Start the quiet countdown only once the result is trustworthy: a valid
+		// file's empty set is authoritative immediately, but when errors are expected
+		// only a set that actually contains errors is.
+		if published && (!wantErrors || countErrors(latest) > 0) {
 			quiet = time.After(1 * time.Second)
 		}
 		select {
@@ -173,13 +177,13 @@ func (c *yamllsClient) diagnose(t *testing.T, doc string) int {
 			if m["method"] == "textDocument/publishDiagnostics" {
 				if p, _ := m["params"].(map[string]any); p != nil && p["uri"] == uri {
 					latest, _ = p["diagnostics"].([]any)
-					found = true
+					published = true
 				}
 			}
 		case <-quiet:
 			return countErrors(latest)
 		case <-hard:
-			if !found {
+			if !published {
 				t.Fatal("timed out waiting for yamlls diagnostics")
 			}
 			return countErrors(latest)

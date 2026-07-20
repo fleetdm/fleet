@@ -168,7 +168,10 @@ func osqueryOptionsSchema(path string) (map[string]any, error) {
 				continue
 			}
 
-			properties[name] = map[string]any{"type": jsonType}
+			// [type, null] keeps the option typed while allowing an empty value.
+			// relaxNulls only strips bare scalar types, so it leaves these unions alone
+			// instead of dropping the type off genuinely-numeric options.
+			properties[name] = map[string]any{"type": []any{jsonType, "null"}}
 		}
 
 		return false

@@ -68,626 +68,660 @@
               "description": "type: `object`",
               "properties": {
                 "audit_allow_config": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "audit_allow_fim_events": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "audit_allow_process_events": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "audit_allow_sockets": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "audit_allow_user_events": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "augeas_lenses": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_access_key_id": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_debug": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "aws_disable_imdsv1_fallback": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "aws_enable_proxy": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "aws_firehose_endpoint": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_firehose_period": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "aws_firehose_region": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_firehose_stream": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_imdsv2_request_attempts": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "aws_imdsv2_request_interval": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_disable_log_status": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "aws_kinesis_endpoint": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_kinesis_period": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "aws_kinesis_random_partition_key": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "aws_kinesis_region": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_kinesis_stream": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_profile_name": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_proxy_host": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_proxy_password": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_proxy_port": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "aws_proxy_scheme": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_proxy_username": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_region": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_secret_access_key": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_session_token": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_sts_arn_role": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_sts_region": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_sts_session_name": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "aws_sts_timeout": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "buffered_log_max": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "decorations_top_level": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_audit": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_caching": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_database": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_decorators": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_distributed": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_events": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_hash_cache": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "disable_logging": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "distributed_denylist_duration": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "distributed_interval": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "distributed_loginfo": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "distributed_plugin": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "distributed_tls_max_attempts": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "distributed_tls_read_endpoint": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "distributed_tls_write_endpoint": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "dns_resolver_refresh_interval": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "docker_socket": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "enable_file_events": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "enable_foreign": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "enable_numeric_monitoring": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "ephemeral": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "events_expiry": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "events_max": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "events_optimize": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "experiment_list": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "extensions_default_index": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "hash_cache_max": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "host_identifier": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "ignore_table_exceptions": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_event_type": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_kafka_acks": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_kafka_brokers": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_kafka_compression": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_kafka_topic": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_min_status": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_min_stderr": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_numerics": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_path": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_rotate": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_rotate_max_files": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_rotate_size": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_snapshot_event_type": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_syslog_facility": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_syslog_prepend_cee": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_tls_backoff_max": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_tls_compress": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "logger_tls_endpoint": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "logger_tls_max_lines": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_tls_max_linesize": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "logger_tls_period": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "nullvalue": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "numeric_monitoring_filesystem_path": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "numeric_monitoring_plugins": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "numeric_monitoring_pre_aggregation_time": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "pack_delimiter": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "pack_refresh_interval": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "read_max": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_default_interval": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_epoch": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_lognames": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "schedule_max_drift": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_reload": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_splay_percent": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "schedule_timeout": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "specified_identifier": {
-                  "description": "type: `string`",
                   "type": [
                     "string",
                     "null"
                   ]
                 },
                 "table_delay": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "thrift_string_size_limit": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "thrift_timeout": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "thrift_verbose": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "tls_disable_status_log": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "verbose": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
                   ]
                 },
                 "yara_delay": {
-                  "description": "type: `integer`"
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
                 },
                 "yara_sigurl_authenticate": {
-                  "description": "type: `boolean`",
                   "type": [
                     "boolean",
                     "null"
