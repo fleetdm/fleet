@@ -277,12 +277,15 @@ const generateTableHeaders = (
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
                 {type === "patch" && (
-                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>
+                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch
                   </PillBadge>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <PillBadge tipContent="This policy runs on all hosts.">
+                  <PillBadge
+                    tipContent="This policy runs on all hosts."
+                    size="small"
+                  >
                     Inherited
                   </PillBadge>
                 )}

@@ -23,7 +23,11 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 const renderApiUserIndicator = () => {
-  return <PillBadge tipContent="This user only has API access.">API</PillBadge>;
+  return (
+    <PillBadge tipContent="This user only has API access." size="small">
+      API
+    </PillBadge>
+  );
 };
 
 interface IHeaderProps {

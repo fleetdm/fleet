@@ -171,7 +171,10 @@ const generateColumnConfigs = ({
                 {viewingTeamScope &&
                   // inherited
                   team_id !== currentTeamId && (
-                    <PillBadge tipContent="This report runs on all hosts.">
+                    <PillBadge
+                      tipContent="This report runs on all hosts."
+                      size="small"
+                    >
                       Inherited
                     </PillBadge>
                   )}

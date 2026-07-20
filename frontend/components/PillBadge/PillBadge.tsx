@@ -10,9 +10,16 @@ interface IPillBadgeProps {
   children: React.ReactNode;
   tipContent?: JSX.Element | string;
   className?: string;
+  /** Default: "large" (28px). Use "small" (24px) within a table row. */
+  size?: "large" | "small";
 }
 
-const PillBadge = ({ children, tipContent, className }: IPillBadgeProps) => {
+const PillBadge = ({
+  children,
+  tipContent,
+  className,
+  size,
+}: IPillBadgeProps) => {
   const classNames = classnames(baseClass, className);
 
   return (
@@ -25,7 +32,7 @@ const PillBadge = ({ children, tipContent, className }: IPillBadgeProps) => {
         tipOffset={12}
         delayInMs={300}
       >
-        <Tag>{children}</Tag>
+        <Tag size={size}>{children}</Tag>
       </TooltipWrapper>
     </div>
   );

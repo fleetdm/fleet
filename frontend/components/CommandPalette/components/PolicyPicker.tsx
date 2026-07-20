@@ -110,10 +110,15 @@ const PolicyPicker = ({
               </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
-                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
+                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT} size="small">
+                  Patch
+                </PillBadge>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This policy runs on all hosts.">
+                <PillBadge
+                  tipContent="This policy runs on all hosts."
+                  size="small"
+                >
                   Inherited
                 </PillBadge>
               )}

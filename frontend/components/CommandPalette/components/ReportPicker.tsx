@@ -110,7 +110,10 @@ const ReportPicker = ({
                 </TooltipWrapper>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This report runs on all hosts.">
+                <PillBadge
+                  tipContent="This report runs on all hosts."
+                  size="small"
+                >
                   Inherited
                 </PillBadge>
               )}

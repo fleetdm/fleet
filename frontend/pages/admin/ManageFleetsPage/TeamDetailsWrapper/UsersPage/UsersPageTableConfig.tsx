@@ -74,6 +74,7 @@ export const renderApiUserIndicator = () => {
           />
         </>
       }
+      size="small"
     >
       API
     </PillBadge>

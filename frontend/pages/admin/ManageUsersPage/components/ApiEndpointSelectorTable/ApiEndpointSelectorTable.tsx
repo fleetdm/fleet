@@ -51,7 +51,10 @@ const NameCell = (cellProps: ICellProps) => {
     <span className={`${baseClass}__name-cell`}>
       <TextCell value={cellProps.cell.value} className="" />
       {deprecated && (
-        <PillBadge tipContent="This endpoint is deprecated and may be removed in a future version.">
+        <PillBadge
+          tipContent="This endpoint is deprecated and may be removed in a future version."
+          size="small"
+        >
           Deprecated
         </PillBadge>
       )}
