@@ -144,6 +144,9 @@ type SoftwareInstaller struct {
 
 	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
 	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
+
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery string `json:"app_open_query" db:"app_open_query"` //nolint:apiparamcheck // managed SQL precondition for install
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -619,6 +622,8 @@ type UploadSoftwareInstallerPayload struct {
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
 	Configuration []byte
+	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
+	AppOpenQuery string
 }
 
 // SoftwareInstallerLookupRow projects the columns needed to resolve an

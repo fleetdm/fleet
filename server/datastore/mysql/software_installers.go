@@ -312,8 +312,9 @@ INSERT INTO software_installers (
  	url,
  	upgrade_code,
  	is_active,
-	patch_query
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?)`
+	patch_query,
+	app_open_query
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?, ?, ?, ?)`
 
 		args := []interface{}{
 			tid,
@@ -338,6 +339,7 @@ INSERT INTO software_installers (
 			payload.UpgradeCode,
 			true,
 			payload.PatchQuery,
+			payload.AppOpenQuery,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -928,7 +930,7 @@ INSERT INTO software_installers (
 	post_install_script_content_id, install_during_setup,
 	storage_id, filename, extension, version,
 	install_script_content_id, uninstall_script_content_id,
-	url, upgrade_code, is_active, patch_query, package_ids
+	url, upgrade_code, is_active, patch_query, app_open_query, package_ids
 )
 SELECT
 	team_id, global_or_team_id, title_id, pre_install_query, platform,
@@ -936,11 +938,11 @@ SELECT
 	post_install_script_content_id, install_during_setup,
 	?, ?, ?, ?,
 	?, ?,
-	?, ?, 0, ?, ?
+	?, ?, 0, ?, ?, ?
 FROM software_installers WHERE id = ?`,
 			payload.StorageID, payload.Filename, payload.Extension, payload.Version,
 			installScriptID, uninstallScriptID,
-			payload.URL, payload.UpgradeCode, payload.PatchQuery, strings.Join(payload.PackageIDs, ","),
+			payload.URL, payload.UpgradeCode, payload.PatchQuery, payload.AppOpenQuery, strings.Join(payload.PackageIDs, ","),
 			cloneFromID,
 		)
 		if err != nil {
@@ -1488,7 +1490,8 @@ SELECT
   si.url,
   COALESCE(st.name, '') AS software_title,
   COALESCE(st.bundle_identifier, '') AS bundle_identifier,
-  si.patch_query
+  si.patch_query,
+  si.app_open_query
   %s
 FROM
   software_installers si
@@ -1583,6 +1586,7 @@ SELECT
   COALESCE(st.name, '') AS software_title,
   COALESCE(st.bundle_identifier, '') AS bundle_identifier,
   si.patch_query,
+  si.app_open_query,
   inst.contents AS install_script,
   COALESCE(pinst.contents, '') AS post_install_script,
   uninst.contents AS uninstall_script
@@ -2954,11 +2958,12 @@ INSERT INTO software_installers (
 	fleet_maintained_app_id,
 	is_active,
 	http_etag,
-	patch_query
+	patch_query,
+	app_open_query
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?, ?,
-  ?, ?
+  ?, ?, ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -2980,7 +2985,8 @@ ON DUPLICATE KEY UPDATE
   fleet_maintained_app_id = VALUES(fleet_maintained_app_id),
   is_active = VALUES(is_active),
   http_etag = VALUES(http_etag),
-  patch_query = VALUES(patch_query)
+  patch_query = VALUES(patch_query),
+  app_open_query = VALUES(app_open_query)
 `
 
 	const updateInstaller = `
@@ -2993,7 +2999,8 @@ SET
 	uninstall_script_content_id = ?,
 	post_install_script_content_id = ?,
 	pre_install_query = ?,
-	patch_query = ?
+	patch_query = ?,
+	app_open_query = ?
 WHERE id = ?
 `
 
@@ -3491,6 +3498,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				isActive,
 				installer.HTTPETag,
 				installer.PatchQuery,
+				installer.AppOpenQuery,
 				installer.InstallDuringSetup, // ON DUPLICATE KEY
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
@@ -3521,6 +3529,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 					postInstallScriptID,
 					installer.PreInstallQuery,
 					installer.PatchQuery,
+					installer.AppOpenQuery,
 					existingID,
 				}
 				if _, err := tx.ExecContext(ctx, updateInstaller, args...); err != nil {

@@ -50,6 +50,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
+		{"SoftwareInstallerAppOpenQueryRoundTrip", testSoftwareInstallerAppOpenQueryRoundTrip},
 		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
@@ -7129,4 +7130,53 @@ func testDeleteSoftwareInstallerRepointsPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, got.SoftwareInstallerID)
 	require.Equal(t, installerB, *got.SoftwareInstallerID)
+}
+
+func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Author", "author-appopen@example.com", true)
+
+	// Create a Fleet-maintained-app-backed installer, since app_open_query is FMA-managed.
+	newInstaller := func(t *testing.T, slug string, appOpenQuery string) uint {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             slug,
+			Slug:             slug,
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example." + slug,
+		})
+		require.NoError(t, err)
+
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:        "echo install",
+			UninstallScript:      "echo uninstall",
+			InstallerFile:        tfr,
+			StorageID:            slug,
+			Filename:             slug,
+			Title:                slug,
+			Version:              "1.0",
+			Source:               "apps",
+			Platform:             "darwin",
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: new(app.ID),
+			AppOpenQuery:         appOpenQuery,
+		})
+		require.NoError(t, err)
+		return titleID
+	}
+
+	// The managed "is app open" query round-trips through create -> metadata read.
+	const managed = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'App');"
+	titleID := newInstaller(t, "app-open-1", managed)
+	meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, false)
+	require.NoError(t, err)
+	require.Equal(t, managed, meta.AppOpenQuery)
+
+	// An installer with no managed query reads back empty (behaves as today).
+	titleID2 := newInstaller(t, "app-open-2", "")
+	meta2, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID2, false)
+	require.NoError(t, err)
+	require.Empty(t, meta2.AppOpenQuery)
 }
