@@ -88,14 +88,14 @@ const PacksTable = ({
       name: "enable",
       onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "check",
     },
     {
       name: "disable",
       onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "disable",
     },
   ];

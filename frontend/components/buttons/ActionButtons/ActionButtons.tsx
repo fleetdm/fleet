@@ -83,7 +83,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <GitOpsModeTooltipWrapper
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="inverse"
+                      variant="subdued"
                       onClick={action.onClick}
                       disabled={disableChildren}
                     >
@@ -97,7 +97,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
               );
             }
             return (
-              <Button variant="inverse" onClick={action.onClick}>
+              <Button variant="subdued" onClick={action.onClick}>
                 <>
                   {action.label}
                   {action.iconName && <Icon name={action.iconName} />}

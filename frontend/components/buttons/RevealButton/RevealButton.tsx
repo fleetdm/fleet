@@ -15,7 +15,7 @@ export interface IRevealButtonProps {
   tooltipContent?: React.ReactNode;
   disabledTooltipContent?: React.ReactNode;
   onClick?: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  /** Default: "inverse" */
+  /** Default: "secondary" */
   variant?: "inverse" | "secondary" | "subdued";
 }
 
@@ -32,7 +32,7 @@ const RevealButton = ({
   tooltipContent,
   disabledTooltipContent,
   onClick,
-  variant = "inverse",
+  variant = "secondary",
 }: IRevealButtonProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 

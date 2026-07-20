@@ -366,7 +366,7 @@ const OktaConditionalAccessModal = ({
           }
           internalError={formErrors[OKTA_CERTIFICATE]}
           onFileUpload={onSelectFile}
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           buttonMessage="Upload"
           accept=".pem,.crt,.cer,.cert"
           fileDetails={certFile ? { name: certFile.name } : undefined}

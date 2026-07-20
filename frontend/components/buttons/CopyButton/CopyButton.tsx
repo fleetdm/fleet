@@ -18,11 +18,12 @@ interface ICopyButtonProps {
   copyText: string;
   /** Override the button's content. Defaults to `<Icon name="copy" />`. */
   children?: React.ReactNode;
-  /** `"icon"` (default) — standard 36×36 icon button.
+  /** `"subdued"` (default) — borderless low-emphasis icon-only button —
+   *  see #35329.
+   *  `"icon"` — standard 36×36 icon button. DEPRECATED — use "subdued".
    *  `"inverse"` — bordered icon-with-text button (use with children).
    *  `"secondary"` — bordered 36×36 icon-only button (the current preferred
    *  secondary style — see #35329).
-   *  `"subdued"` — borderless low-emphasis icon-only button — see #35329.
    *  `"compact"` — icon collapsed to its natural size, no extra vertical
    *  chrome. Use for inline-with-text copy actions so the surrounding row
    *  doesn't grow to button height. */
@@ -46,7 +47,7 @@ const ERROR_MESSAGE = "Copy failed";
 const CopyButton = ({
   copyText,
   children,
-  variant = "icon",
+  variant = "subdued",
   size,
   className,
   ariaLabel = "Copy to clipboard",
@@ -103,7 +104,7 @@ const CopyButton = ({
   return (
     <span className={baseClass} data-tooltip-id={tipIdRef.current}>
       <Button
-        variant={isCompact ? "icon" : variant}
+        variant={isCompact ? "subdued" : variant}
         size={size}
         iconStroke
         onClick={onClick}
