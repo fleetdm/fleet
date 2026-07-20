@@ -11799,7 +11799,7 @@ func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID, software[0].ID)
 }
 
-// testListHostSoftwareShPackageForDarwin tests that .sh packages
+// testListHostSoftwareShPackageForDarwin tests that .sh and .py packages
 // (stored as platform='linux') are visible to darwin hosts
 func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -11832,6 +11832,24 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Create a .py installer (platform='linux', extension='py'), also runnable on darwin
+	tfrPy, err := fleet.NewTempFileReader(strings.NewReader("print('hello')"), t.TempDir)
+	require.NoError(t, err)
+	_, pyTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "python3 installer.py",
+		InstallerFile:   tfrPy,
+		StorageID:       "py-storage-darwin-test",
+		Filename:        "test-script.py",
+		Title:           "Test Py Script",
+		Version:         "1.0.0",
+		Source:          "py_packages",
+		Platform:        "linux", // .py files are stored as linux platform
+		Extension:       "py",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	// Create a regular .deb installer (platform='linux'), shouldn't be visible to darwin
 	tfr2, err := fleet.NewTempFileReader(strings.NewReader("deb content"), t.TempDir)
 	require.NoError(t, err)
@@ -11859,19 +11877,25 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	sw, _, err := ds.ListHostSoftware(ctx, darwinHost, opts)
 	require.NoError(t, err)
 
-	// Darwin host should see the .sh package but not the .deb package
-	var foundSh, foundDeb bool
+	// Darwin host should see the .sh and .py packages but not the .deb package
+	var foundSh, foundPy, foundDeb bool
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
 			require.Equal(t, "Test Script", s.Name)
 			require.Equal(t, "sh_packages", s.Source)
 		}
+		if s.ID == pyTitleID {
+			foundPy = true
+			require.Equal(t, "Test Py Script", s.Name)
+			require.Equal(t, "py_packages", s.Source)
+		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.True(t, foundSh, ".sh package should be visible to darwin host")
+	require.True(t, foundPy, ".py package should be visible to darwin host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to darwin host")
 
 	// Query available software for linux host, should see both
@@ -11879,16 +11903,21 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	foundSh = false
+	foundPy = false
 	foundDeb = false
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
+		}
+		if s.ID == pyTitleID {
+			foundPy = true
 		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.True(t, foundSh, ".sh package should be visible to linux host")
+	require.True(t, foundPy, ".py package should be visible to linux host")
 	require.True(t, foundDeb, ".deb package should be visible to linux host")
 
 	// Create a Windows host
@@ -11899,18 +11928,23 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, windowsHost, opts)
 	require.NoError(t, err)
 
-	// Windows host should NOT see .sh or .deb packages
+	// Windows host should NOT see .sh, .py, or .deb packages
 	foundSh = false
+	foundPy = false
 	foundDeb = false
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
+		}
+		if s.ID == pyTitleID {
+			foundPy = true
 		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.False(t, foundSh, ".sh package should NOT be visible to windows host")
+	require.False(t, foundPy, ".py package should NOT be visible to windows host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to windows host")
 }
 
