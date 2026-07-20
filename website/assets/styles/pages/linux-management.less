@@ -154,6 +154,14 @@
     }
   }
 
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
   [purpose='section-with-image'] {
     display: flex;
     flex-direction: row;
@@ -1104,7 +1112,12 @@
         flex: 1 0 80%;
       }
     }
-
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='quote-and-logos'] {
       [purpose='logo-grid'] {
         width: 100%;

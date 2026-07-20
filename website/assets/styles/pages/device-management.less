@@ -90,6 +90,14 @@
     max-width: 527px;
   }
 
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    white-space: nowrap;
+  }
+
   [purpose='section-button'] {
     .cta-button();
     width: fit-content;
@@ -742,6 +750,12 @@
           font-size: 24px;
         }
       }
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
     }
     [purpose='hero-image'] {
        img {

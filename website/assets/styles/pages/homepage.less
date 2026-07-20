@@ -381,6 +381,17 @@
     }
 
   }
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    margin-top: 32px;
+    white-space: nowrap;
+    [purpose='platform-button'] {
+      margin-top: 0px;
+    }
+  }
   [purpose='platform-button'] {
     .cta-button();
     padding: 8px 16px;
@@ -1501,6 +1512,18 @@
         font-size: 16px;
       }
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+      margin-top: 32px;
+      [purpose='platform-button'] {
+        margin-top: 0px;
+      }
+    }
+
+
     [purpose='feature-card'] {
       margin-left: 0px;
       &:last-of-type {

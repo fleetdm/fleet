@@ -243,7 +243,13 @@
 
     }
   }
-
+  [purpose='section-buttons'] {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: center;
+    white-space: nowrap;
+  }
   [purpose='section-button'] {
     .cta-button();
     width: fit-content;
@@ -385,6 +391,12 @@
     [purpose='page-section'] {
       gap: 80px;
     }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
+    }
     [purpose='quote-and-logos'] {
       display: flex;
       flex-direction: row;
@@ -473,6 +485,12 @@
     }
     [purpose='feature-row'] {
       gap: 48px;
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: row;
+      gap: 24px;
+      align-items: center;
     }
     [purpose='quote-and-logos'] {
       display: flex;
@@ -588,6 +606,12 @@
     }
     [purpose='page-container'] {
       padding: 32px 24px;
+    }
+    [purpose='section-buttons'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      align-items: flex-start;
     }
     [parasails-component='scrollable-tweets'] {
       [purpose='tweets'] {
