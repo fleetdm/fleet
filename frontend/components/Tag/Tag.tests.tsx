@@ -24,6 +24,23 @@ describe("Tag", () => {
     expect(screen.getByText("Inherited")).toHaveClass("tag--small");
   });
 
+  it("does not wrap the tag in a tooltip when tooltip is omitted", () => {
+    const { container } = render(<Tag>Inherited</Tag>);
+
+    expect(container.querySelector(".component__tooltip-wrapper")).toBeNull();
+  });
+
+  it("wraps the tag in a tooltip when tooltip is provided", () => {
+    const { container } = render(
+      <Tag tooltip="This report runs on all hosts.">Inherited</Tag>
+    );
+
+    expect(screen.getByText("Inherited")).toBeInTheDocument();
+    expect(
+      container.querySelector(".component__tooltip-wrapper")
+    ).not.toBeNull();
+  });
+
   it("renders clickable tags as a button and calls onClick", async () => {
     const handler = jest.fn();
     render(

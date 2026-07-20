@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "tag";
 
@@ -13,6 +14,8 @@ interface ITagBaseProps {
   size?: "large" | "small";
   disabled?: boolean;
   className?: string;
+  /** Wraps the tag in a tooltip that shows this content on hover */
+  tooltip?: JSX.Element | string;
 }
 
 interface IStaticTagProps extends ITagBaseProps {
@@ -40,7 +43,7 @@ interface IDismissibleTagProps extends ITagBaseProps {
 type ITagProps = IStaticTagProps | IClickableTagProps | IDismissibleTagProps;
 
 const Tag = (props: ITagProps) => {
-  const { children, disabled, className } = props;
+  const { children, disabled, className, tooltip } = props;
 
   const classNames = classnames(baseClass, className, {
     [`${baseClass}--clickable`]: props.type === "clickable",
@@ -48,8 +51,10 @@ const Tag = (props: ITagProps) => {
     [`${baseClass}--small`]: props.size === "small",
   });
 
+  let content: JSX.Element;
+
   if (props.type === "clickable") {
-    return (
+    content = (
       <button
         type="button"
         className={classNames}
@@ -59,12 +64,10 @@ const Tag = (props: ITagProps) => {
         {children}
       </button>
     );
-  }
-
-  if (props.type === "dismissible") {
+  } else if (props.type === "dismissible") {
     const dismissLabel = props.dismissLabel ?? "Dismiss";
 
-    return (
+    content = (
       <span className={classNames}>
         <span className={`${baseClass}__label`}>{children}</span>
         <button
@@ -79,9 +82,26 @@ const Tag = (props: ITagProps) => {
         </button>
       </span>
     );
+  } else {
+    content = <span className={classNames}>{children}</span>;
   }
 
-  return <span className={classNames}>{children}</span>;
+  if (!tooltip) {
+    return content;
+  }
+
+  return (
+    <TooltipWrapper
+      tipContent={tooltip}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={12}
+      delayInMs={300}
+    >
+      {content}
+    </TooltipWrapper>
+  );
 };
 
 export default Tag;

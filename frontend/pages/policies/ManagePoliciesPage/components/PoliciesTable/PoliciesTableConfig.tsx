@@ -26,7 +26,7 @@ import sortUtils from "utilities/sort";
 import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
 
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -293,17 +293,14 @@ const generateTableHeaders = (
               <>
                 {isPremiumTier && critical && <CriticalPolicyBadge />}
                 {type === "patch" && (
-                  <PillBadge tipContent={PATCH_TOOLTIP_CONTENT} size="small">
+                  <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
                     Patch
-                  </PillBadge>
+                  </Tag>
                 )}
                 {viewingTeamPolicies && team_id === null && (
-                  <PillBadge
-                    tipContent="This policy runs on all hosts."
-                    size="small"
-                  >
+                  <Tag tooltip="This policy runs on all hosts." size="small">
                     Inherited
-                  </PillBadge>
+                  </Tag>
                 )}
               </>
             }

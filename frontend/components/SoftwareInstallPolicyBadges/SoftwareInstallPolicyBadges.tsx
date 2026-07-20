@@ -4,7 +4,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 import { SoftwareInstallPolicyTypeSet } from "interfaces/software";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 
 const baseClass = "software-install-policy-badges";
 
@@ -20,9 +20,9 @@ interface IPatchBadgesProps {
 
 const SoftwareInstallPolicyBadges = ({ policyType }: IPatchBadgesProps) => {
   const renderPatchBadge = () => (
-    <PillBadge tipContent={PATCH_TOOLTIP_CONTENT} size="small">
+    <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
       Patch
-    </PillBadge>
+    </Tag>
   );
 
   const renderAutomaticInstallBadge = () => (

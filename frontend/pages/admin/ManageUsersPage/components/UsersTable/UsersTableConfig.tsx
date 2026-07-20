@@ -5,7 +5,7 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -24,9 +24,9 @@ import ActionsDropdown from "../../../../../components/ActionsDropdown";
 
 const renderApiUserIndicator = () => {
   return (
-    <PillBadge tipContent="This user only has API access." size="small">
+    <Tag tooltip="This user only has API access." size="small">
       API
-    </PillBadge>
+    </Tag>
   );
 };
 

@@ -11,7 +11,7 @@ import { isEmpty } from "lodash";
 
 import TableContainer from "components/TableContainer";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
@@ -51,12 +51,12 @@ const NameCell = (cellProps: ICellProps) => {
     <span className={`${baseClass}__name-cell`}>
       <TextCell value={cellProps.cell.value} className="" />
       {deprecated && (
-        <PillBadge
-          tipContent="This endpoint is deprecated and may be removed in a future version."
+        <Tag
+          tooltip="This endpoint is deprecated and may be removed in a future version."
           size="small"
         >
           Deprecated
-        </PillBadge>
+        </Tag>
       )}
     </span>
   );

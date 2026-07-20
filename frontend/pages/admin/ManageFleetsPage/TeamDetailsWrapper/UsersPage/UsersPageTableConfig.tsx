@@ -11,7 +11,7 @@ import TooltipTruncatedTextCell from "components/TableContainer/DataTable/Toolti
 import ActionsDropdown from "components/ActionsDropdown";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 
 interface IHeaderProps {
   column: {
@@ -61,8 +61,8 @@ export interface ITeamUsersTableData {
 
 export const renderApiUserIndicator = () => {
   return (
-    <PillBadge
-      tipContent={
+    <Tag
+      tooltip={
         <>
           This user was created using fleetctl and
           <br /> only has API access.{" "}
@@ -77,7 +77,7 @@ export const renderApiUserIndicator = () => {
       size="small"
     >
       API
-    </PillBadge>
+    </Tag>
   );
 };
 
