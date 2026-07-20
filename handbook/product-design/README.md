@@ -182,7 +182,7 @@ If the original request is a customer request, it's up to the relevant CSA to de
 
 ### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) and estimated in a single release cycle. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
 
 1. Comment on the GitHub issue and at-mention the Head of Product Design and [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
 2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
