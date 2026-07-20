@@ -1651,8 +1651,7 @@ func TestGetESPCommands(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
 		}
-		// No release attempt queued yet: handleESPRelease proceeds to the wait gates / finalize. Tests for the
-		// user-scope release retry phase override this to return Attempted=true with the ack state under test.
+		// No release attempt queued yet.
 		ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
 			return &fleet.MDMWindowsESPReleaseAckStatus{}, nil
 		}
@@ -1841,8 +1840,7 @@ func TestGetESPCommands(t *testing.T) {
 		assert.True(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked,
 			"release path must persist final commands as the dropped-response retry backup")
 		assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
-			"release path must stay Active until the user-scope ServerHasFinishedProvisioning Replace acks 200; "+
-				"CASing to None here is the #49134 bug (a 405 was recorded as delivered and the device hung)")
+			"release path must stay Active until the user-scope ServerHasFinishedProvisioning Replace acks 200")
 	})
 
 	t.Run("active with no profiles releases device", func(t *testing.T) {
@@ -1855,10 +1853,9 @@ func TestGetESPCommands(t *testing.T) {
 			"release path must stay Active until the user-scope release is acked")
 	})
 
-	// The user-scope release retry phase: once release commands have been queued (ack.Attempted), the handler
-	// bypasses the wait gates entirely and drives the Active -> None transition off the ack of the user-scope
-	// ServerHasFinishedProvisioning Replace. Live-validated behavior on Win11 26200 (#49134): the device 405s
-	// the user-scope write until its user MDM context initializes, then accepts an identical Replace.
+	// The user-scope release retry phase: once release commands have been queued (ack.Attempted), the handler bypasses
+	// the wait gates entirely and drives the Active -> None transition off the ack of the user-scope
+	// ServerHasFinishedProvisioning Replace.
 	t.Run("user-scope release retry phase", func(t *testing.T) {
 		// newRetrySvc wires newSvc with the given ack status and fails the test if the wait gates are consulted:
 		// the retry phase must decide from the ack alone.
@@ -1866,6 +1863,7 @@ func TestGetESPCommands(t *testing.T) {
 			ds, svc := newSvc(t)
 			ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
 				require.Contains(t, targetLocURI, "./User/", "ack status must be looked up for the user-scope release URI")
+				require.Equal(t, espReleaseAttemptCmdIDPrefix, cmdUUIDPrefix, "ack status must be scoped to Fleet's own release attempts")
 				return &ack, nil
 			}
 			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -1925,18 +1923,20 @@ func TestGetESPCommands(t *testing.T) {
 			assert.Equal(t, fleet.CmdReplace, cmds[0].XMLName.Local)
 			assert.Contains(t, cmds[0].GetTargetURI(), "./User/Vendor/MSFT/DMClient/Provider/")
 			assert.Contains(t, cmds[0].GetTargetURI(), "ServerHasFinishedProvisioning")
+			assert.True(t, strings.HasPrefix(cmds[0].CmdID.Value, espReleaseAttemptCmdIDPrefix),
+				"the retry CmdID must carry the attempt prefix or the ack-status lookup will never see its ack")
 			require.Equal(t, []string{cmds[0].CmdID.Value}, persistedUUIDs,
 				"the retry must be persisted with the inline CmdID so the ack clears the backup and is recorded in results")
 			assert.False(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked, "must stay Active until a 200 ack")
 		})
 
+		// If we get a 405 mid-session, we do not send another retry right away but wait for the next session (typically within 60 seconds).
 		t.Run("acked 405 mid-session waits for the next session", func(t *testing.T) {
 			ds, svc := newRetrySvc(t, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
 
 			cmds, err := svc.getESPCommands(t.Context(), newActiveDevice(), sessionMsg("5"))
 			require.NoError(t, err)
-			assert.Empty(t, cmds,
-				"a mid-session retry would ping-pong the failing Replace for as long as the device keeps the session open")
+			assert.Empty(t, cmds, "a mid-session retry would ping-pong the failing Replace")
 			assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
 		})
 
@@ -1960,7 +1960,7 @@ func TestGetESPCommands(t *testing.T) {
 			require.NoError(t, err)
 			assert.Empty(t, cmds, "timeout stops the retry loop")
 			assert.True(t, ds.SetMDMWindowsAwaitingConfigurationFuncInvoked,
-				"the 3-hour timeout must bound the retry loop for devices whose user context never initializes")
+				"the timeout must bound the retry loop for devices whose user context never initializes")
 			assert.False(t, ds.MDMWindowsInsertCommandsForHostFuncInvoked)
 		})
 	})

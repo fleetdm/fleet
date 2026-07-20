@@ -145,8 +145,6 @@ func newPBTESPSvc(
 		trace.callOrder = append(trace.callOrder, "cas")
 		return true, nil
 	}
-	// No release attempt queued yet: the handler proceeds to the wait gates / finalize instead of the
-	// user-scope release retry phase (which has its own unit tests).
 	ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
 		return &fleet.MDMWindowsESPReleaseAckStatus{}, nil
 	}
@@ -238,6 +236,7 @@ func pbtFindCmdByLocURI(cmds []*fleet.SyncMLCmd, substr string) *fleet.SyncMLCmd
 	return nil
 }
 
+// TestPBT_HandleESPRelease tests releases due to software failures or timeout. It does not test the happy path (which requires an Ack from device). The happy path is covered by other tests.
 func TestPBT_HandleESPRelease(t *testing.T) {
 	statusGen := rapid.SampledFrom([]fleet.SetupExperienceStatusResultStatus{
 		fleet.SetupExperienceStatusPending,
@@ -415,9 +414,7 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 		require.NotEqualf(rt, -1, firstPersist, "persist must run for non-wait outcomes")
 		// CAS Active -> None runs only on the block-flavored paths. The release path stays Active: the
 		// transition is deferred until the device acks the user-scope ServerHasFinishedProvisioning Replace
-		// with a 200 (handleESPUserReleaseRetry on a later checkin). CASing here was the #49134 bug: a 405 on
-		// that Replace was recorded as delivered and the device hung on Account setup with Fleet believing
-		// the ESP had completed.
+		// with a 200 (handleESPUserReleaseRetry on a later checkin).
 		if expected == pbtESPRelease {
 			require.Equalf(rt, -1, firstCas,
 				"release path must NOT CAS to None before the user-scope release ack; callOrder=%v", trace.callOrder)
