@@ -2667,9 +2667,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return cmds, nil
 	}
 
-	// Block paths commit immediately: CAS Active -> None so exactly one concurrent checkin finalizes. Cancel and
-	// persist above may have run for both racers; cancel is idempotent and the loser's persisted Replaces deliver
-	// harmlessly.
+	// Enrollment is blocked (due to software failure or timeout).
 	transitioned, err := svc.casESPActiveToNone(ctx, device, "block finalize")
 	if err != nil {
 		return nil, err
