@@ -3052,7 +3052,7 @@ This activity contains the following fields:
 }
 ```
 
-## released_from_AB
+## released_from_ab
 
 Generated when a host has been released from Apple Business (AB).
 
