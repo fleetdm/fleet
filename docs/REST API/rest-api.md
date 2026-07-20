@@ -6727,7 +6727,7 @@ Rotates the managed local account password for a host.
 
 ### Get host's managed account password
 
-Retrieves the managed account password for a macOS host.
+Retrieves the managed account password for an eligible macOS or Windows host.
 
 The host will only return a password if its managed account password status is "Verified".
 
