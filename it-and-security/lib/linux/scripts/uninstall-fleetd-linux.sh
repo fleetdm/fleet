@@ -52,6 +52,6 @@ else
         systemd-run --quiet bash "$SCRIPT_PATH" remove
     else
         # Fallback for non-systemd systems (rare for modern Linux)
-        bash -c "bash \"$SCRIPT_PATH\" remove >/dev/null 2>/dev/null </dev/null &"
+        nohup bash "$SCRIPT_PATH" remove >/dev/null 2>&1 </dev/null &
     fi
 fi
