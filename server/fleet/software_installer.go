@@ -146,7 +146,7 @@ type SoftwareInstaller struct {
 	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
 
 	// AppOpenQuery is the Fleet-managed pre-install query that skips the install while the app is open.
-	AppOpenQuery string `json:"app_open_query" db:"app_open_query"` //nolint:apiparamcheck // managed SQL precondition for install
+	AppOpenQuery string `json:"-" db:"app_open_query"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.

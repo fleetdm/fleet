@@ -2826,6 +2826,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 			app.UninstallScript = installer.UninstallScript
 			app.Categories = installer.Categories
 			app.PatchQuery = installer.PatchQuery
+			app.AppOpenQuery = installer.AppOpenQuery
 		}
 	}
 
@@ -2845,6 +2846,7 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		payload.Categories = optjson.SetSlice(app.Categories)
 	}
 	payload.MaintainedApp.PatchQuery = app.PatchQuery
+	payload.MaintainedApp.AppOpenQuery = app.AppOpenQuery
 
 	return nil
 }
@@ -3407,6 +3409,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
 				installer.PatchQuery = p.MaintainedApp.PatchQuery
+				installer.AppOpenQuery = p.MaintainedApp.AppOpenQuery
 			}
 
 			var ext string

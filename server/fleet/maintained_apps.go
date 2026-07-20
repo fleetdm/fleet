@@ -19,6 +19,7 @@ type MaintainedApp struct {
 	Categories            []string `json:"categories"`
 	UpgradeCode           string   `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	PatchQuery            string   `json:"-" db:"patch_query"`
+	AppOpenQuery          string   `json:"-" db:"app_open_query"`
 }
 
 func (s *MaintainedApp) Source() string {

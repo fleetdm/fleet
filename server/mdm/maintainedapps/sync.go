@@ -258,6 +258,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	app.Categories = selected.DefaultCategories
 	app.UpgradeCode = selected.UpgradeCode
 	app.PatchQuery = selected.Queries.Patched
+	app.AppOpenQuery = selected.Queries.Open
 
 	return app, nil
 }

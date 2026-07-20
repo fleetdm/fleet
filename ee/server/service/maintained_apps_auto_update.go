@@ -276,6 +276,7 @@ func downloadNewVersionIfEligible(
 		URL:             app.InstallerURL,
 		UpgradeCode:     upgradeCode,
 		PatchQuery:      app.PatchQuery,
+		AppOpenQuery:    app.AppOpenQuery,
 		InstallScript:   app.InstallScript,
 		UninstallScript: app.UninstallScript,
 		PackageIDs:      packageIDs,

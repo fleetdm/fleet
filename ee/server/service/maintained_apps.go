@@ -188,6 +188,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Categories:            app.Categories,
 		URL:                   app.InstallerURL,
 		PatchQuery:            app.PatchQuery,
+		AppOpenQuery:          app.AppOpenQuery,
 	}
 
 	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
