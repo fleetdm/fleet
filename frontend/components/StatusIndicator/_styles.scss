@@ -62,7 +62,7 @@
   }
   &--no-access {
     &:before {
-      background-color: $ui-offline;
+      background-color: $ui-error;
     }
   }
   &--inactive {
@@ -72,7 +72,7 @@
   }
   &--invite-pending {
     &:before {
-      background-color: $ui-warning;
+      background-color: $ui-offline;
     }
   }
 }
