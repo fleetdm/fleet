@@ -8857,7 +8857,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitLinuxClient is no longer a member of the 'Foobar' label.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
-		foobarLabel.ID: nil,
+		foobarLabel.ID: new(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
