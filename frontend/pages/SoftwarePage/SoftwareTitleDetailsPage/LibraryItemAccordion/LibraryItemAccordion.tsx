@@ -564,6 +564,7 @@ const LibraryItemAccordion = ({
           />
           <CopyButton
             copyText={hashSha256}
+            variant="subdued"
             ariaLabel="Copy hash to clipboard"
           />
         </div>

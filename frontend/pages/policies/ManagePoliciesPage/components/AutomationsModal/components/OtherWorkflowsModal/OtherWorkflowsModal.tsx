@@ -269,6 +269,7 @@ const OtherWorkflowsModal = forwardRef<
             showText="Show example ticket"
             caretPosition="after"
             onClick={() => setShowExampleTicket(!showExampleTicket)}
+            variant="secondary"
           />
           {showExampleTicket && (
             <ExampleTicket

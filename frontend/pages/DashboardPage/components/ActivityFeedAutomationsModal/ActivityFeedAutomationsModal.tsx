@@ -171,6 +171,7 @@ const ActivityFeedAutomationsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
+          variant="secondary"
         />
         {showExamplePayload && renderExamplePayload()}
         <div className="modal-cta-wrap">

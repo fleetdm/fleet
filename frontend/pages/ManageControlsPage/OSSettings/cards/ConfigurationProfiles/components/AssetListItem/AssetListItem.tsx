@@ -65,7 +65,7 @@ const AssetListItem = ({
     <>
       <Button
         className={`${baseClass}__action-button`}
-        variant="icon"
+        variant="secondary"
         onClick={onClickDownload}
         ariaLabel={`Download ${asset.name}`}
       >
@@ -77,7 +77,7 @@ const AssetListItem = ({
             <Button
               disabled={disableChildren}
               className={`${baseClass}__action-button`}
-              variant="icon"
+              variant="secondary"
               onClick={() => onClickDelete(asset)}
               ariaLabel={`Delete ${asset.name}`}
             >

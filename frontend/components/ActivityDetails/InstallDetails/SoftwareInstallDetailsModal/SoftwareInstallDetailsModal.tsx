@@ -471,6 +471,7 @@ export const SoftwareInstallDetailsModal = ({
                   />
                   <CopyButton
                     copyText={swInstallResult.hash_sha256}
+                    variant="subdued"
                     ariaLabel="Copy hash to clipboard"
                   />
                 </>
