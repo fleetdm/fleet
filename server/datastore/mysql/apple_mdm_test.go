@@ -434,11 +434,8 @@ func testUpdateMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checksumBeforeLabelChanges := storedCP.Checksum
 	// a labels-only update must NOT touch the checksum -- the profile-manager
-	// cron diffs on checksum to decide whether a host needs redelivery, so an
-	// unrelated checksum bump here would cause needless MDM commands. Name is
-	// also deliberately omitted below -- it's only read inside the
-	// content-update branch (len(cp.Mobileconfig) > 0), so it has no effect on
-	// these labels-only calls.
+	// cron diffs on checksum, so a bump here would cause needless redelivery.
+	// Name is omitted: it's only read in the content-update branch.
 	_, err = ds.UpdateMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
 		ProfileUUID: initialCP.ProfileUUID,
 		Identifier:  initialCP.Identifier,

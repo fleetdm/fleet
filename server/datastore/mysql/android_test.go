@@ -1074,11 +1074,9 @@ func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.Len(t, stored.LabelsExcludeAny, 1)
 	require.Equal(t, excludeAnyLabel.Name, stored.LabelsExcludeAny[0].LabelName)
 
-	// content and labels can both be updated atomically in a single call --
-	// the above blocks already prove each dimension works on its own, but
-	// nothing so far proves the two transactional steps (content UPDATE,
-	// label rebuild) actually interact correctly when they happen together
-	// against a real database.
+	// content and labels updated together in a single call -- proves the two
+	// transactional steps (content UPDATE, label rebuild) compose correctly,
+	// not just each dimension on its own.
 	combined, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
 		Name:    "Combined Update Profile",
 		RawJSON: []byte(`{"combinedOriginal": true}`),

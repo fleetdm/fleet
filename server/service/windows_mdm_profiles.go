@@ -60,11 +60,8 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-// parseAndValidateWindowsConfigProfile runs the validation shared by creating
-// and updating a Windows configuration profile: verifies Windows MDM is
-// configured, validates license/team requirements, validates the SyncML
-// content, expands/validates embedded secrets and Fleet variables/CAs, and
-// validates label scoping. It returns the constructed profile (with labels
+// parseAndValidateWindowsConfigProfile runs the validation shared by the
+// create and update paths. It returns the constructed profile (with labels
 // set), the Fleet variable names it uses, and the team's name (empty string
 // for no team).
 func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMWindowsConfigProfile, []fleet.FleetVarName, string, error) {
@@ -163,16 +160,10 @@ func (svc *Service) parseAndValidateWindowsConfigProfile(ctx context.Context, te
 }
 
 // updateMDMWindowsConfigProfile implements the Windows branch of
-// UpdateMDMConfigProfile: it loads the existing profile, re-validates a new
-// upload (when provided) the same way NewMDMWindowsConfigProfile does, then
-// performs the atomic datastore update and logs the edit activity.
-//
-// Unlike Apple profiles, a Windows profile's name cannot change on this path.
-// Windows profiles have no separate identifier field -- name is their only
-// identity, enforced by a unique (team_id, name) index -- so changing it
-// would be indistinguishable from deleting the profile and creating an
-// unrelated one (this mirrors how GitOps itself treats a Windows profile
-// rename: as a delete-then-insert, not an in-place update).
+// UpdateMDMConfigProfile. A profile's name cannot change here: unlike Apple
+// profiles there is no separate identifier, so name is a Windows profile's
+// only identity (GitOps likewise treats a rename as delete-then-insert, not
+// an edit).
 func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -246,11 +237,10 @@ func (svc *Service) updateMDMWindowsConfigProfile(ctx context.Context, profileUU
 		actTeamName = &teamName
 	}
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedWindowsProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: cp.Name,
-			Platform:    "windows",
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm windows config profile")
 	}

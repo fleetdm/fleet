@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -535,7 +536,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		return &fleet.MDMWindowsConfigProfile{
 			ProfileUUID: "w" + uuid.NewString(),
 			Name:        name,
-			TeamID:      &teamID,
+			TeamID:      ptr.UintOrNilIfZero(teamID),
 		}
 	}
 
@@ -603,10 +604,9 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
-		assert.Equal(t, "windows", act.Platform)
 	})
 
 	// No "different name is rejected" test here: there's no request field a
@@ -637,10 +637,9 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		assert.Equal(t, existing.Name, updated.Name)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
-		assert.Equal(t, "windows", act.Platform)
 	})
 
 	t.Run("profile content update for a team-scoped profile", func(t *testing.T) {
@@ -669,7 +668,7 @@ func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
 		assert.EqualValues(t, 5, *updated.TeamID)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
 		require.True(t, ok)
 		require.NotNil(t, act.TeamID)
 		assert.EqualValues(t, 5, *act.TeamID)

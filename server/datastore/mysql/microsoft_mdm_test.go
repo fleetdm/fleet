@@ -2629,11 +2629,9 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames,
 		"a labels-only edit must preserve the profile's variable associations")
 
-	// content, labels, and Fleet variables can all be updated atomically in a
-	// single call -- the above blocks already prove each dimension works on
-	// its own, but nothing so far proves the three transactional steps
-	// (content UPDATE, label rebuild, variable rebuild) actually interact
-	// correctly when they all happen together against a real database.
+	// content, labels, and Fleet variables updated together in a single call
+	// -- proves the three transactional steps compose correctly, not just
+	// each dimension on its own.
 	combined, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name:   "Combined Update Profile",
 		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/CombinedOriginal</LocURI></Target></Item></Replace>"),
@@ -2662,11 +2660,9 @@ func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames)
 
-	// OS-update tracking is reconciled on edit, not just set once on create:
-	// editing a profile INTO OS-update content tracks it, and editing it back
-	// AWAY from OS-update content untracks it -- otherwise the team's OS
-	// updates settings feature would stay permanently blocked by a stale
-	// tracking row after the profile stops targeting OS updates.
+	// OS-update tracking is reconciled on edit: editing INTO OS-update
+	// content tracks the profile, editing AWAY untracks it, so the team's OS
+	// updates setting isn't permanently blocked by a stale tracking row.
 	osUpdateSyncML := fmt.Appendf(nil,
 		`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
 		syncml.FleetOSUpdateTargetLocURI)

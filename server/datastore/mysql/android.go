@@ -731,11 +731,10 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 	return &profile, nil
 }
 
-// UpdateMDMAndroidConfigProfile updates an existing configuration profile's
-// contents (if cp.RawJSON is non-empty) and/or label targeting in place,
-// preserving its ProfileUUID. cp.Name must match the existing profile's --
-// like Windows profiles, Android profiles have no separate identifier, so
-// name is the only identity a profile has and this method never changes it.
+// UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
+// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
+// match the existing profile's -- name is an Android profile's only
+// identity, so it never changes on this path.
 func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var existing struct {
@@ -756,12 +755,11 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 		}
 
 		if len(cp.RawJSON) > 0 {
-			// uploaded_at is preserved when the content didn't change, matching
-			// the batch upsert's IF(raw_json = VALUES(raw_json) ...) convention --
-			// a no-op edit must not read as a fresh upload. Its assignment is
-			// evaluated first (left to right) so it sees the pre-update raw_json,
-			// and the parameter must be CAST to JSON: comparing a json column to
-			// a bare string compares against a JSON scalar string, never equal.
+			// Preserve uploaded_at on unchanged content (matching the batch
+			// upsert) so a no-op edit doesn't read as a fresh upload. The IF sees
+			// the pre-update raw_json (SET evaluates left to right), and the
+			// parameter must be CAST to JSON -- a json column never equals a
+			// bare string.
 			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ? WHERE profile_uuid = ? AND name = ?`
 			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.ProfileUUID, cp.Name)
 			if err != nil {
@@ -771,14 +769,10 @@ func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet
 				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
 			}
 
-			// variable associations are only touched when new content was
-			// uploaded: within a content update the call must be unconditional
-			// so an edit which removes the profile's last Fleet variable still
-			// clears the stale association -- batchSetProfileVariableAssociationsDB
-			// always deletes existing associations before optionally
-			// re-inserting. On a labels-only update the content -- and thus its
-			// variables -- didn't change, and clearing them here would break
-			// variable-driven redelivery.
+			// Reset variable associations only on a content update, but then
+			// unconditionally, so an edit that removes the profile's last Fleet
+			// variable still clears the stale association. A labels-only update
+			// must leave them alone or variable-driven redelivery would break.
 			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
 			}, "android", false); err != nil {
