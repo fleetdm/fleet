@@ -50,6 +50,14 @@ const (
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
 func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
+	// Custom host vitals are declarative and global-only, so every `fleetctl gitops`
+	// run against a global config calls these, even when custom_host_vitals: is absent.
+	ds.ListCustomHostVitalsFunc = func(ctx context.Context, opt fleet.ListOptions) ([]fleet.CustomHostVital, *fleet.PaginationMetadata, int, error) {
+		return nil, &fleet.PaginationMetadata{}, 0, nil
+	}
+	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		return nil, nil, nil
+	}
 	var users []*fleet.User
 	var admin *fleet.User
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -79,6 +87,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
+	}
+	// On Premium, AppConfig assembly reads the Microsoft conditional access
+	// integration. Default to an empty (not set up) integration so tests that
+	// don't care about it don't panic on a nil mock.
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
@@ -136,6 +150,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		return nil
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -258,6 +275,13 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.Contains(r.URL.Path, "ruby_variant.deb"):
+					// ruby.deb with extra trailing bytes: same package (the deb archive
+					// ignores trailing bytes) but a different hash, so it is a distinct
+					// package of the same title.
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+					_, _ = w.Write([]byte("\n# variant\n"))
 				case strings.HasSuffix(r.URL.Path, ".pkg"):
 					pkgDir := getPathRelative("../testdata/gitops/lib/")
 					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))

@@ -90,6 +90,25 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	// Custom host vital reference validation is wired into all script/profile
+	// upload paths. Provide a permissive default so tests that don't reference
+	// $FLEET_HOST_VITAL_<id> don't need to stub it (the real datastore no-ops
+	// when the document has no such tokens). Tests that assert on it can override.
+	if mockDS, ok := ds.(*fleet_mock.Store); ok {
+		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+		}
+		// On Premium, AppConfig assembly and the osquery detail-query flow read the
+		// Microsoft conditional access integration. Default to an empty (not set up)
+		// integration so premium tests that don't care about it don't panic on a nil
+		// mock. Tests that assert on it can override.
+		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
+			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+	}
+
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := slog.New(slog.DiscardHandler)
 	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
@@ -214,7 +233,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
-		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+		// The Conditional Access feature is gated on Fleet Premium; callers that
+		// exercise it must provide a premium license via opts[0].License.
+		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {

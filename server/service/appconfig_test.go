@@ -1054,6 +1054,53 @@ func TestModifyAppConfigHostNameTemplateDowngrade(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostNameTemplateSecretErrors verifies that when the "No team"
+// host name template references a secret variable, a missing secret is reported as
+// invalid input (422) while a datastore failure propagates as a server error rather
+// than being misclassified as invalid input.
+func TestModifyAppConfigHostNameTemplateSecretErrors(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, validateErr error) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return validateErr }
+		return svc, ctx, ds
+	}
+
+	// A change to a template that references a secret, so validation runs.
+	body := []byte(`{"mdm":{"name_template":"WS-$FLEET_SECRET_TOKEN"}}`)
+
+	t.Run("missing secret is invalid input (422)", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, &fleet.MissingSecretsError{MissingSecrets: []string{"TOKEN"}})
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, errors.New("database is down"))
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &argErr, "a datastore error must not be reported as invalid input")
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+}
+
 // TestTransparencyURLDowngradeLicense tests scenarios where a transparency url value has previously
 // been stored (for example, if a licensee downgraded without manually resetting the transparency url)
 func TestTransparencyURLDowngradeLicense(t *testing.T) {

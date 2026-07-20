@@ -87,10 +87,6 @@ func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	return foundProcesses, nil
 }
 
-func GetSMBiosUUID() (string, UUIDSource, error) {
-	return "", UUIDSourceInvalid, errors.New("not implemented.")
-}
-
 // RunUpdateQuirks is a no-op on non-windows platforms
 func PreUpdateQuirks() {
 }
