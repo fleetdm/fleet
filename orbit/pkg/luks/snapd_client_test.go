@@ -1,3 +1,5 @@
+//go:build linux
+
 package luks
 
 import (
@@ -80,4 +82,40 @@ func TestSnapdErrorResponse(t *testing.T) {
 	err := newTestSnapdClient(srv).requestSync(context.Background(), http.MethodGet, "/v2/system-volumes", nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
+}
+
+func TestSnapdAPIErrorIsConflict(t *testing.T) {
+	cases := []struct {
+		name string
+		err  *snapdAPIError
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "409 status", err: &snapdAPIError{StatusCode: http.StatusConflict}, want: true},
+		{name: "kind resource-already-exists", err: &snapdAPIError{StatusCode: 400, Kind: "resource-already-exists"}, want: true},
+		{name: "kind snap-change-conflict", err: &snapdAPIError{StatusCode: 400, Kind: "snap-change-conflict"}, want: true},
+		{
+			// Regression: snapd 2.75 returns HTTP 400 with a plural-verb
+			// message when a name-only keyslotRef expands to system-data and
+			// system-save, which is our add-recovery-key case.
+			name: "message plural: key slots ... already exist",
+			err: &snapdAPIError{
+				StatusCode: 400,
+				Message:    `key slots [(container-role: "system-data", name: "fleet-escrow"), (container-role: "system-save", name: "fleet-escrow")] already exist`,
+			},
+			want: true,
+		},
+		{
+			name: "message singular: key slot ... already exists",
+			err:  &snapdAPIError{StatusCode: 400, Message: `key slot "fleet-escrow" already exists`},
+			want: true,
+		},
+		{name: "auth failure is not a conflict", err: &snapdAPIError{StatusCode: 401, Message: "access denied"}, want: false},
+		{name: "generic bad request is not a conflict", err: &snapdAPIError{StatusCode: 400, Message: "malformed request"}, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.err.isConflict())
+		})
+	}
 }

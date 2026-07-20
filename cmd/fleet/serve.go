@@ -70,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -427,23 +428,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -609,6 +608,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -889,6 +889,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}

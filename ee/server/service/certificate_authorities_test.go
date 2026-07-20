@@ -240,6 +240,22 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Nil(t, createdCA)
 	})
 
+	t.Run("Batch apply errors when no private key is configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		svc := &Service{
+			logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+			ds:     ds,
+			authz:  authorizer,
+		}
+		svc.config.Server.PrivateKey = ""
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		err = svc.BatchApplyCertificateAuthorities(ctx, fleet.GroupedCertificateAuthorities{}, fleet.BatchApplyCertificateAuthoritiesOpts{ViaGitOps: true})
+		require.EqualError(t, err, "Server private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	})
+
 	t.Run("Create DigiCert CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 

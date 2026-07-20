@@ -488,6 +488,106 @@ func TestComputeDeclarationDeltasScope(t *testing.T) {
 	})
 }
 
+func TestComputeDeclarationDeltasAssets(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	assetsUpdatedAt := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	newerAssetsUpdatedAt := assetsUpdatedAt.Add(time.Hour)
+
+	// Declaration references an asset; content/token unchanged from what the host
+	// already has, but the referenced asset's latest uploaded_at is carried in
+	// AssetsUpdatedAt.
+	declWithAsset := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeclAsset", DeclarationIdentifier: "com.example.asset", DeclarationName: "AssetDecl",
+		TeamID: 0, Token: []byte("tokA"), IncludeMode: fleet.AppleProfileIncludeNone,
+		AssetsUpdatedAt: &assetsUpdatedAt,
+	}
+	declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {declWithAsset}}
+
+	t.Run("first install stamps assets_updated_at", func(t *testing.T) {
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, assetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+
+	t.Run("asset unchanged since last delivery -> no diff", func(t *testing.T) {
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: &assetsUpdatedAt,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+	})
+
+	t.Run("asset updated (newer uploaded_at) pokes even though token is unchanged", func(t *testing.T) {
+		// Host already has the declaration verified with the OLD assets_updated_at
+		// and the SAME static token. Only the referenced asset changed.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: &assetsUpdatedAt,
+			}},
+		}
+		declNewerAsset := *declWithAsset
+		declNewerAsset.AssetsUpdatedAt = &newerAssetsUpdatedAt
+		declsByTeamNewer := map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNewerAsset}}
+
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeamNewer, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+		require.Equal(t, "tokA", rows[0].Token)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, newerAssetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+
+	t.Run("host missing assets_updated_at but declaration references an asset -> poke", func(t *testing.T) {
+		// Simulates a declaration that gained an asset reference: the host row has
+		// no assets_updated_at yet, so it must be re-delivered.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: nil,
+			}},
+		}
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, assetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+}
+
 func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}

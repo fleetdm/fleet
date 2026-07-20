@@ -47,6 +47,8 @@ Restart the Fleet server.
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
+Windows MDM turns on after an end user signs in to the host. Windows completes MDM enrollment in the context of a signed-in user, so a host with no interactive user session (for example, a freshly imaged, kiosk, or shared device waiting at the lock screen) reports MDM as "Off", and any pending commands, configuration profiles, and disk encryption stay queued. Fleet retries enrollment automatically and finishes within about 30 seconds of the next sign-in.
+
 > Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 
 ### Migrating from another MDM solution
@@ -203,7 +205,7 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 1. Navigate to [Microsoft Entra ID portal](https://portal.azure.com).
 
-2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Custom branding** in the sidebar.
+2. At the top of the page, search for "Microsoft Entra ID", select **Microsoft Entra ID**, and then select **Company branding** in the sidebar.
 
 3. On the **Company Branding** page, select **Configure** or **Edit** under **Default sign-in experience**.
 

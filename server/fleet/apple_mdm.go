@@ -537,13 +537,24 @@ type AppleDeclarationForReconcile struct {
 	IncludeMode           AppleProfileIncludeMode
 	IncludeLabels         []AppleProfileLabelRef
 	ExcludeLabels         []AppleProfileLabelRef
-	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
-	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
-	// host knows to re-deliver when variable values change.
+	// HasFleetVariables is true if the declaration references any per-host Fleet
+	// variable that is expanded at delivery time: a $FLEET_VAR_* or a custom host
+	// vital ($FLEET_HOST_VITAL_*). Both behave identically here — the reconciler
+	// sets VariablesUpdatedAt on the host declaration row so the host knows to
+	// re-deliver when a variable value changes — so they share this flag even
+	// though custom host vitals are a separate variable namespace.
 	//
 	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
 	// where we extract the secrets and their last update time.
 	HasFleetVariables bool
+
+	// AssetsUpdatedAt is the most recent uploaded_at across every DDM asset this
+	// declaration references, or nil if it references no assets. The reconciler
+	// stamps it onto the host declaration row's assets_updated_at so that editing
+	// a referenced asset (which bumps its uploaded_at) changes the per-host
+	// effective token and re-syncs the host, even when the declaration's own
+	// content/token is unchanged. Mirrors HasFleetVariables/VariablesUpdatedAt.
+	AssetsUpdatedAt *time.Time
 }
 
 // AppleLabeledEntity implementation.
@@ -880,24 +891,37 @@ type MDMAppleDeclaration struct {
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
+	// AssetReferenceUUIDs are the UUIDs of the DDM assets referenced by this
+	// declaration, resolved from the declaration's asset references. Used to
+	// populate mdm_apple_declaration_asset_references in the batch-set path.
+	AssetReferenceUUIDs []string `db:"-" json:"-"`
+
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
+	AssetsUpdatedAt    *time.Time `db:"assets_updated_at" json:"-"`
 }
 
-// EffectiveDDMToken computes the per-declaration token that incorporates both
-// the static content hash and the host-specific variables_updated_at timestamp.
-// When variablesUpdatedAt is nil (declaration has no Fleet variables), the
-// effective token equals the static token unchanged.
-func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time) string {
-	if variablesUpdatedAt == nil {
+// EffectiveDDMToken computes the per-declaration token that incorporates the
+// static content hash together with the host-specific variables_updated_at
+// and/or assets_updated_at timestamps. When both are nil (the declaration
+// references no Fleet variables or DDM assets), the effective token equals
+// the static token unchanged.
+func EffectiveDDMToken(staticToken string, variablesUpdatedAt *time.Time, assetsUpdatedAt *time.Time) string {
+	if variablesUpdatedAt == nil && assetsUpdatedAt == nil {
 		return staticToken
 	}
 	// Must match MySQL's DATETIME(6) string representation used in
-	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '').
+	// MDMAppleDDMDeclarationsToken's IFNULL(hmad.variables_updated_at, '') and IFNULL(hmad.assets_updated_at, '').
 	hasher := md5.New() // nolint:gosec // used for declarative management token
-	hasher.Write([]byte(staticToken + variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	hasher.Write([]byte(staticToken))
+	if variablesUpdatedAt != nil {
+		hasher.Write([]byte(variablesUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
+	if assetsUpdatedAt != nil {
+		hasher.Write([]byte(assetsUpdatedAt.Format("2006-01-02 15:04:05.000000")))
+	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
@@ -935,29 +959,23 @@ func (r *MDMAppleRawDeclaration) ValidateScope() error {
 // ForbiddenDeclTypes is a set of declaration types that are not allowed to be
 // added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
-	"com.apple.configuration.account.caldav":               {},
-	"com.apple.configuration.account.carddav":              {},
-	"com.apple.configuration.account.exchange":             {},
-	"com.apple.configuration.account.google":               {},
-	"com.apple.configuration.account.ldap":                 {},
-	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.screensharing.connection":     {},
-	"com.apple.configuration.security.certificate":         {},
-	"com.apple.configuration.security.identity":            {},
-	"com.apple.configuration.security.passkey.attestation": {},
-	"com.apple.configuration.services.configuration-files": {},
-	"com.apple.configuration.watch.enrollment":             {},
+	"com.apple.configuration.watch.enrollment": {},
+	"com.apple.configuration.account.google":   {},
 }
 
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+		return NewInvalidArgumentError(r.Type, r.Type+" is a forbidden declaration type.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
+	}
+
+	if r.Type == "com.apple.configuration.app.managed" || r.Type == "com.apple.configuration.package" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
 	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
@@ -1014,6 +1032,10 @@ type MDMAppleHostDeclaration struct {
 	// were last computed. Non-null only for declarations that use Fleet variables.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at" json:"-"`
 
+	// AssetsUpdatedAt tracks when the Fleet asset values for this host
+	// were last computed. Non-null only for declarations that use Fleet assets.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at" json:"-"`
+
 	// Scope is the channel this declaration is delivered on for the host,
 	// mirrored from the declaration's scope so the DDM serving queries can
 	// filter per channel. "System" (default) is the device channel, "User" the
@@ -1025,6 +1047,7 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
 	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
 	varsEqual := p.VariablesUpdatedAt == nil && other.VariablesUpdatedAt == nil || p.VariablesUpdatedAt != nil && other.VariablesUpdatedAt != nil && p.VariablesUpdatedAt.Equal(*other.VariablesUpdatedAt)
+	assetsEqual := p.AssetsUpdatedAt == nil && other.AssetsUpdatedAt == nil || p.AssetsUpdatedAt != nil && other.AssetsUpdatedAt != nil && p.AssetsUpdatedAt.Equal(*other.AssetsUpdatedAt)
 	return statusEqual &&
 		p.HostUUID == other.HostUUID &&
 		p.DeclarationUUID == other.DeclarationUUID &&
@@ -1035,7 +1058,8 @@ func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
 		p.Token == other.Token &&
 		p.Scope == other.Scope &&
 		secretsEqual &&
-		varsEqual
+		varsEqual &&
+		assetsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -1107,6 +1131,10 @@ type MDMAppleDDMDeclarationItem struct {
 	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
 	// ServerToken field is just for the static token of the DDM.
 	VariablesUpdatedAt *time.Time `db:"variables_updated_at"`
+	// AssetsUpdatedAt is not part of the DDM profile, but part of the host-ddm tuple, as the assets'
+	// values depend on the host. It is used to compute the token for the DDM for a specific host, as the
+	// ServerToken field is just for the static token of the DDM.
+	AssetsUpdatedAt *time.Time `db:"assets_updated_at"`
 	// RawJSON is conditionally loaded only for declarations that use Fleet
 	// variables (variables_updated_at IS NOT NULL and operation_type = 'install')
 	// so that handleDeclarationItems can check variable resolution without an
@@ -1351,10 +1379,15 @@ const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
 // MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
 // required software update.
 //
+// Apple's schema also defines an optional BuildVersion key, but we deliberately omit it:
+// GDMF often publishes multiple concurrent builds of the same OS version that all list the
+// same device, and pinning a build the device's software update client won't resolve makes
+// the mandatory update fail during Setup Assistant. Sending only OSVersion lets the device
+// pick the right build.
+//
 // [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
 type MDMAppleSoftwareUpdateRequiredDetails struct {
-	OSVersion    string `json:"OSVersion"`
-	BuildVersion string `json:"BuildVersion"`
+	OSVersion string `json:"OSVersion"`
 }
 
 // MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
@@ -1366,16 +1399,11 @@ type MDMAppleSoftwareUpdateRequired struct {
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
-func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
+func NewMDMAppleSoftwareUpdateRequired(osVersion string) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: osVersion},
 	}
-}
-
-type MDMAppleSoftwareUpdateAsset struct {
-	ProductVersion string `json:"ProductVersion"`
-	Build          string `json:"Build"`
 }
 
 type MDMManagedCertificate struct {
@@ -1524,4 +1552,79 @@ type ADUEEnrollmentChallenge struct {
 	ABMTokenID     *uint      `db:"abm_token_id"`
 	ExpiresAt      time.Time  `db:"expires_at"`
 	UsedAt         *time.Time `db:"used_at"`
+}
+
+// DDMAsset is the JSON representation of an asset, only excluding the raw json.
+type DDMAsset struct {
+	AssetUUID  string     `db:"asset_uuid" json:"asset_uuid"`
+	Name       string     `db:"name" json:"name"`
+	Identifier string     `db:"identifier" json:"identifier"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt *time.Time `db:"uploaded_at" json:"uploaded_at"`
+	Checksum   []byte     `db:"token" json:"checksum"`
+	TeamID     *uint      `db:"team_id" json:"-"` // Retrieve team ID for logic, but do not return it in JSON.
+}
+
+// DownloadableDDMAsset is a service struct that contains the DDMAsset for logic checks, and the raw JSON for serving back to the caller.
+type DownloadableDDMAsset struct {
+	DDMAsset
+	Data []byte `db:"raw_json" json:"-"`
+}
+
+// MDMAppleDDMAssetBatchPayload is a single asset in a batch-set assets request,
+// as received from the client (e.g. GitOps): the file name and its raw JSON
+// contents.
+type MDMAppleDDMAssetBatchPayload struct {
+	Name     string `json:"name"`
+	Contents []byte `json:"contents"`
+}
+
+// MDMAppleDDMAssetToSet is a fully-validated asset to upsert as part of a batch
+// set. The service resolves Identifier and Type from the asset contents before
+// handing it to the datastore.
+type MDMAppleDDMAssetToSet struct {
+	Name       string
+	Identifier string
+	Type       string
+	Data       []byte
+}
+
+// MDMAppleDDMAssetsBatchChanges reports which assets a BatchSetAppleDDMAssets
+// call created, edited, or deleted, so the caller can log the corresponding
+// activities. Each slice holds asset names.
+type MDMAppleDDMAssetsBatchChanges struct {
+	Created []string
+	Edited  []string
+	Deleted []string
+}
+
+type RawDDMAsset struct {
+	Type       string             `json:"Type"`
+	Identifier string             `json:"Identifier"`
+	Payload    RawDDMAssetPayload `json:"Payload"`
+}
+
+type RawDDMAssetPayload struct {
+	Reference      RawDDMAssetPayloadReference `json:"Reference"`
+	Authentication json.RawMessage             `json:"Authentication"` // We don't care about the inner, we use it for checking existence
+}
+
+// Struct describing the AssetData reference payload structure
+// https://developer.apple.com/documentation/devicemanagement/assetdatareferenceobject (asset data is used as an example here)
+type RawDDMAssetPayloadReference struct {
+	ContentType string `json:"ContentType,omitempty"`
+	DataURL     string `json:"DataURL"`
+	HashSHA256  string `json:"Hash-SHA-256,omitempty"`
+	Size        int64  `json:"Size,omitempty"`
+}
+
+// DDMAssetAuthz is used to check user authorization to read/write an
+// DDM asset.
+type DDMAssetAuthz struct {
+	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+}
+
+// AuthzType implements authz.AuthzTyper.
+func (d DDMAssetAuthz) AuthzType() string {
+	return "ddm_asset"
 }

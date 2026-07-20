@@ -30,7 +30,8 @@ func (r GlobalPolicyResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type ListGlobalPoliciesRequest struct {
-	Opts ListOptions `url:"list_options"`
+	Opts     ListOptions `url:"list_options"`
+	Platform string      `query:"platform,optional"`
 }
 
 type ListGlobalPoliciesResponse struct {
@@ -61,6 +62,7 @@ func (r GetPolicyByIDResponse) Error() error { return r.Err }
 
 type CountGlobalPoliciesRequest struct {
 	ListOptions ListOptions `url:"list_options"`
+	Platform    string      `query:"platform,optional"`
 }
 
 type CountGlobalPoliciesResponse struct {
@@ -165,16 +167,19 @@ func (r AutofillPoliciesResponse) Error() error { return r.Err }
 /////////////////////////////////////////////////////////////////////////////////
 
 type TeamPolicyRequest struct {
-	TeamID                       uint     `url:"fleet_id"`
-	QueryID                      *uint    `json:"query_id" renameto:"report_id"`
-	Query                        string   `json:"query"`
-	Name                         string   `json:"name"`
-	Description                  string   `json:"description"`
-	Resolution                   string   `json:"resolution"`
-	Platform                     string   `json:"platform"`
-	Critical                     bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled        bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID              *uint    `json:"software_title_id"`
+	TeamID                uint   `url:"fleet_id"`
+	QueryID               *uint  `json:"query_id" renameto:"report_id"`
+	Query                 string `json:"query"`
+	Name                  string `json:"name"`
+	Description           string `json:"description"`
+	Resolution            string `json:"resolution"`
+	Platform              string `json:"platform"`
+	Critical              bool   `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint  `json:"software_title_id"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted, the policy defaults to the title's first-added package.
+	SoftwareInstallerID          *uint    `json:"software_installer_id"`
 	ScriptID                     *uint    `json:"script_id"`
 	LabelsIncludeAny             []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll             []string `json:"labels_include_all" premium:"true"`
@@ -206,6 +211,7 @@ type ListTeamPoliciesRequest struct {
 	InheritedOrderKey       string         `query:"inherited_order_key,optional"`
 	MergeInherited          bool           `query:"merge_inherited,optional"`
 	AutomationType          string         `query:"automation_type,optional"`
+	Platform                string         `query:"platform,optional"`
 }
 
 type ListTeamPoliciesResponse struct {
@@ -225,6 +231,7 @@ type CountTeamPoliciesRequest struct {
 	TeamID         uint        `url:"fleet_id"`
 	MergeInherited bool        `query:"merge_inherited,optional"`
 	AutomationType string      `query:"automation_type,optional"`
+	Platform       string      `query:"platform,optional"`
 }
 
 type CountTeamPoliciesResponse struct {
@@ -303,6 +310,12 @@ type PolicyAutomationActivity struct {
 	// named automation and VPP (installed_app_store_app) activities, which carry
 	// no script output.
 	Output *string `json:"output" db:"output"`
+	// PreInstallOutput and PostInstallOutput are the pre-install query output and
+	// post-install script output for installed_software activities (a software
+	// install can fail at any of the three stages). They are null for every other
+	// activity type.
+	PreInstallOutput  *string `json:"pre_install_output" db:"pre_install_output"`
+	PostInstallOutput *string `json:"post_install_output" db:"post_install_output"`
 }
 
 // ListPolicyAutomationActivitiesRequest is the request type for

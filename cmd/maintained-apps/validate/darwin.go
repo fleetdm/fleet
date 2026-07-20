@@ -294,6 +294,15 @@ func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdent
 				}
 			}
 
+			// The Developer Edition cask version is the full beta ("153.0b13") but
+			// the bundle reports only the base version ("153.0"); accept base+"b".
+			if uniqueAppIdentifier == "org.mozilla.firefoxdeveloperedition" {
+				if result.Version != "" && strings.HasPrefix(appVersion, result.Version+"b") {
+					logger.InfoContext(ctx, "Firefox Developer Edition detected - cask version matches bundle base version with beta suffix")
+					return true, nil
+				}
+			}
+
 			// Check various version matching strategies
 			if checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
 				return true, nil

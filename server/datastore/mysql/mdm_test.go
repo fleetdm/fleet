@@ -1650,7 +1650,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[9].Name, LabelID: labels[9].ID},
 			}
 		}
-		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp, nil)
 		require.NoError(t, err)
 
 		gcp = fleet.MDMAndroidConfigProfile{ // H N and T
@@ -1664,7 +1664,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[11].Name, LabelID: labels[11].ID},
 			}
 		}
-		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp, nil)
 		require.NoError(t, err)
 	}
 	// null label references to simulate profiles D, E and G being broken

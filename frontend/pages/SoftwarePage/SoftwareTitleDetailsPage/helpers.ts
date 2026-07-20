@@ -7,9 +7,41 @@ import {
   ISoftwarePackage,
   IFleetMaintainedVersion,
 } from "interfaces/software";
+import endpoints from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 import { getDisplayedSoftwareName } from "../helpers";
 import { deriveAccordionRowState } from "./LibraryItemAccordion/helpers";
 import { LibraryItemBadgeState } from "./LibraryItemAccordion/LibraryItemAccordion";
+
+/** Row-level gate for the LibraryItemAccordion download button: shown only
+ * when the row is the active (currently-serving) version AND the user has
+ * installer read permission. Observers and any role excluded from
+ * `installable_entity` read in policy.rego return `false` here so the button
+ * is hidden rather than clicked into a backend 403. */
+export const canDownloadInstallerRow = (
+  rowIsActive: boolean,
+  hasInstallerReadPermission: boolean
+): boolean => rowIsActive && hasInstallerReadPermission;
+
+/** Resolves which package to download: the explicitly-clicked row on a
+ * multi-package title, or the title's first-added `software_package` for
+ * single-package callers. Returns null when neither is available (e.g.,
+ * an app-store title with no `software_package`). */
+export const resolveDownloadTarget = (
+  clicked: ISoftwarePackage | undefined,
+  fallback: ISoftwarePackage | null | undefined
+): ISoftwarePackage | null => clicked ?? fallback ?? null;
+
+/** Builds the unauthenticated token-based download URL that the browser hits
+ * via a synthetic `<a download>` click. */
+export const buildInstallerDownloadUrl = (
+  softwareTitleId: number,
+  token: string,
+  origin: string = global.window.location.origin
+): string =>
+  `${origin}${URL_PREFIX}/api${endpoints.SOFTWARE_PACKAGE_TOKEN(
+    softwareTitleId
+  )}/${token}`;
 
 export interface InstallerCardInfo {
   softwareTitleName: string;

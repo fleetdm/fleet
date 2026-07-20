@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
@@ -243,6 +244,12 @@ func scanVulnerabilities(
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
 
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		checkAndroidVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		logger.InfoContext(ctx, "phase completed", "phase", "android_osv", "elapsed", time.Since(phaseStart))
+	}
+
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
 	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
 	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
@@ -426,6 +433,61 @@ func checkWinVulnerabilities(
 		}
 		analyzeSpan.End()
 	}
+
+	return results
+}
+
+func checkAndroidVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_android")
+	defer span.End()
+
+	var results []fleet.OSVulnerability
+
+	oses, err := ds.ListOperatingSystemsForPlatform(ctx, "android")
+	if err != nil {
+		errHandler(ctx, logger, "fetching list of Android operating systems", err)
+		return nil
+	}
+
+	if len(oses) == 0 {
+		return nil
+	}
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.android.sync")
+		downloaded, err := osv.RefreshAndroid(syncCtx, oses, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating Android OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(syncCtx, "android-osv-sync-downloaded", "artifact", d)
+		}
+		syncSpan.End()
+	}
+
+	cache := androidvuln.NewArtifactCache()
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.android.analyze")
+	for _, o := range oses {
+		start := time.Now()
+		r, err := androidvuln.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger, cache)
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "android-osv-analysis-done",
+			"os_version", o.Version,
+			"elapsed", elapsed,
+			"found_new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger.With("os_version", o.Version), "analyzing Android OS vulnerabilities", err)
+		}
+	}
+	analyzeSpan.End()
 
 	return results
 }
@@ -1908,6 +1970,9 @@ func newAppleMDMProfileManagerSchedule(
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_apple_device_names", func(ctx context.Context) error {
+			return service.ReconcileHostDeviceNames(ctx, ds, commander, logger)
 		}),
 	)
 
