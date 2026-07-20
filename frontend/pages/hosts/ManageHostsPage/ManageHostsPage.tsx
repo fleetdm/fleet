@@ -80,6 +80,7 @@ import {
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 import getDeleteLabelErrorMessages from "pages/labels/helpers";
 import { strToBool } from "utilities/strings/stringUtils";
 
@@ -446,6 +447,9 @@ const ManageHostsPage = ({
   // ========= derived permissions
   // canEnrollHosts is hoisted above the deep-link effects (see earlier)
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+  // Mirrors the Controls > Variables > Custom host vitals tab, which only lets
+  // global admins/maintainers manage vital definitions.
+  const canManageCustomHostVitals = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels =
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -2067,13 +2071,31 @@ const ManageHostsPage = ({
         <div className={`${baseClass}__header-wrap`}>
           {renderHeader()}
           <div className={`${baseClass}__button-wrap`}>
+            {canManageCustomHostVitals && !hasErrors && (
+              <Button
+                onClick={() =>
+                  router.push(
+                    getPathWithQueryParams(
+                      PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS,
+                      { fleet_id: teamIdForApi }
+                    )
+                  )
+                }
+                className={`${baseClass}__custom-host-vitals`}
+                variant="inverse"
+              >
+                <Icon name="pencil" />
+                <span>Custom host vitals</span>
+              </Button>
+            )}
             {canEnrollHosts && !hasErrors && (
               <Button
                 onClick={() => setShowEnrollSecretModal(true)}
                 className={`${baseClass}__enroll-hosts button`}
                 variant="secondary"
               >
-                Manage enroll secrets
+                <Icon name="settings" />
+                <span>Enroll secrets</span>
               </Button>
             )}
             {showAddHostsButton && (

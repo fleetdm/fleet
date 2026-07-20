@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.96",
+      "version": "0.98",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle' AND version_compare(bundle_short_version, '0.96') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Rectangle' AND version_compare(bundle_short_version, '0.98') < 0);"
       },
-      "installer_url": "https://github.com/rxhanson/Rectangle/releases/download/v0.96/Rectangle0.96.dmg",
+      "installer_url": "https://github.com/rxhanson/Rectangle/releases/download/v0.98/Rectangle0.98.dmg",
       "install_script_ref": "5ae64d36",
       "uninstall_script_ref": "c688569b",
-      "sha256": "16a35c22e4541f6277507156472952c45e2be29976d062cf241766913d027179",
+      "sha256": "ce2613d4f171300141d1d41e22bab17726b26d51ff26c684eac357bd7b9aad86",
       "default_categories": [
         "Productivity"
       ]

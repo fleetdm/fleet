@@ -30,6 +30,9 @@ controls:
     - labels_include_any:
       - Label D
       path: ./lib/profiles/global-windows-profile.xml
+custom_host_vitals:
+- name: Asset tag
+- name: Department
 labels:
 - description: Label A description
   label_membership_type: dynamic

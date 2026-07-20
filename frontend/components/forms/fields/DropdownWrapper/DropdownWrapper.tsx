@@ -125,6 +125,12 @@ export interface IDropdownWrapper {
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
   customNoOptionsMessage?: string;
+  /** Explicit accessible name for the combobox. When omitted, the resolved
+   * aria-label falls back to `placeholder`, then `name`, so existing call
+   * sites get at least a rough label without opting in. react-select does
+   * not infer any of these on its own; without a value here screen readers
+   * announce a bare "combobox". */
+  ariaLabel?: string;
 }
 
 const getOptionBackgroundColor = (
@@ -453,6 +459,7 @@ const DropdownWrapper = ({
   variant,
   nowrapMenu,
   customNoOptionsMessage,
+  ariaLabel,
 }: IDropdownWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     [`${baseClass}__table-filter`]: variant === "table-filter",
@@ -560,6 +567,11 @@ const DropdownWrapper = ({
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
         controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
+        // Resolve accessible name: explicit prop wins, otherwise fall back
+        // to the placeholder (usually "Select X"), otherwise the required
+        // `name` (often a kebab-case identifier — least readable but
+        // guaranteed present).
+        aria-label={ariaLabel ?? placeholder ?? name}
       />
     </FormField>
   );

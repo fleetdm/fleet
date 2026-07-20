@@ -167,7 +167,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or working group.
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or product group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -276,6 +276,14 @@ A single issue can sprawl across the customer channel, #help-customers, #help-en
   - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
   - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
 
+### Accessing managed cloud customer environments
+
+Every time a customer or prospect managed cloud environment needs to be accessed, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+If a review of production data is required in order to troubleshoot a bug report or incident, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+Customer production data must never be used in development or testing environments. 
+
 ### Report an incident
 
 Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
@@ -376,6 +384,194 @@ Fleet-managed DNS records are maintained in Cloudflare using Terraform.
 See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
 
 
+### Restore a Fleet Cloud database or environment
+
+This process covers backup and restore for Fleet Cloud customer environments: Aurora MySQL databases, S3 installer buckets, and dependent Terraform-managed resources operated by the Infrastructure Engineering team. Endpoint/laptop restoration (owned by IT/endpoint management) and application-layer data restoration outside of database and object storage are out of scope.
+
+| | |
+|---|---|
+| Control | Backup and restore capability with defined RTO/RPO |
+| Recovery time objective (RTO) | 1 hour |
+| Recovery point objective (RPO) | 24 hours |
+| Most recent restore test as of July 16, 2026 | 2026-07-16, 14:49 to 15:23 EDT (34 minutes end to end; RTO and RPO met, see the restore walkthrough below) |
+| Process initiation authority | Fleet CEO or CTO |
+| Restore execution owner | Infrastructure Engineering team |
+
+#### Approach: code-driven restore against version-controlled baselines
+
+Fleet does not maintain restore procedures as ad hoc runbooks re-derived at incident time. Every restore is executed against the same Terraform baseline that provisioned the environment (see the companion "Secure configuration baselines" document), using a version-controlled restore tool committed to `fleetdm/fleet-terraform`:
+
+- **Tooling:** The restore script and its documentation are proposed in [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes), which will be merged after internal review and approval. The script drives the database restore, updates Terraform configuration to reference the restored cluster, and produces a manifest that enables safe cleanup of retired resources. Any change to restore behavior is a reviewed code change in that repository.
+- **State integrity:** The script surgically removes the retired RDS/Secrets Manager resources from Terraform state, writes the new snapshot ARN into the environment's Terraform configuration, and re-applies the pinned root module (`github.com/fleetdm/fleet-terraform@tf-mod-root-v1.30.0`) so the restored environment matches the documented baseline exactly.
+- **Reviewable:** Every restore run produces an artifact directory (`.db-restore-<timestamp>/`) containing the manifest, plan output, and logs. Cleanup requires the same manifest, making the two phases auditable.
+
+#### Restore response teams and responsibilities
+
+| Role | Responsibility |
+|---|---|
+| Fleet CEO or CTO | Initiates the restore process and authorizes the switch from an impaired environment to a restored or DR environment |
+| Infrastructure Engineering team | Executes the restore, validates data, cuts DNS over, cleans up retired resources, and closes out the incident record |
+| IT / Security | Coordinates customer and internal communications and captures artifacts for post-incident review |
+
+Full team scope is documented in [security response teams and responsibilities](https://fleetdm.com/handbook/it/security#response-teams-and-responsibilities).
+
+#### Production regions and disaster recovery (DR) region pairings
+
+Every production region has a pre-designated DR failover region. AWS Backup copies of tagged resources are pre-staged into the DR region so that a full regional loss can be recovered from without cross-region data movement at incident time.
+
+| Production region | DR region |
+|---|---|
+| `us-east-2` (Ohio)         | `us-west-2` (Oregon) |
+| `eu-central-1` (Frankfurt) | `eu-west-1` (Ireland) |
+| `ap-south-1` (Mumbai)      | `eu-central-1` (Frankfurt) |
+
+#### Restore considerations
+
+- **DNS:** After the Terraform apply, verify the ALB CNAME/DNS record targets the restored environment. If Terraform fails to update the existing DNS entries (e.g., because the record is externally managed or drifted), update DNS manually before declaring the restore complete.
+- **DR-region service quotas:** In the event of total loss of a primary region, DR-region service quotas must be increased to absorb the additional footprint.
+
+#### In-region restore or rollback
+
+Used when the primary region is healthy but the environment or its database must be rolled back (e.g., accidental data corruption, bad migration, cluster degradation).
+
+Prerequisites:
+
+- A new or existing target environment in the same region.
+- A database snapshot (automated or AWS Backup) or a PITR timestamp within the retention window.
+- An S3 bucket backup from AWS Backup, if software installers were previously used by the environment.
+
+Procedure:
+
+1. Restore the database from the chosen snapshot or PITR time using the restore script (see the restore walkthrough below).
+2. If installers were in use, restore the source S3 bucket to a new bucket from AWS Backup, then `terraform import` the new bucket into the environment's Terraform state so the pinned root module manages it going forward.
+3. Verify Fleet server, migrations, and monitoring signals against the restored data.
+4. Clean up the retired RDS cluster, instances, and Secrets Manager entries using the restore-script manifest.
+
+#### DR-region restore or rollback
+
+Used when the primary region is impaired or lost. The DR environment is provisioned into the paired DR region against a separate Terraform state so that recovery does not require or corrupt the primary state.
+
+Prerequisites:
+
+- A new state bucket in the DR region to hold the DR environment's Terraform state. The original state buckets are not used, so restoration can proceed even if the primary region is unavailable.
+- The Fleet server private key. If the original deployment region is unavailable, retrieve it from the secondary Terraform state bucket into which the original states are synchronized. The state file contains the reference needed to recover the private key.
+- A new or existing DR-region environment definition.
+
+Procedure:
+
+1. Create the Fleet server private key in AWS Secrets Manager in the DR region.
+2. Add the new Fleet server private key Secrets Manager ARN to the DR environment's Terraform configuration.
+3. Restore the database from AWS Backup in the DR region and take a snapshot of the restored cluster (this is the input the restore script consumes).
+4. Use the resulting DB snapshot to restore the existing DR-region environment. The same `db-restore.sh` flow used for in-region restores applies here (see the restore walkthrough below).
+5. If installers were in use, restore the S3 bucket into a new bucket in the DR region and `terraform import` it into the DR environment's state.
+6. Update DNS to point at the DR environment (verify Terraform-managed records applied; correct manually if not).
+7. Clean up any retired resources in the DR region after validation.
+
+#### Restore walkthrough: in-region restore of the datarestore test environment
+
+Restore scenarios are exercised on demand rather than on a fixed calendar: (1) whenever a customer or internal system needs an actual restore or rollback, and (2) whenever the restore tooling itself changes, so that the updated script is validated end to end before it is relied on in a live incident. The 2026-07-16 test below served both purposes. It validated the tooling proposed in [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes) against a Fleet Cloud environment (`datarestore`) provisioned in the primary AWS region `us-east-2` from the documented baseline.
+
+##### List available recovery points and snapshots
+
+```console
+% $PWD/db-restore.sh --list
+Environment: datarestore
+Region: us-east-2
+Current cluster: datarestore
+
+PITR window:
+  earliest: 2026-07-15T20:01:54.679000+00:00
+  latest:   2026-07-16T18:14:35.195000+00:00
+
+RDS DB cluster snapshots:
+2026-07-16T02:02:15.913000+00:00    automated    available    rds:datarestore-2026-07-16-02-01    arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01
+
+AWS Backup recovery points (same region, inventory-only; not currently targetable by this script):
+  These require aws backup start-restore-job and post-restore Terraform adoption.
+2026-07-16T01:00:00-04:00    aws-backup-inventory-only    COMPLETED    backup_aurora_vault_source    arn:aws:rds:us-east-2:611884880216:cluster-snapshot:awsbackup:job-3e89ff03-c6bf-a120-44ad-8af76506de25
+```
+
+##### Restore from the selected snapshot
+
+The restore script modifies the Terraform configuration in the current working directory to reference the chosen snapshot and drives the full restore:
+
+- creates a new database cluster from the snapshot
+- creates new database instances
+- creates a new secret holding the database password
+- updates Terraform configurations with the new database and secret naming
+
+```console
+% $PWD/db-restore.sh \
+    --restore-snapshot arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01 \
+    --confirm
+[db-restore] artifact directory: $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351
+[db-restore] module address: module.main.module.byo-vpc
+[db-restore] current cluster: datarestore
+[db-restore] restored cluster: datarestore-1
+[db-restore] restore mode: snapshot
+[db-restore] restore snapshot: arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01
+[db-restore] execution path: DB restore, post-restore RDS reconcile, ECS targeted apply, migrations, scale services back up
+[db-restore] old DB resources will be kept; run --cleanup-only --manifest $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351/manifest.json later
+[db-restore] scaling Fleet ECS service to 0
+[db-restore] scaling vuln-processing ECS service to 0
+[db-restore] removing old RDS resources from Terraform state
+Removed module.main.module.byo-vpc.aws_db_parameter_group.main[0]
+Removed module.main.module.byo-vpc.aws_rds_cluster_parameter_group.main[0]
+Removed module.main.module.byo-vpc.module.rds.aws_db_subnet_group.this[0]
+Removed module.main.module.byo-vpc.module.rds.aws_iam_role_policy_attachment.rds_enhanced_monitoring[0]
+Removed module.main.module.byo-vpc.module.rds.aws_iam_role.rds_enhanced_monitoring[0]
+Removed module.main.module.byo-vpc.module.rds.aws_rds_cluster_instance.this["one"]
+Removed module.main.module.byo-vpc.module.rds.aws_rds_cluster.this[0]
+Removed module.main.module.byo-vpc.module.rds.aws_security_group_rule.this["allowed_security_group_0"]
+Removed module.main.module.byo-vpc.module.rds.aws_security_group.this[0]
+Removed module.main.module.byo-vpc.module.rds.data.aws_iam_policy_document.monitoring_rds_assume_role[0]
+Removed module.main.module.byo-vpc.module.rds.data.aws_partition.current
+Removed module.main.module.byo-vpc.module.secrets-manager-1.aws_secretsmanager_secret_version.sm-sv["datarestore-database-password"]
+Removed module.main.module.byo-vpc.module.secrets-manager-1.aws_secretsmanager_secret.sm["datarestore-database-password"]
+Removed module.main.module.byo-vpc.random_id.rds_final_snapshot_identifier[0]
+Successfully removed 14 resource instance(s).
+
+<terraform apply kicks off here>
+```
+
+##### Clean up retired resources
+
+After validating the restored environment, retired resources are removed using the manifest produced by the restore run. The script requires typing the environment name for confirmation before it will delete anything.
+
+```console
+% $PWD/repos/fleet-terraform/tools/rds-db-restore/db-restore.sh \
+    --cleanup-only \
+    --manifest $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351/manifest.json \
+    --confirm
+[db-restore] deleting old Aurora instance datarestore-one
+[db-restore] deleting old Aurora cluster datarestore with final snapshot datarestore-pre-restore-retirement-20260716145351
+[db-restore] deleting old secret arn:aws:secretsmanager:us-east-2:611884880216:secret:datarestore-database-password-v3NZz0
+[db-restore] cleanup complete
+```
+
+##### Test result: RTO and RPO evaluation
+
+The restore of the `datarestore` environment was executed on 2026-07-16, starting at 14:49 EDT (18:49 UTC) and completing at 15:23 EDT (19:23 UTC), an elapsed time of approximately 34 minutes.
+
+| Objective | Target | Measured result | Outcome |
+|---|---|---|---|
+| RTO | 1 hour | ~34 minutes (start 2026-07-16 14:49 EDT, end 15:23 EDT) | Met |
+| RPO | 24 hours | ~16h47m data-loss window (snapshot `rds:datarestore-2026-07-16-02-01` taken 2026-07-16 02:02 UTC; restore initiated 2026-07-16 18:49 UTC) | Met |
+
+The test satisfies ISO 22301:2019 §8.3.2 (exercising and testing continuity capabilities) and §8.5 (evaluating documented information from exercises against defined objectives).
+
+#### Restore evidence index
+
+| Restore concern | Source of truth |
+|---|---|
+| Restore tooling (script + docs) | [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes) |
+| Environment baseline the restore rebuilds against | `infrastructure/cloud/template/` and per-customer `infrastructure/cloud/<customer>/` in `fleetdm/confidential` |
+| Pinned application stack module | `github.com/fleetdm/fleet-terraform` @ `tf-mod-root-v1.30.0` |
+| AWS Backup vaults and cross-region copy plans | `infrastructure/cloud/shared/aws-backup/` in `fleetdm/confidential` |
+| Aurora snapshot retention (30-day) and PITR | Enforced in the pinned root module via the Fleet Cloud baseline (see the "Secure configuration baselines" document) |
+| Response teams and initiation authority | [Security response teams and responsibilities](https://fleetdm.com/handbook/it/security#response-teams-and-responsibilities) |
+
+
 ### Process a self-service license dispenser refund
 
 Refunds for Fleet Premium licenses purchased on the self-service license dispenser on fleetdm.com are processed in [Stripe](https://dashboard.stripe.com/). To refund a subscription: 
@@ -392,7 +588,7 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
 1. **fleetdm.com**
     - Create a confidential website request issue
-    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website product group will delete the account and let you know in a comment when the user account is deleted.
 2.  **Salesforce**
     1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
 3. **Stripe** 

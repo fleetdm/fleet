@@ -331,11 +331,10 @@ type Datastore interface {
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
-	// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
-	// If a label name does not exist, then the host is considered not a member of the provided label.
-	// A host will always be a member of an empty label set, so this method returns (true, nil)
-	// if labelNames is empty.
-	HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error)
+	// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+	// Labels that do not exist are not included in the result. The returned map is keyed by the
+	// requested label names (preserving the caller's casing), not the DB-stored names.
+	HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error)
 
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
@@ -388,9 +387,11 @@ type Datastore interface {
 	DeleteHostIDP(ctx context.Context, id uint) error
 	// SetOrUpdateHostSCIMUserMapping associates a host with a SCIM user. If a
 	// mapping already exists, it will be updated to the new SCIM user.
-	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error
+	// Returns any resent certificate activities that need to be created.
+	SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]ActivityTypeResentCertificate, error)
 	// DeleteHostSCIMUserMapping removes the association between a host and a SCIM user.
-	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error
+	// Returns any resent certificate activities that need to be created.
+	DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]ActivityTypeResentCertificate, error)
 	// ListHostBatteries returns the list of batteries for the given host ID.
 	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 	ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*HostMaintenanceWindow, error)
@@ -849,6 +850,10 @@ type Datastore interface {
 	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
+
+	// GetCategoriesForSoftwareInstallers returns categories keyed by installer ID,
+	// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
+	GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
@@ -1790,6 +1795,94 @@ type Datastore interface {
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx context.Context) (int64, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Apple host name enforcement
+
+	// BulkUpsertHostDeviceNameEnforcement creates (or resets to queued) host-name
+	// enforcement rows for every host in the given scope that is eligible for the
+	// host-name template (Apple platform, enrolled in Fleet's MDM, not a personal
+	// BYOD enrollment). A nil (or 0) teamID scopes to "No team" (team_id IS NULL);
+	// a non-nil teamID scopes to that fleet. Existing rows are reset to a NULL
+	// status so the cron re-enqueues the command. Called when a template is set or
+	// changed.
+	BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error
+
+	// DeleteHostDeviceNameEnforcementForTeam removes all host-name enforcement
+	// rows for hosts in the given scope (nil/0 teamID = "No team"). Called when a
+	// template is cleared; no rename command is sent.
+	DeleteHostDeviceNameEnforcementForTeam(ctx context.Context, teamID *uint) error
+
+	// ListHostsPendingDeviceNameCommand returns up to limit hosts whose
+	// enforcement row is queued (status IS NULL), joined with the host details the
+	// cron needs to resolve the template and enqueue a Settings/DeviceName command.
+	ListHostsPendingDeviceNameCommand(ctx context.Context, limit int) ([]HostDeviceNamePending, error)
+
+	// DeactivateHostDeviceNameCommands marks any still-active DeviceName command
+	// previously enqueued for the given hosts as inactive in the MDM command queue.
+	// The cron calls this before enqueuing fresh rename commands for re-queued rows
+	// so a stale, never-executed command (device offline or replying NotNow) can't
+	// be run out of order after the new one and leave the device on the old name.
+	DeactivateHostDeviceNameCommands(ctx context.Context, hostUUIDs []string) error
+
+	// SetHostDeviceNameStatus records the outcome of processing a host's queued
+	// enforcement row, keyed by host UUID. It sets the row's status, expected
+	// device name, and detail, and sets command_uuid to commandUUID (nil clears
+	// it). The cron uses it two ways:
+	//   - a command was sent: status=pending, commandUUID=<the enqueued command>,
+	//     expectedName=<resolved name>, detail="";
+	//   - no command was sent (resolve outcome): status=verified when the host
+	//     already matches the resolved name, or failed when it can't be applied
+	//     (e.g. exceeds Apple's 63-byte limit), commandUUID=nil so a stale prior
+	//     command result can't overwrite the outcome.
+	SetHostDeviceNameStatus(ctx context.Context, hostUUID string, status MDMDeliveryStatus, commandUUID *string, expectedName, detail string) error
+
+	// UpdateHostDeviceNameStatusFromCommand updates the enforcement row matching
+	// the given command UUID based on the command result: acknowledged=true (the
+	// device applied the rename) moves the row to verifying and also renames the
+	// host in Fleet in the same transaction — setting the host's computer name and
+	// hostname to the row's expected name and updating its display name — so the
+	// row transition and the Fleet-side rename are atomic; acknowledged=false (the
+	// device returned an error) moves the row to failed and records detail.
+	//
+	// A host holds only its most recently sent command UUID (one row per host),
+	// so a result for a superseded command (e.g. the template was re-saved or the
+	// admin clicked Resend before an earlier command acked) will not match and a
+	// not-found error is returned. Callers MUST treat that not-found as "stale
+	// command, ignore" (check fleet.IsNotFound) rather than a failure: the device
+	// processes commands FIFO and ends on the latest name, which the matching
+	// (newest) command's result records.
+	UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error
+
+	// UpdateHostDeviceNameStatusFromReport reconciles the enforcement row for a
+	// host against the name reported by the device (mutating). reportedName is the
+	// host's current name as observed at a name-ingestion site: the DeviceName in
+	// the iOS/iPadOS refetch result, or computer_name from macOS osquery
+	// system_info. It only acts on rows in the verifying or verified state: a
+	// match moves the row to verified; a mismatch moves it to failed (drift). Rows
+	// in any other state, or hosts with no row, are left untouched.
+	//
+	// A mismatch on a row that entered verifying only recently is ignored (the
+	// row stays verifying): a report generated before the device applied the
+	// rename can arrive after the acknowledgment and still carry the old name,
+	// and treating it as drift would strand the host at failed until an explicit
+	// resend. The stale window is the agent's collect-to-submit latency, so a
+	// small fixed grace covers it.
+	UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error
+
+	// GetHostDeviceNameEnforcement returns the host-name enforcement row for the
+	// given host, or a not-found error if the host has no row.
+	GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*HostDeviceNameEnforcement, error)
+
+	// ResendHostDeviceName resets a host's enforcement row to a NULL status so the
+	// cron re-enqueues the Settings/DeviceName command on its next run.
+	ResendHostDeviceName(ctx context.Context, hostUUID string) error
+
+	// ReconcileHostDeviceNamesForHosts upserts or deletes enforcement rows for the
+	// given hosts based on each host's current team template: eligible hosts whose
+	// team has a non-empty template get a queued row; all others have their row
+	// removed. Called after host transfer or enrollment.
+	ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Managed local account
 
 	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
@@ -2709,6 +2802,9 @@ type Datastore interface {
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
+	// GetExistingSoftwareInstallerTitleID resolves the software title an installer payload identifies
+	// (by bundle_identifier / upgrade_code / name+source). Returns a NotFound error if none matches.
+	GetExistingSoftwareInstallerTitleID(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
@@ -2723,6 +2819,20 @@ type Datastore interface {
 	// withScriptContents is true, also returns the contents of the install and
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallerMetadataByTeamTitleAndInstallerID is like
+	// GetSoftwareInstallerMetadataByTeamAndTitleID but returns a specific installer
+	// (not the first-added), so add/edit responses can echo the affected package.
+	GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetSoftwarePackagesByTeamAndTitleID returns every active package for the given
+	// title and team, ordered first-added first, each with its label scope and
+	// script contents.
+	GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*SoftwareInstaller, error)
+
+	// GetSoftwarePackagesForTitles returns trimmed per-package info for the titles'
+	// active packages, keyed by title id, first-added first; backs the list packages[].
+	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageListItem, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
@@ -2753,6 +2863,12 @@ type Datastore interface {
 	// to inactive, and repoints policies. A non-nil payload.PinnedVersion records ("" clears it to Latest)
 	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
+
+	// ResolveActiveInstallerForRetry returns the currently-active installer id for
+	// the title of the given installer, so a retried install targets the version
+	// Fleet currently displays. It returns the input id unchanged when that
+	// installer is already active, has no active sibling, or no longer exists.
+	ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error)
 
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
@@ -3138,7 +3254,9 @@ type Datastore interface {
 	// Secret variables
 
 	// UpsertSecretVariables inserts or updates secret variables in the database.
-	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+	// It returns the names of the variables that were created and the names of
+	// those that were updated, so callers can emit the corresponding activities.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) (created []string, updated []string, err error)
 
 	// CreateSecretVariable inserts a secret variable (value encrypted) and returns its ID.
 	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
@@ -3169,6 +3287,28 @@ type Datastore interface {
 	// The enrollmentID (typically UDID) is used to look up host-specific secrets
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Custom host vitals
+	CreateCustomHostVital(ctx context.Context, name string) (CustomHostVital, error)
+	ListCustomHostVitals(ctx context.Context, opt ListOptions) (customHostVitals []CustomHostVital, meta *PaginationMetadata, count int, err error)
+	UpdateCustomHostVital(ctx context.Context, id uint, name string) (CustomHostVital, error)
+	DeleteCustomHostVital(ctx context.Context, id uint) (name string, err error)
+	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]HostCustomHostVital, error)
+	GetCustomHostVitals(ctx context.Context, ids []uint) ([]CustomHostVital, error)
+	// ValidateReferencedCustomHostVitals parses $FLEET_HOST_VITAL_<id> tokens from
+	// the given documents and checks that every referenced id exists. Returns a
+	// MissingCustomHostVitalsError if any referenced id is unknown.
+	ValidateReferencedCustomHostVitals(ctx context.Context, documents []string) error
+
+	// ExpandCustomHostVitals substitutes $FLEET_HOST_VITAL_<id> tokens in the
+	// document with the given host's stored values (format-aware escaping).
+	// Returns a MissingCustomHostVitalValueError if a referenced vital has no value
+	// for the host.
+	ExpandCustomHostVitals(ctx context.Context, hostID uint, document string) (string, error)
+
+	UpsertCustomHostVitals(ctx context.Context, vitals []CustomHostVital) (created []CustomHostVital, deleted []CustomHostVital, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android
@@ -3291,9 +3431,9 @@ type Datastore interface {
 	// If the slice is empty, it returns true
 	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
-	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	ReplaceScimUser(ctx context.Context, user *ScimUser) ([]ActivityTypeResentCertificate, error)
 	// DeleteScimUser deletes a SCIM user from the database
-	DeleteScimUser(ctx context.Context, id uint) error
+	DeleteScimUser(ctx context.Context, id uint) ([]ActivityTypeResentCertificate, error)
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 	// CreateScimGroup creates a new SCIM group in the database
@@ -3884,6 +4024,12 @@ func (c *SecretUsedError) Error() string {
 		return fmt.Sprintf(
 			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
 			c.SecretName, c.Entity.Name, c.Entity.TeamName,
+		)
+	}
+	if c.Entity.Type == "host_name_template" {
+		return fmt.Sprintf(
+			"%s is used by the host name template in the %q team. Please edit or clear the host name template and try again.",
+			c.SecretName, c.Entity.TeamName,
 		)
 	}
 	return fmt.Sprintf(

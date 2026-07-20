@@ -160,6 +160,8 @@ func TestSoftwareInstallerPlatformFromExtension(t *testing.T) {
 		{"sh", "linux", false},
 		{".ps1", "windows", false},
 		{"ps1", "windows", false},
+		{".py", "linux", false},
+		{"py", "linux", false},
 
 		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
 		{".msix", "", true},
@@ -212,6 +214,8 @@ func TestSofwareInstallerSourceFromExtensionAndName(t *testing.T) {
 		{"sh", "setup.sh", "sh_packages", false},
 		{".ps1", "script.ps1", "ps1_packages", false},
 		{"ps1", "setup.ps1", "ps1_packages", false},
+		{".py", "script.py", "py_packages", false},
+		{"py", "setup.py", "py_packages", false},
 
 		// Unsupported extensions (msix is fleet-maintained only, not custom upload)
 		{".msix", "app.msix", "", true},
@@ -244,6 +248,8 @@ func TestIsScriptPackage(t *testing.T) {
 		{"sh", true},
 		{".ps1", true},
 		{"ps1", true},
+		{".py", true},
+		{"py", true},
 
 		// Non-script extensions - should return false
 		{".pkg", false},
@@ -263,6 +269,7 @@ func TestIsScriptPackage(t *testing.T) {
 		{"", false},
 		{".SH", false},   // Case sensitive
 		{".PS1", false},  // Case sensitive
+		{".PY", false},   // Case sensitive
 		{".bash", false}, // Not recognized
 	}
 
@@ -333,4 +340,61 @@ func TestIconChangesDedupPrefersPopulatedRow(t *testing.T) {
 	require.Empty(t, changes.TitleIDsToRemoveIconsFrom)
 	require.Empty(t, changes.IconsToUpload)
 	require.Empty(t, changes.IconsToUpdate)
+}
+
+func TestHostSoftwareInstallResultPayloadStatus(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload HostSoftwareInstallResultPayload
+		want    SoftwareInstallerStatus
+	}{
+		{
+			// fleetd runs the post-install script regardless of the install
+			// script's outcome, so a succeeding post-install must not mask a
+			// failed install.
+			name:    "install failed, post-install succeeded",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(1), PostInstallScriptExitCode: new(0)},
+			want:    SoftwareInstallFailed,
+		},
+		{
+			name:    "install failed, no post-install",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(1)},
+			want:    SoftwareInstallFailed,
+		},
+		{
+			name:    "install and post-install succeeded",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(0), PostInstallScriptExitCode: new(0)},
+			want:    SoftwareInstalled,
+		},
+		{
+			name:    "install succeeded, post-install failed",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(0), PostInstallScriptExitCode: new(1)},
+			want:    SoftwareInstallFailed,
+		},
+		{
+			name:    "install succeeded, no post-install",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(0)},
+			want:    SoftwareInstalled,
+		},
+		{
+			name:    "scripts disabled is a failure",
+			payload: HostSoftwareInstallResultPayload{InstallScriptExitCode: new(ExitCodeScriptsDisabled)},
+			want:    SoftwareInstallFailed,
+		},
+		{
+			name:    "empty pre-install condition is a failure",
+			payload: HostSoftwareInstallResultPayload{PreInstallConditionOutput: new("")},
+			want:    SoftwareInstallFailed,
+		},
+		{
+			name:    "nothing reported yet is pending",
+			payload: HostSoftwareInstallResultPayload{},
+			want:    SoftwareInstallPending,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, tc.payload.Status())
+		})
+	}
 }
