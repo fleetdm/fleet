@@ -47,10 +47,11 @@ else
     # Use systemd-run to spawn the removal process in a separate transient unit.
     # This ensures the process escapes the orbit.service cgroup, so when
     # orbit.service is stopped, the removal script continues running.
+    SCRIPT_PATH="$(readlink -f "$0")"
     if command -v systemd-run > /dev/null; then
-        systemd-run --quiet bash "$0" remove
+        systemd-run --quiet bash "$SCRIPT_PATH" remove
     else
         # Fallback for non-systemd systems (rare for modern Linux)
-        bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
+        bash -c "bash \"$SCRIPT_PATH\" remove >/dev/null 2>/dev/null </dev/null &"
     fi
 fi
