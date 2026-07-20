@@ -2251,7 +2251,10 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// enrollment is in the resend phase: stay Active and re-send the user-scope Replace until the device acks it with a
 	// 200, then transition to None. During OOBE the device rejects user-scope writes with SyncML 405 until the user MDM
 	// context initializes.
-	ack, err := svc.ds.MDMWindowsGetESPReleaseAckStatus(ctx, device.ID,
+	//
+	// Require the primary: the ack this read must observe was recorded by MDMWindowsSaveResponse earlier in this same
+	// request, so a lagging replica would miss it every time and completion (or a retry) would slip a session.
+	ack, err := svc.ds.MDMWindowsGetESPReleaseAckStatus(ctxdb.RequirePrimary(ctx, true), device.ID,
 		espUserReleaseLocURI(syncml.DocProvisioningAppProviderID), espReleaseAttemptCmdIDPrefix)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ESP release ack status")

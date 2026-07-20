@@ -926,14 +926,15 @@ ORDER BY
 	return commands, nil
 }
 
-// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given
-// LocURI for the enrollment. Attempts are matched on BOTH the target LocURI and the command_uuid prefix Fleet
-// stamps on its own release attempts, so an admin-enqueued raw command that happens to target the same LocURI
-// can neither trigger the resend phase nor complete the ESP. It runs once per management-session message while
-// the enrollment is in awaiting_configuration=Active, a phase that normally lasts a few minutes, so a single
-// aggregate over the enrollment's queued commands is fine. It reads from the primary: the result row for an ack
-// processed earlier in the same request must be visible, otherwise a replica-lag read would miss the 200 and
-// re-send the release for an extra session.
+// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given LocURI for
+// the enrollment. Attempts are matched on BOTH the target LocURI and the command_uuid prefix Fleet stamps on its own
+// release attempts, so an admin-enqueued raw command that happens to target the same LocURI can neither trigger the
+// resend phase nor complete the ESP. It runs once per management-session message while the enrollment is in
+// awaiting_configuration=Active, a phase that normally lasts a few minutes, so a single aggregate over the enrollment's
+// queued commands is fine.
+//
+// The ESP release handler calls this with ctxdb.RequirePrimary: the ack it must observe was recorded earlier in the
+// same request, so a replica read would lag behind it every time and completion (or a retry) would slip a session.
 //
 // Retention interplay: CleanupWindowsMDMCommandQueue deletes ACKED queue rows after 1 hour, which is shorter
 // than the ESP's 3-hour timeout. While the retry loop is live this doesn't matter -- every session with a
@@ -963,7 +964,7 @@ WHERE
 		HasUnacked   bool   `db:"has_unacked"`
 		LatestStatus string `db:"latest_status"`
 	}
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &row, query, enrollmentID, targetLocURI, cmdUUIDPrefix); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, enrollmentID, targetLocURI, cmdUUIDPrefix); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get Windows ESP release ack status")
 	}
 	return &fleet.MDMWindowsESPReleaseAckStatus{
