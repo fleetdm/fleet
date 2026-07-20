@@ -7,7 +7,12 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { stringToClipboard } from "utilities/copy_text";
 
-type CopyButtonVariant = "icon" | "inverse" | "secondary" | "compact";
+type CopyButtonVariant =
+  | "icon"
+  | "inverse"
+  | "secondary"
+  | "subdued"
+  | "compact";
 
 interface ICopyButtonProps {
   copyText: string;
@@ -17,6 +22,7 @@ interface ICopyButtonProps {
    *  `"inverse"` — bordered icon-with-text button (use with children).
    *  `"secondary"` — bordered 36×36 icon-only button (the current preferred
    *  secondary style — see #35329).
+   *  `"subdued"` — borderless low-emphasis icon-only button — see #35329.
    *  `"compact"` — icon collapsed to its natural size, no extra vertical
    *  chrome. Use for inline-with-text copy actions so the surrounding row
    *  doesn't grow to button height. */

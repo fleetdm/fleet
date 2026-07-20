@@ -298,7 +298,7 @@ const AutomationsModal = ({
           <Button type="submit" isLoading={isUpdating} disabled={isUpdating}>
             Save
           </Button>
-          <Button type="button" onClick={onExit} variant="inverse">
+          <Button type="button" onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

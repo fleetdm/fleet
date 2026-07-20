@@ -2082,7 +2082,7 @@ const ManageHostsPage = ({
                   )
                 }
                 className={`${baseClass}__custom-host-vitals`}
-                variant="inverse"
+                variant="secondary"
               >
                 <Icon name="pencil" />
                 <span>Custom host vitals</span>

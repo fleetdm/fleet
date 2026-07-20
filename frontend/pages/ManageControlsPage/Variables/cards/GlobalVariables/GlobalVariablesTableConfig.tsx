@@ -67,7 +67,7 @@ const generateTableHeaders = ({
         return (
           <div className="global-variables__token">
             <TextCell value={token} />
-            <CopyButton copyText={token} variant="compact" />
+            <CopyButton copyText={token} variant="subdued" size="small" />
           </div>
         );
       },
@@ -97,10 +97,11 @@ const generateTableHeaders = ({
           <div className="global-variables__actions">
             <Button
               variant="secondary"
+              size="small"
               onClick={() => onDelete(variable)}
               ariaLabel={`Delete ${variable.name}`}
             >
-              <Icon name="trash" color="ui-fleet-black-75" />
+              <Icon name="trash" color="ui-fleet-black-75" size="small" />
             </Button>
           </div>
         );

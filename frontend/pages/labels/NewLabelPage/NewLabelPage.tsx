@@ -709,7 +709,7 @@ const NewLabelPage = ({
           onClick={() => {
             router.goBack();
           }}
-          variant="inverse"
+          variant="secondary"
           disabled={isUpdating}
         >
           Cancel

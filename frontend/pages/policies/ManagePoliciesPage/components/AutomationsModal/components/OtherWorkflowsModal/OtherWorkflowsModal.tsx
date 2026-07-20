@@ -352,6 +352,7 @@ const OtherWorkflowsModal = forwardRef<
               showText="Example payload"
               caretPosition="after"
               onClick={() => setShowExamplePayload(!showExamplePayload)}
+              variant="secondary"
             />
             {showExamplePayload && <ExamplePayload />}
           </>

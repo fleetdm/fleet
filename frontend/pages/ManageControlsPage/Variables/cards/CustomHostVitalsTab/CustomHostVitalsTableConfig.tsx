@@ -70,7 +70,7 @@ const generateTableHeaders = ({
         return (
           <div className="custom-host-vitals-tab__token">
             <TextCell value={token} />
-            <CopyButton copyText={token} variant="compact" />
+            <CopyButton copyText={token} variant="subdued" size="small" />
           </div>
         );
       },
@@ -105,19 +105,21 @@ const generateTableHeaders = ({
               <div className="custom-host-vitals-tab__actions">
                 <Button
                   variant="secondary"
+                  size="small"
                   disabled={disableChildren}
                   onClick={() => onEdit(vital)}
                   ariaLabel={`Edit ${vital.name}`}
                 >
-                  <Icon name="pencil" color="ui-fleet-black-75" />
+                  <Icon name="pencil" color="ui-fleet-black-75" size="small" />
                 </Button>
                 <Button
                   variant="secondary"
+                  size="small"
                   disabled={disableChildren}
                   onClick={() => onDelete(vital)}
                   ariaLabel={`Delete ${vital.name}`}
                 >
-                  <Icon name="trash" color="ui-fleet-black-75" />
+                  <Icon name="trash" color="ui-fleet-black-75" size="small" />
                 </Button>
               </div>
             )}

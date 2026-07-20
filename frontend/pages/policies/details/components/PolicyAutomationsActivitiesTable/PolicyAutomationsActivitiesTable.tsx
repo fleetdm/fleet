@@ -225,7 +225,7 @@ const PolicyAutomationsActivitiesTable = ({
           )}
           <div className={`${baseClass}__controls`}>
             {canResetPolicy && (
-              <Button variant="inverse" onClick={onClickResetPolicy}>
+              <Button variant="secondary" onClick={onClickResetPolicy}>
                 Reset policy
                 <Icon name="refresh" />
               </Button>
