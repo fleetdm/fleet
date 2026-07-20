@@ -189,6 +189,7 @@ If the original request is a customer request, it's up to the relevant CSA to de
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
+
 ### Update a company brand front
 
 Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
