@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/sigverify"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
@@ -22,6 +25,128 @@ var preInstalled = []string{}
 
 func postApplicationInstall(_ context.Context, _ *slog.Logger, _ string) error {
 	return nil
+}
+
+// authenticodeSignature is the result of Get-AuthenticodeSignature, which
+// verifies the full chain (including revocation) against the Windows trust
+// store — the authoritative Authenticode check.
+type authenticodeSignature struct {
+	Status        string `json:"Status"`
+	StatusMessage string `json:"StatusMessage"`
+	Subject       string `json:"Subject"`
+}
+
+// verifyInstallerSignature runs before the install script: it verifies the
+// installer's Authenticode signature and compares the signer's subject CN
+// against the pin in the app's input JSON.
+func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installerPath string, pin *maintained_apps.FMASignature) error {
+	sig, err := getAuthenticodeSignature(ctx, installerPath)
+	if err != nil {
+		return fmt.Errorf("running Get-AuthenticodeSignature: %w", err)
+	}
+
+	observedCN := sigverify.SubjectCNFromX500DN(sig.Subject)
+
+	switch {
+	case pin != nil && pin.Unsigned:
+		if sig.Status == "NotSigned" {
+			logger.InfoContext(ctx, "Installer is unsigned, as pinned")
+			return nil
+		}
+		logger.WarnContext(ctx, fmt.Sprintf("Installer is now signed by %q but the pin says unsigned; update the pin", observedCN))
+		return nil
+	case pin != nil:
+		switch {
+		case sig.Status == "NotSigned":
+			return fmt.Errorf("installer is unsigned but the pin expects signer %v", pin.SubjectCNs)
+		case sig.Status != "Valid":
+			return fmt.Errorf("Authenticode signature is not valid: %s (%s)", sig.Status, sig.StatusMessage)
+		case !pin.MatchesSubjectCN(observedCN):
+			return fmt.Errorf("signer identity changed: observed %q, pinned %v", observedCN, pin.SubjectCNs)
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Authenticode signature verified: signed by %q (matches pin)", observedCN))
+	default: // no pin
+		switch {
+		case sig.Status == "NotSigned":
+			return errors.New(`installer is unsigned and the app has no "unsigned" signature pin`)
+		case sig.Status != "Valid":
+			return fmt.Errorf("Authenticode signature is not valid: %s (%s)", sig.Status, sig.StatusMessage)
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Authenticode signature verified: signed by %q (no pin recorded yet)", observedCN))
+	}
+	return nil
+}
+
+func getAuthenticodeSignature(ctx context.Context, installerPath string) (*authenticodeSignature, error) {
+	execTimeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+
+	// Single-quote the path for PowerShell (doubling embedded quotes); the
+	// path is under our own temp directory.
+	quoted := "'" + strings.ReplaceAll(installerPath, "'", "''") + "'"
+	psCommand := fmt.Sprintf(
+		`$sig = Get-AuthenticodeSignature -LiteralPath %s; [PSCustomObject]@{Status = $sig.Status.ToString(); StatusMessage = [string]$sig.StatusMessage; Subject = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { '' }} | ConvertTo-Json -Compress`,
+		quoted,
+	)
+	out, err := exec.CommandContext(execTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command", psCommand).Output()
+	if err != nil {
+		return nil, fmt.Errorf("executing PowerShell: %w", err)
+	}
+
+	var sig authenticodeSignature
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(out))), &sig); err != nil {
+		return nil, fmt.Errorf("parsing Get-AuthenticodeSignature output: %w", err)
+	}
+	return &sig, nil
+}
+
+// verifyInstalledApp is a no-op on Windows: the Authenticode check runs on
+// the installer file itself before installation.
+func verifyInstalledApp(_ context.Context, _ *slog.Logger, _, _ string, _ *maintained_apps.FMASignature) error {
+	return nil
+}
+
+// scanInstallerForMalware runs a Microsoft Defender on-demand scan of the
+// installer. GitHub-hosted runners keep Defender in passive mode, but the
+// engine and MpCmdRun.exe are present. A detection returns an error (hard
+// fail once FMA_SCAN_ENFORCE is set); an unavailable or incomplete scan only
+// warns, so the check is best-effort by design.
+func scanInstallerForMalware(ctx context.Context, logger *slog.Logger, installerPath string) error {
+	programFiles := os.Getenv("ProgramFiles")
+	if programFiles == "" {
+		programFiles = `C:\Program Files`
+	}
+	mpCmdRun := filepath.Join(programFiles, "Windows Defender", "MpCmdRun.exe")
+	if _, err := os.Stat(mpCmdRun); err != nil {
+		logger.WarnContext(ctx, fmt.Sprintf("Microsoft Defender not found at %s; skipping malware scan", mpCmdRun))
+		return nil
+	}
+
+	execTimeout, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+
+	logger.InfoContext(ctx, "Scanning installer with Microsoft Defender...")
+	cmd := exec.CommandContext(execTimeout, mpCmdRun,
+		"-Scan", "-ScanType", "3", "-File", installerPath, "-DisableRemediation")
+	out, err := cmd.CombinedOutput()
+
+	exitCode := -1
+	if cmd.ProcessState != nil {
+		exitCode = int(int32(cmd.ProcessState.ExitCode())) // nolint:gosec
+	}
+
+	switch exitCode {
+	case 0:
+		logger.InfoContext(ctx, "Microsoft Defender scan found no threats")
+		return nil
+	case 2:
+		return fmt.Errorf("Microsoft Defender detected a threat in the installer: %s", strings.TrimSpace(string(out)))
+	default:
+		// Scan couldn't complete (stale definitions, passive-mode quirks);
+		// warn rather than fail so a runner-image issue doesn't block updates.
+		logger.WarnContext(ctx, fmt.Sprintf("Microsoft Defender scan did not complete (exit code %d, err %v): %s", exitCode, err, strings.TrimSpace(string(out))))
+		return nil
+	}
 }
 
 // normalizeVersion normalizes version strings for comparison

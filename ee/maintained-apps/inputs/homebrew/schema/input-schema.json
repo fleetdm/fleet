@@ -85,6 +85,47 @@
       "description": "Path (relative to the repo root) to a local file containing the cask JSON in the same schema as https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask metadata for third-party taps directly into this repo under inputs/homebrew/custom-tap/.",
       "minLength": 1,
       "pattern": "\\.json$"
+    },
+    "signature": {
+      "type": "object",
+      "description": "Pinned signing identity for the app's installer, verified at ingest (cmd/maintained-apps/verify) and in the validator before the install script runs. Pin the Developer ID Team ID (it survives certificate renewals); an identity change fails verification and requires a reviewed pin update.",
+      "properties": {
+        "apple_team_id": {
+          "type": "string",
+          "description": "The Apple Developer ID Team ID expected to have signed the installer (e.g. \"M683GB7CPW\").",
+          "pattern": "^[A-Z0-9]{10}$"
+        },
+        "notarized": {
+          "type": "boolean",
+          "description": "Whether the installer is expected to carry an Apple notarization ticket."
+        },
+        "unsigned": {
+          "type": "boolean",
+          "description": "Acknowledges that the vendor ships an unsigned installer. Requires a justification and is mutually exclusive with the identity pins."
+        },
+        "justification": {
+          "type": "string",
+          "description": "Why an unsigned installer is acceptable for this app. Required when unsigned is true.",
+          "minLength": 1
+        }
+      },
+      "if": {
+        "properties": { "unsigned": { "const": true } },
+        "required": ["unsigned"]
+      },
+      "then": {
+        "required": ["justification"],
+        "not": {
+          "anyOf": [
+            { "required": ["apple_team_id"] },
+            { "properties": { "notarized": { "const": true } }, "required": ["notarized"] }
+          ]
+        }
+      },
+      "else": {
+        "required": ["apple_team_id"]
+      },
+      "additionalProperties": false
     }
   },
   "not": {
