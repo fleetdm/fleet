@@ -2842,15 +2842,11 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
-	// The user-scope release goes last: it is the command whose 200 ack gates the Active -> None transition to
-	// finish enrollment. Built by its own constructor so its CmdID carries the attempt prefix.
+	// The user-scope release goes last: it is the command whose 200 ack gates the Active -> None transition to finish enrollment.
 	return append(cmds, newESPUserReleaseCmd(provID))
 }
 
-// newESPUserReleaseCmd builds the user-scope ServerHasFinishedProvisioning Replace that completes the ESP
-// "Account setup" phase, with the esp-release- CmdID prefix that MDMWindowsGetESPReleaseAckStatus uses to
-// recognize Fleet's own release attempts. Shared by the initial finalize and every retry so the two can never
-// drift in URI or tagging.
+// newESPUserReleaseCmd builds the user-scope ServerHasFinishedProvisioning Replace that completes the ESP "Account setup" phase
 func newESPUserReleaseCmd(provID string) *mdm_types.SyncMLCmd {
 	cmd := newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(provID), "true")
 	cmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
