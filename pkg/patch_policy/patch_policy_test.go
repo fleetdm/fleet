@@ -69,3 +69,33 @@ func TestGenerateQueryForManifest(t *testing.T) {
 		})
 	}
 }
+
+func TestGenerateOpenQuery(t *testing.T) {
+	// macOS matches the title against processes.name.
+	got, err := patch_policy.GenerateOpenQuery("darwin", "Slack")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'Slack');", got)
+
+	// A title whose process name differs uses a name override.
+	got, err = patch_policy.GenerateOpenQuery("darwin", "Zoom")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'zoom.us');", got)
+
+	// Apps with an unreliable process name use a path override.
+	got, err = patch_policy.GenerateOpenQuery("darwin", "Docker Desktop")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '/Applications/Docker.app/%');", got)
+
+	// Windows uses the title's last word + ".exe" to match processes.name (the executable).
+	got, err = patch_policy.GenerateOpenQuery("windows", "Slack")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'slack.exe');", got)
+
+	got, err = patch_policy.GenerateOpenQuery("windows", "Google Chrome")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
+
+	// Unknown platform is rejected.
+	_, err = patch_policy.GenerateOpenQuery("linux", "foo")
+	require.ErrorIs(t, err, patch_policy.ErrWrongPlatform)
+}

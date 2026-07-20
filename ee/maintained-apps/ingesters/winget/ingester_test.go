@@ -3,12 +3,14 @@ package winget
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
@@ -481,6 +483,11 @@ func TestIngestValidations(t *testing.T) {
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
+			// The managed "is app open" query is generated from the software title name.
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s.exe');", strings.ToLower(out.Name)),
+				out.Queries.Open,
+			)
 		})
 	}
 }
