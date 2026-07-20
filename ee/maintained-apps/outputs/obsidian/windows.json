@@ -4,7 +4,8 @@
       "version": "1.12.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian' AND version_compare(version, '1.12.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Obsidian %' AND publisher = 'Obsidian' AND version_compare(version, '1.12.7') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'obsidian.exe');"
       },
       "installer_url": "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.12.7/Obsidian-1.12.7.exe",
       "install_script_ref": "b9f2d8ad",

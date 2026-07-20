@@ -4,7 +4,8 @@
       "version": "2026.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2026.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2026.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '/Applications/Android Studio.app/%');"
       },
       "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.2.10/android-studio-quail2-mac_arm.dmg",
       "install_script_ref": "d9306d86",

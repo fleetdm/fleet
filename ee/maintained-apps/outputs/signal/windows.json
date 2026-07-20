@@ -4,7 +4,8 @@
       "version": "8.19.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC' AND version_compare(version, '8.19.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Signal' AND publisher = 'Signal Messenger, LLC' AND version_compare(version, '8.19.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'signal.exe');"
       },
       "installer_url": "https://updates.signal.org/desktop/signal-desktop-win-8.19.0.exe",
       "install_script_ref": "06366bfb",

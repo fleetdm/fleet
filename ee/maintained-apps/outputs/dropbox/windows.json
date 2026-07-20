@@ -4,7 +4,8 @@
       "version": "262.3.3075",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.' AND version_compare(version, '262.3.3075') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Dropbox' AND publisher = 'Dropbox, Inc.' AND version_compare(version, '262.3.3075') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'dropbox.exe');"
       },
       "installer_url": "https://edge.dropboxstatic.com/dbx-releng/client/Dropbox%20262.3.3075%20Enterprise%20Installer.x64.msi",
       "install_script_ref": "8959087b",

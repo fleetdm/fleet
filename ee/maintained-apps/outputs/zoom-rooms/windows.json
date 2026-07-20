@@ -4,7 +4,8 @@
       "version": "7.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Zoom Rooms%' AND name NOT LIKE '%Installer%' AND publisher LIKE 'Zoom%Communications%' AND version_compare(version, '7.1.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rooms.exe');"
       },
       "installer_url": "https://cdn.zoom.us/prod/7.1.0.7866/x64/zoomrooms-7.1.0.7866-x64.msi",
       "install_script_ref": "790a33a6",

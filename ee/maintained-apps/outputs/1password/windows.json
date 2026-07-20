@@ -4,7 +4,8 @@
       "version": "8.12.28",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.' AND version_compare(version, '8.12.28') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'Agilebits Inc.' AND version_compare(version, '8.12.28') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '1password.exe');"
       },
       "installer_url": "https://c.1password.com/dist/1P/win8/1PasswordSetup-8.12.28.msi",
       "install_script_ref": "8959087b",

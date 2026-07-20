@@ -4,7 +4,8 @@
       "version": "26.2.4.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation' AND version_compare(version, '26.2.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'LibreOffice %' AND publisher = 'The Document Foundation' AND version_compare(version, '26.2.4.2') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'libreoffice.exe');"
       },
       "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.4/win/x86_64/LibreOffice_26.2.4_Win_x86-64.msi",
       "install_script_ref": "8959087b",

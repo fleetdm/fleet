@@ -4,7 +4,8 @@
       "version": "151.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '151.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '151.0') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'edition.exe');"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/151.0b10/win64/en-US/Firefox%20Setup%20151.0b10.exe",
       "install_script_ref": "30fd5964",

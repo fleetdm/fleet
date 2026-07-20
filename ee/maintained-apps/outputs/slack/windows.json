@@ -1,15 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.50.143",
+      "version": "4.51.180",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.' AND version_compare(version, '4.50.143') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.' AND version_compare(version, '4.51.180') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'slack.exe');"
       },
-      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.50.143/Slack.msix",
+      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.51.180/Slack.msix",
       "install_script_ref": "8b41f934",
       "uninstall_script_ref": "034eae14",
-      "sha256": "87360ab9a99392619b63133dbf50111e104ba599f04b21740de16d380d723da6",
+      "sha256": "371fd449c1df199ac38f8f1178f2a97a152d8e7d20f0662e971addcb12bc3d6e",
       "default_categories": [
         "Communication"
       ]
