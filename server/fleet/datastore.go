@@ -1445,13 +1445,10 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
-	// UpdateMDMAppleConfigProfile updates an existing configuration profile's
-	// contents (if p.Mobileconfig is non-empty) and/or label targeting in
-	// place, preserving its ProfileUUID. p.Identifier must match the existing
-	// profile's -- this is validated atomically as part of the update and the
-	// caller should have already validated it too. p.Name may differ from the
-	// existing profile's and will be updated along with the content, matching
-	// GitOps's identifier-keyed upsert convention.
+	// UpdateMDMAppleConfigProfile updates an existing profile's contents (if
+	// p.Mobileconfig is non-empty) and/or label targeting in place.
+	// p.Identifier must match the existing profile's; p.Name may change along
+	// with the content, matching GitOps's identifier-keyed upsert convention.
 	UpdateMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
@@ -2605,11 +2602,10 @@ type Datastore interface {
 	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
-	// UpdateMDMWindowsConfigProfile updates an existing configuration profile's
-	// contents (if p.SyncML is non-empty) and/or label targeting in place,
-	// preserving its ProfileUUID. p.Name must match the existing profile's --
-	// unlike Apple profiles, Windows profiles have no separate identifier, so
-	// name is the only identity a profile has and cannot change on this path.
+	// UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
+	// p.SyncML is non-empty) and/or label targeting in place. p.Name must
+	// match the existing profile's -- name is a Windows profile's only
+	// identity and cannot change on this path.
 	UpdateMDMWindowsConfigProfile(ctx context.Context, p MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
@@ -3332,11 +3328,10 @@ type Datastore interface {
 	// to the specified profile uuid.
 	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
 
-	// UpdateMDMAndroidConfigProfile updates an existing configuration profile's
-	// contents (if cp.RawJSON is non-empty) and/or label targeting in place,
-	// preserving its ProfileUUID. cp.Name must match the existing profile's --
-	// like Windows profiles, Android profiles have no separate identifier, so
-	// name is the only identity a profile has and cannot change on this path.
+	// UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
+	// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
+	// match the existing profile's -- name is an Android profile's only
+	// identity and cannot change on this path.
 	UpdateMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile, usesFleetVars []FleetVarName) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to

@@ -3861,12 +3861,17 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		return b
 	}
 
-	assertEditedActivity := func(profileName, profileIdentifier, platform string) {
+	assertEditedActivity := func(activityName, profileName, profileIdentifier string) {
+		identJSON := ""
+		if profileIdentifier != "" {
+			// profile_identifier is omitempty and only set for Apple profiles
+			identJSON = fmt.Sprintf(`"profile_identifier": %q, `, profileIdentifier)
+		}
 		wantJSON := fmt.Sprintf(
-			`{"profile_name": %q, "profile_identifier": %q, "team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null, "platform": %q}`,
-			profileName, profileIdentifier, platform,
+			`{"profile_name": %q, %s"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+			profileName, identJSON,
 		)
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedConfigurationProfile{}.ActivityName(), wantJSON, 0)
+		s.lastActivityOfTypeMatches(activityName, wantJSON, 0)
 	}
 
 	declJSONWithEcho := func(ident, echo string) []byte {
@@ -3900,16 +3905,12 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	res := patchProfile(appleUUID, "update-apple-profile.mobileconfig", appleContent2, nil, http.StatusOK)
 	patchResp := decodePatchResp(res)
 	require.Equal(t, appleUUID, patchResp.ProfileUUID)
-	require.True(t, patchResp.HasProfile)
-	require.Empty(t, patchResp.LabelsIncludeAll)
-	require.Empty(t, patchResp.LabelsIncludeAny)
-	require.Empty(t, patchResp.LabelsExcludeAny)
 	require.Equal(t, appleContent2, downloadProfile(appleUUID))
 	prof := getProfile(appleUUID)
 	require.Equal(t, "update-apple-profile", prof.Name)
 	require.Len(t, prof.Checksum, 16)
 	require.NotEqual(t, origChecksum, prof.Checksum)
-	assertEditedActivity("update-apple-profile", appleIdent, "darwin")
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile", appleIdent)
 
 	// content edit with a changed PayloadDisplayName (same identifier) renames
 	// the profile
@@ -3918,7 +3919,7 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	prof = getProfile(appleUUID)
 	require.Equal(t, "update-apple-profile-renamed", prof.Name)
 	require.Equal(t, appleContent3, downloadProfile(appleUUID))
-	assertEditedActivity("update-apple-profile-renamed", appleIdent, "darwin")
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile-renamed", appleIdent)
 
 	// labels-only edit: no file, labels persisted, content and checksum
 	// unchanged
@@ -3926,15 +3927,13 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	res = patchProfile(appleUUID, "", nil, map[string][]string{"labels_include_any": {lblA.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, appleUUID, patchResp.ProfileUUID)
-	require.False(t, patchResp.HasProfile)
-	require.Equal(t, []string{lblA.Name}, patchResp.LabelsIncludeAny)
 	prof = getProfile(appleUUID)
 	require.Equal(t, []fleet.ConfigurationProfileLabel{{LabelID: lblA.ID, LabelName: lblA.Name}}, prof.LabelsIncludeAny)
 	require.Empty(t, prof.LabelsIncludeAll)
 	require.Empty(t, prof.LabelsExcludeAny)
 	require.Equal(t, checksumBeforeLabels, prof.Checksum)
 	require.Equal(t, appleContent3, downloadProfile(appleUUID))
-	assertEditedActivity("update-apple-profile-renamed", appleIdent, "darwin")
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile-renamed", appleIdent)
 
 	// content-only edit after labels were set clears label targeting (replace
 	// semantics)
@@ -4003,17 +4002,15 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, winUUID, patchResp.ProfileUUID)
-	require.True(t, patchResp.HasProfile)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
 	prof = getProfile(winUUID)
 	require.Equal(t, "update-win-profile", prof.Name)
-	assertEditedActivity("update-win-profile", "", "windows")
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
 	// labels-only edit
 	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
-	require.False(t, patchResp.HasProfile)
-	require.ElementsMatch(t, []string{lblA.Name, lblB.Name}, patchResp.LabelsIncludeAll)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
 	prof = getProfile(winUUID)
 	sort.Slice(prof.LabelsIncludeAll, func(i, j int) bool {
 		return prof.LabelsIncludeAll[i].LabelName < prof.LabelsIncludeAll[j].LabelName
@@ -4023,7 +4020,7 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 		{LabelID: lblB.ID, LabelName: lblB.Name},
 	}, prof.LabelsIncludeAll)
 	require.Equal(t, winContent2, downloadProfile(winUUID))
-	assertEditedActivity("update-win-profile", "", "windows")
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
 
 	//
 	// Apple DDM declaration
@@ -4034,12 +4031,11 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	res = patchProfile(declUUID, "some-other-filename.json", declContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, declUUID, patchResp.ProfileUUID)
-	require.True(t, patchResp.HasProfile)
 	require.Equal(t, declContent2, downloadProfile(declUUID))
 	prof = getProfile(declUUID)
 	require.Equal(t, "update-apple-decl", prof.Name)
 	require.Equal(t, declIdent, prof.Identifier)
-	assertEditedActivity("update-apple-decl", declIdent, "darwin")
+	assertEditedActivity(fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(), "update-apple-decl", declIdent)
 
 	// content upload with a different Identifier is rejected
 	res = patchProfile(declUUID, "update-apple-decl.json", declJSONWithEcho("some-other-decl-ident", "v3"), nil, http.StatusBadRequest)
@@ -4055,21 +4051,19 @@ func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
 	res = patchProfile(androidUUID, "update-android-profile.json", androidContent2, nil, http.StatusOK)
 	patchResp = decodePatchResp(res)
 	require.Equal(t, androidUUID, patchResp.ProfileUUID)
-	require.True(t, patchResp.HasProfile)
 	require.Equal(t, androidContent2, downloadProfile(androidUUID))
 	prof = getProfile(androidUUID)
 	require.Equal(t, "update-android-profile", prof.Name)
-	assertEditedActivity("update-android-profile", "", "android")
+	assertEditedActivity(fleet.ActivityTypeEditedAndroidProfile{}.ActivityName(), "update-android-profile", "")
 
 	// labels-only edit
 	res = patchProfile(androidUUID, "", nil, map[string][]string{"labels_exclude_any": {lblB.Name}}, http.StatusOK)
 	patchResp = decodePatchResp(res)
-	require.False(t, patchResp.HasProfile)
-	require.Equal(t, []string{lblB.Name}, patchResp.LabelsExcludeAny)
+	require.Equal(t, androidUUID, patchResp.ProfileUUID)
 	prof = getProfile(androidUUID)
 	require.Equal(t, []fleet.ConfigurationProfileLabel{{LabelID: lblB.ID, LabelName: lblB.Name}}, prof.LabelsExcludeAny)
 	require.Equal(t, androidContent2, downloadProfile(androidUUID))
-	assertEditedActivity("update-android-profile", "", "android")
+	assertEditedActivity(fleet.ActivityTypeEditedAndroidProfile{}.ActivityName(), "update-android-profile", "")
 }
 
 func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {

@@ -2496,11 +2496,10 @@ INSERT INTO
 	}, nil
 }
 
-// UpdateMDMWindowsConfigProfile updates an existing configuration profile's
-// contents (if cp.SyncML is non-empty) and/or label targeting in place,
-// preserving its ProfileUUID. cp.Name must match the existing profile's --
-// unlike Apple profiles, Windows profiles have no separate identifier, so
-// name is the only identity a profile has and this method never changes it.
+// UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
+// cp.SyncML is non-empty) and/or label targeting in place. cp.Name must
+// match the existing profile's -- name is a Windows profile's only
+// identity, so it never changes on this path.
 func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	var teamID uint
 	if cp.TeamID != nil {
@@ -2529,11 +2528,10 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 		if len(cp.SyncML) > 0 {
 			contentChanged := !bytes.Equal(existing.SyncML, cp.SyncML)
 
-			// For content that is actually changing, retain the outgoing version
-			// before the UPDATE overwrites it, so the profile-manager cron can
-			// build <Delete> commands for LocURIs the new content drops -- the
-			// same guarantee as SetOrUpdateMDMWindowsConfigProfile and
-			// batchSetMDMWindowsProfilesDB's edit path.
+			// Retain the outgoing version before overwriting it so the
+			// profile-manager cron can build <Delete> commands for LocURIs the
+			// new content drops (same guarantee as the upsert and batch edit
+			// paths).
 			if contentChanged {
 				if err := ds.retainWindowsProfilePriorContentDB(ctx, tx, []string{cp.ProfileUUID}); err != nil {
 					return ctxerr.Wrap(ctx, err, "retaining prior content for updated profile")
@@ -2552,12 +2550,10 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(cp.ProfileUUID))
 			}
 
-			// An OS-update profile is tracked as the team's OS-update profile
-			// within this transaction so it rolls back together on failure. If
-			// the edited content no longer targets OS updates, the tracking
-			// row is removed instead -- otherwise a profile edited away from
-			// OS-update content would keep blocking the OS updates settings
-			// feature for the team.
+			// Track/untrack the team's OS-update profile in the same transaction
+			// so it rolls back with the update. Untracking matters: a profile
+			// edited away from OS-update content must stop blocking the team's
+			// OS updates setting.
 			if bytes.Contains(cp.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
 				if err := trackWindowsUpdateConfigProfileDB(ctx, tx, teamID, cp.ProfileUUID); err != nil {
 					return err
@@ -2566,15 +2562,10 @@ func (ds *Datastore) UpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet
 				return err
 			}
 
-			// variable associations are only touched when new content was
-			// uploaded: within a content update the call must be unconditional
-			// (unlike the create path) so an edit which removes the profile's
-			// last Fleet variable still clears the stale association --
-			// batchSetProfileVariableAssociationsDB always deletes existing
-			// associations for the given profile UUIDs before optionally
-			// re-inserting. On a labels-only update the content -- and thus its
-			// variables -- didn't change, and clearing them here would break
-			// variable-driven resends (e.g. IdP email changes).
+			// Reset variable associations only on a content update, but then
+			// unconditionally, so an edit that removes the profile's last Fleet
+			// variable still clears the stale association. A labels-only update
+			// must leave them alone or variable-driven resends would break.
 			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
 			}, "windows", false); err != nil {

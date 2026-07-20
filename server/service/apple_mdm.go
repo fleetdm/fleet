@@ -409,14 +409,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	return newCP, nil
 }
 
-// parseAndValidateAppleConfigProfile runs the validation shared by creating
-// and updating an Apple configuration profile: verifies Apple MDM is
-// configured, checks the profile isn't signed, validates license/team
-// requirements, expands embedded secrets, validates Fleet variables/CAs,
-// parses the mobileconfig, validates FileVault/user-provided restrictions,
-// and validates label scoping. It returns the constructed profile (with
-// labels and the original unexpanded Mobileconfig set), the Fleet variable
-// names it uses, and the team's name (empty string for no team).
+// parseAndValidateAppleConfigProfile runs the validation shared by the
+// create and update paths. It returns the constructed profile (with labels
+// and the original unexpanded Mobileconfig set), the Fleet variable names it
+// uses, and the team's name (empty string for no team).
 func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, []fleet.FleetVarName, string, error) {
 	// check that Apple MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just Windows
@@ -1010,15 +1006,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 	return decl, nil
 }
 
-// parseAndValidateAppleDeclaration runs the validation shared by creating and
-// updating an Apple DDM declaration: validates label scoping/license
-// requirements, expands secrets, validates Fleet variables, parses the
-// Type/Identifier/PayloadScope from the content, validates it (unless
-// AllowAllDeclarations bypasses this), resolves DDM asset references, and
-// runs the software-update-declaration precondition check. It returns the
-// constructed declaration (Name/Type/Identifier/Scope/labels/asset references
-// set, DeclarationUUID not yet set), the Fleet variable names it references,
-// and the team's name (empty string for no team).
+// parseAndValidateAppleDeclaration runs the validation shared by the create
+// and update paths. It returns the constructed declaration (DeclarationUUID
+// not yet set), the Fleet variable names it references, and the team's name
+// (empty string for no team).
 func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID uint, name string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, []fleet.FleetVarName, string, error) {
 	// Get license for team lookup and variable validation
 	lic, _ := license.FromContext(ctx)
@@ -1120,15 +1111,12 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 }
 
 // updateMDMAppleDeclaration implements the Apple DDM declaration branch of
-// UpdateMDMConfigProfile: it loads the existing declaration, re-validates a
-// new upload (when provided) the same way NewMDMAppleDeclaration does, checks
-// that the uploaded declaration's identifier matches the existing
-// declaration's, then upserts it and logs the edit activity.
+// UpdateMDMConfigProfile.
 //
-// No explicit "mark pending" call is needed here: mdm_apple_declarations.token
-// is a MySQL generated column derived from raw_json, so updating the content
-// changes the token on its own, and the ReconcileAppleDeclarations cron picks
-// up the change and marks affected hosts pending without any extra signal.
+// No explicit "mark pending" call is needed here:
+// mdm_apple_declarations.token is a MySQL generated column derived from
+// raw_json, so the ReconcileAppleDeclarations cron picks up a content change
+// on its own.
 func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -1227,12 +1215,11 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		actTeamName = &teamName
 	}
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedDeclarationProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
 			ProfileName:       decl.Name,
 			ProfileIdentifier: decl.Identifier,
-			Platform:          "darwin",
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple declaration")
 	}
@@ -1795,10 +1782,7 @@ func deleteMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{
 }
 
 // updateMDMAppleConfigProfile implements the Apple .mobileconfig branch of
-// UpdateMDMConfigProfile: it loads the existing profile, re-validates a new
-// upload (when provided) the same way NewMDMAppleConfigProfile does, checks
-// that the uploaded profile's identifier/name match the existing profile's,
-// then performs the atomic datastore update and logs the edit activity.
+// UpdateMDMConfigProfile.
 func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -1879,12 +1863,11 @@ func (svc *Service) updateMDMAppleConfigProfile(ctx context.Context, profileUUID
 		actTeamName = &teamName
 	}
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedMacosProfile{
 			TeamID:            actTeamID,
 			TeamName:          actTeamName,
 			ProfileName:       cp.Name,
 			ProfileIdentifier: cp.Identifier,
-			Platform:          "darwin",
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm apple config profile")
 	}
@@ -3301,7 +3284,7 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	for i, prof := range profiles {
 		if len(prof) > 1024*1024 {
 			return ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), fleet.MaxProfileSizeErrMsg),
 			)
 		}
 

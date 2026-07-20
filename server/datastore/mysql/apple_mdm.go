@@ -311,11 +311,10 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 		}
 
 		if len(cp.Mobileconfig) > 0 {
-			// a changed PayloadScope is rejected the same way the create/GitOps
-			// paths reject it -- the scope column is never updated on this path,
-			// so letting a scope change through would leave the stored XML and
-			// the scope column (which drives the delivery channel) disagreeing.
-			// Like the create path, an absent PayloadScope means System.
+			// Reject a changed PayloadScope like the create/GitOps paths do: the
+			// scope column (which drives the delivery channel) is never updated
+			// here, so the stored XML and the column would disagree. As on
+			// create, an absent PayloadScope means System.
 			if cp.Scope == "" {
 				cp.Scope = fleet.PayloadScopeSystem
 			}
@@ -323,11 +322,9 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				return ctxerr.Wrap(ctx, err, "verifying payload scope on update")
 			}
 
-			// name is allowed to change along with the content, matching the
-			// same identifier-keyed upsert convention GitOps uses. The create
-			// path enforces name uniqueness across all platforms' profiles in
-			// the team, so a rename must too -- the UPDATE below can only rely
-			// on this table's unique index.
+			// A rename (via the content's PayloadDisplayName) is allowed, but
+			// must re-check name uniqueness against the other platforms' tables
+			// -- the UPDATE below can only rely on this table's unique index.
 			if cp.Name != existing.Name {
 				var teamID uint
 				if cp.TeamID != nil {
@@ -353,11 +350,9 @@ func (ds *Datastore) UpdateMDMAppleConfigProfile(ctx context.Context, cp fleet.M
 				}
 			}
 
-			// uploaded_at is preserved when nothing changed, matching the batch
-			// upsert's IF(checksum = VALUES(checksum) AND name = VALUES(name), ...)
-			// convention -- a no-op edit must not read as a fresh upload. Its
-			// assignment is evaluated first (left to right) so it sees the
-			// pre-update column values.
+			// Preserve uploaded_at on a no-op edit (matching the batch upsert)
+			// so it doesn't read as a fresh upload; the IF sees the pre-update
+			// values since SET evaluates left to right.
 			stmt := `
 UPDATE mdm_apple_configuration_profiles
 SET uploaded_at = IF(checksum = UNHEX(MD5(?)) AND name = ?, uploaded_at, CURRENT_TIMESTAMP()),
@@ -404,13 +399,10 @@ WHERE profile_uuid = ? AND identifier = ?`
 			return ctxerr.Wrap(ctx, err, "updating darwin profile label associations")
 		}
 
-		// variable associations are only touched when new content was uploaded:
-		// within a content update the call must be unconditional so an edit that
-		// removes the profile's last Fleet variable still clears the stale
-		// association (batchSetProfileVariableAssociationsDB always deletes
-		// before optionally re-inserting), but on a labels-only update the
-		// content -- and thus its variables -- didn't change, and clearing them
-		// here would break variable-driven resends (e.g. IdP email changes).
+		// Reset variable associations only on a content update, but then
+		// unconditionally, so an edit that removes the profile's last Fleet
+		// variable still clears the stale association. A labels-only update
+		// must leave them alone or variable-driven resends would break.
 		if len(cp.Mobileconfig) > 0 {
 			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},

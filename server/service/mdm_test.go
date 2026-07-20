@@ -1668,12 +1668,10 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 	}
 }
 
-// newUpdateMDMConfigProfileRequest builds an *http.Request with a
-// multipart/form-data body for the update configuration profile endpoint,
-// with profileUUID set as a mux URL var (empty string omits the var
-// entirely, to exercise the "missing profile_uuid" case). fields supports
-// multiple values per key, mirroring repeated form fields like
-// labels_include_any.
+// newUpdateMDMConfigProfileRequest builds a multipart/form-data request for
+// the update endpoint. An empty profileUUID omits the mux URL var to
+// exercise the "missing profile_uuid" case; fields supports repeated values
+// per key (e.g. labels_include_any).
 func newUpdateMDMConfigProfileRequest(t *testing.T, profileUUID string, fields map[string][]string, fileContents []byte) *http.Request {
 	t.Helper()
 
@@ -3966,7 +3964,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		return &fleet.MDMAndroidConfigProfile{
 			ProfileUUID: "g" + uuid.NewString(),
 			Name:        name,
-			TeamID:      &teamID,
+			TeamID:      ptr.UintOrNilIfZero(teamID),
 		}
 	}
 
@@ -4032,10 +4030,9 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedAndroidProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
-		assert.Equal(t, "android", act.Platform)
 	})
 
 	t.Run("profile content update, matching name", func(t *testing.T) {
@@ -4063,10 +4060,9 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		assert.Equal(t, existing.Name, updated.Name)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedAndroidProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
-		assert.Equal(t, "android", act.Platform)
 	})
 
 	t.Run("profile content update for a team-scoped profile", func(t *testing.T) {
@@ -4095,7 +4091,7 @@ func TestUpdateMDMAndroidConfigProfile(t *testing.T) {
 		assert.EqualValues(t, 5, *updated.TeamID)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedAndroidProfile)
 		require.True(t, ok)
 		require.NotNil(t, act.TeamID)
 		assert.EqualValues(t, 5, *act.TeamID)

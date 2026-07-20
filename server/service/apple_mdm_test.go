@@ -885,7 +885,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			ProfileUUID: "a" + uuid.NewString(),
 			Identifier:  identifier,
 			Name:        name,
-			TeamID:      &teamID,
+			TeamID:      ptr.UintOrNilIfZero(teamID),
 		}
 	}
 
@@ -946,11 +946,10 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedMacosProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
 		assert.Equal(t, existing.Identifier, act.ProfileIdentifier)
-		assert.Equal(t, "darwin", act.Platform)
 	})
 
 	t.Run("profile content update, same identifier and name", func(t *testing.T) {
@@ -1001,7 +1000,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 		// the activity must reflect the NEW name, not the pre-update one --
 		// otherwise a rename would be logged under the profile's old name
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedMacosProfile)
 		require.True(t, ok)
 		assert.Equal(t, "New Name", act.ProfileName)
 	})
@@ -1345,7 +1344,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 			DeclarationUUID: "d" + uuid.NewString(),
 			Name:            name,
 			Identifier:      identifier,
-			TeamID:          &teamID,
+			TeamID:          ptr.UintOrNilIfZero(teamID),
 		}
 	}
 
@@ -1401,11 +1400,10 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		assert.Equal(t, newContent, []byte(updated.RawJSON))
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedDeclarationProfile)
 		require.True(t, ok)
 		assert.Equal(t, existing.Name, act.ProfileName)
 		assert.Equal(t, existing.Identifier, act.ProfileIdentifier)
-		assert.Equal(t, "darwin", act.Platform)
 	})
 
 	t.Run("labels-only update, happy path", func(t *testing.T) {
@@ -1437,9 +1435,8 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		_, ok := firedActivity.(*fleet.ActivityTypeEditedDeclarationProfile)
 		require.True(t, ok)
-		assert.Equal(t, "darwin", act.Platform)
 	})
 
 	t.Run("labels-only update preserves the content's Fleet variables and scope", func(t *testing.T) {
@@ -1544,7 +1541,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		assert.EqualValues(t, 5, *updated.TeamID)
 
 		require.NotNil(t, firedActivity)
-		act, ok := firedActivity.(*fleet.ActivityTypeEditedConfigurationProfile)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedDeclarationProfile)
 		require.True(t, ok)
 		require.NotNil(t, act.TeamID)
 		assert.EqualValues(t, 5, *act.TeamID)

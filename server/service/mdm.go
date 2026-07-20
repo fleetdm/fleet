@@ -1715,7 +1715,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	decoded.Profile = fhs[0]
 
 	if decoded.Profile.Size > fleet.MaxProfileSize {
-		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+		return nil, fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
 	}
 
 	// add labels
@@ -1888,7 +1888,7 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 	if fhs, ok := r.MultipartForm.File["profile"]; ok && len(fhs) > 0 {
 		decoded.Profile = fhs[0]
 		if decoded.Profile.Size > fleet.MaxProfileSize {
-			return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+			return nil, fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
 		}
 	}
 
@@ -1911,12 +1911,8 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 }
 
 type updateMDMConfigProfileResponse struct {
-	ProfileUUID      string   `json:"profile_uuid"`
-	HasProfile       bool     `json:"has_profile"`
-	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
-	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
-	Err              error    `json:"error,omitempty"`
+	ProfileUUID string `json:"profile_uuid"`
+	Err         error  `json:"error,omitempty"`
 }
 
 func (r updateMDMConfigProfileResponse) Error() error { return r.Err }
@@ -1953,13 +1949,7 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 		return &updateMDMConfigProfileResponse{Err: err}, nil
 	}
 
-	return &updateMDMConfigProfileResponse{
-		ProfileUUID:      req.ProfileUUID,
-		HasProfile:       req.Profile != nil,
-		LabelsIncludeAll: req.LabelsIncludeAll,
-		LabelsIncludeAny: req.LabelsIncludeAny,
-		LabelsExcludeAny: req.LabelsExcludeAny,
-	}, nil
+	return &updateMDMConfigProfileResponse{ProfileUUID: req.ProfileUUID}, nil
 }
 
 func (svc *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error {
@@ -1985,10 +1975,9 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 }
 
 // resolveProfileTeam returns the id and name of the team a profile belongs
-// to (zero and empty string for no team). Team-scoped profile operations
-// require a premium license: svc.EnterpriseOverrides is only populated on
-// premium servers, so calling it unguarded would panic on Fleet Free (teams
-// can still exist there after a license downgrade).
+// to (zero and empty string for no team). svc.EnterpriseOverrides is only
+// populated on premium servers, so it must not be called unguarded -- teams
+// can still exist on Fleet Free after a license downgrade.
 func (svc *Service) resolveProfileTeam(ctx context.Context, teamID *uint) (uint, string, error) {
 	tmID := ptr.ValOrZero(teamID)
 	if tmID == 0 {
@@ -2097,11 +2086,9 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-// parseAndValidateAndroidConfigProfile runs the validation shared by creating
-// and updating an Android configuration profile: verifies Android MDM is
-// configured, validates license/team requirements, validates the RawJSON
-// content, and validates label scoping. It returns the constructed profile
-// (with labels set) and the team's name (empty string for no team).
+// parseAndValidateAndroidConfigProfile runs the validation shared by the
+// create and update paths. It returns the constructed profile (with labels
+// set) and the team's name (empty string for no team).
 func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAndroidConfigProfile, string, error) {
 	// check that Android MDM is enabled - the middleware of the endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
@@ -2159,19 +2146,13 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 }
 
 // updateMDMAndroidConfigProfile implements the Android branch of
-// UpdateMDMConfigProfile: it loads the existing profile, re-validates a new
-// upload (when provided) the same way NewMDMAndroidConfigProfile does, then
-// updates it and logs the edit activity.
+// UpdateMDMConfigProfile. A profile's name cannot change here: name (with
+// team_id) is an Android profile's only identity.
 //
-// BulkSetPendingMDMHostProfiles below -- despite the name, scoped here to
-// just this one profile's UUID -- isn't required for correctness: the
+// BulkSetPendingMDMHostProfiles isn't required for correctness -- the
 // profile's checksum is a MySQL generated column, so the cron reconciler
-// would pick up this edit on its own. It's called here (matching create) so
-// the change is reflected immediately instead of waiting for the next tick.
-//
-// A profile's name cannot change on this path: Android profiles have no
-// separate identifier, so name (with team_id) is their only identity --
-// changing it would be indistinguishable from creating an unrelated profile.
+// would pick up the edit on its own -- it just applies the change
+// immediately (matching create).
 func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
@@ -2252,11 +2233,10 @@ func (svc *Service) updateMDMAndroidConfigProfile(ctx context.Context, profileUU
 		actTeamName = &teamName
 	}
 	if err := svc.NewActivity(
-		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedConfigurationProfile{
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
 			TeamID:      actTeamID,
 			TeamName:    actTeamName,
 			ProfileName: cp.Name,
-			Platform:    "android",
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edit mdm android config profile")
 	}
@@ -3230,7 +3210,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		}
 
 		if len(profile.Contents) > 1024*1024 {
-			return fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+			return fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
 		}
 
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
