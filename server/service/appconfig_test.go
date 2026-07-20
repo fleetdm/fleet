@@ -25,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -151,6 +152,68 @@ func TestAppConfigAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
+}
+
+// TestModifyAppConfigVulnExposureFilters covers the GitOps wiring for the
+// vulnerability-exposure chart filter defaults: the premium gate and the
+// payload validation, both of which reject the apply before persisting. The
+// happy-path persist round-trip is covered by integration tests.
+func TestModifyAppConfigVulnExposureFilters(t *testing.T) {
+	setup := func(t *testing.T, tier string) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+			License: &fleet.LicenseInfo{Tier: tier},
+		})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}, nil
+		}
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { return nil }
+		return svc, ctx, ds
+	}
+
+	payload := `{"features":{"vulnerability_exposure_historical_reporting":{%s}}}`
+
+	t.Run("free tier rejects the feature", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierFree)
+		body := fmt.Sprintf(payload, `"has_known_exploit":true`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "vulnerability_exposure_historical_reporting")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an invalid software category", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":["os","bogus"]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects inverted EPSS bounds", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"epss_min":80,"epss_max":20`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "epss_min")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
+
+	t.Run("premium rejects an empty software_filters list", func(t *testing.T) {
+		svc, ctx, ds := setup(t, fleet.TierPremium)
+		body := fmt.Sprintf(payload, `"software_filters":[]`)
+		_, err := svc.ModifyAppConfig(ctx, []byte(body), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "software_filters")
+		require.Contains(t, err.Error(), "at least one")
+		require.False(t, ds.SaveAppConfigFuncInvoked, "config should not be saved when rejected")
+	})
 }
 
 // TestVersion tests that all users can access the version endpoint.
@@ -945,6 +1008,99 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
+// template stored while premium is cleared on a Free-tier ModifyAppConfig (so
+// the cron, which enforces on MDM.EnabledAndConfigured rather than the license,
+// stops applying it) and preserved on Premium.
+func TestModifyAppConfigHostNameTemplateDowngrade(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	for _, tt := range []struct {
+		name        string
+		licenseTier string
+		expected    string
+	}{
+		{"cleared on Free", fleet.TierFree, ""},
+		{"preserved on Premium", fleet.TierPremium, "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			// Seed a template as though it had been set while premium.
+			dsAppConfig.MDM.HostNameTemplate = optjson.SetString("iPad $FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			// A benign change that doesn't touch the template: the downgrade reset,
+			// not validation, is what clears it.
+			modified, err := svc.ModifyAppConfig(ctx, []byte(`{"org_info": {"org_name": "Test2"}}`), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, modified.MDM.HostNameTemplate.Value)
+			require.Equal(t, tt.expected, dsAppConfig.MDM.HostNameTemplate.Value)
+		})
+	}
+}
+
+// TestModifyAppConfigHostNameTemplateSecretErrors verifies that when the "No team"
+// host name template references a secret variable, a missing secret is reported as
+// invalid input (422) while a datastore failure propagates as a server error rather
+// than being misclassified as invalid input.
+func TestModifyAppConfigHostNameTemplateSecretErrors(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, validateErr error) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return validateErr }
+		return svc, ctx, ds
+	}
+
+	// A change to a template that references a secret, so validation runs.
+	body := []byte(`{"mdm":{"name_template":"WS-$FLEET_SECRET_TOKEN"}}`)
+
+	t.Run("missing secret is invalid input (422)", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, &fleet.MissingSecretsError{MissingSecrets: []string{"TOKEN"}})
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, errors.New("database is down"))
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &argErr, "a datastore error must not be reported as invalid input")
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+}
+
 // TestTransparencyURLDowngradeLicense tests scenarios where a transparency url value has previously
 // been stored (for example, if a licensee downgraded without manually resetting the transparency url)
 func TestTransparencyURLDowngradeLicense(t *testing.T) {
@@ -1058,6 +1214,11 @@ func TestMDMConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				MacOSSetup: fleet.MacOSSetup{
 					BootstrapPackage:            optjson.String{Set: true},
@@ -1113,6 +1274,11 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1151,6 +1317,11 @@ func TestMDMConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				DeprecatedAppleBMDefaultTeam: "foobar",
 				MacOSSetup: fleet.MacOSSetup{
@@ -1196,6 +1367,11 @@ func TestMDMConfig(t *testing.T) {
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
 				MacOSSetup: fleet.MacOSSetup{
@@ -1237,6 +1413,11 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
@@ -1282,6 +1463,11 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "f",
@@ -1356,6 +1542,11 @@ func TestMDMConfig(t *testing.T) {
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
 			expectedMDM: fleet.MDM{
+				HostNameTemplate: optjson.String{Set: true},
+				AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+					OAuthIdPTokenURL: optjson.String{Set: true},
+					OAuthIdPClientID: optjson.String{Set: true},
+				},
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
 				MacOSSetup: fleet.MacOSSetup{
@@ -1667,6 +1858,268 @@ func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
 	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
+}
+
+func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	const (
+		tokenURL  = "https://idp.example.com/oauth2/v1/token"   //nolint:gosec // G101: test URL, not a credential
+		tokenURL2 = "https://other.example.com/oauth2/v1/token" //nolint:gosec // G101: test URL, not a credential
+		clientID  = "client-id"
+		secret    = "super-secret" //nolint:gosec // G101: test value, not a real credential
+	)
+
+	// configuredAAP returns a stored AppConfig section as it looks once the
+	// feature is configured: public fields present, secret stripped (it lives in
+	// mdm_config_assets, never in the JSON).
+	configuredAAP := func() fleet.AppleAccountProvisioning {
+		return fleet.AppleAccountProvisioning{
+			OAuthIdPTokenURL: optjson.SetString(tokenURL),
+			OAuthIdPClientID: optjson.SetString(clientID),
+		}
+	}
+
+	type asserts struct {
+		insertedSecret *string // non-nil => InsertOrReplace expected with this value
+		deleted        bool    // DeleteMDMConfigAssetsByName expected
+		wantErr        string  // non-empty => ModifyAppConfig should fail containing this
+		wantMasked     bool    // response secret should be the masked placeholder
+		wantActivity   bool    // edited_account_provisioning activity expected
+	}
+
+	type trackers struct {
+		insertedSecret *string
+		deleted        bool
+		saved          *fleet.AppConfig
+		activityFired  bool
+	}
+
+	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning) (fleet.Service, context.Context, *mock.Store, *trackers) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		tr := &trackers{}
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            fleet.MDM{AppleAccountProvisioning: stored},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			// Snapshot at save time: the mock hands back the same pointer that
+			// ModifyAppConfig mutates (and later obfuscates) in place, unlike a
+			// real DB read which returns a fresh copy.
+			tr.saved = conf.Copy()
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+
+		// A configured feature implies a stored secret; report it as `secret` so
+		// resending that value is detected as unchanged.
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			if !stored.Configured() {
+				return nil, newNotFoundError()
+			}
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetAppleAccountProvisioningIdPClientSecret: {Name: fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, Value: []byte(secret)},
+			}, nil
+		}
+		ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+			require.Equal(t, fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, asset.Name)
+			v := string(asset.Value)
+			tr.insertedSecret = &v
+			return nil
+		}
+		// Configuring the feature triggers bootstrapPSSOAssets, which mints and
+		// inserts the PSSO signing key + CA. The secret assertions don't touch
+		// these, so a no-op stub is enough to keep the bootstrap from panicking.
+		ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, _ []fleet.MDMConfigAsset, _ sqlx.ExtContext) error {
+			return nil
+		}
+		ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
+			require.Equal(t, []fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, names)
+			tr.deleted = true
+			return nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if _, ok := act.(fleet.ActivityTypeEditedAccountProvisioning); ok {
+				tr.activityFired = true
+			}
+			return nil
+		}
+		return svc, ctx, ds, tr
+	}
+
+	cases := []struct {
+		name      string
+		tier      string
+		stored    fleet.AppleAccountProvisioning
+		body      string
+		overwrite bool // GitOps (overwrite) mode rather than a PATCH
+		want      asserts
+	}{
+		{
+			name: "configure stores secret and masks response",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name: "free tier rejected",
+			tier: fleet.TierFree,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{wantErr: ErrMissingLicense.Error()},
+		},
+		{
+			name: "invalid token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"not-a-url","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name: "http token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"http://idp.example.com/oauth2/v1/token","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name:   "changing token url without new secret rejected",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, fleet.MaskedPassword),
+			want:   asserts{wantErr: "must be provided when changing oauth_idp_token_url"},
+		},
+		{
+			name:   "changing token url with new secret replaces",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, "rotated-secret"),
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:   "masked secret preserved on unrelated change",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"new-client-id","oauth_idp_client_secret":%q}}}`, tokenURL, fleet.MaskedPassword),
+			want:   asserts{wantMasked: true, wantActivity: true}, // client_id changed; secret preserved (neither insert nor delete)
+		},
+		{
+			name:   "clearing config soft-deletes secret",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   `{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`,
+			want:   asserts{deleted: true, wantActivity: true},
+		},
+		{
+			name: "public fields without secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, tokenURL, clientID),
+			want: asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name: "only token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`, tokenURL),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only client id rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, clientID),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":%q}}}`, secret),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name:      "gitops with all fields stores secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:      "gitops public fields without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			// GitOps is declarative: an already-stored secret does NOT satisfy the
+			// requirement; the secret must be present in the config itself.
+			name:      "gitops reapply without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name:      "gitops omitting section clears secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      `{"mdm":{}}`,
+			want:      asserts{deleted: true, wantActivity: true},
+		},
+		{
+			// No actual change: same public fields and same secret value. The
+			// stored secret is left untouched and no activity is emitted.
+			name:   "reapply identical config emits no activity",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:   asserts{wantMasked: true}, // no insert, no delete, no activity
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored)
+
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite})
+			if tc.want.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.want.wantErr)
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+				require.False(t, ds.DeleteMDMConfigAssetsByNameFuncInvoked)
+				require.False(t, tr.activityFired)
+				return
+			}
+			require.NoError(t, err)
+
+			if tc.want.insertedSecret != nil {
+				require.NotNil(t, tr.insertedSecret)
+				require.Equal(t, *tc.want.insertedSecret, *tr.insertedSecret)
+			} else {
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+			}
+			require.Equal(t, tc.want.deleted, tr.deleted)
+
+			// The secret must never be persisted in the AppConfig JSON.
+			require.True(t, ds.SaveAppConfigFuncInvoked)
+			require.Empty(t, tr.saved.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+
+			if tc.want.wantMasked {
+				require.Equal(t, fleet.MaskedPassword, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			} else {
+				require.Empty(t, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			}
+
+			require.Equal(t, tc.want.wantActivity, tr.activityFired)
+		})
+	}
 }
 
 // TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM
@@ -2320,6 +2773,140 @@ func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
 	})
 }
 
+func TestModifyAppConfigGoogleWorkspace(t *testing.T) {
+	ds := new(mock.Store)
+	// Google Workspace IdP is premium-only.
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	gwIntegration := []*fleet.GoogleWorkspaceIntegration{
+		{
+			Domain:                "example.com",
+			ImpersonatedUserEmail: "admin@example.com",
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+				fleet.GoogleCalendarEmail:      "svc@example.com",
+				fleet.GoogleCalendarPrivateKey: "original-private-key",
+			}},
+		},
+	}
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		Integrations: fleet.Integrations{
+			GoogleWorkspace: gwIntegration,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	reset := func() {
+		dsAppConfig.Integrations.GoogleWorkspace = gwIntegration
+	}
+
+	t.Run("preserve API key when omitted, update other fields", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "newdomain.com",
+					"impersonated_user_email": "newadmin@example.com"
+				}]
+			}
+		}`
+		updated, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.Len(t, dsAppConfig.Integrations.GoogleWorkspace, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleWorkspace[0].Domain)
+		require.Equal(t, "newadmin@example.com", dsAppConfig.Integrations.GoogleWorkspace[0].ImpersonatedUserEmail)
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleWorkspace[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.True(t, updated.Integrations.GoogleWorkspace[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation rejects missing impersonated_user_email", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [{
+					"domain": "example.com",
+					"impersonated_user_email": "",
+					"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+				}]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "impersonated_user_email")
+	})
+
+	t.Run("validation rejects more than one integration", func(t *testing.T) {
+		reset()
+		updateJSON := `{
+			"integrations": {
+				"google_workspace": [
+					{"domain": "a.com", "impersonated_user_email": "admin@a.com", "api_key_json": {"client_email": "s@a.com", "private_key": "k"}},
+					{"domain": "b.com", "impersonated_user_email": "admin@b.com", "api_key_json": {"client_email": "s@b.com", "private_key": "k"}}
+				]
+			}
+		}`
+		_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "google_workspace")
+	})
+}
+
+func TestModifyAppConfigGoogleWorkspaceRequiresPremium(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+
+	dsAppConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig.Copy(), nil
+	}
+	saveCalled := false
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		saveCalled = true
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+	updateJSON := `{
+		"integrations": {
+			"google_workspace": [{
+				"domain": "example.com",
+				"impersonated_user_email": "admin@example.com",
+				"api_key_json": {"client_email": "svc@example.com", "private_key": "k"}
+			}]
+		}
+	}`
+	_, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "integrations.google_workspace")
+	require.Contains(t, err.Error(), "missing or invalid license")
+	require.False(t, saveCalled, "config must not be saved when the premium gate rejects google_workspace")
+}
+
 func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
@@ -2621,4 +3208,93 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	raw := []byte(`{"mdm":{"macos_setup":{"bootstrap_package":""}}}`)
 	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
+}
+
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path
+// through PATCH /config, which ModifyTeam doesn't handle.
+func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name          string
+		mdmConfigured bool
+		startEnabled  bool
+		patch         string
+		wantErr       string
+		wantActivity  string
+	}{
+		{
+			name:    "MDM not configured rejects the change",
+			patch:   `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantErr: "setup_experience.enable_managed_local_account",
+		},
+		{
+			name:          "enabling emits the enabled activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			wantActivity:  fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "disabling emits the disabled activity",
+			mdmConfigured: true,
+			startEnabled:  true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			wantActivity:  fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
+		},
+		{
+			name:          "no-op change emits no activity",
+			mdmConfigured: true,
+			patch:         `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			dsAppConfig.MDM.EnabledAndConfigured = tt.mdmConfigured
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startEnabled)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			var gotActivities []string
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, act.ActivityName())
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+				require.Empty(t, gotActivities)
+				return
+			}
+			require.NoError(t, err)
+
+			var wantActivities []string
+			if tt.wantActivity != "" {
+				wantActivities = []string{tt.wantActivity}
+			}
+			require.Equal(t, wantActivities, gotActivities)
+		})
+	}
 }

@@ -164,8 +164,8 @@ const HostSoftware = ({
 
   // The /Applications filter only applies to macOS hosts, and defaults to ON
   // (only top-level applications) when the host is macOS and no explicit value
-  // is set in the URL. It is left undefined for other platforms so the param is
-  // not sent to the API.
+  // is set in the URL. It is left undefined for other platforms, so the param
+  // is neither sent to the API nor appended to the URL on pagination.
   const macosApplicationsFilter = isMacOS(platform)
     ? queryParams.macos_applications ?? true
     : undefined;
@@ -224,6 +224,7 @@ const HostSoftware = ({
         id: id as string,
         softwareUpdatedAt,
         ...queryParams,
+        macos_applications: macosApplicationsFilter,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),

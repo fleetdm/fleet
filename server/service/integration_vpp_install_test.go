@@ -1467,7 +1467,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 		Title:    "DummyApp",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an installer available for the Team 1 fleet.")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "DummyApp already has an Apple App Store (VPP) on the Team 1 fleet.")
 
 	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
 	vppApp2 := &fleet.VPPApp{
@@ -1815,7 +1815,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{SelfService: ptr.Bool(true), TitleID: titleID, TeamID: nil},
 		http.StatusOK, "")
 	activityData = fmt.Sprintf(`{"software_title": "ipa_test", "software_package": "ipa_test.ipa", "software_display_name": "", "software_icon_url": null, "fleet_name": null, "team_name": null,
-		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d}`, titleID)
+		"fleet_id": null, "team_id": null, "self_service": true, "software_title_id": %d, "pinned_version": null}`, titleID)
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
 
 	// self-install request is accepted
@@ -2125,7 +2125,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppVPPConflict() {
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
 		Filename: "ipa_test.ipa",
 		TeamID:   &team2.ID,
-	}, http.StatusConflict, "already has an installer available for the IPA Conflict Team 2 fleet.")
+	}, http.StatusConflict, "already has an Apple App Store (VPP) on the IPA Conflict Team 2 fleet.")
 
 	// Test Case 3: Verify "No team" works correctly
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{

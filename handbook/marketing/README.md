@@ -6,10 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Chief Marketing Officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([*@akuthiala*](https://github.com/akuthiala))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
-| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) · [@danbgordon](https://github.com/danbgordon) · Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
-| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) · [*@miskaek*](https://github.com/miskaek) · Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -28,7 +25,7 @@ The complete list of all marketing assets is listed on [this handbook page](http
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
 Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
@@ -338,11 +335,11 @@ After every GitOps workshop, Fleet issues a certificate to all participants who 
 -->
 
 
-### Publish sprint demo video
+### Publish release demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. **Download the sprint demo recording**
+1. **Download the release demo recording**
 
    This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
    
@@ -373,7 +370,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 6. **Upload the video to Youtube**
    Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
-   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
 
    Add a brief description highlighting the new features.
 
@@ -382,14 +379,14 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 
 ### Upload to YouTube
 
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as:
     * title - make sure it is SEO friendly
     * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
     * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
-    * playlists - Add to appropiate one(s)
+    * playlists - Add to appropriate one(s)
     * audience - not "made for kids"
     * video details - allow auto chapters, no featured places or automatic concepts
     * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
@@ -426,6 +423,9 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 #### Stubs
 The following stubs are included only to make links backward compatible
 
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
+
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
 
@@ -441,5 +441,5 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-<meta name="maintainedBy" value="akuthiala">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🫧 Marketing">

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.1.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team' AND version_compare(version, '1.1.1') < 0);"
+      },
+      "installer_url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.1/FreeCAD_1.1.1-Windows-x86_64-py311-installer.exe",
+      "install_script_ref": "1cf2c1f5",
+      "uninstall_script_ref": "6baebf4c",
+      "sha256": "3e4caf58cc1d82e4e8d726572f741ae664b6e91a77c4d3cb59102d9b8bd51feb",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "1cf2c1f5": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# FreeCAD ships as a MultiUser NSIS installer. /S runs it silently and\n# /AllUsers forces the machine-wide install (HKLM + C:\\Program Files).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/AllUsers /S\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "6baebf4c": "# Uninstalls FreeCAD.\n#\n# FreeCAD (MultiUser NSIS) registers a versioned DisplayName (\"FreeCAD 1.1.1\")\n# under HKLM when installed with /AllUsers, so match on the \"FreeCAD\" prefix.\n# Its QuietUninstallString runs \"Uninstall-FreeCAD.exe\" /S (real silent, no\n# service to block removal).\n\n$softwareNameLike = \"FreeCAD*\"\n$publisherLike = \"FreeCAD*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike -and $_.Publisher -like $publisherLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\n\n# Parse exe + args (quoted / unquoted / bare).\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# NSIS uninstallers require /S for a silent uninstall.\nif ($exeArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') { $exeArgs = \"$exeArgs /S\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

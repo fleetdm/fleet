@@ -1,5 +1,13 @@
+# darktable ships as an Inno Setup installer (NOT NSIS, despite winget's
+# metadata), so its uninstaller (unins000.exe) needs Inno's silent switches.
+# The old NSIS installer registered DisplayName "darktable"; the current Inno
+# installer registers a versioned DisplayName (e.g. "darktable 5.6.0") with
+# Publisher "darktable team" (older metadata used "the darktable project").
+# Match both, scoped to a darktable publisher.
+
 $displayName = "darktable"
-$publisher   = "the darktable project"
+# Substring match on publisher covers "darktable team" and "the darktable project".
+$publisher   = "darktable"
 $paths = @(
   'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
   'HKCU:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -21,12 +29,16 @@ if ($uninstallString -match '^"([^"]+)"(.*)') { $exePath = $matches[1] }
 elseif ($uninstallString -match '^(.+?\.exe)(.*)$') { $exePath = $matches[1] }
 else { Write-Host "Error: Could not parse uninstall string: $uninstallString"; Exit 1 }
 $installDir = if ($uninstall.InstallLocation -and (Test-Path -LiteralPath $uninstall.InstallLocation)) { $uninstall.InstallLocation.TrimEnd('\') } else { (Split-Path -Parent $exePath).TrimEnd('\') }
-$argumentList = @("/S", "_?=$installDir")
+# Inno Setup uninstaller silent switches. The NSIS-style "/S _?=<dir>" does not
+# apply: Inno's uninstaller runs in place, so Start-Process -Wait waits correctly.
+$argumentList = @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART")
 try {
   $processOptions = @{ FilePath = $exePath; ArgumentList = $argumentList; NoNewWindow = $true; PassThru = $true; Wait = $true }
   $process = Start-Process @processOptions
   $exitCode = $process.ExitCode
   Write-Host "Uninstall exit code: $exitCode"
+  # 3010 = success, reboot required; 1641 = success, reboot initiated.
+  if ($exitCode -eq 3010 -or $exitCode -eq 1641) { $exitCode = 0 }
   # Only sweep leftovers on a successful uninstall, and never a root/short path
   if ($exitCode -eq 0 -and $installDir) {
       $resolvedDir = $null

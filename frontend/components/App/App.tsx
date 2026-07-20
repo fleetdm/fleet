@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
+import { InjectedRouter } from "react-router";
 import { AxiosError, AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 import { ErrorBoundary } from "react-error-boundary";
@@ -9,7 +10,6 @@ import page_titles from "router/page_titles";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
-import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
 import authToken from "utilities/auth_token";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -32,11 +32,14 @@ import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 
 import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 
 interface IAppProps {
   children: JSX.Element;
+  router: InjectedRouter;
   location?: {
     pathname: string;
     search: string;
@@ -70,7 +73,7 @@ export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
 
 const baseClass = "app";
 
-const App = ({ children, location }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
@@ -89,6 +92,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -122,7 +126,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ ab_tokens }) => {
         ab_tokens.length &&
           setABMExpiry({
@@ -160,7 +167,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ vpp_tokens }) => {
         vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
       },
@@ -275,15 +285,19 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     console.error(error);
 
     const overlayError = error as AxiosResponse;
+
+    let errorPage = <Fleet500 />;
     if (overlayError.status === 403 || overlayError.status === 402) {
-      return <Fleet403 />;
+      errorPage = <Fleet403 />;
+    } else if (overlayError.status === 404) {
+      errorPage = <Fleet404 />;
     }
 
-    if (overlayError.status === 404) {
-      return <Fleet404 />;
-    }
-
-    return <Fleet500 />;
+    return (
+      <ErrorPageLayout router={router} location={location}>
+        {errorPage}
+      </ErrorPageLayout>
+    );
   };
 
   return isLoading ? (
@@ -292,14 +306,16 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     <TableProvider>
       <QueryProvider>
         <PolicyProvider>
-          <NotificationProvider>
-            <ErrorBoundary
-              fallbackRender={renderErrorOverlay}
-              resetKeys={[location?.pathname]}
-            >
-              <div className={baseClass}>{children}</div>
-            </ErrorBoundary>
-          </NotificationProvider>
+          {/* Sonner toaster — single global mount; renders toasts
+          dispatched from `notify.*` anywhere in the app. Outside the
+          ErrorBoundary so toasts survive page-level error overlays. */}
+          <ToastNotification />
+          <ErrorBoundary
+            fallbackRender={renderErrorOverlay}
+            resetKeys={[location?.pathname]}
+          >
+            <div className={baseClass}>{children}</div>
+          </ErrorBoundary>
         </PolicyProvider>
       </QueryProvider>
     </TableProvider>

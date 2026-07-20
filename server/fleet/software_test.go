@@ -3,6 +3,7 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1020,6 +1021,67 @@ func TestAutoUpdateScheduleValidation(t *testing.T) {
 			} else {
 				assert.Error(t, err)
 			}
+		})
+	}
+}
+
+func TestSoftwareCategoryNamesEqual(t *testing.T) {
+	// "🖥️ Productivity" is the canonical default (U+1F5A5 + U+FE0F variation
+	// selector). MySQL's utf8mb4_unicode_ci collation ignores the variation
+	// selector, so the form without it must compare equal even though Go's
+	// strings.EqualFold treats them as distinct byte sequences.
+	const (
+		productivityVS   = "\U0001F5A5\uFE0F Productivity" // with VS-16
+		productivityNoVS = "\U0001F5A5 Productivity"       // without VS-16
+		browsers         = "\U0001F30E Browsers"
+	)
+
+	// Sanity check that the two forms really are byte-distinct to plain Go
+	// comparison, otherwise this test wouldn't be exercising anything.
+	require.NotEqual(t, productivityVS, productivityNoVS)
+	require.False(t, strings.EqualFold(productivityVS, productivityNoVS))
+
+	cases := []struct {
+		name string
+		a    string
+		b    string
+		want bool
+	}{
+		{"identical", productivityVS, productivityVS, true},
+		{"variation selector ignored", productivityVS, productivityNoVS, true},
+		{"variation selector ignored, reversed", productivityNoVS, productivityVS, true},
+		{"case insensitive", "Security", "security", true},
+		{"distinct categories", productivityVS, browsers, false},
+		{"empty equal", "", "", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, SoftwareCategoryNamesEqual(c.a, c.b))
+		})
+	}
+}
+
+func TestSoftwareCategoryReferenceMatches(t *testing.T) {
+	const (
+		productivityVS   = "\U0001F5A5\uFE0F Productivity"
+		productivityNoVS = "\U0001F5A5 Productivity"
+	)
+
+	cases := []struct {
+		name      string
+		reference string
+		stored    string
+		want      bool
+	}{
+		{"exact emoji name", productivityVS, productivityVS, true},
+		{"emoji name ignoring variation selector", productivityNoVS, productivityVS, true},
+		{"legacy name maps to emoji default", "Productivity", productivityVS, true},
+		{"legacy name maps even without stored variation selector", "Productivity", productivityNoVS, true},
+		{"unrelated", "Productivity", "\U0001F30E Browsers", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, SoftwareCategoryReferenceMatches(c.reference, c.stored))
 		})
 	}
 }

@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
 import softwareAPI from "services/entities/software";
-import { NotificationContext } from "context/notification";
 
 import { getErrorReason } from "interfaces/errors";
 
+import { notify } from "components/ToastNotification";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner";
@@ -65,51 +65,71 @@ const getPlatformMessage = (isAppStoreApp: boolean, isAndroidApp: boolean) => {
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
+  /** Per-installer id on a multi-package title. When set, only this
+   * specific package is deleted; otherwise the request deletes the legacy
+   * single-package row (or VPP/FMA installer slot). */
+  installerId?: number;
   onExit: () => void;
   onSuccess: () => void;
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
+  /** When true, the modal title reads "Delete package" instead of "Delete
+   * software" and the title-level metadata warning is suppressed — we're
+   * deleting one specific installer on a title that can hold several, not
+   * the title itself. */
+  canActivateMultiplePackages?: boolean;
 }
 
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
+  installerId,
   onExit,
   onSuccess,
   gitOpsModeEnabled,
   isAppStoreApp = false,
   isAndroidApp = false,
+  canActivateMultiplePackages = false,
 }: IDeleteSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onDeleteSoftware = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
-      renderFlash("success", "Successfully deleted software.");
+      await softwareAPI.deleteSoftwareInstaller(
+        softwareId,
+        teamId,
+        installerId
+      );
+      notify.success("Successfully deleted software.");
       onSuccess();
     } catch (error) {
       const reason = getErrorReason(error);
       if (reason.includes("This software has a patch policy")) {
-        renderFlash("error", DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG);
+        notify.error(DELETE_SW_USED_BY_PATCH_POLICY_ERROR_MSG, {
+          response: error,
+        });
       } else if (reason.includes("Policy automation uses this software")) {
-        renderFlash("error", DELETE_SW_USED_BY_POLICY_ERROR_MSG);
+        notify.error(DELETE_SW_USED_BY_POLICY_ERROR_MSG, { response: error });
       } else if (reason.includes("This software is installed during")) {
-        renderFlash("error", DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG);
+        notify.error(DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG, {
+          response: error,
+        });
       } else {
-        renderFlash("error", "Couldn't delete. Please try again.");
+        notify.error("Couldn't delete. Please try again.", {
+          response: error,
+        });
       }
     }
     setIsDeleting(false);
     onExit();
-  }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, teamId, installerId, onSuccess, onExit]);
 
   return (
     <Modal
       className={baseClass}
-      title="Delete software"
+      title={canActivateMultiplePackages ? "Delete package" : "Delete software"}
       onExit={onExit}
       isContentDisabled={isDeleting}
     >
@@ -120,7 +140,9 @@ const DeleteSoftwareModal = ({
         </InfoBanner>
       )}
       {getPlatformMessage(isAppStoreApp, isAndroidApp)}
-      <p>Custom icon and display name will be deleted.</p>
+      {!canActivateMultiplePackages && (
+        <p>Custom icon and display name will be deleted.</p>
+      )}
       <div className="modal-cta-wrap">
         <Button
           variant="alert"

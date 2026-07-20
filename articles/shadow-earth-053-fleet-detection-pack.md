@@ -1,14 +1,21 @@
 # SHADOW-EARTH-053: threat brief, kill chain, and validated Fleet queries
 
-## Executive summary
+*A five-year-old Exchange patch gap is still handing a China-aligned operator long-term access to government and defence networks. Here's the kill chain end to end, and a vetted, Fleet-deployable query pack that hunts the behaviour after the atomic indicators burn.*
 
-On 30 April 2026, Trend Micro disclosed a previously unattributed China-aligned cyberespionage cluster designated **SHADOW-EARTH-053**, with ProxyLogon-based Exchange compromise activity observed since at least December 2024. The cluster gains initial access through N-day exploitation of internet-facing Microsoft Exchange and IIS servers (primarily the ProxyLogon chain, CVE-2021-26855/26857/26858/27065), drops GODZILLA web shells, then stages ShadowPad implants through DLL sideloading of legitimate signed executables. The encrypted ShadowPad payload is stored in a per-host Windows registry key and executed via `EnumDesktopsA` callback injection, a technique selected to evade behavioural detection at execution time. A separate Linux delivery path (NOODLERAT samples retrieved via exploitation of CVE-2025-55182, React2Shell) was first observed in **December 2025**, a year after the initial Windows activity; Trend Micro attribute these Linux samples to SHADOW-EARTH-053 with **low confidence**.
+## Key takeaways
 
-Observed targeting spans government, defence, critical-infrastructure, and IT-consulting sectors across Pakistan, Thailand, Malaysia, India, Myanmar, Sri Lanka, Taiwan, and one NATO member state (Poland). A companion intrusion set, SHADOW-EARTH-054, shares the same initial-access vector and SHA-256-identical post-exploitation tooling (Evil-CreateDump, IOX) but no observed operational coordination. The two clusters re-exploit the same victims with temporal offsets of up to eight months.
+- **The way in is a patch exception, not a zero-day.** SHADOW-EARTH-053 lives on the long tail of unpatched Microsoft Exchange and IIS servers, reached through the five-year-old ProxyLogon chain, so your documented patch exceptions are the campaign's primary attack surface.
+- **Persistence is layered to survive cleanup.** Web shells, a registry-stored ShadowPad payload, and a five-minute Scheduled Task each re-establish the others, so pulling any one anchor leaves the intrusion intact.
+- **Atomic indicators expire; behaviour doesn't.** The published IPs and C2 domain rotate within weeks of disclosure, so durable coverage comes from process trees, registry placement, and scheduled-task naming that outlive infrastructure churn.
+- **The whole kill chain collapses into three detection lenses.** Web shell and Exchange/IIS abuse, ShadowPad persistence and tunnels, and credential theft and mailbox export cover the campaign without chasing every indicator.
+- **The queries are schema-corrected for Fleet, across three OSes.** Every query is validated against Fleet's live table reference, so the freely circulating versions that fail silently on Windows or reference columns that don't exist are already fixed.
+- **Findings become policy, not just alerts.** Fleet promotes the should-never-exist detections to fail-on-any-row policies that page a human, while the noisier behavioural queries feed your SIEM for correlation.
 
-The detection surface is durable: registry-stored shellcode, a fixed Scheduled Task name (`M1onltor`), layered tunneling tools (IOX, GOST, Wstunnel, custom `tunnel-core`), and `ExchangeExport` mailbox theft via the EWS API all produce behavioural artefacts that survive infrastructure rotation. Atomic IOCs (IPs, domain) will burn within weeks; behavioural detections built around process tree, registry placement, and scheduled-task naming are the recommended durable layer.
+<a purpose="cta-button" href="/security-and-control">Explore Fleet security</a>
 
-This brief contains: campaign-wide and per-kill-chain-stage Diamond Models; a consolidated atomic indicator table; a priority-ordered response playbook; and three behavioural detection lenses with 17 validated osquery queries packaged as Fleet-deployable artefacts.
+On 30 April 2026, Trend Micro disclosed **SHADOW-EARTH-053**, a China-aligned cyberespionage cluster that has been compromising internet-facing Microsoft Exchange and IIS servers since at least December 2024. The route in is not a novel exploit but the five-year-old ProxyLogon chain (CVE-2021-26855/26857/26858/27065): the operator drops GODZILLA web shells, sideloads a ShadowPad implant through legitimate signed executables, and stores the encrypted payload in a per-host registry key that a Scheduled Task re-runs every five minutes. Observed targeting spans government, defence, critical-infrastructure, and IT-consulting sectors across eight countries in Asia plus one NATO member state (Poland).
+
+The infrastructure will rotate, but the tradecraft leaves durable artefacts (registry-stored shellcode, a fixed Scheduled Task name, layered tunnelling tools, and `ExchangeExport` mailbox theft over the EWS API) that survive it. This brief maps the campaign end to end: a cluster profile, per-kill-chain-stage Diamond Models, a consolidated indicator table, a priority-ordered response playbook, and three behavioural detection lenses backed by validated Fleet queries. It starts with who the operator is and how the cluster is tracked.
 
 ## Cluster profile
 
@@ -351,7 +358,7 @@ Every query below has been validated against the current [Fleet table schema](ht
 ### Schema notes that apply throughout
 
 - **`file.sha256` does not exist.** File hashes live on the `hash` table joined to `file` on `path`.
-- **`file.directory IN (...)` violates osquery's required-equality constraint** and is rejected at runtime. Use repeated `directory = '...'` clauses joined with `OR`.
+- **`file.directory IN (...)` is rejected at runtime.** Fleet's agent enforces a required-equality constraint on `directory`, so use repeated `directory = '...'` clauses joined with `OR`.
 - **`file_events` and `socket_events` are macOS and Linux only.** Windows queries pivot to the NTFS publisher, `process_etw_events`, or `windows_events`. A copy-pasted `file_events` query against a Windows host returns zero rows silently.
 - **`process_etw_events` exposes `ppid` but not `parent_path` or `parent_name`.** Parent-process correlation must happen downstream of the query, not inside it.
 
@@ -421,7 +428,7 @@ FROM registry
 WHERE path LIKE 'HKEY_USERS\%\Software\%\scode';
 ```
 
-`HKEY_USERS\<SID>\Software\<ComputerName>\scode` is the osquery-visible form of `HKCU\Software\<ComputerName>\scode` across every loaded user hive. Recommended deployment: Fleet policy (fail-on-any-row).
+`HKEY_USERS\<SID>\Software\<ComputerName>\scode` is the form Fleet's agent surfaces for `HKCU\Software\<ComputerName>\scode` across every loaded user hive. Recommended deployment: Fleet policy (fail-on-any-row).
 
 #### 2.3 Scheduled Task `M1onltor` and tasks from publicly-writable directories (Windows)
 
@@ -527,7 +534,7 @@ WHERE script_text LIKE '%Add-PSSnapin Microsoft.Exchange.Management.PowerShell.S
    OR script_text LIKE '%userAccountControl%';
 ```
 
-Requires Windows Script Block Logging enabled via GPO (`HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging\EnableScriptBlockLogging = 1`) and `enable_powershell_events_subscriber` in agent options. The `cosine_similarity` column ([fleetdm.com/tables/powershell_events](https://fleetdm.com/tables/powershell_events)) is a character-frequency anomaly score against osquery's built-in baseline; a threshold such as `cosine_similarity < 0.25` provides unsupervised coverage for scripts not in the IOC list above.
+Requires Windows Script Block Logging enabled via GPO (`HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging\EnableScriptBlockLogging = 1`) and `enable_powershell_events_subscriber` in agent options. The `cosine_similarity` column ([fleetdm.com/tables/powershell_events](https://fleetdm.com/tables/powershell_events)) is a character-frequency anomaly score against the agent's built-in baseline; a threshold such as `cosine_similarity < 0.25` provides unsupervised coverage for scripts not in the IOC list above.
 
 #### 3.3 PST creation indicating exfiltration preparation
 

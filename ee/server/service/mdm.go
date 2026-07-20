@@ -865,13 +865,14 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 	}
 
 	serverURL := appConfig.MDMUrl()
-	// Parse the URL and use JoinPath to avoid double slashes
+	// Construct the ACS callback URL. CallbackURL appends the url_prefix only when
+	// the server URL doesn't already include it, so the subpath is present exactly
+	// once whether or not the server URL was configured with the prefix.
 	parsedURL, err := url.Parse(serverURL)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, err, "invalid MDM URL")
 	}
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
-	acsURL := parsedURL.String()
+	acsURL := sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback").String()
 
 	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
 		mdmSSOSettings.EntityID,
@@ -1019,11 +1020,14 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	serverURL := appConfig.MDMUrl()
-	acsURL, err := url.Parse(serverURL)
+	parsedServerURL, err := url.Parse(serverURL)
 	if err != nil {
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
-	acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+	// CallbackURL appends the url_prefix only when the server URL doesn't already
+	// include it, so the subpath is present exactly once whether or not the server
+	// URL was configured with the prefix.
+	acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
@@ -1050,11 +1054,13 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	var ssoErr error
 	if appConfig.MDM.AppleServerURL != "" {
 		// check for both apple server URL and default
-		acsURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+		parsedServerURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "failed to parse ACS URL with server URL")
 		}
-		acsURL = acsURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
+		// CallbackURL appends the url_prefix only when the server URL doesn't
+		// already include it, so the subpath is present exactly once.
+		acsURL := sso.CallbackURL(parsedServerURL, svc.config.Server.URLPrefix, "/api/v1/fleet/mdm/sso/callback")
 
 		expectedAudiences = append(expectedAudiences,
 			appConfig.ServerSettings.ServerURL,
@@ -1120,7 +1126,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		UUID:     ssoRequestData.HostUUID,
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
@@ -1534,7 +1539,7 @@ func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint
 	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }
 
-func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal bool) ([]byte, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleManualEnrollmentProfile{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -1549,18 +1554,30 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+	mdmAssets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetSCEPChallenge,
 	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
 	}
 
+	accessRights := apple_mdm.AppleEnrollmentAccessRights(personal)
+
+	// Embed the personal flag in the MDM ServerURL so that nanomdm surfaces it as
+	// r.Params["byod"] during the Authenticate checkin and the host record is
+	// created with is_personal_enrollment set correctly.
+	mdmURL, err := apple_mdm.AddPersonalEnrollmentToFleetURL(appConfig.MDMUrl(), personal)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building MDM URL with personal enrollment flag")
+	}
+
 	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
-		appConfig.MDMUrl(),
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		mdmURL,
+		string(mdmAssets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
+		accessRights,
+		true, // fresh enrollment (manual profile download)
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1745,6 +1762,42 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 	if err := svc.ds.SaveABMToken(ctx, token); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating token teams in db")
+	}
+
+	// Keep appconfig in sync
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
+		if appCfgToken.OrganizationName == token.OrganizationName {
+
+			// Clear no team names, so they are presented nicer in gitops.
+			appCfgToken.BYODTeam = token.BYODTeam.Name
+			if token.BYODTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.BYODTeam = ""
+			}
+			appCfgToken.MacOSTeam = token.MacOSTeam.Name
+			if token.MacOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.MacOSTeam = ""
+			}
+			appCfgToken.IOSTeam = token.IOSTeam.Name
+			if token.IOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IOSTeam = ""
+			}
+			appCfgToken.IpadOSTeam = token.IPadOSTeam.Name
+			if token.IPadOSTeam.Name == fleet.TeamNameNoTeam {
+				appCfgToken.IpadOSTeam = ""
+			}
+
+			// update the app config with the new team names
+			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
+			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
+			}
+			break
+		}
 	}
 
 	return token, nil

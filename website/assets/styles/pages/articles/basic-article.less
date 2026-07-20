@@ -494,6 +494,20 @@
       color: #515774;
       margin-bottom: 32px;
     }
+    p a[purpose='cta-button'] { // Green Fleet CTA button authored inline in article markdown (e.g. under "Key takeaways")
+      .cta-button(); // Reuse the homepage's brand button styling
+      display: inline-flex; // Override the mixin's full-width `display: flex` so the button hugs its label
+      width: fit-content;
+      height: auto;
+      padding: 12px 24px;
+      margin: 8px 0 32px; // Space it from the content above and the next heading below
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      &:hover {
+        text-decoration: none;
+      }
+    }
     img + em { // Image captions
       position: relative;
       top: -12px;
@@ -595,6 +609,7 @@
         text-align: center;
         line-height: 20px;
         text-indent: 0px;
+        white-space: nowrap;
       }
     }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
@@ -646,7 +661,7 @@
       .hljs-selector-pseudo,
       .hljs-addition,
       .hljs-template-variable {
-        color: #4fd061;
+        color: @core-vibrant-green;
       }
       .hljs-comment,
       .hljs-deletion,

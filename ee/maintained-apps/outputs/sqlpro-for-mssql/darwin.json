@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.85",
+      "version": "2026.173",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.tinysqlstudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.tinysqlstudio' AND version_compare(bundle_short_version, '2026.85') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hankinsoft.osx.tinysqlstudio' AND version_compare(bundle_short_version, '2026.173') < 0);"
       },
-      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/mssql/SQLProMSSQL.2026.85.app.zip",
+      "installer_url": "https://d3fwkemdw8spx3.cloudfront.net/mssql/SQLProMSSQL.2026.173.app.zip",
       "install_script_ref": "422d1a8e",
       "uninstall_script_ref": "7448321f",
-      "sha256": "b376e23004dce21684a83aefdde986d004fa33c8ae039963e08ed7effd9cbac4",
+      "sha256": "575dec3191a3df567d3d77eb76d6624dbad07aa8d9a34c050bbfeb1f485ef36f",
       "default_categories": [
         "Developer tools"
       ]

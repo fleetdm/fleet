@@ -918,6 +918,64 @@ func TestObfuscateSecrets(t *testing.T) {
 		}
 	})
 
+	t.Run("user is global gitops", func(t *testing.T) {
+		// gitops can write teams but is not allowed to read enroll secrets, so
+		// the secrets must be masked even in write responses.
+		user := &fleet.User{GlobalRole: new(fleet.RoleGitOps)}
+		teams := buildTeams(3)
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for _, team := range teams {
+			for _, s := range team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, s.Secret)
+			}
+		}
+	})
+
+	t.Run("user is global maintainer", func(t *testing.T) {
+		user := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+		teams := buildTeams(3)
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for _, team := range teams {
+			for _, s := range team.Secrets {
+				require.NotEqual(t, fleet.MaskedPassword, s.Secret)
+			}
+		}
+	})
+
+	t.Run("user is gitops/maintainer in some teams", func(t *testing.T) {
+		teams := buildTeams(3)
+
+		// Team gitops can modify the team but must not read its enroll secrets,
+		// while team maintainer can. The user is not a member of team 0.
+		user := &fleet.User{Teams: []fleet.UserTeam{
+			{
+				Team: *teams[1],
+				Role: fleet.RoleGitOps,
+			},
+			{
+				Team: *teams[2],
+				Role: fleet.RoleMaintainer,
+			},
+		}}
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for i, team := range teams {
+			for _, s := range team.Secrets {
+				// Only team 2 (maintainer) should be visible; team 0 (no
+				// membership) and team 1 (gitops) must be masked.
+				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 0 || i == 1)
+			}
+		}
+	})
+
 	t.Run("user is observer/technician in some teams", func(t *testing.T) {
 		teams := buildTeams(5)
 
@@ -1311,4 +1369,46 @@ func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 	require.NoError(t, err)
 	require.True(t, ds.SaveTeamFuncInvoked)
+}
+
+// TestModifyTeamMDMManagedLocalAccountRequiresMDM covers the MDM-off gate, which
+// the integration suite can't exercise since it always runs with MDM configured.
+// The activity emission is covered end-to-end by TestManagedLocalAccount.
+func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+	}
+	ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid, Name: "team-1"}, nil
+	}
+	ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+
+	mockSvc := &svcmock.Service{}
+	// Reached via validateEndUserAuthenticationAndSetupAssistant when MacOSSetup is set.
+	mockSvc.HasCustomSetupAssistantConfigurationWebURLFunc = func(context.Context, *uint) (bool, error) {
+		return false, nil
+	}
+
+	svc := &Service{
+		Service: mockSvc,
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+	}
+
+	payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+		MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
+	}}
+	_, err = svc.ModifyTeam(ctx, 1, payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
+	require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 }

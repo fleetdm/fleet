@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Location } from "history";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { QueryContext } from "context/query";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -37,6 +36,7 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 import BackButton from "components/BackButton";
 import InfoBanner from "components/InfoBanner";
+import { notify } from "components/ToastNotification";
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
@@ -69,6 +69,7 @@ const EditQueryPage = ({
   });
 
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -107,7 +108,6 @@ const EditQueryPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
   const { setConfig, availableTeams, setCurrentTeam } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -263,13 +263,14 @@ const EditQueryPage = ({
     setIsQuerySaving(true);
     try {
       const { query } = await queryAPI.create(formData);
+      queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
+      notify.success("Report created.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
           fleet_id: query.team_id,
           host_id: hostId,
         })
       );
-      renderFlash("success", "Report created.");
       setBackendValidators({});
     } catch (createError) {
       if (getErrorReason(createError).includes("already exists")) {
@@ -281,9 +282,9 @@ const EditQueryPage = ({
           name: `A report with that name already exists for ${teamErrorText}.`,
         });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong creating your report. Please try again."
+        notify.error(
+          "Something went wrong creating your report. Please try again.",
+          { response: createError }
         );
         setBackendValidators({});
       }
@@ -314,7 +315,8 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
-      renderFlash("success", "Report updated.");
+      queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
+      notify.success("Report updated.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {
           host_id: location.query.host_id,
@@ -325,13 +327,17 @@ const EditQueryPage = ({
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {
-        renderFlash("error", "A report with this name already exists.");
+        notify.error("A report with this name already exists.", {
+          response: updateError,
+        });
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
-        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
+        notify.error(INVALID_PLATFORMS_FLASH_MESSAGE, {
+          response: updateError,
+        });
       } else {
-        renderFlash(
-          "error",
-          "Something went wrong updating your report. Please try again."
+        notify.error(
+          "Something went wrong updating your report. Please try again.",
+          { response: updateError }
         );
       }
     }

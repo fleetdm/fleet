@@ -128,7 +128,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	}
 
 	if request.ScriptContents != "" {
-		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
+		if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{request.ScriptContents}); err != nil {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.NewInvalidArgumentError("script", err.Error())
 		}
@@ -410,7 +410,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		ScriptContents: file.Dos2UnixNewlines(string(b)),
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{script.ScriptContents}); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -613,7 +613,7 @@ func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader
 
 	scriptContents := file.Dos2UnixNewlines(string(b))
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{scriptContents}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{scriptContents}); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -766,7 +766,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, nil
 	}
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, scriptContents); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -1105,6 +1105,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	// Use the authorize script by ID to handle authz
 	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
 	if err != nil {
+		return "", err
+	}
+
+	// Authorize the actual execution with the script's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
 		return "", err
 	}
 

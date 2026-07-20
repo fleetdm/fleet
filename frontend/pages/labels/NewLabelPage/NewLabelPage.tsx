@@ -10,6 +10,9 @@ import PATHS from "router/paths";
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
 import idpAPI from "services/entities/idp";
 import labelsAPI from "services/entities/labels";
+import customHostVitalsAPI, {
+  IListCustomHostVitalsApiParams,
+} from "services/entities/custom_host_vitals";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 // TODO - move this table config near here once expanded this logic to encompass editing and
@@ -20,13 +23,14 @@ import { validateQuery } from "components/forms/validators/validate_query";
 
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import { RouteComponentProps } from "react-router";
 import {
+  CUSTOM_HOST_VITAL_CRITERION,
   LabelHostVitalsCriterion,
   LabelMembershipType,
 } from "interfaces/label";
@@ -47,12 +51,24 @@ import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
-import { validateNewLabelFormData, INewLabelFormValidation } from "./helpers";
+import {
+  validateNewLabelFormData,
+  INewLabelFormValidation,
+  buildCriterionOptionValue,
+  parseCriterionOptionValue,
+  getVitalValuePlaceholder,
+  getCriterionHelpText,
+} from "./helpers";
 
-const availableCriteria: {
+interface ICriterionOption {
   label: string;
-  value: LabelHostVitalsCriterion;
-}[] = [
+  // Dropdown value: an IdP criterion's stable enum value, or a synthetic
+  // `custom_host_vital:<id>` value for a custom host vital (see
+  // buildCriterionOptionValue / parseCriterionOptionValue).
+  value: string;
+}
+
+const IDP_CRITERIA: ICriterionOption[] = [
   { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
   { label: "IdP department", value: "end_user_idp_department" },
 ];
@@ -81,6 +97,9 @@ export interface INewLabelFormData {
   // host vitals
   vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria
   vitalValue: string;
+  // Set only when `vital === CUSTOM_HOST_VITAL_CRITERION`; identifies the
+  // selected custom host vital definition.
+  customHostVitalId?: number;
 
   // manual
   targetedHosts: IHost[];
@@ -97,7 +116,6 @@ const NewLabelPage = ({
     QueryContext
   );
   const { isPremiumTier } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
@@ -144,6 +162,7 @@ const NewLabelPage = ({
     platform,
     vital,
     vitalValue,
+    customHostVitalId,
     targetedHosts,
   } = formData;
 
@@ -206,28 +225,49 @@ const NewLabelPage = ({
   );
   const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
 
+  // Custom host vitals are a Fleet Free feature, so this query runs on all
+  // tiers. We fetch the full list (no search/pagination) to both gate the
+  // "Host vitals" label type and populate the criteria selector.
+  const customHostVitalsParams: IListCustomHostVitalsApiParams = {};
+  const { data: customHostVitalsData } = useQuery(
+    ["custom_host_vitals", customHostVitalsParams],
+    () => customHostVitalsAPI.getCustomHostVitals(customHostVitalsParams),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
+  const customHostVitals = customHostVitalsData?.custom_host_vitals ?? [];
+  const hasCustomHostVitals = customHostVitals.length > 0;
+
+  // Host vitals labels can be based on IdP groups/departments (Premium, once an
+  // IdP is configured) OR custom host vitals (any tier). The type is disabled
+  // only when neither source is available.
   let hostVitalsTooltipContent: React.ReactNode;
-  if (!isPremiumTier) {
-    hostVitalsTooltipContent = (
+  if (!idpConfigured && !hasCustomHostVitals) {
+    // IdP criteria are Premium-only, so a Free-tier admin can't "configure your
+    // IdP" — point them at the custom host vital path instead.
+    hostVitalsTooltipContent = isPremiumTier ? (
       <>
-        Currently, host vitals labels are based on
-        <br />
-        identity provider (IdP) groups or departments.
-        <br />
-        IdP integration available in Fleet Premium.
+        To use host vitals labels, configure your IdP in integration settings or
+        add a custom host vital.
       </>
-    );
-  } else if (!idpConfigured) {
-    hostVitalsTooltipContent = (
+    ) : (
       <>
-        Currently, host vitals labels are based on
-        <br />
-        identity provider (IdP) groups or departments.
-        <br />
-        IdP has not been configured in integration settings.
+        To use host vitals labels, add a custom host vital. Identity provider
+        (IdP) group and department criteria are available in Fleet Premium.
       </>
     );
   }
+
+  // Each custom host vital becomes its own selectable criterion. IdP criteria
+  // only appear when an IdP is configured.
+  const criterionOptions: ICriterionOption[] = [
+    ...(idpConfigured ? IDP_CRITERIA : []),
+    ...customHostVitals.map((customHostVital) => ({
+      label: customHostVital.name,
+      value: buildCriterionOptionValue(customHostVital.id),
+    })),
+  ];
 
   useEffect(() => {
     if (location.pathname.includes("dynamic")) {
@@ -290,11 +330,63 @@ const NewLabelPage = ({
     });
   };
 
-  const onTypeChange = (value: string): void => {
-    const newFormData = {
+  // The criteria dropdown carries a synthetic value for custom host vitals, so
+  // it can't reuse the generic `onInputChange` (which would set `vital` to the
+  // encoded string). Decode it back into `vital` + `customHostVitalId`.
+  const onCriterionChange = (optionValue: string): void => {
+    const {
+      vital: nextVital,
+      customHostVitalId: nextId,
+    } = parseCriterionOptionValue(optionValue);
+
+    const newFormData: INewLabelFormData = {
       ...formData,
-      type: value as LabelMembershipType,
+      vital: nextVital,
+      customHostVitalId: nextId,
     };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria && fullValidation.criteria?.isValid) {
+        next.criteria = undefined;
+      } else if (prev.criteria) {
+        next.criteria = prev.criteria;
+      }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+  };
+
+  const onTypeChange = (value: string): void => {
+    const nextType = value as LabelMembershipType;
+    const newFormData: INewLabelFormData = {
+      ...formData,
+      type: nextType,
+    };
+
+    // When switching to "host vitals", ensure the selected criterion is one the
+    // dropdown actually offers: the default `end_user_idp_group` is invalid when
+    // no IdP is configured (custom-host-vital-only case), so fall back to the
+    // first custom host vital.
+    if (nextType === "host_vitals" && !idpConfigured && hasCustomHostVitals) {
+      newFormData.vital = CUSTOM_HOST_VITAL_CRITERION;
+      newFormData.customHostVitalId = customHostVitals[0].id;
+    }
+
     setFormData(newFormData);
 
     const fullValidation = validateNewLabelFormData(newFormData);
@@ -338,8 +430,8 @@ const NewLabelPage = ({
     setIsUpdating(true);
     try {
       await labelsAPI.create(formData);
+      notify.success("Label added successfully.");
       router.push(PATHS.MANAGE_LABELS);
-      renderFlash("success", "Label added successfully.");
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't add label. Please try again.";
@@ -352,7 +444,7 @@ const NewLabelPage = ({
           errorMessage = `Couldn't add label: ${reason}. Please try again.`;
         }
       }
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: error });
     }
     setIsUpdating(false);
   };
@@ -475,7 +567,16 @@ const NewLabelPage = ({
           </>
         );
 
-      case "host_vitals":
+      case "host_vitals": {
+        // The selected criterion is identified by the dropdown's string value:
+        // IdP criteria use their stable enum value; each custom host vital uses
+        // a synthetic `custom_host_vital:<id>` value so multiple custom vitals
+        // are distinguishable in a single dropdown.
+        const selectedCriterionValue =
+          vital === CUSTOM_HOST_VITAL_CRITERION && customHostVitalId != null
+            ? buildCriterionOptionValue(customHostVitalId)
+            : vital;
+
         return (
           <div className={`${baseClass}__host_vitals-fields`}>
             <label className="form-field__label" htmlFor="criterion-and-value">
@@ -484,11 +585,10 @@ const NewLabelPage = ({
             <span id="criterion-and-value">
               <Dropdown
                 name="vital"
-                onChange={onInputChange}
-                parseTarget
-                value={vital}
+                onChange={onCriterionChange}
+                value={selectedCriterionValue}
                 error={formErrors.criteria?.message}
-                options={availableCriteria}
+                options={criterionOptions}
                 classname={`${baseClass}__criteria-dropdown`}
                 wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
               />
@@ -500,17 +600,16 @@ const NewLabelPage = ({
                 onBlur={onInputBlur}
                 value={vitalValue}
                 inputClassName={`${baseClass}__vital-value`}
-                placeholder={
-                  vital === "end_user_idp_group" ? "IT admins" : "Engineering"
-                }
+                placeholder={getVitalValuePlaceholder(vital)}
                 parseTarget
               />
             </span>
             <span className="form-field__help-text">
-              Currently, label criteria can be IdP group or department.
+              {getCriterionHelpText(vital)}
             </span>
           </div>
         );
+      }
 
       case "manual":
         return (

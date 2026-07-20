@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "9.39.0",
+      "version": "9.41.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.termius-dmg.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.termius-dmg.mac' AND version_compare(bundle_short_version, '9.39.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.termius-dmg.mac' AND version_compare(bundle_short_version, '9.41.1') < 0);"
       },
       "installer_url": "https://autoupdate.termius.com/mac-arm64/Termius.dmg",
       "install_script_ref": "41ddb02e",

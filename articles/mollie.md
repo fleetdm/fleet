@@ -11,7 +11,7 @@ Shipping fast in a regulated European fintech creates a quieter obligation behin
 
 *Compliance as code is really why we were attracted to Fleet. Endpoint is very scrutinized in audit - access management, controls, least privileged application usage. All of this can be demonstrated in code from an endpoint perspective.*
 
-**Sam Clarke**
+**Sam Clark**
 
 Senior Infrastructure Manager
 
@@ -37,7 +37,7 @@ EU data residency made the choice clear. As a fintech under DNB and DORA oversig
 
 *Being able to self-host Fleet means we're not locked in and can stay in control of our own resiliency, which is huge in the EU for fintechs. You have to answer for business continuity. Knowing there are real options out there gives a lot of peace of mind.*
 
-**Sam Clarke**
+**Sam Clark**
 
 Senior Infrastructure Manager
 
@@ -74,8 +74,8 @@ For a regulated EU fintech that has to prove compliance every day, the appeal of
 
 
 <meta name="companyLogoFilename" value="mollie-logo-136x40@2x.png">
-<meta name="quoteAuthorImageFilename" value="sam-clarke-120x120@2x.png">
-<meta name="quoteAuthorName" value="Sam Clarke">
+<meta name="quoteAuthorImageFilename" value="sam-clark-120x120@2x.png">
+<meta name="quoteAuthorName" value="Sam Clark">
 <meta name="quoteAuthorJobTitle" value="Infrastructure Manager">
 <meta name="quoteContent" value="“Being able to self-host Fleet means we're not locked in and can stay in control of our own resiliency, which is huge in the EU for fintechs. You have to answer for business continuity. Knowing there are real options out there gives a lot of peace of mind.”">
 

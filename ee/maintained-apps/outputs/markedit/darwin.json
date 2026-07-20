@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.33.0",
+      "version": "1.33.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.33.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.cyan.markedit' AND version_compare(bundle_short_version, '1.33.1') < 0);"
       },
-      "installer_url": "https://github.com/MarkEdit-app/MarkEdit/releases/download/v1.33.0/MarkEdit-1.33.0.dmg",
+      "installer_url": "https://github.com/MarkEdit-app/MarkEdit/releases/download/v1.33.1/MarkEdit-1.33.1.dmg",
       "install_script_ref": "7274248d",
       "uninstall_script_ref": "be802818",
-      "sha256": "bdc66ff115387280d8c41ccf9f83d9ae3211d6d22d45d8fbd3e1b17d0f4ab5f3",
+      "sha256": "e915b8c4b8d624a3e2258a9531c3a2d2a65f0829c2d62e6db13d306ea3984467",
       "default_categories": [
         "Productivity"
       ]

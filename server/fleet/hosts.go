@@ -485,6 +485,7 @@ const (
 	HostVitalTypeDomestic   HostVitalType = iota // Domestic vitals are those that are stored in the host table
 	HostVitalTypeForeign                         // Foreign vitals are those that are stored in a separate table and joined to the host table
 	HostVitalTypeAdditional                      // Additional vitals are those that are stored in the host_additional table as a JSON blob
+	HostVitalTypeCustom                          // Custom vitals are stored per-host in host_custom_host_vitals, scoped by a custom_host_vital_id
 )
 
 type HostVital struct {
@@ -527,6 +528,15 @@ var hostVitals = map[string]HostVital{
 		DataType:          "string",
 		ForeignVitalGroup: ptr.String("idp"),
 		Path:              "scim_users.department",
+	},
+	// custom_host_vital does not self-identify which vital (unlike the IDP enum
+	// values); the criterion's custom_host_vital_id selects it and scopes the
+	// per-host value join built in parseHostVitalCriteria.
+	"custom_host_vital": {
+		Name:      "Custom host vital",
+		VitalType: HostVitalTypeCustom,
+		DataType:  "string",
+		Path:      "host_custom_host_vitals.value",
 	},
 }
 
@@ -662,12 +672,40 @@ type MDMHostData struct {
 	// with this Fleet instance. This boolean is not filled by all
 	// host-returning methods.
 	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
+
+	// WipeAllowed, LockAllowed, and ClearPasscodeAllowed indicate whether the
+	// corresponding MDM commands are permitted for this host based on the
+	// AccessRights delivered in the host's enrollment profile. They are nil for
+	// non-Apple-MDM hosts and Apple hosts for which the enrollment permissions
+	// are not yet known (pre-existing manually-enrolled hosts whose stored rights
+	// are defaulted to MDMAccessRightAll on the first SCEP cycle). They are only
+	// populated by getHostDetails, not by list-hosts endpoints.
+	WipeAllowed          *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
+	LockAllowed          *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
+	ClearPasscodeAllowed *bool `json:"clear_passcode_allowed,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
 	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
 	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
 	ManagedLocalAccount  HostMDMManagedLocalAccount  `json:"managed_local_account" db:"-" csv:"-"`
+	HostName             *HostMDMHostNameSetting     `json:"host_name,omitempty" db:"-" csv:"-"`
+}
+
+// HostNameSettingStatus is the per-host status of the host-name template
+// enforcement surfaced in the host detail response.
+type HostNameSettingStatus string
+
+const (
+	HostNameSettingPending   HostNameSettingStatus = "pending"
+	HostNameSettingVerifying HostNameSettingStatus = "verifying"
+	HostNameSettingVerified  HostNameSettingStatus = "verified"
+	HostNameSettingFailed    HostNameSettingStatus = "failed"
+)
+
+type HostMDMHostNameSetting struct {
+	Status HostNameSettingStatus `json:"status" db:"-" csv:"-"`
+	Detail string                `json:"detail" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
@@ -727,6 +765,38 @@ func (r *HostMDMRecoveryLockPassword) PopulateStatus() {
 func (r *HostMDMRecoveryLockPassword) SetRawStatus(status *MDMDeliveryStatus, opType MDMOperationType) {
 	r.rawStatus = status
 	r.operationType = opType
+}
+
+// HostDeviceNameEnforcement is the enforcement state of the host-name template
+// for a single Apple host, mirroring a row in host_mdm_apple_device_names. A nil
+// Status means the row is queued for the cron to pick up and enqueue a
+// Settings/DeviceName command.
+type HostDeviceNameEnforcement struct {
+	HostUUID string             `db:"host_uuid"`
+	Status   *MDMDeliveryStatus `db:"status"`
+	// CommandUUID is the UUID of the last Settings/DeviceName command sent for
+	// this host, nil until the cron enqueues one.
+	CommandUUID *string `db:"command_uuid"`
+	// ExpectedDeviceName is the resolved name the cron sent to the device, nil
+	// until the template is resolved and the command is enqueued.
+	ExpectedDeviceName *string   `db:"expected_device_name"`
+	Detail             string    `db:"detail"`
+	CreatedAt          time.Time `db:"created_at"`
+	UpdatedAt          time.Time `db:"updated_at"`
+}
+
+// HostDeviceNamePending carries the host details the cron needs to resolve the
+// host-name template and enqueue a Settings/DeviceName command for a host whose
+// enforcement row is queued (status IS NULL).
+type HostDeviceNamePending struct {
+	HostID         uint   `db:"host_id"`
+	HostUUID       string `db:"host_uuid"`
+	HardwareSerial string `db:"hardware_serial"`
+	Platform       string `db:"platform"`
+	// ComputerName is the host's current name in Fleet; the cron uses it to skip
+	// sending a command when the device already matches the resolved name.
+	ComputerName string `db:"computer_name"`
+	TeamID       *uint  `db:"team_id"`
 }
 
 type DiskEncryptionStatus string
@@ -972,9 +1042,10 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" ||
+	return h.Platform == "ubuntu" || h.Platform == "zorin" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
+		h.Platform == "cachyos"
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
@@ -1042,6 +1113,8 @@ type HostDetail struct {
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
+
+	CustomHostVitals []HostCustomHostVital `json:"custom_host_vitals,omitempty"`
 
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
@@ -1158,6 +1231,7 @@ func PlatformSupportsOsquery(platform string) bool {
 var HostLinuxOSs = []string{
 	"linux",
 	"ubuntu",
+	"zorin",
 	"debian",
 	"rhel",
 	"centos",
@@ -1180,6 +1254,7 @@ var HostLinuxOSs = []string{
 	"archarm",
 	"flatcar",
 	"coreos",
+	"cachyos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1194,12 +1269,14 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"manjaro-arm": {},
 	"flatcar":     {},
 	"coreos":      {},
+	"cachyos":     {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
 var HostDebPackageOSs = map[string]struct{}{
 	"linux":     {}, // let DEBs through if we're looking at a generic Linux host
 	"ubuntu":    {},
+	"zorin":     {},
 	"debian":    {},
 	"kali":      {},
 	"pop":       {},
@@ -1331,6 +1408,8 @@ type HostMDM struct {
 	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
 	// UserLongName on User Enrollment so we don't fall back to it.
 	ManagedAppleID *string `db:"managed_apple_id" json:"-" csv:"-"`
+	// ConnectedToFleet reports whether the host is currently connected to Fleet's MDM.
+	ConnectedToFleet bool `db:"connected_to_fleet" json:"-" csv:"-"`
 }
 
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
@@ -1404,7 +1483,7 @@ func MDMNameFromServerURL(serverURL string) string {
 
 // MDM enrollment status values returned by HostMDM.EnrollmentStatus and sent back to the UI.
 const (
-	MDMEnrollmentStatusPersonal  = "On (personal)"
+	MDMEnrollmentStatusPersonal  = "On (manual - personal)"
 	MDMEnrollmentStatusManual    = "On (manual)"
 	MDMEnrollmentStatusAutomatic = "On (automatic)"
 	MDMEnrollmentStatusPending   = "Pending"
@@ -1495,6 +1574,20 @@ type MacadminsData struct {
 type AggregatedMunkiVersion struct {
 	HostMunkiInfo
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+// HostMDMApplePermissions records the AccessRights integer that was last delivered
+// to an Apple host's MDM enrollment profile. Apple does not allow profile replacements
+// to widen access rights, so this value is the monotonic ceiling for SCEP/ACME renewal.
+//
+// IsPersonalEnrollment is sourced from host_mdm.is_personal_enrollment (joined into
+// the lookup). It is the authoritative signal for whether the device was enrolled
+// as BYOD, and SCEP/ACME renewal uses it to reconstruct the same ServerURL Apple
+// saw at initial enrollment (Apple rejects ServerURL changes on profile replacement).
+type HostMDMApplePermissions struct {
+	HostUUID             string `db:"host_uuid"`
+	AccessRights         int    `db:"access_rights"`
+	IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 }
 
 // MunkiIssue represents a single munki issue, as returned by the list hosts

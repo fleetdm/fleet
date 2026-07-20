@@ -21,7 +21,9 @@ Throughout the guide, you’ll find practical advice and best practices to ensur
 
 These requirements are easily met in self-hosted open-source MDM solutions and may be met with commercial solutions when the customer is self-hosting or otherwise controls the DNS.
 
-Seamless migration may still be possible with control of DNS along with a copy of the original Certificate Signing Request (CSR) for the APNS certificate. If you are in this situation, please reach out to the Fleet team.
+Seamless migration may still be possible with control of DNS along with a copy of the original Certificate Signing Request (CSR) for the APNS certificate. If you are in this situation, please reach out to [Fleet support](https://fleetdm.com/support).
+
+If your SCEP certificate expires in less than 5 years, its validity will need to be extended. If you are in this situation, please reach out to [Fleet support](https://fleetdm.com/support).
 
 ### Why?
 

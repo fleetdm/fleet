@@ -530,6 +530,46 @@ func TestApplyLabelSpecsWithBuiltInLabels(t *testing.T) {
 	assert.ErrorIs(t, err, assert.AnError)
 }
 
+func TestApplyLabelSpecsCustomHostVitalCriteria(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	specWithCriteria := func(criteria fleet.HostVitalCriteria) *fleet.LabelSpec {
+		raw, err := json.Marshal(&criteria)
+		require.NoError(t, err)
+		return &fleet.LabelSpec{
+			Name:                "custom-vital-spec",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(raw)),
+		}
+	}
+
+	// A custom_host_vital criterion without an id fails structural validation
+	// before any datastore call.
+	err := svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{specWithCriteria(fleet.HostVitalCriteria{
+		Vital: new("custom_host_vital"),
+		Value: new("Engineering"),
+	})}, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "custom_host_vital_id")
+
+	// A criterion referencing a non-existent custom vital is rejected.
+	ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+		return nil, nil
+	}
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{specWithCriteria(fleet.HostVitalCriteria{
+		Vital:             new("custom_host_vital"),
+		Value:             new("Engineering"),
+		CustomHostVitalID: new(uint(999)),
+	})}, nil, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not exist")
+	require.True(t, ds.GetCustomHostVitalsFuncInvoked)
+}
+
 func TestLabelsWithReplica(t *testing.T) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
@@ -597,6 +637,213 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lblWithName.HostCount)
 	require.Equal(t, user.ID, *lblWithName.AuthorID)
+}
+
+func TestLabelCrossTeamHostMembership(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// A global admin used only to inspect the resulting label membership.
+	adminUser, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: adminUser}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// A user who can only write to team1 (team admins/maintainers are allowed
+	// to create global labels per the authorization policy).
+	team1User, err := ds.NewUser(ctx, &fleet.User{
+		Name:     "Team1 Maintainer",
+		Password: []byte("p4ssw0rd.123"),
+		Email:    "team1@example.com",
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+		},
+	})
+	require.NoError(t, err)
+	team1Ctx := viewer.NewContext(ctx, viewer.Viewer{User: team1User})
+
+	// A host on team1 (team1User can write to it) and a host on team2 (it can't).
+	team1Host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "team1-host",
+		HardwareSerial:  uuid.NewString(),
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Host.ID})))
+
+	team2Host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "team2-host",
+		HardwareSerial:  uuid.NewString(),
+		UUID:            uuid.NewString(),
+		Platform:        "darwin",
+		LastEnrolledAt:  time.Now(),
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{team2Host.ID})))
+
+	t.Run("NewLabel rejects cross-team host_ids", func(t *testing.T) {
+		_, _, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
+			Name:    "cross-team-create",
+			HostIDs: []uint{team2Host.ID},
+		})
+		// team1User has no write access to the team2 host, so this must fail
+		// authorization rather than silently attaching the host.
+		checkAuthErr(t, true, err)
+	})
+
+	t.Run("ModifyLabel rejects cross-team host_ids", func(t *testing.T) {
+		// Create an empty manual global label as the team1 user.
+		lbl, _, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{Name: "cross-team-modify"})
+		require.NoError(t, err)
+
+		_, _, err = svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
+			HostIDs: []uint{team2Host.ID},
+		})
+		checkAuthErr(t, true, err)
+
+		// The membership must be unchanged (empty).
+		hosts, err := ds.ListHostsInLabel(ctx, adminFilter, lbl.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Empty(t, hosts, "team1 user must not attach a team2 host via raw host_ids")
+	})
+
+	t.Run("read-only access to the target team is rejected", func(t *testing.T) {
+		// A user who can write to team1 but only has read-only (observer_plus)
+		// access to team2 must not be able to attach team2 hosts: membership is
+		// a write operation and requires write authorization on the host.
+		readOnlyUser, err := ds.NewUser(ctx, &fleet.User{
+			Name:     "Team1 Maintainer, Team2 Observer+",
+			Password: []byte("p4ssw0rd.123"),
+			Email:    "team1team2@example.com",
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserverPlus},
+			},
+		})
+		require.NoError(t, err)
+		readOnlyCtx := viewer.NewContext(ctx, viewer.Viewer{User: readOnlyUser})
+
+		_, _, err = svc.NewLabel(readOnlyCtx, fleet.LabelPayload{
+			Name:    "read-only-target-team",
+			HostIDs: []uint{team2Host.ID},
+		})
+		checkAuthErr(t, true, err)
+	})
+
+	t.Run("read-only access to the target team is rejected by host name", func(t *testing.T) {
+		// The by-name path resolves identifiers the caller can see, so an
+		// observer_plus on team2 resolves the team2 host and must then be
+		// rejected by the write-authorization check (unlike a user with no
+		// access to team2, for whom the host name resolves to nothing).
+		readOnlyUser, err := ds.NewUser(ctx, &fleet.User{
+			Name:     "Team1 Maintainer, Team2 Observer+ (by name)",
+			Password: []byte("p4ssw0rd.123"),
+			Email:    "team1team2-byname@example.com",
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserverPlus},
+			},
+		})
+		require.NoError(t, err)
+		readOnlyCtx := viewer.NewContext(ctx, viewer.Viewer{User: readOnlyUser})
+
+		_, _, err = svc.NewLabel(readOnlyCtx, fleet.LabelPayload{
+			Name:  "read-only-target-team-by-name",
+			Hosts: []string{"team2-host"},
+		})
+		checkAuthErr(t, true, err)
+	})
+
+	t.Run("a mix of in-scope and out-of-scope hosts is rejected atomically", func(t *testing.T) {
+		// Create a manual label with an in-scope team1 host, then attempt to
+		// add a second team1 host together with the out-of-scope team2 host.
+		// The request must be rejected and leave membership unchanged, so the
+		// in-scope host is not partially applied.
+		team1Host2, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        "team1-host-2",
+			HardwareSerial:  uuid.NewString(),
+			UUID:            uuid.NewString(),
+			Platform:        "darwin",
+			LastEnrolledAt:  time.Now(),
+			DetailUpdatedAt: time.Now(),
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{team1Host2.ID})))
+
+		lbl, _, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
+			Name:    "atomic-mix",
+			HostIDs: []uint{team1Host.ID},
+		})
+		require.NoError(t, err)
+
+		_, _, err = svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
+			HostIDs: []uint{team1Host2.ID, team2Host.ID},
+		})
+		checkAuthErr(t, true, err)
+
+		// Membership must be unchanged: still only the original team1 host.
+		hosts, err := ds.ListHostsInLabel(ctx, adminFilter, lbl.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, team1Host.ID, hosts[0].ID)
+	})
+
+	t.Run("non-existent host_ids are rejected", func(t *testing.T) {
+		// A host ID that does not exist must not silently bypass the
+		// authorization check; the request is rejected as invalid.
+		_, _, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
+			Name:    "missing-host",
+			HostIDs: []uint{999999},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "does not exist")
+	})
+
+	t.Run("hosts the caller can write to are still allowed", func(t *testing.T) {
+		// Sanity check that the write-authorization check doesn't over-restrict:
+		// team1User can attach a team1 host to a global label they create, both
+		// by ID and by name, and can remove all hosts.
+		lbl, hostIDs, err := svc.NewLabel(team1Ctx, fleet.LabelPayload{
+			Name:    "in-scope-create",
+			HostIDs: []uint{team1Host.ID},
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{team1Host.ID}, hostIDs)
+
+		hosts, err := ds.ListHostsInLabel(ctx, adminFilter, lbl.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, team1Host.ID, hosts[0].ID)
+
+		// Modifying by name with an in-scope host is allowed.
+		_, hostIDs, err = svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
+			Hosts: []string{"team1-host"},
+		})
+		require.NoError(t, err)
+		require.ElementsMatch(t, []uint{team1Host.ID}, hostIDs)
+
+		// Removing all hosts (empty list) is allowed and needs no host authz.
+		_, hostIDs, err = svc.ModifyLabel(team1Ctx, lbl.ID, fleet.ModifyLabelPayload{
+			Hosts: []string{},
+		})
+		require.NoError(t, err)
+		require.Empty(t, hostIDs)
+	})
 }
 
 func TestBatchValidateLabels(t *testing.T) {
@@ -875,6 +1122,19 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 	require.ErrorContains(t, err, "declared as host_vitals but contains hosts")
 }
 
+// mockListHostsLiteByIDs sets up ListHostsLiteByIDs to return a lite host for
+// each requested ID, so that label membership authorization can run in tests
+// that use a mock datastore.
+func mockListHostsLiteByIDs(ds *mock.Store) {
+	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		hosts := make([]*fleet.Host, 0, len(ids))
+		for _, id := range ids {
+			hosts = append(hosts, &fleet.Host{ID: id})
+		}
+		return hosts, nil
+	}
+}
+
 func TestNewManualLabel(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -888,6 +1148,7 @@ func TestNewManualLabel(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
+	mockListHostsLiteByIDs(ds)
 
 	t.Run("using hostnames", func(t *testing.T) {
 		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
@@ -932,6 +1193,7 @@ func TestModifyManualLabel(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
+	mockListHostsLiteByIDs(ds)
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, nil, nil
 	}
@@ -989,6 +1251,60 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
+	})
+
+	t.Run("create custom host vital label", func(t *testing.T) {
+		ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+			return []fleet.CustomHostVital{{ID: 7, Name: "Department"}}, nil
+		}
+		ds.GetCustomHostVitalsFuncInvoked = false
+
+		lbl, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-label",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital:             new("custom_host_vital"),
+				Value:             new("Engineering"),
+				CustomHostVitalID: new(uint(7)),
+			},
+		})
+		require.NoError(t, err)
+		assert.True(t, ds.GetCustomHostVitalsFuncInvoked)
+		assert.Equal(t, fleet.LabelMembershipTypeHostVitals, lbl.LabelMembershipType)
+
+		query, queryValues, err := lbl.CalculateHostVitalsQuery()
+		require.NoError(t, err)
+		queryValuesJson, err := json.Marshal(queryValues)
+		require.NoError(t, err)
+		assert.Equal(t, "SELECT %s FROM %s JOIN host_custom_host_vitals ON (hosts.id = host_custom_host_vitals.host_id AND host_custom_host_vitals.custom_host_vital_id = ?) WHERE host_custom_host_vitals.value = ? GROUP BY hosts.id", query)
+		assert.JSONEq(t, `[7,"Engineering"]`, string(queryValuesJson))
+	})
+
+	t.Run("custom host vital label missing id is rejected", func(t *testing.T) {
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-no-id",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital: new("custom_host_vital"),
+				Value: new("Engineering"),
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "custom_host_vital_id")
+	})
+
+	t.Run("custom host vital label with unknown id is rejected", func(t *testing.T) {
+		ds.GetCustomHostVitalsFunc = func(ctx context.Context, ids []uint) ([]fleet.CustomHostVital, error) {
+			return nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name: "custom-vital-bad-id",
+			Criteria: &fleet.HostVitalCriteria{
+				Vital:             new("custom_host_vital"),
+				Value:             new("Engineering"),
+				CustomHostVitalID: new(uint(999)),
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not exist")
 	})
 }
 

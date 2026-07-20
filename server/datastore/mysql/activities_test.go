@@ -46,6 +46,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
+		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2318,4 +2319,667 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.NotNil(t, result.SoftwareTitleID)
 	require.Equal(t, uint(titleID), *result.SoftwareTitleID) //nolint:gosec // dismiss G115
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
+}
+
+func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	activitySvc := NewTestActivityService(t, ds)
+
+	// adminFilter sees all hosts regardless of team.
+	adminFilter := fleet.TeamFilter{
+		User:            &fleet.User{GlobalRole: new("admin")},
+		IncludeObserver: true,
+	}
+
+	// Create a policy to hang activities on.
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "test-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	// Create a second policy; its activities must NOT appear in results for the first.
+	otherPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "other-policy", Query: "SELECT 2"})
+	require.NoError(t, err)
+	require.NotNil(t, otherPolicy)
+
+	// Create two hosts so we can test per-host rows and the host-name filter.
+	h1 := test.NewHost(t, ds, "host-alpha", "1.1.1.1", "key1", "uuid1", time.Now())
+	h2 := test.NewHost(t, ds, "host-beta", "2.2.2.2", "key2", "uuid2", time.Now())
+
+	makeDetails := func(policyID uint) map[string]any {
+		return map[string]any{"policy_id": policyID}
+	}
+
+	// Seed one activity of each type for policy 1 linked to h1,
+	// plus one success activity linked to both hosts (tests multi-host expansion).
+	errorTypes := []string{
+		"failed_automation_webhook",
+		"failed_automation_ticket",
+		"failed_automation_calendar_event",
+		"failed_automation_conditional_access",
+	}
+	successTypes := []string{
+		"ran_automation_webhook",
+		"ran_automation_ticket",
+		"ran_automation_calendar_event",
+		"ran_automation_conditional_access",
+	}
+
+	for _, typ := range errorTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+	for _, typ := range successTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+
+	// One activity linked to both hosts — produces two rows.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_automation_webhook",
+		details: makeDetails(policy.ID),
+		hostIDs: []uint{h1.ID, h2.ID},
+	}))
+
+	// Activity for the other policy — must not appear in results for policy 1.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "failed_automation_webhook",
+		details: makeDetails(otherPolicy.ID),
+		hostIDs: []uint{h1.ID},
+	}))
+
+	listOpts := func(extra ...fleet.ListOptions) fleet.ListOptions {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
+		if len(extra) > 0 {
+			if extra[0].PerPage != 0 {
+				opts.PerPage = extra[0].PerPage
+			}
+			if extra[0].Page != 0 {
+				opts.Page = extra[0].Page
+			}
+			if extra[0].MatchQuery != "" {
+				opts.MatchQuery = extra[0].MatchQuery
+			}
+		}
+		return opts
+	}
+
+	t.Run("returns all types by default", func(t *testing.T) {
+		// 8 single-host activities + 2 rows from the dual-host one = 10 rows.
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 10)
+		for _, a := range activities {
+			require.NotZero(t, a.HostID)
+			// Policy automation activities are always Fleet-initiated; actor fields
+			// are not selected and must be absent (nil) so they're omitted from JSON.
+			require.Nil(t, a.ActorID)
+			require.Nil(t, a.ActorFullName)
+			require.Nil(t, a.ActorEmail)
+		}
+	})
+
+	t.Run("status=error returns only failed types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Len(t, activities, 4)
+		for _, a := range activities {
+			require.Contains(t, a.Type, "failed_")
+		}
+	})
+
+	t.Run("status=success returns only positive types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		// 4 single-host success activities + 2 rows from dual-host = 6
+		require.Len(t, activities, 6)
+		for _, a := range activities {
+			require.NotContains(t, a.Type, "failed_")
+			require.Contains(t, successTypes, a.Type)
+		}
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 3)
+		require.True(t, meta.HasNextResults)
+		require.False(t, meta.HasPreviousResults)
+
+		page2, meta2, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3, Page: 1}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta2)
+		require.Len(t, page2, 3)
+		require.True(t, meta2.HasPreviousResults)
+	})
+
+	t.Run("host name query filters rows", func(t *testing.T) {
+		// "host-alpha" matches h1 only: 4 error + 4 success + 1 dual-host row = 9.
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-alpha"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 9)
+		for _, a := range activities {
+			require.Equal(t, h1.ID, a.HostID)
+			require.Equal(t, "host-alpha", a.HostDisplayName)
+		}
+		// "host-b" matches h2 only, which appears in just the dual-host activity.
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-b"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		for _, a := range activities {
+			require.Equal(t, h2.ID, a.HostID)
+		}
+	})
+
+	t.Run("other policy activities excluded", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, otherPolicy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		require.Equal(t, h1.ID, activities[0].HostID)
+	})
+
+	t.Run("invalid order_key returns error", func(t *testing.T) {
+		_, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, fleet.ListOptions{OrderKey: "invalid_column"}, "")
+		require.Error(t, err)
+	})
+
+	t.Run("include_metadata false returns nil meta", func(t *testing.T) {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: false}
+		_, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, opts, "")
+		require.NoError(t, err)
+		require.Nil(t, meta)
+	})
+
+	t.Run("query with wildcard characters matches literally", func(t *testing.T) {
+		// host-alpha has no '_' in its name; a query of "host_alpha" must NOT match
+		// it (the underscore is a literal character, not a SQL wildcard).
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host_alpha"}), "")
+		require.NoError(t, err)
+		require.Empty(t, activities)
+		// An empty result set must be a non-nil slice so it marshals as [] (not null).
+		require.NotNil(t, activities)
+	})
+
+	t.Run("team filter scopes hosts", func(t *testing.T) {
+		// Use a dedicated policy so activities seeded here don't affect count
+		// assertions in other subtests.
+		teamScopePolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "team-scope-policy", Query: "SELECT 3"})
+		require.NoError(t, err)
+		require.NotNil(t, teamScopePolicy)
+
+		// Create two teams and assign one host to each.
+		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-A"})
+		require.NoError(t, err)
+		teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-B"})
+		require.NoError(t, err)
+
+		hA := test.NewHost(t, ds, "host-team-a", "10.0.0.1", "keyA", "uuidA", time.Now())
+		hB := test.NewHost(t, ds, "host-team-b", "10.0.0.2", "keyB", "uuidB", time.Now())
+		// Assign hosts to teams directly to avoid policy-membership side-effects.
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamA.ID, hA.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamB.ID, hB.ID)
+		require.NoError(t, err)
+
+		// Seed activities for both hosts on the dedicated policy.
+		for _, typ := range errorTypes {
+			require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+				name:    typ,
+				details: makeDetails(teamScopePolicy.ID),
+				hostIDs: []uint{hA.ID, hB.ID},
+			}))
+		}
+
+		// A team-A observer filter sees only hA.
+		filterA := fleet.TeamFilter{
+			User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamA.ID}, Role: fleet.RoleObserver}},
+			},
+			IncludeObserver: true,
+		}
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, teamScopePolicy.ID, filterA, listOpts(), "")
+		require.NoError(t, err)
+		require.NotEmpty(t, activities)
+		for _, a := range activities {
+			require.Equal(t, hA.ID, a.HostID, "team-A filter must not return host from team-B")
+		}
+	})
+
+	// ── Script-run, software-install and VPP-install branches ─────────────────
+	// Disable FK checks so we can insert result rows without satisfying every
+	// foreign key in the test setup.
+	_, err = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=0")
+	require.NoError(t, err)
+	defer func() {
+		_, _ = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=1")
+	}()
+
+	// ── ran_script ────────────────────────────────────────────────────────────
+	scriptSuccessExecID := "script-success-exec-1"
+	scriptFailureExecID := "script-failure-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_script_results (host_id, execution_id, output, exit_code, policy_id)
+         VALUES (?, ?, 'script ok output', 0, ?), (?, ?, 'script fail output', 1, ?)`,
+		h1.ID, scriptSuccessExecID, policy.ID,
+		h1.ID, scriptFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptSuccessExecID, "script_name": "my-script.sh"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptFailureExecID, "script_name": "my-script.sh"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_software ────────────────────────────────────────────────────
+	swSuccessExecID := "sw-success-exec-1"
+	swFailureExecID := "sw-failure-exec-1"
+	// insert_script_exit_code=0 → execution_status='installed'; exit_code=1 → 'failed_install'
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?),
+            (?, ?, 1, 1, 'install fail', 'pre fail', 'post fail', ?)`,
+		h1.ID, swSuccessExecID, policy.ID,
+		h1.ID, swFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software", "status": "installed"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software", "status": "failed_install"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// A historically-successful install whose host_software_installs row was later
+	// marked removed (e.g. after the installer package was edited or the software
+	// re-installed). The generated status column is NULL for such rows, so the
+	// outcome must come from the recorded details.status, not the live column.
+	swRemovedExecID := "sw-removed-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id, removed)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?, 1)`,
+		h1.ID, swRemovedExecID, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swRemovedExecID, "software_title": "My Software", "status": "installed"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_app_store_app (VPP) ─────────────────────────────────────────
+	// Outcome comes from the recorded details.status (a terminal snapshot), like
+	// installed_software — not the live hvsi.verification_* columns. To prove
+	// that, the live verification columns are set to the OPPOSITE of each row's
+	// details.status: the "success" row is marked verification_failed_at and the
+	// "failure" row verification_at. If the query read the live columns, the
+	// outcomes would flip and the assertions below would fail.
+	vppSuccessCmdUUID := "vpp-success-cmd-1"
+	vppFailureCmdUUID := "vpp-failure-cmd-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_failed_at)
+         VALUES (?, 'A001', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppSuccessCmdUUID, policy.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_at)
+         VALUES (?, 'A002', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppFailureCmdUUID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppSuccessCmdUUID, "software_title": "My VPP App", "status": "installed"},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppFailureCmdUUID, "software_title": "My VPP App", "status": "failed_install"},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	t.Run("script_software_vpp appear in all", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=error includes script_software_vpp failures", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation failures still present.
+		require.Equal(t, 4, types["failed_automation_webhook"]+
+			types["failed_automation_ticket"]+
+			types["failed_automation_calendar_event"]+
+			types["failed_automation_conditional_access"])
+		// Script/software/VPP failures present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=success includes script_software_vpp successes", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation successes still present.
+		require.Positive(t, types["ran_automation_webhook"]+
+			types["ran_automation_ticket"]+
+			types["ran_automation_calendar_event"]+
+			types["ran_automation_conditional_access"])
+		// Script/software/VPP successes present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("task activities are independent of policy_membership", func(t *testing.T) {
+		// Modifying a policy's query or targets wipes/prunes policy_membership.
+		// Automation history must survive that, so deleting all membership rows
+		// for the policy must not drop the script/software/VPP activities.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM policy_membership WHERE policy_id = ?`, policy.ID)
+		require.NoError(t, err)
+
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("removed install row is categorized by recorded status", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		// hasRemovedInstall reports whether the removed install activity appears in
+		// the given result set (matched by its install_uuid in the details blob).
+		hasRemovedInstall := func(as []*fleet.PolicyAutomationActivity) bool {
+			for _, a := range as {
+				require.NotNil(t, a.Details)
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(*a.Details, &m))
+				if uuid, _ := m["install_uuid"].(string); uuid == swRemovedExecID {
+					// The live host_software_installs.status is NULL (removed=1), but
+					// the recorded details.status is "installed", so the historical
+					// outcome must be reported as success.
+					require.Equal(t, "success", a.Status)
+					return true
+				}
+			}
+			return false
+		}
+		require.True(t, hasRemovedInstall(activities), "expected the removed install activity to be returned")
+
+		// The status filter must agree with the reported status: the removed row
+		// is a success, so it appears under status=success and not status=error.
+		// This guards errorCond/successCond, which the unfiltered query above does
+		// not exercise.
+		success, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.True(t, hasRemovedInstall(success), "removed install should appear under status=success")
+
+		errored, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.False(t, hasRemovedInstall(errored), "removed install must not appear under status=error")
+	})
+
+	t.Run("status and output are populated per activity", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		var sawScriptSuccess, sawScriptFailure bool
+		var sawSwSuccess, sawSwFailure bool
+		var sawVPPSuccess, sawVPPFailure bool
+		var sawNamedError, sawNamedSuccess bool
+
+		// detailsValue extracts a string field from an activity's details blob.
+		detailsValue := func(a *fleet.PolicyAutomationActivity, key string) string {
+			require.NotNil(t, a.Details, "type %s missing details", a.Type)
+			var m map[string]any
+			require.NoError(t, json.Unmarshal(*a.Details, &m))
+			s, _ := m[key].(string)
+			return s
+		}
+
+		for _, a := range activities {
+			// Every activity carries an explicit error/success status.
+			require.Contains(t, []string{"error", "success"}, a.Status, "type %s", a.Type)
+
+			switch a.Type {
+			case "ran_script":
+				// Scripts always carry output; the script name comes through in
+				// the details blob. Pre/post-install output is install-only.
+				require.NotNil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				require.Equal(t, "my-script.sh", detailsValue(a, "script_name"))
+				if a.Status == "success" {
+					sawScriptSuccess = true
+					require.Equal(t, "script ok output", *a.Output)
+				} else {
+					sawScriptFailure = true
+					require.Equal(t, "script fail output", *a.Output)
+				}
+			case "installed_software":
+				// Software installs carry the install-script output plus the
+				// pre-install query and post-install script output; the software
+				// title comes through in the details blob.
+				require.NotNil(t, a.Output)
+				require.NotNil(t, a.PreInstallOutput)
+				require.NotNil(t, a.PostInstallOutput)
+				require.Equal(t, "My Software", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawSwSuccess = true
+					require.Equal(t, "install ok", *a.Output)
+					require.Equal(t, "pre ok", *a.PreInstallOutput)
+					require.Equal(t, "post ok", *a.PostInstallOutput)
+				} else {
+					sawSwFailure = true
+					require.Equal(t, "install fail", *a.Output)
+					require.Equal(t, "pre fail", *a.PreInstallOutput)
+					require.Equal(t, "post fail", *a.PostInstallOutput)
+				}
+			case "installed_app_store_app":
+				// VPP apps are installed via MDM command, so there is no output;
+				// the software title comes through in the details blob.
+				require.Nil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				require.Equal(t, "My VPP App", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawVPPSuccess = true
+				} else {
+					sawVPPFailure = true
+				}
+			default:
+				// Named automation activities encode outcome in the type and have
+				// no output.
+				require.Nil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				if strings.HasPrefix(a.Type, "failed_") {
+					sawNamedError = true
+					require.Equal(t, "error", a.Status)
+				} else {
+					sawNamedSuccess = true
+					require.Equal(t, "success", a.Status)
+				}
+			}
+		}
+
+		require.True(t, sawScriptSuccess, "expected a successful ran_script")
+		require.True(t, sawScriptFailure, "expected a failed ran_script")
+		require.True(t, sawSwSuccess, "expected a successful installed_software")
+		require.True(t, sawSwFailure, "expected a failed installed_software")
+		require.True(t, sawVPPSuccess, "expected a successful installed_app_store_app")
+		require.True(t, sawVPPFailure, "expected a failed installed_app_store_app")
+		require.True(t, sawNamedError, "expected a failed named automation")
+		require.True(t, sawNamedSuccess, "expected a successful named automation")
+	})
+
+	t.Run("installed_software with an unrecorded status is treated as a success", func(t *testing.T) {
+		// Older installed_software activities can lack a recorded details.status
+		// (the field was added after the activity type, and back then the activity
+		// was only emitted on a successful install). 'failed_install' is the sole
+		// failure value, so a missing status is a success — and the reported status
+		// must agree with the filters: it appears under "All" and status=success,
+		// never under status=error.
+		execID := "sw-no-status-exec-1"
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_software_installs
+                (host_id, execution_id, software_installer_id, install_script_exit_code,
+                 install_script_output, policy_id)
+             VALUES (?, ?, 1, 0, 'historical output', ?)`,
+			h1.ID, execID, policy.ID)
+		require.NoError(t, err)
+
+		// details intentionally omits "status".
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    "installed_software",
+			details: map[string]any{"install_uuid": execID, "software_title": "My Software"},
+			hostIDs: []uint{h1.ID},
+		}))
+
+		find := func(as []*fleet.PolicyAutomationActivity) *fleet.PolicyAutomationActivity {
+			for _, a := range as {
+				if a.Type != "installed_software" || a.Details == nil {
+					continue
+				}
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(*a.Details, &m))
+				if m["install_uuid"] == execID {
+					return a
+				}
+			}
+			return nil
+		}
+
+		all, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		got := find(all)
+		require.NotNil(t, got, "unrecorded-status install must appear under All")
+		require.Equal(t, "success", got.Status, "a non-failed_install status is reported as a success")
+
+		success, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.NotNil(t, find(success), "a success shown under All must also appear under status=success")
+
+		errored, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Nil(t, find(errored), "a success must not appear under status=error")
+	})
+
+	t.Run("status filters partition the feed for every activity type", func(t *testing.T) {
+		// A row is uniquely identified by (activity id, host id) — one activity
+		// linked to N hosts expands to N rows.
+		key := func(a *fleet.PolicyAutomationActivity) string {
+			return fmt.Sprintf("%d-%d", a.ID, a.HostID)
+		}
+		fetch := func(status string) map[string]*fleet.PolicyAutomationActivity {
+			acts, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter,
+				listOpts(fleet.ListOptions{PerPage: 1000}), status)
+			require.NoError(t, err)
+			m := make(map[string]*fleet.PolicyAutomationActivity, len(acts))
+			for _, a := range acts {
+				m[key(a)] = a
+			}
+			return m
+		}
+
+		all := fetch("")
+		errored := fetch("error")
+		success := fetch("success")
+
+		// error and success are disjoint and together reconstruct the full feed.
+		for k := range errored {
+			_, inSuccess := success[k]
+			require.False(t, inSuccess, "row %s appears under both status=error and status=success", k)
+		}
+		require.Equal(t, len(all), len(errored)+len(success),
+			"status=error and status=success must partition the unfiltered feed")
+
+		// Every row shown under All lands in exactly the filter matching its
+		// reported status — no type is dropped by either filter.
+		for k, a := range all {
+			_, inErr := errored[k]
+			_, inSucc := success[k]
+			require.True(t, inErr || inSucc,
+				"row %s (type %s, status %q) shown under All is missing from both filters",
+				k, a.Type, a.Status)
+			if a.Status == "error" {
+				require.True(t, inErr, "row %s (type %s) reports error but is absent from status=error", k, a.Type)
+			} else {
+				require.True(t, inSucc, "row %s (type %s) reports success but is absent from status=success", k, a.Type)
+			}
+		}
+
+		// Each task type is represented by both a success and a failure so the
+		// partition above is exercised for every branch, not just the named ones.
+		for _, typ := range []string{"ran_script", "installed_software", "installed_app_store_app"} {
+			var sawErr, sawSucc bool
+			for _, a := range all {
+				if a.Type != typ {
+					continue
+				}
+				if a.Status == "error" {
+					sawErr = true
+				} else {
+					sawSucc = true
+				}
+			}
+			require.True(t, sawErr, "expected at least one failed %s", typ)
+			require.True(t, sawSucc, "expected at least one successful %s", typ)
+		}
+		// Named automations: a failed_* type is an error, a ran_automation_* is a success.
+		var sawNamedErr, sawNamedSucc bool
+		for _, a := range all {
+			switch {
+			case strings.HasPrefix(a.Type, "failed_"):
+				sawNamedErr = true
+				require.Equal(t, "error", a.Status, "type %s", a.Type)
+			case strings.HasPrefix(a.Type, "ran_automation_"):
+				sawNamedSucc = true
+				require.Equal(t, "success", a.Status, "type %s", a.Type)
+			}
+		}
+		require.True(t, sawNamedErr, "expected a failed named automation")
+		require.True(t, sawNamedSucc, "expected a successful named automation")
+	})
 }

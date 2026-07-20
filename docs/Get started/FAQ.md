@@ -84,6 +84,8 @@ Fleet supports the following operating system versions on hosts.
 
 While Fleet may still function partially or fully with OS versions older than those above, Fleet does not actively test against unsupported versions and does not pursue bugs on them.
 
+> Full MDM support for Windows 11 25H2+ Requires Fleet v4.89.1 or later due to changes in Microsoft MDM protocol
+
 ### Linux support
 
 Fleet Desktop is supported on the GNOME and KDE Plasma desktop environments. Fedora requires a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) to enable system tray support. Other distributions like Ubuntu include this by default.
@@ -188,15 +190,15 @@ If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git m
 
 - We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
-### What MySQL versions are supported?
+## What MySQL versions are supported?
 
 Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
-### What Redis versions are supported?
+## What Redis versions are supported?
 
 Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 on AWS ElastiCache). Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
 
-### What version of the Mac Admins osquery extension is supported?
+## What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
@@ -274,7 +276,7 @@ For results to go to Fleet, the osquery `--logger_plugin` flag must be set to `t
 Folks typically use Fleet to ship logs to data lakes and SIEMs like Splunk, the ELK stack, and Graylog.
 
 Fleet supports multiple logging destinations for scheduled query results and status logs. The `--osquery_result_log_plugin` and `--osquery_status_log_plugin` can be set to:
-`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+`filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 See:
   - https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin.
   - https://fleetdm.com/docs/deploying/configuration#osquery-status-log-plugin.

@@ -653,6 +653,7 @@ This activity contains the following fields:
 Generated when a host is unenrolled from Fleet's MDM.
 
 This activity contains the following fields:
+- "host_id": ID of the host. `0` when the host record was already deleted at unenroll time.
 - "host_serial": Serial number of the host.
 - "enrollment_id": Unique identifier for personal (BYOD) hosts.
 - "host_display_name": Display name of the host.
@@ -663,6 +664,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
   "enrollment_id": null,
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
@@ -1104,11 +1106,11 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
+Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_id": The ID of the fleet that IdP authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that IdP authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1123,11 +1125,11 @@ This activity contains the following fields:
 
 ## disabled_macos_setup_end_user_auth
 
-Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
+Generated when a user turns off IdP authentication for macOS hosts that automatically enroll to a fleet (or no fleet).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that end user authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_id": The ID of the fleet that IdP authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that IdP authentication applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -1641,6 +1643,29 @@ This activity contains the following fields:
 }
 ```
 
+## installed_all_self_service_software
+
+Generated when an end user clicks **Install all** on the **My device > Self-service** page. A separate [`installed_software`](#installed_software) activity is also generated for each queued title.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service_category_id": ID of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "self_service_category_name": Name of the self-service category the install was scoped to, or `null` if the end user installed across all categories.
+- "software_titles_count": Number of software titles queued for install.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service_category_id": 12,
+  "self_service_category_name": "🌎 Browsers",
+  "software_titles_count": 3
+}
+```
+
 ## uninstalled_software
 
 Generated when a Fleet-maintained app or custom package is uninstalled on a host.
@@ -1721,6 +1746,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "pinned_version": The version a Fleet-maintained app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). `null` when the app automatically updates to the latest version, or when the version wasn't changed.
 
 #### Example
 
@@ -1736,6 +1762,7 @@ This activity contains the following fields:
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "software_display_name": "Crowdstrike Falcon",
+  "pinned_version": "149.0.7827.54",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1784,6 +1811,63 @@ This activity contains the following fields:
       "id": 17
     }
   ]
+}
+```
+
+## added_self_service_category
+
+Generated when a self-service category is added to a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was added.
+- "fleet_name": Name of the fleet the category was added to.
+- "fleet_id": ID of the fleet the category was added to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## edited_self_service_category
+
+Generated when a self-service category is renamed on a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": New name of the self-service category.
+- "fleet_name": Name of the fleet the category belongs to.
+- "fleet_id": ID of the fleet the category belongs to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support utilities",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## deleted_self_service_category
+
+Generated when a self-service category is deleted from a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was deleted.
+- "fleet_name": Name of the fleet the category was deleted from.
+- "fleet_id": ID of the fleet the category was deleted from.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
 }
 ```
 
@@ -2465,6 +2549,48 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_google_workspace_integration
+
+Generated when a Google Workspace integration is configured to sync IdP host vitals.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when an existing Google Workspace integration is edited.
+
+This activity contains a `domain` field with the Google Workspace primary domain.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## deleted_google_workspace_integration
+
+Generated when a Google Workspace integration is removed.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
@@ -2533,6 +2659,21 @@ This activity contains the following fields:
 ```json
 {
 	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## updated_custom_variable
+
+Generated when a custom variable's value is updated.
+
+This activity contains the following fields:
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
 	"custom_variable_name": "SOME_API_KEY"
 }
 ```
@@ -2923,6 +3064,65 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## edited_account_provisioning
+
+Generated when settings for account provisioning are edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
+}
+```
+
+## added_label_to_host
+
+Generated when a label is added to a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
+}
+```
+
+## removed_label_from_host
+
+Generated when a label is removed from a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "label_id": ID of the label.
+- "label_name": Name of the label.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "label_id": 42,
+  "label_name": "Engineering"
 }
 ```
 

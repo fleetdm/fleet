@@ -38,6 +38,7 @@ import (
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	chart_bootstrap "github.com/fleetdm/fleet/v4/server/chart/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -60,6 +61,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -88,6 +90,25 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	// Custom host vital reference validation is wired into all script/profile
+	// upload paths. Provide a permissive default so tests that don't reference
+	// $FLEET_HOST_VITAL_<id> don't need to stub it (the real datastore no-ops
+	// when the document has no such tokens). Tests that assert on it can override.
+	if mockDS, ok := ds.(*fleet_mock.Store); ok {
+		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+		}
+		// On Premium, AppConfig assembly and the osquery detail-query flow read the
+		// Microsoft conditional access integration. Default to an empty (not set up)
+		// integration so premium tests that don't care about it don't panic on a nil
+		// mock. Tests that assert on it can override.
+		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
+			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+	}
+
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := slog.New(slog.DiscardHandler)
 	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
@@ -128,6 +149,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore = opts[0].KeyValueStore
 	}
 
+	// pssoNonceStore backs the PSSO single-use nonces; wired from the test Redis
+	// pool when one is provided (integration tests), nil otherwise.
+	var pssoNonceStore fleet.PSSONonceStore
+
 	task := async.NewTask(ds, nil, c, nil)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
@@ -149,6 +174,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -207,7 +233,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
-		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+		// The Conditional Access feature is gated on Fleet Premium; callers that
+		// exercise it must provide a premium license via opts[0].License.
+		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
@@ -295,6 +323,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
+			pssoNonceStore,
 		)
 		if err != nil {
 			panic(err)
@@ -467,6 +496,22 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
 
+	// The chart bounded context is wired into the real server in serve.go but not into
+	// this test handler, so build a path-only stub (regardless of DBConns) so that
+	// apiendpoints.Validate can see the chart routes declared in api_endpoints.yml.
+	// chart_bootstrap.New stores its deps without dereferencing them, so empty conns +
+	// nil authorizer/viewer are fine when only the route paths are needed.
+	{
+		_, chartRoutesFn := chart_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(chartRoutesFn(noopAuth)))
+	}
+
 	var mdmPusher nanomdm_push.Pusher
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher
@@ -524,6 +569,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				commander,
 				"https://test-url.com",
 				cfg,
+				svc,
 			)
 			require.NoError(t, err)
 		}
@@ -577,6 +623,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
+	// SCIM endpoints are served by a prefix-mounted handler (see scim.RegisterSCIM)
+	// that gorilla/mux can't introspect, so surface their routes to the validator
+	// explicitly. They're always in the catalog, regardless of opts[0].EnableSCIM.
+	extraInitFeatureRoutes = append(extraInitFeatureRoutes, scim.RegisterValidationRoutes)
 	if err := apiendpoints.Validate(apiHandler, extraInitFeatureRoutes...); err != nil {
 		t.Fatalf("error initializing API endpoints: %v", err)
 	}
@@ -859,6 +909,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
+		{"POST", "/api/latest/fleet/hosts/1/name_template/resend", false, true},
 	}
 }
 
@@ -1458,3 +1509,7 @@ func (rt *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 	return rt.next.RoundTrip(req)
 }
+
+// errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
+// for assertions that only care about the error.
+func errOnly(_ []uint, err error) error { return err }

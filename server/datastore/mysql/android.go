@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -605,7 +606,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
-func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -674,6 +675,11 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "android"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting android profile label associations")
+		}
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profileUUID, FleetVariables: usesFleetVars},
+		}, "android", false); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting android profile variable associations")
 		}
 
 		return nil
@@ -1723,6 +1729,7 @@ func (ds *Datastore) batchSetMDMAndroidProfiles(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAndroidConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	if len(profiles) == 0 {
 		rowsAffected, err := ds.deleteAllAndroidProfiles(ctx, tx, tmID)
@@ -1857,7 +1864,7 @@ WHERE
 		})
 	}
 
-	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, nil)
+	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, profilesVariablesByIdentifier)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}
@@ -2272,6 +2279,76 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
+	}
+
+	// Track which fleet variables this app config uses so SCIM can trigger resends.
+	var appConfigID uint
+	if err := sqlx.GetContext(ctx, tx, &appConfigID,
+		`SELECT id FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`,
+		appID, teamID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android app configuration id for variable tracking")
+	}
+
+	found := variables.Find(string(config))
+	fleetVars := make([]fleet.FleetVarName, len(found))
+	for i, v := range found {
+		fleetVars[i] = fleet.FleetVarName(v)
+	}
+	if err := setAppConfigVariableAssociations(ctx, tx, appConfigID, fleetVars); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting app config variable associations")
+	}
+
+	return nil
+}
+
+// setAppConfigVariableAssociations replaces the variable associations for an
+// android app configuration in mdm_configuration_profile_variables.
+func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, appConfigID uint, fleetVars []fleet.FleetVarName) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE android_app_configuration_id = ?`, appConfigID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting app config variable associations")
+	}
+
+	if len(fleetVars) == 0 {
+		return nil
+	}
+
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+	var varDefs []varDef
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, `SELECT id, name, is_prefix FROM fleet_variables`); err != nil {
+		return ctxerr.Wrap(ctx, err, "loading fleet variables")
+	}
+
+	var values strings.Builder
+	var args []any
+	for _, v := range fleetVars {
+		varWithPrefix := "FLEET_VAR_" + string(v)
+		for _, def := range varDefs {
+			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
+			if match {
+				values.WriteString("(?, ?),")
+				args = append(args, appConfigID, def.ID)
+				break
+			}
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO mdm_configuration_profile_variables (android_app_configuration_id, fleet_variable_id)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE fleet_variable_id = VALUES(fleet_variable_id)
+	`, strings.TrimSuffix(values.String(), ","))
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting app config variable associations")
 	}
 	return nil
 }

@@ -18,6 +18,7 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -31,6 +32,7 @@ import { API_NO_TEAM_ID } from "interfaces/team";
 const baseClass = "global-activity-item";
 
 const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanCustomMdmCommand,
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
@@ -1094,6 +1096,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranCustomMdmCommand: (activity: IActivity) => {
+    const { request_type, host_display_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatMdmCommandNameForActivityItem(request_type)} on{" "}
+        <b>{host_display_name}</b>.
+      </>
+    );
+  },
   ranScript: (activity: IActivity) => {
     const { script_name, host_display_name, from_setup_experience } =
       activity.details || {};
@@ -1671,6 +1683,9 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  editedAppleAccountProvisioning: () => (
+    <> edited account provisioning settings.</>
+  ),
   configuredMSEntraConditionalAccess: () => (
     <> configured Microsoft Entra conditional access.</>
   ),
@@ -1681,6 +1696,22 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  googleWorkspaceIntegration: (verb: string) => (activity: IActivity) => {
+    const { domain } = activity.details ?? {};
+    return (
+      <>
+        {" "}
+        {verb} the Google Workspace integration
+        {domain ? (
+          <>
+            {" "}
+            for <strong>{domain}</strong>
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   hostBypassedConditionalAccess: (activity: IActivity) => {
     const idpFullName = activity.details?.idp_full_name;
     const hostDisplayName = activity.details?.host_display_name;
@@ -2004,11 +2035,44 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  updatedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        updated custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
   deletedCustomVariable: (activity: IActivity) => {
     const { custom_variable_name } = activity.details || {};
     return (
       <>
         deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+  createdCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        created a custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  editedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        edited custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  deletedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        deleted custom host vital <b>{custom_host_vital_name}</b>.
       </>
     );
   },
@@ -2390,6 +2454,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
+    case ActivityType.RanCustomMdmCommand: {
+      return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
+    }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
@@ -2510,6 +2577,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
     }
+    case ActivityType.EditedAppleAccountProvisioning: {
+      return TAGGED_TEMPLATES.editedAppleAccountProvisioning();
+    }
     case ActivityType.ConfiguredMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
     }
@@ -2521,6 +2591,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
+    case ActivityType.AddedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("added")(activity);
+    }
+    case ActivityType.EditedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("edited")(activity);
+    }
+    case ActivityType.DeletedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("deleted")(activity);
     }
     case ActivityType.UpdatedConditionalAccessBypass: {
       return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
@@ -2580,8 +2659,20 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
+    case ActivityType.UpdatedCustomVariable: {
+      return TAGGED_TEMPLATES.updatedCustomVariable(activity);
+    }
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+    case ActivityType.CreatedCustomHostVital: {
+      return TAGGED_TEMPLATES.createdCustomHostVital(activity);
+    }
+    case ActivityType.EditedCustomHostVital: {
+      return TAGGED_TEMPLATES.editedCustomHostVital(activity);
+    }
+    case ActivityType.DeletedCustomHostVital: {
+      return TAGGED_TEMPLATES.deletedCustomHostVital(activity);
     }
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);

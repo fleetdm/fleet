@@ -11,6 +11,7 @@
   }
 
   &__premium-card {
+    align-self: stretch;
     background-color: $ui-off-white;
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;

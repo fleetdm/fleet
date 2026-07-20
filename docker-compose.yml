@@ -2,7 +2,7 @@
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
-  # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  # To run in macOS M1, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
@@ -130,17 +130,6 @@ services:
     ports:
       - "127.0.0.1:${FLEET_SAML_IDP_HTTP_PORT:-9080}:8080"
       - "127.0.0.1:${FLEET_SAML_IDP_HTTPS_PORT:-9443}:8443"
-
-  # CAdvisor container allows monitoring other containers. Useful for
-  # development.
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    ports:
-      - "127.0.0.1:${FLEET_CADVISOR_PORT:-5678}:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
 
   prometheus:
     image: prom/prometheus:latest

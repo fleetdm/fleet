@@ -34,6 +34,7 @@ type MockClient struct {
 	TeamNameOverride string
 	WithoutMDM       bool
 	WithoutVPP       bool
+	WithAssets       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -180,6 +181,29 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
+}
+
+func (c MockClient) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
+	if !c.WithAssets {
+		return nil, nil
+	}
+	if teamID == nil {
+		return []*fleet.DDMAsset{{AssetUUID: "global-asset-uuid", Name: "Global Asset", Identifier: "com.example.global-asset"}}, nil
+	}
+	if *teamID == 1 {
+		return []*fleet.DDMAsset{{AssetUUID: "team-asset-uuid", Name: "Team Asset", Identifier: "com.example.team-asset"}}, nil
+	}
+	return nil, nil
+}
+
+func (MockClient) DownloadDDMAsset(assetUUID string) ([]byte, error) {
+	switch assetUUID {
+	case "global-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.global-asset","Payload":{"Reference":{"DataURL":"https://example.com/global"}}}`), nil
+	case "team-asset-uuid":
+		return []byte(`{"Type":"com.apple.asset.data","Identifier":"com.example.team-asset","Payload":{"Reference":{"DataURL":"https://example.com/team"}}}`), nil
+	}
+	return nil, errors.New("asset not found")
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -664,6 +688,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(2),
+				PinnedVersion:        new("10.0"),
 			},
 			IconUrl: ptr.String("/api/icon5.png"),
 		}, nil
@@ -677,6 +702,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:          true,
 				Platform:             "windows",
 				FleetMaintainedAppID: ptr.Uint(3),
+				PinnedVersion:        new("^123"),
 			},
 		}, nil
 	default:
@@ -710,6 +736,13 @@ func (MockClient) GetLabels(teamID uint) ([]*fleet.LabelSpec, error) {
 		LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 		HostVitalsCriteria:  ptr.RawMessage(json.RawMessage(`{"vital": "end_user_idp_group", "value": "some-group"}`)),
 	}}, nil
+}
+
+func (MockClient) ListCustomHostVitals(query string) ([]fleet.CustomHostVital, error) {
+	return []fleet.CustomHostVital{
+		{ID: 1, Name: "Asset tag"},
+		{ID: 2, Name: "Department"},
+	}, nil
 }
 
 func (MockClient) Me() (*fleet.User, error) {
@@ -1033,6 +1066,47 @@ func TestGenerateGitops(t *testing.T) {
 	})
 }
 
+func TestGenerateGitopsWithAssets(t *testing.T) {
+	configureFMAManifestServer(t)
+	fleetClient := &MockClient{WithAssets: true}
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	require.NoError(t, action(cliContext), buf.String())
+	t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
+
+	var sawAssetsSection, sawAssetFile bool
+	require.NoError(t, filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		b, err := os.ReadFile(path) //nolint:gosec // reading files under a temp dir created by this test
+		if err != nil {
+			return err
+		}
+		content := string(b)
+		if strings.Contains(filepath.ToSlash(path), "/assets/") && strings.HasSuffix(path, ".json") {
+			sawAssetFile = true
+			require.Contains(t, content, "com.apple.asset.data")
+		}
+		if strings.Contains(content, "assets:") && strings.Contains(content, "/assets/") {
+			sawAssetsSection = true
+		}
+		return nil
+	}))
+	require.True(t, sawAssetsSection, "expected an assets: section referencing an assets/ path")
+	require.True(t, sawAssetFile, "expected a DDM asset json file to be written")
+}
+
 func TestGenerateGitopsWithoutMDM(t *testing.T) {
 	configureFMAManifestServer(t)
 	fleetClient := &MockClient{WithoutMDM: true}
@@ -1210,6 +1284,63 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 		}
 	}
 	require.True(t, foundWarning, "expected SecretWarning for integrations.google_calendar.api_key_json")
+}
+
+func TestGenerateOrgSettingsMaskedGoogleWorkspaceApiKey(t *testing.T) {
+	// This test verifies that generateOrgSettings handles the case where the
+	// Google Workspace api_key_json is masked (returned as "********" string
+	// instead of a map): it must redact the key to a comment placeholder and
+	// record a SecretWarning, never emitting the secret.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Set the Google Workspace API key to masked, which will serialize as "********".
+	require.NotEmpty(t, appConfig.Integrations.GoogleWorkspace)
+	appConfig.Integrations.GoogleWorkspace[0].ApiKey.SetMasked()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings - this should not panic.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+
+	// Verify the result can be marshaled to YAML without error.
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	// Verify api_key_json was replaced with a comment placeholder (not "********").
+	var orgSettings map[string]any
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
+
+	integrations := orgSettings["integrations"].(map[string]any)
+	googleWorkspace := integrations["google_workspace"].([]any)
+	intg := googleWorkspace[0].(map[string]any)
+	apiKeyJson := intg["api_key_json"]
+
+	// Should be a comment placeholder string, not "********" or a map.
+	apiKeyJsonStr, ok := apiKeyJson.(string)
+	require.True(t, ok, "api_key_json should be a string placeholder")
+	require.Contains(t, apiKeyJsonStr, "GITOPS_COMMENT", "api_key_json should be a comment placeholder")
+
+	// Verify SecretWarning was added for google_workspace.api_key_json.
+	var foundWarning bool
+	for _, w := range cmd.Messages.SecretWarnings {
+		if w.Key == "integrations.google_workspace.api_key_json" {
+			foundWarning = true
+			break
+		}
+	}
+	require.True(t, foundWarning, "expected SecretWarning for integrations.google_workspace.api_key_json")
 }
 
 func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
@@ -1631,6 +1762,46 @@ func TestGenerateControls(t *testing.T) {
 	verifyControlsHasMacosSetup(t, controlsRaw)
 }
 
+func TestGenerateGitopsAppleAccountProvisioning(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.AppleAccountProvisioning = fleet.AppleAccountProvisioning{
+		OAuthIdPTokenURL: optjson.SetString("https://idp.example.com/oauth2/v1/token"),
+		OAuthIdPClientID: optjson.SetString("client-id"),
+	}
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	controls, err := cmd.generateControls(nil, "", &fleet.TeamMDM{})
+	require.NoError(t, err)
+
+	aap, ok := controls["apple_account_provisioning"].(map[string]any)
+	require.True(t, ok, "apple_account_provisioning should be emitted for global controls")
+	require.Equal(t, "https://idp.example.com/oauth2/v1/token", aap["oauth_idp_token_url"])
+	require.Equal(t, "client-id", aap["oauth_idp_client_id"])
+
+	// The secret is masked/non-exportable, so it's emitted as a TODO comment
+	// registered against default.yml rather than the real value.
+	secretToken, ok := aap["oauth_idp_client_secret"].(string)
+	require.True(t, ok)
+	var found bool
+	for _, c := range cmd.Comments {
+		if c.Token == secretToken {
+			require.Equal(t, "default.yml", c.Filename)
+			require.Contains(t, c.Comment, "TODO")
+			found = true
+		}
+	}
+	require.True(t, found, "the client secret should be emitted as a registered TODO comment")
+}
+
 func TestGenerateSoftware(t *testing.T) {
 	configureFMAManifestServer(t)
 	// Get the test app config.
@@ -1753,10 +1924,10 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 
 	packages, ok := software["packages"].([]interface{})
 	require.True(t, ok, "packages should be an array")
-	require.Len(t, packages, 3, "should have 3 packages: 1 regular + 2 scripts (.sh and .ps1)")
+	require.Len(t, packages, 4, "should have 4 packages: 1 regular + 3 scripts (.sh, .ps1, and .py)")
 
 	// Identify by URL since hash_sha256 includes comment tokens
-	var shScriptPkg, ps1ScriptPkg, regularPkg map[string]interface{}
+	var shScriptPkg, ps1ScriptPkg, pyScriptPkg, regularPkg map[string]any
 	for _, pkg := range packages {
 		p := pkg.(map[string]interface{})
 		url, ok := p["url"].(string)
@@ -1768,6 +1939,8 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 			shScriptPkg = p
 		case "https://example.com/download/setup.ps1":
 			ps1ScriptPkg = p
+		case "https://example.com/download/install.py":
+			pyScriptPkg = p
 		case "https://example.com/download/regular-package.deb":
 			regularPkg = p
 		}
@@ -1775,6 +1948,7 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 
 	require.NotNil(t, shScriptPkg, ".sh script package should exist")
 	require.NotNil(t, ps1ScriptPkg, ".ps1 script package should exist")
+	require.NotNil(t, pyScriptPkg, ".py script package should exist")
 	require.NotNil(t, regularPkg, "regular package should exist")
 
 	_, hasInstallScript := shScriptPkg["install_script"]
@@ -1801,15 +1975,43 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 	_, hasPreInstallQuery = ps1ScriptPkg["pre_install_query"]
 	require.False(t, hasPreInstallQuery, ".ps1 script package should NOT have pre_install_query in YAML output")
 
+	_, hasInstallScript = pyScriptPkg["install_script"]
+	require.False(t, hasInstallScript, ".py script package should NOT have install_script in YAML output")
+
+	_, hasPostInstallScript = pyScriptPkg["post_install_script"]
+	require.False(t, hasPostInstallScript, ".py script package should NOT have post_install_script in YAML output")
+
+	_, hasUninstallScript = pyScriptPkg["uninstall_script"]
+	require.False(t, hasUninstallScript, ".py script package should NOT have uninstall_script in YAML output")
+
+	_, hasPreInstallQuery = pyScriptPkg["pre_install_query"]
+	require.False(t, hasPreInstallQuery, ".py script package should NOT have pre_install_query in YAML output")
+
 	require.Contains(t, shScriptPkg, "url", ".sh script package should have url")
 	require.Contains(t, shScriptPkg, "hash_sha256", ".sh script package should have hash_sha256")
 	require.Contains(t, ps1ScriptPkg, "url", ".ps1 script package should have url")
 	require.Contains(t, ps1ScriptPkg, "hash_sha256", ".ps1 script package should have hash_sha256")
+	require.Contains(t, pyScriptPkg, "url", ".py script package should have url")
+	require.Contains(t, pyScriptPkg, "hash_sha256", ".py script package should have hash_sha256")
 
 	require.Contains(t, regularPkg, "install_script", "regular package should have install_script")
 	require.Contains(t, regularPkg, "post_install_script", "regular package should have post_install_script")
 	require.Contains(t, regularPkg, "uninstall_script", "regular package should have uninstall_script")
 	require.Contains(t, regularPkg, "pre_install_query", "regular package should have pre_install_query")
+
+	// Only the regular package keeps a version in its generated comment.
+	commentFor := func(name string) string {
+		for _, c := range cmd.Comments {
+			if strings.Contains(c.Comment, name) {
+				return c.Comment
+			}
+		}
+		return ""
+	}
+	require.NotContains(t, commentFor("my-script.sh"), "version", ".sh script package comment should not mention version")
+	require.NotContains(t, commentFor("setup.ps1"), "version", ".ps1 script package comment should not mention version")
+	require.NotContains(t, commentFor("install.py"), "version", ".py script package comment should not mention version")
+	require.Contains(t, commentFor("regular-package.deb"), "version", "regular package comment should still mention version")
 
 	for filename := range cmd.FilesToWrite {
 		require.NotContains(t, filename, "my-script-linux-install", "should not write install script file for .sh script package")
@@ -1821,6 +2023,11 @@ func TestGenerateSoftwareScriptPackages(t *testing.T) {
 		require.NotContains(t, filename, "powershell-script-windows-postinstall", "should not write post-install script file for .ps1 script package")
 		require.NotContains(t, filename, "powershell-script-windows-uninstall", "should not write uninstall script file for .ps1 script package")
 		require.NotContains(t, filename, "powershell-script-windows-preinstallquery", "should not write pre-install query file for .ps1 script package")
+
+		require.NotContains(t, filename, "python-script-linux-install", "should not write install script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-postinstall", "should not write post-install script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-uninstall", "should not write uninstall script file for .py script package")
+		require.NotContains(t, filename, "python-script-linux-preinstallquery", "should not write pre-install query file for .py script package")
 	}
 }
 
@@ -1860,6 +2067,16 @@ func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.
 					Name:     "setup.ps1",
 					Platform: "windows",
 					Version:  "1.5",
+				},
+			},
+			{
+				ID:         6,
+				Name:       "Python Script",
+				HashSHA256: new("py-script-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:     "install.py",
+					Platform: "linux",
+					Version:  "1.2",
 				},
 			},
 		}, nil
@@ -1925,6 +2142,25 @@ func (c *MockClientWithScriptPackage) GetSoftwareTitleByID(id uint, teamID *uint
 				Name:              "setup.ps1",
 			},
 		}, nil
+	case 6:
+		if *teamID != 2 {
+			return nil, errors.New("team ID mismatch")
+		}
+		// InstallScript is populated internally from file contents, but these fields
+		// should NOT be output in GitOps YAML
+		return &fleet.SoftwareTitle{
+			ID: 6,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:     "#!/usr/bin/env python3\nprint('This is the Python script content')",
+				PostInstallScript: "",
+				UninstallScript:   "",
+				PreInstallQuery:   "",
+				SelfService:       true,
+				Platform:          "linux",
+				URL:               "https://example.com/download/install.py",
+				Name:              "install.py",
+			},
+		}, nil
 	default:
 		return c.MockClient.GetSoftwareTitleByID(id, teamID)
 	}
@@ -1935,6 +2171,117 @@ func (c *MockClientWithScriptPackage) GetSetupExperienceSoftware(platform string
 		return []fleet.SoftwareTitleListResult{}, nil
 	}
 	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+const (
+	santaHashA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	santaHashB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+)
+
+type MockClientMultiPackage struct {
+	MockClient
+}
+
+func (c *MockClientMultiPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	if query == "available_for_install=1&fleet_id=2" {
+		return []fleet.SoftwareTitleListResult{{
+			ID:              7,
+			Name:            "Santa",
+			HashSHA256:      new(santaHashA),
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "santa-2026.2.pkg", Platform: "darwin", Version: "2026.2"},
+		}}, nil
+	}
+	return c.MockClient.ListSoftwareTitles(query)
+}
+
+func (c *MockClientMultiPackage) GetSoftwareTitleByID(id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	if id == 7 {
+		return &fleet.SoftwareTitle{
+			ID:          7,
+			Name:        "Santa",
+			DisplayName: "Santa Security",
+			Packages: []fleet.SoftwareInstaller{
+				{
+					StorageID:         santaHashA,
+					URL:               "https://example.com/santa-2026.2.pkg",
+					Platform:          "darwin",
+					InstallScript:     "install A",
+					PostInstallScript: "post A",
+					SelfService:       true,
+					LabelsIncludeAll:  []fleet.SoftwareScopeLabel{{LabelName: "macOS"}},
+				},
+				{
+					StorageID:        santaHashB,
+					URL:              "https://example.com/santa-2026.4.pkg",
+					Platform:         "darwin",
+					InstallScript:    "install B",
+					SelfService:      true,
+					Categories:       []string{"Productivity"},
+					LabelsIncludeAll: []fleet.SoftwareScopeLabel{{LabelName: "macOS"}, {LabelName: "IT test team"}},
+				},
+			},
+		}, nil
+	}
+	return c.MockClient.GetSoftwareTitleByID(id, teamID)
+}
+
+func (c *MockClientMultiPackage) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+	if teamID == 2 {
+		return []fleet.SoftwareTitleListResult{}, nil
+	}
+	return c.MockClient.GetSetupExperienceSoftware(platform, teamID)
+}
+
+func TestGenerateSoftwareMultiplePackages(t *testing.T) {
+	fleetClient := &MockClientMultiPackage{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
+	}
+
+	res, err := cmd.generateSoftware("fleets/team-a.yml", 2, "team-a", false)
+	require.NoError(t, err)
+
+	// the fleet file references the title's packages by a single path entry
+	packages := res["packages"].([]map[string]any)
+	require.Len(t, packages, 1)
+	require.Equal(t, "Santa Security", packages[0]["display_name"])
+
+	// that path points at a package YAML file holding a two-item list, first-added
+	// first, with the per-package fields inline
+	listPath := strings.TrimPrefix(packages[0]["path"].(string), "../")
+	list := cmd.FilesToWrite[listPath].([]map[string]any)
+	require.Len(t, list, 2)
+
+	require.Equal(t, santaHashA, list[0]["hash_sha256"])
+	require.Equal(t, "https://example.com/santa-2026.2.pkg", list[0]["url"])
+	require.Equal(t, true, list[0]["self_service"])
+	require.Equal(t, []string{"macOS"}, list[0]["labels_include_all"])
+	require.NotContains(t, list[0], "categories")
+
+	require.Equal(t, santaHashB, list[1]["hash_sha256"])
+	require.Equal(t, []string{"Productivity"}, list[1]["categories"])
+	require.Equal(t, []string{"macOS", "IT test team"}, list[1]["labels_include_all"])
+
+	// each package's install script is written to its own file, referenced by a path
+	// relative to the package YAML file's directory
+	pkgDir := filepath.Dir(listPath)
+	installA := filepath.Join(pkgDir, list[0]["install_script"].(map[string]any)["path"].(string))
+	installB := filepath.Join(pkgDir, list[1]["install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "install A", cmd.FilesToWrite[installA])
+	require.Equal(t, "install B", cmd.FilesToWrite[installB])
+	require.NotEqual(t, installA, installB)
+
+	// post_install_script is written per package as its own side file
+	postA := filepath.Join(pkgDir, list[0]["post_install_script"].(map[string]any)["path"].(string))
+	require.Equal(t, "post A", cmd.FilesToWrite[postA])
+	require.NotContains(t, list[1], "post_install_script")
 }
 
 func TestGeneratePolicies(t *testing.T) {

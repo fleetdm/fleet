@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.7.1-4399",
+      "version": "3.7.3-4475",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio' AND version_compare(bundle_short_version, '3.7.1-4399') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio' AND version_compare(bundle_short_version, '3.7.3-4475') < 0);"
       },
-      "installer_url": "https://screenstudioassets.com/releases/3.7.1-4399/Screen%20Studio-3.7.1-4399-arm64-mac.zip",
+      "installer_url": "https://screenstudioassets.com/releases/3.7.3-4475/Screen%20Studio-3.7.3-4475-arm64-mac.zip",
       "install_script_ref": "d312fd68",
       "uninstall_script_ref": "2d679c2a",
-      "sha256": "3b0e04d67bfc856b649729207f6a7ea714db1051dc1045b8e196d8b15e81b89f",
+      "sha256": "ddbe1f8967d04d00f4b8131aa82c11df680461ba1f3681e0fb140696d67d7dfc",
       "default_categories": [
         "Productivity"
       ]

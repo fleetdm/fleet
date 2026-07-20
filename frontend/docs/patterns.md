@@ -127,8 +127,7 @@ interface ISoftwareCountResponse {
 // *FormData instead, even for programmatic request bodies (e.g.
 // IDeleteQueriesFormData). One consistent suffix is easier to follow than
 // asking each dev to judge "is this form-driven enough?"
-// *PreviewPayload is fine for outgoing webhook shapes (matches the
-// "Preview payload" UI terminology).
+// *PreviewPayload is fine for outgoing webhook shapes.
 ```
 
 ## Utilities
@@ -228,11 +227,31 @@ as this allows us to use hooks to better share common logic between components.
 
 ### Passing props into components
 
-We tend to use explicit assignment of prop values, instead of object spread syntax:
+We strongly prefer explicit assignment of prop values over object spread syntax. In almost all cases, list every prop by name:
 
 ```tsx
-<ExampleComponent prop1={pop1Val} prop2={prop2Val} prop3={prop3Val} />
+<ExampleComponent prop1={prop1Val} prop2={prop2Val} prop3={prop3Val} />
 ```
+
+Spreading is hard to review (the reader can't see what's being passed), brittle under refactors (adding a key to the source bag silently changes the target), and on native DOM elements it's a real security footgun — anything in the bag (including `dangerouslySetInnerHTML`, `href`, `src`, event handlers) gets applied.
+
+#### Accepted exceptions
+
+Spread is acceptable in these cases:
+
+- **react-select 5 custom subcomponents** — the library contract requires forwarding the full internal props bag (`innerRef`, `innerProps`, `selectProps`, …) to `components.X`. The bag is library-generated, not user input.
+- **react-table v7 prop getters** (`getCellProps()`, `getRowProps()`, `getHeaderProps()`, `getToggleAllRowsSelectedProps()`) — the prop-getter pattern *is* the library's API. Cell data is rendered through `cell.render("Cell")`, never as attributes.
+- **react-markdown renderer overrides** (e.g. `code: ({...props}) => <code {...props}>`) — the bag is library-controlled HAST metadata, not raw markdown. Do not enable the `rehype-raw` plugin: it lets raw HTML from the markdown source pass through to the bag, and the spread would forward it straight to the DOM — author-controlled HTML rendering verbatim is an XSS sink.
+- **Typed SVG icon components** (`SVGProps<SVGSVGElement>` flowing into `<svg>`, as in `pages/SoftwarePage/components/icons/*`) — the `SVGProps` type constrains callers to valid SVG attributes. Do *not* widen the prop type to `any` or `Record<string, unknown>`; that removes the guard that makes this safe.
+- **Test helpers, factories, and Storybook stories** — non-production code. The bag is built locally in the same file by code that owns its shape.
+
+#### Not safe — never spread
+
+Never spread props (especially anything derived from API responses, URLs, markdown source, MDM payloads, host facts, software metadata, or other external data) onto:
+
+`<a>`, `<img>`, `<iframe>`, `<object>`, `<embed>`, `<source>`, `<link>`, `<script>`, `<form>`, `<video>`, `<audio>`.
+
+For those elements, pick out `href` / `src` / etc. explicitly and validate the value (scheme allowlist, no `javascript:` URIs, etc.) before passing it.
 
 ### Naming handlers
 
@@ -534,6 +553,7 @@ Custom hook names should be camel-cased and use the `use` prefix, and should liv
 
 Current custom hooks include:
 
+- [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
 - [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
 - [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
 - [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.
@@ -556,7 +576,6 @@ initialized. View currently working contexts in the [context directory](../conte
 
 ```typescript
 // Consuming a context — destructure what you need from useContext
-const { renderFlash } = useContext(NotificationContext);
 const { currentUser, isPremiumTier } = useContext(AppContext);
 ```
 
@@ -565,7 +584,6 @@ const { currentUser, isPremiumTier } = useContext(AppContext);
 | Context | Purpose | Use this when |
 |---|---|---|
 | `AppContext` | Global app state: current user, config, team selection, role flags, license info | You need user identity, permissions, feature flags, or the active fleet |
-| `NotificationContext` | Flash message banners (`renderFlash`, `renderMultiFlash`, `hideFlash`) | You need to show success/error/warning notifications after an action |
 | `PolicyContext` | In-progress policy editing state: name, query, resolution, platform, labels | You're on the policy edit/create flow and need to persist form state across steps |
 | `QueryContext` | In-progress report editing state: name, query body, frequency, targets, logging | You're on the report edit/create flow and need to persist form state across steps |
 | `RoutingContext` | Stores a redirect location for post-auth navigation | You need to redirect the user after login (e.g., deep link they hit while logged out) |
@@ -596,7 +614,7 @@ const PageOrComponent = (props) => {
       // do something
     } catch(error) {
       console.error(error);
-      // maybe trigger renderFlash
+      // maybe trigger notify.error
     }
   };
 
@@ -676,7 +694,7 @@ try {
   await softwareAPI.install()
   // successful messgae
 } catch (e) {
-  renderFlash("error", getErrorMessage(e))
+  notify.error(getErrorMessage(e))
 }
 
 /* in helpers.tsx */
@@ -1048,20 +1066,17 @@ then the [app's context](#react-context) should be used.
 If you are dealing with a page that *updates* any kind of config, set the local
 config with the response of your update call to make sure it has the latest.
 
-### Rendering flash messages
+### Toast notifications
 
-Flash messages by default will be hidden when the user performs any navigation that changes the URL,
-in addition to the timeout set for success messages. The `renderFlash` method from notification
-context accepts an optional third `options` argument which contains an optional
-`persistOnPageChange` boolean field that can be set to `true` to negate this default behavior.
+Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from
+`components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
+Visible toasts are dismissed automatically on URL change.
 
-If the `renderFlash` is accompanied by a router push, it's important to push to the router *before*
-calling `renderFlash`. If the push comes after the `renderFlash` call,
-the flash message may register the `push` and immediately hide itself.
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
 
 ```tsx
-// first push
+// first notify
+notify.error("Something went wrong");
+// then push
 router.push(newPath);
-// then flash
-renderFlash("error", "Something went wrong");
 ```

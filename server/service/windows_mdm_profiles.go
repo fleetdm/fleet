@@ -60,7 +60,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		Name:   profileName,
 		SyncML: data,
 	}
-	if err := cp.ValidateUserProvided(); err != nil {
+	if err := cp.ValidateUserProvided(svc.config.MDM.IsCustomDiskEncryptionEnabled()); err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
 			return nil, ctxerr.Wrap(ctx,
@@ -92,7 +92,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 	cp.LabelsExcludeAny = excludeLabels
 
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.SyncML)}); err != nil {
+	if err := fleet.ValidateEmbeddedSecretsAndCustomHostVitals(ctx, svc.ds, []string{string(cp.SyncML)}); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
@@ -155,7 +155,7 @@ func (svc *Service) handleWindowsProfileSoftwareUpdate(
 	syncML []byte,
 	teamID uint,
 ) error {
-	if !bytes.Contains(syncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+	if !fleet.ProfileTargetsReservedLocURI(syncML, syncml.FleetOSUpdateTargetLocURI) {
 		return nil
 	}
 

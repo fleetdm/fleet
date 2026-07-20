@@ -6,6 +6,8 @@ Fleet supports built-in variables (prefixed with `$FLEET_VAR_`) to inject host v
 
 You can also create [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (prefixed with `$FLEET_SECRET_`) to define your own key-value pairs. 
 
+To store a different value per host, create [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (prefixed with `$FLEET_HOST_VITAL_`) and reference them in scripts and configuration profiles. 
+
 For macOS configuration profiles, you can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) in [Automated Certificate Management Environment (ACME)](https://developer.apple.com/documentation/devicemanagement/acmecertificate), [Simple Certificate Enrolment Protocol (SCEP)](https://developer.apple.com/documentation/devicemanagement/scep), or [VPN](https://developer.apple.com/documentation/devicemanagement/vpn) payloads.
 
 When the variable's value changes, Fleet automatically resends configuration profiles. For managed app configurations, changes apply on next app install or update.
@@ -36,6 +38,8 @@ Built-in variables:
 
 
 If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`) don't exist, GitOps dry runs will succeed but GitOps runs will fail.
+
+> Profiles that use IdP variables will trigger a resend when the IdP user is removed from the host, but will fail sending a new profile due to missing variables, leaving the old one on the device. Once the host has a new IdP user it will be resent again with fresh values.
 
 
 <meta name="category" value="guides">

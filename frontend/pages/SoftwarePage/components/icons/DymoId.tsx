@@ -1,0 +1,14 @@
+import * as React from "react";
+
+import type { SVGProps } from "react";
+
+const DymoId = (props: SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={32} height={32} {...props}>
+    <image
+      width={32}
+      height={32}
+      href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAMAAAD04JH5AAAAIVBMVEVHcEwAkbMAkbMAkbMAkbMAkbMAkbMAkbMAkbMAkbMAkbMBaZcEAAAACnRSTlMAmLUhP9pngg/uRzITwQAAAtJJREFUeJztl8t25CAMRM1LgP//g8cY9AC7SS9yMpu6m6RlEEUhwD4OAAAAAAAAAAAAAAAAAAAA8N8p2S1kiqE9CRyI0lhCdBxR2hfNFvNL8BokUs5XYopT+H7kzxeSaxIy/wqPxvGI2tpLVhs0qlyqI1p75pEuzF1mXNGHdXRy/JDM/7ecgZ0ND0TrFH3kB542Ak5/ZSD2oEzzc8tYmVcoPQQEK9RO7gjkcowbAfeo/NjbBUiTGxxY7ex1VM832qI2AaQCkh+YHt7UAakd3fHJ2HWJOBbVkppS0txNQSQyS8AuXhFNTTrQVQaczNnBvDS8qCZ0C5DxK4XbdZHQ7J2KUAXorM+zGV/ZjvFPLbbeonh15e+pSQSII7JPgsyOB3wTMFW7OB+zxrRNX+Quqrd0IkAKIJncYkrZCCjcypu5+l7jaXQc0fHXlEUUAeJkMLkjq6KNgPkI4iZ9R9Hs0mja6qJPOBURME1D8HP0XUAY0RqNa760yJJnNK2yAv4QAWwATbllcmUjoHDfqGt7LXQy7diBXptNqRujsYA5ia4BTy584UDvy8VEJIeyOjDGzbwJy08C5tP1gwBRGe1gPpjlFAd4I/a/6fhpCb4SwPtw3IPcpyTNJQ6MC6BkzvMLRciHDzfiFYlOr3NxYGQk2Y/PbWjXQO6L3Tb0SyMWlJ9txJ8qvr4cRKpb5lY/H0RFDsJ1z1kv1QEptrOfB3oUiwWea/eLo7iQ3mC0jGaPVHXgMG8BcRJgLqN8X0Z6y8hc1us4LddxJz+sNA6Yy+v+aQSE3XU8C3jBDDeGqOZQNw5oDr8ImN+RTGpNtH8l2wgwDsjd1dfMCjAFpVRn36M/jW8biQCzn4wDcmxUe3Kz2PjppbSzey3/WoAU0vEioNWeeS3Pc+bdh4mBnl8bIzR8ls+VQ75Ypk+Q0L5MXhL/GY8PIgAAAAAAAAAAAAAAAAAAAMD8A4wwR6LH9yjXAAAAAElFTkSuQmCC"
+    />
+  </svg>
+);
+export default DymoId;

@@ -498,6 +498,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "host_display_name": "%s",
   "software_title": "%s",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
@@ -506,7 +507,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
   "policy_name": null,
   "from_setup_experience": true
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, statusResp.Results.Software[0].Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.Name, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 
@@ -931,6 +932,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "host_display_name": "%s",
   "software_title": "1Password",
   "software_package": "%s",
+  "hash_sha256": "%s",
   "self_service": false,
   "install_uuid": "%s",
   "status": "installed",
@@ -939,7 +941,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithFMAAndVersionRollba
   "policy_name": null,
   "from_setup_experience": true
 }
-	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, installUUID)
+	`, enrolledHost.ID, getHostResp.Host.DisplayName, titleDetail.SoftwareTitle.SoftwarePackage.Name, titleDetail.SoftwareTitle.SoftwarePackage.StorageID, installUUID)
 	s.lastActivityMatchesExtended(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), expectedActivityDetail, 0, ptr.Bool(true))
 }
 
@@ -4526,31 +4528,45 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.runWorkerUntilDoneWithChecks(true)
 
-	// worker should have:
-	// 1. made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
-	// (this is because I made the worker run after host enrollment, if there were no host, the task would have nothing to do)
-	// 2. added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
-	// 3. made all apps available to the enrolled host (for self-service), from the host enrollment
-	// 4. installed the apps, from the host enrollment
+	// worker should have (in any order due to staggered job queuing):
+	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
+	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// - made all apps available to the enrolled host (for self-service), from the host enrollment
+	// - installed the apps, from the host enrollment
 	require.Len(t, patchAppsPolicies, 5)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-	}, patchAppsPolicies[0])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[1])
-	// Fleet agent is added during enrollment before self-service apps
-	require.Len(t, patchAppsPolicies[2], 1)
-	require.Equal(t, "com.fleetdm.agent", patchAppsPolicies[2][0].PackageName)
-	require.Equal(t, "FORCE_INSTALLED", patchAppsPolicies[2][0].InstallType)
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "AVAILABLE", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[3])
-	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
-		{PackageName: app1.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`1`)},
-		{PackageName: app2.VPPAppID.AdamID, InstallType: "PREINSTALLED", ManagedConfiguration: googleapi.RawMessage(`2`)},
-	}, patchAppsPolicies[4])
+
+	type appCall struct {
+		PackageName          string
+		InstallType          string
+		ManagedConfiguration string
+	}
+	var appCalls []appCall
+	var fleetAgentCount int
+	for _, policies := range patchAppsPolicies {
+		for _, p := range policies {
+			if p.PackageName == "com.fleetdm.agent" {
+				fleetAgentCount++
+				require.Equal(t, "FORCE_INSTALLED", p.InstallType)
+				require.Contains(t, string(p.ManagedConfiguration), "server_url")
+				require.Contains(t, string(p.ManagedConfiguration), "host_uuid")
+				continue
+			}
+			appCalls = append(appCalls, appCall{p.PackageName, p.InstallType, string(p.ManagedConfiguration)})
+		}
+	}
+	require.Equal(t, 1, fleetAgentCount, "fleet agent should be added exactly once")
+	require.ElementsMatch(t, []appCall{
+		// app1 made available individually (from PATCH config change)
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		// app2 made available individually (from PATCH config change)
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		// app1+app2 made available during enrollment (self-service)
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		// app1+app2 installed during enrollment (setup experience)
+		{app1.VPPAppID.AdamID, "PREINSTALLED", "1"},
+		{app2.VPPAppID.AdamID, "PREINSTALLED", "2"},
+	}, appCalls)
 
 	patchAppsPolicies = nil
 
@@ -5194,7 +5210,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 		if h.UUID == mdmDevice.EnrollmentID() {
 			enrolledHostID = h.ID
 			require.NotNil(t, h.MDM.EnrollmentStatus)
-			require.Equal(t, "On (personal)", *h.MDM.EnrollmentStatus)
+			require.Equal(t, "On (manual - personal)", *h.MDM.EnrollmentStatus)
 			break
 		}
 	}
@@ -5475,7 +5491,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 	})
 
 	// covers delete-while-pending and delete-while-running on the same host.
-	// The running case verifies the hsi row is cleaned up too (not left orphaned).
+	// The running case verifies the hsi row is preserved as canceled with its installer id nulled.
 	tOuter.Run("delete installer removes setup experience row", func(t *testing.T) {
 		host, _, titleIDs := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
 			{"dummy_installer.pkg", "DummyApp"},
@@ -5534,22 +5550,70 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			require.NotEqual(t, "NoVersion", r.Name, "NoVersion SE row must be removed after installer delete")
 		}
 
-		// the hsi row for the running EchoApp install must also be cleaned up,
-		// not left orphaned with software_installer_id=NULL
+		// the running install is marked canceled with software_installer_id nulled, so it's filtered out of
+		// GetSoftwareInstallResults but still available for a late result.
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUID)
-		require.Error(t, err, "orphan hsi row remains after installer delete")
+		require.True(t, fleet.IsNotFound(err), "canceled install must not be returned by GetSoftwareInstallResults")
+
+		var echoRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &echoRow, `SELECT software_installer_id, canceled FROM host_software_installs WHERE execution_id = ?`, echoInstallUUID)
+		})
+		require.Nil(t, echoRow.InstallerID, "installer id must be nulled by the FK on installer delete")
+		require.True(t, echoRow.Canceled, "running install must be preserved as canceled, not deleted")
 
 		// orbit endpoint must show only DummyApp now, still successful
 		statusAfter := pollOrbitSetupStatus(t, host)
 		require.Len(t, statusAfter.Results.Software, 1)
 		require.Equal(t, "DummyApp", statusAfter.Results.Software[0].Name)
 		require.Equal(t, fleet.SetupExperienceStatusSuccess, statusAfter.Results.Software[0].Status)
+
+		// a late result for the deleted install must not 500: the canceled row still lets
+		// CreateIntermediateInstallFailureRecord find the original install details.
+		s.Do("POST", "/api/fleet/orbit/software_install/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "install_uuid": %q, "install_script_exit_code": 1, "install_script_output": "boom", "retries_remaining": 1}`,
+				*host.OrbitNodeKey, echoInstallUUID)),
+			http.StatusNoContent)
+
+		// the intermediate failure record was written as a NEW row (distinct from the canceled original),
+		// carrying the reported failure output and the denormalized installer details from the original.
+		var failureCount int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &failureCount,
+				`SELECT COUNT(*) FROM host_software_installs
+				 WHERE host_id = ? AND execution_id != ? AND install_script_output = ?
+				 AND software_title_name = ? AND installer_filename = ?`,
+				host.ID, echoInstallUUID, "boom", "EchoApp", "EchoApp.pkg")
+		})
+		require.Equal(t, 1, failureCount)
+
+		// a completed install is marked removed (not canceled) when its installer is deleted.
+		s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software",
+			putSetupExperienceSoftwareRequest{TeamID: *host.TeamID, TitleIDs: []uint{}},
+			http.StatusOK, &swInstallResp)
+		s.Do("DELETE",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install?team_id=%d", titleIDs["DummyApp"], *host.TeamID),
+			nil, http.StatusNoContent)
+
+		var dummyRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Removed     bool  `db:"removed"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &dummyRow, `SELECT software_installer_id, removed, canceled FROM host_software_installs WHERE execution_id = ?`, dummyInstallUUID)
+		})
+		require.Nil(t, dummyRow.InstallerID)
+		require.True(t, dummyRow.Removed, "completed install must be marked removed when its installer is deleted")
+		require.False(t, dummyRow.Canceled, "completed install must not be canceled")
 	})
 
 	// covers the GitOps batch endpoint for both an installer edit (the
-	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a
-	// not-in-list delete (the cancelSetupExperienceStatusForDeletedSoftwareInstalls
-	// + deletePendingSoftwareInstallsNotInListHSI path, unchanged by this PR).
+	// runInstallerUpdateSideEffectsInTransaction isEdit=true path) and a not-in-list delete (the
+	// cancelSetupExperienceStatusForDeletedSoftwareInstalls + cancelPendingSoftwareInstallsNotInListHSI path).
 	tOuter.Run("gitops batch edit then delete via /software/batch", func(t *testing.T) {
 		host, _, _ := enrollHostWithSEInstallers(t, []struct{ Filename, Title string }{
 			{"dummy_installer.pkg", "DummyApp"},
@@ -5639,14 +5703,25 @@ func (s *integrationMDMTestSuite) TestSetupExperienceInstallerEditAndDelete() {
 			}, http.StatusAccepted, &batchResp, "team_name", teamName)
 		waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, teamName, batchResp.RequestUUID)
 
-		// EchoApp SE row gone, hsi cleaned up too
+		// EchoApp SE row gone; its running install is canceled with its installer id nulled, so it's
+		// filtered out of GetSoftwareInstallResults but still on the host.
 		results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
 		require.NoError(t, err)
 		for _, r := range results {
 			require.NotEqual(t, "EchoApp", r.Name, "EchoApp SE row must be removed after GitOps delete")
 		}
 		_, err = s.ds.GetSoftwareInstallResults(ctx, echoInstallUUIDBefore)
-		require.Error(t, err, "orphan hsi row remains after GitOps delete")
+		require.True(t, fleet.IsNotFound(err), "canceled install must not be returned by GetSoftwareInstallResults")
+
+		var echoBatchRow struct {
+			InstallerID *uint `db:"software_installer_id"`
+			Canceled    bool  `db:"canceled"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &echoBatchRow, `SELECT software_installer_id, canceled FROM host_software_installs WHERE execution_id = ?`, echoInstallUUIDBefore)
+		})
+		require.Nil(t, echoBatchRow.InstallerID)
+		require.True(t, echoBatchRow.Canceled, "running install must be preserved as canceled after GitOps delete")
 	})
 }
 

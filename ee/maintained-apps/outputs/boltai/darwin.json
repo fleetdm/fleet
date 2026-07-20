@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.13.4",
+      "version": "2.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile' AND version_compare(bundle_short_version, '2.13.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.boltai-mobile' AND version_compare(bundle_short_version, '2.14.0') < 0);"
       },
-      "installer_url": "https://updates.boltai.com/dmg/BoltAI-2.13.4.dmg",
+      "installer_url": "https://updates.boltai.com/dmg/BoltAI-2.14.0.dmg",
       "install_script_ref": "fbb1d678",
       "uninstall_script_ref": "8c3f3ae8",
-      "sha256": "5465bead0350daee7e5d9e3ed4ddd7c8f4eae51cd9b0e96908d9d44f1528c85a",
+      "sha256": "f5f4275b21a67685dcf12b7cd0cb6411c93aa844ce071a21ee28e6b189a7c8d7",
       "default_categories": [
         "Communication"
       ]

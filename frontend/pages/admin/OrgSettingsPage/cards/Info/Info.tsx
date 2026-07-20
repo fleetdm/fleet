@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -15,9 +15,9 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
+import { notify } from "components/ToastNotification";
 
 import logoAPI from "services/entities/logo";
-import { NotificationContext } from "context/notification";
 import {
   ORG_LOGO_ACCEPT,
   validateOrgLogoFile,
@@ -132,7 +132,6 @@ const Info = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const queryClient = useQueryClient();
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
@@ -233,7 +232,7 @@ const Info = ({
     if (!file) return;
     const result = await validateOrgLogoFile(file);
     if (!result.valid) {
-      renderFlash("error", result.error || "Invalid logo file.");
+      notify.error(result.error || "Invalid logo file.");
       return;
     }
     setLogoFile(mode === "light" ? setLightLogo : setDarkLogo, file);
@@ -275,10 +274,9 @@ const Info = ({
         };
         orgInfoOk = await handleSubmit(formDataToSubmit);
       } catch (e) {
-        renderFlash(
-          "error",
-          "Couldn't save organization info. Please try again."
-        );
+        notify.error("Couldn't save organization info. Please try again.", {
+          response: e,
+        });
         return;
       }
       if (!orgInfoOk) return;
@@ -340,10 +338,7 @@ const Info = ({
 
       if (failedModes.length > 0) {
         const label = failedModes.map((m) => `${m} mode`).join(" and ");
-        renderFlash(
-          "error",
-          `Couldn't update the ${label} logo. Please try again.`
-        );
+        notify.error(`Couldn't update the ${label} logo. Please try again.`);
       }
     } finally {
       setIsSaving(false);

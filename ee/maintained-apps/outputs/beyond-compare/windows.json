@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.2.2.32209",
+      "version": "5.2.3.32296",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Beyond Compare %' AND publisher = 'Scooter Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beyond Compare %' AND publisher = 'Scooter Software' AND version_compare(version, '5.2.2.32209') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Beyond Compare %' AND publisher = 'Scooter Software' AND version_compare(version, '5.2.3.32296') < 0);"
       },
-      "installer_url": "https://www.scootersoftware.com/files/BCompare-5.2.2.32209.exe",
+      "installer_url": "https://www.scootersoftware.com/files/BCompare-5.2.3.32296.exe",
       "install_script_ref": "5a25199c",
       "uninstall_script_ref": "7bf824a3",
-      "sha256": "11cdb99770d2c8db50c68cf557db4641d1a162bd4362c9b18286ab7a405cf6a1",
+      "sha256": "a74239803aa1a1373735dc092365cca85c726178625aa51821f35aaf42559621",
       "default_categories": [
         "Developer tools"
       ]

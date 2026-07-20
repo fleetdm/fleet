@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.5.208",
+      "version": "3.5.230",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app' AND version_compare(bundle_short_version, '3.5.208') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.clickup.desktop-app' AND version_compare(bundle_short_version, '3.5.230') < 0);"
       },
-      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.208%20-%20Build%20260505zrf6t7imk-arm64.dmg",
+      "installer_url": "https://download.todesktop.com/221003ra4tebclw/ClickUp%203.5.230%20-%20Build%20260616wecrh5vza-arm64.dmg",
       "install_script_ref": "e936dc60",
       "uninstall_script_ref": "f272dcb6",
-      "sha256": "aaeecdee1e6be0a304c00f0c09e958de4de5733420a0896c079c8a7409be4d16",
+      "sha256": "283531cae233999a80735db81844bf4005aa047ab59be40c92685663caf0081e",
       "default_categories": [
         "Productivity"
       ]

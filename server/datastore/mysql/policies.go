@@ -367,6 +367,23 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 	return &policy, nil
 }
 
+// ResetPolicy clears a policy's pass/fail results: it wipes all policy_membership
+// rows and policy_stats rows for the policy and resets automation retry attempts.
+// This is the same cleanup performed when a policy's query is modified.
+func (ds *Datastore) ResetPolicy(ctx context.Context, policyID uint) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := resetPolicyAutomationAttempts(ctx, tx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy automation attempts")
+		}
+		// removeAllMemberships=true, removePolicyStats=true; platform is unused
+		// when removing all memberships, so "" is fine.
+		return cleanupPolicy(ctx, tx, tx, policyID, "", true, true, ds.logger)
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "resetting policy")
+	}
+	return nil
+}
+
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
@@ -667,7 +684,14 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 	return filtered
 }
 
-func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) error {
+// RecordPolicyQueryExecutions upserts the incoming policy results into
+// policy_membership and returns the host's stale policy IDs: policies with a
+// stored policy_membership row but no incoming result. It does NOT delete
+// those rows; whether they can be deleted is the caller's decision, since only
+// the caller knows whether the incoming results are the host's complete set of
+// in-scope policies (e.g. hosts in setup experience are sent a filtered
+// subset).
+func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool, newlyPassingPolicyIDs []uint) ([]uint, error) {
 	// Identify policies that flipped failing -> passing for this host using current incoming results.
 	// We compute this before updating policy_membership so we compare against the previous state.
 	// When newlyPassingPolicyIDs is non-nil, the caller has already computed flipping policies
@@ -679,7 +703,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		var err error
 		_, newPassing, err = ds.FlippingPoliciesForHost(ctx, host.ID, results)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if len(newPassing) > 0 {
@@ -687,16 +711,16 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	}
 
 	// To avoid redundant UPSERTs (#44191), fetch the existing policy_membership
-	// rows for the incoming policies and narrow the UPSERT batch to only the
-	// rows whose stored value differs from incoming. The read is a small
-	// indexed lookup on (host_id, policy_id); the savings are on the writer
-	// side, which is the loadtest bottleneck. policy_membership.updated_at
-	// therefore tracks "last state change" rather than "last reported";
-	// hosts.policy_updated_at remains the per-host "last reported" signal
-	// and is updated below regardless.
-	needsWrite, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
+	// rows for the host and narrow the UPSERT batch to only the rows whose
+	// stored value differs from incoming. The read is a small indexed lookup on
+	// host_id; the savings are on the writer side, which is the loadtest
+	// bottleneck. policy_membership.updated_at therefore tracks "last state
+	// change" rather than "last reported"; hosts.policy_updated_at remains the
+	// per-host "last reported" signal and is updated below regardless. The same
+	// read yields the stale policy IDs returned to the caller.
+	needsWrite, stalePolicyIDs, err := ds.policiesNeedingMembershipWrite(ctx, host.ID, results)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	vals := []interface{}{}
@@ -772,14 +796,14 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// ds.UpdateHostIssuesFailingPoliciesForSingleHost should be executed even if len(results) == 0
 	// because this means the host is configured to run no policies and we would like
 	// to cleanup the counts (if any).
 	if err := ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
-		return err
+		return nil, err
 	}
 
 	if deferredSaveHost {
@@ -787,7 +811,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		defer close(errCh)
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		case ds.writeCh <- itemToWrite{
 			ctx:   ctx,
 			errCh: errCh,
@@ -797,10 +821,10 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 				what:      "policy_updated_at",
 			},
 		}:
-			return <-errCh
+			return stalePolicyIDs, <-errCh
 		}
 	}
-	return nil
+	return stalePolicyIDs, nil
 }
 
 // policiesNeedingMembershipWrite returns the set of policy IDs whose stored
@@ -810,35 +834,32 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 //   - Existing row matches incoming (both NULL or same bool): skip (no-op).
 //   - Existing row differs from incoming (incl. transitions to/from NULL): write.
 //
-// The read is an indexed lookup on (host_id, policy_id) and is cheap relative
-// to the writes it lets us avoid; this is the optimization #44191 is about.
-func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (map[uint]struct{}, error) {
-	needsWrite := make(map[uint]struct{}, len(incoming))
-	if len(incoming) == 0 {
-		return needsWrite, nil
-	}
-
-	ids := make([]uint, 0, len(incoming))
-	for id := range incoming {
-		ids = append(ids, id)
-	}
+// It also returns the host's stale policy IDs: policies with a stored
+// policy_membership row but no incoming result. When incoming is the complete
+// set of policy results for the host's reporting cycle, those policies are no
+// longer in scope for the host (e.g. it changed teams, or the policy's
+// platform or label scope changed) and their rows are candidates for deletion.
+//
+// The read is an indexed lookup on host_id and is cheap relative to the
+// writes it lets us avoid; this is the optimization #44191 is about.
+func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID uint, incoming map[uint]*bool) (needsWrite map[uint]struct{}, stalePolicyIDs []uint, err error) {
+	needsWrite = make(map[uint]struct{}, len(incoming))
 
 	type membershipRow struct {
 		PolicyID uint         `db:"policy_id"`
 		Passes   sql.NullBool `db:"passes"`
 	}
-	selectQuery := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ? AND policy_id IN (?)`
-	selectQuery, args, err := sqlx.In(selectQuery, hostID, ids)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select policy_membership query for delta")
-	}
 	var stored []membershipRow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &stored, selectQuery, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
+	selectQuery := `SELECT policy_id, passes FROM policy_membership WHERE host_id = ?`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &stored, selectQuery, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select policy_membership for delta")
 	}
 	storedByID := make(map[uint]sql.NullBool, len(stored))
 	for _, r := range stored {
 		storedByID[r.PolicyID] = r.Passes
+		if _, ok := incoming[r.PolicyID]; !ok {
+			stalePolicyIDs = append(stalePolicyIDs, r.PolicyID)
+		}
 	}
 
 	for policyID, incomingValue := range incoming {
@@ -859,7 +880,7 @@ func (ds *Datastore) policiesNeedingMembershipWrite(ctx context.Context, hostID 
 			needsWrite[policyID] = struct{}{}
 		}
 	}
-	return needsWrite, nil
+	return needsWrite, stalePolicyIDs, nil
 }
 
 func (ds *Datastore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
@@ -908,8 +929,17 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, "", nil)
+func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+	filterClause, filterArgs := platformFilterClause(platform)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, filterClause, filterArgs)
+}
+
+func platformFilterClause(platform string) (string, []any) {
+	platform = strings.ReplaceAll(platform, " ", "")
+	if platform == "" {
+		return "", nil
+	}
+	return " AND (p.platforms = '' OR FIND_IN_SET(?, REPLACE(p.platforms, ' ', '')))", []any{platform}
 }
 
 // returns the list of policies associated with the provided teamID, or the
@@ -966,7 +996,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
-func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	query := `
@@ -984,6 +1014,11 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
     `
 
 	args = append(args, teamID)
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
+	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(opts.MatchQuery)
@@ -1008,7 +1043,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 
 // CountPolicies returns the total number of team policies.
 // If teamID is nil, it returns the total number of global policies.
-func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string) (int, error) {
+func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string, automationType string, platform string) (int, error) {
 	var (
 		query string
 		args  []interface{}
@@ -1034,6 +1069,11 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 		}
 	}
 
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
+	}
+
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	match := norm.NFC.String(matchQuery)
 	query, args = searchLike(query, args, match, policySearchColumns...)
@@ -1046,7 +1086,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	return count, nil
 }
 
-func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string) (int, error) {
+func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string, automationType string, platform string) (int, error) {
 	var args []interface{}
 
 	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
@@ -1060,6 +1100,11 @@ func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, m
 	query += automationFilter
 	if len(filterArgs) > 0 {
 		args = append(args, filterArgs...)
+	}
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		query += platformClause
+		args = append(args, platformArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -1409,10 +1454,15 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 	return policyDB(ctx, db, policyID, &teamID)
 }
 
-func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
+func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType string, platform string) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
 	filterClause, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
+	}
+
+	if platformClause, platformArgs := platformFilterClause(platform); platformClause != "" {
+		filterClause += platformClause
+		filterArgs = append(filterArgs, platformArgs...)
 	}
 
 	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts, filterClause, filterArgs)
@@ -1420,20 +1470,22 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts)
+	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts, platform)
 	if err != nil {
 		return nil, nil, err
 	}
 	return teamPolicies, inheritedPolicies, err
 }
 
-func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string) ([]*fleet.Policy, error) {
+func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, automationType string, platform string) ([]*fleet.Policy, error) {
 	var args []interface{}
 
 	automationFilter, filterArgs, err := ds.createAutomationClause(ctx, automationType, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build automation filter clause")
 	}
+
+	platformClause, platformArgs := platformFilterClause(platform)
 
 	query := fmt.Sprintf(`
 		SELECT
@@ -1449,11 +1501,15 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 		AND (p.team_id IS NOT NULL OR ps.inherited_team_id = ?)
 		WHERE (p.team_id = ? OR p.team_id IS NULL)
 		%s
-    `, automationFilter)
+		%s
+    `, automationFilter, platformClause)
 
 	args = append(args, teamID, teamID)
 	if len(filterArgs) > 0 {
 		args = append(args, filterArgs...)
+	}
+	if len(platformArgs) > 0 {
+		args = append(args, platformArgs...)
 	}
 
 	// We must normalize the name for full Unicode support (Unicode equivalence).
@@ -1571,13 +1627,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			SoftwareInstallerID *uint `db:"si_id"`
 			VPPAppsTeamsID      *uint `db:"vat_id"`
 		}
+		// A title can hold several active packages; pin the policy to the first-added one
+		// (smallest installer_id) so GitOps re-links deterministically to the first-added-wins
+		// package. si_id IS NULL orders the VPP branch last (a title is single-regime, so only
+		// one branch returns rows).
 		err := sqlx.GetContext(ctx, queryerContext, &ids,
 			`SELECT id si_id, NULL vat_id FROM software_installers
 				WHERE global_or_team_id = ? AND title_id = ? AND is_active = 1
 				UNION
 				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
 				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-				WHERE global_or_team_id = ? AND title_id = ?`,
+				WHERE global_or_team_id = ? AND title_id = ?
+				ORDER BY si_id IS NULL, si_id ASC
+				LIMIT 1`,
 			teamNameToID[spec.Team], spec.SoftwareTitleID, teamNameToID[spec.Team], spec.SoftwareTitleID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -2598,7 +2660,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	}
 
 	if hasTeams {
-		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list global policies")
 		}
@@ -2870,6 +2932,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		p.id AS id,
 		p.name AS name,
 		COALESCE(si.title_id, va.title_id) AS software_title_id,
+		p.software_installer_id AS software_installer_id,
 		p.type AS type
 	FROM policies p
 	LEFT JOIN software_installers si ON p.software_installer_id = si.id

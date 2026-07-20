@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "3.19.3",
+      "version": "3.20.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio' AND version_compare(bundle_short_version, '3.19.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ocenaudio' AND version_compare(bundle_short_version, '3.20.0') < 0);"
       },
       "installer_url": "https://www.ocenaudio.com/downloads/index.php/ocenaudio_universal.dmg",
       "install_script_ref": "0c2240cf",
