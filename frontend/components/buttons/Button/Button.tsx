@@ -8,7 +8,6 @@ export type ButtonVariant =
   | "default"
   | "alert"
   | "pill"
-  | "grey-pill"
   | "link" // Looks like CustomLink with animated underline on hover
   | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon" // DEPRECATED — use "inverse" instead. Swept in the 2025-09 UI reskin (#33558); kept for legacy callers only. New code: always reach for "inverse".
@@ -146,8 +145,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "inverse" ||
       variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
-      variant === "pill" ||
-      variant === "grey-pill";
+      variant === "pill";
 
     return (
       <button

@@ -188,47 +188,6 @@ $base-class: "button";
     }
   }
 
-  &--grey-pill {
-    @include button-variant(
-      $core-fleet-white,
-      $ui-off-white,
-      null,
-      $inverse: true
-    );
-    color: $ui-fleet-black-75;
-    border: 1px solid $ui-fleet-black-25;
-    border-radius: 4px;
-    box-sizing: border-box;
-    font-size: $xx-small;
-    font-weight: $bold;
-    padding: 0 $pad-small;
-    height: 28px;
-
-    // Override the $inverse branch of button-variant, which hardcodes its
-    // own hover/active backgrounds and adds a separate ::after focus ring —
-    // this variant instead borrows its tokens straight from the Tag
-    // component's clickable states so the two stay visually identical.
-    &:hover {
-      background-color: $ui-off-white;
-      border: 1px solid $ui-fleet-black-50;
-    }
-
-    &:focus-visible {
-      border: 1px solid $core-fleet-black;
-      outline: none;
-
-      &::after {
-        content: none;
-      }
-    }
-
-    &:active {
-      background-color: $ui-fleet-black-5;
-      border: 1px solid $ui-fleet-black-50;
-      box-shadow: none;
-    }
-  }
-
   // Looks exactly like a CustomLink but is a <button>
   &--link {
     @include link;
