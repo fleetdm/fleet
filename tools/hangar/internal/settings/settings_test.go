@@ -90,6 +90,27 @@ func TestLoadDefaultsForMissingFields(t *testing.T) {
 	}
 }
 
+// A hand-edited file with an empty "servers": [] must not panic on Load — the
+// ActiveServerID repair in migrate indexes Servers[0], so an empty array has to
+// synthesize server 1 just like a nil/absent one.
+func TestLoadEmptyServersArray(t *testing.T) {
+	dir := t.TempDir()
+	data := `{ "repo_path": "/x", "servers": [] }`
+	if err := os.WriteFile(filepath.Join(dir, fileName), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir) // must not panic
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Servers) != 1 {
+		t.Fatalf("empty servers array should synthesize 1 server, got %d", len(got.Servers))
+	}
+	if got.ActiveServerID != got.Servers[0].ID {
+		t.Errorf("active_server_id = %q, want %q", got.ActiveServerID, got.Servers[0].ID)
+	}
+}
+
 // An explicit false in the file must win over the true default.
 func TestLoadExplicitFalseWins(t *testing.T) {
 	dir := t.TempDir()

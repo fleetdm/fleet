@@ -151,8 +151,12 @@ func Export(ctx context.Context, repoPath string, cfg Config, absDir string) (Ex
 		if errors.As(runErr, &ee) && ee.ProcessState.Exited() {
 			code := ee.ProcessState.ExitCode()
 			res.ExitCode = &code
+		} else if res.Stderr == "" {
+			// Spawn/setup failure (e.g. `go` missing) or context timeout/signal —
+			// the process never produced output. Surface the error so the caller
+			// isn't left with an empty, success-shaped result.
+			res.Stderr = runErr.Error()
 		}
-		// else (context timeout / signal): leave ExitCode nil.
 	}
 	// Parse regardless of exit — some files may be written before a later error.
 	res.Files = StatFiles(ParseWrittenPaths(res.Stdout + "\n" + res.Stderr))

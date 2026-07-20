@@ -302,7 +302,10 @@ func Load(dir string) (Settings, error) {
 // migrate is idempotent: a file already in the new shape passes through with
 // only defensive backfilling.
 func migrate(s *Settings) {
-	if s.Servers == nil {
+	// len==0 (not just nil): a hand-edited file with "servers": [] unmarshals to
+	// a non-nil empty slice, and the ActiveServerID repair below indexes
+	// Servers[0] — so an empty array must synthesize server 1 too, or Load panics.
+	if len(s.Servers) == 0 {
 		srv := defaultServer(0)
 		srv.Name = "main"
 		srv.WorktreePath = s.RepoPath // nil for a fresh install, set on upgrade
