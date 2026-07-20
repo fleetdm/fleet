@@ -249,9 +249,6 @@ const ConditionalAccess = () => {
 
   const oktaConfigured = isOktaConditionalAccessConfigured(config);
 
-  // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
-  const isManagedCloud = config?.license?.managed_cloud || false;
-
   // Check Entra configuration state
   // Note: entraPhase is intentionally included in the dependency array to allow
   // manual phase overrides (e.g., AwaitingOAuth) to persist until config changes
@@ -490,7 +487,7 @@ const ConditionalAccess = () => {
     return (
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
-        {isManagedCloud && renderEntraContent()}
+        {renderEntraContent()}
       </div>
     );
   };

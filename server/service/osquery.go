@@ -1458,6 +1458,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 	}
 
+	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
+		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName); err != nil {
+			logging.WithErr(ctx, err)
+		}
+	}
+
 	if host.DiskEncryptionKeyEscrowed {
 		if err := svc.NewActivity(
 			ctx,
@@ -2616,8 +2622,10 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 }
 
 func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
-	// Check if the needed server configuration for Conditional Access is set.
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+	// Conditional access is a Fleet Premium feature. Gate on the current license
+	// tier so that an integration left over from a previous Premium license
+	// (e.g. after a downgrade or expiry) doesn't keep the feature active.
+	if !license.IsPremium(ctx) {
 		return false, false, nil
 	}
 

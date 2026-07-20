@@ -734,6 +734,133 @@ func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 }
 
+func TestMDMAppleCommanderDeviceNameSetting(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	// A name containing XML-unsafe characters that must be escaped.
+	deviceName := "Bob & Alice's <iPad>"
+
+	var gotRaw []byte
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "Settings", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		gotRaw = cmd.Raw
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{
+				PushMagic: "magic" + uuid,
+				Token:     []byte("token" + uuid),
+				Topic:     "topic" + uuid,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err := cmdr.DeviceNameSetting(ctx, hostUUID, cmdUUID, deviceName)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+
+	// The emitted plist must be well-formed and carry the expected Settings/DeviceName payload.
+	var parsed struct {
+		CommandUUID string
+		Command     struct {
+			RequestType string
+			Settings    []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(gotRaw, &parsed))
+	require.Equal(t, cmdUUID, parsed.CommandUUID)
+	require.Equal(t, "Settings", parsed.Command.RequestType)
+	require.Len(t, parsed.Command.Settings, 1)
+	require.Equal(t, "DeviceName", parsed.Command.Settings[0].Item)
+	// The name must round-trip through XML escaping intact.
+	require.Equal(t, deviceName, parsed.Command.Settings[0].DeviceName)
+
+	// The raw XML must contain escaped entities, not the literal unsafe characters.
+	require.Contains(t, string(gotRaw), "Bob &amp; Alice&#39;s &lt;iPad&gt;")
+	require.NotContains(t, string(gotRaw), "<iPad>")
+}
+
+func TestMDMAppleCommanderDeviceNameSettingWithoutNotifications(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	cmdUUID := uuid.New().String()
+	deviceName := "Bob & Alice's <iPad>"
+
+	var gotRaw []byte
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "Settings", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		gotRaw = cmd.Raw
+		return nil, nil
+	}
+
+	err := cmdr.DeviceNameSettingWithoutNotifications(ctx, hostUUID, cmdUUID, deviceName)
+	require.NoError(t, err)
+	// The command is enqueued but no push is sent: the caller batches the push.
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.False(t, mdmStorage.RetrievePushInfoFuncInvoked)
+
+	// The emitted plist is identical to the notifying variant's.
+	var parsed struct {
+		CommandUUID string
+		Command     struct {
+			RequestType string
+			Settings    []struct {
+				Item       string
+				DeviceName string
+			}
+		}
+	}
+	require.NoError(t, plist.Unmarshal(gotRaw, &parsed))
+	require.Equal(t, cmdUUID, parsed.CommandUUID)
+	require.Len(t, parsed.Command.Settings, 1)
+	require.Equal(t, "DeviceName", parsed.Command.Settings[0].Item)
+	require.Equal(t, deviceName, parsed.Command.Settings[0].DeviceName)
+}
+
 func TestAccountConfigurationWithAdminAccount(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.7.0",
+      "version": "2026.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant' AND version_compare(bundle_short_version, '2026.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.robbie.HomeAssistant' AND version_compare(bundle_short_version, '2026.7.1') < 0);"
       },
-      "installer_url": "https://github.com/home-assistant/iOS/releases/download/release%2F2026.7.0%2F2026.2208/home-assistant-mac.zip",
+      "installer_url": "https://github.com/home-assistant/iOS/releases/download/release%2F2026.7.1%2F2026.2346/home-assistant-mac.zip",
       "install_script_ref": "8e645b2e",
       "uninstall_script_ref": "b46351a1",
-      "sha256": "35aebe979ccbf477dd7afc2d752c11b6b505dea1f9f01a5e7167b71563af429a",
+      "sha256": "07f7481bbfc882018cc8230a1a5a15aca919e348b00a2901ceb13ab1673ebd90",
       "default_categories": [
         "Productivity"
       ]

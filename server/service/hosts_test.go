@@ -94,11 +94,11 @@ func TestHostDetails(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
-	}
-	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
-		return nil, nil
 	}
 
 	opts := fleet.HostDetailOptions{
@@ -152,6 +152,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -162,6 +165,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -450,6 +456,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
@@ -466,6 +475,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -566,6 +578,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -576,6 +591,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -740,6 +758,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
@@ -808,6 +829,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
@@ -822,6 +846,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	}
 
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -868,6 +895,138 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, hostDetail)
 		require.False(t, ds.GetHostRecoveryLockPasswordStatusFuncInvoked)
+	})
+}
+
+func TestHostDetailsHostNameStatus(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) { return nil, nil }
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) { return nil, nil }
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) { return nil, nil }
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) { return nil, nil }
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{Enrolled: true, IsServer: false}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) { return false, nil }
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+
+	getDetails := func(t *testing.T, platform string) *fleet.HostDetail {
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: platform, UUID: "test-uuid"},
+			fleet.HostDetailOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, hostDetail)
+		return hostDetail
+	}
+
+	// Each of the four statuses surfaces, and a NULL (queued) row renders pending.
+	statusCases := []struct {
+		name   string
+		dbRow  *fleet.HostDeviceNameEnforcement
+		expect fleet.HostNameSettingStatus
+		detail string
+	}{
+		{"queued NULL renders pending", &fleet.HostDeviceNameEnforcement{HostUUID: "test-uuid", Status: nil}, fleet.HostNameSettingPending, ""},
+		{"pending", &fleet.HostDeviceNameEnforcement{HostUUID: "test-uuid", Status: new(fleet.MDMDeliveryPending)}, fleet.HostNameSettingPending, ""},
+		{"verifying", &fleet.HostDeviceNameEnforcement{HostUUID: "test-uuid", Status: new(fleet.MDMDeliveryVerifying)}, fleet.HostNameSettingVerifying, ""},
+		{"verified", &fleet.HostDeviceNameEnforcement{HostUUID: "test-uuid", Status: new(fleet.MDMDeliveryVerified)}, fleet.HostNameSettingVerified, ""},
+		{"failed with detail", &fleet.HostDeviceNameEnforcement{HostUUID: "test-uuid", Status: new(fleet.MDMDeliveryFailed), Detail: "boom"}, fleet.HostNameSettingFailed, "boom"},
+	}
+	for _, tc := range statusCases {
+		for _, platform := range []string{"darwin", "ios", "ipados"} {
+			t.Run(tc.name+"/"+platform, func(t *testing.T) {
+				ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+					return tc.dbRow, nil
+				}
+				hd := getDetails(t, platform)
+				require.NotNil(t, hd.MDM.OSSettings.HostName, "host_name must be present for eligible host")
+				require.Equal(t, tc.expect, hd.MDM.OSSettings.HostName.Status)
+				require.Equal(t, tc.detail, hd.MDM.OSSettings.HostName.Detail)
+			})
+		}
+	}
+
+	t.Run("omitted when the host has no enforcement row", func(t *testing.T) {
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, newNotFoundError()
+		}
+		hd := getDetails(t, "darwin")
+		require.Nil(t, hd.MDM.OSSettings.HostName, "host_name must be omitted for an ineligible host")
+	})
+
+	t.Run("not queried for non-Apple platforms", func(t *testing.T) {
+		ds.GetHostDeviceNameEnforcementFuncInvoked = false
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, nil
+		}
+		ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+			return nil, nil
+		}
+		hd := getDetails(t, "windows")
+		require.False(t, ds.GetHostDeviceNameEnforcementFuncInvoked)
+		require.Nil(t, hd.MDM.OSSettings.HostName)
+	})
+
+	t.Run("not queried when MDM is not configured", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: false}}, nil
+		}
+		ds.GetHostDeviceNameEnforcementFuncInvoked = false
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return &fleet.HostDeviceNameEnforcement{HostUUID: hostUUID}, nil
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		hd, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid"}, fleet.HostDetailOptions{})
+		require.NoError(t, err)
+		require.False(t, ds.GetHostDeviceNameEnforcementFuncInvoked, "must not query enforcement when MDM is off")
+		require.Nil(t, hd.MDM.OSSettings) // OS settings are only assembled when MDM is configured
+	})
+
+	t.Run("non-not-found datastore error propagates", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+			return nil, errors.New("db exploded")
+		}
+
+		ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		_, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin),
+			&fleet.Host{ID: 42, Platform: "darwin", UUID: "test-uuid"}, fleet.HostDetailOptions{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db exploded")
 	})
 }
 
@@ -980,6 +1139,9 @@ func TestHostAuth(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
@@ -3240,6 +3402,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -3259,6 +3424,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -3387,6 +3555,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -3403,6 +3574,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 		return nil, nil
 	}
 
@@ -4214,6 +4388,9 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {

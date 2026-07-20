@@ -31,7 +31,7 @@ type BugIssue struct {
 	} `json:"labels"`
 }
 
-var productGroupLabels = []string{"#g-software", "#g-orchestration", "#g-mdm", "#g-security-compliance"}
+var productGroupLabels = []string{"#g-software", "#g-orchestration", "#g-mdm", "#g-supply-chain"}
 
 func (i BugIssue) ProductGroup() string {
 	for _, label := range i.Labels {

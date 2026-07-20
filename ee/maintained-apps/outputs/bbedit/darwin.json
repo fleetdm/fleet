@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "16.0.1",
+      "version": "16.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.barebones.bbedit' AND version_compare(bundle_short_version, '16.0.2') < 0);"
       },
-      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_16.0.1.dmg",
+      "installer_url": "https://s3.amazonaws.com/BBSW-download/BBEdit_16.0.2.dmg",
       "install_script_ref": "b133b44e",
       "uninstall_script_ref": "45bbb2ec",
-      "sha256": "e4ac925a2fecf4ed6f3d5b18bd77e223d1323994724adcb2fec764c984d6f689",
+      "sha256": "f63367b675245752bd6c74072bef840288444d04fc582f9a382112daa61b8874",
       "default_categories": [
         "Developer tools"
       ]
