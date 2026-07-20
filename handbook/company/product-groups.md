@@ -275,7 +275,7 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 
 #### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater).
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). ["Full draft" user stories](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft) that were approved at design review are reviewed. 
 
 #### Weekly planning (1 hour, Monday)
 
