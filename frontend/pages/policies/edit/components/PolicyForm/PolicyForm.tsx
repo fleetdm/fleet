@@ -798,7 +798,7 @@ const PolicyForm = ({
                     (isEditMode && !isAnyPlatformSelected) ||
                     disabledLiveQuery
                   }
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Run policy <Icon name="run" />
                 </Button>

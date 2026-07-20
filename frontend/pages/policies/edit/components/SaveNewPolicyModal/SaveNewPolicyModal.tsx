@@ -455,7 +455,7 @@ const SaveNewPolicyModal = ({
             className={`${baseClass}__button--modal-cancel`}
             type="button"
             onClick={() => setIsSaveNewPolicyModalOpen(false)}
-            variant="inverse"
+            variant="secondary"
           >
             Cancel
           </Button>

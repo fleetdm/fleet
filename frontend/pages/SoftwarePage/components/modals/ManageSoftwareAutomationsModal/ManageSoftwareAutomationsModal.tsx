@@ -610,7 +610,7 @@ const ManageAutomationsModal = ({
         </div>
         <div className="modal-cta-wrap">
           {renderSaveButton()}
-          <Button onClick={onReturnToApp} variant="inverse">
+          <Button onClick={onReturnToApp} variant="secondary">
             Cancel
           </Button>
         </div>

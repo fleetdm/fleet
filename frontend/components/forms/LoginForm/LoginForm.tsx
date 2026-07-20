@@ -88,7 +88,7 @@ const LoginForm = ({
       <Button
         className={`${baseClass}__sso-btn`}
         type="button"
-        variant="inverse"
+        variant="secondary"
         onClick={handleSSOSignOn}
         tabIndex={0}
       >

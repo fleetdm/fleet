@@ -153,7 +153,7 @@ const AddAssetModal = ({
           >
             Add asset
           </Button>
-          <Button variant="inverse" onClick={onDone}>
+          <Button variant="secondary" onClick={onDone}>
             Cancel
           </Button>
         </div>

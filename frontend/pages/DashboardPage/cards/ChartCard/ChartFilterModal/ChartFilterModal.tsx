@@ -420,7 +420,7 @@ const ChartFilterModal = ({
           </Button>
         )}
         <div className={`${baseClass}__btn-actions`}>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
           {applyDisabled ? (
