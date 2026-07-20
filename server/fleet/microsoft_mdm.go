@@ -880,26 +880,17 @@ const (
 	// to register and setup experience items to be enqueued.
 	WindowsMDMAwaitingConfigurationPending WindowsMDMAwaitingConfiguration = 1
 	// WindowsMDMAwaitingConfigurationActive means ESP commands have been enqueued and setup progress is being tracked.
-	// The enrollment stays Active after the release commands are sent until the device acks the user-scope
-	// ServerHasFinishedProvisioning Replace with a 200 (see MDMWindowsESPReleaseAckStatus); only then does it
-	// transition to None.
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
 
 // MDMWindowsESPReleaseAckStatus summarizes the delivery state of the ESP release command that completes the
-// Windows Autopilot "Account setup" phase (the user-scope ServerHasFinishedProvisioning Replace) for one
-// enrollment. During OOBE the device rejects user-scope writes with SyncML 405 until the user MDM context
-// initializes, so the release is re-sent each session until a 200 is observed; this struct is what the
-// release handler consults to decide between finishing, waiting, and retrying.
+// Windows Autopilot "Account setup" phase (the user-scope ServerHasFinishedProvisioning Replace).
 type MDMWindowsESPReleaseAckStatus struct {
-	// Attempted is true when at least one release command targeting the URI has been queued for the
-	// enrollment (i.e., the finalize has run and the enrollment is in the resend phase).
+	// Attempted is true when at least one release command targeting the URI has been queued for the enrollment.
 	Attempted bool
-	// Acked200 is true when any attempt has a recorded 200 result: the device accepted the write and the
-	// ESP user phase is complete.
+	// Acked200 is true when any attempt has a recorded 200 result.
 	Acked200 bool
-	// HasUnacked is true when an attempt is still queued without any response (in flight, or covered by the
-	// dropped-response redelivery of the command queue).
+	// HasUnacked is true when an attempt is still queued without any response (in flight).
 	HasUnacked bool
 	// LatestStatus is the status code of the most recently acked attempt ("405", "200", ...), empty when no
 	// attempt has a recorded result yet.
