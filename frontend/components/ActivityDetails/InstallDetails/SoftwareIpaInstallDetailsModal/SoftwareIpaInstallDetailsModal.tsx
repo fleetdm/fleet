@@ -473,6 +473,7 @@ export const SoftwareIpaInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <>
@@ -506,6 +507,7 @@ export const SoftwareIpaInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <Textarea label="Error details:" variant="code">

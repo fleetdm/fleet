@@ -324,6 +324,7 @@ export const SoftwareInstallDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleInstallDetails}
+            variant="secondary"
           />
         )}
         {showInstallDetails &&

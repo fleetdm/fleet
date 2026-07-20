@@ -241,6 +241,7 @@ export const SoftwareScriptDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleInstallDetails}
+            variant="secondary"
           />
         )}
         {showInstallDetails && swInstallResult?.output && (
