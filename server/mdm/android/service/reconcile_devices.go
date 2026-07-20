@@ -135,7 +135,8 @@ func listAllAndroidDeviceNames(ctx context.Context, client androidmgmt.Client, l
 		}
 		if page >= androidReconcileMaxPages {
 			logger.ErrorContext(ctx, "android reconcile pagination exceeded max pages; aborting to avoid unbounded loop",
-				"max_pages", androidReconcileMaxPages, "devices_seen", len(deviceNameMap))
+				"enterprise", enterpriseName, "max_pages", androidReconcileMaxPages, "page", page,
+				"page_token", pageToken, "next_page_token", resp.NextPageToken, "devices_seen", len(deviceNameMap))
 			return nil, ctxerr.Errorf(ctx, "android reconcile pagination exceeded max pages (%d)", androidReconcileMaxPages)
 		}
 		if page%androidReconcilePageLogInterval == 0 {
