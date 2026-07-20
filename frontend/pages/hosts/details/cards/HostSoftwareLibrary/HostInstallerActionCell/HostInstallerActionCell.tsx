@@ -368,7 +368,7 @@ export const HostInstallerActionCell = ({
       return (
         <div className={`${baseClass}__more-actions-wrapper`}>
           <ActionsDropdown
-            className={`${baseClass}__more-actions-dropdown`}
+            className={`${baseClass}__more-actions-dropdown row-hover-button`}
             onChange={onSelectOption}
             placeholder="More"
             options={getMoreActionsDropdownOptions(
