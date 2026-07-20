@@ -1811,14 +1811,34 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		}
 	}
 
+	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+	}
+
 	if !found {
 		// create a new entry if app config doesn't have one.
+		byodTeam := token.BYODTeam.Name
+		if byodTeam == fleet.TeamNameNoTeam {
+			byodTeam = ""
+		}
+		macosTeam := token.MacOSTeam.Name
+		if macosTeam == fleet.TeamNameNoTeam {
+			macosTeam = ""
+		}
+		iosTeam := token.IOSTeam.Name
+		if iosTeam == fleet.TeamNameNoTeam {
+			iosTeam = ""
+		}
+		ipadosTeam := token.IPadOSTeam.Name
+		if ipadosTeam == fleet.TeamNameNoTeam {
+			ipadosTeam = ""
+		}
 		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
 			OrganizationName: token.OrganizationName,
-			BYODTeam:         token.BYODTeam.Name,
-			MacOSTeam:        token.MacOSTeam.Name,
-			IOSTeam:          token.IOSTeam.Name,
-			IpadOSTeam:       token.IPadOSTeam.Name,
+			BYODTeam:         byodTeam,
+			MacOSTeam:        macosTeam,
+			IOSTeam:          iosTeam,
+			IpadOSTeam:       ipadosTeam,
 		})
 	}
 
