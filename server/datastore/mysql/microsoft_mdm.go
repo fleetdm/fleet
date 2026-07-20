@@ -687,7 +687,6 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
 			}
 
-			// This path only upserts profile rows, so no rollup row can be orphaned.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
@@ -1354,8 +1353,6 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
-	// Only the terminal remove cleanup above deletes profile rows; when it did not run, the host cannot
-	// have been orphaned and the orphan-delete is safely skipped (the common case for check-ins).
 	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, len(deleteCommandUUIDs) == 0); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
 	}
@@ -1805,6 +1802,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 	//     resolves), so a remove row only ever persists while verifying.
 	//   - never-sent installs (status IS NULL): nothing was delivered, so no <Delete> is needed.
 	// Sent installs and pending removes are left untouched for the reconciler.
+
 	// Capture the hosts that currently have rows for these profiles before the delete so we can refresh
 	// their per-host profile status rollup afterwards.
 	var affectedHostUUIDs []string
@@ -1945,19 +1943,10 @@ func windowsHostProfileStatusSubquery(statusPrefix string) (string, []any, error
 	return sqlx.In(stmt, args...)
 }
 
-// windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args)
-// that reduces a group of host_mdm_windows_profiles rows (aliased hmwp) to a single status bucket:
-// `<statusPrefix>failed`, `<statusPrefix>pending`, `<statusPrefix>verifying`, `<statusPrefix>verified`,
-// or the empty string. It is the single source of truth for the Windows profile status priority logic (failed >
-// pending > verifying > verified, reserved profiles excluded, install-only for verifying/verified,
-// NULL treated as pending) and is shared by the correlated per-host subquery
-// (windowsHostProfileStatusSubquery, used by the list-hosts filter), the set-based rollup maintenance
-// and reconcile that populate host_mdm_windows_profiles_status, so the materialized rollup can never
-// disagree with what the summary would compute directly. The migration that creates the table
-// (20260720211014_AddHostMDMWindowsProfilesStatus) hardcodes an identical copy for its backfill.
-//
-// The reserved-profile IN(?) placeholders are returned unexpanded; callers must run sqlx.In on the
-// assembled statement.
+// windowsHostProfileStatusCaseExpr returns the SQL CASE expression (and its as-yet-unexpanded args) that reduces a group of
+// host_mdm_windows_profiles rows to a single status bucket. It is the single source of truth for the Windows
+// profile status priority logic (failed > pending > verifying > verified, reserved profiles excluded, install-only for
+// verifying/verified, NULL treated as pending).
 func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 	reserved := mdm.ListFleetReservedWindowsProfileNames()
 
@@ -2003,10 +1992,8 @@ ON DUPLICATE KEY UPDATE status = VALUES(status)`, caseExpr)
 	return stmt, caseArgs
 }
 
-// windowsProfilesStatusOrphanDeleteStmt drops rollup rows for hosts in the IN (?) batch that no longer
-// have any host_mdm_windows_profiles rows. The NOT EXISTS re-checks the orphan condition at execution
-// time, so a host that concurrently regained profile rows (and re-upserted its rollup row) is not
-// deleted. The subquery reads a different table than the DELETE target, so correlating on it is allowed.
+// windowsProfilesStatusOrphanDeleteStmt drops rollup rows for hosts in the IN (?) batch that no longer have any
+// host_mdm_windows_profiles rows. The NOT EXISTS checks the orphan condition at execution time.
 const windowsProfilesStatusOrphanDeleteStmt = `
 DELETE FROM host_mdm_windows_profiles_status
 WHERE host_uuid IN (?)
