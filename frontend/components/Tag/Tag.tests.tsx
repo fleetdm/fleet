@@ -12,6 +12,18 @@ describe("Tag", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("defaults to the large size", () => {
+    render(<Tag>Inherited</Tag>);
+
+    expect(screen.getByText("Inherited")).not.toHaveClass("tag--small");
+  });
+
+  it("adds the small modifier class when size is set to small", () => {
+    render(<Tag size="small">Inherited</Tag>);
+
+    expect(screen.getByText("Inherited")).toHaveClass("tag--small");
+  });
+
   it("renders clickable tags as a button and calls onClick", async () => {
     const handler = jest.fn();
     render(

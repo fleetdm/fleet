@@ -12,6 +12,12 @@
   white-space: nowrap;
   box-sizing: border-box;
 
+  // per design, large (28px, the default set above) is used most often;
+  // small is reserved for tight contexts like a table row
+  &--small {
+    height: 24px;
+  }
+
   &--clickable {
     background: none;
     cursor: pointer;

@@ -9,6 +9,8 @@ export type TagType = "static" | "clickable" | "dismissible";
 
 interface ITagBaseProps {
   children: React.ReactNode;
+  /** Default: "large" (28px). Per design, use "small" (24px) sparingly. */
+  size?: "large" | "small";
   disabled?: boolean;
   className?: string;
 }
@@ -43,6 +45,7 @@ const Tag = (props: ITagProps) => {
   const classNames = classnames(baseClass, className, {
     [`${baseClass}--clickable`]: props.type === "clickable",
     [`${baseClass}--dismissible`]: props.type === "dismissible",
+    [`${baseClass}--small`]: props.size === "small",
   });
 
   if (props.type === "clickable") {
