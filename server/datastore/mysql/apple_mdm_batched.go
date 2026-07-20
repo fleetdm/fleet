@@ -46,6 +46,9 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		WHERE
 			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
 			AND h.uuid > ?
+			AND EXISTS (
+				SELECT 1 FROM host_mdm hmdm WHERE hmdm.enrolled = 1 AND hmdm.host_id = h.id
+			)
 		ORDER BY h.uuid, h.id DESC
 		LIMIT ?
 	`
