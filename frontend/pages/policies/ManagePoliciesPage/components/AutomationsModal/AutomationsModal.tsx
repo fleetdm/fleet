@@ -251,7 +251,7 @@ const AutomationsModal = ({
                     <>
                       <Button
                         type="button"
-                        variant="brand-inverse-icon"
+                        variant="secondary"
                         onClick={togglePreviewCalendarEvent}
                       >
                         Preview calendar event

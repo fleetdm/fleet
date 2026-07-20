@@ -392,7 +392,7 @@ const SaveNewPolicyModal = ({
         ) : (
           <div className={`${baseClass}__add-automations`}>
             <Button
-              variant="text-icon"
+              variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
             >

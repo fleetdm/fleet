@@ -114,14 +114,10 @@ const PackQueriesTable = ({
         <EmptyState
           header="Your pack has no reports"
           primaryButton={
-            <Button
-              onClick={onAddPackQuery}
-              variant="brand-inverse-icon"
-              iconStroke
-            >
+            <Button onClick={onAddPackQuery} variant="secondary">
               <>
                 Add report
-                <Icon name="plus" color="core-fleet-green" />
+                <Icon name="plus" />
               </>
             </Button>
           }
