@@ -123,7 +123,7 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePackClick,
         }}
         renderCount={renderPackCount}

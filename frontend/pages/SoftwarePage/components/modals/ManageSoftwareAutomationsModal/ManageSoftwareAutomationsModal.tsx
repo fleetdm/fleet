@@ -434,7 +434,7 @@ const ManageAutomationsModal = ({
         {!!selectedIntegration && (
           <Button
             type="button"
-            variant="inverse"
+            variant="secondary"
             onClick={togglePreviewTicketModal}
           >
             Preview ticket
@@ -481,7 +481,7 @@ const ManageAutomationsModal = ({
         />
         <Button
           type="button"
-          variant="inverse"
+          variant="secondary"
           onClick={togglePreviewPayloadModal}
         >
           Example payload

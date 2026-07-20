@@ -119,8 +119,7 @@ export const FileUploader = ({
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
   });
-  const buttonVariant =
-    buttonType === "button" ? "default" : "brand-inverse-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -168,9 +167,7 @@ export const FileUploader = ({
     let buttonMarkup = (
       <>
         {buttonMessage}
-        {buttonType === "brand-inverse-icon" && (
-          <Icon color="core-fleet-green" name="upload" />
-        )}
+        {buttonType === "brand-inverse-icon" && <Icon name="upload" />}
       </>
     );
     // If we want to actual do file uploading, wrap in a label that

@@ -303,7 +303,7 @@ const OktaConditionalAccessModal = ({
           </TooltipWrapper>
           <br />
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onDownloadSigningCert}
             isLoading={isDownloadingCert}
             disabled={isDownloadingCert}

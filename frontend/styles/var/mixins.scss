@@ -237,6 +237,12 @@ $max-width: 2560px;
   gap: $pad-medium;
 }
 
+@mixin flex-column-8px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+}
+
 @mixin vertical-form-layout {
   @include flex-column-24px-gap;
 }
