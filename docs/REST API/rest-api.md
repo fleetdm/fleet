@@ -11653,6 +11653,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
+- [Install self-service software](#install-self-service-software)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
@@ -12987,6 +12988,39 @@ Uninstalls software from a host.
 #### Example
 
 `POST /api/v1/fleet/hosts/123/software/3435/uninstall`
+
+##### Default response
+
+`Status: 202`
+
+### Install self-service software
+
+Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+
+This endpoint uses the device's authentication token instead of the usual Fleet API token.
+
+`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | **Required**. The device's authentication token. |
+| software_title_id | string | path | **Required**. The software title's ID. |
+
+#### Request headers
+
+This endpoint accepts the `X-Client-Cert-Serial` header for authentication in addition to device token authentication.
+
+The `Authorization` header must be formatted as follows:
+
+```
+X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
+```
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
 
 ##### Default response
 
