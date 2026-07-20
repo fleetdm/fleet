@@ -54,7 +54,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
 
-          <!-- Group one (7 logos)-->
+          <!-- Group one (8 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
@@ -96,7 +97,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Cursor logo" src="/images/logos/logo-cursor-103x32@2x.png">
           <img alt="Grafana labs logo" src="/images/logos/logo-grafana-labs-135x32@2x.png">
 
-          <!-- Group one (7 logos)-->
+          <!-- Group one (8 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
@@ -148,7 +150,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Lastpass logo" src="/images/logos/logo-lastpass-90x32@2x.png">
           <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
           <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
-          <!-- Group one (7 logos)-->
+          <!-- Group one (8 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">
@@ -186,7 +189,8 @@ parasails.registerComponent('logoCarousel', {
           <img alt="Lastpass logo" src="/images/logos/logo-lastpass-90x32@2x.png">
           <img alt="Smarter Technologies logo" src="/images/logos/logo-smarter-technology-130x32@2x.png">
           <img alt="Treeline logo" src="/images/logos/logo-treeline-128x32@2x.png">
-          <!-- Group one (7 logos)-->
+          <!-- Group one (8 logos)-->
+          <img alt="Uber logo" src="/images/logos/logo-uber-65x32@2x.png">
           <img alt="Proton logo" src="/images/logos/logo-proton-95x32@2x.png">
           <img alt="Mozilla logo" src="/images/logos/logo-mozilla-84x32@2x.png">
           <img alt="Nutanix logo" src="/images/logos/logo-nutanix-125x32@2x.png">

@@ -6,6 +6,7 @@ import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
+import { notify } from "components/ToastNotification";
 
 import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
 
@@ -20,6 +21,15 @@ import {
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const mockRouter = createMockRouter();
 
@@ -624,5 +634,61 @@ describe("Device User Page", () => {
         screen.queryByRole("button", { name: "Resolve later" })
       ).not.toBeInTheDocument();
     });
+  });
+
+  describe("Vitals refetch timeout", () => {
+    const REAL_NOW = new Date("2026-01-01T00:00:00Z").getTime();
+    let mockNow = REAL_NOW;
+    let dateNowSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      mockNow = REAL_NOW;
+      dateNowSpy = jest.spyOn(Date, "now").mockImplementation(() => mockNow);
+    });
+
+    afterEach(() => {
+      dateNowSpy.mockRestore();
+    });
+
+    it("shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded", async () => {
+      const host = createMockHost({
+        refetch_requested: true,
+        status: "online",
+        platform: "ubuntu",
+      }) as IHostDevice;
+
+      mockServer.use(customDeviceHandler({ host }));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+      });
+
+      render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={mockLocation}
+        />
+      );
+
+      // Wait for the first successful load, which starts the refetch
+      // timer and schedules the next poll via a real setTimeout.
+      await screen.findByText(/Details/);
+
+      // Jump the clock past the 3-minute give-up window before that
+      // scheduled poll fires and re-evaluates elapsed time.
+      mockNow += 200000;
+
+      await waitFor(
+        () => {
+          expect(notify.error).toHaveBeenCalledWith(
+            "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
+          );
+        },
+        { timeout: 4000 }
+      );
+    }, 10000);
   });
 });

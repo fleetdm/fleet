@@ -316,6 +316,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-6653](https://nvd.nist.gov/vuln/detail/CVE-2026-6653)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The affected dependency (libxml2) is not utilized by fleetctl itself, but by Apple's iTMSTransporter tool, which is included in the Docker image for code signing purposes. fleetctl does not process untrusted XML input. Additionally, this CVE describes a denial-of-service (DoS) vulnerability, and fleetctl is a CLI tool, not a long-running service, and therefore is not susceptible to DoS-style exploitation.
+- **Products:** `fleetctl`,`pkg:deb/debian/libxml2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-17 18:43:57
+
 ### [CVE-2026-58016](https://nvd.nist.gov/vuln/detail/CVE-2026-58016)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -497,6 +505,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2026-01-30 09:25:41
+
+### [CVE-2026-13221](https://nvd.nist.gov/vuln/detail/CVE-2026-13221)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** perl is not used during fleetd package generation.
+- **Products:** `fleetctl`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-17 18:43:57
 
 ### [CVE-2026-0968](https://nvd.nist.gov/vuln/detail/CVE-2026-0968)
 - **Author:** @lucasmrod

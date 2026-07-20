@@ -851,6 +851,10 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	// GetCategoriesForSoftwareInstallers returns categories keyed by installer ID,
+	// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
+	GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
+
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
 	// scoped to a category.
@@ -2798,6 +2802,9 @@ type Datastore interface {
 
 	// MatchOrCreateSoftwareInstaller matches or creates a new software installer.
 	MatchOrCreateSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (installerID, titleID uint, err error)
+	// GetExistingSoftwareInstallerTitleID resolves the software title an installer payload identifies
+	// (by bundle_identifier / upgrade_code / name+source). Returns a NotFound error if none matches.
+	GetExistingSoftwareInstallerTitleID(ctx context.Context, payload *UploadSoftwareInstallerPayload) (uint, error)
 
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
@@ -2812,6 +2819,20 @@ type Datastore interface {
 	// withScriptContents is true, also returns the contents of the install and
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetSoftwareInstallerMetadataByTeamTitleAndInstallerID is like
+	// GetSoftwareInstallerMetadataByTeamAndTitleID but returns a specific installer
+	// (not the first-added), so add/edit responses can echo the affected package.
+	GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetSoftwarePackagesByTeamAndTitleID returns every active package for the given
+	// title and team, ordered first-added first, each with its label scope and
+	// script contents.
+	GetSoftwarePackagesByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) ([]*SoftwareInstaller, error)
+
+	// GetSoftwarePackagesForTitles returns trimmed per-package info for the titles'
+	// active packages, keyed by title id, first-added first; backs the list packages[].
+	GetSoftwarePackagesForTitles(ctx context.Context, teamID *uint, titleIDs []uint) (map[uint][]SoftwarePackageListItem, error)
 
 	// GetFleetMaintainedVersionsByTitleID returns all cached versions of a
 	// fleet-maintained app for the given title and team. If byVersion is true
@@ -2842,6 +2863,12 @@ type Datastore interface {
 	// to inactive, and repoints policies. A non-nil payload.PinnedVersion records ("" clears it to Latest)
 	// or upserts the pin; a nil payload.PinnedVersion leaves the pin row untouched.
 	SetFleetMaintainedAppActiveInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload, activeInstallerID uint) error
+
+	// ResolveActiveInstallerForRetry returns the currently-active installer id for
+	// the title of the given installer, so a retried install targets the version
+	// Fleet currently displays. It returns the input id unchanged when that
+	// installer is already active, has no active sibling, or no longer exists.
+	ResolveActiveInstallerForRetry(ctx context.Context, installerID uint) (uint, error)
 
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
@@ -3227,7 +3254,9 @@ type Datastore interface {
 	// Secret variables
 
 	// UpsertSecretVariables inserts or updates secret variables in the database.
-	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) error
+	// It returns the names of the variables that were created and the names of
+	// those that were updated, so callers can emit the corresponding activities.
+	UpsertSecretVariables(ctx context.Context, secretVariables []SecretVariable) (created []string, updated []string, err error)
 
 	// CreateSecretVariable inserts a secret variable (value encrypted) and returns its ID.
 	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
@@ -3258,6 +3287,28 @@ type Datastore interface {
 	// The enrollmentID (typically UDID) is used to look up host-specific secrets
 	// like recovery lock passwords.
 	ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Custom host vitals
+	CreateCustomHostVital(ctx context.Context, name string) (CustomHostVital, error)
+	ListCustomHostVitals(ctx context.Context, opt ListOptions) (customHostVitals []CustomHostVital, meta *PaginationMetadata, count int, err error)
+	UpdateCustomHostVital(ctx context.Context, id uint, name string) (CustomHostVital, error)
+	DeleteCustomHostVital(ctx context.Context, id uint) (name string, err error)
+	SetHostCustomHostVitalValue(ctx context.Context, hostID uint, vitalID uint, value string) error
+	GetHostCustomHostVitals(ctx context.Context, hostID uint) ([]HostCustomHostVital, error)
+	GetCustomHostVitals(ctx context.Context, ids []uint) ([]CustomHostVital, error)
+	// ValidateReferencedCustomHostVitals parses $FLEET_HOST_VITAL_<id> tokens from
+	// the given documents and checks that every referenced id exists. Returns a
+	// MissingCustomHostVitalsError if any referenced id is unknown.
+	ValidateReferencedCustomHostVitals(ctx context.Context, documents []string) error
+
+	// ExpandCustomHostVitals substitutes $FLEET_HOST_VITAL_<id> tokens in the
+	// document with the given host's stored values (format-aware escaping).
+	// Returns a MissingCustomHostVitalValueError if a referenced vital has no value
+	// for the host.
+	ExpandCustomHostVitals(ctx context.Context, hostID uint, document string) (string, error)
+
+	UpsertCustomHostVitals(ctx context.Context, vitals []CustomHostVital) (created []CustomHostVital, deleted []CustomHostVital, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android

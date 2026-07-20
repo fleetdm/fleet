@@ -41,6 +41,7 @@ func TestSetupExperience(t *testing.T) {
 		{"PolicyGate", testSetupExperiencePolicyGate},
 		{"PolicyGateResultLookups", testSetupExperiencePolicyGateResultLookups},
 		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
+		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
 	}
 
 	for _, c := range cases {
@@ -2742,4 +2743,79 @@ func testSetupExperienceCrossPlatformShScripts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.False(t, enrolled)
 	})
+}
+
+// testEnqueueSetupExperienceFirstAddedPerTitle verifies that when a title has more than one active
+// package flagged for setup experience, only the first-added package is queued (no double-queue).
+func testEnqueueSetupExperienceFirstAddedPerTitle(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "se-multi-pkg"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "SE Admin", "se-admin@example.com", true)
+
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "MultiPkgTitle",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.multipkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         string(fleet.MacOSPlatform),
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	// Two packages under the same title (same bundle id, different content hash), both flagged for setup.
+	firstAddedID := newPkg("storage-a", "pkgA.pkg")
+	secondID := newPkg("storage-b", "pkgB.pkg")
+	require.Less(t, firstAddedID, secondID)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", firstAddedID, secondID)
+		return err
+	})
+
+	hostUUID := "multi-pkg-host"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-multi-pkg",
+		OsqueryHostID:  new("osquery-multi-pkg"),
+		NodeKey:        new("node-key-multi-pkg"),
+		UUID:           hostUUID,
+		Platform:       "darwin",
+		HardwareSerial: "multi-pkg-serial",
+	})
+	require.NoError(t, err)
+
+	assertSinglePackageQueued := func() {
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		var installerResults []*fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			if r.SoftwareInstallerID != nil {
+				installerResults = append(installerResults, r)
+			}
+		}
+		require.Len(t, installerResults, 1, "a multi-package title should queue exactly one package during setup")
+		require.Equal(t, firstAddedID, *installerResults[0].SoftwareInstallerID, "the first-added package should be queued")
+	}
+
+	enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	assertSinglePackageQueued()
+
+	// Re-enqueue stays a single row (idempotent, still no double-queue).
+	enqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	assertSinglePackageQueued()
 }

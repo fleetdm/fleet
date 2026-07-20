@@ -193,7 +193,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+Team calendars are the primary source for release rituals; they facilitate the execution of each release cycle. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
@@ -504,7 +504,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
+- Don't enable closed captions during release demo recording (they're added later if needed).
 
 
 ## Feedback

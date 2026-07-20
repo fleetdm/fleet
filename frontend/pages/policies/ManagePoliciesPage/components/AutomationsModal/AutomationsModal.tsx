@@ -57,7 +57,7 @@ const AutomationsModal = ({
   onExit,
 }: IAutomationsModalProps): JSX.Element | null => {
   const queryClient = useQueryClient();
-  const { setConfig } = useContext(AppContext);
+  const { setConfig, isPremiumTier } = useContext(AppContext);
 
   const otherFormRef = useRef<
     IAutomationFormHandle<IOtherWorkflowsModalSubmit>
@@ -104,8 +104,7 @@ const AutomationsModal = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const isManagedCloud = globalConfig?.license?.managed_cloud || false;
-  const conditionalAccessProviderText = isManagedCloud
+  const conditionalAccessProviderText = isPremiumTier
     ? "Okta or Microsoft Entra"
     : "Okta";
 

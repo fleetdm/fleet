@@ -312,6 +312,27 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	})
 }
 
+func TestSetupExperienceScriptRejectsUnknownCustomHostVital(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{99}}
+	}
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error { return nil }
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
+
+	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_HOST_VITAL_99")))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Custom host vital")
+	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
 // TestSetupExperienceNextStepPolicyGated covers the policy-gated (Windows/Linux) branch of SetupExperienceNextStep: the policy is
 // used only as a gate (pass -> skip, fail -> install via the normal ForSetupExperience path), the item is held running while
 // awaiting a fresh result, an out-of-scope gating policy falls back to installing, and the host policy clock is reset once when a

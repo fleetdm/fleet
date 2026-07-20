@@ -1296,6 +1296,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
@@ -4015,7 +4018,7 @@ func TestUpdateMDMHostNameTemplate(t *testing.T) {
 
 	t.Run("invalid templates are rejected", func(t *testing.T) {
 		for _, tc := range []struct{ name, tmpl string }{
-			{"unsupported variable", "WS-$FLEET_VAR_HOST_END_USER_IDP_GROUPS"},
+			{"unsupported CA variable", "WS-$FLEET_VAR_NDES_SCEP_CHALLENGE"},
 			{"control characters", "WS-\x07"},
 			{"too long", strings.Repeat("a", 256)},
 		} {
@@ -6709,10 +6712,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", gdmf.URL, t)
 
 	latestMacOSVersion := "14.6.1"
-	latestMacOSBuild := "23G93"
-
 	latestIOSVersion := "17.6.1"
-	latestIOSBuild := "21G93"
 
 	testCases := []struct {
 		name           string
@@ -6752,8 +6752,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-				OSVersion:    latestMacOSVersion,
-				BuildVersion: latestMacOSBuild,
+				OSVersion: latestMacOSVersion,
 			},
 		},
 		{
@@ -6843,8 +6842,7 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 				var details *fleet.MDMAppleSoftwareUpdateRequiredDetails
 				if tt.updateRequired != nil {
 					details = &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-						OSVersion:    latestIOSVersion,
-						BuildVersion: latestIOSBuild,
+						OSVersion: latestIOSVersion,
 					}
 				}
 

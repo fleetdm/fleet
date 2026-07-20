@@ -606,6 +606,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/custom_variables", listSecretVariablesEndpoint, fleet.ListSecretVariablesRequest{})
 	ue.DELETE("/api/_version_/fleet/custom_variables/{id:[0-9]+}", deleteSecretVariableEndpoint, fleet.DeleteSecretVariableRequest{})
 
+	// Custom host vitals
+	ue.GET("/api/_version_/fleet/custom_host_vitals", listCustomHostVitalsEndpoint, fleet.ListCustomHostVitalsRequest{})
+	ue.POST("/api/_version_/fleet/custom_host_vitals", createCustomHostVitalEndpoint, fleet.CreateCustomHostVitalRequest{})
+	ue.PATCH("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", updateCustomHostVitalEndpoint, fleet.UpdateCustomHostVitalRequest{})
+	ue.DELETE("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", deleteCustomHostVitalEndpoint, fleet.DeleteCustomHostVitalRequest{})
+	ue.PUT("/api/_version_/fleet/hosts/{host_id:[0-9]+}/custom_host_vitals/{id:[0-9]+}", setHostCustomHostVitalValueEndpoint, fleet.SetHostCustomHostVitalValueRequest{})
+	ue.PUT("/api/_version_/fleet/spec/custom_host_vitals", upsertCustomHostVitalsEndpoint, fleet.UpsertCustomHostVitalsRequest{})
+
 	// API end-points
 	ue.GET("/api/_version_/fleet/rest_api", listAPIEndpointsEndpoint, listAPIEndpointsRequest{})
 

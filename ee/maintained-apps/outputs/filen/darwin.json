@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.0.50",
+      "version": "3.0.52",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.50') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.filen.desktop' AND version_compare(bundle_short_version, '3.0.52') < 0);"
       },
-      "installer_url": "https://cdn.filen.io/@filen/desktop/release/v3.0.50/Filen_mac_arm64.dmg",
+      "installer_url": "https://cdn.filen.io/@filen/desktop/release/v3.0.52/Filen_mac_arm64.dmg",
       "install_script_ref": "a77addd7",
       "uninstall_script_ref": "357adb6a",
-      "sha256": "f1733fa58aaa8dc06477ecaaf5fd60f85b209016ff04a5abda29c65fb1fc9cc4",
+      "sha256": "8ce4e9cba97686b4715d3c261dd1b93a36299e90b0ade9b66ed283859ac228bd",
       "default_categories": [
         "Productivity"
       ]
