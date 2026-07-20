@@ -34,19 +34,23 @@ type AuthenticodeResult struct {
 }
 
 // VerifyAuthenticode verifies the Authenticode signature of an EXE or MSI
-// installer using osslsigncode, which works on any OS.
-func VerifyAuthenticode(ctx context.Context, installerPath string) (*AuthenticodeResult, error) {
+// installer using osslsigncode, which works on any OS. The result's
+// Available field is false when osslsigncode is not installed.
+func VerifyAuthenticode(ctx context.Context, installerPath string) *AuthenticodeResult {
 	bin, err := exec.LookPath("osslsigncode")
 	if err != nil {
-		return &AuthenticodeResult{Available: false}, nil
+		return &AuthenticodeResult{Available: false}
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
 
 	// osslsigncode exits non-zero for unsigned files and failed
 	// verifications; both are results, not errors, so inspect the output.
 	out, _ := exec.CommandContext(ctx, bin, "verify", installerPath).CombinedOutput()
 	res := ParseOsslsigncodeOutput(string(out))
 	res.Available = true
-	return res, nil
+	return res
 }
 
 // signerSubjectPattern matches Subject lines within the "Signer's

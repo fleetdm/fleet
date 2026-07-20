@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -158,20 +159,38 @@ func verifySignature(ctx context.Context, av *appVerification, installerPath str
 }
 
 func verifyWindowsSignature(ctx context.Context, av *appVerification, installerPath string, pin *maintained_apps.FMASignature) {
+	detailPrefix := ""
 	switch ext := strings.ToLower(filepath.Ext(installerPath)); ext {
 	case ".exe", ".msi", ".dll", ".cab":
 		// osslsigncode-supported Authenticode containers.
+	case ".zip":
+		// The Authenticode signature lives on the .msi/.exe payload inside
+		// the archive; the zip container itself can never be signed.
+		dest, err := os.MkdirTemp(filepath.Dir(installerPath), "extract-")
+		if err != nil {
+			av.Signature = checkResult{Status: statusError, Detail: fmt.Sprintf("creating extraction directory: %v", err)}
+			av.warn("extracting zip installer: %v", err)
+			return
+		}
+		defer os.RemoveAll(dest)
+		payload, err := sigverify.ExtractZipPayload(installerPath, dest, []string{".msi", ".exe"})
+		if err != nil {
+			av.Signature = checkResult{Status: statusError, Detail: fmt.Sprintf("extracting zip payload: %v", err)}
+			av.warn("extracting zip installer payload: %v", err)
+			return
+		}
+		if payload == "" {
+			av.Signature = checkResult{Status: statusSkipped, Detail: "no Authenticode payload (.msi/.exe) found in zip; deferred to validator"}
+			return
+		}
+		detailPrefix = fmt.Sprintf("zip payload %s: ", filepath.Base(payload))
+		installerPath = payload
 	default:
 		av.Signature = checkResult{Status: statusSkipped, Detail: fmt.Sprintf("cannot verify %s Authenticode at ingest; deferred to validator", filepath.Ext(installerPath))}
 		return
 	}
 
-	res, err := sigverify.VerifyAuthenticode(ctx, installerPath)
-	if err != nil {
-		av.Signature = checkResult{Status: statusError, Detail: err.Error()}
-		av.warn("Authenticode verification errored: %v", err)
-		return
-	}
+	res := sigverify.VerifyAuthenticode(ctx, installerPath)
 	if !res.Available {
 		av.Signature = checkResult{Status: statusSkipped, Detail: "osslsigncode not installed; deferred to validator"}
 		return
@@ -183,36 +202,43 @@ func verifyWindowsSignature(ctx context.Context, av *appVerification, installerP
 
 	switch {
 	case pin != nil && pin.Unsigned:
-		if res.NoSignature {
-			av.Signature = checkResult{Status: statusPass, Detail: "unsigned, as pinned (justification: " + pin.Justification + ")"}
-			return
+		switch {
+		case res.NoSignature:
+			av.Signature = checkResult{Status: statusPass, Detail: detailPrefix + "unsigned, as pinned (justification: " + pin.Justification + ")"}
+		case !res.Verified:
+			// A formerly-unsigned installer now carrying a broken or
+			// untrusted signature is a tamper indicator, not a vendor
+			// starting to sign.
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "pinned unsigned but installer now carries an invalid signature: " + res.Detail}
+			av.fail("pin says unsigned but installer now carries an invalid signature: %s", res.Detail)
+		default:
+			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + fmt.Sprintf("pinned unsigned but installer is validly signed by %v; update the pin", res.SubjectCNs)}
+			av.warn("installer is now validly signed by %v but the pin says unsigned; update the pin", res.SubjectCNs)
 		}
-		av.Signature = checkResult{Status: statusWarn, Detail: fmt.Sprintf("pinned unsigned but installer is signed by %v; update the pin", res.SubjectCNs)}
-		av.warn("installer is now signed by %v but the pin says unsigned; update the pin", res.SubjectCNs)
 	case pin != nil:
 		switch {
 		case res.NoSignature:
-			av.Signature = checkResult{Status: statusFail, Detail: fmt.Sprintf("installer has no Authenticode signature but pin expects %v", pin.SubjectCNs)}
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + fmt.Sprintf("installer has no Authenticode signature but pin expects %v", pin.SubjectCNs)}
 			av.fail("installer is unsigned but the pin expects signer %v", pin.SubjectCNs)
 		case !res.Verified:
-			av.Signature = checkResult{Status: statusFail, Detail: "Authenticode signature verification failed: " + res.Detail}
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "Authenticode signature verification failed: " + res.Detail}
 			av.fail("Authenticode signature verification failed: %s", res.Detail)
 		case !anyCNMatches(pin, res.SubjectCNs):
-			av.Signature = checkResult{Status: statusFail, Detail: fmt.Sprintf("signer %v does not match pinned %v", res.SubjectCNs, pin.SubjectCNs)}
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + fmt.Sprintf("signer %v does not match pinned %v", res.SubjectCNs, pin.SubjectCNs)}
 			av.fail("signer identity changed: observed %v, pinned %v", res.SubjectCNs, pin.SubjectCNs)
 		default:
-			av.Signature = checkResult{Status: statusPass, Detail: fmt.Sprintf("signed by %v (matches pin)", res.SubjectCNs)}
+			av.Signature = checkResult{Status: statusPass, Detail: detailPrefix + fmt.Sprintf("signed by %v (matches pin)", res.SubjectCNs)}
 		}
 	default: // no pin
 		switch {
 		case res.NoSignature:
-			av.Signature = checkResult{Status: statusWarn, Detail: `installer has no Authenticode signature and no "unsigned" pin`}
+			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + `installer has no Authenticode signature and no "unsigned" pin`}
 			av.warn(`installer is unsigned and the app has no "unsigned" signature pin; with a no_check hash this app would have no integrity control`)
 		case !res.Verified:
-			av.Signature = checkResult{Status: statusFail, Detail: "Authenticode signature verification failed: " + res.Detail}
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "Authenticode signature verification failed: " + res.Detail}
 			av.fail("Authenticode signature verification failed: %s", res.Detail)
 		default:
-			av.Signature = checkResult{Status: statusRecorded, Detail: fmt.Sprintf("signed by %v (no pin yet)", res.SubjectCNs)}
+			av.Signature = checkResult{Status: statusRecorded, Detail: detailPrefix + fmt.Sprintf("signed by %v (no pin yet)", res.SubjectCNs)}
 		}
 	}
 }
@@ -240,11 +266,18 @@ func verifyDarwinSignature(ctx context.Context, av *appVerification, installerPa
 
 	switch {
 	case pin != nil && pin.Unsigned:
-		if res.NoSignature {
+		switch {
+		case res.NoSignature:
 			av.Signature = checkResult{Status: statusPass, Detail: "unsigned, as pinned (justification: " + pin.Justification + ")"}
-		} else {
-			av.Signature = checkResult{Status: statusWarn, Detail: fmt.Sprintf("pinned unsigned but installer is signed by %s; update the pin", res.Identity)}
-			av.warn("installer is now signed by %s but the pin says unsigned; update the pin", res.Identity)
+		case !res.Verified:
+			// A formerly-unsigned installer now carrying a broken or
+			// untrusted signature is a tamper indicator, not a vendor
+			// starting to sign.
+			av.Signature = checkResult{Status: statusFail, Detail: "pinned unsigned but installer now carries an invalid signature: " + res.Detail}
+			av.fail("pin says unsigned but installer now carries an invalid signature: %s", res.Detail)
+		default:
+			av.Signature = checkResult{Status: statusWarn, Detail: fmt.Sprintf("pinned unsigned but installer is validly signed by %s; update the pin", res.Identity)}
+			av.warn("installer is now validly signed by %s but the pin says unsigned; update the pin", res.Identity)
 		}
 	case pin != nil:
 		switch {

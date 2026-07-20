@@ -78,7 +78,13 @@ func evaluateDarwinSignature(ctx context.Context, logger *slog.Logger, res *sigv
 			logger.InfoContext(ctx, "Installer is unsigned, as pinned")
 			return nil
 		}
-		logger.WarnContext(ctx, fmt.Sprintf("Installer is now signed by %q but the pin says unsigned; update the pin", res.Identity))
+		if !res.Verified {
+			// A formerly-unsigned installer now carrying a broken or
+			// untrusted signature is a tamper indicator, not a vendor
+			// starting to sign.
+			return fmt.Errorf("pin says unsigned but installer now carries an invalid signature: %s", res.Detail)
+		}
+		logger.WarnContext(ctx, fmt.Sprintf("Installer is now validly signed by %q but the pin says unsigned; update the pin", res.Identity))
 		return nil
 	case pin != nil:
 		switch {

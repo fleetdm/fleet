@@ -83,6 +83,8 @@ func (d *downloader) download(ctx context.Context, url string) (string, string, 
 
 	h := sha256.New()
 	if _, err := io.Copy(io.MultiWriter(out, h), installerTFR); err != nil {
+		out.Close()
+		os.RemoveAll(dir) // don't leave a partial download on disk
 		return "", "", fmt.Errorf("saving installer: %w", err)
 	}
 

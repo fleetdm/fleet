@@ -9,11 +9,24 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // ErrSkip is returned when a check cannot run for this installer format in
 // this environment (e.g. a Windows-only archive format at ingest time).
 var ErrSkip = errors.New("signature check skipped")
+
+// Per-check timeouts so one hung subprocess (e.g. an hdiutil attach waiting
+// on a license prompt, or spctl's network revocation check stalling) fails
+// that app's check instead of hanging the whole run.
+const (
+	// commandTimeout bounds single-command checks (codesign, pkgutil, spctl,
+	// osslsigncode).
+	commandTimeout = 2 * time.Minute
+	// containerTimeout bounds checks that first mount or extract a container
+	// (dmg attach, zip extraction) before verifying its payload.
+	containerTimeout = 5 * time.Minute
+)
 
 // DarwinResult is the outcome of macOS installer signature and notarization
 // checks (pkgutil / codesign / spctl). These commands only exist on macOS;
@@ -58,6 +71,9 @@ func VerifyDarwinInstaller(ctx context.Context, installerPath string) (*DarwinRe
 // Gatekeeper install assessment (spctl), which requires notarization to be
 // accepted.
 func VerifyPkgSignature(ctx context.Context, pkgPath string) (*DarwinResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+
 	out, err := exec.CommandContext(ctx, "pkgutil", "--check-signature", pkgPath).CombinedOutput()
 	res := ParsePkgutilOutput(string(out))
 	if err != nil && !res.NoSignature {
@@ -80,6 +96,9 @@ func VerifyPkgSignature(ctx context.Context, pkgPath string) (*DarwinResult, err
 // VerifyDmgSignature checks a dmg installer: the image's own signature when
 // present, otherwise the payload (.app or .pkg) inside it.
 func VerifyDmgSignature(ctx context.Context, dmgPath string) (*DarwinResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, containerTimeout)
+	defer cancel()
+
 	// If the disk image itself is signed, assess it directly: accepted +
 	// "Notarized Developer ID" source means Apple's notary service vouches
 	// for these exact bytes.
@@ -101,7 +120,11 @@ func VerifyDmgSignature(ctx context.Context, dmgPath string) (*DarwinResult, err
 		return nil, fmt.Errorf("attaching dmg to verify payload: %w", err)
 	}
 	defer func() {
-		_ = exec.Command("hdiutil", "detach", mountPoint, "-force").Run()
+		// Best effort, but surface failures: a --all backfill run mounts
+		// dozens of images, and silently leaked mounts add up.
+		if out, err := exec.Command("hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: failed to detach %s: %v: %s\n", mountPoint, err, strings.TrimSpace(string(out)))
+		}
 	}()
 
 	res, err := verifyPayloadIn(ctx, mountPoint)
@@ -115,6 +138,9 @@ func VerifyDmgSignature(ctx context.Context, dmgPath string) (*DarwinResult, err
 // VerifyZipPayload extracts a zip installer and verifies the .app (or .pkg)
 // payload inside; zip archives themselves cannot carry a code signature.
 func VerifyZipPayload(ctx context.Context, zipPath string) (*DarwinResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, containerTimeout)
+	defer cancel()
+
 	dest, err := os.MkdirTemp(filepath.Dir(zipPath), "extract-")
 	if err != nil {
 		return nil, fmt.Errorf("creating extraction directory: %w", err)
@@ -156,6 +182,9 @@ func findPayload(dir, ext string) string {
 // assessment — the check the validator runs on the installed app before the
 // quarantine exception is added.
 func VerifyAppBundle(ctx context.Context, appPath string) (*DarwinResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+
 	res := VerifyCodeObject(ctx, appPath)
 
 	spctlOut, _ := exec.CommandContext(ctx, "spctl", "--assess", "-vv", "--type", "execute", appPath).CombinedOutput()

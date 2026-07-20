@@ -38,9 +38,37 @@ type authenticodeSignature struct {
 
 // verifyInstallerSignature runs before the install script: it verifies the
 // installer's Authenticode signature and compares the signer's subject CN
-// against the pin in the app's input JSON.
+// against the pin in the app's input JSON. For zip-wrapped installers (e.g.
+// RealVNC, Acrobat Pro) the Authenticode signature lives on the .msi/.exe
+// payload inside the archive — the zip container itself can never be signed —
+// so the payload is extracted and verified instead.
 func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installerPath string, pin *maintained_apps.FMASignature) error {
-	sig, err := getAuthenticodeSignature(ctx, installerPath)
+	checkPath := installerPath
+	switch ext := strings.ToLower(filepath.Ext(installerPath)); ext {
+	case ".exe", ".msi", ".msix", ".appx", ".dll", ".cab":
+		// Authenticode-signable formats; verify the file directly.
+	case ".zip":
+		dest, err := os.MkdirTemp(filepath.Dir(installerPath), "sigverify-")
+		if err != nil {
+			return fmt.Errorf("creating extraction directory: %w", err)
+		}
+		defer os.RemoveAll(dest)
+		payload, err := sigverify.ExtractZipPayload(installerPath, dest, []string{".msi", ".exe"})
+		if err != nil {
+			return fmt.Errorf("extracting zip to verify payload: %w", err)
+		}
+		if payload == "" {
+			logger.WarnContext(ctx, "No Authenticode payload (.msi/.exe) found in zip installer; skipping signature verification")
+			return nil
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Zip installer: verifying Authenticode signature of payload %q", filepath.Base(payload)))
+		checkPath = payload
+	default:
+		logger.InfoContext(ctx, fmt.Sprintf("Signature verification is not supported for %s installers; skipping", ext))
+		return nil
+	}
+
+	sig, err := getAuthenticodeSignature(ctx, checkPath)
 	if err != nil {
 		return fmt.Errorf("running Get-AuthenticodeSignature: %w", err)
 	}
@@ -53,7 +81,13 @@ func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installe
 			logger.InfoContext(ctx, "Installer is unsigned, as pinned")
 			return nil
 		}
-		logger.WarnContext(ctx, fmt.Sprintf("Installer is now signed by %q but the pin says unsigned; update the pin", observedCN))
+		if sig.Status != "Valid" {
+			// A formerly-unsigned installer now carrying a broken or
+			// untrusted signature is a tamper indicator, not a vendor
+			// starting to sign.
+			return fmt.Errorf("pin says unsigned but installer now carries an invalid signature: %s (%s)", sig.Status, sig.StatusMessage)
+		}
+		logger.WarnContext(ctx, fmt.Sprintf("Installer is now validly signed by %q but the pin says unsigned; update the pin", observedCN))
 		return nil
 	case pin != nil:
 		switch {

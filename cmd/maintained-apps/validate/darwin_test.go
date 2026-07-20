@@ -65,6 +65,19 @@ func TestEvaluateDarwinSignature(t *testing.T) {
 			pin:  &maintained_apps.FMASignature{Unsigned: true, Justification: "vendor ships unsigned"},
 		},
 		{
+			name: "unsigned pin but now validly signed",
+			res:  signedNotarized,
+			pin:  &maintained_apps.FMASignature{Unsigned: true, Justification: "vendor ships unsigned"},
+			// warn-only: a vendor legitimately starting to sign should prompt
+			// a pin update, not fail validation.
+		},
+		{
+			name:    "unsigned pin but now carries an invalid signature",
+			res:     &sigverify.DarwinResult{Verified: false, Detail: "invalid resource envelope"},
+			pin:     &maintained_apps.FMASignature{Unsigned: true, Justification: "vendor ships unsigned"},
+			wantErr: "invalid signature",
+		},
+		{
 			name: "not notarized but pin requires it",
 			res: &sigverify.DarwinResult{
 				Verified:            true,
