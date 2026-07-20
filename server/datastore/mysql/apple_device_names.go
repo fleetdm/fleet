@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -309,6 +310,43 @@ func (ds *Datastore) ResendHostDeviceName(ctx context.Context, hostUUID string) 
 	if rows, _ := res.RowsAffected(); rows == 0 {
 		// this should never happen, log for debugging
 		ds.logger.DebugContext(ctx, "resend device name status not updated", "host_uuid", hostUUID)
+	}
+	return nil
+}
+
+// resendDeviceNamesForSecretChange re-queues host-name enforcement rows for the
+// scopes whose template references any of the given changed custom (secret)
+// variables, so the device-name cron re-resolves with the new secret value and
+// enqueues a fresh DeviceName command.
+func (ds *Datastore) resendDeviceNamesForSecretChange(ctx context.Context, changedSecretNames []string) error {
+	if len(changedSecretNames) == 0 {
+		return nil
+	}
+	pattern := "FLEET_SECRET_(" + strings.Join(changedSecretNames, "|") + `)\b`
+
+	// Teams whose template references a changed secret.
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs,
+		`SELECT id FROM teams WHERE COALESCE(config->>'$.mdm.name_template', '') REGEXP ?`, pattern); err != nil {
+		return ctxerr.Wrap(ctx, err, "select teams using changed secret in device name template")
+	}
+
+	// The "No team" (global) template.
+	var noTeamMatches bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &noTeamMatches,
+		`SELECT COALESCE(`+deviceNameNoTeamTemplateExpr+`, '') REGEXP ?`, pattern); err != nil {
+		return ctxerr.Wrap(ctx, err, "check no-team device name template for changed secret")
+	}
+
+	for _, teamID := range teamIDs {
+		if err := ds.BulkUpsertHostDeviceNameEnforcement(ctx, &teamID); err != nil {
+			return err
+		}
+	}
+	if noTeamMatches {
+		if err := ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil); err != nil {
+			return err
+		}
 	}
 	return nil
 }

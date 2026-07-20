@@ -1563,7 +1563,62 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "queue managed config resend jobs")
 	}
 
+	// Re-enqueue host name templates that use an affected IdP variable.
+	if err := triggerResendDeviceNamesForIDPChange(ctx, tx, hostIDs, affectedVars); err != nil {
+		return ctxerr.Wrap(ctx, err, "resend host name templates for idp change")
+	}
+
 	return nil
+}
+
+// triggerResendDeviceNamesForIDPChange re-queues host-name enforcement rows so the
+// device-name cron re-resolves with the updated IdP value and enqueues a fresh
+// DeviceName command.
+func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Restrict to the affected variables that are actually supported in host name
+	// templates.
+	varNames := make([]string, 0, len(affectedVars))
+	for _, v := range affectedVars {
+		if fleet.IsHostNameTemplateIDPVar(string(v)) {
+			varNames = append(varNames, string(v))
+		}
+	}
+	if len(varNames) == 0 {
+		return nil
+	}
+
+	// A host's governing template is its team template, or the global "No team"
+	// template when it has no team. Match it against the changed variables with a
+	// single alternation (the names are [A-Z_], safe to embed in the pattern); the
+	// pattern value is bound as a parameter.
+	const selectStmt = `
+		SELECT h.id
+		FROM hosts h
+		LEFT JOIN teams t ON t.id = h.team_id
+		WHERE h.id IN (?)
+			AND COALESCE(CASE WHEN h.team_id IS NULL
+				THEN ` + deviceNameNoTeamTemplateExpr + `
+				ELSE t.config->>'$.mdm.name_template' END, '') REGEXP ?`
+
+	// The trailing word boundary keeps a changed HOST_END_USER_IDP_USERNAME from
+	// matching a template that only uses HOST_END_USER_IDP_USERNAME_LOCAL_PART, the
+	// same guard the secret-change path uses.
+	stmt, args, err := sqlx.In(selectStmt, hostIDs, "FLEET_VAR_("+strings.Join(varNames, "|")+`)\b`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select device name hosts for idp change")
+	}
+	var affectedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select device name hosts for idp change")
+	}
+	if len(affectedHostIDs) == 0 {
+		return nil
+	}
+	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
 // queueManagedConfigResendJobs finds android app configs that reference any of

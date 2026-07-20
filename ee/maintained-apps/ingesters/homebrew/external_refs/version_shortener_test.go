@@ -88,6 +88,32 @@ func TestSublimeVersionTransformer(t *testing.T) {
 	}
 }
 
+func TestSmallstepAgentVersionTransformer(t *testing.T) {
+	tcs := []struct {
+		name     string
+		version  string
+		expected string
+		wantErr  bool
+	}{
+		{name: "empty version", version: "", wantErr: true},
+		{name: "numeric version", version: "0.68.0", expected: "v0.68.0"},
+		{name: "already prefixed", version: "v0.68.0", expected: "v0.68.0"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &maintained_apps.FMAManifestApp{Version: tc.version, Slug: "smallstepagent"}
+			result, err := SmallstepAgentVersionTransformer(app)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result.Version)
+		})
+	}
+}
+
 func TestMySQLWorkbenchVersionTransformer(t *testing.T) {
 	tcs := []struct {
 		name     string

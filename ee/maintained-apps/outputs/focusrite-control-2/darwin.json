@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.1014.0.0",
+      "version": "1.1081.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control' AND version_compare(bundle_short_version, '1.1014.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control' AND version_compare(bundle_short_version, '1.1081.0.0') < 0);"
       },
-      "installer_url": "https://releases.focusrite.com/com.focusrite.focusrite-control/release/Focusrite-Control-2-1.1014.0.0.dmg",
+      "installer_url": "https://releases.focusrite.com/com.focusrite.focusrite-control/release/Focusrite-Control-2-1.1081.0.0.dmg",
       "install_script_ref": "41d926ee",
       "uninstall_script_ref": "680b9bf4",
-      "sha256": "50fce21422b63fee23859d17169b188db352c7f3e80a2843dfed824bc7597ba3",
+      "sha256": "50a23d7113a28d0f2d3de42e5d65af54c01922965eee17c69a9b3d5daf26d59a",
       "default_categories": [
         "Productivity"
       ]

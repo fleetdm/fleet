@@ -8,7 +8,9 @@ In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts)
 
 Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
-> Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fleet replaces them with their values when the install script is sent to the host.
+Script-only packages (.sh, .ps1, .py) also support custom variables (`$FLEET_SECRET_*`). Fleet replaces them with their values when the install script is sent to the host.
+
+Custom variables hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 
 ## Add variables
 

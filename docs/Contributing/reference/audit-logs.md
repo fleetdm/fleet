@@ -2663,6 +2663,21 @@ This activity contains the following fields:
 }
 ```
 
+## updated_custom_variable
+
+Generated when a custom variable's value is updated.
+
+This activity contains the following fields:
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
 ## deleted_custom_variable
 
 Generated when custom variable is deleted.
