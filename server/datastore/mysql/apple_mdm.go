@@ -2036,7 +2036,7 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 	// The host's Windows profile rows are gone, so drop its now-orphaned per-host profile status rollup
 	// row in the same transaction (issue #48340).
 	if platform == "windows" {
-		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{uuid}); err != nil {
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{uuid}, false); err != nil {
 			return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup for host")
 		}
 	}

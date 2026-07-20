@@ -1125,7 +1125,8 @@ func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host
 		// Apple profile verifier calls this today, but the helpers support the windows platform, so keep
 		// the rollup invariant intact for any future caller.
 		if host.Platform == "windows" {
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{host.UUID}); err != nil {
+			// The set* helpers only update profile rows, so no rollup row can be orphaned.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{host.UUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after verification update")
 			}
 		}
@@ -2160,7 +2161,8 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 		// The row now has status NULL, which the summary reports as pending, so refresh the per-host
 		// Windows profile status rollup in the same transaction (issue #48340).
 		if table == "host_mdm_windows_profiles" {
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}); err != nil {
+			// This path only updates the profile row, so no rollup row can be orphaned.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
 			}
 		}
@@ -2428,7 +2430,8 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 				profileUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "selecting affected hosts for batch resend")
 			}
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs); err != nil {
+			// This path only updates profile rows, so no rollup row can be orphaned.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, windowsHostUUIDs, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after batch resend")
 			}
 		}
@@ -3219,7 +3222,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 					for _, hostCertToRenew := range hostCertsToRenew {
 						hostUUIDs = append(hostUUIDs, hostCertToRenew.HostUUID)
 					}
-					if err := updateWindowsProfilesStatusRollupDB(ctx, tx, hostUUIDs); err != nil {
+					// This path only updates profile rows, so no rollup row can be orphaned.
+					if err := updateWindowsProfilesStatusRollupDB(ctx, tx, hostUUIDs, true); err != nil {
 						return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after certificate renewal")
 					}
 				}

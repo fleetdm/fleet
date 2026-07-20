@@ -459,7 +459,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 					return ctxerr.Wrap(ctx, err, "delete host_mdm_windows_profiles for host")
 				}
 				// Drop the now-orphaned per-host profile status rollup row.
-				if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}); err != nil {
+				if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, false); err != nil {
 					return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on re-enrollment")
 				}
 				// Clear setup experience results so they get re-enqueued on the new enrollment.
@@ -529,7 +529,7 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 				return ctxerr.Wrap(ctx, err, "cleaning up Windows host MDM profiles after unenrollment")
 			}
 			// Drop the now-orphaned per-host profile status rollup row.
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}); err != nil {
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup on unenrollment")
 			}
 		}
@@ -687,7 +687,8 @@ func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.C
 				return ctxerr.Wrap(ctx, err, "batch upserting host_mdm_windows_profiles")
 			}
 
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs); err != nil {
+			// This path only upserts profile rows, so no rollup row can be orphaned.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, queueHostUUIDs, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after enqueue upsert")
 			}
 
@@ -1353,7 +1354,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
-	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}); err != nil {
+	// Only the terminal remove cleanup above deletes profile rows; when it did not run, the host cannot
+	// have been orphaned and the orphan-delete is safely skipped (the common case for check-ins).
+	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, len(deleteCommandUUIDs) == 0); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
 	}
 
@@ -1826,7 +1829,7 @@ func (ds *Datastore) cancelWindowsHostInstallsForDeletedMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "cleaning up host rows for deleted profiles")
 	}
 
-	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, affectedHostUUIDs); err != nil {
+	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, affectedHostUUIDs, false); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after profile deletion")
 	}
 
@@ -1986,11 +1989,8 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 // updateWindowsProfilesStatusRollupDB and per page in ReconcileWindowsProfilesStatus.
 const windowsProfilesStatusRollupBatchSize = 1000
 
-// windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that
-// recomputes host_mdm_windows_profiles_status rows for a set of hosts from their current
-// host_mdm_windows_profiles rows. The trailing IN (?) takes the host-UUID batch: callers append the
-// batch to the returned args and expand the statement with sqlx.In. Thanks to ON DUPLICATE KEY UPDATE,
-// rows whose bucket did not change are not rewritten.
+// windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that recomputes
+// host_mdm_windows_profiles_status rows for a set of hosts from their current host_mdm_windows_profiles rows.
 func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
 	caseExpr, caseArgs := windowsHostProfileStatusCaseExpr("")
 	stmt := fmt.Sprintf(`
@@ -2015,25 +2015,11 @@ WHERE host_uuid IN (?)
 		WHERE hmwp.host_uuid = host_mdm_windows_profiles_status.host_uuid
 	)`
 
-// updateWindowsProfilesStatusRollupDB recomputes the host_mdm_windows_profiles_status rollup rows for
-// the given hosts from their current host_mdm_windows_profiles rows. Every path that inserts, updates,
-// or deletes rows in host_mdm_windows_profiles MUST call this, on the same transaction/connection that
-// made the change, with the affected host UUIDs (issue #48340). This keeps the per-host rollup consumed
-// by GetMDMWindowsProfilesSummary current so the summary is an O(hosts) read instead of recomputing an
-// O(hosts x profiles-per-host) aggregation on every request.
-//
-// Per batch it is an upsert (INSERT ... SELECT ... GROUP BY host_uuid ON DUPLICATE KEY UPDATE) followed
-// by an orphan-delete for hosts that no longer have any profile rows:
-//   - The upsert re-derives each host's bucket in place, so a host that still has profiles never
-//     transiently loses its rollup row (a summary read never sees it missing and undercounts it), and
-//     rows whose bucket did not change are not rewritten. This is what makes the one non-transactional
-//     caller (BulkUpsertMDMWindowsHostProfiles, which only inserts/updates profile rows and so can never
-//     orphan a rollup row) safe without wrapping it in a transaction.
-//   - The orphan-delete removes the now-stale rollup row for a host whose last profile row was just
-//     deleted (the upsert's GROUP BY produces no row for it), which the summary treats as empty.
-//
-// Because it is keyed per host, concurrent host check-ins never contend on a shared counter row.
-func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContext, hostUUIDs []string) error {
+// updateWindowsProfilesStatusRollupDB recomputes the host_mdm_windows_profiles_status rollup rows for the given hosts from their
+// current host_mdm_windows_profiles rows. Every path that inserts, updates, or deletes rows in host_mdm_windows_profiles MUST
+// call this, on the same transaction/connection that made the change, with the affected host UUIDs. This keeps the per-host
+// rollup consumed by GetMDMWindowsProfilesSummary current.
+func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContext, hostUUIDs []string, skipOrphanDelete bool) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
@@ -2067,6 +2053,10 @@ func updateWindowsProfilesStatusRollupDB(ctx context.Context, ext sqlx.ExtContex
 		}
 		if _, err := ext.ExecContext(ctx, stmt, inArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting windows profiles status rollup rows")
+		}
+
+		if skipOrphanDelete {
+			return nil
 		}
 
 		delStmt, delArgs, err := sqlx.In(windowsProfilesStatusOrphanDeleteStmt, batch)
@@ -2473,7 +2463,7 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	for _, p := range payload {
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
 	}
-	if err := updateWindowsProfilesStatusRollupDB(ctx, ds.writer(ctx), hostUUIDs); err != nil {
+	if err := updateWindowsProfilesStatusRollupDB(ctx, ds.writer(ctx), hostUUIDs, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after bulk upsert")
 	}
 	return nil
@@ -2646,7 +2636,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 	for _, p := range profs {
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
 	}
-	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, hostUUIDs); err != nil {
+	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, hostUUIDs, false); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after bulk delete")
 	}
 	return nil
@@ -3207,7 +3197,8 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 			return ctxerr.Wrap(ctx, err, "resolving host uuid for windows profiles status rollup")
 		}
 		if hostUUID.Valid && hostUUID.String != "" {
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}); err != nil {
+			// This path only updates profile rows (status to pending), so no rollup row can be orphaned.
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
 			}
 		}
