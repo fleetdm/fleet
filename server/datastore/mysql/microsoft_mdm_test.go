@@ -2182,107 +2182,90 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 }
 
 func testMDMWindowsGetESPReleaseAckStatus(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
-	dev := createMDMWindowsEnrollment(ctx, t, ds)
-	var enrollmentID uint
-	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &enrollmentID,
-		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, dev.MDMDeviceID))
+	dev := createEnrolledDevice(t, ds)
 
 	const releaseURI = "./User/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ServerHasFinishedProvisioning"
 	const attemptPrefix = "esp-release-"
 
+	// insertCmd enqueues a command through the production insert path.
+	insertCmd := func(t *testing.T, cmdUUID, uri string) {
+		t.Helper()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{dev.MDMDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Replace/>"),
+			TargetLocURI: uri,
+		}))
+	}
 	insertAttempt := func(t *testing.T, uri string) string {
 		t.Helper()
 		cmdUUID := attemptPrefix + uuid.NewString()
-		_, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`,
-			cmdUUID, "<Replace/>", uri)
-		require.NoError(t, err)
-		_, err = ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`, enrollmentID, cmdUUID)
-		require.NoError(t, err)
+		insertCmd(t, cmdUUID, uri)
 		return cmdUUID
 	}
+	// ackAttempt mirrors MDMWindowsSaveResponse's ack transaction (result row insert + acked_at stamp) with
+	// direct inserts: the only datastore method that records results is SaveResponse itself, which needs a full
+	// SyncML envelope. Same convention as testMDMWindowsCommandResults.
 	ackAttempt := func(t *testing.T, cmdUUID, statusCode string) {
 		t.Helper()
 		compressed, err := compressWindowsMDMResponse([]byte("resp"))
 		require.NoError(t, err)
 		res, err := ds.writer(ctx).ExecContext(ctx,
-			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, enrollmentID, compressed)
+			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, dev.ID, compressed)
 		require.NoError(t, err)
 		responseID, err := res.LastInsertId()
 		require.NoError(t, err)
 		_, err = ds.writer(ctx).ExecContext(ctx,
 			`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, '', ?, ?)`,
-			enrollmentID, cmdUUID, responseID, statusCode)
+			dev.ID, cmdUUID, responseID, statusCode)
 		require.NoError(t, err)
-		// Mirror MDMWindowsSaveResponse's soft dequeue: recording a result stamps acked_at in the same transaction.
 		_, err = ds.writer(ctx).ExecContext(ctx,
 			`UPDATE windows_mdm_command_queue SET acked_at = NOW(6) WHERE enrollment_id = ? AND command_uuid = ?`,
-			enrollmentID, cmdUUID)
+			dev.ID, cmdUUID)
 		require.NoError(t, err)
+	}
+	requireAck := func(t *testing.T, enrollmentID uint, want fleet.MDMWindowsESPReleaseAckStatus) {
+		t.Helper()
+		ack, err := ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
+		require.NoError(t, err)
+		require.Equal(t, &want, ack)
 	}
 
 	// No attempts queued at all.
-	ack, err := ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
 
 	// Commands targeting other URIs don't count as attempts.
-	otherUUID := insertAttempt(t, "./Device/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ServerHasFinishedProvisioning")
-	ackAttempt(t, otherUUID, "200")
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{}, ack)
+	otherURIUUID := insertAttempt(t, "./Device/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ServerHasFinishedProvisioning")
+	ackAttempt(t, otherURIUUID, "200")
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
 
 	// A command targeting the release URI WITHOUT the Fleet attempt prefix (e.g. an admin-enqueued raw
 	// command) doesn't count either: it must neither trigger the resend phase nor complete the ESP.
 	rawCmdUUID := uuid.NewString()
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`,
-		rawCmdUUID, "<Exec/>", releaseURI)
-	require.NoError(t, err)
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`, enrollmentID, rawCmdUUID)
-	require.NoError(t, err)
+	insertCmd(t, rawCmdUUID, releaseURI)
 	ackAttempt(t, rawCmdUUID, "200")
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
 
 	// One queued attempt, no response yet: in flight.
 	firstAttempt := insertAttempt(t, releaseURI)
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true})
 
 	// The device rejects it with 405 (user MDM context not initialized yet).
 	ackAttempt(t, firstAttempt, "405")
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
 
 	// A retry is queued: back in flight, latest acked status still the 405.
 	retryAttempt := insertAttempt(t, releaseURI)
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true, LatestStatus: "405"}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true, LatestStatus: "405"})
 
 	// The retry acks 200: release confirmed, and the latest status reflects the newest ack.
 	ackAttempt(t, retryAttempt, "200")
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, Acked200: true, LatestStatus: "200"}, ack)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, Acked200: true, LatestStatus: "200"})
 
 	// Another enrollment's attempts are invisible.
 	otherDev := createEnrolledDevice(t, ds)
-	var otherEnrollmentID uint
-	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &otherEnrollmentID,
-		`SELECT id FROM mdm_windows_enrollments WHERE mdm_device_id = ?`, otherDev.MDMDeviceID))
-	ack, err = ds.MDMWindowsGetESPReleaseAckStatus(ctx, otherEnrollmentID, releaseURI, attemptPrefix)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.MDMWindowsESPReleaseAckStatus{}, ack)
+	requireAck(t, otherDev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
 }
 
 func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
