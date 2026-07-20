@@ -206,7 +206,7 @@ const Modal = ({
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={handleClose}
                 iconStroke
                 autofocus={isContentDisabled}

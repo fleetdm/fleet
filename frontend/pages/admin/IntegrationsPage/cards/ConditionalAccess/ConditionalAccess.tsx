@@ -369,7 +369,7 @@ const ConditionalAccess = () => {
         iconName={oktaConfigured ? "success" : undefined}
         cta={
           oktaConfigured ? (
-            <Button variant="text-icon" onClick={handleOktaDelete}>
+            <Button variant="subdued" onClick={handleOktaDelete}>
               Delete
               <Icon name="trash" color="ui-fleet-black-75" />
             </Button>
@@ -436,7 +436,7 @@ const ConditionalAccess = () => {
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
       entraCta = (
-        <Button variant="text-icon" onClick={handleEntraDelete}>
+        <Button variant="subdued" onClick={handleEntraDelete}>
           Delete
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>

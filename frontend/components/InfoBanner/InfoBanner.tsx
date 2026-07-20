@@ -67,7 +67,7 @@ const InfoBanner = ({
           {cta}
           {closable && (
             <Button
-              variant="icon"
+              variant="subdued"
               onClick={() => setHideBanner(true)}
               iconStroke
             >

@@ -135,7 +135,7 @@ const FileDetails = ({
         <div className={`${baseClass}__delete`}>
           <Button
             className={`${baseClass}__delete-button`}
-            variant="icon"
+            variant="subdued"
             onClick={onDeleteFile}
           >
             <label htmlFor="delete-file">

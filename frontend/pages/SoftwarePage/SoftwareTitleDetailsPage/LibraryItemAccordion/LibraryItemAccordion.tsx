@@ -573,7 +573,7 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="icon"
+      variant="subdued"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
@@ -728,7 +728,7 @@ const LibraryItemAccordion = ({
           <div className={`${baseClass}__actions-column`}>
             {canDownload && (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}
