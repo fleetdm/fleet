@@ -2257,6 +2257,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		return nil, ctxerr.Wrap(ctx, err, "get ESP release ack status")
 	}
 	if ack.Attempted {
+		// re-send release or finish enrollment
 		return svc.handleESPUserReleaseRetry(ctx, device, ack, timedOut, reqMsg)
 	}
 
@@ -2660,12 +2661,8 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"blocking", shouldBlock,
 		"soft_blocking", shouldWarn)
 
-	// Release path: no CAS here. The enrollment stays Active until the device acks the user-scope
-	// ServerHasFinishedProvisioning Replace with a 200 (handleESPUserReleaseRetry, entered on later checkins via
-	// the attempt rows persisted above). Committing None before that ack was the #49134 hang: the device's 405 was
-	// recorded as delivered and never retried. Staying Active also keeps the fast DMClient poll
-	// (reconcileWindowsMDMPollSchedule gates on None), so a not-yet-released device can't be relaxed to the slow
-	// poll (#48760).
+	// Release path. The enrollment stays Active until the device acks the user-scope ServerHasFinishedProvisioning
+	// Replace with a 200 (handleESPUserReleaseRetry, entered on later checkins via the attempt rows persisted above).
 	if !shouldBlock && !shouldWarn {
 		return cmds, nil
 	}
@@ -2673,10 +2670,9 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// Block paths commit immediately: CAS Active -> None so exactly one concurrent checkin finalizes. Cancel and
 	// persist above may have run for both racers; cancel is idempotent and the loser's persisted Replaces deliver
 	// harmlessly.
-	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	transitioned, err := svc.casESPActiveToNone(ctx, device, "block finalize")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
+		return nil, err
 	}
 	if !transitioned {
 		// Another concurrent checkin already finalized.
@@ -2684,6 +2680,19 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	}
 
 	return cmds, nil
+}
+
+// casESPActiveToNone commits the terminal ESP transition (awaiting_configuration Active -> None) via
+// compare-and-swap and reports whether this checkin won it. A false return with nil error means a concurrent
+// checkin committed first; callers decide what that means for their path. reason is folded into the error
+// context on failure.
+func (svc *Service) casESPActiveToNone(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reason string) (bool, error) {
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set awaiting configuration to none: "+reason)
+	}
+	return transitioned, nil
 }
 
 // espUserReleaseLocURI returns the LocURI of the user-scope ServerHasFinishedProvisioning node for the given
@@ -2735,12 +2744,11 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 ) ([]*mdm_types.SyncMLCmd, error) {
 	switch {
 	case ack.Acked200:
-		// CAS Active -> None: commit ESP completion, now confirmed by the device's ack. The CAS also picks a
-		// single winner among concurrent checkins so completion is committed and logged exactly once.
-		transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+		// Commit ESP completion, now confirmed by the device's ack. The CAS also picks a single winner among
+		// concurrent checkins so completion is committed and logged exactly once.
+		transitioned, err := svc.casESPActiveToNone(ctx, device, "user-scope release ack")
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none after user-scope release ack")
+			return nil, err
 		}
 		if transitioned {
 			svc.logger.InfoContext(ctx, "ESP: user-scope release acked, ESP complete",
@@ -2754,9 +2762,8 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 		// forever.
 		svc.logger.WarnContext(ctx, "ESP: timeout waiting for user-scope release ack, finalizing without it",
 			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
-		if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-			fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none after user-scope release timeout")
+		if _, err := svc.casESPActiveToNone(ctx, device, "user-scope release timeout"); err != nil {
+			return nil, err
 		}
 		return nil, nil
 
