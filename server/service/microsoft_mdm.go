@@ -2681,9 +2681,7 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 }
 
 // casESPActiveToNone commits the terminal ESP transition (awaiting_configuration Active -> None) via
-// compare-and-swap and reports whether this checkin won it. A false return with nil error means a concurrent
-// checkin committed first; callers decide what that means for their path. reason is folded into the error
-// context on failure.
+// compare-and-swap and reports whether this checkin won it.
 func (svc *Service) casESPActiveToNone(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reason string) (bool, error) {
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
@@ -2693,19 +2691,13 @@ func (svc *Service) casESPActiveToNone(ctx context.Context, device *fleet.MDMWin
 	return transitioned, nil
 }
 
-// espUserReleaseLocURI returns the LocURI of the user-scope ServerHasFinishedProvisioning node for the given
-// provider ID. Writing true to it is what completes the "Account setup" phase of the Windows Autopilot ESP; it is
-// the one release command whose delivery must be confirmed (see handleESPUserReleaseRetry).
+// espUserReleaseLocURI returns the LocURI of the user-scope ServerHasFinishedProvisioning node for the given provider ID.
 func espUserReleaseLocURI(provID string) string {
 	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
 }
 
 // espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
-// finalize's Replace and each retry). MDMWindowsGetESPReleaseAckStatus matches attempts on this prefix in addition
-// to the LocURI so that a command enqueued through the generic raw-command path (fleetctl mdm run-command) that
-// happens to target the same LocURI can neither push an Active enrollment into the resend phase early (skipping the
-// wait gates) nor complete the ESP with its ack. Unlike FleetInternalCmdIDPrefix commands, these ARE persisted to
-// windows_mdm_commands (their acks must be recorded in windows_mdm_command_results).
+// finalize's Replace and each retry).
 const espReleaseAttemptCmdIDPrefix = "esp-release-"
 
 // espRetryAllowedForMessage bounds user-scope release retries to the start of an OMA-DM session (device MsgID 1 or 2; in
@@ -2733,17 +2725,13 @@ func espRetryAllowedForMessage(reqMsg *fleet.SyncML) bool {
 // handleESPUserReleaseRetry handles an Active enrollment whose release commands have already been sent: the ESP is
 // finished only when the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200. Until then the
 // enrollment stays Active and the Replace is re-sent once per session. Convergence is quick in practice: the device
-// polls every ~60s during the ESP (and every few minutes once it reaches the stuck Account-setup screen), and the
-// write starts succeeding as soon as the user MDM context initializes -- live validation on Win11 26200 saw the
-// first retry ack 200 one session after the 405, on both fresh and re-enrolled devices. The 3-hour ESP timeout
-// bounds the loop for devices where no user context ever appears.
+// polls every ~60s during the ESP, and the write starts succeeding as soon as the user MDM context initializes.
 func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice,
 	ack *fleet.MDMWindowsESPReleaseAckStatus, timedOut bool, reqMsg *fleet.SyncML,
 ) ([]*mdm_types.SyncMLCmd, error) {
 	switch {
 	case ack.Acked200:
-		// Commit ESP completion, now confirmed by the device's ack. The CAS also picks a single winner among
-		// concurrent checkins so completion is committed and logged exactly once.
+		// Commit ESP completion, now confirmed by the device's ack. Enrollment complete.
 		transitioned, err := svc.casESPActiveToNone(ctx, device, "user-scope release ack")
 		if err != nil {
 			return nil, err
@@ -2756,8 +2744,7 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 
 	case timedOut:
 		// Same 3-hour bound as the pre-release path: CAS Active -> None to stop retrying and let the device's own
-		// ESP timeout handling take over. Without this, an enrollment whose user context never appears would retry
-		// forever.
+		// ESP timeout handling take over.
 		svc.logger.WarnContext(ctx, "ESP: timeout waiting for user-scope release ack, finalizing without it",
 			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
 		if _, err := svc.casESPActiveToNone(ctx, device, "user-scope release timeout"); err != nil {
@@ -2767,7 +2754,7 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 
 	case ack.HasUnacked:
 		// An attempt is in flight: either the device hasn't responded yet, or the response was dropped and the
-		// command queue's redelivery will resend the persisted attempt. Don't stack another attempt on top.
+		// command queue's redelivery will resend the persisted attempt.
 		svc.logger.DebugContext(ctx, "ESP: user-scope release attempt in flight, waiting for ack",
 			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
 		return nil, nil
@@ -2777,14 +2764,10 @@ func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet
 		return nil, nil
 
 	default:
-		// The last attempt was acked with a non-200 (405 until the user MDM context initializes): re-send a fresh
-		// Replace. Persisted with a fresh CmdID like the original finalize so the dropped-response redelivery covers
-		// it and its ack is recorded in windows_mdm_command_results for the next pass of this handler.
+		// The last attempt was acked with a non-200 (405 until the user MDM context initializes): re-send a fresh Replace.
 		svc.logger.InfoContext(ctx, "ESP: user-scope release not acked yet, retrying",
 			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
-		retryCmd := newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(syncml.DocProvisioningAppProviderID), "true")
-		retryCmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
-		cmds := []*mdm_types.SyncMLCmd{retryCmd}
+		cmds := []*mdm_types.SyncMLCmd{newESPUserReleaseCmd(syncml.DocProvisioningAppProviderID)}
 		if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "persist ESP user-scope release retry")
 		}
@@ -2855,18 +2838,23 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
-		// The user-scope release. This is the command whose 200 ack gates the Active -> None transition
-		// (handleESPUserReleaseRetry finds attempts by this exact LocURI plus the esp-release- CmdID prefix,
-		// hence the shared helpers).
-		newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(provID), "true"),
 	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
-		if cmd.GetTargetURI() == espUserReleaseLocURI(provID) {
-			cmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
-		}
 	}
-	return cmds
+	// The user-scope release goes last: it is the command whose 200 ack gates the Active -> None transition to
+	// finish enrollment. Built by its own constructor so its CmdID carries the attempt prefix.
+	return append(cmds, newESPUserReleaseCmd(provID))
+}
+
+// newESPUserReleaseCmd builds the user-scope ServerHasFinishedProvisioning Replace that completes the ESP
+// "Account setup" phase, with the esp-release- CmdID prefix that MDMWindowsGetESPReleaseAckStatus uses to
+// recognize Fleet's own release attempts. Shared by the initial finalize and every retry so the two can never
+// drift in URI or tagging.
+func newESPUserReleaseCmd(provID string) *mdm_types.SyncMLCmd {
+	cmd := newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(provID), "true")
+	cmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
+	return cmd
 }
 
 // persistESPFinalCommands stores backup copies of every finalization command
