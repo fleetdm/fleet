@@ -197,19 +197,16 @@ const ProfileListItem = ({
             <Icon name="info" size="medium" />
           </Button>
           {!isTechnician && (
-            <GitOpsModeTooltipWrapper
-              renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  className={`${subClass}__action-button`}
-                  variant="icon"
-                  onClick={() => onClickEdit(profile)}
-                  ariaLabel={`Edit ${profile.name}`}
-                >
-                  <Icon name="pencil" />
-                </Button>
-              )}
-            />
+            // stays enabled in GitOps mode -- the modal is the only place to
+            // see a profile's label targeting; it blocks saving instead
+            <Button
+              className={`${subClass}__action-button`}
+              variant="icon"
+              onClick={() => onClickEdit(profile)}
+              ariaLabel={`Edit ${profile.name}`}
+            >
+              <Icon name="pencil" />
+            </Button>
           )}
           <Button
             className={`${subClass}__action-button`}

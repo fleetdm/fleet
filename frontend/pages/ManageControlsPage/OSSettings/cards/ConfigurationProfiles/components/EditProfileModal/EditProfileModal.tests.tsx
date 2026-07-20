@@ -1,11 +1,12 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 
 import { createCustomRenderer } from "test/test-utils";
 import { IMdmProfile } from "interfaces/mdm";
 import labelsAPI from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
+import { notify } from "components/ToastNotification";
 
 import EditProfileModal, {
   getAcceptedExtensions,
@@ -35,7 +36,6 @@ describe("EditProfileModal", () => {
     jest.spyOn(labelsAPI, "summary").mockResolvedValue({ labels: mockLabels });
     jest.spyOn(mdmAPI, "updateProfile").mockResolvedValue({
       profile_uuid: baseProfile.profile_uuid,
-      has_profile: true,
     });
   });
 
@@ -50,7 +50,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier={false}
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -74,7 +74,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -96,7 +96,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -116,7 +116,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier
         onUpdate={onUpdate}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -125,8 +125,8 @@ describe("EditProfileModal", () => {
 
     await waitFor(() => {
       expect(mdmAPI.updateProfile).toHaveBeenCalledWith({
-        profileUuid: "abc-123",
-        file: undefined,
+        profileUUID: "abc-123",
+        profile: undefined,
         labelsIncludeAll: ["Label A"],
       });
     });
@@ -143,7 +143,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -153,8 +153,8 @@ describe("EditProfileModal", () => {
 
     await waitFor(() => {
       expect(mdmAPI.updateProfile).toHaveBeenCalledWith({
-        profileUuid: "abc-123",
-        file: undefined,
+        profileUUID: "abc-123",
+        profile: undefined,
       });
     });
   });
@@ -166,7 +166,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -179,21 +179,81 @@ describe("EditProfileModal", () => {
     expect(mdmAPI.updateProfile).not.toHaveBeenCalled();
   });
 
-  it("calls onExit when cancel is clicked", async () => {
-    const onExit = jest.fn();
+  it("rejects a file extension valid for other profile types but not this one, leaving the displayed file unchanged", async () => {
+    const errorSpy = jest.spyOn(notify, "error");
+    const { container } = render(
+      <EditProfileModal
+        profile={baseProfile}
+        currentTeamId={0}
+        isPremiumTier={false}
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    const fileInput = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    // .json is valid for Android profiles and DDM declarations but not for
+    // baseProfile, an Apple config profile -- this proves the per-platform
+    // check is enforced, not just a blanket file-type sniff. fireEvent
+    // bypasses the input's `accept` filtering (which user-event enforces),
+    // mirroring a user picking "All Files" in the OS dialog.
+    const badFile = new File(["{}"], "bad.json", {
+      type: "application/json",
+    });
+    fireEvent.change(fileInput, { target: { files: [badFile] } });
+
+    await waitFor(() => {
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Invalid file type",
+        expect.anything()
+      );
+    });
+    expect(screen.getByText("Test Profile")).toBeInTheDocument();
+    expect(screen.getByText(".mobileconfig")).toBeInTheDocument();
+  });
+
+  it("accepts a valid replacement file and updates the displayed file details", async () => {
+    const { user, container } = render(
+      <EditProfileModal
+        profile={baseProfile}
+        currentTeamId={0}
+        isPremiumTier={false}
+        onUpdate={noop}
+        onCancel={noop}
+      />
+    );
+
+    const fileInput = container.querySelector(
+      'input[type="file"]'
+    ) as HTMLInputElement;
+    const newFile = new File(["<plist></plist>"], "new-profile.mobileconfig", {
+      type: "application/x-apple-aspen-config",
+    });
+    await user.upload(fileInput, newFile);
+
+    await waitFor(() => {
+      expect(screen.getByText("new-profile")).toBeInTheDocument();
+    });
+    expect(screen.getByText(".mobileconfig")).toBeInTheDocument();
+  });
+
+  it("calls onCancel when cancel is clicked", async () => {
+    const onCancel = jest.fn();
     const { user } = render(
       <EditProfileModal
         profile={baseProfile}
         currentTeamId={0}
         isPremiumTier={false}
         onUpdate={noop}
-        onExit={onExit}
+        onCancel={onCancel}
       />
     );
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it("disables the submit button in GitOps mode", () => {
@@ -217,7 +277,7 @@ describe("EditProfileModal", () => {
         currentTeamId={0}
         isPremiumTier={false}
         onUpdate={noop}
-        onExit={noop}
+        onCancel={noop}
       />
     );
 
@@ -260,6 +320,12 @@ describe("getAcceptedExtensions", () => {
       })
     ).toEqual([".json"]);
   });
+
+  it("accepts nothing for an unknown platform", () => {
+    expect(
+      getAcceptedExtensions({ ...baseProfile, platform: "linux" })
+    ).toEqual([]);
+  });
 });
 
 describe("getProfileFileExtension", () => {
@@ -291,5 +357,11 @@ describe("getProfileFileExtension", () => {
         platform: "android",
       })
     ).toEqual(".json");
+  });
+
+  it("returns no extension for an unknown platform", () => {
+    expect(
+      getProfileFileExtension({ ...baseProfile, platform: "linux" })
+    ).toEqual("");
   });
 });

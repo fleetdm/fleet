@@ -327,7 +327,7 @@ const ConfigurationProfiles = ({
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}
           onUpdate={onUpdateProfile}
-          onExit={onCancelEdit}
+          onCancel={onCancelEdit}
         />
       )}
       {showDeleteProfileModal && selectedProfile.current && (

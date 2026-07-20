@@ -133,7 +133,7 @@ const generateGenericLearnMoreErrMsg = (errMsg: string) => {
   return errMsg;
 };
 
-/** We want to add some additional messageing to some of the error messages so
+/** We want to add some additional messaging to some of the error messages so
  * we add them in this function. Otherwise, we'll just return the error message from the
  * API. Pass `action: "edit"` when the error came from editing an existing
  * profile so the added messaging reads "Couldn't edit." instead of
@@ -161,7 +161,7 @@ export const getErrorMessage = (
       <div className="upload-profile-invalid-keys-error">
         <span>
           {couldnt} Keys in declaration (DDM) profile must contain only letters
-          and start with a uppercase letter. Keys in Android profile must
+          and start with an uppercase letter. Keys in Android profile must
           contain only letters and start with a lowercase letter.{" "}
         </span>
         <CustomLink

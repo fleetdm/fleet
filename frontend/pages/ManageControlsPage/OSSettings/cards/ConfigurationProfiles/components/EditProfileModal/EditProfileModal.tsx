@@ -47,8 +47,14 @@ export const getAcceptedExtensions = (profile: IMdmProfile) => {
       return [".xml"];
     case "android":
       return [".json"];
-    default:
+    case "darwin":
+    case "ios":
+    case "ipados":
+      // .xml is a valid mobileconfig: a profile is a bare-XML plist
       return [".mobileconfig", ".xml"];
+    default:
+      // unknown platform: accept nothing rather than guess
+      return [];
   }
 };
 
@@ -61,8 +67,12 @@ export const getProfileFileExtension = (profile: IMdmProfile) => {
       return ".xml";
     case "android":
       return ".json";
-    default:
+    case "darwin":
+    case "ios":
+    case "ipados":
       return ".mobileconfig";
+    default:
+      return "";
   }
 };
 
@@ -79,7 +89,7 @@ interface IEditProfileModalProps {
   /** called after a successful update; the caller is expected to refetch and
    * close the modal. */
   onUpdate: () => void;
-  onExit: () => void;
+  onCancel: () => void;
 }
 
 const EditProfileModal = ({
@@ -87,7 +97,7 @@ const EditProfileModal = ({
   currentTeamId,
   isPremiumTier,
   onUpdate,
-  onExit,
+  onCancel,
 }: IEditProfileModalProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
 
@@ -170,8 +180,8 @@ const EditProfileModal = ({
         excludeLabels: selectedExcludeLabels,
       });
       await mdmAPI.updateProfile({
-        profileUuid: profile.profile_uuid,
-        file: fileRef.current ?? undefined,
+        profileUUID: profile.profile_uuid,
+        profile: fileRef.current ?? undefined,
         ...labelKey,
       });
       notify.success("Successfully updated profile.");
@@ -223,7 +233,7 @@ const EditProfileModal = ({
     listNamesFromSelectedLabels(selectedExcludeLabels).length > 0;
 
   return (
-    <Modal className={baseClass} title="Edit profile" onExit={onExit}>
+    <Modal className={baseClass} title="Edit profile" onExit={onCancel}>
       {isPremiumTier && isLoadingLabels && <Spinner />}
       {isPremiumTier && !isLoadingLabels && isErrorLabels && <DataError />}
       {(!isPremiumTier || (!isLoadingLabels && !isErrorLabels)) && (
@@ -244,26 +254,31 @@ const EditProfileModal = ({
             gitOpsModeEnabled={gitOpsModeEnabled}
           />
           {isPremiumTier && (
-            <div className={`form-field ${baseClass}__target`}>
-              <div className="form-field__label">Target</div>
-              <TargetLabelSelector
-                selectedTargetType={selectedTargetType}
-                onSelectTargetType={setSelectedTargetType}
-                labels={labels || []}
-                includeConfig={includeTab}
-                excludeConfig={excludeTab}
-                isLoadingLabels={isFetchingLabels}
-                isErrorLabels={isErrorLabels}
-                emptyStateDescription="Add a label to target your configuration profile."
-                onAddLabel={() => {
-                  window.location.href = PATHS.LABEL_NEW_DYNAMIC;
-                }}
-                disableOptions={gitOpsModeEnabled}
-              />
-            </div>
+            <GitOpsModeTooltipWrapper
+              isInputField
+              renderChildren={(disableChildren) => (
+                <div className={`form-field ${baseClass}__target`}>
+                  <div className="form-field__label">Target</div>
+                  <TargetLabelSelector
+                    selectedTargetType={selectedTargetType}
+                    onSelectTargetType={setSelectedTargetType}
+                    labels={labels || []}
+                    includeConfig={includeTab}
+                    excludeConfig={excludeTab}
+                    isLoadingLabels={isFetchingLabels}
+                    isErrorLabels={isErrorLabels}
+                    emptyStateDescription="Add a label to target your configuration profile."
+                    onAddLabel={() => {
+                      window.location.href = PATHS.LABEL_NEW_DYNAMIC;
+                    }}
+                    disableOptions={!!disableChildren}
+                  />
+                </div>
+              )}
+            />
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onExit}>
+            <Button variant="inverse" onClick={onCancel}>
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper

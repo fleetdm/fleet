@@ -50,10 +50,10 @@ export interface IUploadProfileApiParams {
 }
 
 export interface IUpdateProfileApiParams {
-  profileUuid: string;
+  profileUUID: string;
   /** replacement profile contents. Omit to keep the current contents and only
    * update label targeting. */
-  file?: File;
+  profile?: File;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
@@ -199,8 +199,8 @@ const mdmService = {
    * use replace semantics: omitting all label fields clears label targeting
    * (the profile targets all hosts). */
   updateProfile: ({
-    profileUuid,
-    file,
+    profileUUID,
+    profile,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
@@ -209,8 +209,8 @@ const mdmService = {
 
     const formData = new FormData();
 
-    if (file) {
-      formData.append("profile", file);
+    if (profile) {
+      formData.append("profile", profile);
     }
 
     labelsIncludeAll?.forEach((label) => {
@@ -225,7 +225,7 @@ const mdmService = {
       formData.append("labels_exclude_any", label);
     });
 
-    return sendRequest("PATCH", CONFIG_PROFILE(profileUuid), formData);
+    return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },
 
   downloadProfile: (profileId: string) => {
