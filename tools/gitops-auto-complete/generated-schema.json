@@ -1022,6 +1022,13 @@
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
         },
+        "name_template": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "path": {
           "type": [
             "string",
@@ -2177,6 +2184,13 @@
         "macos_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "MacOSUpdates defines the OS update settings for macOS devices.\n\ntype: `AppleOSUpdateSettings`"
+        },
+        "name_template": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "setup_experience": {
           "$ref": "#/$defs/MacOSSetup",
@@ -3601,6 +3615,13 @@
         "macos_updates": {
           "$ref": "#/$defs/AppleOSUpdateSettings",
           "description": "type: `AppleOSUpdateSettings`"
+        },
+        "name_template": {
+          "description": "HostNameTemplate is the template used to compute a host's display name from\nhost-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).\n\ntype: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "setup_experience": {
           "$ref": "#/$defs/MacOSSetup",
