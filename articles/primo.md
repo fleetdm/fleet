@@ -49,7 +49,7 @@ Founder and CEO, Primo
 
 ## The outcome
 
-Fleet is not a tool Primo runs alongside its product. It is part of the product. Primo’s customers - internal IT teams at roughly 80% of accounts, MSP partners at the remaining 20% - get cross-platform device management without ever standing up MDM themselves. They experience Primo’s interface. Fleet runs underneath, driven entirely by Primo’s automation.
+Fleet is not a tool Primo runs alongside its product, it's part of the product. Primo’s customers, internal IT teams at roughly 80% of accounts and MSP partners at the remaining 20%, get cross-platform device management without ever standing up MDM themselves. They experience Primo’s interface. Fleet runs underneath, driven entirely by Primo’s automation.
 
 With Fleet, Primo has:
 
