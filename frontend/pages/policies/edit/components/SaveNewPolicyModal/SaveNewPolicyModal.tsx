@@ -284,7 +284,7 @@ const SaveNewPolicyModal = ({
         >
           <div className="autofill-tooltip-wrapper">
             <Button
-              variant="inverse"
+              variant="subdued"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"

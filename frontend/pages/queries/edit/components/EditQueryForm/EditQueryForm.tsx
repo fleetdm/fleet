@@ -435,7 +435,7 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
         <>
           Schema
           <Icon name="info" size="small" />

@@ -490,7 +490,7 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+          <Button variant="subdued" onClick={onOpenSchemaSidebar}>
             <>
               Schema
               <Icon name="info" />
