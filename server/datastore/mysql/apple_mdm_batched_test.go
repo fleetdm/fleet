@@ -61,8 +61,7 @@ func TestGetAppleMDMHostForReconcileIgnoresHostMDMStatus(t *testing.T) {
 
 	// Both hosts are darwin and fully nano-enrolled (Device enrollment +
 	// nano_devices row), so the only thing that differs between them is their
-	// host_mdm.enrolled flag. This isolates the EXISTS(host_mdm ... enrolled = 1)
-	// filter in the reconcile query.
+	// host_mdm.enrolled flag.
 	newEnrolledHost := func(suffix string, enrolled bool) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
