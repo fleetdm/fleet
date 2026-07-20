@@ -1251,6 +1251,23 @@
         "null"
       ]
     },
+    "GitOpsCustomHostVital": {
+      "additionalProperties": false,
+      "description": "GitOpsCustomHostVital defines the valid keys for an item in the top-level `custom_host_vitals:` list.",
+      "properties": {
+        "name": {
+          "description": "type: `string`",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "GitOpsExceptions": {
       "additionalProperties": false,
       "properties": {
@@ -4139,6 +4156,16 @@
     "controls": {
       "$ref": "#/$defs/ControlsWithTypes",
       "description": "type: `ControlsWithTypes`"
+    },
+    "custom_host_vitals": {
+      "description": "type: `array\u003cGitOpsCustomHostVital\u003e`",
+      "items": {
+        "$ref": "#/$defs/GitOpsCustomHostVital"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
     },
     "labels": {
       "description": "type: `array\u003cLabelSpec\u003e`",

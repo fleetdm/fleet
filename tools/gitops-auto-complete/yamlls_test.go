@@ -15,12 +15,12 @@ import (
 	"time"
 )
 
-// TestYAMLLS validates the fixtures against a real yaml-language-server — the
-// actual editor target — so the generated schema is checked with the same engine
-// users see. It's gated behind YAMLLS_TEST=1 because it needs the yamlls binary
-// (a node program). Set YAMLLS_BIN to point at the binary if it isn't on PATH.
+// TestYAMLLS validates the fixtures against a real yaml-language-server, the actual
+// editor target, so the generated schema is checked with the same engine users see.
+// It's gated behind YAMLLS_TEST=1 because it needs the yamlls binary (a node
+// program). Set YAMLLS_BIN to point at the binary if it isn't on PATH.
 //
-// The schema is attached per-file with a modeline; only Error-severity (schema)
+// The schema is attached per-file with a modeline. Only Error-severity (schema)
 // diagnostics are counted, so a deprecation hint on a valid file doesn't fail it.
 func TestYAMLLS(t *testing.T) {
 	if os.Getenv("YAMLLS_TEST") == "" {
@@ -222,7 +222,7 @@ func (c *yamllsClient) readLoop(r io.Reader) {
 			continue
 		}
 		// Auto-respond to server->client requests (method + id) so yamlls doesn't
-		// block; forward responses and notifications to the channel.
+		// block. Forward responses and notifications to the channel.
 		if _, hasMethod := m["method"]; hasMethod {
 			if _, hasID := m["id"]; hasID {
 				c.respond(m)

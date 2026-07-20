@@ -524,7 +524,7 @@ func fixYaraRules(schemaKeys map[string]any) {
 
 // addPathReferences adds the file-reference keys the Go structs don't model, so a real
 // GitOps file using e.g. `- path: ./lib/foo.yml` doesn't light up with "Property path
-// is not allowed". `path` is one external file; `paths` is a single glob string.
+// is not allowed". `path` is one external file, and `paths` is a single glob string.
 func addPathReferences(schemaKeys map[string]any) {
 	for _, name := range pathReferenceDefinitions {
 		addStringProperty(schemaKeys, name, "path")
@@ -592,8 +592,8 @@ func relaxNulls(nodes []map[string]any) {
 			// Keep the type as [type, null] so a wrong type is still caught while an
 			// empty null placeholder validates. This makes yamlls offer null in value
 			// completion, a limitation we accept so a real error like an unquoted
-			// version: 13.0 (which fleetctl rejects too, since ghodss decodes it as a
-			// number into a Go string) surfaces in the editor, not at apply time.
+			// version: 13.0 shows up in the editor, not at apply time. fleetctl rejects
+			// that value too, since ghodss decodes it as a number into a Go string.
 			node["type"] = []any{schemaType, "null"}
 		}
 	}

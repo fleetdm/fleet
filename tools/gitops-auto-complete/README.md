@@ -20,17 +20,18 @@ the relevant Fleet structs change.
 
 ### Set up with yaml-language-server
 
-Point yaml-language-server (used by Neovim, the VS Code YAML extension, and others)
-at the generated file. Two ways:
+Point yaml-language-server at the generated file. It's used by Neovim, the VS Code
+YAML extension, and others. There are two ways to do this:
 
-- Map it to your GitOps files via the `yaml.schemas` setting — schema path → file globs.
+- Map it to your GitOps files with the `yaml.schemas` setting, which maps a schema
+  path to file globs.
 - Or add a modeline to the top of a single file:
 
   ```yaml
   # yaml-language-server: $schema=/absolute/path/to/generated-schema.json
   ```
 
-### Example: Neovim + lazy.nvim
+### Neovim and lazy.nvim example
 
 ```lua
 {
@@ -64,12 +65,23 @@ GitOps file. Hover a key with `K` to see its type and docs.
 
 ## How it works
 
-Reflects a `GitOpsSpec` struct that mirrors the real top-level GitOps keys
-(`org_settings`, `controls`, `software`, `policies`, ...), reusing Fleet's own types
-for each section, via [`invopop/jsonschema`](https://github.com/invopop/jsonschema).
-It then post-processes the result so the schema matches how GitOps files are actually
-written — file-path references, legacy key aliases, a required installer reference
-per software item, and field docs pulled from Go comments.
+Reflects a `GitOpsSpec` struct that mirrors the real top-level GitOps keys, such as
+`org_settings`, `controls`, `software`, and `policies`, reusing Fleet's own types for
+each section, via [`invopop/jsonschema`](https://github.com/invopop/jsonschema). It
+then post-processes the result so the schema matches how GitOps files are written:
+file-path references, legacy key aliases, required fields for an item, and field docs
+pulled from Go comments.
 
-It's kept as its own Go module (with a `replace` back to the repo) so it builds from
-inside the repo without adding dependencies to the root `go.mod`.
+It's a separate Go module with a `replace` back to the repo, so it builds from inside
+the repo without adding dependencies to the root `go.mod`.
+
+## Known limitations
+
+- The schema is filename-agnostic, but Fleet applies some keys differently by file.
+  For example, `agent_options` and `reports` are rejected in `no-team.yml` and the
+  unassigned file. The schema still accepts them there, so that mistake shows up at
+  `fleetctl` apply time, not in the editor.
+- `GitOpsSpec` and `ControlsWithTypes` are hand-written mirrors of `spec.GitOps` and
+  `spec.GitOpsControls`, because those spec structs are untyped or untagged and reflect
+  poorly. `TestControlsKeysCoverSpec` catches a controls-key drift, but a new top-level
+  key has to be added to `GitOpsSpec` by hand, as `custom_host_vitals` was.

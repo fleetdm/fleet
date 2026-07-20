@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	ghodss "github.com/ghodss/yaml"
 	"github.com/santhosh-tekuri/jsonschema/v6"
 )
@@ -15,7 +18,7 @@ import (
 const schemaFile = "generated-schema.json"
 
 // compileSchema loads the committed schema and compiles it. The test validates
-// against the committed artifact; TestSchemaUpToDate separately guarantees that
+// against the committed artifact. TestSchemaUpToDate separately guarantees that
 // artifact matches what the generator currently produces.
 func compileSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
@@ -167,7 +170,7 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// agent_options.config.options is populated and closed; config stays open.
+	// agent_options.config.options is populated and closed, while config stays open.
 	t.Run("config.options", func(t *testing.T) {
 		cfg, _ := props(def("AgentOptions"))["config"].(map[string]any)
 		if cfg == nil {
@@ -188,7 +191,7 @@ func TestInvariants(t *testing.T) {
 		}
 	})
 
-	// Path refs: path-only defs carry `path` but not `paths`; path+paths defs carry both.
+	// Path refs: path-only defs carry `path` but not `paths`, and path+paths defs carry both.
 	t.Run("path refs", func(t *testing.T) {
 		for _, name := range []string{"ControlsWithTypes", "SoftwarePackageSpec"} {
 			p := props(def(name))
@@ -265,4 +268,42 @@ func collectDescriptions(node any) []string {
 
 func containsNote(desc string, note string) bool {
 	return bytes.Contains([]byte(desc), []byte(note))
+}
+
+// TestControlsKeysCoverSpec fails when spec.GitOpsControls gains a controls key that
+// the hand-written ControlsWithTypes hasn't mirrored. It's the guard that would have
+// caught the missing name_template. The embedded fleet.BaseItem's path/paths are added
+// separately by addPathReferences, and the tag-less Defined field is internal, so both
+// are excluded from the comparison.
+func TestControlsKeysCoverSpec(t *testing.T) {
+	specKeys := jsonTagSet(reflect.TypeFor[spec.GitOpsControls]())
+	delete(specKeys, "path")
+	delete(specKeys, "paths")
+
+	toolKeys := jsonTagSet(reflect.TypeFor[ControlsWithTypes]())
+	for key := range specKeys {
+		if !toolKeys[key] {
+			t.Errorf("ControlsWithTypes is missing controls key %q from spec.GitOpsControls; add it", key)
+		}
+	}
+}
+
+// jsonTagSet returns the json key names of a struct, pulling names up through embedded
+// structs and skipping fields with no json tag or "-".
+func jsonTagSet(t reflect.Type) map[string]bool {
+	keys := map[string]bool{}
+	for field := range t.Fields() {
+		if field.Anonymous {
+			for key := range jsonTagSet(field.Type) {
+				keys[key] = true
+			}
+			continue
+		}
+
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name != "" && name != "-" {
+			keys[name] = true
+		}
+	}
+	return keys
 }

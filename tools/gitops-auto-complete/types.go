@@ -12,15 +12,16 @@ import (
 // GitOpsSpec spells out the top-level GitOps keys with Fleet's typed structs, since
 // spec.GitOps has no json tags and would reflect to PascalCase keys.
 type GitOpsSpec struct {
-	Name         string                    `json:"name,omitempty"`
-	OrgSettings  *spec.GitOpsOrgSettings   `json:"org_settings,omitempty"`
-	TeamSettings *spec.GitOpsFleetSettings `json:"settings,omitempty"`
-	AgentOptions *fleet.AgentOptions       `json:"agent_options,omitempty"`
-	Controls     ControlsWithTypes         `json:"controls"`
-	Policies     []*spec.GitOpsPolicySpec  `json:"policies,omitempty"`
-	Reports      []*spec.Query             `json:"reports,omitempty"`
-	Software     spec.GitOpsSoftware       `json:"software"`
-	Labels       []*fleet.LabelSpec        `json:"labels,omitempty"`
+	Name             string                       `json:"name,omitempty"`
+	OrgSettings      *spec.GitOpsOrgSettings      `json:"org_settings,omitempty"`
+	TeamSettings     *spec.GitOpsFleetSettings    `json:"settings,omitempty"`
+	AgentOptions     *fleet.AgentOptions          `json:"agent_options,omitempty"`
+	Controls         ControlsWithTypes            `json:"controls"`
+	Policies         []*spec.GitOpsPolicySpec     `json:"policies,omitempty"`
+	Reports          []*spec.Query                `json:"reports,omitempty"`
+	Software         spec.GitOpsSoftware          `json:"software"`
+	Labels           []*fleet.LabelSpec           `json:"labels,omitempty"`
+	CustomHostVitals []spec.GitOpsCustomHostVital `json:"custom_host_vitals,omitempty"`
 }
 
 // ControlsWithTypes covers `controls:` with real types. spec.GitOpsControls types
