@@ -123,13 +123,13 @@ const InputField = ({
 
   const copyText = typeof value === "string" ? value : String(value ?? "");
 
-  // Old-style icon copy button for textarea (positioned absolutely above textarea)
+  // Copy button for textarea (positioned absolutely above textarea)
   const renderTextareaCopyButton = () => {
     return (
       <div
         className={`${baseClass}__copy-wrapper ${baseClass}__copy-wrapper--text-area`}
       >
-        <CopyButton copyText={copyText} size="small" />
+        <CopyButton copyText={copyText} variant="subdued" size="small" />
       </div>
     );
   };
