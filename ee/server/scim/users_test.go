@@ -528,22 +528,32 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 		mocks := newTestMocks()
 		existingScimUser := newTestScimUser(&scimUserOpts{
 			active:     ptr.Bool(true),
+			userName:   "user@example.com",
 			givenName:  "John",
 			familyName: "Doe",
+			emails:     []fleet.ScimUserEmail{{Email: "user@example.com", Primary: ptr.Bool(true)}},
 		})
 		fleetUser := newTestFleetUser(&fleetUserOpts{ssoEnabled: true})
 
 		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 			return existingScimUser, nil
 		}
+		// userName is changing to a non-email value, so uniqueness check misses.
 		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
-			return existingScimUser, nil
+			return nil, platform_mysql.NotFound("ScimUser")
 		}
 		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 			return nil, nil
 		}
+		// Only the pre-replace identifier resolves the Fleet user; the incoming
+		// (mutated) userName/emails must not be used for lookup.
+		var lookedUpEmails []string
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-			return fleetUser, nil
+			lookedUpEmails = append(lookedUpEmails, email)
+			if email == "user@example.com" {
+				return fleetUser, nil
+			}
+			return nil, platform_mysql.NotFound("User")
 		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 			assert.Equal(t, uint(100), id)
@@ -558,11 +568,14 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 
 		handler := mocks.newTestHandler()
 		req := httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil)
-		attrs := newTestAttrs("user@example.com", ptr.Bool(false), "John", "Doe")
+		// Replace the whole resource with a non-email userName and no emails while
+		// deactivating; deprovisioning must still resolve via pre-replace identifiers.
+		attrs := newTestAttrs("nondomain_user_bypass", ptr.Bool(false), "John", "Doe")
 
 		_, err := handler.Replace(req, "1", attrs)
 		require.NoError(t, err)
 
+		assert.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-replace identifier to be used for Fleet user resolution")
 		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
@@ -689,8 +702,10 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks := newTestMocks()
 		existingScimUser := newTestScimUser(&scimUserOpts{
 			active:     ptr.Bool(true),
+			userName:   "user@example.com",
 			givenName:  "John",
 			familyName: "Doe",
+			emails:     []fleet.ScimUserEmail{{Email: "user@example.com", Primary: ptr.Bool(true)}},
 		})
 		fleetUser := newTestFleetUser(&fleetUserOpts{ssoEnabled: true})
 
@@ -700,8 +715,15 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 			return nil, nil
 		}
+		// Only the pre-patch identifier resolves the Fleet user; the mutated
+		// userName/emails from the same PATCH must not be used for lookup.
+		var lookedUpEmails []string
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-			return fleetUser, nil
+			lookedUpEmails = append(lookedUpEmails, email)
+			if email == "user@example.com" {
+				return fleetUser, nil
+			}
+			return nil, platform_mysql.NotFound("User")
 		}
 		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
 			assert.Equal(t, uint(100), id)
@@ -714,16 +736,26 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 		handler := mocks.newTestHandler()
 		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
 
+		userNamePath, err := filter.ParsePath([]byte("userName"))
+		require.NoError(t, err)
+		emailsPath, err := filter.ParsePath([]byte("emails"))
+		require.NoError(t, err)
 		activePath, err := filter.ParsePath([]byte("active"))
 		require.NoError(t, err)
 
+		// Mirror the pen-test payload: rename to a non-email userName and drop
+		// emails before deactivating, all in the same PATCH. Deprovisioning must
+		// still resolve and delete the Fleet user via the pre-patch identifiers.
 		patchOps := []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &userNamePath, Value: "nondomain_user_bypass"},
+			{Op: scim.PatchOperationRemove, Path: &emailsPath},
 			{Op: scim.PatchOperationReplace, Path: &activePath, Value: false},
 		}
 
 		_, err = handler.Patch(req, "1", patchOps)
 		require.NoError(t, err)
 
+		assert.Contains(t, lookedUpEmails, "user@example.com", "expected the pre-patch identifier to be used for Fleet user resolution")
 		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
