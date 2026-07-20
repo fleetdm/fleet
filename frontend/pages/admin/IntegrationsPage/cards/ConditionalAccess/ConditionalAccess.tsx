@@ -142,7 +142,7 @@ const DeleteConditionalAccessModal = ({
         </Button>
         <Button
           onClick={toggleDeleteConditionalAccessModal}
-          variant="inverse-alert"
+          variant="secondary"
           disabled={isDeleting}
         >
           Cancel

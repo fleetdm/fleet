@@ -73,7 +73,7 @@ const TurnOffAndroidMdmModal = ({
         >
           Turn off
         </Button>
-        <Button variant="inverse-alert" disabled={isDeleting} onClick={onExit}>
+        <Button variant="secondary" disabled={isDeleting} onClick={onExit}>
           Cancel
         </Button>
       </div>
