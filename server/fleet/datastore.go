@@ -2329,13 +2329,9 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
-	// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the
-	// given LocURI for the enrollment: whether any attempt was queued, whether any acked 200, whether one is
-	// still in flight, and the most recent acked status. Attempts are matched on both the LocURI and the
-	// command_uuid prefix Fleet stamps on its own release attempts, so unrelated raw commands targeting the
-	// same LocURI are ignored. The ESP release handler uses it to keep the enrollment in
-	// awaiting_configuration=Active and re-send the user-scope release until the device acks 200 (during
-	// OOBE the device rejects user-scope writes with SyncML 405 until the user MDM context initializes).
+	// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given LocURI
+	// for the enrollment: whether any attempt was queued, whether any acked 200, whether one is still in flight, and the
+	// most recent acked status.
 	MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*MDMWindowsESPReleaseAckStatus, error)
 
 	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.

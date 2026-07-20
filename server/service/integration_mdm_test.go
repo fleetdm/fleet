@@ -9351,9 +9351,9 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Shared setup: enroll secret, Entra tenant, and a team with no profiles or setup-experience items, so
-	// every release gate passes at the first Active checkin. The scenarios verify the state transitions
-	// (Pending -> Active -> None) without needing profile delivery.
+	// Shared setup: enroll secret, Entra tenant, and a team with no profiles or setup-experience items, so every release
+	// gate passes at the first Active checkin. The scenarios verify the state transitions (Pending -> Active -> None)
+	// without needing profile delivery.
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 	tenantID := uuid.New().String()
@@ -9362,9 +9362,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
-	// findUserRelease returns the user-scope ServerHasFinishedProvisioning Replace from a command batch, nil
-	// when absent. This is the command that completes the ESP "Account setup" phase; its 200 ack is what
-	// commits the Active -> None transition (#49134).
+	// findUserRelease returns the user-scope ServerHasFinishedProvisioning Replace from a command batch, nil when absent.
 	findUserRelease := func(cmds map[string]fleet.ProtoCmdOperation) *fleet.ProtoCmdOperation {
 		for _, c := range cmds {
 			uri := c.Cmd.GetTargetURI()
@@ -9404,9 +9402,9 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		require.NoError(t, err)
 		return enrolledDevice.AwaitingConfiguration
 	}
-	// enrollToActive enrolls a device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending),
-	// acks the first checkin (fleetd install and ESP hold commands), simulates fleetd on the team (orbit host
-	// + host_uuid link), and advances the enrollment to Active. Returns a client ready to receive the release.
+	// enrollToActive enrolls a device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending), acks the
+	// first checkin (fleetd install and ESP hold commands), simulates fleetd on the team (orbit host + host_uuid link),
+	// and advances the enrollment to Active. Returns a client ready to receive the release.
 	enrollToActive := func(t *testing.T, azureMail, hostName string) *mdmtest.TestWindowsMDMClient {
 		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 		require.NoError(t, d.Enroll())
@@ -9436,8 +9434,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
 		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
 
-		// All release gates pass: the release commands are sent, including the user-scope
-		// ServerHasFinishedProvisioning Replace.
+		// All release gates pass: the release commands are sent, including the user-scope ServerHasFinishedProvisioning Replace.
 		cmds, err := d.StartManagementSession()
 		require.NoError(t, err)
 		userRelease := findUserRelease(cmds)
@@ -9451,17 +9448,14 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 		// The device 405s the user-scope Replace (user MDM context not ready) and acks everything else 200.
 		afterNack := ackAll(t, d, cmds, userRelease.Cmd.CmdID.Value, "405")
 		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
-			"a 405 on the user-scope release must NOT complete the ESP -- recording it as delivered is the #49134 hang")
+			"a 405 on the user-scope release must NOT complete the ESP")
 
-		// The server re-sends the user-scope Replace: possibly immediately (the ack message is still within the
-		// per-session retry budget), otherwise at the start of the next session.
+		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
+		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
+		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
+		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
 		retry := findUserRelease(afterNack)
-		if retry == nil {
-			nextSession, err := d.StartManagementSession()
-			require.NoError(t, err)
-			retry = findUserRelease(nextSession)
-		}
-		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405 until the device acks it")
+		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
 
 		// The user MDM context is now up: the device accepts the retried Replace. The 200 ack completes the ESP
 		// within the same message exchange (results are recorded before the ESP handler runs).
