@@ -12995,7 +12995,7 @@ Uninstalls software from a host.
 
 ### Install self-service software
 
-Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
 This endpoint uses the device's authentication token instead of the usual Fleet API token.
 
