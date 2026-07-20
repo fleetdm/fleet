@@ -36,7 +36,8 @@ CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
 # Quit Logi Tune gracefully before the PKG's preinstall force-kills it. The
 # PKG's default RUNAPP choice relaunches the app for logged-in console users
 # after installation, so no relaunch step is needed here.
-if osascript -e "application id \"com.logitech.logitune\" is running" 2>/dev/null; then
+LOGITUNE_RUNNING=$(osascript -e "application id \"com.logitech.logitune\" is running" 2>/dev/null)
+if [[ "$LOGITUNE_RUNNING" == "true" ]]; then
   quit_application 'com.logitech.logitune' "$CONSOLE_USER"
 fi
 

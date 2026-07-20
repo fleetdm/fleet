@@ -1942,7 +1942,13 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	}
 	cp.LabelsExcludeAny = excludeLabels
 
-	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
+	foundVars := variables.Find(string(data))
+	varNames := make([]fleet.FleetVarName, 0, len(foundVars))
+	for _, v := range foundVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+
+	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp, varNames)
 	if err != nil {
 		var existsErr endpointer.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -2354,6 +2360,25 @@ func (svc *Service) BatchSetMDMProfiles(
 			Identifier:     identifier,
 			FleetVariables: varNames,
 		})
+	}
+
+	// Resolve DDM asset references for declarations so the batch path links each
+	// declaration to the assets it references (mirroring the single-upload
+	// path). GitOps applies assets before declarations, so referenced assets
+	// already exist by this point.
+	if len(appleDeclsSlice) > 0 {
+		assets, err := svc.ds.ListAppleDDMAssets(ctx, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing DDM assets")
+		}
+		for _, d := range appleDeclsSlice {
+			d.TeamID = tmID
+			assetRefs, err := svc.handleDeclarationAssetReferences(ctx, d, assets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "handling declaration asset references")
+			}
+			d.AssetReferenceUUIDs = assetRefs
+		}
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates

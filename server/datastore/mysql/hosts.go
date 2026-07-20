@@ -627,6 +627,11 @@ var hostRefs = []string{
 // Orbit re-enrollment recreates the host row and the existing password row remains
 // reachable for view/rotate. Apple-MDM unenroll/re-enroll is handled separately by
 // MDMResetEnrollment, which soft-deletes the row.
+// - mdm_apple_psso_devices / mdm_apple_psso_keys: keyed by host_uuid, intentionally
+// preserved across host deletion for the same reason — the Mac may still be
+// MDM-enrolled with Platform SSO active, and its registered keys must keep
+// authenticating token requests. ADE re-enrollment clears them via
+// MDMAppleResetOnReenrollment.
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to

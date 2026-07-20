@@ -819,6 +819,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-26 10:42:11
 
+### [CVE-2026-40355](https://nvd.nist.gov/vuln/detail/CVE-2026-40355)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Kerberos when using fleetdm/wix to generate msi installers.
+- **Products:** `wix`,`pkg:deb/debian/libgssapi-krb5-2`,`pkg:deb/debian/libk5crypto3`,`pkg:deb/debian/libkrb5-3`,`pkg:deb/debian/libkrb5support0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-10 11:44:26
+
 ### [CVE-2026-3833](https://nvd.nist.gov/vuln/detail/CVE-2026-3833)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -946,6 +954,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `wix`,`pkg:deb/debian/libc6`,`pkg:deb/debian/libc-bin`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2026-03-24 12:18:16
+
+### [CVE-2025-70103](https://nvd.nist.gov/vuln/detail/CVE-2025-70103)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not process image files when using fleetdm/wix to generate MSI packages.
+- **Products:** `wix`,`pkg:deb/debian/libjxl0.11`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-10 11:44:26
 
 ### [CVE-2025-66293](https://nvd.nist.gov/vuln/detail/CVE-2025-66293)
 - **Author:** @lucasmrod
