@@ -247,9 +247,6 @@ const ActionsDropdown = ({
       // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         background: COLORS["ui-fleet-black-5"], // Match button hover
-        ".actions-dropdown-select__indicators": {
-          height: "20px",
-        },
         ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
