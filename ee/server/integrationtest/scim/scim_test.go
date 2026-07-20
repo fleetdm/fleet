@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/elimity-com/scim/errors"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -78,14 +77,13 @@ func testAuth(t *testing.T, s *Suite) {
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
-	// Make sure unauthorized response WAS saved as the last SCIM request
+	// Make sure the forbidden response wasn't saved as the last SCIM request. An
+	// authenticated-but-unauthorized user must not be able to overwrite the
+	// admin-visible SCIM telemetry with their rejected attempts.
 	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
-	require.NotNil(t, scimDetails.LastRequest)
-	assert.Equal(t, "error", scimDetails.LastRequest.Status)
-	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
-	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
+	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for forbidden requests")
 
 	// Unauthorized (maintainer - no longer allowed)
 	resp = nil
