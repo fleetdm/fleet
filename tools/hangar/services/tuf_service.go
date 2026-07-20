@@ -60,6 +60,13 @@ func (s *TufService) TufStartBuild(cfg settings.TufConfig) error {
 		return fmt.Errorf("TUF test script not found at %s", script)
 	}
 
+	// Bail before touching anything if a build is already in flight — otherwise
+	// a re-entrant request would rm test_tuf out from under it and only then
+	// fail on the duplicate pm.Start.
+	if s.isProcRunning(tuf.ProcID) {
+		return errors.New("a TUF build is already running")
+	}
+
 	// create_repository prompts interactively to remove an existing test_tuf,
 	// which would hang a non-interactive build. Clear it up front — the same
 	// `rm -rf test_tuf` from the manual workflow, i.e. auto-answering "yes".
@@ -102,15 +109,24 @@ func (s *TufService) TufStartServer() error {
 	return s.ensureFileServer(repo)
 }
 
+// isProcRunning reports whether the process engine currently tracks id as
+// running (or stopping).
+func (s *TufService) isProcRunning(id string) bool {
+	for _, p := range s.pm.ListProcesses() {
+		if p.ID == id && (p.State == "running" || p.State == "stopping") {
+			return true
+		}
+	}
+	return false
+}
+
 // ensureFileServer starts the managed TUF file-server (go run ./tools/file-server)
 // if it isn't already running. Idempotent — a no-op when it's up. The file-server
 // tolerates a not-yet-populated repo dir (os.DirFS resolves per request), so it's
 // safe to start before create_repository writes the metadata.
 func (s *TufService) ensureFileServer(repo string) error {
-	for _, p := range s.pm.ListProcesses() {
-		if p.ID == tuf.ServerProcID && (p.State == "running" || p.State == "stopping") {
-			return nil
-		}
+	if s.isProcRunning(tuf.ServerProcID) {
+		return nil
 	}
 	_ = s.pm.ClearLogChannel(tuf.ServerLogChannel)
 	return s.pm.Start(tuf.ServerProcID, processes.StartArgs{
