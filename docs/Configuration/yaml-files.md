@@ -2,7 +2,7 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
-Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and run `fleetctl new` to generate a starter repository. [Learn how](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
 
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
