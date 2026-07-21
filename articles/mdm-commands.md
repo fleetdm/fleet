@@ -91,7 +91,7 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 </plist>
 ```
 
-> Custom MDM commands currently only support removing profiles that were delivered via the device (system) channel. Profiles delivered via the user channel cannot be removed using this method.
+> If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, currently this endpoint, and `fleetctl run mdm command` command, only support removing profiles that were delivered via the device (system) channel.
 
 ### Step 2: Choose a target host
 
