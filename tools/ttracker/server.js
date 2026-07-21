@@ -569,6 +569,60 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // PUT /api/badge/:session_id
+  if (req.method === 'PUT' && pathParts[0] === 'api' && pathParts[1] === 'badge' && pathParts[2]) {
+    const body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', c => data += c);
+      req.on('end', () => resolve(data));
+    });
+    const { badge, iterm_uuid } = JSON.parse(body);
+    const sid = decodeURIComponent(pathParts[2]);
+    const state = loadState();
+
+    // Update in snapshot
+    for (const s of state.snapshot.sessions) {
+      if (s.claude_session_id === sid || s.iterm_uuid === sid) {
+        s.badge = badge;
+      }
+    }
+    // Update in history
+    for (const h of state.history) {
+      if (h.claude_session_id === sid) {
+        h.badge = badge;
+      }
+    }
+    saveState(state);
+
+    // Update iTerm2 badge if session is live
+    if (iterm_uuid) {
+      const badgeB64 = Buffer.from(badge).toString('base64');
+      try {
+        await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        set win to window w
+        repeat with t from 1 to (count of tabs of win)
+            repeat with s from 1 to (count of sessions of tab t of win)
+                set sess to session s of tab t of win
+                if (unique ID of sess) is "${iterm_uuid}" then
+                    tell sess
+                        write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
+                    end tell
+                    return "done"
+                end if
+            end repeat
+        end repeat
+    end repeat
+end tell`);
+      } catch {}
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // PUT /api/note/:session_id
   if (req.method === 'PUT' && pathParts[0] === 'api' && pathParts[1] === 'note' && pathParts[2]) {
     const body = await new Promise((resolve) => {
@@ -762,6 +816,24 @@ function getDashboardHTML() {
     padding: 3px 6px;
     width: 100%;
     min-width: 120px;
+  }
+  .badge-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #d33682;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 3px 6px;
+    width: 100%;
+    min-width: 80px;
+  }
+  .badge-input:hover { border-color: #d33682; }
+  .badge-input:focus {
+    outline: none;
+    border-color: #d33682;
+    background: #eee8d5;
   }
   .note-input:hover { border-color: #2aa198; }
   .note-input:focus {
@@ -977,7 +1049,9 @@ function renderActive(data) {
     const folder = s.cwd ? s.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
-      + '<td class="badge-cell">' + escapeHtml(s.badge) + '</td>'
+      + '<td><input class="badge-input" value="' + escapeHtml(s.badge) + '" '
+      + 'onblur="saveBadge(\\'' + (s.claude_session_id || s.iterm_uuid) + '\\', this.value, \\'' + s.iterm_uuid + '\\')" '
+      + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(s.session_name) + '</td>'
       + '<td class="folder-cell">' + escapeHtml(folder) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
@@ -1012,7 +1086,9 @@ function renderHistory(entries) {
     const folder = h.cwd ? h.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
-      + '<td class="badge-cell">' + escapeHtml(h.badge) + '</td>'
+      + '<td><input class="badge-input" value="' + escapeHtml(h.badge) + '" '
+      + 'onblur="saveBadge(\\'' + h.claude_session_id + '\\', this.value, \\'\\')" '
+      + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(h.session_name) + '</td>'
       + '<td class="folder-cell">' + escapeHtml(folder) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
@@ -1028,7 +1104,7 @@ function renderHistory(entries) {
 
 async function refresh() {
   // Skip refresh if user is typing in a note field
-  if (document.activeElement && document.activeElement.classList.contains('note-input')) return;
+  if (document.activeElement && (document.activeElement.classList.contains('note-input') || document.activeElement.classList.contains('badge-input'))) return;
   const [sessions, history] = await Promise.all([fetchSessions(), fetchHistory()]);
   renderActive(sessions);
   renderHistory(history);
@@ -1074,6 +1150,14 @@ async function forceSnapshot() {
   await refresh();
   btn.textContent = 'Snapshot Now';
   btn.disabled = false;
+}
+
+async function saveBadge(sessionId, badge, itermUuid) {
+  await fetch(API + '/api/badge/' + encodeURIComponent(sessionId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ badge: badge.trim(), iterm_uuid: itermUuid })
+  });
 }
 
 async function saveNote(sessionId, note) {
