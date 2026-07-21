@@ -582,6 +582,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 			if !ok {
 				svc.logger.ErrorContext(ctx, "No status returned for serial from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial)
 				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
+				continue
 			}
 
 			if strings.EqualFold(string(status), string(fleet.ABReleaseDeviceStatusSuccess)) {

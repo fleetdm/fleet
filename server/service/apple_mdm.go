@@ -4376,7 +4376,7 @@ func releaseABDevicesEndpoint(ctx context.Context, request any, svc fleet.Servic
 	req := request.(*releaseABDevicesRequest)
 	results, err := svc.ReleaseABDevices(ctx, req.HostIDs)
 	if err != nil {
-		return releaseABDevicesResponse{Results: nil}, err
+		return releaseABDevicesResponse{Results: nil, Err: err}, nil
 	}
 	return releaseABDevicesResponse{Results: results}, nil
 }
