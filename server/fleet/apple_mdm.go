@@ -1633,12 +1633,9 @@ func (d DDMAssetAuthz) AuthzType() string {
 
 type ABReleaseDeviceStatus string
 
-// These are discovered based on the apple-device-services schema repo
-// https://github.com/micromdm/apple-device-services/blob/main/dep/schemas/DeviceStatusResponse.json
 const (
-	ABReleaseDeviceStatusSuccess       ABReleaseDeviceStatus = "success"
-	ABReleaseDeviceStatusError         ABReleaseDeviceStatus = "failed"
-	ABReleaseDeviceStatusNotAccessible ABReleaseDeviceStatus = "not_accessible"
+	ABReleaseDeviceStatusSuccess ABReleaseDeviceStatus = "success"
+	ABReleaseDeviceStatusError   ABReleaseDeviceStatus = "failed"
 )
 
 type ABReleaseDeviceResponse struct {

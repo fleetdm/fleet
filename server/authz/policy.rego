@@ -1008,7 +1008,7 @@ allow {
 
 # Global admins can write/modify AB release devices
 allow {
-  object.type = "mdm_ab_release"
+  object.type == "mdm_ab_release"
   subject.global_role == admin
   action == write
 }
@@ -1016,7 +1016,7 @@ allow {
 # Team admins can write/modify AB release devices on their teams.
 allow {
   not is_null(object.team_id)
-  object.type = "mdm_ab_release"
+  object.type == "mdm_ab_release"
   object.team_id != 0
   team_role(subject, object.team_id) == admin
   action == write

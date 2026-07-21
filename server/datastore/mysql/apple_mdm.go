@@ -8435,6 +8435,10 @@ func (ds *Datastore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier
 }
 
 func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs []uint) ([]*fleet.HostDEPAssignment, error) {
+	if len(hostIDs) == 0 {
+		return []*fleet.HostDEPAssignment{}, nil
+	}
+
 	var res []*fleet.HostDEPAssignment
 	query, args, err := sqlx.In(`SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed, hardware_serial
 		FROM host_dep_assignments hdep

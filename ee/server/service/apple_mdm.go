@@ -405,23 +405,23 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 	// hostID -> response map
 	response := make(map[uint]*fleet.ABReleaseDeviceResponse, len(hostIDs))
 
-	setResponse := func(hostID uint, status fleet.ABReleaseDeviceStatus) {
+	setSuccessResponse := func(hostID uint) {
+		if response[hostID] != nil {
+			return // no-op, to avoid overwriting previous status, shouldn't really happen though.
+		}
+		response[hostID] = &fleet.ABReleaseDeviceResponse{
+			HostID: hostID,
+			Status: string(fleet.ABReleaseDeviceStatusSuccess),
+		}
+	}
+
+	setErrorResponse := func(hostID uint, status fleet.ABReleaseDeviceStatus, errMsg string) {
 		if response[hostID] != nil {
 			return // no-op, to avoid overwriting previous status, shouldn't really happen though.
 		}
 		response[hostID] = &fleet.ABReleaseDeviceResponse{
 			HostID: hostID,
 			Status: string(status),
-		}
-	}
-
-	setErrorResponse := func(hostID uint, errMsg string) {
-		if response[hostID] != nil {
-			return // no-op, to avoid overwriting previous status, shouldn't really happen though.
-		}
-		response[hostID] = &fleet.ABReleaseDeviceResponse{
-			HostID: hostID,
-			Status: string(fleet.ABReleaseDeviceStatusError),
 			Error:  errMsg,
 		}
 	}
@@ -445,7 +445,12 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		}
 
 		if !fleet.IsApplePlatform(h.FleetPlatform()) {
-			setErrorResponse(h.ID, "This is not an eligible Apple host.")
+			setErrorResponse(h.ID, fleet.ABReleaseDeviceStatusError, "This is not an eligible Apple host.")
+			continue
+		}
+
+		if h.HardwareSerial == "" {
+			setErrorResponse(h.ID, fleet.ABReleaseDeviceStatusError, "Host has no hardware serial.")
 			continue
 		}
 
@@ -453,7 +458,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 	}
 
 	for hostID := range unseenHostIDs {
-		setErrorResponse(hostID, "Host not found.")
+		setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "Host not found.")
 	}
 
 	if len(teamIDs) == 0 {
@@ -498,7 +503,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		delete(unseenHostIDs, assignment.HostID)
 		if assignment.HardwareSerial == "" {
 			// Should not happen, but if query diverts then we safeguard.
-			setErrorResponse(assignment.HostID, "Host has no hardware serial.")
+			setErrorResponse(assignment.HostID, fleet.ABReleaseDeviceStatusError, "Host has no hardware serial.")
 			continue
 		}
 		if assignment.ABMTokenID != nil {
@@ -506,12 +511,12 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 			serialToHostID[assignment.HardwareSerial] = assignment.HostID
 		} else {
 			// Should not happen, but if query diverts then we safeguard.
-			setErrorResponse(assignment.HostID, "Host has no associated ABM token.")
+			setErrorResponse(assignment.HostID, fleet.ABReleaseDeviceStatusError, "Host has no associated ABM token.")
 		}
 	}
 
 	for hostID := range unseenHostIDs {
-		setErrorResponse(hostID, "This host was not found in Apple Business.")
+		setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "This host was not found in Apple Business.")
 	}
 
 	// We list all here and filter by deduped list, the returned list is so small anyways.
@@ -522,7 +527,6 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 
 	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
 
-	fmt.Printf("Got deduped tokenIDs: %v, tokens: %v\n", dedupedTokenIDs, tokens)
 	// Iterate over deduped token ID's and call the disown devices, for all serials associated with that token.
 	for tokenID, serials := range dedupedTokenIDs {
 		var token *fleet.ABMToken
@@ -534,7 +538,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		}
 		if token == nil {
 			for _, serial := range serials {
-				setErrorResponse(serialToHostID[serial], "ABM token not found.")
+				setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, "ABM token not found.")
 			}
 			continue
 		}
@@ -546,14 +550,15 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 				svc.logger.ErrorContext(ctx, "Release AB devices failed with DEP auth error", "token_id", tokenID, "organization_name", token.OrganizationName, "error", depAuthErr)
 
 				for _, serial := range serials {
-					setErrorResponse(serialToHostID[serial], fmt.Sprintf("Couldn't release host from Apple Business. Apple rejected this request. Confirm that “Allow this MDM server to release devices” is enabled in Apple Business. Learn More: %s", "https://fleetdm.com/learn-more-about/release-devices"))
+					setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Couldn't release host from Apple Business. Apple rejected this request. Confirm that “Allow this MDM server to release devices” is enabled in Apple Business. Learn More: %s", "https://fleetdm.com/learn-more-about/release-devices"))
 				}
 				continue
 			}
 
 			// Other generic HTTP/network/JSON errors.
+			svc.logger.ErrorContext(ctx, "Failed to released AB devices", "token_id", tokenID, "organization_name", token.OrganizationName, "error", err)
 			for _, serial := range serials {
-				setErrorResponse(serialToHostID[serial], fmt.Sprintf("Couldn't release host from Apple Business. Error: %v", err))
+				setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
 			}
 			continue
 		}
@@ -562,7 +567,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		for serial, status := range disownResp.Devices {
 			hostID := serialToHostID[serial]
 			if strings.EqualFold(string(status), string(fleet.ABReleaseDeviceStatusSuccess)) {
-				setResponse(hostID, fleet.ABReleaseDeviceStatusSuccess)
+				setSuccessResponse(hostID)
 				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeReleasedDeviceFromAB{
 					HostID:          hostID,
 					HostSerial:      serial,
@@ -573,7 +578,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 				releasedSerials = append(releasedSerials, serial)
 			} else {
 				svc.logger.ErrorContext(ctx, "Got non success status from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial, "status", status)
-				setErrorResponse(hostID, fmt.Sprintf("Error releasing device: %s", status))
+				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Error releasing device: %s", status))
 			}
 		}
 
