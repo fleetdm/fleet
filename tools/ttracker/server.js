@@ -766,6 +766,20 @@ async function handleRequest(req, res) {
 async function main() {
   fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
 
+  // Kill any existing process on our port
+  try {
+    const { stdout } = await new Promise((resolve) => {
+      exec(`lsof -ti:${PORT}`, (err, stdout) => resolve({ stdout: (stdout || '').trim() }));
+    });
+    if (stdout) {
+      for (const pid of stdout.split('\n').filter(Boolean)) {
+        try { process.kill(parseInt(pid)); } catch {}
+      }
+      console.log('Stopped previous server');
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch {}
+
   // Stop existing shell daemon if running
   try {
     if (fs.existsSync(PID_FILE)) {
