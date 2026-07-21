@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.ZoomPresence' AND version_compare(bundle_short_version, '7.1.0.13088') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'Zoom Rooms');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'us.zoom.ZoomPresence');"
       },
       "installer_url": "https://cdn.zoom.us/prod/7.1.0.13088/ZoomRooms.pkg",
       "install_script_ref": "6eed23df",
