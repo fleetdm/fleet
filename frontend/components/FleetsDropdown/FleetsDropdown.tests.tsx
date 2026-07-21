@@ -159,6 +159,40 @@ describe("FleetsDropdown - component", () => {
       expect(screen.getByText("No matching fleets")).toBeInTheDocument();
     });
 
+    it("click outside the wrapper closes the menu and clears the search query", async () => {
+      const user = userEvent.setup();
+      render(
+        <div>
+          <button type="button">outside</button>
+          <FleetsDropdown
+            currentUserFleets={MANY_FLEETS}
+            selectedFleetId={1}
+            onChange={noop}
+          />
+        </div>
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      fireEvent.change(screen.getByPlaceholderText("Search fleets"), {
+        target: { value: "Fleet 2" },
+      });
+      expect(screen.getByPlaceholderText("Search fleets")).toHaveValue(
+        "Fleet 2"
+      );
+
+      // Click on an element outside the dropdown wrapper.
+      fireEvent.mouseDown(screen.getByRole("button", { name: /outside/i }));
+
+      // Menu closes.
+      expect(
+        screen.queryByPlaceholderText("Search fleets")
+      ).not.toBeInTheDocument();
+
+      // Reopen — the search input should be empty, not stuck on "Fleet 2".
+      await user.click(getTrigger(/Fleet 1/));
+      expect(screen.getByPlaceholderText("Search fleets")).toHaveValue("");
+    });
+
     it("Escape on the search input closes the menu via the forwardNavKey bridge", async () => {
       const user = userEvent.setup();
       render(

@@ -327,9 +327,10 @@ const FleetsDropdown = ({
 
   // Close menu when clicking outside the wrapper. Only attach the listener
   // while the menu is actually open — no need to run this handler on every
-  // document mousedown for the rest of the app's lifetime. `onMenuClose`
-  // fires once react-select observes menuIsOpen flipping false, so
-  // consumer-facing `onClose` is delivered from that single site.
+  // document mousedown for the rest of the app's lifetime. Reset the
+  // search query at the origin: react-select's onMenuClose only fires on
+  // react-select-driven closes (Escape/blur), not on controlled-prop
+  // closes, so a controlled close needs to clear searchQuery itself.
   useEffect(() => {
     if (!menuIsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
@@ -338,6 +339,7 @@ const FleetsDropdown = ({
         !wrapperRef.current.contains(event.target as Node)
       ) {
         setMenuIsOpen(false);
+        setSearchQuery("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -359,12 +361,12 @@ const FleetsDropdown = ({
 
   const toggleMenu = () => {
     if (isDisabled) return;
-    // Only fire onOpen here; onClose is delivered via react-select's
-    // onMenuClose (single source) so consumers can't see it fire twice on
-    // the same close.
+    // Fire onOpen here; clear searchQuery at the origin on close (react-
+    // select's onMenuClose doesn't fire for controlled-prop closes).
     setMenuIsOpen((open) => {
       const next = !open;
       if (next) onOpen?.();
+      else setSearchQuery("");
       return next;
     });
   };
@@ -372,9 +374,8 @@ const FleetsDropdown = ({
   const handleChange = (newValue: INumberDropdownOption | null) => {
     if (!newValue) return;
     onChange(newValue.value);
-    // Search reset + onClose fire via onMenuClose once react-select
-    // observes menuIsOpen flipping false — see comment there.
     setMenuIsOpen(false);
+    setSearchQuery("");
   };
 
   const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -401,8 +402,8 @@ const FleetsDropdown = ({
   };
 
   const onClickAddFleet = () => {
-    // onMenuClose owns the search reset + onClose fire.
     setMenuIsOpen(false);
+    setSearchQuery("");
     browserHistory.push(
       getPathWithQueryParams(PATHS.ADMIN_FLEETS, { create_fleet: "1" })
     );
