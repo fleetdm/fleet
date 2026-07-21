@@ -1445,6 +1445,12 @@ type Datastore interface {
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
 	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
 
+	// UpdateMDMAppleConfigProfile updates an existing profile's contents (if
+	// p.Mobileconfig is non-empty) and/or label targeting in place.
+	// p.Identifier must match the existing profile's; p.Name may change along
+	// with the content, matching GitOps's identifier-keyed upsert convention.
+	UpdateMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []FleetVarName) (*MDMAppleConfigProfile, error)
+
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
 	//
@@ -2329,6 +2335,11 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
+	// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given LocURI
+	// for the enrollment: whether any attempt was queued, whether any acked 200, whether one is still in flight, and the
+	// most recent acked status.
+	MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*MDMWindowsESPReleaseAckStatus, error)
+
 	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.
 	// Called at most once per OMA-DM session, when the pending-commands fetch comes back empty (the session has drained
 	// the queue and the flag may flip to 0); mid-session messages skip it since the flag provably stays 1.
@@ -2599,6 +2610,12 @@ type Datastore interface {
 	// An OS-update (software update) profile is tracked as the team's OS-update
 	// profile within the same transaction, failing if one already exists.
 	NewMDMWindowsConfigProfile(ctx context.Context, cp MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
+
+	// UpdateMDMWindowsConfigProfile updates an existing profile's contents (if
+	// p.SyncML is non-empty) and/or label targeting in place. p.Name must
+	// match the existing profile's -- name is a Windows profile's only
+	// identity and cannot change on this path.
+	UpdateMDMWindowsConfigProfile(ctx context.Context, p MDMWindowsConfigProfile, usesFleetVars []FleetVarName) (*MDMWindowsConfigProfile, error)
 
 	// SetOrUpdateMDMWindowsConfigProfile creates or replaces a Windows profile.
 	// The profile gets replaced if it already exists for the same team and name
@@ -3325,6 +3342,12 @@ type Datastore interface {
 	// GetMDMAndroidConfigProfile returns the Android MDM profile corresponding
 	// to the specified profile uuid.
 	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
+
+	// UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
+	// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
+	// match the existing profile's -- name is an Android profile's only
+	// identity and cannot change on this path.
+	UpdateMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile, usesFleetVars []FleetVarName) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to
 	// the specified profile uuid.

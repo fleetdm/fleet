@@ -6,12 +6,12 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260720211014, Down_20260720211014)
+	MigrationClient.AddMigration(Up_20260721160351, Down_20260721160351)
 }
 
-// Up_20260720211014 creates host_mdm_windows_profiles_status, a per-host rollup of the aggregate Windows configuration-profile
+// Up_20260721160351 creates host_mdm_windows_profiles_status, a per-host rollup of the aggregate Windows configuration-profile
 // delivery status. It materializes exactly one bucket per host ('failed'|'pending'|'verifying'|'verified'|empty)
-func Up_20260720211014(tx *sql.Tx) error {
+func Up_20260721160351(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE host_mdm_windows_profiles_status (
 	host_uuid  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -48,6 +48,6 @@ GROUP BY hmwp.host_uuid`); err != nil {
 	return nil
 }
 
-func Down_20260720211014(tx *sql.Tx) error {
+func Down_20260721160351(tx *sql.Tx) error {
 	return nil
 }

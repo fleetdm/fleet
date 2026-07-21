@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260720211014(t *testing.T) {
+func TestUp_20260721160351(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// insertProfile adds one host_mdm_windows_profiles row. status is passed as a *string so we can exercise the NULL-as-pending

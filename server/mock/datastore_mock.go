@@ -988,6 +988,8 @@ type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
 
+type UpdateMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error)
+
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
@@ -1404,6 +1406,8 @@ type MDMWindowsEnqueueCommandAndUpsertHostProfilesFunc func(ctx context.Context,
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
 
+type MDMWindowsGetESPReleaseAckStatusFunc func(ctx context.Context, enrollmentID uint, targetLocURI string, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error)
+
 type MDMWindowsRefreshHasPendingCommandsFunc func(ctx context.Context, enrollmentID uint) error
 
 type MDMWindowsSaveResponseFunc func(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error)
@@ -1497,6 +1501,8 @@ type GetExistingMDMWindowsProfileUUIDsFunc func(ctx context.Context, profileUUID
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
 type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error)
+
+type UpdateMDMWindowsConfigProfileFunc func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error)
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
@@ -1963,6 +1969,8 @@ type MarkAllPendingVPPInstallsAsFailedForAndroidHostFunc func(ctx context.Contex
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
+
+type UpdateMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error)
 
 type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
@@ -3679,6 +3687,9 @@ type DataStore struct {
 	NewMDMAppleConfigProfileFunc        NewMDMAppleConfigProfileFunc
 	NewMDMAppleConfigProfileFuncInvoked bool
 
+	UpdateMDMAppleConfigProfileFunc        UpdateMDMAppleConfigProfileFunc
+	UpdateMDMAppleConfigProfileFuncInvoked bool
+
 	BulkUpsertMDMAppleConfigProfilesFunc        BulkUpsertMDMAppleConfigProfilesFunc
 	BulkUpsertMDMAppleConfigProfilesFuncInvoked bool
 
@@ -4303,6 +4314,9 @@ type DataStore struct {
 	MDMWindowsGetPendingCommandsFunc        MDMWindowsGetPendingCommandsFunc
 	MDMWindowsGetPendingCommandsFuncInvoked bool
 
+	MDMWindowsGetESPReleaseAckStatusFunc        MDMWindowsGetESPReleaseAckStatusFunc
+	MDMWindowsGetESPReleaseAckStatusFuncInvoked bool
+
 	MDMWindowsRefreshHasPendingCommandsFunc        MDMWindowsRefreshHasPendingCommandsFunc
 	MDMWindowsRefreshHasPendingCommandsFuncInvoked bool
 
@@ -4443,6 +4457,9 @@ type DataStore struct {
 
 	NewMDMWindowsConfigProfileFunc        NewMDMWindowsConfigProfileFunc
 	NewMDMWindowsConfigProfileFuncInvoked bool
+
+	UpdateMDMWindowsConfigProfileFunc        UpdateMDMWindowsConfigProfileFunc
+	UpdateMDMWindowsConfigProfileFuncInvoked bool
 
 	SetOrUpdateMDMWindowsConfigProfileFunc        SetOrUpdateMDMWindowsConfigProfileFunc
 	SetOrUpdateMDMWindowsConfigProfileFuncInvoked bool
@@ -5142,6 +5159,9 @@ type DataStore struct {
 
 	GetMDMAndroidConfigProfileFunc        GetMDMAndroidConfigProfileFunc
 	GetMDMAndroidConfigProfileFuncInvoked bool
+
+	UpdateMDMAndroidConfigProfileFunc        UpdateMDMAndroidConfigProfileFunc
+	UpdateMDMAndroidConfigProfileFuncInvoked bool
 
 	DeleteMDMAndroidConfigProfileFunc        DeleteMDMAndroidConfigProfileFunc
 	DeleteMDMAndroidConfigProfileFuncInvoked bool
@@ -8922,6 +8942,13 @@ func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMApp
 	return s.NewMDMAppleConfigProfileFunc(ctx, p, usesFleetVars)
 }
 
+func (s *DataStore) UpdateMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+	s.mu.Lock()
+	s.UpdateMDMAppleConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAppleConfigProfileFunc(ctx, p, usesFleetVars)
+}
+
 func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 	s.mu.Lock()
 	s.BulkUpsertMDMAppleConfigProfilesFuncInvoked = true
@@ -10378,6 +10405,13 @@ func (s *DataStore) MDMWindowsGetPendingCommands(ctx context.Context, enrollment
 	return s.MDMWindowsGetPendingCommandsFunc(ctx, enrollmentID)
 }
 
+func (s *DataStore) MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI string, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetESPReleaseAckStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetESPReleaseAckStatusFunc(ctx, enrollmentID, targetLocURI, cmdUUIDPrefix)
+}
+
 func (s *DataStore) MDMWindowsRefreshHasPendingCommands(ctx context.Context, enrollmentID uint) error {
 	s.mu.Lock()
 	s.MDMWindowsRefreshHasPendingCommandsFuncInvoked = true
@@ -10705,6 +10739,13 @@ func (s *DataStore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDM
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMWindowsConfigProfileFunc(ctx, cp, usesFleetVars)
+}
+
+func (s *DataStore) UpdateMDMWindowsConfigProfile(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+	s.mu.Lock()
+	s.UpdateMDMWindowsConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMWindowsConfigProfileFunc(ctx, p, usesFleetVars)
 }
 
 func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
@@ -12336,6 +12377,13 @@ func (s *DataStore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID 
 	s.GetMDMAndroidConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.UpdateMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMAndroidConfigProfileFunc(ctx, cp, usesFleetVars)
 }
 
 func (s *DataStore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
