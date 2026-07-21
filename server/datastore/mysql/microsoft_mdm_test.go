@@ -4428,10 +4428,8 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteComma
 		}
 
 		t.Run("terminal remove of the last profile row drops the rollup row", func(t *testing.T) {
-			// The check-in path skips the rollup orphan-delete only when it deleted no profile rows. When
-			// a terminal remove deletes the host's LAST profile row, the orphan-delete must run in the
-			// same call and remove the host's rollup row, with no reconcile. This is the regression net
-			// for the skipOrphanDelete condition in updateMDMWindowsHostProfileStatusFromResponseDB.
+			// The check-in path skips the rollup orphan-delete only when it deleted no profile rows. When a terminal remove deletes the
+			// host's LAST profile row, the orphan-delete must run in the same call and remove the host's rollup row, with no reconcile.
 			dev := createEnrolledDevice(t, ds)
 			deleteCommandUUID := uuid.NewString()
 			cmd := &fleet.MDMWindowsCommand{
@@ -4451,19 +4449,19 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteComma
 				[]string{dev.MDMDeviceID}, cmd)
 			require.NoError(t, err)
 
-			// The host's ONLY profile row is the pending remove; the raw insert bypasses the write paths
-			// that maintain the rollup, so seed the rollup row it would have (remove-verifying resolves to
-			// the empty bucket).
+			// The host's ONLY profile row is the in-flight remove. Removes are created as pending and stay pending until the terminal
+			// response deletes the row. The raw insert bypasses the write paths that maintain the rollup, so seed the rollup row it would
+			// have (a pending remove resolves to the pending bucket).
 			profileUUID := uuid.NewString()
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(t.Context(), `
 INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
-VALUES (?, 'verifying', 'remove', ?, 'disable-onedrive', ?)`, dev.HostUUID, deleteCommandUUID, profileUUID)
+VALUES (?, 'pending', 'remove', ?, 'disable-onedrive', ?)`, dev.HostUUID, deleteCommandUUID, profileUUID)
 				return err
 			})
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(t.Context(),
-					`INSERT INTO host_mdm_windows_profiles_status (host_uuid, status) VALUES (?, '')`, dev.HostUUID)
+					`INSERT INTO host_mdm_windows_profiles_status (host_uuid, status) VALUES (?, 'pending')`, dev.HostUUID)
 				return err
 			})
 
