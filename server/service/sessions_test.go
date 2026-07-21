@@ -167,8 +167,18 @@ func TestMFA(t *testing.T) {
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
+	var failedLoginActivity bool
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if activity.ActivityName() == (fleet.ActivityTypeUserFailedLogin{}).ActivityName() {
+			failedLoginActivity = true
+		}
+		return nil
+	}
 	_, _, err := svc.Login(ctx, "foo@example.com", test.GoodPassword, false)
-	require.Equal(t, err, mfaNotSupportedForClient)
+	var authErr *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authErr)
+	require.Equal(t, "Authentication failed", err.Error())
+	require.True(t, failedLoginActivity)
 
 	var sentMail fleet.Email
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error {
