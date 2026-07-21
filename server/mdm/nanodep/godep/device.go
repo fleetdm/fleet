@@ -116,15 +116,15 @@ func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string
 }
 
 type DeviceStatusResponse struct {
-	Devices map[string]DeviceStatusResponseJsonDevicesValue `json:"devices,omitempty"`
+	Devices map[string]DeviceStatus `json:"devices,omitempty"`
 }
 
-type DeviceStatusResponseJsonDevicesValue string
+type DeviceStatus string
 
 const (
-	DeviceStatusResponseJsonDevicesValueFailed        DeviceStatusResponseJsonDevicesValue = "FAILED"
-	DeviceStatusResponseJsonDevicesValueNotAccessible DeviceStatusResponseJsonDevicesValue = "NOT_ACCESSIBLE"
-	DeviceStatusResponseJsonDevicesValueSuccess       DeviceStatusResponseJsonDevicesValue = "SUCCESS"
+	DeviceStatusFailed        DeviceStatus = "FAILED"
+	DeviceStatusNotAccessible DeviceStatus = "NOT_ACCESSIBLE"
+	DeviceStatusSuccess       DeviceStatus = "SUCCESS"
 )
 
 // DisownDevices uses the Apple "Disown Devices" API endpoint to disown the
