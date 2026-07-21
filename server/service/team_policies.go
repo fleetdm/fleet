@@ -303,11 +303,10 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		return fleet.PolicyPayload{}, err
 	}
 
-	// Continuous automations must be enabled so the patch policy keeps retrying until the app is closed.
-	continuousAutomationsEnabled := p.ContinuousAutomationsEnabled
-	if p.PatchWhenClosed {
-		continuousAutomationsEnabled = true
-	}
+	// patch_when_closed requires continuous automations, so force them on. On create the field
+	// is a plain bool, so an explicit false is indistinguishable from an omitted one and gets
+	// forced silently. The modify path uses a bool pointer and rejects an explicit false.
+	continuousAutomationsEnabled := p.ContinuousAutomationsEnabled || p.PatchWhenClosed
 
 	return fleet.PolicyPayload{
 		QueryID:                      p.QueryID,

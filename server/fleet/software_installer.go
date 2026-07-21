@@ -721,9 +721,11 @@ type UpdateSoftwareInstallerPayload struct {
 	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
-	// Patch enables or disables the title's patch policy. FMA-only.
+	// Patch controls the patch policy for a Fleet-maintained app: true creates or keeps it,
+	// false deletes it. nil leaves the patch policy unchanged. FMA-only.
 	Patch *bool
-	// PatchWhenClosed skips the install while the app is open. FMA-only.
+	// PatchWhenClosed sets patch_when_closed on the title's patch policy so the install is
+	// skipped while the app is open. nil leaves it unchanged. FMA-only.
 	PatchWhenClosed *bool
 }
 
