@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -426,6 +427,26 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		_, err := svc.NewCertificateAuthority(ctx, createRequest)
 		require.ErrorContains(t, err, scepChallengePrintableErrMsg)
 		require.Empty(t, createdCAs)
+	})
+
+	t.Run("Create Custom SCEP CA - challenge with non-printable character logs a warning instead of erroring when the bypass flag is enabled", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+		var logBuf bytes.Buffer
+		svc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+		svc.config.Server.AllowSCEPChallengeNonPrintableChars = true
+
+		createRequest := fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &fleet.CustomSCEPProxyCA{
+				Name:      "CustomSCEPWIFI",
+				URL:       "https://customscep.example.com",
+				Challenge: "bad_challenge", // underscore is not a valid ASN.1 PrintableString character
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+		assert.Contains(t, logBuf.String(), "PrintableString")
 	})
 
 	t.Run("Create NDES SCEP CA - Happy path", func(t *testing.T) {
@@ -1610,6 +1631,23 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.ErrorContains(t, err, scepChallengePrintableErrMsg)
 		})
 
+		t.Run("Challenge with non-printable character logs a warning instead of erroring when the bypass flag is enabled", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			var logBuf bytes.Buffer
+			svc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+			svc.config.Server.AllowSCEPChallengeNonPrintableChars = true
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					Challenge: new("bad_challenge"), // underscore is not a valid ASN.1 PrintableString character
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+			assert.Contains(t, logBuf.String(), "PrintableString")
+		})
+
 		t.Run("Masked (unchanged) challenge skips character validation", func(t *testing.T) {
 			// Backward compatibility: an unchanged challenge is submitted as the masked placeholder, so it must
 			// not be re-validated. Otherwise editing a CA whose challenge predates this validation would break.
@@ -2060,38 +2098,51 @@ func TestChallengeHasAllowedChars(t *testing.T) {
 // TestProcessCustomSCEPProxyCAsChallengeValidation covers the GitOps/batch path, which (unlike the UI
 // update path) provides the challenge unmasked and detects "unchanged" by comparing the incoming
 // challenge to the existing one. A pre-existing challenge with otherwise-disallowed characters must keep
-// working when it is re-applied unchanged.
+// working when it is re-applied unchanged. By default, a new/changed challenge with disallowed
+// characters is rejected; when server.allow_scep_challenge_non_printable_chars is enabled, it is
+// instead logged as a warning and the batch apply proceeds.
 func TestProcessCustomSCEPProxyCAsChallengeValidation(t *testing.T) {
-	svc := &Service{
-		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		scepConfigService: &scep_mock.SCEPConfigService{
-			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
-		},
-	}
 	const url = "https://customscep.example.com"
 
 	tests := []struct {
-		name     string
-		existing []fleet.CustomSCEPProxyCA
-		incoming []fleet.CustomSCEPProxyCA
-		wantErr  bool
+		name              string
+		existing          []fleet.CustomSCEPProxyCA
+		incoming          []fleet.CustomSCEPProxyCA
+		allowNonPrintable bool
+		wantErr           bool
+		wantWarning       bool
 	}{
 		{
-			name:     "new CA with disallowed challenge is rejected",
+			name:     "new CA with disallowed challenge is rejected by default",
 			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "bad_challenge"}},
 			wantErr:  true,
 		},
 		{
-			name:     "unchanged disallowed challenge is skipped (backward compatible)",
+			name:              "new CA with disallowed challenge logs a warning instead of erroring when the flag is enabled",
+			incoming:          []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "bad_challenge"}},
+			allowNonPrintable: true,
+			wantErr:           false,
+			wantWarning:       true,
+		},
+		{
+			name:     "unchanged disallowed challenge is skipped by default (backward compatible)",
 			existing: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "legacy_challenge"}},
 			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "legacy_challenge"}},
 			wantErr:  false,
 		},
 		{
-			name:     "challenge changed to a disallowed value is rejected",
+			name:     "challenge changed to a disallowed value is rejected by default",
 			existing: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "goodchallenge"}},
 			incoming: []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "new_bad"}},
 			wantErr:  true,
+		},
+		{
+			name:              "challenge changed to a disallowed value logs a warning instead of erroring when the flag is enabled",
+			existing:          []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "goodchallenge"}},
+			incoming:          []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: url, Challenge: "new_bad"}},
+			allowNonPrintable: true,
+			wantErr:           false,
+			wantWarning:       true,
 		},
 		{
 			name:     "challenge changed to an allowed value succeeds",
@@ -2102,11 +2153,24 @@ func TestProcessCustomSCEPProxyCAsChallengeValidation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			svc := &Service{
+				logger: slog.New(slog.NewTextHandler(&logBuf, nil)),
+				scepConfigService: &scep_mock.SCEPConfigService{
+					ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+				},
+			}
+			svc.config.Server.AllowSCEPChallengeNonPrintableChars = tt.allowNonPrintable
 			err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, tt.incoming, tt.existing)
 			if tt.wantErr {
 				require.ErrorContains(t, err, scepChallengePrintableErrMsg)
 			} else {
 				require.NoError(t, err)
+			}
+			if tt.wantWarning {
+				assert.Contains(t, logBuf.String(), "PrintableString")
+			} else {
+				assert.NotContains(t, logBuf.String(), "PrintableString")
 			}
 		})
 	}

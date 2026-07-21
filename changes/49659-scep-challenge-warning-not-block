@@ -1,0 +1,1 @@
+* Added a `server.allow_scep_challenge_non_printable_chars` server config flag that, when enabled, logs a warning instead of rejecting Custom SCEP Proxy challenges containing characters that break Windows certificate enrollment.

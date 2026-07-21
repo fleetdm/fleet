@@ -409,6 +409,24 @@ func challengeHasAllowedChars(challenge string) bool {
 	return printableStringChallengeRegexp.MatchString(challenge)
 }
 
+// challengeCharsAllowedOrWarn reports whether a Custom SCEP Proxy challenge should be accepted despite
+// containing characters outside the ASN.1 PrintableString set. By default it isn't (the caller should
+// reject), but if server.allow_scep_challenge_non_printable_chars is enabled, it logs a warning and
+// reports the challenge as allowed instead. The character restriction only matters for Windows (which
+// encodes the SCEP challenge as PrintableString); the escape hatch exists for deployments that never
+// enroll Windows hosts with the affected CA and can't change a challenge already used elsewhere.
+func (svc *Service) challengeCharsAllowedOrWarn(ctx context.Context, challenge, caName string) bool {
+	if challengeHasAllowedChars(challenge) {
+		return true
+	}
+	if !svc.config.Server.AllowSCEPChallengeNonPrintableChars {
+		return false
+	}
+	svc.logger.WarnContext(ctx, "custom SCEP proxy challenge contains characters outside the ASN.1 PrintableString set; Windows certificate enrollment may fail for hosts using this CA; allowed because server.allow_scep_challenge_non_printable_chars is enabled",
+		"name", caName)
+	return true
+}
+
 // validateCustomSCEPProxy validates a custom SCEP proxy CA payload. validateChallengeChars controls whether
 // the challenge is checked for Windows-incompatible (non-PrintableString) characters; callers should only
 // set it when the challenge is being created or changed, so that challenges stored before this validation
@@ -423,7 +441,7 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	if customSCEP.Challenge == "" || customSCEP.Challenge == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
 	}
-	if validateChallengeChars && !challengeHasAllowedChars(customSCEP.Challenge) {
+	if validateChallengeChars && !svc.challengeCharsAllowedOrWarn(ctx, customSCEP.Challenge, customSCEP.Name) {
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
@@ -1230,7 +1248,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			return err
 		}
 		p.CustomSCEPProxyCAUpdatePayload.Preprocess()
-		if err := svc.validateCustomSCEPProxyUpdate(ctx, p.CustomSCEPProxyCAUpdatePayload, errPrefix); err != nil {
+		if err := svc.validateCustomSCEPProxyUpdate(ctx, p.CustomSCEPProxyCAUpdatePayload, *oldCA.Name, errPrefix); err != nil {
 			return err
 		}
 		caToUpdate.Type = string(fleet.CATypeCustomSCEPProxy)
@@ -1486,11 +1504,12 @@ func (svc *Service) validateNDESSCEPProxyUpdate(ctx context.Context, ndesSCEP *f
 	return nil
 }
 
-func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCAUpdatePayload, errPrefix string) error {
+func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCAUpdatePayload, caName, errPrefix string) error {
 	if customSCEP.Name != nil {
 		if err := validateCAName(*customSCEP.Name, errPrefix); err != nil {
 			return err
 		}
+		caName = *customSCEP.Name
 	}
 	if customSCEP.URL != nil {
 		if err := validateURL(*customSCEP.URL, "SCEP", errPrefix); err != nil {
@@ -1509,7 +1528,7 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 	// Only validate the challenge characters when a new challenge value is provided. A nil or masked challenge means it is unchanged,
 	// so challenges stored before this validation existed keep working.
 	if customSCEP.Challenge != nil && *customSCEP.Challenge != fleet.MaskedPassword &&
-		!challengeHasAllowedChars(*customSCEP.Challenge) {
+		!svc.challengeCharsAllowedOrWarn(ctx, *customSCEP.Challenge, caName) {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg)}
 	}
 

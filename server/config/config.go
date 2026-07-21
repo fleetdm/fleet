@@ -118,30 +118,31 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address                          string
-	Cert                             string
-	Key                              string
-	TLS                              bool
-	TLSProfile                       string        `yaml:"tls_compatibility"`
-	URLPrefix                        string        `yaml:"url_prefix"`
-	Keepalive                        bool          `yaml:"keepalive"`
-	SandboxEnabled                   bool          `yaml:"sandbox_enabled"`
-	WebsocketsAllowUnsafeOrigin      bool          `yaml:"websockets_allow_unsafe_origin"`
-	FrequentCleanupsEnabled          bool          `yaml:"frequent_cleanups_enabled"`
-	ForceH2C                         bool          `yaml:"force_h2c"`
-	PrivateKey                       string        `yaml:"private_key"`
-	PrivateKeySecretArn              string        `yaml:"private_key_arn"`
-	PrivateKeySecretRegion           string        `yaml:"private_key_region"`
-	PrivateKeySecretSTSAssumeRoleArn string        `yaml:"private_key_sts_assume_role_arn"`
-	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
-	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
-	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
-	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
-	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
-	TrustedProxies                   string        `yaml:"trusted_proxies"`
-	GzipResponses                    bool          `yaml:"gzip_responses"`
-	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
-	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	Address                             string
+	Cert                                string
+	Key                                 string
+	TLS                                 bool
+	TLSProfile                          string        `yaml:"tls_compatibility"`
+	URLPrefix                           string        `yaml:"url_prefix"`
+	Keepalive                           bool          `yaml:"keepalive"`
+	SandboxEnabled                      bool          `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin         bool          `yaml:"websockets_allow_unsafe_origin"`
+	FrequentCleanupsEnabled             bool          `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                            bool          `yaml:"force_h2c"`
+	PrivateKey                          string        `yaml:"private_key"`
+	PrivateKeySecretArn                 string        `yaml:"private_key_arn"`
+	PrivateKeySecretRegion              string        `yaml:"private_key_region"`
+	PrivateKeySecretSTSAssumeRoleArn    string        `yaml:"private_key_sts_assume_role_arn"`
+	PrivateKeySecretSTSExternalID       string        `yaml:"private_key_sts_external_id"`
+	VPPVerifyTimeout                    time.Duration `yaml:"vpp_verify_timeout"`
+	VPPVerifyRequestDelay               time.Duration `yaml:"vpp_verify_request_delay"`
+	CleanupDistTargetsAge               time.Duration `yaml:"cleanup_dist_targets_age"`
+	MaxInstallerSizeBytes               int64         `yaml:"max_installer_size"`
+	TrustedProxies                      string        `yaml:"trusted_proxies"`
+	GzipResponses                       bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize           int64         `yaml:"default_max_request_body_size"`
+	AllowPrivateNetworkIntegrations     bool          `yaml:"allow_private_network_integrations"`
+	AllowSCEPChallengeNonPrintableChars bool          `yaml:"allow_scep_challenge_non_printable_chars"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1412,6 +1413,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
+	man.addConfigBool("server.allow_scep_challenge_non_printable_chars", false, "Allow Custom SCEP Proxy challenges containing characters outside the ASN.1 PrintableString set (e.g. \"_\"). Such challenges work on non-Windows platforms but cause Windows certificate enrollment to fail; enabling this logs a warning instead of rejecting them.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1901,30 +1903,31 @@ func (man Manager) LoadConfig() FleetConfig {
 			LiveQuerySmallTargetThreshold: man.getConfigInt("redis.live_query_small_target_threshold"),
 		},
 		Server: ServerConfig{
-			Address:                          man.getConfigString("server.address"),
-			Cert:                             man.getConfigString("server.cert"),
-			Key:                              man.getConfigString("server.key"),
-			TLS:                              man.getConfigBool("server.tls"),
-			TLSProfile:                       man.getConfigTLSProfile(),
-			URLPrefix:                        man.getConfigString("server.url_prefix"),
-			Keepalive:                        man.getConfigBool("server.keepalive"),
-			SandboxEnabled:                   man.getConfigBool("server.sandbox_enabled"),
-			WebsocketsAllowUnsafeOrigin:      man.getConfigBool("server.websockets_allow_unsafe_origin"),
-			FrequentCleanupsEnabled:          man.getConfigBool("server.frequent_cleanups_enabled"),
-			ForceH2C:                         man.getConfigBool("server.force_h2c"),
-			PrivateKey:                       man.getConfigString("server.private_key"),
-			PrivateKeySecretArn:              man.getConfigString("server.private_key_arn"),
-			PrivateKeySecretRegion:           man.getConfigString("server.private_key_region"),
-			PrivateKeySecretSTSAssumeRoleArn: man.getConfigString("server.private_key_sts_assume_role_arn"),
-			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
-			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
-			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
-			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
-			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
-			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
-			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
-			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
-			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			Address:                             man.getConfigString("server.address"),
+			Cert:                                man.getConfigString("server.cert"),
+			Key:                                 man.getConfigString("server.key"),
+			TLS:                                 man.getConfigBool("server.tls"),
+			TLSProfile:                          man.getConfigTLSProfile(),
+			URLPrefix:                           man.getConfigString("server.url_prefix"),
+			Keepalive:                           man.getConfigBool("server.keepalive"),
+			SandboxEnabled:                      man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin:         man.getConfigBool("server.websockets_allow_unsafe_origin"),
+			FrequentCleanupsEnabled:             man.getConfigBool("server.frequent_cleanups_enabled"),
+			ForceH2C:                            man.getConfigBool("server.force_h2c"),
+			PrivateKey:                          man.getConfigString("server.private_key"),
+			PrivateKeySecretArn:                 man.getConfigString("server.private_key_arn"),
+			PrivateKeySecretRegion:              man.getConfigString("server.private_key_region"),
+			PrivateKeySecretSTSAssumeRoleArn:    man.getConfigString("server.private_key_sts_assume_role_arn"),
+			PrivateKeySecretSTSExternalID:       man.getConfigString("server.private_key_sts_external_id"),
+			VPPVerifyTimeout:                    man.getConfigDuration("server.vpp_verify_timeout"),
+			VPPVerifyRequestDelay:               man.getConfigDuration("server.vpp_verify_request_delay"),
+			CleanupDistTargetsAge:               man.getConfigDuration("server.cleanup_dist_targets_age"),
+			MaxInstallerSizeBytes:               man.getConfigByteSize("server.max_installer_size"),
+			TrustedProxies:                      man.getConfigString("server.trusted_proxies"),
+			GzipResponses:                       man.getConfigBool("server.gzip_responses"),
+			DefaultMaxRequestBodySize:           man.getConfigByteSize("server.default_max_request_body_size"),
+			AllowPrivateNetworkIntegrations:     man.getConfigBool("server.allow_private_network_integrations"),
+			AllowSCEPChallengeNonPrintableChars: man.getConfigBool("server.allow_scep_challenge_non_printable_chars"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
