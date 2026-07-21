@@ -363,7 +363,7 @@ async function handleAPI(req, res) {
 
     const sessions = snapshot.sessions.map(s => ({
       ...s,
-      note: (s.claude_session_id && notes[s.claude_session_id]) || '',
+      note: notes[s.claude_session_id] || notes[s.iterm_uuid] || '',
       status: !s.claude_session_id ? 'no-claude'
         : parked.has(s.claude_session_id) ? 'parked'
         : running.has(s.claude_session_id) ? 'running'
@@ -685,34 +685,34 @@ async function fetchHistory() {
 
 function renderActive(data) {
   const el = document.getElementById('active-body');
-  const claudeSessions = data.sessions.filter(s => s.claude_session_id);
-  document.getElementById('active-count').textContent = '(' + claudeSessions.length + ')';
+  const sessions = data.sessions;
+  document.getElementById('active-count').textContent = '(' + sessions.length + ')';
   document.getElementById('snapshot-time').textContent = 'Snapshot: ' + (data.timestamp || '?');
 
-  const running = claudeSessions.filter(s => s.status === 'running').length;
-  const missing = claudeSessions.filter(s => s.status === 'missing').length;
+  const running = sessions.filter(s => s.status === 'running').length;
+  const missing = sessions.filter(s => s.status === 'missing').length;
   document.getElementById('session-counts').textContent = running + ' running, ' + missing + ' missing';
 
-  if (claudeSessions.length === 0) {
-    el.innerHTML = '<tr><td colspan="8" class="empty-state">No Claude sessions found</td></tr>';
+  if (sessions.length === 0) {
+    el.innerHTML = '<tr><td colspan="8" class="empty-state">No sessions found</td></tr>';
     return;
   }
 
-  el.innerHTML = claudeSessions.map((s, i) => {
-    let action = '';
+  el.innerHTML = sessions.map((s, i) => {
+    let action = '<button class="btn btn-focus" onclick="focusSession(\\'' + s.iterm_uuid + '\\')">Focus</button>';
     if (s.status === 'running') {
-      action = '<button class="btn btn-focus" onclick="focusSession(\\'' + s.iterm_uuid + '\\')">Focus</button> '
-        + '<button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
+      action += ' <button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
     } else if (s.status === 'missing') {
       action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>';
     }
+    const noteKey = s.claude_session_id || s.iterm_uuid;
     const noteVal = escapeHtml(s.note);
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td class="badge-cell">' + escapeHtml(s.badge) + '</td>'
       + '<td>' + escapeHtml(s.session_name) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
-      + 'onblur="saveNote(\\'' + s.claude_session_id + '\\', this.value)" '
+      + 'onblur="saveNote(\\'' + noteKey + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(s.process) + '</td>'
       + '<td class="session-id">' + escapeHtml(s.claude_session_id) + '</td>'
