@@ -67,6 +67,17 @@ type User struct {
 	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
+	// LastLoginAt is the last time the user logged in (i.e. the last time a
+	// session was created for the user). It is nil if the user has never
+	// logged in (or hasn't logged in since the column was introduced).
+	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
+	// LastActivityAt is the last time the user made an authenticated request
+	// with one of its live sessions. This is the inactivity signal for
+	// API-only users, whose long-lived token session is created once but
+	// accessed on every request. It is computed from live sessions, which are
+	// deleted on logout and expiry, so it is nil when the user has no live
+	// session.
+	LastActivityAt *time.Time `json:"last_activity_at" db:"last_activity_at"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams" renameto:"fleets"`

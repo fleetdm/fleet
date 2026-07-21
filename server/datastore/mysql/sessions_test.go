@@ -22,6 +22,7 @@ func TestSessions(t *testing.T) {
 	}{
 		{"Getters", testSessionsGetters},
 		{"MFA", testMFA},
+		{"LastLoginAt", testSessionsLastLoginAt},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -78,6 +79,71 @@ func testMFA(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.Nil(t, mfaUser)
 	require.Nil(t, session)
+}
+
+func testSessionsLastLoginAt(t *testing.T, ds *Datastore) {
+	user, err := ds.NewUser(context.Background(), &fleet.User{
+		Password:   []byte("supersecret"),
+		Email:      "login@example.com",
+		GlobalRole: new(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+
+	// never logged in
+	got, err := ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.LastLoginAt)
+	require.Nil(t, got.LastActivityAt)
+
+	var updatedAtBefore time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &updatedAtBefore, "SELECT updated_at FROM users WHERE id = ?", user.ID)
+	})
+
+	// creating a session records the login
+	_, err = ds.NewSession(context.Background(), user.ID, 8)
+	require.NoError(t, err)
+
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.LastLoginAt)
+	require.WithinDuration(t, ds.clock.Now(), *got.LastLoginAt, time.Minute)
+
+	// recording the login must not bump updated_at
+	var updatedAtAfter time.Time
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &updatedAtAfter, "SELECT updated_at FROM users WHERE id = ?", user.ID)
+	})
+	require.Equal(t, updatedAtBefore, updatedAtAfter)
+
+	// a later session moves last_login_at forward
+	firstLogin := *got.LastLoginAt
+	mc := ds.clock.(*clock.MockClock)
+	mc.AddTime(2 * time.Second)
+	_, err = ds.NewSession(context.Background(), user.ID, 8)
+	require.NoError(t, err)
+
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.LastLoginAt)
+	require.True(t, got.LastLoginAt.After(firstLogin))
+
+	// live sessions surface last activity (accessed_at); ListUsers also
+	// returns it
+	require.NotNil(t, got.LastActivityAt)
+	users, err := ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	require.NoError(t, err)
+	require.Len(t, users, 1)
+	require.NotNil(t, users[0].LastActivityAt)
+	require.NotNil(t, users[0].LastLoginAt)
+
+	// destroying all sessions clears last activity, but the durable
+	// last_login_at survives
+	require.NoError(t, ds.DestroyAllSessionsForUser(context.Background(), user.ID))
+	got, err = ds.UserByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.LastActivityAt)
+	require.NotNil(t, got.LastLoginAt)
 }
 
 func testSessionsGetters(t *testing.T, ds *Datastore) {

@@ -79,6 +79,45 @@ export interface IUserTableData {
   api_only: boolean;
 }
 
+/** Number of days without a login/activity after which a user is considered
+ * inactive. */
+const INACTIVE_AFTER_DAYS = 30;
+
+const USER_INACTIVE_TOOLTIP = `Hasn't logged in for ${INACTIVE_AFTER_DAYS}+ days`;
+const API_ONLY_INACTIVE_TOOLTIP = `No API activity for ${INACTIVE_AFTER_DAYS}+ days`;
+
+const isInactive = (user: IUser): boolean => {
+  // A user was last seen at the most recent of its last session activity
+  // (the signal for API-only users, whose long-lived token session is
+  // accessed on every request) and its last login. Fall back to created_at
+  // for users who have never logged in (including accounts that predate
+  // last login tracking). Server timestamps share the same ISO format, so
+  // they sort lexicographically.
+  const lastSeen =
+    [user.last_activity_at, user.last_login_at]
+      .filter((date): date is string => !!date)
+      .sort()
+      .pop() ?? user.created_at;
+  if (!lastSeen) {
+    return false;
+  }
+  const msSinceSeen = Date.now() - new Date(lastSeen).getTime();
+  return msSinceSeen >= INACTIVE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+};
+
+const hasNoAccess = (data: IUser | IInvite): boolean =>
+  data.global_role === null && data.teams.length === 0;
+
+const generateUserStatus = (user: IUser): string => {
+  if (hasNoAccess(user)) {
+    return "No access";
+  }
+  return isInactive(user) ? "Inactive" : "Active";
+};
+
+const generateInviteStatus = (invite: IInvite): string =>
+  hasNoAccess(invite) ? "No access" : "Invite pending";
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
@@ -182,7 +221,18 @@ const generateTableHeaders = (
       ),
       accessor: "status",
       Cell: (cellProps: ICellProps) => (
-        <StatusIndicator value={cellProps.cell.value} />
+        <StatusIndicator
+          value={cellProps.cell.value}
+          tooltip={
+            cellProps.cell.value === "Inactive"
+              ? {
+                  tooltipText: cellProps.row.original.api_only
+                    ? API_ONLY_INACTIVE_TOOLTIP
+                    : USER_INACTIVE_TOOLTIP,
+                }
+              : undefined
+          }
+        />
       ),
     },
     {
@@ -262,15 +312,6 @@ const generateTableHeaders = (
   return tableHeaders;
 };
 
-const generateStatus = (type: string, data: IUser | IInvite): string => {
-  const { teams, global_role } = data;
-  if (global_role === null && teams.length === 0) {
-    return "No access";
-  }
-
-  return type === "invite" ? "Invite pending" : "Active";
-};
-
 const generateActionDropdownOptions = (
   isCurrentUser: boolean,
   isInvitePending: boolean,
@@ -336,7 +377,7 @@ const enhanceUserData = (
   return users.map((user) => {
     return {
       name: user.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("user", user),
+      status: generateUserStatus(user),
       email: user.email,
       teams: generateTeam(user.teams, user.global_role),
       teamNames: generateTeamNames(user.teams),
@@ -360,7 +401,7 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
   return invites.map((invite) => {
     return {
       name: invite.name || DEFAULT_EMPTY_CELL_VALUE,
-      status: generateStatus("invite", invite),
+      status: generateInviteStatus(invite),
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       teamNames: generateTeamNames(invite.teams),
