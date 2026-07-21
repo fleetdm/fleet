@@ -1,0 +1,761 @@
+#!/usr/bin/env node
+// ttracker/server.js
+//
+// Web dashboard for terminal session tracking.
+// Replaces the daemon: takes periodic snapshots and serves a UI.
+//
+// Usage:
+//   node server.js              # Start on port 3847
+//   node server.js --open       # Start and open browser
+//   TT_PORT=8080 node server.js # Custom port
+//   TT_INTERVAL=5 node server.js # Snapshot every 5 minutes
+
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFile, exec } = require('node:child_process');
+const os = require('node:os');
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const PORT = parseInt(process.env.TT_PORT || '3847');
+const INTERVAL_MIN = parseInt(process.env.TT_INTERVAL || '10');
+const SAFE_MODE = process.env.TT_SAFE_MODE === '1';
+const SCRIPT_DIR = __dirname;
+const SNAPSHOT_DIR = path.join(SCRIPT_DIR, 'snapshots');
+const LATEST_FILE = path.join(SNAPSHOT_DIR, 'latest.json');
+const HISTORY_FILE = path.join(SNAPSHOT_DIR, 'history.json');
+const PID_FILE = path.join(SNAPSHOT_DIR, 'daemon.pid');
+const CLAUDE_SESSIONS_DIR = path.join(os.homedir(), '.claude', 'sessions');
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+function runOsascript(script) {
+  return new Promise((resolve, reject) => {
+    execFile('osascript', ['-e', script], { timeout: 15000 }, (err, stdout) => {
+      if (err) return reject(err);
+      resolve(stdout.trim());
+    });
+  });
+}
+
+function runOsascriptFile(filepath) {
+  return new Promise((resolve, reject) => {
+    execFile('osascript', [filepath], { timeout: 30000 }, (err, stdout) => {
+      if (err) return reject(err);
+      resolve(stdout.trim());
+    });
+  });
+}
+
+function runCommand(cmd, args) {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { timeout: 5000 }, (err, stdout) => {
+      resolve(err ? '' : stdout.trim());
+    });
+  });
+}
+
+function processIsRunning(pid) {
+  try {
+    process.kill(parseInt(pid), 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readJSON(filepath) {
+  try {
+    return JSON.parse(fs.readFileSync(filepath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writeJSON(filepath, data) {
+  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+}
+
+function timestamp() {
+  return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+// ─── Snapshot Logic (ported from daemon.sh) ──────────────────────────────────
+
+const ITERM_APPLESCRIPT = `
+tell application "iTerm2"
+    set output to ""
+    repeat with w from 1 to (count of windows)
+        set win to window w
+        repeat with t from 1 to (count of tabs of win)
+            set theTab to tab t of win
+            repeat with s from 1 to (count of sessions of theTab)
+                set sess to session s of theTab
+                set b to ""
+                try
+                    tell sess
+                        set b to (variable named "badge")
+                    end tell
+                end try
+                set output to output & (id of win) & "\t" & t & "\t" & s & "\t" & (unique ID of sess) & "\t" & (tty of sess) & "\t" & b & "\t" & (name of sess) & linefeed
+            end repeat
+        end repeat
+    end repeat
+    return output
+end tell`;
+
+let snapshotInProgress = false;
+
+async function takeSnapshot() {
+  if (snapshotInProgress) return null;
+  snapshotInProgress = true;
+
+  try {
+    const raw = await runOsascript(ITERM_APPLESCRIPT).catch(() => '');
+    if (!raw) {
+      console.log(`[${timestamp()}] Warning: could not reach iTerm2`);
+      snapshotInProgress = false;
+      return null;
+    }
+
+    const lines = raw.split('\n').filter(l => l.trim());
+    const sessions = [];
+
+    for (const line of lines) {
+      const parts = line.split('\t');
+      if (parts.length < 7) continue;
+
+      const [winId, tab, sess, itermUuid, tty, badge, ...nameParts] = parts;
+      const sessName = nameParts.join('\t');
+      const shortTty = path.basename(tty);
+
+      // Find Claude process on this TTY
+      let claudeSessionId = '';
+      let cwd = '';
+      const psOut = await runCommand('ps', ['-t', shortTty, '-o', 'pid,command']);
+      const claudeMatch = psOut.split('\n').find(l => l.includes('claude') && !l.includes('awk'));
+      if (claudeMatch) {
+        const claudePid = claudeMatch.trim().split(/\s+/)[0];
+        const sessFile = path.join(CLAUDE_SESSIONS_DIR, `${claudePid}.json`);
+        const sessData = readJSON(sessFile);
+        if (sessData) {
+          claudeSessionId = sessData.sessionId || '';
+          cwd = sessData.cwd || '';
+        }
+      }
+
+      // Find foreground process
+      const statOut = await runCommand('ps', ['-t', shortTty, '-o', 'stat,command']);
+      let procName = 'unknown';
+      const fgLine = statOut.split('\n').find(l => l.match(/^\s*\S*\+/));
+      if (fgLine) {
+        const cmd = fgLine.trim().split(/\s+/).slice(1)[0] || '';
+        procName = path.basename(cmd);
+      }
+
+      sessions.push({
+        window_id: parseInt(winId) || 0,
+        tab: parseInt(tab) || 1,
+        session: parseInt(sess) || 1,
+        iterm_uuid: itermUuid,
+        tty,
+        badge: badge || '',
+        session_name: sessName || '',
+        process: procName,
+        claude_session_id: claudeSessionId,
+        cwd
+      });
+    }
+
+    const snapshot = {
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      session_count: sessions.length,
+      sessions
+    };
+
+    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+    writeJSON(LATEST_FILE, snapshot);
+
+    // Timestamped backup
+    const backupName = `snapshot-${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15)}.json`;
+    writeJSON(path.join(SNAPSHOT_DIR, backupName), snapshot);
+
+    // Prune old backups (keep last 50)
+    const backups = fs.readdirSync(SNAPSHOT_DIR)
+      .filter(f => f.startsWith('snapshot-') && f.endsWith('.json'))
+      .sort()
+      .reverse();
+    for (const old of backups.slice(50)) {
+      fs.unlinkSync(path.join(SNAPSHOT_DIR, old));
+    }
+
+    const claudeCount = sessions.filter(s => s.claude_session_id).length;
+    console.log(`[${timestamp()}] Snapshot: ${sessions.length} sessions (${claudeCount} Claude)`);
+
+    return snapshot;
+  } finally {
+    snapshotInProgress = false;
+  }
+}
+
+// ─── Liveness Check ──────────────────────────────────────────────────────────
+
+function getRunningSessionIds() {
+  const running = new Set();
+  try {
+    const files = fs.readdirSync(CLAUDE_SESSIONS_DIR).filter(f => f.endsWith('.json'));
+    for (const f of files) {
+      const pid = f.replace('.json', '');
+      if (processIsRunning(pid)) {
+        const data = readJSON(path.join(CLAUDE_SESSIONS_DIR, f));
+        if (data && data.sessionId) {
+          running.add(data.sessionId);
+        }
+      }
+    }
+  } catch { /* no sessions dir */ }
+  return running;
+}
+
+function getHistorySessionIds() {
+  const history = readJSON(HISTORY_FILE);
+  if (!Array.isArray(history)) return new Set();
+  return new Set(history.filter(h => h.claude_session_id).map(h => h.claude_session_id));
+}
+
+// ─── Park Logic ──────────────────────────────────────────────────────────────
+
+async function parkSession(itermUuid) {
+  const snapshot = readJSON(LATEST_FILE);
+  if (!snapshot) return { ok: false, error: 'No snapshot' };
+
+  const session = snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
+  if (!session) return { ok: false, error: 'Session not found' };
+  if (!session.claude_session_id) return { ok: false, error: 'Not a Claude session' };
+
+  // Add to history
+  let history = readJSON(HISTORY_FILE) || [];
+  if (!Array.isArray(history)) history = [];
+
+  if (!history.some(h => h.claude_session_id === session.claude_session_id)) {
+    history.push({
+      ...session,
+      parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    });
+    writeJSON(HISTORY_FILE, history);
+  }
+
+  // Close the iTerm2 window
+  try {
+    await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        set win to window w
+        repeat with t from 1 to (count of tabs of win)
+            repeat with s from 1 to (count of sessions of tab t of win)
+                set sess to session s of tab t of win
+                if (unique ID of sess) is "${itermUuid}" then
+                    close win
+                    return "closed"
+                end if
+            end repeat
+        end repeat
+    end repeat
+    return "not found"
+end tell`);
+  } catch { /* window may already be closed */ }
+
+  // Take fresh snapshot
+  await takeSnapshot();
+  return { ok: true, badge: session.badge };
+}
+
+// ─── Restore Logic ───────────────────────────────────────────────────────────
+
+async function restoreSession(claudeSessionId, fromHistory) {
+  let session;
+
+  if (fromHistory) {
+    const history = readJSON(HISTORY_FILE) || [];
+    const idx = history.findIndex(h => h.claude_session_id === claudeSessionId);
+    if (idx === -1) return { ok: false, error: 'Not found in history' };
+    session = history[idx];
+
+    // Remove from history
+    history.splice(idx, 1);
+    writeJSON(HISTORY_FILE, history);
+  } else {
+    const snapshot = readJSON(LATEST_FILE);
+    if (!snapshot) return { ok: false, error: 'No snapshot' };
+    session = snapshot.sessions.find(s => s.claude_session_id === claudeSessionId);
+    if (!session) return { ok: false, error: 'Session not found' };
+  }
+
+  const cwd = session.cwd || os.homedir();
+  const badgeB64 = Buffer.from(session.badge || '').toString('base64');
+  const claudeCmd = SAFE_MODE
+    ? `claude --resume ${claudeSessionId}`
+    : `claude --dangerously-skip-permissions --resume ${claudeSessionId}`;
+
+  // Write temp AppleScript file (avoids escaping issues)
+  const tmpFile = path.join(os.tmpdir(), `tt-restore-${Date.now()}.applescript`);
+  fs.writeFileSync(tmpFile, `tell application "iTerm2"
+    set newWindow to (create window with default profile)
+    tell current session of current tab of newWindow
+        write text "cd ${cwd}"
+        delay 1
+        write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
+        delay 2
+        write text "${claudeCmd}"
+    end tell
+end tell`);
+
+  try {
+    await runOsascriptFile(tmpFile);
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
+
+  // Take fresh snapshot after a delay (let the window open)
+  setTimeout(() => takeSnapshot(), 5000);
+  return { ok: true, badge: session.badge };
+}
+
+// ─── API Handler ─────────────────────────────────────────────────────────────
+
+async function handleAPI(req, res) {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const pathParts = url.pathname.split('/').filter(Boolean);
+
+  // GET /api/sessions
+  if (req.method === 'GET' && url.pathname === '/api/sessions') {
+    const snapshot = readJSON(LATEST_FILE) || { timestamp: '', session_count: 0, sessions: [] };
+    const running = getRunningSessionIds();
+    const parked = getHistorySessionIds();
+
+    const sessions = snapshot.sessions.map(s => ({
+      ...s,
+      status: !s.claude_session_id ? 'no-claude'
+        : parked.has(s.claude_session_id) ? 'parked'
+        : running.has(s.claude_session_id) ? 'running'
+        : 'missing'
+    }));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ...snapshot, sessions }));
+    return;
+  }
+
+  // GET /api/history
+  if (req.method === 'GET' && url.pathname === '/api/history') {
+    const history = readJSON(HISTORY_FILE) || [];
+    const running = getRunningSessionIds();
+
+    const entries = history.map(h => ({
+      ...h,
+      status: running.has(h.claude_session_id) ? 'running' : 'parked'
+    }));
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(entries));
+    return;
+  }
+
+  // POST /api/snapshot
+  if (req.method === 'POST' && url.pathname === '/api/snapshot') {
+    await takeSnapshot();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // POST /api/park/:iterm_uuid
+  if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'park' && pathParts[2]) {
+    const result = await parkSession(decodeURIComponent(pathParts[2]));
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // POST /api/restore/:claude_session_id
+  if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'restore' && pathParts[2]) {
+    const result = await restoreSession(decodeURIComponent(pathParts[2]), false);
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // POST /api/restore-history/:claude_session_id
+  if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'restore-history' && pathParts[2]) {
+    const result = await restoreSession(decodeURIComponent(pathParts[2]), true);
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'Not found' }));
+}
+
+// ─── HTML Dashboard ──────────────────────────────────────────────────────────
+
+function getDashboardHTML() {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ttracker</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+    background: #0d1117;
+    color: #c9d1d9;
+    padding: 24px;
+    font-size: 13px;
+  }
+  h1 { color: #58a6ff; font-size: 20px; font-weight: 600; }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #21262d;
+  }
+  .header-info { color: #8b949e; font-size: 12px; }
+  .header-info span { margin-left: 16px; }
+  .refresh-btn {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .refresh-btn:hover { background: #30363d; }
+  h2 {
+    color: #c9d1d9;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 24px 0 12px;
+  }
+  .count { color: #8b949e; font-weight: 400; margin-left: 8px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #161b22;
+    color: #8b949e;
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #21262d;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #21262d;
+    vertical-align: middle;
+  }
+  tr:hover { background: #161b22; }
+  .badge-cell {
+    color: #d2a8ff;
+    font-weight: 600;
+  }
+  .session-id {
+    color: #8b949e;
+    font-size: 11px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .dot-running { background: #3fb950; }
+  .dot-missing { background: #f85149; }
+  .dot-parked { background: #8b949e; }
+  .dot-no-claude { background: #484f58; }
+  .btn {
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-park {
+    background: #1c2128;
+    color: #d29922;
+    border-color: #d29922;
+  }
+  .btn-park:hover:not(:disabled) { background: #2d1f00; }
+  .btn-restore {
+    background: #1c2128;
+    color: #58a6ff;
+    border-color: #58a6ff;
+  }
+  .btn-restore:hover:not(:disabled) { background: #001f3f; }
+  .empty-state {
+    color: #484f58;
+    padding: 24px;
+    text-align: center;
+    font-style: italic;
+  }
+  .parked-at { color: #8b949e; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>ttracker</h1>
+  </div>
+  <div class="header-info">
+    <span id="snapshot-time"></span>
+    <span id="session-counts"></span>
+    <button class="refresh-btn" onclick="forceSnapshot()">Snapshot Now</button>
+  </div>
+</div>
+
+<h2>Active Sessions <span class="count" id="active-count"></span></h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:50px">#</th>
+      <th>Badge</th>
+      <th>Session Name</th>
+      <th>Process</th>
+      <th>Claude Session</th>
+      <th>Status</th>
+      <th style="width:100px">Action</th>
+    </tr>
+  </thead>
+  <tbody id="active-body"></tbody>
+</table>
+
+<h2>Parked Sessions <span class="count" id="history-count"></span></h2>
+<table>
+  <thead>
+    <tr>
+      <th style="width:50px">#</th>
+      <th>Badge</th>
+      <th>Session Name</th>
+      <th>Parked At</th>
+      <th>Status</th>
+      <th style="width:100px">Action</th>
+    </tr>
+  </thead>
+  <tbody id="history-body"></tbody>
+</table>
+
+<script>
+const API = '';
+let refreshTimer;
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function statusDot(status) {
+  const labels = { running: 'running', missing: 'missing', parked: 'parked', 'no-claude': 'idle' };
+  return '<span class="status"><span class="dot dot-' + status + '"></span>' + (labels[status] || status) + '</span>';
+}
+
+async function fetchSessions() {
+  try {
+    const res = await fetch(API + '/api/sessions');
+    return await res.json();
+  } catch { return { timestamp: '?', sessions: [], session_count: 0 }; }
+}
+
+async function fetchHistory() {
+  try {
+    const res = await fetch(API + '/api/history');
+    return await res.json();
+  } catch { return []; }
+}
+
+function renderActive(data) {
+  const el = document.getElementById('active-body');
+  const claudeSessions = data.sessions.filter(s => s.claude_session_id);
+  document.getElementById('active-count').textContent = '(' + claudeSessions.length + ')';
+  document.getElementById('snapshot-time').textContent = 'Snapshot: ' + (data.timestamp || '?');
+
+  const running = claudeSessions.filter(s => s.status === 'running').length;
+  const missing = claudeSessions.filter(s => s.status === 'missing').length;
+  document.getElementById('session-counts').textContent = running + ' running, ' + missing + ' missing';
+
+  if (claudeSessions.length === 0) {
+    el.innerHTML = '<tr><td colspan="7" class="empty-state">No Claude sessions found</td></tr>';
+    return;
+  }
+
+  el.innerHTML = claudeSessions.map((s, i) => {
+    let action = '';
+    if (s.status === 'running') {
+      action = '<button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
+    } else if (s.status === 'missing') {
+      action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>';
+    }
+    return '<tr>'
+      + '<td>' + (i + 1) + '</td>'
+      + '<td class="badge-cell">' + escapeHtml(s.badge) + '</td>'
+      + '<td>' + escapeHtml(s.session_name) + '</td>'
+      + '<td>' + escapeHtml(s.process) + '</td>'
+      + '<td class="session-id">' + escapeHtml(s.claude_session_id) + '</td>'
+      + '<td>' + statusDot(s.status) + '</td>'
+      + '<td>' + action + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function renderHistory(entries) {
+  const el = document.getElementById('history-body');
+  document.getElementById('history-count').textContent = '(' + entries.length + ')';
+
+  if (entries.length === 0) {
+    el.innerHTML = '<tr><td colspan="6" class="empty-state">No parked sessions</td></tr>';
+    return;
+  }
+
+  el.innerHTML = entries.map((h, i) => {
+    const action = h.status === 'running'
+      ? '<span style="color:#3fb950;font-size:12px">open</span>'
+      : '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>';
+    return '<tr>'
+      + '<td>' + (i + 1) + '</td>'
+      + '<td class="badge-cell">' + escapeHtml(h.badge) + '</td>'
+      + '<td>' + escapeHtml(h.session_name) + '</td>'
+      + '<td class="parked-at">' + escapeHtml(h.parked_at) + '</td>'
+      + '<td>' + statusDot(h.status) + '</td>'
+      + '<td>' + action + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+async function refresh() {
+  const [sessions, history] = await Promise.all([fetchSessions(), fetchHistory()]);
+  renderActive(sessions);
+  renderHistory(history);
+}
+
+async function forceSnapshot() {
+  await fetch(API + '/api/snapshot', { method: 'POST' });
+  await refresh();
+}
+
+async function parkSession(itermUuid) {
+  if (!confirm('Park this session and close the terminal?')) return;
+  await fetch(API + '/api/park/' + encodeURIComponent(itermUuid), { method: 'POST' });
+  await refresh();
+}
+
+async function restoreSession(sessionId) {
+  await fetch(API + '/api/restore/' + encodeURIComponent(sessionId), { method: 'POST' });
+  setTimeout(refresh, 3000);
+}
+
+async function restoreFromHistory(sessionId) {
+  await fetch(API + '/api/restore-history/' + encodeURIComponent(sessionId), { method: 'POST' });
+  await refresh();
+}
+
+// Initial load + auto-refresh
+refresh();
+refreshTimer = setInterval(refresh, 5000);
+</script>
+
+</body>
+</html>`;
+}
+
+// ─── HTTP Server ─────────────────────────────────────────────────────────────
+
+async function handleRequest(req, res) {
+  try {
+    if (req.url === '/' || req.url === '/index.html') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(getDashboardHTML());
+      return;
+    }
+
+    if (req.url.startsWith('/api/')) {
+      await handleAPI(req, res);
+      return;
+    }
+
+    res.writeHead(404);
+    res.end('Not found');
+  } catch (err) {
+    console.error('Request error:', err.message);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: err.message }));
+  }
+}
+
+// ─── Startup ─────────────────────────────────────────────────────────────────
+
+async function main() {
+  fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+
+  // Stop existing shell daemon if running
+  try {
+    if (fs.existsSync(PID_FILE)) {
+      const pid = fs.readFileSync(PID_FILE, 'utf8').trim();
+      if (processIsRunning(pid)) {
+        process.kill(parseInt(pid));
+        console.log(`Stopped existing daemon (PID ${pid})`);
+      }
+      fs.unlinkSync(PID_FILE);
+    }
+  } catch {}
+
+  // Take initial snapshot
+  console.log('Taking initial snapshot...');
+  await takeSnapshot();
+
+  // Start periodic snapshots
+  setInterval(() => takeSnapshot(), INTERVAL_MIN * 60 * 1000);
+
+  // Start HTTP server
+  const server = http.createServer(handleRequest);
+  server.listen(PORT, () => {
+    console.log(`\nttracker dashboard: http://localhost:${PORT}`);
+    console.log(`Snapshot interval: ${INTERVAL_MIN} minutes`);
+    console.log(`Permission mode: ${SAFE_MODE ? 'safe' : 'dangerously-skip-permissions'}`);
+    console.log('');
+  });
+
+  // Open browser if --open flag
+  if (process.argv.includes('--open')) {
+    exec(`open http://localhost:${PORT}`);
+  }
+}
+
+main().catch(err => {
+  console.error('Fatal:', err);
+  process.exit(1);
+});
