@@ -287,11 +287,13 @@ const FleetsDropdown = ({
   // Primo mode and GitOps mode both disable fleet creation. Hide the
   // affordance entirely rather than link to a page where the button is
   // disabled — otherwise the deep link (?create_fleet=1) silently no-ops
-  // when it lands.
+  // when it lands. Also hide when the dropdown is embedded in a form
+  // (asFormField) — clicking "Add fleet" navigates away and would
+  // abandon any in-progress form input.
   const isAddFleetDisabled =
     !!config?.partnerships?.enable_primo ||
     !!(config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url);
-  const canAddFleet = !!isGlobalAdmin && !isAddFleetDisabled;
+  const canAddFleet = !!isGlobalAdmin && !isAddFleetDisabled && !asFormField;
   const [searchQuery, setSearchQuery] = useState("");
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);

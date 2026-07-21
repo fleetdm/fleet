@@ -281,6 +281,24 @@ describe("FleetsDropdown - component", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("hides the button for global admins when rendered as a form field", async () => {
+      const user = userEvent.setup();
+      renderWithAppContext(
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
+          selectedFleetId={1}
+          onChange={noop}
+          asFormField
+        />,
+        { contextValue: { isGlobalAdmin: true } }
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      expect(
+        screen.queryByRole("button", { name: /add fleet/i })
+      ).not.toBeInTheDocument();
+    });
+
     it("hides the button for global admins when Primo mode is enabled", async () => {
       const user = userEvent.setup();
       renderWithAppContext(
