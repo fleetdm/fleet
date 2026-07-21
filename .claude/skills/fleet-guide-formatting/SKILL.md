@@ -38,7 +38,7 @@ These are the reference guides this skill is derived from. Read one or two befor
 - `articles/migrate-fleet-server.md`: "Before you begin" prerequisites with inline risk callouts, sequential H2 steps, a "Verify the migration" section, Troubleshooting at the end.
 - `articles/enforce-macos-updates-per-major-version.md`: explicit "Step 1 / Step 2 / Step 3" H2 headings because the count itself matters, inline `>` Note/Warning callouts placed exactly where they bite, a numbered UI click-path nested inside a step.
 - `articles/set-device-hostname-via-fleet-api.md`: tight prerequisites, numbered click-path-style steps for an API workflow, bold endpoint/header labels instead of prose.
-- `articles/manage-bootstrap-package-with-gitops.md`: the shortest possible version of the skeleton. Intro, prerequisites, three action-headed steps, a "More information" link, done.
+- `articles/manage-boostrap-package-with-gitops.md`: the shortest possible version of the skeleton. Intro, prerequisites, three action-headed steps, a "More information" link, done.
 - `articles/autopkg-with-fleet.md`: branching steps (direct mode vs. GitOps mode) handled as sibling H2 sections, each self-contained, and a "Get help" section instead of "Further reading" because the tool is community-maintained.
 - `articles/canary-fleet-for-fleetd-updates.md`: leads with the *problem* before the fix, a `>` callout for a licensing gotcha, numbered steps under one H2 "Set up your canary fleet" rather than one H2 per step.
 - `articles/managed-migration-assistant-mac-to-mac-migration-with-fleet.md`: "Requirements" then "What transfers and what doesn't" (a reference table-in-prose the reader needs before touching config) before any steps, branches for GitOps vs. UI paths, and "Further reading" at the end.
@@ -65,7 +65,7 @@ What guides never have: a "Conclusion", "Summary", or "Wrapping up" section that
 
 ## Endmatter is not optional
 
-Every guide ends with the `<meta>` block from `content-style/references/content-types.md`. **Emit it yourself as part of the draft.** A guide handed back without endmatter is incomplete, and the author shouldn't have to notice it's missing and paste it in. `references/template.md` ends with the block already filled in for guides. Keep it there.
+Every guide ends with the `<meta>` block from `.claude/skills/content-style/references/content-types.md`. **Emit it yourself as part of the draft.** A guide handed back without endmatter is incomplete, and the author shouldn't have to notice it's missing and paste it in. `references/template.md` ends with the block already filled in for guides. Keep it there.
 
 Fill it in like this:
 
