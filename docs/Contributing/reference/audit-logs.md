@@ -885,9 +885,11 @@ This activity contains the following fields:
 
 ## edited_macos_profile
 
-Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single macOS profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -895,6 +897,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
+  "profile_identifier": "com.my.profile",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1335,9 +1339,10 @@ This activity contains the following fields:
 
 ## edited_windows_profile
 
-Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Windows profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Windows profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1345,6 +1350,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1472,9 +1478,11 @@ This activity contains the following fields:
 
 ## edited_declaration_profile
 
-Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the macOS declarations of a fleet (or no fleet) via the fleetctl CLI, or edits a single declaration via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
+- "profile_identifier": Identifier of the edited declaration. Only present when a single declaration was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the declarations apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1482,6 +1490,8 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -1533,9 +1543,10 @@ This activity contains the following fields:
 
 ## edited_android_profile
 
-Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI.
+Generated when a user edits the Android profiles of a fleet (or no fleet) via the fleetctl CLI, or edits a single Android profile via the edit profile endpoint.
 
 This activity contains the following fields:
+- "profile_name": Name of the edited profile. Only present when a single profile was edited; omitted for fleetctl/GitOps batch edits.
 - "fleet_id": The ID of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that the profiles apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
 
@@ -1543,6 +1554,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "profile_name": "Custom settings 1",
   "team_id": 123,
   "team_name": "Workstations",
   "fleet_id": 123,
@@ -3081,30 +3093,6 @@ This activity contains the following fields:
 {
   "fleet_id": 123,
   "fleet_name": "Workstations"
-}
-```
-
-
-## edited_configuration_profile
-
-Generated when a configuration profile is edited.
-
-This activity contains the following fields:
-- "profile_name": Name of the profile.
-- "profile_identifier": Identifier of the profile.
-- "fleet_id": The ID of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
-- "fleet_name": The name of the fleet that the profile applied to, `null` if it applied to devices that are not in a fleet.
-- "platform": The platform the configuration profile is targeting.
-
-#### Example
-
-```json
-{
-  "profile_name": "Custom settings 1",
-  "profile_identifier": "com.my.profile",
-  "fleet_id": 123,
-  "fleet_name": "Workstations",
-  "platform": "windows"
 }
 ```
 
