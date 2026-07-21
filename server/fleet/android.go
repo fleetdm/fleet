@@ -122,62 +122,89 @@ func parseAndroidProfileValidationError(err error) error {
 }
 
 func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
-	// Custom host vitals are a secret-style, per-host variable (modeled on
-	// $FLEET_SECRET_*), not a $FLEET_VAR_*. Android expands only the $FLEET_VAR_*
-	// allowlist in app config (SubstituteFleetVarsInAndroidAppConfig) and has no
-	// embedded-secret or custom-host-vital substitution, so a $FLEET_HOST_VITAL_
-	// token here would reach the device literally — reject at upload instead.
-	// Checked before the variables.Find early-return below because vitals use a
-	// different prefix that Find ignores.
-	// TODO(product): confirm Android should stay unsupported for custom host
-	// vitals (parity with $FLEET_SECRET_*, also unsupported on Android) rather
-	// than gaining its own expansion path.
-	if ids := ContainsCustomHostVitalIDs(string(rawJSON)); len(ids) > 0 {
-		return errors.New("Couldn't edit profile. Custom host vitals aren't supported in Android configuration profiles.")
-	}
+	contents := string(rawJSON)
 
-	found := variables.Find(string(rawJSON))
-	if len(found) == 0 {
+	// Custom host vitals ($FLEET_HOST_VITAL_<id>) are validated for existence
+	// (and malformed refs are rejected) at the service layer via
+	// ds.ValidateReferencedCustomHostVitals, same as Apple/Windows profiles.
+	// Here we only enforce that the token sits inside a JSON string value,
+	// mirroring the $FLEET_VAR_* check below, since a token used as a JSON key
+	// would corrupt the profile structure once substituted at delivery time.
+	vitalIDs := FindCustomHostVitalIDs(contents)
+
+	found := variables.Find(contents)
+	if len(found) == 0 && len(vitalIDs) == 0 {
 		return nil
 	}
 
-	if name := FindUnsupportedAndroidFleetVar(string(rawJSON)); name != "" {
-		return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
+	if len(found) > 0 {
+		if name := FindUnsupportedAndroidFleetVar(contents); name != "" {
+			return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
+		}
+
+		keyVars := make(map[string]struct{})
+		stringVars := make(map[string]struct{})
+		walkJSONForVars(decoded, variables.Find, keyVars, stringVars)
+		for _, name := range found {
+			if _, inKey := keyVars[name]; inKey {
+				return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+			}
+			if _, inStr := stringVars[name]; !inStr {
+				return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+			}
+		}
 	}
 
-	keyVars := make(map[string]struct{})
-	stringVars := make(map[string]struct{})
-	walkJSONForVars(decoded, keyVars, stringVars)
-	for _, name := range found {
-		if _, inKey := keyVars[name]; inKey {
-			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
-		}
-		if _, inStr := stringVars[name]; !inStr {
-			return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+	if len(vitalIDs) > 0 {
+		vitalKeyVars := make(map[string]struct{})
+		vitalStringVars := make(map[string]struct{})
+		walkJSONForVars(decoded, findCustomHostVitalTokens, vitalKeyVars, vitalStringVars)
+		for _, id := range vitalIDs {
+			token := fmt.Sprintf("%s%d", CustomHostVitalPrefix, id)
+			if _, inKey := vitalKeyVars[token]; inKey {
+				return fmt.Errorf("Couldn't edit profile. Custom host vital $%s must be inside a JSON string value.", token)
+			}
+			if _, inStr := vitalStringVars[token]; !inStr {
+				return fmt.Errorf("Couldn't edit profile. Custom host vital $%s must be inside a JSON string value.", token)
+			}
 		}
 	}
 
 	return nil
 }
 
-// walkJSONForVars recursively walks a decoded JSON value and collects fleet
-// variable names found in string values and in map keys separately.
-func walkJSONForVars(v any, keyVars, stringVars map[string]struct{}) {
+// findCustomHostVitalTokens returns the full $FLEET_HOST_VITAL_<id> tokens
+// (prefix included) found in s, in the same shape variables.Find returns
+// $FLEET_VAR_* names, so both can drive walkJSONForVars.
+func findCustomHostVitalTokens(s string) []string {
+	ids := FindCustomHostVitalIDs(s)
+	tokens := make([]string, len(ids))
+	for i, id := range ids {
+		tokens[i] = fmt.Sprintf("%s%d", CustomHostVitalPrefix, id)
+	}
+	return tokens
+}
+
+// walkJSONForVars recursively walks a decoded JSON value and collects
+// variable-like tokens found in string values and in map keys separately.
+// find extracts tokens from a raw string ($FLEET_VAR_* names or
+// $FLEET_HOST_VITAL_<id> tokens).
+func walkJSONForVars(v any, find func(string) []string, keyVars, stringVars map[string]struct{}) {
 	switch t := v.(type) {
 	case string:
-		for _, name := range variables.Find(t) {
+		for _, name := range find(t) {
 			stringVars[name] = struct{}{}
 		}
 	case map[string]any:
 		for k, val := range t {
-			for _, name := range variables.Find(k) {
+			for _, name := range find(k) {
 				keyVars[name] = struct{}{}
 			}
-			walkJSONForVars(val, keyVars, stringVars)
+			walkJSONForVars(val, find, keyVars, stringVars)
 		}
 	case []any:
 		for _, val := range t {
-			walkJSONForVars(val, keyVars, stringVars)
+			walkJSONForVars(val, find, keyVars, stringVars)
 		}
 	}
 }
@@ -328,6 +355,16 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
 		return &BadRequestError{
 			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),
+		}
+	}
+
+	// Malformed custom host vital refs (e.g. a typo like $FLEET_HOST_VITAL_asset_tag)
+	// are rejected here since this validation also runs client-side (fleetctl),
+	// where a database existence check isn't possible. Existence of well-formed
+	// refs is validated server-side via ds.ValidateReferencedCustomHostVitals.
+	if malformed := ContainsMalformedCustomHostVitalRefs(string(config)); len(malformed) > 0 {
+		return &BadRequestError{
+			Message: fmt.Sprintf("Couldn't update configuration. %s", (&InvalidCustomHostVitalRefError{Refs: malformed}).Error()),
 		}
 	}
 

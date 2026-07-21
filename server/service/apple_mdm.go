@@ -1293,7 +1293,7 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 	// top-level prefix, so gate on both so a declaration referencing only custom
 	// host vitals is still expanded.
 	fleetVars := variables.Find(contents)
-	hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contents)) > 0
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(contents)) > 0
 	if len(fleetVars) == 0 && !hasHostVitals {
 		return contents, nil
 	}

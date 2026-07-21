@@ -381,6 +381,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
 						return nil, nil, err
 					}
+					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+					}
 				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)

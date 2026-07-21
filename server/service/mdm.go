@@ -1926,6 +1926,10 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
 	if overlap := fleet.LabelOverlap(labelsInclude, labelsExcludeAny); overlap != "" {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("labels", fmt.Sprintf("label %q cannot appear in both include and exclude lists", overlap)))
 	}
@@ -2249,16 +2253,11 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	// Only Apple and Windows profiles expand $FLEET_HOST_VITAL_ tokens at delivery.
-	// Android has no expansion path and is rejected outright in getAndroidProfiles
-	// (MDMAndroidConfigProfile.ValidateUserProvided) below; skip it here so an Android
-	// profile referencing a vital gets that clear "not supported" error rather than a
-	// misleading "missing from database" one from this existence check.
+	// Apple, Windows, and Android profiles all expand $FLEET_HOST_VITAL_ tokens
+	// at delivery, so every platform's profile content is validated for
+	// existence of the referenced vital here.
 	customHostVitalDocs := make([]string, 0, len(profiles))
 	for _, p := range profiles {
-		if mdm.GetRawProfilePlatform(p.Contents) == "android" {
-			continue
-		}
 		customHostVitalDocs = append(customHostVitalDocs, string(p.Contents))
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, customHostVitalDocs); err != nil {

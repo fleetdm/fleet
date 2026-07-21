@@ -51,7 +51,7 @@ func (e MissingCustomHostVitalsError) Error() string {
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't add. Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf("Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
 }
 
 // InvalidCustomHostVitalRefError is returned on upload when a document contains a
@@ -72,7 +72,7 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf(
-		"Couldn't add. Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
+		"Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
 		plural, strings.Join(tokens, ", "), CustomHostVitalPrefix,
 	)
 }
@@ -105,6 +105,7 @@ const (
 	CustomHostVitalEntityAppleProfile          CustomHostVitalEntity = "apple_profile"
 	CustomHostVitalEntityAppleDeclaration      CustomHostVitalEntity = "apple_declaration"
 	CustomHostVitalEntityWindowsProfile        CustomHostVitalEntity = "windows_profile"
+	CustomHostVitalEntityAndroidProfile        CustomHostVitalEntity = "android_profile"
 	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
 	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
 	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
@@ -168,7 +169,7 @@ func ValidateCustomHostVitalName(name string) error {
 	return nil
 }
 
-func ContainsCustomHostVitalIDs(text string) []uint {
+func FindCustomHostVitalIDs(text string) []uint {
 	suffixes := ContainsPrefixVars(text, CustomHostVitalPrefix)
 	if len(suffixes) == 0 {
 		return nil

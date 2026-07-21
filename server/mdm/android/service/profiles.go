@@ -307,13 +307,9 @@ func (r *profileReconciler) sendHostProfiles(
 
 	hostProfilesContents, varSubErr := substituteProfileVarsForHost(ctx, r.DS, hostUUID, profilesContents)
 	if varSubErr != nil {
-		if !errors.Is(varSubErr, profiles.ErrUnresolvableAndroidAppConfigVar) {
+		detail, ok := androidVarSubstitutionFailureDetail(varSubErr)
+		if !ok {
 			return nil, ctxerr.Wrapf(ctx, varSubErr, "substitute fleet vars for host %s", hostUUID)
-		}
-		var varErr *profiles.UnresolvableAndroidAppConfigVarError
-		detail := varSubErr.Error()
-		if errors.As(varSubErr, &varErr) && varErr.Detail != "" {
-			detail = varErr.Detail
 		}
 		for _, prof := range profilesToMerge {
 			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
@@ -689,6 +685,32 @@ func (r *profileReconciler) reconcileCertificateTemplates(ctx context.Context) e
 	return nil
 }
 
+// androidVarSubstitutionFailureDetail returns a user-facing detail message and
+// true if err represents a substitution failure that should fail the host's
+// profiles (an unresolvable $FLEET_VAR_* or a $FLEET_HOST_VITAL_<id> with no
+// value set for this host); ok is false for any other (unexpected) error.
+func androidVarSubstitutionFailureDetail(err error) (detail string, ok bool) {
+	if missingVital, isMissingVital := errors.AsType[*fleet.MissingCustomHostVitalValueError](err); isMissingVital {
+		return missingVital.Error(), true
+	}
+	if errors.Is(err, profiles.ErrUnresolvableAndroidAppConfigVar) {
+		detail = err.Error()
+		var varErr *profiles.UnresolvableAndroidAppConfigVarError
+		if errors.As(err, &varErr) && varErr.Detail != "" {
+			detail = varErr.Detail
+		}
+		return detail, true
+	}
+	return "", false
+}
+
+// containsFleetVarsOrCustomHostVitals reports whether content has a $FLEET_VAR_*
+// token or a $FLEET_HOST_VITAL_<id> token. variables.ContainsBytes alone misses
+// custom host vitals, which use a different prefix.
+func containsFleetVarsOrCustomHostVitals(content []byte) bool {
+	return variables.ContainsBytes(content) || len(fleet.FindCustomHostVitalIDs(string(content))) > 0
+}
+
 func substituteProfileVarsForHost(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -701,7 +723,7 @@ func substituteProfileVarsForHost(
 
 	hasVars := false
 	for _, content := range profilesContents {
-		if variables.ContainsBytes(content) {
+		if containsFleetVarsOrCustomHostVitals(content) {
 			hasVars = true
 			break
 		}
@@ -715,6 +737,7 @@ func substituteProfileVarsForHost(
 		return nil, ctxerr.Wrapf(ctx, err, "get android host for variable substitution (host %s)", hostUUID)
 	}
 	subHost := profiles.AndroidAppConfigSubstitutionHost{
+		HostID:         androidHost.Host.ID,
 		UUID:           androidHost.Host.UUID,
 		HardwareSerial: androidHost.Host.HardwareSerial,
 		Platform:       androidHost.Host.Platform,
@@ -722,7 +745,7 @@ func substituteProfileVarsForHost(
 
 	result := make(map[string]json.RawMessage, len(profilesContents))
 	for profUUID, content := range profilesContents {
-		if !variables.ContainsBytes(content) {
+		if !containsFleetVarsOrCustomHostVitals(content) {
 			result[profUUID] = content
 			continue
 		}

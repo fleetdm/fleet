@@ -184,7 +184,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 		configByAppID = map[string][]byte{applicationID: config}
 	}
 
-	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
+	needsPerHostSubstitution := config != nil && (variables.ContainsBytes(config) || len(fleet.FindCustomHostVitalIDs(string(config))) > 0)
 
 	if needsPerHostSubstitution {
 		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
@@ -208,6 +208,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 			}
 
 			subHost := profiles.AndroidAppConfigSubstitutionHost{
+				HostID:         h.ID,
 				UUID:           h.UUID,
 				HardwareSerial: h.HardwareSerial,
 				Platform:       h.Platform,
@@ -549,7 +550,7 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 
 	hasVars := false
 	for _, cfg := range configsByAppID {
-		if variables.ContainsBytes(cfg) {
+		if variables.ContainsBytes(cfg) || len(fleet.FindCustomHostVitalIDs(string(cfg))) > 0 {
 			hasVars = true
 			break
 		}
@@ -571,6 +572,7 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 
 func androidHostToSubstitutionHost(h *fleet.AndroidHost) profiles.AndroidAppConfigSubstitutionHost {
 	return profiles.AndroidAppConfigSubstitutionHost{
+		HostID:         h.Host.ID,
 		UUID:           h.Host.UUID,
 		HardwareSerial: h.Host.HardwareSerial,
 		Platform:       h.Host.Platform,

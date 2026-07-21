@@ -65,6 +65,49 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 		})
 	})
 
+	t.Run("Rejects malformed custom host vital reference in Android app configuration", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_asset_tag"}}`),
+			},
+		}, true)
+		var badReqErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReqErr)
+		require.ErrorContains(t, err, "Invalid custom host vital reference")
+	})
+
+	t.Run("Rejects Android app configuration referencing an unknown custom host vital", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_9"}}`),
+			},
+		}, true)
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+		require.ErrorContains(t, err, "is not defined")
+	})
+
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {
 		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 			return nil, nil

@@ -3554,7 +3554,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 // processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
 // or any $FLEET_HOST_VITAL_<id> custom host vital.
 func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
-	return variables.ContainsBytes(syncML) || len(fleet.ContainsCustomHostVitalIDs(string(syncML))) > 0
+	return variables.ContainsBytes(syncML) || len(fleet.FindCustomHostVitalIDs(string(syncML))) > 0
 }
 
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.

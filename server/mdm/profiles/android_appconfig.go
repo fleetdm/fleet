@@ -36,9 +36,10 @@ func (e *UnresolvableAndroidAppConfigVarError) Is(target error) bool {
 }
 
 // AndroidAppConfigSubstitutionHost carries the host context needed to
-// substitute host-scoped $FLEET_VAR_* tokens in Android managed app
-// configuration.
+// substitute host-scoped $FLEET_VAR_* tokens and $FLEET_HOST_VITAL_<id>
+// custom host vitals in Android managed app configuration.
 type AndroidAppConfigSubstitutionHost struct {
+	HostID         uint
 	UUID           string
 	HardwareSerial string
 	Platform       string
@@ -58,12 +59,13 @@ func SubstituteFleetVarsInAndroidAppConfig(
 	if len(config) == 0 {
 		return config, nil
 	}
-	used := variables.Find(string(config))
-	if len(used) == 0 {
+	contents := string(config)
+	used := variables.Find(contents)
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(contents)) > 0
+	if len(used) == 0 && !hasHostVitals {
 		return config, nil
 	}
 
-	contents := string(config)
 	idpUUIDCache := map[string]uint{}
 
 	for _, name := range used {
@@ -117,6 +119,14 @@ func SubstituteFleetVarsInAndroidAppConfig(
 		default:
 			return nil, &UnresolvableAndroidAppConfigVarError{FleetVar: name}
 		}
+	}
+
+	if hasHostVitals {
+		expanded, err := ds.ExpandCustomHostVitals(ctx, host.HostID, contents)
+		if err != nil {
+			return nil, err
+		}
+		contents = expanded
 	}
 
 	return []byte(contents), nil

@@ -411,6 +411,26 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, winProfile.ProfileUUID))
 	})
 
+	t.Run("android profiles", func(t *testing.T) {
+		androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			Name:    "android-zoo",
+			RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityAndroidProfile, useErr.Entity.Type)
+		require.Equal(t, "android-zoo", useErr.Entity.Name)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, androidProfile.ProfileUUID))
+	})
+
 	t.Run("scripts", func(t *testing.T) {
 		script, err := ds.NewScript(ctx, &fleet.Script{
 			Name:           "collect.sh",
@@ -529,6 +549,7 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 
 	host := test.NewHost(t, ds, "mac", "1", "mackey", "macuuid", time.Now())
 	winHost := test.NewHost(t, ds, "win", "2", "winkey", "winuuid", time.Now(), test.WithPlatform("windows"))
+	androidHost := newBareAndroidHostForTest(t, ds, "android")
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")
 	otherID := createCustomHostVital(t, ds, "OTHER")
@@ -550,11 +571,24 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wn", "plain", 0), nil)
 	require.NoError(t, err)
 
+	profAVital, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "av",
+		RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+	}, nil)
+	require.NoError(t, err)
+	profANone, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "an",
+		RawJSON: json.RawMessage(`{"name": "plain"}`),
+	}, nil)
+	require.NoError(t, err)
+
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profOther, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
 	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
@@ -565,9 +599,10 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	forceSetAppleHostDeclarationStatus(t, ds, host.UUID, declVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// Set the value on both hosts; only referencing entities on the same host reset.
+	// Set the value on all three hosts; only referencing entities on the same host reset.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, winHost.ID, vitalID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.ID, vitalID, "Engineering"))
 
 	// A reset row has NULL status, which assertHostProfileStatus reports as
 	// pending. The declaration surfaces through GetHostMDMAppleProfiles too, so
@@ -580,6 +615,9 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	assertHostProfileStatus(t, ds, winHost.UUID,
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, androidHost.UUID,
+		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profANone.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	var declStatus *fleet.MDMDeliveryStatus
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

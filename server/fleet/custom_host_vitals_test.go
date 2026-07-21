@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestContainsCustomHostVitalIDs(t *testing.T) {
+func TestFindCustomHostVitalIDs(t *testing.T) {
 	t.Run("both token forms and dedupe", func(t *testing.T) {
 		doc := `
 #!/bin/sh
@@ -14,23 +14,23 @@ echo $FLEET_HOST_VITAL_1
 echo words${FLEET_HOST_VITAL_2}words
 echo $FLEET_HOST_VITAL_1 again
 `
-		ids := ContainsCustomHostVitalIDs(doc)
+		ids := FindCustomHostVitalIDs(doc)
 		require.ElementsMatch(t, []uint{1, 2}, ids)
 	})
 
 	t.Run("ignores non-numeric and zero suffixes", func(t *testing.T) {
 		doc := `$FLEET_HOST_VITAL_ABC ${FLEET_HOST_VITAL_} $FLEET_HOST_VITAL_0 $FLEET_HOST_VITAL_12X $FLEET_HOST_VITAL_7`
-		ids := ContainsCustomHostVitalIDs(doc)
+		ids := FindCustomHostVitalIDs(doc)
 		require.Equal(t, []uint{7}, ids)
 	})
 
 	t.Run("no tokens", func(t *testing.T) {
-		require.Empty(t, ContainsCustomHostVitalIDs("no vitals here $FLEET_SECRET_FOO $FLEET_VAR_HOST_UUID"))
+		require.Empty(t, FindCustomHostVitalIDs("no vitals here $FLEET_SECRET_FOO $FLEET_VAR_HOST_UUID"))
 	})
 
 	t.Run("does not match a longer variable that starts with the prefix name", func(t *testing.T) {
 		// FLEET_VAR_ prefix should not be caught.
-		require.Empty(t, ContainsCustomHostVitalIDs("$FLEET_VAR_HOST_VITAL_1"))
+		require.Empty(t, FindCustomHostVitalIDs("$FLEET_VAR_HOST_VITAL_1"))
 	})
 }
 
