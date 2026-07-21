@@ -54,7 +54,1492 @@
       "additionalProperties": false,
       "properties": {
         "command_line_flags": {
-          "description": "CommandLineStartUpFlags are the osquery CLI_FLAGS\n\ntype: `object`",
+          "additionalProperties": false,
+          "description": "type: `object`",
+          "properties": {
+            "alarm_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "allow_unsafe": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "alsologtostderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_accept_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_apparmor_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_config": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_failed_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_fim_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_fork_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_kill_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_null_accept_socket_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_process_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_seccomp_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_selinux_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_sockets": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_allow_user_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_backlog_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "audit_backlog_wait_time": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "audit_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_fim_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_fim_show_accesses": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_force_reconfigure": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_force_unconfigure": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_persist": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_show_partial_fim_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "audit_show_untracked_res_warnings": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "augeas_lenses": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_access_key_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_disable_imdsv1_fallback": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_enable_proxy": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_enforce_fips": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_firehose_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_firehose_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_firehose_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_firehose_stream": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_imdsv2_request_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_imdsv2_request_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_kinesis_disable_log_status": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_kinesis_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_kinesis_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_kinesis_random_partition_key": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "aws_kinesis_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_kinesis_stream": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_profile_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_host": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_password": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_port": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "aws_proxy_scheme": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_proxy_username": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_secret_access_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_session_token": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_arn_role": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_region": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_session_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "aws_sts_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "bpf_buffer_storage_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "bpf_perf_event_array_exp": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "buffered_log_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_block_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_compression": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "carver_continue_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "carver_disable_function": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "carver_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "carver_start_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_accelerated_refresh": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "config_check": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_enable_backup": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "config_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_refresh": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "config_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "config_tls_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "daemonize": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "database_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "database_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "decorations_top_level": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_audit": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_caching": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_carver": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_database": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_decorators": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_distributed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_endpointsecurity": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_endpointsecurity_fim": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_enrollment": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_extensions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_hash_cache": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_logging": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_memory": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_reenrollment": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "disable_tables": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "disable_watchdog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "distributed_denylist_duration": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_loginfo": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "distributed_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "distributed_tls_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "distributed_tls_read_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "distributed_tls_write_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "dns_resolver_refresh_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "docker_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enable_bpf_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_dns_lookup_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_extensions_watchdog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_file_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_foreign": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_keyboard_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_mouse_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_ntfs_event_publisher": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_numeric_monitoring": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_powershell_events_subscriber": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_process_etw_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_syslog": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_tables": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enable_watchdog_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_windows_events_publisher": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enable_windows_events_subscriber": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enroll_always": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "enroll_secret_env": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enroll_secret_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "enroll_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ephemeral": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "es_fim_enable_open_events": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "es_fim_mute_path_literal": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "es_fim_mute_path_prefix": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_flush_timer": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_maximum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_kernel_trace_minimum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_flush_timer": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_maximum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "etw_userspace_trace_minimum_buffers": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "events_optimize": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "events_streaming_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "experiment_list": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "experiments_linuxevents_circular_buffer_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "experiments_linuxevents_perf_output_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "extensions_autoload": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_default_index": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "extensions_interval": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_require": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "extensions_timeout": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "force": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "groups_service_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "groups_service_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "hardware_disabled_types": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "hash_cache_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "host_identifier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "ignore_registry_exceptions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "ignore_table_exceptions": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "install": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keep_container_worker_open": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keychain_access_cache": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keychain_access_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "log_dir": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logbufsecs": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_event_type": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_kafka_acks": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_brokers": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_compression": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_kafka_topic": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_min_status": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_min_stderr": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_mode": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_numerics": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_plugin": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_rotate": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_rotate_max_files": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_rotate_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_snapshot_event_type": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_stderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_syslog_facility": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_syslog_prepend_cee": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_tls_backoff_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_compress": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "logger_tls_endpoint": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "logger_tls_max_lines": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_max_linesize": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logger_tls_period": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "logtostderr": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "lxd_socket": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "malloc_trim_threshold": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_log_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "minloglevel": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "ntfs_event_publisher_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "nullvalue": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_filesystem_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_plugins": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "numeric_monitoring_pre_aggregation_time": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "pack_delimiter": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pack_refresh_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "pidfile": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "proxy_hostname": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "read_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_default_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_epoch": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_lognames": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "schedule_max_drift": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_reload": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_splay_percent": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "schedule_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "specified_identifier": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "stderrthreshold": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "stop_logging_if_full_disk": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "syslog_events_expiry": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "syslog_events_max": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "syslog_pipe_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "syslog_rate_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "table_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_string_size_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "thrift_verbose": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_accept_gzip": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_client_cert": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_client_key": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_disable_status_log": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_dump": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_enroll_max_attempts": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "tls_enroll_max_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "tls_hostname": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_server_certs": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tls_session_reuse": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "tls_session_timeout": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "uninstall": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "users_service_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "users_service_interval": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "usn_journal_reader_debug": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "verbose": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "vmodule": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "watchdog_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_forced_shutdown_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_latency_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_level": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_memory_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "watchdog_utilization_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "windows_event_channels": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "yara_delay": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "yara_sigurl_authenticate": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
           "type": [
             "object",
             "null"
@@ -67,7 +1552,37 @@
               "additionalProperties": false,
               "description": "type: `object`",
               "properties": {
+                "allow_unsafe": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "alsologtostderr": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_accept_socket_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_apparmor_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "audit_allow_config": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_failed_socket_events": {
                   "type": [
                     "boolean",
                     "null"
@@ -79,7 +1594,37 @@
                     "null"
                   ]
                 },
+                "audit_allow_fork_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_kill_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_null_accept_socket_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "audit_allow_process_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_seccomp_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_allow_selinux_events": {
                   "type": [
                     "boolean",
                     "null"
@@ -92,6 +1637,66 @@
                   ]
                 },
                 "audit_allow_user_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_backlog_limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "audit_backlog_wait_time": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "audit_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_fim_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_fim_show_accesses": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_force_reconfigure": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_force_unconfigure": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_persist": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_show_partial_fim_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "audit_show_untracked_res_warnings": {
                   "type": [
                     "boolean",
                     "null"
@@ -277,6 +1882,18 @@
                     "null"
                   ]
                 },
+                "bpf_buffer_storage_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "bpf_perf_event_array_exp": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
                 "buffered_log_max": {
                   "type": [
                     "integer",
@@ -319,6 +1936,18 @@
                     "null"
                   ]
                 },
+                "disable_endpointsecurity": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_endpointsecurity_fim": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "disable_events": {
                   "type": [
                     "boolean",
@@ -332,6 +1961,12 @@
                   ]
                 },
                 "disable_logging": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "disable_memory": {
                   "type": [
                     "boolean",
                     "null"
@@ -391,6 +2026,18 @@
                     "null"
                   ]
                 },
+                "enable_bpf_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_dns_lookup_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "enable_file_events": {
                   "type": [
                     "boolean",
@@ -403,7 +2050,55 @@
                     "null"
                   ]
                 },
+                "enable_keyboard_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_mouse_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_ntfs_event_publisher": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "enable_numeric_monitoring": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_powershell_events_subscriber": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_process_etw_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_syslog": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_windows_events_publisher": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "enable_windows_events_subscriber": {
                   "type": [
                     "boolean",
                     "null"
@@ -412,6 +2107,72 @@
                 "ephemeral": {
                   "type": [
                     "boolean",
+                    "null"
+                  ]
+                },
+                "es_fim_enable_open_events": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "es_fim_mute_path_literal": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "es_fim_mute_path_prefix": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_flush_timer": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_maximum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_kernel_trace_minimum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_flush_timer": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_maximum_buffers": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "etw_userspace_trace_minimum_buffers": {
+                  "type": [
+                    "integer",
                     "null"
                   ]
                 },
@@ -433,15 +2194,51 @@
                     "null"
                   ]
                 },
+                "events_streaming_plugin": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
                 "experiment_list": {
                   "type": [
                     "string",
                     "null"
                   ]
                 },
+                "experiments_linuxevents_circular_buffer_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "experiments_linuxevents_perf_output_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
                 "extensions_default_index": {
                   "type": [
                     "boolean",
+                    "null"
+                  ]
+                },
+                "groups_service_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "groups_service_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "hardware_disabled_types": {
+                  "type": [
+                    "string",
                     "null"
                   ]
                 },
@@ -457,9 +2254,45 @@
                     "null"
                   ]
                 },
+                "ignore_registry_exceptions": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "ignore_table_exceptions": {
                   "type": [
                     "boolean",
+                    "null"
+                  ]
+                },
+                "keep_container_worker_open": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "keychain_access_cache": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "keychain_access_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "log_dir": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "logbufsecs": {
+                  "type": [
+                    "integer",
                     "null"
                   ]
                 },
@@ -589,6 +2422,36 @@
                     "null"
                   ]
                 },
+                "lxd_socket": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "malloc_trim_threshold": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "max_log_size": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "minloglevel": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "ntfs_event_publisher_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "nullvalue": {
                   "type": [
                     "string",
@@ -679,6 +2542,36 @@
                     "null"
                   ]
                 },
+                "stop_logging_if_full_disk": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "syslog_events_expiry": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "syslog_events_max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "syslog_pipe_path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "syslog_rate_limit": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
                 "table_delay": {
                   "type": [
                     "integer",
@@ -709,9 +2602,45 @@
                     "null"
                   ]
                 },
+                "tls_dump": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "users_service_delay": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "users_service_interval": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "usn_journal_reader_debug": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "verbose": {
                   "type": [
                     "boolean",
+                    "null"
+                  ]
+                },
+                "vmodule": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "windows_event_channels": {
+                  "type": [
+                    "string",
                     "null"
                   ]
                 },

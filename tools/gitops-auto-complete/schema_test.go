@@ -183,11 +183,35 @@ func TestInvariants(t *testing.T) {
 		if opts["additionalProperties"] != false {
 			t.Errorf("options should be closed (additionalProperties:false), got %v", opts["additionalProperties"])
 		}
-		if len(props(opts)) == 0 {
+		optKeys := props(opts)
+		if len(optKeys) == 0 {
 			t.Error("options has no properties")
+		}
+		// allow_unsafe comes from an embedded per-OS struct, so it guards embed handling.
+		if _, ok := optKeys["allow_unsafe"]; !ok {
+			t.Error("options missing embedded per-OS option 'allow_unsafe'")
 		}
 		if _, closed := cfg["additionalProperties"]; closed {
 			t.Error("config should stay open (no additionalProperties)")
+		}
+	})
+
+	// command_line_flags is populated and closed, including per-OS flags pulled up from
+	// the embedded structs (users_service_delay isn't in the base flag struct).
+	t.Run("command_line_flags", func(t *testing.T) {
+		clf, _ := props(def("AgentOptions"))["command_line_flags"].(map[string]any)
+		if clf == nil {
+			t.Fatal("AgentOptions.command_line_flags missing")
+		}
+		if clf["additionalProperties"] != false {
+			t.Errorf("command_line_flags should be closed (additionalProperties:false), got %v", clf["additionalProperties"])
+		}
+		flags := props(clf)
+		if _, ok := flags["verbose"]; !ok {
+			t.Error("command_line_flags missing base flag 'verbose'")
+		}
+		if _, ok := flags["users_service_delay"]; !ok {
+			t.Error("command_line_flags missing embedded per-OS flag 'users_service_delay'")
 		}
 	})
 

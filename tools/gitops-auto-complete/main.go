@@ -20,10 +20,13 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// generatedOsqueryOptions is the Fleet-generated file listing every valid osquery
-// option (config.options.*), relative to the repo root. It's an unexported struct,
-// so we parse its AST rather than reflect it.
+// generatedOsqueryOptions is the Fleet-generated file defining the osqueryOptions and
+// osqueryCommandLineFlags structs, which back config.options and command_line_flags.
 const generatedOsqueryOptions = "server/fleet/agent_options_generated.go"
+
+// agentOptionsBase holds the hand-written per-OS structs that both of those structs
+// embed, so it's parsed alongside the generated file.
+const agentOptionsBase = "server/fleet/agent_options.go"
 
 func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
@@ -67,13 +70,25 @@ With an output-file, writes the schema there; otherwise prints to stdout.`)
 		os.Exit(1)
 	}
 
-	// Merges run first so the injected keys get the same treatment as the rest. If
-	// config.options can't be built, generation continues
-	osqueryOptions, err := osqueryOptionsSchema(filepath.Join(repoRoot, generatedOsqueryOptions))
+	// Merges run first so the injected keys get the same treatment as the rest. If a
+	// schema can't be built, generation continues without it.
+	osquerySources := []string{
+		filepath.Join(repoRoot, generatedOsqueryOptions),
+		filepath.Join(repoRoot, agentOptionsBase),
+	}
+
+	osqueryOptions, err := osqueryStructSchema("osqueryOptions", osquerySources...)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "warning: could not type config.options:", err)
 	}
 	mergeOsqueryOptions(schemaKeys, osqueryOptions)
+
+	commandLineFlags, err := osqueryStructSchema("osqueryCommandLineFlags", osquerySources...)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "warning: could not type command_line_flags:", err)
+	}
+	mergeCommandLineFlags(schemaKeys, commandLineFlags)
+
 	mergeMissingMDMKeys(schemaKeys, spec.GitOpsMDM{})
 	fixYaraRules(schemaKeys)
 
@@ -134,33 +149,57 @@ func addFleetGoComments(reflector *jsonschema.Reflector, repoRoot string) {
 	_ = reflector.AddGoComments(base, "pkg/spec")
 }
 
-// osqueryOptionsSchema parses the generated osqueryOptions struct into a strict
-// object schema, so config.options.* gets completion, types, and unknown-key
-// validation matching what Fleet enforces.
-func osqueryOptionsSchema(path string) (map[string]any, error) {
-	parsedFile, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
-	if err != nil {
-		return nil, err
+// osqueryStructSchema parses one of Fleet's generated osquery structs (osqueryOptions
+// for config.options, osqueryCommandLineFlags for command_line_flags) into a strict
+// object schema, so its keys get completion, types, and unknown-key validation matching
+// what Fleet enforces. Both structs embed per-OS structs that live in the hand-written
+// agent_options.go, so every source file is parsed and the embeds are pulled up into one
+// flat set of keys. The structs are unexported, so we parse the AST rather than reflect.
+func osqueryStructSchema(rootStruct string, paths ...string) (map[string]any, error) {
+	fileSet := token.NewFileSet()
+	structsByName := map[string]*ast.StructType{}
+	for _, path := range paths {
+		parsedFile, err := parser.ParseFile(fileSet, path, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		ast.Inspect(parsedFile, func(astNode ast.Node) bool {
+			typeSpec, ok := astNode.(*ast.TypeSpec)
+			if !ok {
+				return true
+			}
+			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+				structsByName[typeSpec.Name.Name] = structType
+			}
+			return true
+		})
+	}
+
+	root, ok := structsByName[rootStruct]
+	if !ok {
+		return nil, fmt.Errorf("%s struct not found", rootStruct)
 	}
 
 	properties := map[string]any{}
-	ast.Inspect(parsedFile, func(astNode ast.Node) bool {
-		typeSpec, ok := astNode.(*ast.TypeSpec)
-		if !ok || typeSpec.Name.Name != "osqueryOptions" {
-			return true
-		}
-
-		structType, ok := typeSpec.Type.(*ast.StructType)
-		if !ok {
-			return false
-		}
-
+	var addFields func(structType *ast.StructType)
+	addFields = func(structType *ast.StructType) {
 		for _, field := range structType.Fields.List {
 			fieldType, ok := field.Type.(*ast.Ident)
-			if !ok || field.Tag == nil {
+			if !ok {
 				continue
 			}
 
+			// An anonymous field is an embedded per-OS struct: pull its keys up.
+			if len(field.Names) == 0 {
+				if embedded, ok := structsByName[fieldType.Name]; ok {
+					addFields(embedded)
+				}
+				continue
+			}
+
+			if field.Tag == nil {
+				continue
+			}
 			tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
 			name, _, _ := strings.Cut(tag.Get("json"), ",")
 			jsonType := goTypeToJSON(fieldType.Name)
@@ -168,17 +207,15 @@ func osqueryOptionsSchema(path string) (map[string]any, error) {
 				continue
 			}
 
-			// [type, null] keeps the option typed while allowing an empty value.
-			// relaxNulls only strips bare scalar types, so it leaves these unions alone
-			// instead of dropping the type off genuinely-numeric options.
+			// [type, null] keeps the key typed while allowing an empty value, and
+			// relaxNulls leaves the union alone so numeric keys keep their type.
 			properties[name] = map[string]any{"type": []any{jsonType, "null"}}
 		}
-
-		return false
-	})
+	}
+	addFields(root)
 
 	if len(properties) == 0 {
-		return nil, fmt.Errorf("osqueryOptions struct not found in %s", path)
+		return nil, fmt.Errorf("%s produced no keys", rootStruct)
 	}
 
 	return map[string]any{"type": "object", "additionalProperties": false, "properties": properties}, nil
@@ -275,6 +312,21 @@ func mergeOsqueryOptions(schemaKeys map[string]any, osqueryOptions map[string]an
 		"type":       "object",
 		"properties": map[string]any{"options": osqueryOptions},
 	}
+}
+
+// mergeCommandLineFlags types agent_options.command_line_flags with the generated
+// osquery CLI flag list, at the AgentOptions root only since it isn't valid in overrides.
+func mergeCommandLineFlags(schemaKeys map[string]any, commandLineFlags map[string]any) {
+	if len(commandLineFlags) == 0 {
+		return
+	}
+
+	agentOptions, ok := definitionProperties(schemaKeys, "AgentOptions")
+	if !ok {
+		return
+	}
+
+	agentOptions["command_line_flags"] = commandLineFlags
 }
 
 // mergeMissingMDMKeys copies gitops-only MDM keys into the "MDM" def, whose base
