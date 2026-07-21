@@ -30,11 +30,11 @@ import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import generateCustomTargetLabelKey from "./helpers";
 
 const baseClass = "add-profile-modal";
 
@@ -137,7 +137,7 @@ const AddProfileModal = ({
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
+    ["custom_labels", currentTeamId],
     () =>
       labelsAPI
         .summary(currentTeamId)
