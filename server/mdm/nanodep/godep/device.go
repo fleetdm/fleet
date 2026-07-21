@@ -115,6 +115,30 @@ func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string
 	return resp.Devices[serialNumber], nil
 }
 
+type DeviceStatusResponse struct {
+	Devices map[string]DeviceStatusResponseJsonDevicesValue `json:"devices,omitempty"`
+}
+
+type DeviceStatusResponseJsonDevicesValue string
+
+const (
+	DeviceStatusResponseJsonDevicesValueFailed        DeviceStatusResponseJsonDevicesValue = "FAILED"
+	DeviceStatusResponseJsonDevicesValueNotAccessible DeviceStatusResponseJsonDevicesValue = "NOT_ACCESSIBLE"
+	DeviceStatusResponseJsonDevicesValueSuccess       DeviceStatusResponseJsonDevicesValue = "SUCCESS"
+)
+
+// DisownDevices uses the Apple "Disown Devices" API endpoint to disown the
+// specified devices, identified by their serial numbers. Disowning a device
+// releases it from Apple Business.
+// See https://developer.apple.com/documentation/devicemanagement/disown-devices
+func (c *Client) DisownDevices(ctx context.Context, name string, serialNumbers ...string) (*DeviceStatusResponse, error) {
+	request := struct {
+		Devices []string `json:"devices"`
+	}{Devices: serialNumbers}
+	resp := new(DeviceStatusResponse)
+	return resp, c.doWithAfterHook(ctx, name, http.MethodPost, "/devices/disown", request, resp)
+}
+
 // IsCursorExhausted returns true if err is a DEP "exhausted cursor" error.
 func IsCursorExhausted(err error) bool {
 	return httpErrorContains(err, http.StatusBadRequest, "EXHAUSTED_CURSOR")
