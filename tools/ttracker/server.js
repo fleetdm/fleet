@@ -506,70 +506,94 @@ function getDashboardHTML() {
 <meta charset="utf-8">
 <title>ttracker</title>
 <style>
-  /* Solarized Light */
+  /* Solarized Light - full palette
+     base03  #002b36   base3  #fdf6e3
+     base02  #073642   base2  #eee8d5
+     base01  #586e75   base1  #93a1a1
+     base00  #657b83   base0  #839496
+     yellow  #b58900   orange #cb4b16
+     red     #dc322f   magenta #d33682
+     violet  #6c71c4   blue   #268bd2
+     cyan    #2aa198   green  #859900
+  */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
     background: #fdf6e3;
-    color: #657b83;
+    color: #586e75;
     padding: 24px;
     font-size: 13px;
   }
-  h1 { color: #268bd2; font-size: 20px; font-weight: 600; }
+  h1 {
+    color: #268bd2;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  h1 span { color: #2aa198; }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #eee8d5;
+    border-bottom: 2px solid #eee8d5;
   }
-  .header-info { color: #93a1a1; font-size: 12px; }
+  .header-info { color: #839496; font-size: 12px; }
   .header-info span { margin-left: 16px; }
   .refresh-btn {
-    background: #eee8d5;
-    color: #657b83;
-    border: 1px solid #93a1a1;
+    background: #2aa198;
+    color: #fdf6e3;
+    border: none;
     border-radius: 6px;
-    padding: 5px 12px;
+    padding: 6px 14px;
     cursor: pointer;
     font-family: inherit;
     font-size: 12px;
+    font-weight: 600;
   }
-  .refresh-btn:hover { background: #e0dbc6; }
+  .refresh-btn:hover { opacity: 0.85; }
+  .refresh-btn:disabled { background: #93a1a1; }
   h2 {
-    color: #586e75;
+    color: #268bd2;
     font-size: 15px;
     font-weight: 600;
-    margin: 24px 0 12px;
+    margin: 28px 0 12px;
+    padding-left: 8px;
+    border-left: 3px solid #268bd2;
   }
+  .history-heading { color: #6c71c4; border-left-color: #6c71c4; }
   .count { color: #93a1a1; font-weight: 400; margin-left: 8px; }
   table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 8px;
+    border-radius: 6px;
+    overflow: hidden;
   }
   th {
     text-align: left;
-    padding: 8px 12px;
+    padding: 10px 12px;
     background: #eee8d5;
-    color: #93a1a1;
-    font-weight: 500;
+    color: #586e75;
+    font-weight: 600;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #d3cdb8;
+    border-bottom: 2px solid #d3cdb8;
   }
   td {
-    padding: 8px 12px;
+    padding: 9px 12px;
     border-bottom: 1px solid #eee8d5;
     vertical-align: middle;
   }
   tr:hover { background: #eee8d5; }
   .badge-cell {
-    color: #6c71c4;
-    font-weight: 600;
+    color: #d33682;
+    font-weight: 700;
   }
+  .session-name { color: #586e75; }
+  .process-cell { color: #2aa198; font-weight: 500; }
   .session-id {
     color: #93a1a1;
     font-size: 11px;
@@ -582,53 +606,53 @@ function getDashboardHTML() {
     align-items: center;
     gap: 6px;
     font-size: 12px;
+    font-weight: 500;
   }
   .dot {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     display: inline-block;
   }
   .dot-running { background: #859900; }
   .dot-missing { background: #dc322f; }
-  .dot-parked { background: #93a1a1; }
-  .dot-no-claude { background: #d3cdb8; }
+  .dot-parked { background: #6c71c4; }
+  .dot-no-claude { background: #93a1a1; }
+  .status-running { color: #859900; }
+  .status-missing { color: #dc322f; }
+  .status-parked { color: #6c71c4; }
+  .status-no-claude { color: #93a1a1; }
   .btn {
-    border: 1px solid #93a1a1;
-    border-radius: 6px;
-    padding: 4px 12px;
+    border: none;
+    border-radius: 5px;
+    padding: 4px 10px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     transition: all 0.15s;
+    color: #fdf6e3;
   }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-focus {
-    background: #fdf6e3;
-    color: #859900;
-    border-color: #859900;
+    background: #859900;
   }
-  .btn-focus:hover:not(:disabled) { background: #f0f5e3; }
+  .btn-focus:hover:not(:disabled) { opacity: 0.85; }
   .btn-park {
-    background: #fdf6e3;
-    color: #b58900;
-    border-color: #b58900;
+    background: #cb4b16;
   }
-  .btn-park:hover:not(:disabled) { background: #f5efd7; }
+  .btn-park:hover:not(:disabled) { opacity: 0.85; }
   .btn-restore {
-    background: #fdf6e3;
-    color: #268bd2;
-    border-color: #268bd2;
+    background: #268bd2;
   }
-  .btn-restore:hover:not(:disabled) { background: #edf5fb; }
+  .btn-restore:hover:not(:disabled) { opacity: 0.85; }
   .empty-state {
     color: #93a1a1;
     padding: 24px;
     text-align: center;
     font-style: italic;
   }
-  .parked-at { color: #93a1a1; font-size: 12px; }
+  .parked-at { color: #6c71c4; font-size: 12px; font-weight: 500; }
   .actions { white-space: nowrap; }
   .note-input {
     background: transparent;
@@ -641,7 +665,7 @@ function getDashboardHTML() {
     width: 100%;
     min-width: 120px;
   }
-  .note-input:hover { border-color: #93a1a1; }
+  .note-input:hover { border-color: #2aa198; }
   .note-input:focus {
     outline: none;
     border-color: #268bd2;
@@ -653,7 +677,7 @@ function getDashboardHTML() {
 
 <div class="header">
   <div>
-    <h1>ttracker</h1>
+    <h1>t<span>tracker</span></h1>
   </div>
   <div class="header-info">
     <span id="snapshot-time"></span>
@@ -679,7 +703,7 @@ function getDashboardHTML() {
   <tbody id="active-body"></tbody>
 </table>
 
-<h2>Parked Sessions <span class="count" id="history-count"></span></h2>
+<h2 class="history-heading">Parked Sessions <span class="count" id="history-count"></span></h2>
 <table>
   <thead>
     <tr>
@@ -707,7 +731,7 @@ function escapeHtml(s) {
 
 function statusDot(status) {
   const labels = { running: 'running', missing: 'missing', parked: 'parked', 'no-claude': 'idle' };
-  return '<span class="status"><span class="dot dot-' + status + '"></span>' + (labels[status] || status) + '</span>';
+  return '<span class="status status-' + status + '"><span class="dot dot-' + status + '"></span>' + (labels[status] || status) + '</span>';
 }
 
 async function fetchSessions() {
@@ -756,7 +780,7 @@ function renderActive(data) {
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
       + 'onblur="saveNote(\\'' + noteKey + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
-      + '<td>' + escapeHtml(s.process) + '</td>'
+      + '<td class="process-cell">' + escapeHtml(s.process) + '</td>'
       + '<td class="session-id">' + escapeHtml(s.claude_session_id) + '</td>'
       + '<td>' + statusDot(s.status) + '</td>'
       + '<td class="actions">' + action + '</td>'
