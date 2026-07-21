@@ -292,7 +292,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 			contents: validProfile,
 		},
 		{
-			name: "subject name with trailing whitespace in LocURI bypasses renewal id check",
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
 			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
@@ -372,7 +372,7 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
 		},
 		{
-			name: "subject name with trailing whitespace in LocURI bypasses renewal id check",
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
 			contents: addItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ",
 				"CN=test",
