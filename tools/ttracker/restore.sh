@@ -95,9 +95,17 @@ for f in "$HOME"/.claude/sessions/*.json; do
     fi
 done
 
+# Load dismissed sessions
+DISMISSED_FILE="$SNAPSHOT_DIR/dismissed.txt"
+dismissed_sessions=""
+if [ -f "$DISMISSED_FILE" ]; then
+    dismissed_sessions=$(cat "$DISMISSED_FILE")
+fi
+
 # Compare and find missing sessions
 missing_count=0
 already_count=0
+dismissed_count=0
 missing_list=""
 
 printf "${BOLD}%-4s %-20s %-40s %s${RESET}\n" "#" "Badge" "Session Name" "Status"
@@ -111,7 +119,10 @@ while IFS=$'\t' read -r sid badge cwd name; do
     display_name="${name:0:38}"
     display_badge="${badge:0:18}"
 
-    if echo "$current_sessions" | grep -q "^${sid}$"; then
+    if echo "$dismissed_sessions" | grep -q "^${sid}$"; then
+        dismissed_count=$((dismissed_count + 1))
+        printf "${DIM}%-4s %-20s %-40s done${RESET}\n" "$idx" "$display_badge" "$display_name"
+    elif echo "$current_sessions" | grep -q "^${sid}$"; then
         already_count=$((already_count + 1))
         printf "${DIM}%-4s %-20s %-40s ${GREEN}already open${RESET}\n" "$idx" "$display_badge" "$display_name"
     else
@@ -122,7 +133,7 @@ while IFS=$'\t' read -r sid badge cwd name; do
 done <<< "$saved_sessions"
 
 printf "%s\n" "$(printf '%.0s-' {1..100})"
-printf "\n${BOLD}Already open:${RESET} %d  |  ${BOLD}Missing:${RESET} %d\n\n" "$already_count" "$missing_count"
+printf "\n${BOLD}Already open:${RESET} %d  |  ${BOLD}Missing:${RESET} %d  |  ${BOLD}Done:${RESET} %d\n\n" "$already_count" "$missing_count" "$dismissed_count"
 
 if [ "$missing_count" -eq 0 ]; then
     printf "${GREEN}All sessions are already open. Nothing to restore.${RESET}\n\n"
