@@ -112,40 +112,27 @@
     outline: none;
   }
 
-  // Sticky scroll-fades live INSIDE the MenuList (the scroll container) so
-  // they pin to the visible top/bottom of the options area. The top fade
-  // renders only when there's more content scrolled ABOVE, the bottom fade
-  // only when there's more content BELOW — so they cleanly indicate scroll
-  // affordance in each direction. Fades use $core-fleet-white ->
-  // $core-fleet-white-transparent (shared -transparent variant with matching
-  // RGB in both themes) so dark-mode variable swaps carry through with no
-  // additional overrides — same pattern as the horizontal table shadows.
+  // Sticky-bottom scroll-fade lives INSIDE the MenuList (the scroll container)
+  // so it pins to the visible bottom of the options area — and it's not
+  // rendered when the user has scrolled to the last option. Negative bottom
+  // pulls the fade past MenuList's pad-small paddingBottom so it sits flush
+  // against the outer edge of the scroll area rather than 8px above it.
   &__scroll-fade {
     position: sticky;
-    height: 35px;
-    pointer-events: none;
-    z-index: 9;
-  }
-
-  &__scroll-fade--top {
-    top: 0;
-    background: linear-gradient(
-      to bottom,
-      $core-fleet-white 0%,
-      $core-fleet-white-transparent 100%
-    );
-  }
-
-  // Negative bottom pulls the bottom fade past MenuList's pad-small
-  // paddingBottom so it sits flush against the outer edge of the scroll
-  // area rather than 8px above it.
-  &__scroll-fade--bottom {
     bottom: -$pad-small;
+    height: 35px;
+    // Fade from opaque Fleet-white at the bottom to transparent Fleet-white at
+    // the top. Uses the shared -transparent variant (same RGB as
+    // $core-fleet-white with alpha 0 in both light and dark themes) so
+    // dark-mode variable swaps carry through with no additional overrides —
+    // same pattern as the horizontal table shadows.
     background: linear-gradient(
       to top,
       $core-fleet-white 0%,
       $core-fleet-white-transparent 100%
     );
+    pointer-events: none;
+    z-index: 9;
   }
 
   &__add-fleet-footer {
