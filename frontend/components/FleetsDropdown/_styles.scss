@@ -112,7 +112,7 @@
   &__scroll-fade {
     position: sticky;
     bottom: -$pad-small;
-    height: $pad-large;
+    height: 35px;
     // Fade from opaque Fleet-white at the bottom to transparent Fleet-white at
     // the top. Uses the shared -transparent variant (same RGB as
     // $core-fleet-white with alpha 0 in both light and dark themes) so

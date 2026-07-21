@@ -403,10 +403,10 @@ const TeamDetailsWrapper = ({
               <h1>{currentTeamDetails.name}</h1>
             ) : (
               <FleetsDropdown
-                selectedTeamId={currentTeamId}
+                selectedFleetId={currentTeamId}
                 currentUserTeams={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAllTeams={false}
+                includeAllFleets={false}
                 onChange={handleTeamChange}
               />
             )}

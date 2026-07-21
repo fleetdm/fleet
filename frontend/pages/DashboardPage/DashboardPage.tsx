@@ -899,7 +899,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
             <FleetsDropdown
-              selectedTeamId={currentTeamId}
+              selectedFleetId={currentTeamId}
               currentUserTeams={userTeams}
               onChange={handleTeamChange}
             />

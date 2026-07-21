@@ -1592,9 +1592,9 @@ const ManageHostsPage = ({
         return (
           <FleetsDropdown
             currentUserTeams={userTeams || []}
-            selectedTeamId={currentTeamId}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
-            includeNoTeams
+            includeUnassigned
           />
         );
       }

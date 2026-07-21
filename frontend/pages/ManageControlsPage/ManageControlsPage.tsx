@@ -207,10 +207,10 @@ const ManageControlsPage = ({
         return (
           <FleetsDropdown
             currentUserTeams={userTeams}
-            selectedTeamId={currentTeamId}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         );
       }

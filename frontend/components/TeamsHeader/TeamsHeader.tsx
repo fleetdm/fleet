@@ -22,9 +22,9 @@ const TeamsHeader = ({
       return (
         <FleetsDropdown
           currentUserTeams={userTeams}
-          selectedTeamId={currentTeamId}
+          selectedFleetId={currentTeamId}
           onChange={onTeamChange}
-          includeNoTeams
+          includeUnassigned
         />
       );
     }

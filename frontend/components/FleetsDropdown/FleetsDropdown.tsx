@@ -33,13 +33,16 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 declare module "react-select-5/dist/declarations/src/Select" {
-  // Generic parameters must match react-select's own Props interface even
-  // though this augmentation only reads Option; underscore-prefix silences
-  // the eslint no-unused-vars rule for the required-by-shape params.
+  // Generic parameter *names* must match react-select's own Props interface
+  // AND every other augmentation of it in the codebase (TS2428) — do not
+  // rename or underscore-prefix. IsMulti + Group are unused here by name;
+  // silenced with eslint-disable comments instead.
   export interface Props<
     Option,
-    _IsMulti extends boolean,
-    _Group extends GroupBase<Option>
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    IsMulti extends boolean,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    Group extends GroupBase<Option>
   > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -64,8 +67,8 @@ export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
 
 const generateDropdownOptions = (
   teams: ITeamSummary[] | undefined,
-  includeAllTeams: boolean,
-  includeNoTeams?: boolean
+  includeAllFleets: boolean,
+  includeUnassigned?: boolean
 ): INumberDropdownOption[] => {
   if (!teams) return [];
 
@@ -78,8 +81,8 @@ const generateDropdownOptions = (
   return options.filter(
     (o) =>
       !(
-        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeNoTeams) ||
-        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAllTeams)
+        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeUnassigned) ||
+        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAllFleets)
       )
   );
 };
@@ -100,9 +103,9 @@ const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
 
 interface IFleetsDropdownProps {
   currentUserTeams: ITeamSummary[];
-  selectedTeamId?: number;
-  includeAllTeams?: boolean;
-  includeNoTeams?: boolean;
+  selectedFleetId?: number;
+  includeAllFleets?: boolean;
+  includeUnassigned?: boolean;
   isDisabled?: boolean;
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
@@ -247,9 +250,9 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
 
 const FleetsDropdown = ({
   currentUserTeams,
-  selectedTeamId,
-  includeAllTeams = true,
-  includeNoTeams = false,
+  selectedFleetId,
+  includeAllFleets = true,
+  includeUnassigned = false,
   isDisabled = false,
   onChange,
   onOpen,
@@ -266,10 +269,10 @@ const FleetsDropdown = ({
     () =>
       generateDropdownOptions(
         currentUserTeams,
-        includeAllTeams,
-        includeNoTeams
+        includeAllFleets,
+        includeUnassigned
       ),
-    [currentUserTeams, includeAllTeams, includeNoTeams]
+    [currentUserTeams, includeAllFleets, includeUnassigned]
   );
 
   const filteredOptions = useMemo(
@@ -280,9 +283,9 @@ const FleetsDropdown = ({
   const showSearch = fleetOptions.length >= MIN_FLEETS_FOR_SEARCH;
 
   const selectedValue = fleetOptions.find(
-    (option) => selectedTeamId === option.value
+    (option) => selectedFleetId === option.value
   )
-    ? selectedTeamId
+    ? selectedFleetId
     : fleetOptions[0]?.value;
 
   const selectedLabel =

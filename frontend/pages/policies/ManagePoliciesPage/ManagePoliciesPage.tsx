@@ -965,9 +965,9 @@ const ManagePolicyPage = ({
         return (
           <FleetsDropdown
             currentUserTeams={userTeams || []}
-            selectedTeamId={currentTeamId}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
-            includeNoTeams
+            includeUnassigned
           />
         );
       }

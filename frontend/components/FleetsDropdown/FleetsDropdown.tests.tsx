@@ -31,11 +31,11 @@ describe("FleetsDropdown - component", () => {
     mockPush.mockClear();
   });
 
-  it("renders the given selected fleet from selectedTeamId", () => {
+  it("renders the given selected fleet from selectedFleetId", () => {
     render(
       <FleetsDropdown
         currentUserTeams={USER_FLEETS}
-        selectedTeamId={1}
+        selectedFleetId={1}
         onChange={noop}
       />
     );
@@ -43,11 +43,11 @@ describe("FleetsDropdown - component", () => {
     expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
-  it("renders the first fleet option when includeAllTeams is false and when no selectedTeamId is given", () => {
+  it("renders the first fleet option when includeAllFleets is false and when no selectedFleetId is given", () => {
     render(
       <FleetsDropdown
         currentUserTeams={USER_FLEETS}
-        includeAllTeams={false}
+        includeAllFleets={false}
         onChange={noop}
       />
     );
@@ -60,7 +60,7 @@ describe("FleetsDropdown - component", () => {
       isOnGlobalTeam: true,
     };
 
-    it("renders 'All fleets' when no selectedTeamId is given", () => {
+    it("renders 'All fleets' when no selectedFleetId is given", () => {
       renderWithAppContext(
         <FleetsDropdown currentUserTeams={USER_FLEETS} onChange={noop} />,
         { contextValue }
@@ -69,11 +69,11 @@ describe("FleetsDropdown - component", () => {
       expect(getTrigger(/All fleets/)).toBeInTheDocument();
     });
 
-    it("renders the first fleet option when includeAllTeams is false and when no selectedTeamId is given", () => {
+    it("renders the first fleet option when includeAllFleets is false and when no selectedFleetId is given", () => {
       renderWithAppContext(
         <FleetsDropdown
           currentUserTeams={USER_FLEETS}
-          includeAllTeams={false}
+          includeAllFleets={false}
           onChange={noop}
         />,
         { contextValue }
@@ -89,7 +89,7 @@ describe("FleetsDropdown - component", () => {
       (t) => t.id > APP_CONTEXT_NO_TEAM_ID
     );
 
-    it("renders the first fleet when no selectedTeamId is given", () => {
+    it("renders the first fleet when no selectedFleetId is given", () => {
       renderWithAppContext(
         <FleetsDropdown
           currentUserTeams={filteredUserFleets}
@@ -122,7 +122,7 @@ describe("FleetsDropdown - component", () => {
       render(
         <FleetsDropdown
           currentUserTeams={USER_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />
       );
@@ -138,7 +138,7 @@ describe("FleetsDropdown - component", () => {
       render(
         <FleetsDropdown
           currentUserTeams={MANY_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />
       );
@@ -152,7 +152,7 @@ describe("FleetsDropdown - component", () => {
       render(
         <FleetsDropdown
           currentUserTeams={MANY_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />
       );
@@ -176,7 +176,7 @@ describe("FleetsDropdown - component", () => {
       render(
         <FleetsDropdown
           currentUserTeams={MANY_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />
       );
@@ -209,7 +209,7 @@ describe("FleetsDropdown - component", () => {
       renderWithAppContext(
         <FleetsDropdown
           currentUserTeams={USER_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: false } }
@@ -226,7 +226,7 @@ describe("FleetsDropdown - component", () => {
       renderWithAppContext(
         <FleetsDropdown
           currentUserTeams={USER_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: true } }
@@ -245,7 +245,7 @@ describe("FleetsDropdown - component", () => {
       renderWithAppContext(
         <FleetsDropdown
           currentUserTeams={MANY_FLEETS}
-          selectedTeamId={1}
+          selectedFleetId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: true } }

@@ -284,7 +284,7 @@ const ManageQueriesPage = ({
         return (
           <FleetsDropdown
             currentUserTeams={userTeams}
-            selectedTeamId={currentTeamId}
+            selectedFleetId={currentTeamId}
             onChange={onTeamChange}
           />
         );

@@ -58,7 +58,7 @@ const meta: Meta<typeof FleetsDropdown> = {
   component: FleetsDropdown,
   args: {
     currentUserTeams: FLEETS_MANY,
-    includeNoTeams: true,
+    includeUnassigned: true,
     onChange: noop,
   },
 };
@@ -124,8 +124,8 @@ export const AsFormField: Story = {
   args: {
     currentUserTeams: FLEETS_MANY,
     asFormField: true,
-    includeAllTeams: false,
-    selectedTeamId: 1,
+    includeAllFleets: false,
+    selectedFleetId: 1,
   },
   decorators: [withAppContext(true)],
 };
@@ -151,7 +151,7 @@ export const LongFleetName: Story = {
       { id: 2, name: "Workstations" },
       { id: 3, name: "Servers" },
     ],
-    selectedTeamId: 1,
+    selectedFleetId: 1,
   },
   decorators: [withAppContext(true)],
 };

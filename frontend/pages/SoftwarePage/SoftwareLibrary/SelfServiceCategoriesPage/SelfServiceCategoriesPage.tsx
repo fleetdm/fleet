@@ -145,10 +145,10 @@ const SelfServiceCategoriesPage = ({
         <div className={`${baseClass}__fleet-row`}>
           <FleetsDropdown
             currentUserTeams={userTeams ?? []}
-            selectedTeamId={currentTeamId}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         </div>
       ) : (
