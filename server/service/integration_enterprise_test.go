@@ -34471,3 +34471,108 @@ func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {
 	s.lastActivityOfTypeMatches(activityName,
 		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, newTeam.ID, newTeam.Name, tmpl), 0)
 }
+
+func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "script-fleet-vars", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	const (
+		supportedVarContents   = "echo $FLEET_VAR_HOST_UUID on ${FLEET_VAR_HOST_PLATFORM}"
+		unsupportedVarContents = "echo $FLEET_VAR_NONEXISTENT"
+		unsupportedVarErrMsg   = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+	)
+
+	t.Run("ad-hoc run", func(t *testing.T) {
+		res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: unsupportedVarContents}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		// CA variables are profile-delivery machinery and are rejected in scripts
+		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts.")
+
+		var runResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: supportedVarContents}, http.StatusAccepted, &runResp)
+
+		// contents are stored unexpanded
+		result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, result.ScriptContents)
+	})
+
+	t.Run("saved script create and update", func(t *testing.T) {
+		body, headers := generateNewScriptMultipartRequest(t,
+			"vars-bad.sh", []byte(unsupportedVarContents), s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		var newScriptResp fleet.CreateScriptResponse
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(supportedVarContents), s.token, nil)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+		err := json.NewDecoder(res.Body).Decode(&newScriptResp)
+		require.NoError(t, err)
+
+		// contents round-trip unexpanded
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), nil, http.StatusOK, "alt", "media")
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, string(b))
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(unsupportedVarContents), s.token, nil)
+		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(supportedVarContents+"\necho updated"), s.token, nil)
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), body.Bytes(), http.StatusOK, headers)
+	})
+
+	t.Run("batch set scripts", func(t *testing.T) {
+		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// unsupported variables are rejected, including on dry runs
+		for _, dryRun := range []string{"true", "false"} {
+			res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+				{Name: "vars.sh", ScriptContents: []byte(unsupportedVarContents)},
+			}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
+			require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg, "dry_run=%s", dryRun)
+		}
+
+		// supported variables pass a dry run without being saved
+		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
+		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+		var listResp fleet.ListScriptsResponse
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		require.Empty(t, listResp.Scripts)
+
+		// and are saved unexpanded on a real apply
+		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
+		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		require.Len(t, listResp.Scripts, 1)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", listResp.Scripts[0].ID), nil, http.StatusOK, "alt", "media")
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, string(b))
+	})
+
+	t.Run("setup experience script", func(t *testing.T) {
+		body, headers := generateNewScriptMultipartRequest(t,
+			"setup-vars.sh", []byte(unsupportedVarContents), s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"setup-vars.sh", []byte(supportedVarContents), s.token, nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+	})
+}

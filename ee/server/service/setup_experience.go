@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -142,6 +143,9 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{script.ScriptContents}); err != nil {
 		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return err
 	}
 
 	// setup experience is only supported for macOS currently so we need to override the file
