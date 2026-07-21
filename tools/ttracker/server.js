@@ -23,9 +23,7 @@ const INTERVAL_MIN = parseInt(process.env.TT_INTERVAL || '10');
 const SAFE_MODE = process.env.TT_SAFE_MODE === '1';
 const SCRIPT_DIR = __dirname;
 const SNAPSHOT_DIR = path.join(SCRIPT_DIR, 'snapshots');
-const LATEST_FILE = path.join(SNAPSHOT_DIR, 'latest.json');
-const HISTORY_FILE = path.join(SNAPSHOT_DIR, 'history.json');
-const NOTES_FILE = path.join(SNAPSHOT_DIR, 'notes.json');
+const STATE_FILE = path.join(SNAPSHOT_DIR, 'state.json');
 const PID_FILE = path.join(SNAPSHOT_DIR, 'daemon.pid');
 const CLAUDE_SESSIONS_DIR = path.join(os.homedir(), '.claude', 'sessions');
 
@@ -78,11 +76,34 @@ function writeJSON(filepath, data) {
   fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
 }
 
-function timestamp() {
+function now() {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }
 
-// ─── Snapshot Logic (ported from daemon.sh) ──────────────────────────────────
+// ─── State Management ────────────────────────────────────────────────────────
+// All persistent data lives in a single state.json file:
+//   { snapshot: { timestamp, sessions[] }, history: [], notes: {} }
+
+function loadState() {
+  const state = readJSON(STATE_FILE);
+  if (state && state.snapshot) return state;
+
+  // Migrate from old separate files if they exist
+  const migrated = {
+    snapshot: readJSON(path.join(SNAPSHOT_DIR, 'latest.json')) || { timestamp: '', session_count: 0, sessions: [] },
+    history: readJSON(path.join(SNAPSHOT_DIR, 'history.json')) || [],
+    notes: readJSON(path.join(SNAPSHOT_DIR, 'notes.json')) || {}
+  };
+  saveState(migrated);
+  return migrated;
+}
+
+function saveState(state) {
+  fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
+  writeJSON(STATE_FILE, state);
+}
+
+// ─── Snapshot Logic ──────────────────────────────────────────────────────────
 
 const ITERM_APPLESCRIPT = `
 tell application "iTerm2"
@@ -115,7 +136,7 @@ async function takeSnapshot() {
   try {
     const raw = await runOsascript(ITERM_APPLESCRIPT).catch(() => '');
     if (!raw) {
-      console.log(`[${timestamp()}] Warning: could not reach iTerm2`);
+      console.log(`[${now()}] Warning: could not reach iTerm2`);
       snapshotInProgress = false;
       return null;
     }
@@ -170,13 +191,15 @@ async function takeSnapshot() {
     }
 
     const snapshot = {
-      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      timestamp: now(),
       session_count: sessions.length,
       sessions
     };
 
-    fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
-    writeJSON(LATEST_FILE, snapshot);
+    // Update state
+    const state = loadState();
+    state.snapshot = snapshot;
+    saveState(state);
 
     // Timestamped backup
     const backupName = `snapshot-${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15)}.json`;
@@ -192,7 +215,7 @@ async function takeSnapshot() {
     }
 
     const claudeCount = sessions.filter(s => s.claude_session_id).length;
-    console.log(`[${timestamp()}] Snapshot: ${sessions.length} sessions (${claudeCount} Claude)`);
+    console.log(`[${now()}] Snapshot: ${sessions.length} sessions (${claudeCount} Claude)`);
 
     return snapshot;
   } finally {
@@ -219,13 +242,7 @@ function getRunningSessionIds() {
   return running;
 }
 
-function getHistorySessionIds() {
-  const history = readJSON(HISTORY_FILE);
-  if (!Array.isArray(history)) return new Set();
-  return new Set(history.filter(h => h.claude_session_id).map(h => h.claude_session_id));
-}
-
-// ─── Park Logic ──────────────────────────────────────────────────────────────
+// ─── Focus / Park / Restore ─────────────────────────────────────────────────
 
 async function focusSession(itermUuid) {
   try {
@@ -252,23 +269,18 @@ end tell`);
 }
 
 async function parkSession(itermUuid) {
-  const snapshot = readJSON(LATEST_FILE);
-  if (!snapshot) return { ok: false, error: 'No snapshot' };
-
-  const session = snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
+  const state = loadState();
+  const session = state.snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
   if (!session) return { ok: false, error: 'Session not found' };
   if (!session.claude_session_id) return { ok: false, error: 'Not a Claude session' };
 
   // Add to history
-  let history = readJSON(HISTORY_FILE) || [];
-  if (!Array.isArray(history)) history = [];
-
-  if (!history.some(h => h.claude_session_id === session.claude_session_id)) {
-    history.push({
+  if (!state.history.some(h => h.claude_session_id === session.claude_session_id)) {
+    state.history.push({
       ...session,
       parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16)
     });
-    writeJSON(HISTORY_FILE, history);
+    saveState(state);
   }
 
   // Close the iTerm2 window
@@ -297,24 +309,20 @@ end tell`);
   return { ok: true, badge: session.badge };
 }
 
-// ─── Restore Logic ───────────────────────────────────────────────────────────
-
 async function restoreSession(claudeSessionId, fromHistory) {
+  const state = loadState();
   let session;
 
   if (fromHistory) {
-    const history = readJSON(HISTORY_FILE) || [];
-    const idx = history.findIndex(h => h.claude_session_id === claudeSessionId);
+    const idx = state.history.findIndex(h => h.claude_session_id === claudeSessionId);
     if (idx === -1) return { ok: false, error: 'Not found in history' };
-    session = history[idx];
+    session = state.history[idx];
 
     // Remove from history
-    history.splice(idx, 1);
-    writeJSON(HISTORY_FILE, history);
+    state.history.splice(idx, 1);
+    saveState(state);
   } else {
-    const snapshot = readJSON(LATEST_FILE);
-    if (!snapshot) return { ok: false, error: 'No snapshot' };
-    session = snapshot.sessions.find(s => s.claude_session_id === claudeSessionId);
+    session = state.snapshot.sessions.find(s => s.claude_session_id === claudeSessionId);
     if (!session) return { ok: false, error: 'Session not found' };
   }
 
@@ -356,34 +364,32 @@ async function handleAPI(req, res) {
 
   // GET /api/sessions
   if (req.method === 'GET' && url.pathname === '/api/sessions') {
-    const snapshot = readJSON(LATEST_FILE) || { timestamp: '', session_count: 0, sessions: [] };
+    const state = loadState();
     const running = getRunningSessionIds();
-    const parked = getHistorySessionIds();
-    const notes = readJSON(NOTES_FILE) || {};
+    const parkedIds = new Set(state.history.filter(h => h.claude_session_id).map(h => h.claude_session_id));
 
-    const sessions = snapshot.sessions.map(s => ({
+    const sessions = state.snapshot.sessions.map(s => ({
       ...s,
-      note: notes[s.claude_session_id] || notes[s.iterm_uuid] || '',
+      note: state.notes[s.claude_session_id] || state.notes[s.iterm_uuid] || '',
       status: !s.claude_session_id ? 'no-claude'
-        : parked.has(s.claude_session_id) ? 'parked'
+        : parkedIds.has(s.claude_session_id) ? 'parked'
         : running.has(s.claude_session_id) ? 'running'
         : 'missing'
     }));
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ...snapshot, sessions }));
+    res.end(JSON.stringify({ ...state.snapshot, sessions }));
     return;
   }
 
   // GET /api/history
   if (req.method === 'GET' && url.pathname === '/api/history') {
-    const history = readJSON(HISTORY_FILE) || [];
+    const state = loadState();
     const running = getRunningSessionIds();
-    const notes = readJSON(NOTES_FILE) || {};
 
-    const entries = history.map(h => ({
+    const entries = state.history.map(h => ({
       ...h,
-      note: (h.claude_session_id && notes[h.claude_session_id]) || '',
+      note: (h.claude_session_id && state.notes[h.claude_session_id]) || '',
       status: running.has(h.claude_session_id) ? 'running' : 'parked'
     }));
 
@@ -432,7 +438,7 @@ async function handleAPI(req, res) {
     return;
   }
 
-  // PUT /api/note/:claude_session_id
+  // PUT /api/note/:session_id
   if (req.method === 'PUT' && pathParts[0] === 'api' && pathParts[1] === 'note' && pathParts[2]) {
     const body = await new Promise((resolve) => {
       let data = '';
@@ -441,13 +447,13 @@ async function handleAPI(req, res) {
     });
     const { note } = JSON.parse(body);
     const sid = decodeURIComponent(pathParts[2]);
-    const notes = readJSON(NOTES_FILE) || {};
+    const state = loadState();
     if (note) {
-      notes[sid] = note;
+      state.notes[sid] = note;
     } else {
-      delete notes[sid];
+      delete state.notes[sid];
     }
-    writeJSON(NOTES_FILE, notes);
+    saveState(state);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
