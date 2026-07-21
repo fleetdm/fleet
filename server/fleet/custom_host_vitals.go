@@ -82,7 +82,7 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 // Distinct from MissingCustomHostVitalsError (upload-time: the id doesn't exist)
 // so the delivery failure detail shown to admins names the real cause.
 type MissingCustomHostVitalValueError struct {
-	MissingIDs []uint
+	MissingIDs   []uint
 	MissingNames []string
 }
 
