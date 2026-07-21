@@ -1122,6 +1122,34 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
 	}
 
+	// Fleet variables expand last: values are end-user-influenced (IdP data),
+	// so any $FLEET_SECRET_* or $FLEET_HOST_VITAL_* text they carry must stay
+	// literal rather than go through the expansions above. Skip executions
+	// that already have a result so a re-fetch can't record a second one.
+	if script.ExitCode == nil {
+		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+		}
+		if failureMessage != "" {
+			// Record the failed result server-side so the execution leaves the
+			// queue: returning an error would make fleetd stop processing its
+			// whole script queue, while returning the script with an exit code
+			// already set makes fleetd skip just this execution.
+			if err := svc.SaveHostScriptResult(ctx, &fleet.HostScriptResultPayload{
+				ExecutionID: script.ExecutionID,
+				Output:      failureMessage,
+				ExitCode:    fleet.ScriptFleetVarResolutionFailedExitCode,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure")
+			}
+			script.ExitCode = new(int64(fleet.ScriptFleetVarResolutionFailedExitCode))
+			script.Output = failureMessage
+			return script, nil
+		}
+		script.ScriptContents = expanded
+	}
+
 	return script, nil
 }
 

@@ -34576,3 +34576,146 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
 		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "ubuntu", "vars-exec-1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "ubuntu", "vars-exec-2", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID, host2.ID}, time.Now())
+	require.NoError(t, err)
+
+	orbitFetchScript := func(t *testing.T, h *fleet.Host, execID string) fleet.OrbitGetScriptResponse {
+		var resp fleet.OrbitGetScriptResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *h.OrbitNodeKey, execID)),
+			http.StatusOK, &resp)
+		return resp
+	}
+
+	t.Run("host variables resolve per host at fetch time", func(t *testing.T) {
+		const contents = "echo serial=$FLEET_VAR_HOST_HARDWARE_SERIAL uuid=$FLEET_VAR_HOST_UUID plat=${FLEET_VAR_HOST_PLATFORM}"
+
+		for _, h := range []*fleet.Host{host, host2} {
+			var runResp fleet.RunScriptResponse
+			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
+
+			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
+			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			require.Nil(t, fetched.ExitCode)
+
+			// stored contents stay unexpanded
+			stored, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+			require.NoError(t, err)
+			require.Equal(t, contents, stored.ScriptContents)
+
+			// the host posts its result to complete the execution
+			var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, runResp.ExecutionID)),
+				http.StatusOK, &orbitPostScriptResp)
+		}
+	})
+
+	t.Run("unresolvable IdP variable fails the execution without wedging the queue", func(t *testing.T) {
+		// queue two scripts: the first needs an IdP user the host doesn't have
+		var failResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusAccepted, &failResp)
+		var okResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo queued-behind"}, http.StatusAccepted, &okResp)
+
+		// fetching the first script records the failure and returns it marked
+		fetched := orbitFetchScript(t, host, failResp.ExecutionID)
+		require.NotNil(t, fetched.ExitCode)
+		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *fetched.ExitCode)
+
+		// the failed result is stored with the reason as output
+		stored, err := s.ds.GetHostScriptExecutionResult(ctx, failResp.ExecutionID)
+		require.NoError(t, err)
+		require.NotNil(t, stored.ExitCode)
+		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *stored.ExitCode)
+		require.Contains(t, stored.Output, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+
+		// a ran_script activity was created for the failed execution
+		s.lastActivityMatches(fleet.ActivityTypeRanScript{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "script_name": "", "async": true, "batch_execution_id": null, "policy_id": null, "policy_name": null, "from_setup_experience": false}`,
+				host.ID, host.DisplayName(), failResp.ExecutionID), 0)
+
+		// the results endpoint returns the -3 user message
+		var scriptResultResp fleet.GetScriptResultResponse
+		s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+failResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, scriptResultResp.Message)
+		require.Contains(t, scriptResultResp.Output, "There is no IdP username for this host.")
+
+		// the queue advanced: the second script activated and is fetchable
+		fetched = orbitFetchScript(t, host, okResp.ExecutionID)
+		require.Nil(t, fetched.ExitCode)
+		require.Equal(t, "echo queued-behind", fetched.ScriptContents)
+
+		var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, okResp.ExecutionID)),
+			http.StatusOK, &orbitPostScriptResp)
+	})
+
+	t.Run("IdP variables resolve and secret-shaped values stay literal", func(t *testing.T) {
+		// link an IdP user to host2 whose username carries $FLEET_SECRET_* text;
+		// variables expand after secrets, so it must reach the host literally
+		var scimUserID int64
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx,
+				`INSERT INTO scim_users (user_name, given_name, family_name, department, active) VALUES (?, ?, ?, ?, ?)`,
+				"jane.doe@example.com ($FLEET_SECRET_INJECTED)", "Jane", "Doe", "Engineering", 1)
+			if err != nil {
+				return err
+			}
+			scimUserID, err = res.LastInsertId()
+			return err
+		})
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+				host2.ID, scimUserID)
+			return err
+		})
+
+		var runResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID,
+			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"}, http.StatusAccepted, &runResp)
+
+		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
+		require.Nil(t, fetched.ExitCode)
+		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+	})
+
+	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {
+		testRunScriptWaitForResult = 5 * time.Second
+		defer func() { testRunScriptWaitForResult = 0 }()
+
+		// fetch the script from the host side as soon as it is enqueued, which
+		// records the failure while the sync run is waiting for a result
+		done := make(chan struct{})
+		var syncResp fleet.RunScriptSyncResponse
+		go func() {
+			defer close(done)
+			s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusOK, &syncResp)
+		}()
+
+		require.Eventually(t, func() bool {
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			require.NoError(t, err)
+			if len(pending) == 0 {
+				return false
+			}
+			orbitFetchScript(t, host, pending[0].ExecutionID)
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
+
+		<-done
+		require.NotNil(t, syncResp.ExitCode)
+		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *syncResp.ExitCode)
+		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, syncResp.Message)
+		require.Contains(t, syncResp.Output, "There is no IdP username for this host.")
+	})
+}

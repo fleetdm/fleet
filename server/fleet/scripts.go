@@ -363,10 +363,23 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 		return HostScriptTimeoutMessage(hostTimeoutValue)
 	case -2:
 		return RunScriptDisabledErrMsg
+	case ScriptFleetVarResolutionFailedExitCode:
+		return RunScriptFleetVarsFailedErrMsg
 	default:
 		return ""
 	}
 }
+
+// ScriptFleetVarResolutionFailedExitCode is the sentinel exit code the server
+// records when it can't resolve one or more Fleet variables in a script for
+// the target host; the result's output holds the reasons. Script results
+// already use -1 (script execution timeout) and -2 (scripts disabled on the
+// host), and software install results use -2 through -4
+// (ExitCodeScriptsDisabled, ExitCodeInstallerDownloadFailed,
+// ExitCodeInstallerNotFound), so -5 is the first value free in both. A real
+// process exit status can collide with these values; that ambiguity is
+// accepted and predates this constant.
+const ScriptFleetVarResolutionFailedExitCode = -5
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int

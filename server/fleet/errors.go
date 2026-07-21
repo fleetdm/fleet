@@ -529,6 +529,7 @@ const (
 	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+	RunScriptFleetVarsFailedErrMsg         = "Fleet couldn't resolve variables in this script. See the script output for details."
 
 	// Software
 	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
