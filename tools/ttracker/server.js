@@ -308,18 +308,67 @@ async function parkSession(itermUuid) {
   const state = loadState();
   const session = state.snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
   if (!session) return { ok: false, error: 'Session not found' };
-  if (!session.claude_session_id) return { ok: false, error: 'Not a Claude session' };
+
+  // For non-Claude sessions at a shell prompt, capture command history
+  let cmdHistory = [];
+  if (!session.claude_session_id) {
+    try {
+      const isAtPrompt = await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        repeat with t from 1 to (count of tabs of (window w))
+            repeat with s from 1 to (count of sessions of tab t of (window w))
+                set sess to session s of tab t of (window w)
+                if (unique ID of sess) is "${itermUuid}" then
+                    return (is at shell prompt of sess) as text
+                end if
+            end repeat
+        end repeat
+    end repeat
+end tell`);
+      if (isAtPrompt === 'true') {
+        // Run fc -l -30 and capture output via a temp file
+        const histTmp = path.join(os.tmpdir(), `tt-hist-${Date.now()}.txt`);
+        await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        repeat with t from 1 to (count of tabs of (window w))
+            repeat with s from 1 to (count of sessions of tab t of (window w))
+                set sess to session s of tab t of (window w)
+                if (unique ID of sess) is "${itermUuid}" then
+                    tell sess
+                        write text "fc -l -30 > ${histTmp} 2>/dev/null"
+                    end tell
+                    return "done"
+                end if
+            end repeat
+        end repeat
+    end repeat
+end tell`);
+        await new Promise(r => setTimeout(r, 1000));
+        try {
+          const histRaw = fs.readFileSync(histTmp, 'utf8');
+          cmdHistory = histRaw.split('\n')
+            .map(l => l.replace(/^\s*\d+\s+/, '').trim())
+            .filter(l => l && !l.startsWith('fc '));
+          fs.unlinkSync(histTmp);
+        } catch {}
+      }
+    } catch {}
+  }
 
   // Add to history
-  if (!state.history.some(h => h.claude_session_id === session.claude_session_id)) {
+  const key = session.claude_session_id || session.iterm_uuid;
+  if (!state.history.some(h => (h.claude_session_id || h.iterm_uuid) === key)) {
     state.history.push({
       ...session,
-      parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      cmd_history: cmdHistory.length ? cmdHistory : undefined
     });
     saveState(state);
   }
 
-  // Close the iTerm2 window
+  // Close the iTerm2 session
   try {
     await runOsascript(`
 tell application "iTerm2"
@@ -376,37 +425,55 @@ end tell`);
   return { ok: true };
 }
 
-async function restoreSession(claudeSessionId, fromHistory) {
+async function restoreSession(sessionId, fromHistory) {
   const state = loadState();
   let session;
   let historyIdx = -1;
 
   if (fromHistory) {
-    const idx = state.history.findIndex(h => h.claude_session_id === claudeSessionId);
+    const idx = state.history.findIndex(h =>
+      h.claude_session_id === sessionId || h.iterm_uuid === sessionId);
     if (idx === -1) return { ok: false, error: 'Not found in history' };
     session = { ...state.history[idx] };
     historyIdx = idx;
   } else {
-    session = state.snapshot.sessions.find(s => s.claude_session_id === claudeSessionId);
+    session = state.snapshot.sessions.find(s => s.claude_session_id === sessionId);
     if (!session) return { ok: false, error: 'Session not found' };
   }
 
   const cwd = (session.cwd || os.homedir()).replace(/'/g, "'\\''");
   const badgeB64 = Buffer.from(session.badge || '').toString('base64');
-  const claudeCmd = SAFE_MODE
-    ? `claude --resume ${claudeSessionId}`
-    : `claude --dangerously-skip-permissions --resume ${claudeSessionId}`;
+  const badgeLine = badgeB64
+    ? `write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"\n        delay 2`
+    : '';
+
+  // Build the command to run after cd + badge
+  let launchCmd;
+  if (session.claude_session_id) {
+    launchCmd = SAFE_MODE
+      ? `claude --resume ${session.claude_session_id}`
+      : `claude --dangerously-skip-permissions --resume ${session.claude_session_id}`;
+  } else {
+    // Non-Claude session: print saved command history if available
+    const hist = session.cmd_history || [];
+    if (hist.length) {
+      const histDisplay = hist.map(c => c.replace(/'/g, "'\\''")).join('\\n');
+      launchCmd = `echo ''; echo '\\033[1;36m--- Last commands before parking ---\\033[0m'; echo '${histDisplay}'; echo '\\033[1;36m------\\033[0m'; echo ''`;
+    } else {
+      launchCmd = '';
+    }
+  }
 
   // Write temp AppleScript file (avoids escaping issues)
   const tmpFile = path.join(os.tmpdir(), `tt-restore-${Date.now()}.applescript`);
+  const launchLine = launchCmd ? `write text "${launchCmd.replace(/"/g, '\\"')}"` : '';
   fs.writeFileSync(tmpFile, `tell application "iTerm2"
     set newWindow to (create window with default profile)
     tell current session of current tab of newWindow
         write text "cd '${cwd}'"
         delay 1
-        write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
-        delay 2
-        write text "${claudeCmd}"
+        ${badgeLine}
+        ${launchLine}
     end tell
 end tell`);
 
@@ -576,7 +643,7 @@ end tell`);
   if (req.method === 'DELETE' && pathParts[0] === 'api' && pathParts[1] === 'delete-history' && pathParts[2]) {
     const sid = decodeURIComponent(pathParts[2]);
     const state = loadState();
-    const idx = state.history.findIndex(h => h.claude_session_id === sid);
+    const idx = state.history.findIndex(h => h.claude_session_id === sid || h.iterm_uuid === sid);
     if (idx === -1) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: 'Not found' }));
@@ -584,7 +651,8 @@ end tell`);
     }
     state.history.splice(idx, 1);
     // Also remove from snapshot if it was a carried-over missing session
-    state.snapshot.sessions = state.snapshot.sessions.filter(s => s.claude_session_id !== sid);
+    state.snapshot.sessions = state.snapshot.sessions.filter(s =>
+      s.claude_session_id !== sid && s.iterm_uuid !== sid);
     state.snapshot.session_count = state.snapshot.sessions.length;
     // Clean up note
     delete state.notes[sid];
@@ -1089,24 +1157,25 @@ function renderHistory(entries) {
   }
 
   el.innerHTML = entries.map((h, i) => {
+    const hKey = h.claude_session_id || h.iterm_uuid;
     let action = '';
     if (h.status === 'running') {
       action = '<span style="color:#859900;font-size:12px">open</span>';
     } else {
-      action = '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>'
-        + ' <button class="btn btn-delete" onclick="confirmDelete(\\'' + h.claude_session_id + '\\', \\'' + escapeHtml(h.badge) + '\\')">Delete</button>';
+      action = '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + hKey + '\\')">Restore</button>'
+        + ' <button class="btn btn-delete" onclick="confirmDelete(\\'' + hKey + '\\', \\'' + escapeHtml(h.badge) + '\\')">Delete</button>';
     }
     const noteVal = escapeHtml(h.note);
     const folder = h.cwd ? h.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td><input class="badge-input" value="' + escapeHtml(h.badge) + '" placeholder="badge" '
-      + 'onblur="saveBadge(\\'' + h.claude_session_id + '\\', this.value, \\'\\')" '
+      + 'onblur="saveBadge(\\'' + hKey + '\\', this.value, \\'\\')" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(h.session_name) + '</td>'
       + '<td class="folder-cell">' + escapeHtml(folder) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
-      + 'onblur="saveNote(\\'' + h.claude_session_id + '\\', this.value)" '
+      + 'onblur="saveNote(\\'' + hKey + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td class="session-id">' + escapeHtml(h.claude_session_id) + '</td>'
       + '<td class="parked-at">' + escapeHtml(h.parked_at) + '</td>'
