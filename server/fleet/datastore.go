@@ -2213,6 +2213,11 @@ type Datastore interface {
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)
 
+	// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given LocURI
+	// for the enrollment: whether any attempt was queued, whether any acked 200, whether one is still in flight, and the
+	// most recent acked status.
+	MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*MDMWindowsESPReleaseAckStatus, error)
+
 	// MDMWindowsRefreshHasPendingCommands recomputes the denormalized has_pending_commands flag for the enrollment.
 	// Called at most once per OMA-DM session, when the pending-commands fetch comes back empty (the session has drained
 	// the queue and the flag may flip to 0); mid-session messages skip it since the flag provably stays 1.

@@ -882,6 +882,20 @@ const (
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
 
+// MDMWindowsESPReleaseAckStatus summarizes the delivery state of the ESP release command that completes the
+// Windows Autopilot "Account setup" phase (the user-scope ServerHasFinishedProvisioning Replace).
+type MDMWindowsESPReleaseAckStatus struct {
+	// Attempted is true when at least one release command targeting the URI has been queued for the enrollment.
+	Attempted bool
+	// Acked200 is true when any attempt has a recorded 200 result.
+	Acked200 bool
+	// HasUnacked is true when an attempt is still queued without any response (in flight).
+	HasUnacked bool
+	// LatestStatus is the status code of the most recently acked attempt ("405", "200", ...), empty when no
+	// attempt has a recorded result yet.
+	LatestStatus string
+}
+
 // MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config check-in for a connected Windows
 // host: the Autopilot ESP awaiting-configuration value and whether the host's most recent Windows MDM enrollment has queued, unacknowledged
 // MDM commands. Reading both in one query keeps the hot orbit config path to a single round trip.
