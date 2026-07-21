@@ -407,43 +407,44 @@ function getDashboardHTML() {
 <meta charset="utf-8">
 <title>ttracker</title>
 <style>
+  /* Solarized Light */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
-    background: #0d1117;
-    color: #c9d1d9;
+    background: #fdf6e3;
+    color: #657b83;
     padding: 24px;
     font-size: 13px;
   }
-  h1 { color: #58a6ff; font-size: 20px; font-weight: 600; }
+  h1 { color: #268bd2; font-size: 20px; font-weight: 600; }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid #eee8d5;
   }
-  .header-info { color: #8b949e; font-size: 12px; }
+  .header-info { color: #93a1a1; font-size: 12px; }
   .header-info span { margin-left: 16px; }
   .refresh-btn {
-    background: #21262d;
-    color: #c9d1d9;
-    border: 1px solid #30363d;
+    background: #eee8d5;
+    color: #657b83;
+    border: 1px solid #93a1a1;
     border-radius: 6px;
     padding: 5px 12px;
     cursor: pointer;
     font-family: inherit;
     font-size: 12px;
   }
-  .refresh-btn:hover { background: #30363d; }
+  .refresh-btn:hover { background: #e0dbc6; }
   h2 {
-    color: #c9d1d9;
+    color: #586e75;
     font-size: 15px;
     font-weight: 600;
     margin: 24px 0 12px;
   }
-  .count { color: #8b949e; font-weight: 400; margin-left: 8px; }
+  .count { color: #93a1a1; font-weight: 400; margin-left: 8px; }
   table {
     width: 100%;
     border-collapse: collapse;
@@ -452,26 +453,26 @@ function getDashboardHTML() {
   th {
     text-align: left;
     padding: 8px 12px;
-    background: #161b22;
-    color: #8b949e;
+    background: #eee8d5;
+    color: #93a1a1;
     font-weight: 500;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid #d3cdb8;
   }
   td {
     padding: 8px 12px;
-    border-bottom: 1px solid #21262d;
+    border-bottom: 1px solid #eee8d5;
     vertical-align: middle;
   }
-  tr:hover { background: #161b22; }
+  tr:hover { background: #eee8d5; }
   .badge-cell {
-    color: #d2a8ff;
+    color: #6c71c4;
     font-weight: 600;
   }
   .session-id {
-    color: #8b949e;
+    color: #93a1a1;
     font-size: 11px;
     max-width: 200px;
     overflow: hidden;
@@ -489,12 +490,12 @@ function getDashboardHTML() {
     border-radius: 50%;
     display: inline-block;
   }
-  .dot-running { background: #3fb950; }
-  .dot-missing { background: #f85149; }
-  .dot-parked { background: #8b949e; }
-  .dot-no-claude { background: #484f58; }
+  .dot-running { background: #859900; }
+  .dot-missing { background: #dc322f; }
+  .dot-parked { background: #93a1a1; }
+  .dot-no-claude { background: #d3cdb8; }
   .btn {
-    border: 1px solid #30363d;
+    border: 1px solid #93a1a1;
     border-radius: 6px;
     padding: 4px 12px;
     cursor: pointer;
@@ -505,24 +506,24 @@ function getDashboardHTML() {
   }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-park {
-    background: #1c2128;
-    color: #d29922;
-    border-color: #d29922;
+    background: #fdf6e3;
+    color: #b58900;
+    border-color: #b58900;
   }
-  .btn-park:hover:not(:disabled) { background: #2d1f00; }
+  .btn-park:hover:not(:disabled) { background: #f5efd7; }
   .btn-restore {
-    background: #1c2128;
-    color: #58a6ff;
-    border-color: #58a6ff;
+    background: #fdf6e3;
+    color: #268bd2;
+    border-color: #268bd2;
   }
-  .btn-restore:hover:not(:disabled) { background: #001f3f; }
+  .btn-restore:hover:not(:disabled) { background: #edf5fb; }
   .empty-state {
-    color: #484f58;
+    color: #93a1a1;
     padding: 24px;
     text-align: center;
     font-style: italic;
   }
-  .parked-at { color: #8b949e; font-size: 12px; }
+  .parked-at { color: #93a1a1; font-size: 12px; }
 </style>
 </head>
 <body>
