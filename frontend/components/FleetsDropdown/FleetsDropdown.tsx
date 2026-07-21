@@ -25,9 +25,10 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
+  APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_ID,
   ITeamSummary,
-  APP_CONTEXT_NO_TEAM_SUMMARY,
 } from "interfaces/team";
 
 import Button from "components/buttons/Button";
@@ -80,11 +81,14 @@ const generateDropdownOptions = (
     value: fleet.id,
   }));
 
+  // Filter the synthetic rows by ID (stable), not label — a real fleet
+  // could legitimately be named "All fleets" or "Unassigned" and would
+  // otherwise get dropped by a label-based check.
   return options.filter(
     (o) =>
       !(
-        (o.label === APP_CONTEXT_NO_TEAM_SUMMARY.name && !includeUnassigned) ||
-        (o.label === APP_CONTEXT_ALL_TEAMS_SUMMARY.name && !includeAllFleets)
+        (o.value === APP_CONTEXT_NO_TEAM_ID && !includeUnassigned) ||
+        (o.value === APP_CONTEXT_ALL_TEAMS_ID && !includeAllFleets)
       )
   );
 };
@@ -334,7 +338,8 @@ const FleetsDropdown = ({
     : fleetOptions[0]?.value;
 
   const selectedLabel =
-    fleetOptions.find((o) => o.value === selectedValue)?.label ?? "All fleets";
+    fleetOptions.find((o) => o.value === selectedValue)?.label ??
+    APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
 
   // Close menu when clicking outside the wrapper. Only attach the listener
   // while the menu is actually open — no need to run this handler on every
