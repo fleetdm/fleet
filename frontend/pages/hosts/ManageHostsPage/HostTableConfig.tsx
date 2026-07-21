@@ -389,8 +389,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live report. Currently only
-              supported for macOS, Windows, and Linux.
+              Currently only supported for macOS, Windows, Linux, and ChromeOS.
             </>
           }
           className="status-header"
