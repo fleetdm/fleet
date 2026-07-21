@@ -5,26 +5,44 @@
 # Stores snapshots as JSON so restore.sh can reopen missing Claude sessions.
 #
 # Usage:
-#   ./daemon.sh              # Run with default 10-minute interval
+#   ./daemon.sh              # Run in foreground with default 10-minute interval
+#   ./daemon.sh --bg         # Run in background (logs to snapshots/daemon.log)
 #   ./daemon.sh --interval 5 # Custom interval in minutes
 #   ./daemon.sh --once       # Take a single snapshot and exit
+#   ./daemon.sh --stop       # Stop a running background daemon
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SNAPSHOT_DIR="$SCRIPT_DIR/snapshots"
+PID_FILE="$SNAPSHOT_DIR/daemon.pid"
+LOG_FILE="$SNAPSHOT_DIR/daemon.log"
 INTERVAL_MINUTES=10
 ONCE=false
+BACKGROUND=false
 
 # Parse args
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --interval) INTERVAL_MINUTES="$2"; shift 2 ;;
         --once)     ONCE=true; shift ;;
+        --bg)       BACKGROUND=true; shift ;;
+        --stop)
+            if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+                kill "$(cat "$PID_FILE")"
+                rm -f "$PID_FILE"
+                echo "Daemon stopped."
+            else
+                echo "No daemon running."
+                rm -f "$PID_FILE"
+            fi
+            exit 0 ;;
         -h|--help)
-            echo "Usage: daemon.sh [--interval MINUTES] [--once]"
+            echo "Usage: daemon.sh [--bg] [--interval MINUTES] [--once] [--stop]"
+            echo "  --bg           Run in background (logs to snapshots/daemon.log)"
             echo "  --interval N   Snapshot every N minutes (default: 10)"
             echo "  --once         Take one snapshot and exit"
+            echo "  --stop         Stop a running background daemon"
             exit 0 ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
@@ -169,6 +187,28 @@ EOF
         "$(basename "$backup_file")"
 }
 
+# If --bg, re-exec ourselves in the background
+if [ "$BACKGROUND" = true ]; then
+    # Check if already running
+    if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
+        echo "Daemon already running (PID $(cat "$PID_FILE")). Use --stop first."
+        exit 1
+    fi
+
+    # Re-launch without --bg, redirect output to log
+    nohup "$0" --interval "$INTERVAL_MINUTES" >> "$LOG_FILE" 2>&1 &
+    bg_pid=$!
+    echo "$bg_pid" > "$PID_FILE"
+    echo "Daemon started in background (PID $bg_pid)."
+    echo "  Log: $LOG_FILE"
+    echo "  Stop: $0 --stop"
+    exit 0
+fi
+
+# When running in foreground, write PID file too (for --stop to work)
+echo $$ > "$PID_FILE"
+trap 'rm -f "$PID_FILE"' EXIT
+
 # Main
 printf "\n${BOLD}Terminal Tracker Daemon${RESET}\n"
 printf "Snapshot dir: ${CYAN}%s${RESET}\n" "$SNAPSHOT_DIR"
@@ -178,7 +218,9 @@ if [ "$ONCE" = true ]; then
     take_snapshot
 else
     printf "Interval: every ${CYAN}%d minutes${RESET}\n" "$INTERVAL_MINUTES"
-    printf "Press Ctrl+C to stop.\n\n"
+    if [ -t 1 ]; then
+        printf "Press Ctrl+C to stop.\n\n"
+    fi
     while true; do
         take_snapshot
         sleep $((INTERVAL_MINUTES * 60))
