@@ -91,7 +91,8 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 </plist>
 ```
 
-> If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, currently this endpoint, and `fleetctl run mdm command` command, only support removing profiles that were delivered via the device (system) channel.
+> If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, note that this endpoint (and `fleetctl run mdm command`) sends commands on the device channel only. User-scoped profiles installed via the user channel cannot be removed this way. In Fleet, in **host details > OS settings** profiles will have an icon indicator <img width="18" height="18" valign="text-bottom" alt="Screenshot 2026-07-21 at 1 08 29 PM" src="https://github.com/user-attachments/assets/0e5d32dd-5d91-4aae-8900-68eadf83ba95" /> when it is user-scoped.
+
 
 ### Step 2: Choose a target host
 
