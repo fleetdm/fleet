@@ -362,16 +362,20 @@ end tell`);
     }
   }
 
-  // Add to history
+  // Add or update in history
   const key = session.claude_session_id || session.iterm_uuid;
-  if (!state.history.some(h => (h.claude_session_id || h.iterm_uuid) === key)) {
-    state.history.push({
-      ...session,
-      parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      cmd_history: cmdHistory.length ? cmdHistory : undefined
-    });
-    saveState(state);
+  const existingIdx = state.history.findIndex(h => (h.claude_session_id || h.iterm_uuid) === key);
+  const entry = {
+    ...session,
+    parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16),
+    cmd_history: cmdHistory.length ? cmdHistory : undefined
+  };
+  if (existingIdx >= 0) {
+    state.history[existingIdx] = entry;
+  } else {
+    state.history.push(entry);
   }
+  saveState(state);
 
   // Close the iTerm2 session
   try {
