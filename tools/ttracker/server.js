@@ -507,8 +507,9 @@ async function handleAPI(req, res) {
     try {
       await runOsascript(`
 tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        set miniaturized of (window w) to true
+    set allWindows to every window
+    repeat with win in allWindows
+        set miniaturized of win to true
     end repeat
 end tell`);
     } catch {}
