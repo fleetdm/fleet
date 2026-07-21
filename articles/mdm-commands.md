@@ -91,6 +91,8 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 </plist>
 ```
 
+> Custom MDM commands currently only support removing profiles that were delivered via the device (system) channel. Profiles delivered via the user channel cannot be removed using this method.
+
 ### Step 2: Choose a target host
 
 Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled in Fleet and have MDM enabled. This may not be practical in Fleet environments with a large number of hosts without using command line tools to parse the output, e.g.,
