@@ -25,6 +25,7 @@ const SCRIPT_DIR = __dirname;
 const SNAPSHOT_DIR = path.join(SCRIPT_DIR, 'snapshots');
 const LATEST_FILE = path.join(SNAPSHOT_DIR, 'latest.json');
 const HISTORY_FILE = path.join(SNAPSHOT_DIR, 'history.json');
+const NOTES_FILE = path.join(SNAPSHOT_DIR, 'notes.json');
 const PID_FILE = path.join(SNAPSHOT_DIR, 'daemon.pid');
 const CLAUDE_SESSIONS_DIR = path.join(os.homedir(), '.claude', 'sessions');
 
@@ -358,9 +359,11 @@ async function handleAPI(req, res) {
     const snapshot = readJSON(LATEST_FILE) || { timestamp: '', session_count: 0, sessions: [] };
     const running = getRunningSessionIds();
     const parked = getHistorySessionIds();
+    const notes = readJSON(NOTES_FILE) || {};
 
     const sessions = snapshot.sessions.map(s => ({
       ...s,
+      note: (s.claude_session_id && notes[s.claude_session_id]) || '',
       status: !s.claude_session_id ? 'no-claude'
         : parked.has(s.claude_session_id) ? 'parked'
         : running.has(s.claude_session_id) ? 'running'
@@ -376,9 +379,11 @@ async function handleAPI(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/history') {
     const history = readJSON(HISTORY_FILE) || [];
     const running = getRunningSessionIds();
+    const notes = readJSON(NOTES_FILE) || {};
 
     const entries = history.map(h => ({
       ...h,
+      note: (h.claude_session_id && notes[h.claude_session_id]) || '',
       status: running.has(h.claude_session_id) ? 'running' : 'parked'
     }));
 
@@ -424,6 +429,27 @@ async function handleAPI(req, res) {
     const result = await restoreSession(decodeURIComponent(pathParts[2]), true);
     res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(result));
+    return;
+  }
+
+  // PUT /api/note/:claude_session_id
+  if (req.method === 'PUT' && pathParts[0] === 'api' && pathParts[1] === 'note' && pathParts[2]) {
+    const body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', c => data += c);
+      req.on('end', () => resolve(data));
+    });
+    const { note } = JSON.parse(body);
+    const sid = decodeURIComponent(pathParts[2]);
+    const notes = readJSON(NOTES_FILE) || {};
+    if (note) {
+      notes[sid] = note;
+    } else {
+      delete notes[sid];
+    }
+    writeJSON(NOTES_FILE, notes);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
 
@@ -563,6 +589,23 @@ function getDashboardHTML() {
     font-style: italic;
   }
   .parked-at { color: #93a1a1; font-size: 12px; }
+  .note-input {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #586e75;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 3px 6px;
+    width: 100%;
+    min-width: 120px;
+  }
+  .note-input:hover { border-color: #93a1a1; }
+  .note-input:focus {
+    outline: none;
+    border-color: #268bd2;
+    background: #eee8d5;
+  }
 </style>
 </head>
 <body>
@@ -585,6 +628,7 @@ function getDashboardHTML() {
       <th style="width:50px">#</th>
       <th>Badge</th>
       <th>Session Name</th>
+      <th>Note</th>
       <th>Process</th>
       <th>Claude Session</th>
       <th>Status</th>
@@ -601,6 +645,7 @@ function getDashboardHTML() {
       <th style="width:50px">#</th>
       <th>Badge</th>
       <th>Session Name</th>
+      <th>Note</th>
       <th>Parked At</th>
       <th>Status</th>
       <th style="width:100px">Action</th>
@@ -649,7 +694,7 @@ function renderActive(data) {
   document.getElementById('session-counts').textContent = running + ' running, ' + missing + ' missing';
 
   if (claudeSessions.length === 0) {
-    el.innerHTML = '<tr><td colspan="7" class="empty-state">No Claude sessions found</td></tr>';
+    el.innerHTML = '<tr><td colspan="8" class="empty-state">No Claude sessions found</td></tr>';
     return;
   }
 
@@ -661,10 +706,14 @@ function renderActive(data) {
     } else if (s.status === 'missing') {
       action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>';
     }
+    const noteVal = escapeHtml(s.note);
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td class="badge-cell">' + escapeHtml(s.badge) + '</td>'
       + '<td>' + escapeHtml(s.session_name) + '</td>'
+      + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
+      + 'onblur="saveNote(\\'' + s.claude_session_id + '\\', this.value)" '
+      + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(s.process) + '</td>'
       + '<td class="session-id">' + escapeHtml(s.claude_session_id) + '</td>'
       + '<td>' + statusDot(s.status) + '</td>'
@@ -678,7 +727,7 @@ function renderHistory(entries) {
   document.getElementById('history-count').textContent = '(' + entries.length + ')';
 
   if (entries.length === 0) {
-    el.innerHTML = '<tr><td colspan="6" class="empty-state">No parked sessions</td></tr>';
+    el.innerHTML = '<tr><td colspan="7" class="empty-state">No parked sessions</td></tr>';
     return;
   }
 
@@ -686,10 +735,14 @@ function renderHistory(entries) {
     const action = h.status === 'running'
       ? '<span style="color:#3fb950;font-size:12px">open</span>'
       : '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>';
+    const noteVal = escapeHtml(h.note);
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td class="badge-cell">' + escapeHtml(h.badge) + '</td>'
       + '<td>' + escapeHtml(h.session_name) + '</td>'
+      + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
+      + 'onblur="saveNote(\\'' + h.claude_session_id + '\\', this.value)" '
+      + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td class="parked-at">' + escapeHtml(h.parked_at) + '</td>'
       + '<td>' + statusDot(h.status) + '</td>'
       + '<td>' + action + '</td>'
@@ -706,6 +759,14 @@ async function refresh() {
 async function forceSnapshot() {
   await fetch(API + '/api/snapshot', { method: 'POST' });
   await refresh();
+}
+
+async function saveNote(sessionId, note) {
+  await fetch(API + '/api/note/' + encodeURIComponent(sessionId), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note: note.trim() })
+  });
 }
 
 async function focusSession(itermUuid) {
