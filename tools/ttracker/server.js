@@ -422,6 +422,28 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // POST /api/park-missing/:claude_session_id (park a session that's already closed)
+  if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'park-missing' && pathParts[2]) {
+    const sid = decodeURIComponent(pathParts[2]);
+    const state = loadState();
+    const session = state.snapshot.sessions.find(s => s.claude_session_id === sid);
+    if (!session) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Session not found' }));
+      return;
+    }
+    if (!state.history.some(h => h.claude_session_id === sid)) {
+      state.history.push({
+        ...session,
+        parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16)
+      });
+      saveState(state);
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // POST /api/restore/:claude_session_id
   if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'restore' && pathParts[2]) {
     const result = await restoreSession(decodeURIComponent(pathParts[2]), false);
@@ -709,7 +731,8 @@ function renderActive(data) {
     if (s.status === 'running') {
       action += ' <button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
     } else if (s.status === 'missing') {
-      action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>';
+      action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>'
+        + ' <button class="btn btn-park" onclick="parkMissing(\\'' + s.claude_session_id + '\\')">Park</button>';
     }
     const noteKey = s.claude_session_id || s.iterm_uuid;
     const noteVal = escapeHtml(s.note);
@@ -789,6 +812,11 @@ async function focusSession(itermUuid) {
 async function parkSession(itermUuid) {
   if (!confirm('Park this session and close the terminal?')) return;
   await fetch(API + '/api/park/' + encodeURIComponent(itermUuid), { method: 'POST' });
+  await refresh();
+}
+
+async function parkMissing(sessionId) {
+  await fetch(API + '/api/park-missing/' + encodeURIComponent(sessionId), { method: 'POST' });
   await refresh();
 }
 
