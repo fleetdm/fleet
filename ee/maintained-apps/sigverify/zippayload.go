@@ -65,15 +65,21 @@ func extractZipEntry(f *zip.File, target string) error {
 	}
 	defer rc.Close()
 
-	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("creating %s: %w", target, err)
 	}
-	defer out.Close()
 
 	n, err := io.Copy(out, io.LimitReader(rc, maxZipEntrySize))
 	if err != nil {
+		out.Close()
 		return fmt.Errorf("extracting %s: %w", f.Name, err)
+	}
+	// An explicit Close catches flush errors a deferred close would swallow;
+	// the extracted payload is about to be signature-verified, so a silently
+	// truncated file must not pass as the real payload.
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("closing %s: %w", target, err)
 	}
 	if n == maxZipEntrySize {
 		return fmt.Errorf("zip entry %s exceeds the %d byte extraction limit", f.Name, int64(maxZipEntrySize))

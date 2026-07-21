@@ -53,8 +53,9 @@ func main() {
 	}
 	cfg.logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
-	if err := run(context.Background(), cfg); err != nil {
-		cfg.logger.Error(fmt.Sprintf("verification failed: %v", err)) //nolint:sloglint // no request context in a CLI entrypoint
+	ctx := context.Background()
+	if err := run(ctx, cfg); err != nil {
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("verification failed: %v", err))
 		os.Exit(1)
 	}
 }
@@ -176,14 +177,16 @@ func emitReport(ctx context.Context, cfg *config, rep *report) error {
 
 	// Surface the report in the GitHub Actions job summary when running in CI.
 	if summaryPath := os.Getenv("GITHUB_STEP_SUMMARY"); summaryPath != "" {
-		f, err := os.OpenFile(summaryPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		f, err := os.OpenFile(summaryPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
 			cfg.logger.WarnContext(ctx, fmt.Sprintf("opening GITHUB_STEP_SUMMARY: %v", err))
 			return nil
 		}
-		defer f.Close()
 		if _, err := f.WriteString(md + "\n"); err != nil {
 			cfg.logger.WarnContext(ctx, fmt.Sprintf("appending to GITHUB_STEP_SUMMARY: %v", err))
+		}
+		if err := f.Close(); err != nil {
+			cfg.logger.WarnContext(ctx, fmt.Sprintf("closing GITHUB_STEP_SUMMARY: %v", err))
 		}
 	}
 	return nil
