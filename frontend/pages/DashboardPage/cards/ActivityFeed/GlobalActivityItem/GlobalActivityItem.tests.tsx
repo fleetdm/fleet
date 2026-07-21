@@ -875,6 +875,106 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an 'edited_macos_profile' single-profile edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppleOSProfile,
+      details: {
+        profile_name: "Test Profile",
+        profile_identifier: "com.example.test",
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_macos_profile' batch edit when no profile_name is set", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppleOSProfile,
+      details: {
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited configuration profiles for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_windows_profile' single-profile edit on free tier", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedWindowsProfile,
+      details: {
+        profile_name: "Test Profile",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for all Windows hosts."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_android_profile' single-profile edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAndroidProfile,
+      details: {
+        profile_name: "Test Profile",
+        team_name: "Mobile",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for Android hosts assigned to the <b>Mobile</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_declaration_profile' single-declaration edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDeclarationProfile,
+      details: {
+        profile_name: "Test Declaration",
+        profile_identifier: "com.example.decl",
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'added_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
