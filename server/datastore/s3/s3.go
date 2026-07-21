@@ -38,6 +38,7 @@ type s3store struct {
 	bucket           string
 	prefix           string
 	cloudFrontConfig *config.S3CloudFrontConfig
+	gcs              bool
 }
 
 type installerNotFoundError struct{}
@@ -174,6 +175,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		bucket:           cfg.Bucket,
 		prefix:           cfg.Prefix,
 		cloudFrontConfig: cfg.CloudFrontConfig,
+		gcs:              gcsEndpoint,
 	}, nil
 }
 
@@ -235,31 +237,36 @@ func (s *s3store) CreateTestBucket(ctx context.Context, name string) error {
 // store. Only recommended for local testing. If the bucket no longer exists,
 // it returns nil.
 func (s *s3store) CleanupTestBucket(ctx context.Context) error {
-	resp, err := s.s3Client.ListObjects(ctx, &s3.ListObjectsInput{
+	// Delete every object page-by-page (the SDK paginator handles continuation
+	// tokens) so buckets with more than one page of objects are fully emptied
+	// before DeleteBucket.
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
 	})
-	var noSuchBucket *types.NoSuchBucket
-	if errors.As(err, &noSuchBucket) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-
-	var objs []types.ObjectIdentifier
-	for _, o := range resp.Contents {
-		objs = append(objs, types.ObjectIdentifier{Key: o.Key})
-	}
-	if len(objs) > 0 {
-		if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-			Bucket: &s.bucket,
-			Delete: &types.Delete{Objects: objs},
-		}); err != nil {
+	for paginator.HasMorePages() {
+		resp, err := paginator.NextPage(ctx)
+		if _, ok := errors.AsType[*types.NoSuchBucket](err); ok {
+			return nil
+		}
+		if err != nil {
 			return err
+		}
+
+		var objs []types.ObjectIdentifier
+		for _, o := range resp.Contents {
+			objs = append(objs, types.ObjectIdentifier{Key: o.Key})
+		}
+		if len(objs) > 0 {
+			if _, err := s.s3Client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+				Bucket: &s.bucket,
+				Delete: &types.Delete{Objects: objs},
+			}); err != nil {
+				return err
+			}
 		}
 	}
 
-	_, err = s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+	_, err := s.s3Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
 		Bucket: &s.bucket,
 	})
 	return err

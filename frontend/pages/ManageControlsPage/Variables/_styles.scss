@@ -1,104 +1,51 @@
 .variables {
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+}
 
-  &__copy-message {
-    @include copy-message;
-    vertical-align: bottom;
-    font-size: $xx-small;
-    margin-left: $pad-xsmall;
+.global-variables {
+  @include vertical-card-layout;
+
+  &__token {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    width: fit-content;
   }
 
-  &__page-header {
+  &__actions {
     display: flex;
-    justify-content: space-between;
-  }
-
-  .paginated-list__row {
-    display: flex;
-    justify-content: space-between;
-    padding: $pad-small $pad-large;
-
-    .button > .children-wrapper {
-      opacity: 0;
-      transition: opacity 250ms;
-      pointer-events: none;
-    }
-
-    &.paginated-list__header {
-      .button > .children-wrapper {
-        opacity: 1;
-        pointer-events: auto;
-      }
-    }
-
-    .variables__copy-variable-icon {
-      margin: -12px 0 -12px 4px;
-      vertical-align: bottom;
-      .children-wrapper {
-        opacity: 1;
-      }
-    }
-
-    &:hover,
-    &:focus-within {
-      cursor: default;
-      .button > .children-wrapper {
-        opacity: 1;
-      }
-    }
-
-    .list-item__details {
-      color: $ui-fleet-black-75;
-      min-width: 0;
-      > span {
-        display: flex;
-      }
-    }
-
-    /* Make the main content column actually able to shrink so truncation can happen */
-    .list-item {
-      display: flex;
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    .list-item__main-content {
-      flex: 1 1 auto;
-      min-width: 0; /* for truncation */
-    }
-
-    .list-item__info {
-      min-width: 0; /* for truncation */
-    }
-
-    .list-item__title {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      min-width: 0;
-    }
-
-    .variable-details__text {
-      flex: 1 1 auto;
-      min-width: 0;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    align-items: center;
+    justify-content: flex-end;
+    gap: $pad-xsmall;
   }
 
   .loading-spinner.centered {
     margin: auto;
   }
+}
 
-  &__header {
+.custom-host-vitals-tab {
+  @include vertical-card-layout;
+
+  &__token {
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    width: 100%;
-    font-weight: $bold;
     align-items: center;
+    gap: $pad-xsmall;
+    // Shrink to content so the copy button sits next to the token value
+    // instead of being pushed to the right edge of the (wider) cell.
+    width: fit-content;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $pad-xsmall;
+  }
+
+  .loading-spinner.centered {
+    margin: auto;
   }
 }
 

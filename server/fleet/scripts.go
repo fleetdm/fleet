@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
@@ -604,22 +605,26 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
-	InstallScript      string   `json:"install_script"`
-	UninstallScript    string   `json:"uninstall_script"`
-	PostInstallScript  string   `json:"post_install_script"`
-	SelfService        bool     `json:"self_service"`
-	FleetMaintained    bool     `json:"-"`
-	Filename           string   `json:"-"`
-	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
-	LabelsIncludeAny   []string `json:"labels_include_any"`
-	LabelsExcludeAny   []string `json:"labels_exclude_any"`
-	LabelsIncludeAll   []string `json:"labels_include_all"`
+	InstallScript      string `json:"install_script"`
+	UninstallScript    string `json:"uninstall_script"`
+	PostInstallScript  string `json:"post_install_script"`
+	SelfService        bool   `json:"self_service"`
+	FleetMaintained    bool   `json:"-"`
+	Filename           string `json:"-"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
+	// SetupExperiencePlatforms carries non-native cross-platform setup
+	// experience selections. Nil means "no change"; an empty slice clears
+	// all cross-platform selections for this installer.
+	SetupExperiencePlatforms *[]string `json:"setup_experience_platforms,omitempty"`
+	LabelsIncludeAny         []string  `json:"labels_include_any"`
+	LabelsExcludeAny         []string  `json:"labels_exclude_any"`
+	LabelsIncludeAll         []string  `json:"labels_include_all"`
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string   `json:"sha256"`
-	Categories      []string `json:"categories"`
-	DisplayName     string   `json:"display_name"`
+	SHA256          string                `json:"sha256"`
+	Categories      optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName     string                `json:"display_name"`
 	// This is to support FMAs
 	Slug            *string        `json:"slug"`
 	MaintainedApp   *MaintainedApp `json:"-"`
@@ -832,6 +837,7 @@ var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 	BatchExecuteInvalidHost          = "invalid-host"
+	BatchExecuteIncompatibleTeam     = "incompatible-team"
 )
 
 type BatchExecutionStatusFilter struct {

@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -192,9 +191,9 @@ func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppToken
 
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
 
-func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, error) {
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) ([]fleet.VPPAppResponse, []string, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var teamID *uint
@@ -204,30 +203,36 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		if err != nil {
 			// If this is a dry run, the team may not have been created yet
 			if dryRun && fleet.IsNotFound(err) {
-				return nil, nil
+				return nil, nil, nil
 			}
-			return nil, err
+			return nil, nil, err
 		}
 		teamID = &tm.ID
 		manualAgentInstall = tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 	} else {
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+			return nil, nil, ctxerr.Wrap(ctx, err, "getting app config")
 		}
 		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
+		return nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	// Adding VPP apps will add them to all available platforms per decision:
 	// https://github.com/fleetdm/fleet/issues/19447#issuecomment-2256598681
 	// The code is already here to support individual platforms, so we can easily enable it later.
 
+	var categoryNames []string
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
+		if err := trimAndValidateCategories(ctx, payload.Categories); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "validating app store app categories")
+		}
+		categoryNames = append(categoryNames, payload.Categories...)
+
 		if payload.Platform == "" && isAdamID.MatchString(payload.AppStoreID) {
 			// add all possible Apple platforms, we'll remove the ones that this app doesn't support later
 			payloadsWithPlatform = append(payloadsWithPlatform,
@@ -296,6 +301,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
+	// since we actually add categories here, it's possible they can stay orphaned until the next run if the run fails
+	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	var incomingAppleApps, incomingAndroidApps []fleet.VPPAppTeam
 	var vppToken string
 	var teamTokenInfo vppTokenInfo
@@ -306,18 +317,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				payload.Platform = fleet.MacOSPlatform
 			}
 			if !payload.Platform.SupportsAppStoreApps() {
-				return nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
+				return nil, nil, fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
 			}
 
 			// Block Fleet Agent apps from being added via GitOps
 			if payload.Platform == fleet.AndroidPlatform && strings.HasPrefix(payload.AppStoreID, fleetAgentPackagePrefix) {
-				return nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
+				return nil, nil, fleet.NewInvalidArgumentError("app_store_id", "The Fleet agent cannot be added manually. "+
 					"It is automatically managed by Fleet when Android MDM is enabled.")
 			}
 
 			if payload.Platform == fleet.MacOSPlatform && ptr.ValOrZero(payload.InstallDuringSetup) && manualAgentInstall {
-				return nil, fleet.NewUserMessageError(
+				return nil, nil, fleet.NewUserMessageError(
 					errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`),
 					http.StatusUnprocessableEntity)
 			}
@@ -326,7 +337,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if payload.Platform.IsApplePlatform() && vppToken == "" {
 				teamTokenInfo, err = svc.getVPPTokenInfo(ctx, teamID)
 				if err != nil {
-					return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+					return nil, nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 				}
 				vppToken = teamTokenInfo.Secret
 			}
@@ -335,22 +346,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if !dryRun {
 				validatedLabels, err = ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
+					return nil, nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 				}
 			}
 
-			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+				return nil, nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 			}
-
-			if len(catIDs) != len(payload.Categories) {
-				return nil, &fleet.BadRequestError{
-					Message:     "some or all of the categories provided don't exist",
-					InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-				}
-			}
+			payload.Categories = categories
 
 			appStoreApp := fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
@@ -369,20 +373,25 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			switch payload.Platform {
 			case fleet.AndroidPlatform:
 				if strings.HasPrefix(payload.AppStoreID, fleet.AndroidWebAppPrefix) && payload.Configuration != nil {
-					return nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+					return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
 				}
 
 				appStoreApp.SelfService = true
+				if payload.Configuration != nil {
+					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
+						return nil, nil, err
+					}
+				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
 				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
 					var plist string
 					if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
-						return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
+						return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
 					}
 					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
-						return nil, err
+						return nil, nil, err
 					}
 					appStoreApp.Configuration = []byte(plist)
 				}
@@ -395,14 +404,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if dryRun {
 				// If we're doing a dry run, we stop here and return no error to avoid making any changes.
 				// That way we validate if a VPP token is available even on dry runs keeping it consistent.
-				return nil, nil
+				return nil, categories, nil
 			}
 
 			var missingAssets []string
 
 			assets, err := vpp.GetAssets(ctx, vppToken, nil)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+				return nil, nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
 			}
 
 			assetMap := map[string]struct{}{}
@@ -427,7 +436,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if len(missingAssets) != 0 {
 				sort.Strings(missingAssets)
 				reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ", "))
-				return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+				return nil, nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 			}
 		}
 	}
@@ -435,7 +444,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if dryRun {
 		// If we're doing a dry run, we stop here and return no error to avoid making any changes.
 		// Another dry run check is inside the payload size > 0 statement.
-		return nil, nil
+		return nil, categories, nil
 	}
 
 	allPlatformApps := slices.Concat(incomingAppleApps, incomingAndroidApps)
@@ -446,10 +455,10 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if len(incomingAppleApps) > 0 {
 		apps, reAnchors, err := svc.getAnchoredVPPAppsMetadata(ctx, incomingAppleApps, teamTokenInfo)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
+			return nil, nil, ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 		}
 		if len(apps) == 0 {
-			return nil, fleet.NewInvalidArgumentError("app_store_apps",
+			return nil, nil, fleet.NewInvalidArgumentError("app_store_apps",
 				"no valid apps found matching the provided app store IDs and platforms")
 		}
 
@@ -459,7 +468,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "get android enterprise")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
 	androidHostPoliciesToUpdate := map[string]string{}
@@ -468,21 +477,21 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		// to update their set of apps to the empty set (and remove/uninstall the apps).
 		removedApps, err := svc.ds.GetVPPApps(ctx, teamID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, app := range removedApps {
 			if app.Platform == fleet.AndroidPlatform {
 				hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
 			}
 		}
 	} else {
 		if enterprise == nil {
-			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
+			return nil, nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
 		seenWebAppNames := make(map[string]bool)
@@ -490,15 +499,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
+					return nil, nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
 				}
-				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
+				return nil, nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 			}
 
 			if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
 				lowerTitle := strings.ToLower(androidApp.Title)
 				if seenWebAppNames[lowerTitle] {
-					return nil, fleet.ConflictError{
+					return nil, nil, fleet.ConflictError{
 						Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
 					}
 				}
@@ -517,7 +526,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	if len(appStoreApps) > 0 {
 		if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+			return nil, nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
 		}
 	}
 
@@ -525,7 +534,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// outpaces the metadata fetched from that country.
 	for _, ra := range pendingReAnchors {
 		if err := svc.ds.UpdateVPPAppCountryCode(ctx, ra.AdamID, ra.Platform, ra.CountryCode); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country in batch")
+			return nil, nil, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country in batch")
 		}
 	}
 
@@ -546,9 +555,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	setupExperienceChanged, err := svc.ds.SetTeamVPPApps(ctx, teamID, allPlatformApps, appStoreIDToTitleID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
+			return nil, nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "no vpp token to set team vpp assets"), http.StatusUnprocessableEntity)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
+		return nil, nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
 	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
@@ -561,11 +570,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	// First, get existing auto-update schedules to know which apps already have configs
 	existingIosAppSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ios_apps")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ios apps")
 	}
 	existingIPadOsSchedules, err := svc.ds.ListSoftwareAutoUpdateSchedules(ctx, tmID, "ipados_apps")
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "listing existing auto-update schedules for ipados apps")
 	}
 	// Combine schedules from both sources
 	existingSchedules := slices.Concat(existingIosAppSchedules, existingIPadOsSchedules)
@@ -607,21 +616,21 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		if (app.AutoUpdateEnabled != nil && *app.AutoUpdateEnabled) || hasTimesSet {
 			schedule := fleet.SoftwareAutoUpdateSchedule{SoftwareAutoUpdateConfig: cfg}
 			if err := schedule.WindowIsValid(); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
+				return nil, nil, ctxerr.Wrap(ctx, err, "invalid auto-update window for vpp app")
 			}
 		}
 		if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tmID, cfg); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
+			return nil, nil, ctxerr.Wrap(ctx, err, "updating auto-update config for vpp app")
 		}
 	}
 
 	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
-		return nil, err // returned error already includes context that we could include here
+		return nil, nil, err // returned error already includes context that we could include here
 	}
 
 	addedApps, err := svc.ds.GetVPPApps(ctx, teamID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var appIDs []string
@@ -629,7 +638,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		if app.Platform == fleet.AndroidPlatform {
 			hostsInScope, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, app.AppTeamID)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			maps.Copy(androidHostPoliciesToUpdate, hostsInScope)
@@ -641,7 +650,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		for hostUUID, policyID := range androidHostPoliciesToUpdate {
 			err := worker.QueueBulkSetAndroidAppsAvailableForHost(ctx, svc.ds, svc.logger, hostUUID, policyID, appIDs, enterprise.Name())
 			if err != nil {
-				return nil, ctxerr.WrapWithData(
+				return nil, nil, ctxerr.WrapWithData(
 					ctx,
 					err,
 					"batch associate app store apps: add apps to android MDM policy",
@@ -658,14 +667,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if setupExperienceChanged {
 		err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSetupExperienceSoftware{TeamID: ptr.ValOrZero(teamID), TeamName: teamName})
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
+			return nil, nil, ctxerr.Wrap(ctx, err, "create edited setup experience activity")
 		}
 	}
 
 	if len(addedApps) == 0 {
-		return []fleet.VPPAppResponse{}, nil
+		return []fleet.VPPAppResponse{}, categories, nil
 	}
-	return addedApps, nil
+	return addedApps, categories, nil
 }
 
 func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
@@ -927,18 +936,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		appID.ValidatedLabels = validatedLabels
 
-		appID.Categories = server.RemoveDuplicatesFromSlice(appID.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), appID.Categories)
 		if err != nil {
-			return 0, "", ctxerr.Wrap(ctx, err, "getting software category ids")
+			return 0, "", ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
-
-		if len(catIDs) != len(appID.Categories) {
-			return 0, "", &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", appID.Categories),
-			}
-		}
+		appID.Categories = categories
 		appID.CategoryIDs = catIDs
 		app = &appFromApple
 		app.VPPAppTeam = appID
@@ -1267,19 +1269,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	if payload.Categories != nil {
-		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(teamID), payload.Categories)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, nil, ctxerr.Wrap(ctx, err, "filtering vpp app categories")
 		}
-
-		if len(catIDs) != len(payload.Categories) {
-			return nil, nil, &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-			}
-		}
-
+		payload.Categories = categories
 		appToWrite.CategoryIDs = catIDs
 	}
 
@@ -1545,11 +1539,60 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+	// The Add software > App Store picker reads the token list, so this must be
+	// readable by the same roles that can read App Store apps
+	// (fleet.VPPApp/installable_entity), not just admins. Global roles can read
+	// every token; team-scoped users can only read tokens assigned to a team
+	// where they have read access (plus "All teams" tokens).
+	globalRead := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead)
+
+	// Collect the teams where a team-scoped user has read access. Left empty for
+	// global readers since they can see everything.
+	readableTeams := make(map[uint]struct{})
+	if globalRead != nil {
+		if user := authz.UserFromContext(ctx); user != nil {
+			for _, t := range user.Teams {
+				teamID := t.ID
+				if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: &teamID}, fleet.ActionRead); err == nil {
+					readableTeams[teamID] = struct{}{}
+				}
+			}
+		}
+
+		// No read access globally or on any team: return the forbidden error.
+		if len(readableTeams) == 0 {
+			return nil, globalRead
+		}
+	}
+
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListVPPTokens(ctx)
+	// Global readers get every token unchanged.
+	if globalRead == nil {
+		return tokens, nil
+	}
+
+	filtered := make([]*fleet.VPPTokenDB, 0, len(tokens))
+	for _, tok := range tokens {
+		// A non-nil, empty Teams slice means the token is assigned to "All
+		// teams" and is visible to any user with read access. A nil slice means
+		// the token is unassigned and only global readers should see it.
+		if tok.Teams != nil && len(tok.Teams) == 0 {
+			filtered = append(filtered, tok)
+			continue
+		}
+		for _, tt := range tok.Teams {
+			if _, ok := readableTeams[tt.ID]; ok {
+				filtered = append(filtered, tok)
+				break
+			}
+		}
+	}
+
+	return filtered, nil
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {

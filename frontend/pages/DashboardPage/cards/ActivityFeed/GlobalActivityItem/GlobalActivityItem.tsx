@@ -18,6 +18,7 @@ import {
   getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import { formatMdmCommandNameForActivityItem } from "utilities/activityHelpers";
 import {
   formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
@@ -31,6 +32,7 @@ import { API_NO_TEAM_ID } from "interfaces/team";
 const baseClass = "global-activity-item";
 
 const ACTIVITIES_WITH_DETAILS = new Set([
+  ActivityType.RanCustomMdmCommand,
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
   ActivityType.EditedSoftware,
@@ -93,6 +95,30 @@ const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   ) : (
     <> that are unassigned</>
   );
+};
+
+const getEditedProfileMessage = (
+  activity: IActivity,
+  isPremiumTier: boolean,
+  platform: "apple" | "windows" | "android"
+) => {
+  const profileName = activity.details?.profile_name;
+  const suffix = getProfileMessageSuffix(
+    isPremiumTier,
+    platform,
+    activity.details?.team_name
+  );
+  // profile_name is set only when a single profile was edited in place;
+  // fleetctl/GitOps batch edits omit it
+  if (profileName) {
+    return (
+      <>
+        {" "}
+        edited the configuration profile <b>{profileName}</b> for {suffix}.
+      </>
+    );
+  }
+  return <> edited configuration profiles for {suffix} via fleetctl.</>;
 };
 
 // Returns the display label for a historical-dataset config key. Known keys
@@ -683,18 +709,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "apple");
   },
   createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
@@ -743,18 +758,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "android",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "android");
   },
   editedAndroidCertificate: (activity: IActivity, isPremiumTier: boolean) => {
     return (
@@ -856,18 +860,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited configuration profiles for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "windows",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
-    );
+    return getEditedProfileMessage(activity, isPremiumTier, "windows");
   },
   enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
@@ -1091,6 +1084,16 @@ const TAGGED_TEMPLATES = {
         {" "}
         told Fleet to stop migrating Windows hosts connected to another MDM
         solution.
+      </>
+    );
+  },
+  ranCustomMdmCommand: (activity: IActivity) => {
+    const { request_type, host_display_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatMdmCommandNameForActivityItem(request_type)} on{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
@@ -1364,19 +1367,24 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    return (
-      <>
-        {" "}
-        edited declaration (DDM) profiles{" "}
-        <b>{activity.details?.profile_name}</b> for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}{" "}
-        via fleetctl.
-      </>
+    const profileName = activity.details?.profile_name;
+    const suffix = getProfileMessageSuffix(
+      isPremiumTier,
+      "apple",
+      activity.details?.team_name
     );
+    // profile_name is set only when a single declaration was edited in
+    // place; fleetctl/GitOps batch edits omit it
+    if (profileName) {
+      return (
+        <>
+          {" "}
+          edited the declaration (DDM) profile <b>{profileName}</b> for {suffix}
+          .
+        </>
+      );
+    }
+    return <> edited declaration (DDM) profiles for {suffix} via fleetctl.</>;
   },
 
   resentConfigProfile: (activity: IActivity) => {
@@ -1547,6 +1555,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  installedAllSelfServiceSoftware: (activity: IActivity) => {
+    const categoryName = activity.details?.self_service_category_name;
+    if (categoryName) {
+      return (
+        <>
+          {" "}
+          <b>End user</b> selected the <b>Install all</b> option in the
+          self-service <b>{categoryName}</b> category.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        <b>End user</b> installed all the software in self-service.
+      </>
+    );
+  },
   enabledVpp: (activity: IActivity) => {
     return (
       <>
@@ -1588,7 +1614,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -1607,7 +1634,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}on{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        on{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -1626,7 +1654,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -1653,6 +1682,9 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  editedAppleAccountProvisioning: () => (
+    <> edited account provisioning settings.</>
+  ),
   configuredMSEntraConditionalAccess: () => (
     <> configured Microsoft Entra conditional access.</>
   ),
@@ -1663,6 +1695,22 @@ const TAGGED_TEMPLATES = {
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
   ),
+  googleWorkspaceIntegration: (verb: string) => (activity: IActivity) => {
+    const { domain } = activity.details ?? {};
+    return (
+      <>
+        {" "}
+        {verb} the Google Workspace integration
+        {domain ? (
+          <>
+            {" "}
+            for <strong>{domain}</strong>
+          </>
+        ) : null}
+        .
+      </>
+    );
+  },
   hostBypassedConditionalAccess: (activity: IActivity) => {
     const idpFullName = activity.details?.idp_full_name;
     const hostDisplayName = activity.details?.host_display_name;
@@ -1734,7 +1782,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         canceled <b>{title}</b> install on <b>{hostName}</b>
         {fromSetupExperience
-          ? " during setup experience. End user was asked to restart."
+          ? " during setup experience. End user was asked to restart"
           : ""}
         .
       </>
@@ -1986,11 +2034,44 @@ const TAGGED_TEMPLATES = {
     );
   },
 
+  updatedCustomVariable: (activity: IActivity) => {
+    const { custom_variable_name } = activity.details || {};
+    return (
+      <>
+        updated custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+
   deletedCustomVariable: (activity: IActivity) => {
     const { custom_variable_name } = activity.details || {};
     return (
       <>
         deleted custom variable <b>{custom_variable_name}</b>.
+      </>
+    );
+  },
+  createdCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        created a custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  editedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        edited custom host vital <b>{custom_host_vital_name}</b>.
+      </>
+    );
+  },
+  deletedCustomHostVital: (activity: IActivity) => {
+    const { custom_host_vital_name } = activity.details || {};
+    return (
+      <>
+        deleted custom host vital <b>{custom_host_vital_name}</b>.
       </>
     );
   },
@@ -2372,6 +2453,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.disabledWindowsMdmMigration();
     }
+    case ActivityType.RanCustomMdmCommand: {
+      return TAGGED_TEMPLATES.ranCustomMdmCommand(activity);
+    }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
@@ -2453,6 +2537,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity);
     }
+    case ActivityType.InstalledAllSelfServiceSoftware: {
+      return TAGGED_TEMPLATES.installedAllSelfServiceSoftware(activity);
+    }
     case ActivityType.UninstalledSoftware: {
       return TAGGED_TEMPLATES.uninstalledSoftware(activity);
     }
@@ -2489,6 +2576,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
     }
+    case ActivityType.EditedAppleAccountProvisioning: {
+      return TAGGED_TEMPLATES.editedAppleAccountProvisioning();
+    }
     case ActivityType.ConfiguredMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
     }
@@ -2500,6 +2590,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.deletedConditionalAccessOkta();
+    }
+    case ActivityType.AddedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("added")(activity);
+    }
+    case ActivityType.EditedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("edited")(activity);
+    }
+    case ActivityType.DeletedGoogleWorkspaceIntegration: {
+      return TAGGED_TEMPLATES.googleWorkspaceIntegration("deleted")(activity);
     }
     case ActivityType.UpdatedConditionalAccessBypass: {
       return TAGGED_TEMPLATES.updatedConditionalAccessBypass();
@@ -2559,8 +2658,20 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CreatedCustomVariable: {
       return TAGGED_TEMPLATES.createdCustomVariable(activity);
     }
+    case ActivityType.UpdatedCustomVariable: {
+      return TAGGED_TEMPLATES.updatedCustomVariable(activity);
+    }
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+    case ActivityType.CreatedCustomHostVital: {
+      return TAGGED_TEMPLATES.createdCustomHostVital(activity);
+    }
+    case ActivityType.EditedCustomHostVital: {
+      return TAGGED_TEMPLATES.editedCustomHostVital(activity);
+    }
+    case ActivityType.DeletedCustomHostVital: {
+      return TAGGED_TEMPLATES.deletedCustomHostVital(activity);
     }
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
@@ -2639,6 +2750,9 @@ const GlobalActivityItem = ({
         // template (e.g. "<title> was installed on <host> (self-service).")
         // without an actor prefix.
         return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
+      case ActivityType.InstalledAllSelfServiceSoftware:
+        // The template carries the "End user" subject for this roll-up.
+        return null;
       // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function

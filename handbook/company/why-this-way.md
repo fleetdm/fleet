@@ -231,14 +231,14 @@ We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's
 12. At regular intervals, the team reflects on how to become more effective, then tunes and adjusts its behavior accordingly.
 
 
-### Why scrum?
+### Why continuous flow?
 
-Scrum is an agile framework for software development that helps teams deliver high quality software faster. It emphasizes teamwork, collaboration, and continuous improvement to achieve business objectives. Here are some of the key reasons why [we use scrum at Fleet](https://fleetdm.com/handbook/engineering#scrum)): 
-- Improved collaboration and communication: Scrum emphasizes teamwork and collaboration, which leads to better communication between team members and stakeholders. This helps ensure that everyone is aligned and working towards the same goals.
-- Flexibility and adaptability: Scrum allows teams to respond quickly to changing requirements and market conditions. By working in short sprints, teams can continuously adapt to new information and feedback, and adjust their approach as needed.
-- Continuous improvement: Scrum encourages teams to reflect on their processes and identify areas for improvement. The regular sprint retrospective meetings provide a forum for the team to discuss what went well and what could be improved, and to make changes to their processes accordingly.
-- Faster delivery of working software: Scrum helps teams deliver working software faster by breaking down the development process into manageable chunks that can be completed within a sprint. Stakeholders can see progress and provide feedback more quickly, which helps ensure the final product meets their needs.
-- Higher quality software: Scrum includes regular testing and quality assurance activities, which help ensure that the software being developed is of high quality and meets the required standards.
+Fleet's product groups use a continuous flow process instead of fixed multi-week iterations. Well-drafted stories can often be implemented in a day or two, so batching work into fixed iterations adds latency without adding value. Instead, issues flow continuously across each group's board from intake to release. Here are some of the reasons we work [this way](https://fleetdm.com/handbook/company/product-groups#continuous-flow):
+- Less latency: Work starts as soon as it is ready, instead of waiting for the next iteration to begin.
+- Flexibility and adaptability: Teams respond quickly to changing requirements and new information, and adjust their approach as they learn.
+- Continuous improvement: A short retrospective at the end of each three-week release gives the team a regular forum to reflect on what went well, what could be better, and what to change.
+- Faster delivery of working software: Breaking work into small, independently valuable stories lets the team ship and gather feedback sooner.
+- Higher quality software: Quality assurance is involved from intake onward, so testing and reliability are built in rather than bolted on.
 
 
 ### Why lean software development?
@@ -468,6 +468,37 @@ Every internal meeting is inherently "optional" in the sense that if it's not a 
 When choosing a title for Google docs at Fleet, include enough context that someone in the future can understand not just _what_ is being discussed, but _why_ it matters and how it fits in.  This is especially important for meeting agendas.  A bare Google Doc title like "Write up scavenger hunt" is hard to find in search and can be difficult for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating announcement" — now anyone who finds the doc later knows the purpose of the meeting, without needing to ask.  This makes the Google doc more discoverable in search, more accessible, and more useful for everyone at the company — now and in the future.
 
 
+## Why preserve large free blocks on calendars?
+
+Fleet optimizes for the customer experience.  Prospects and customers booking demos or meetings via the website need to find open time slots.  When calendars are cluttered with work blocks, focus time, or other internal holds, those blocks reduce availability for external bookings.  This creates friction for people trying to schedule time with us.
+
+Here's what to keep in mind:
+
+- **Maximize "free" availability.**  Internal calendar holds (focus time, work blocks, etc.) prevent prospects and customers from booking.  Keep calendars as open as possible for customer-facing scheduling, and be mindful that every internal hold is one fewer slot a prospect can choose.
+- **Avoid "Swiss cheese" calendars.**  When meetings are scattered throughout the day with small gaps in between, no single gap is large enough for someone to book.  This is especially problematic when events require buffer time.  For example, a 45-minute meeting with a 15-minute buffer needs a full hour of availability from multiple people simultaneously.  Consolidate meetings and keep large contiguous free blocks so that prospects and customers can actually find and book time.
+- **Keep recurring habits marked as "free" longer.**  For recurring habits and tasks (like "do your forecast", "update next steps", "send partner portland"), consider having Reclaim keep your free/busy status on "free" longer for all habits, so those blocks don't prevent prospects from booking.  The ability to choose "free" vs "busy" for habits is available on both Reclaim's free and premium tiers, so every team member can use this regardless of which Reclaim plan they're on.
+- **Book 30-minute breaks instead of 15-minute ones.**  For short breaks between calls (like bathroom breaks), you're better off booking 30-minute blocks instead of 15-minute ones.  Calendly is configured to start meetings at clean :00 or :30 times for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+### Examples
+
+Here are some examples illustrating why this matters:
+
+- Work blocks (like "do your forecast", "update next steps") will block people from being able to book time with you, even though you could take a call during those times.
+- If a meeting is 45 minutes with a 15-minute buffer (needing a full hour of availability from two people at the same time), fragmented calendars make it very hard to find openings.
+
+### FAQ
+
+**Q: "What about blocks for times when I can't really take calls anyway, like when I don't have childcare?  And my usual open time is limited because of having many external calls in a given week."**
+
+A: Those personal blocks (childcare, etc.) are fine and necessary.  The advice is about discretionary internal holds and habits that tools like Reclaim can keep marked as "free" longer.  High external call volume is great — that's the goal.  The focus is on unnecessary fragmentation from internal blocks.
+
+**Q: "Sometimes I'll put a 15-minute block after 3-4 calls in a row to go to the bathroom."**
+
+A: You're better off booking 30-minute blocks instead.  Calendly is configured to start at clean :00 or :30 for a better prospect experience, so a 15-minute block creates unusable gaps.
+
+The underlying principle is simple: we optimize for the people on the other side of the calendar.  Limited or fragmented availability creates friction that hurts the prospect and customer experience.
+
+
 #### Stubs
 
 The following stubs are included only so that old links continue to work (for backwards compatibility.)
@@ -480,6 +511,9 @@ Please see [handbook/company/why-this-way#why-direct-responsibility](https://fle
 
 ##### What is a P1?
 Please see [handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).
+
+##### Why scrum?
+Please see [handbook/company/why-this-way#why-continuous-flow](https://fleetdm.com/handbook/company/why-this-way#why-continuous-flow).
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="💭 Why this way?">

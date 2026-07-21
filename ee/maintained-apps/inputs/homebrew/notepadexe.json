@@ -1,0 +1,10 @@
+{
+  "name": "Notepad.exe",
+  "unique_identifier": "best.swift.Notepad",
+  "token": "notepadexe",
+  "installer_format": "zip",
+  "slug": "notepadexe/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

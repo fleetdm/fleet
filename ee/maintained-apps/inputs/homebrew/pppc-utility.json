@@ -1,0 +1,8 @@
+{
+  "name": "PPPC Utility",
+  "unique_identifier": "com.jamf.opensource.pppcutility",
+  "token": "pppc-utility",
+  "installer_format": "zip",
+  "slug": "pppc-utility/darwin",
+  "default_categories": ["Developer tools"]
+}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.3",
+      "version": "2026.1.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'RubyMine %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '261.26222.67') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.1.3.exe",
+      "installer_url": "https://download.jetbrains.com/ruby/RubyMine-2026.1.4.exe",
       "install_script_ref": "a737b660",
       "uninstall_script_ref": "1bc953e9",
-      "sha256": "f04bceaa3af5a289c1a5714c8ceb773fc70238c8899f3fe00ef728cd81892d70",
+      "sha256": "42a0e2c3c92df50076a2054b4ee29abb868557e5d2ae7c666f2b17942ed37a0e",
       "default_categories": [
         "Developer tools"
       ]

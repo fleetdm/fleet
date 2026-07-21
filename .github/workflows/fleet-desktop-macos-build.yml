@@ -1,0 +1,229 @@
+name: Build Fleet Desktop (macOS)
+
+# Builds the native macOS Fleet Desktop app (apps/fleet-desktop-macos/) and its
+# embedded Platform SSO extension (FleetPSSOExtension.appex), code signs and
+# notarizes them with Fleet's Developer ID certificates, and uploads the signed
+# .pkg as a workflow artifact. No GitHub Release is created.
+#
+# The app and extension carry managed Associated Domains entitlements
+# (com.apple.developer.associated-domains{,.mdm-managed}). Those are restricted
+# entitlements: codesign only honors them when a Developer ID provisioning
+# profile that grants them is embedded in the bundle. The profiles are provided
+# as base64 repo secrets (never committed) and embedded at sign time — see the
+# README's "Signing secrets" section.
+#
+# This workflow always signs and notarizes. If the certs or provisioning
+# profiles are unavailable (e.g. a fork PR that can't read secrets), it fails
+# loudly rather than producing an unsigned artifact.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/fleet-desktop-macos/**'
+      - '.github/workflows/fleet-desktop-macos-build.yml'
+  pull_request:
+    paths:
+      - 'apps/fleet-desktop-macos/**'
+      - '.github/workflows/fleet-desktop-macos-build.yml'
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail.
+    shell: bash
+    working-directory: apps/fleet-desktop-macos
+
+permissions:
+  contents: read
+
+env:
+  # Fleet's Developer ID certificate identities (SHA-1). Same team as the rest
+  # of Fleet's macOS artifacts (orbit Fleet Desktop, fleetd-base.pkg).
+  APPLICATION_SIGNING_IDENTITY_SHA1: 604D877399AAEB7630A78B84F288E2D28A2EDE42
+  INSTALLER_SIGNING_IDENTITY_SHA1: 4608F71FB42E1845C7FC9B2D2B6A7A8D11BBD940
+  # Embedded SSO extension bundle (relative to Fleet Desktop.app/Contents).
+  APPEX_REL_PATH: PlugIns/FleetPSSOExtension.appex
+
+jobs:
+  build:
+    name: Build, sign, and notarize Fleet Desktop (macOS)
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          persist-credentials: false
+
+      - name: Build app (with embedded extension) and create pkg
+        run: |
+          chmod +x build.sh build-pkg.sh
+          ./build-pkg.sh
+
+      - name: Import Developer ID certificates
+        env:
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+
+          # Developer ID Application certificate — signs the .app/.appex (codesign).
+          echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > application.p12
+          security import application.p12 -k build.keychain -P "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm application.p12
+
+          # Developer ID Installer certificate — signs the .pkg (productsign).
+          echo "$APPLE_INSTALLER_CERTIFICATE" | base64 --decode > installer.p12
+          security import installer.p12 -k build.keychain -P "$APPLE_INSTALLER_CERTIFICATE_PASSWORD" -T /usr/bin/productsign
+          rm installer.p12
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,productsign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -vv
+
+      - name: Embed provisioning profiles
+        env:
+          APPLE_FLEET_DESKTOP_APP_PROFILE_B64: ${{ secrets.APPLE_FLEET_DESKTOP_APP_PROFILE_B64 }}
+          APPLE_PSSO_EXT_PROFILE_B64: ${{ secrets.APPLE_PSSO_EXT_PROFILE_B64 }}
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          if [ -z "$APPLE_FLEET_DESKTOP_APP_PROFILE_B64" ] || [ -z "$APPLE_PSSO_EXT_PROFILE_B64" ]; then
+            echo "::error::Missing provisioning profile secrets (APPLE_FLEET_DESKTOP_APP_PROFILE_B64 / APPLE_PSSO_EXT_PROFILE_B64). The app and extension carry restricted Associated Domains entitlements that codesign cannot honor without them."
+            exit 1
+          fi
+
+          # Developer ID profiles authorizing the restricted entitlements.
+          echo "$APPLE_PSSO_EXT_PROFILE_B64" | base64 --decode > "$APPEX/Contents/embedded.provisionprofile"
+          echo "$APPLE_FLEET_DESKTOP_APP_PROFILE_B64" | base64 --decode > "$APP/Contents/embedded.provisionprofile"
+
+      - name: Verify profiles authorize the signing certificate
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          # AMFI requires the signing certificate to be listed in the embedded
+          # profile's DeveloperCertificates, or it SIGKILLs the app at launch.
+          # codesign, Gatekeeper, and notarization all pass regardless — so
+          # without this check a profile cut against the wrong cert produces a
+          # signed, notarized pkg that silently won't launch. Even two certs from
+          # the same team will result in a broken, unusable app - they must be the
+          # same cert
+          check='import sys,plistlib,hashlib; pl=plistlib.loads(sys.stdin.buffer.read()); h=[hashlib.sha1(bytes(c)).hexdigest().upper() for c in pl.get("DeveloperCertificates",[])]; print("  authorizes:",h); sys.exit(0 if sys.argv[1].upper() in h else 1)'
+          for prof in "$APPEX/Contents/embedded.provisionprofile" "$APP/Contents/embedded.provisionprofile"; do
+            echo "Checking $prof"
+            if ! security cms -D -i "$prof" | python3 -c "$check" "$APPLICATION_SIGNING_IDENTITY_SHA1"; then
+              echo "::error::$prof does not authorize signing certificate $APPLICATION_SIGNING_IDENTITY_SHA1. AMFI will SIGKILL the app at launch (notarization does NOT catch this). Regenerate the Developer ID provisioning profile selecting that certificate."
+              exit 1
+            fi
+          done
+
+      - name: Code sign app and extension
+        run: |
+          APP="build/Fleet Desktop.app"
+          APPEX="$APP/Contents/$APPEX_REL_PATH"
+
+          # Sign inside-out: the embedded extension first, then the host app.
+          # Each bundle is sealed with its own entitlements + embedded profile.
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp "$APPEX/Contents/MacOS/FleetPSSOExtension"
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp \
+            --entitlements FleetPSSOExtension/FleetPSSOExtension.entitlements "$APPEX"
+
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp "$APP/Contents/MacOS/FleetDesktop"
+          codesign --force --sign "$APPLICATION_SIGNING_IDENTITY_SHA1" \
+            --options runtime --timestamp \
+            --entitlements FleetDesktop/FleetDesktop.entitlements "$APP"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          codesign --display --verbose=4 "$APP"
+          codesign --display --entitlements - "$APPEX"
+
+      - name: Rebuild pkg with signed app
+        run: |
+          # build-pkg.sh reuses the already-signed app (ditto preserves the
+          # signature and the embedded, signed appex).
+          ./build-pkg.sh
+
+      - name: Sign pkg
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "FleetDesktop/Info.plist")
+          UNSIGNED_PKG="build/dist/fleet_desktop-v${VERSION}.pkg"
+          SIGNED_PKG="build/dist/fleet_desktop-v${VERSION}-signed.pkg"
+
+          if [ ! -f "$UNSIGNED_PKG" ]; then
+            echo "Error: package not found: $UNSIGNED_PKG"
+            ls -la build/dist/ || true
+            exit 1
+          fi
+
+          productsign --sign "$INSTALLER_SIGNING_IDENTITY_SHA1" --timestamp \
+            "$UNSIGNED_PKG" "$SIGNED_PKG"
+          mv "$SIGNED_PKG" "$UNSIGNED_PKG"
+          pkgutil --check-signature "$UNSIGNED_PKG"
+
+      - name: Notarize pkg
+        env:
+          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "FleetDesktop/Info.plist")
+          PKG_PATH="build/dist/fleet_desktop-v${VERSION}.pkg"
+
+          SUBMISSION_OUTPUT=$(xcrun notarytool submit "$PKG_PATH" \
+            --apple-id "$AC_USERNAME" \
+            --password "$AC_PASSWORD" \
+            --team-id "$AC_TEAM_ID" \
+            --wait --timeout 30m 2>&1) || NOTARIZATION_FAILED=true
+          echo "$SUBMISSION_OUTPUT"
+
+          SUBMISSION_ID=$(echo "$SUBMISSION_OUTPUT" | grep -i "id:" | head -1 | awk '{print $NF}' | tr -d ',' || echo "")
+          STATUS=$(echo "$SUBMISSION_OUTPUT" | grep -i "status:" | tail -1 | awk '{print $NF}' || echo "")
+
+          # Fail closed: only an explicit "Accepted" passes. notarytool statuses
+          # are Accepted / In Progress / Invalid / Rejected — a broad grep for
+          # "failed|error" would let a "Rejected" submission slip through as
+          # success, and notarytool can exit 0 even on a rejected package.
+          if [ "${NOTARIZATION_FAILED:-false}" = "true" ] || [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Notarization failed (status: ${STATUS:-unknown})"
+            if [ -n "$SUBMISSION_ID" ]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$AC_USERNAME" --password "$AC_PASSWORD" --team-id "$AC_TEAM_ID" || true
+            fi
+            exit 1
+          fi
+
+          xcrun stapler staple "$PKG_PATH"
+          xcrun stapler validate "$PKG_PATH"
+          spctl --assess --type install --verbose "$PKG_PATH"
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain build.keychain || true
+
+      - name: Upload pkg artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleet_desktop-pkg
+          path: ./apps/fleet-desktop-macos/build/dist/fleet_desktop-v*.pkg
+          retention-days: 30
+          if-no-files-found: error

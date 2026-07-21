@@ -1,8 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { IConfig } from "interfaces/config";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -20,6 +20,7 @@ import TabText from "components/TabText";
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
 import AndroidPanel from "./AndroidPanel";
+import MacosPanel from "./MacosPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -76,8 +77,6 @@ const PlatformWrapper = ({
   fetchCertificateError,
   config,
 }: IPlatformWrapperProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );
@@ -159,8 +158,7 @@ const PlatformWrapper = ({
 
       FileSaver.saveAs(file);
     } else {
-      renderFlash(
-        "error",
+      notify.error(
         "Your certificate could not be downloaded. Please check your Fleet configuration."
       );
     }
@@ -284,9 +282,6 @@ const PlatformWrapper = ({
           hosts. For ARM, use <code>--arch=arm64</code>
         </>
       );
-    } else if (packageType === "pkg") {
-      packageTypeHelpText =
-        "Run this on your computer, then deploy the generated package to your hosts.";
     } else {
       packageTypeHelpText = "";
     }
@@ -348,6 +343,10 @@ const PlatformWrapper = ({
 
     if (packageType === "android") {
       return <AndroidPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "pkg") {
+      return <MacosPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {

@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -15,7 +17,9 @@ import (
 	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -26,6 +30,45 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUploadSoftwareInstallerDecodeTitleID(t *testing.T) {
+	testCases := []struct {
+		name      string
+		value     *string
+		want      *uint
+		wantError string
+	}{
+		{name: "omitted"},
+		{name: "valid", value: new("42"), want: new(uint(42))},
+		{name: "invalid", value: new("invalid"), wantError: "Invalid software_title_id: invalid"},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			file, err := writer.CreateFormFile("software", "test.sh")
+			require.NoError(t, err)
+			_, err = file.Write([]byte("#!/bin/sh\n"))
+			require.NoError(t, err)
+			if tt.value != nil {
+				require.NoError(t, writer.WriteField("software_title_id", *tt.value))
+			}
+			require.NoError(t, writer.Close())
+
+			request := httptest.NewRequest(http.MethodPost, "/api/latest/fleet/software/package", &body)
+			request.Header.Set("Content-Type", writer.FormDataContentType())
+			ctx := installersize.NewContext(t.Context(), int64(body.Len()))
+			decoded, err := (uploadSoftwareInstallerRequest{}).DecodeRequest(ctx, request)
+			if tt.wantError != "" {
+				require.ErrorContains(t, err, tt.wantError)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, decoded.(*uploadSoftwareInstallerRequest).TitleID)
+		})
+	}
+}
 
 func TestSoftwareInstallersAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -97,6 +140,9 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 			ds.GetInHouseAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error) {
 				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
 			}
+			ds.GetSoftwarePackagesByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) ([]*fleet.SoftwareInstaller, error) {
+				return []*fleet.SoftwareInstaller{{TeamID: tt.teamID, InstallerID: 1}}, nil
+			}
 
 			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
 				return nil
@@ -137,14 +183,14 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
-			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID)
+			_, err = svc.DownloadSoftwareInstaller(ctx, false, "media", 1, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID)
+			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID, nil)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
@@ -619,8 +665,8 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		return nil
 	}
 
-	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
-		return []uint{}, nil
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
 	}
 
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
@@ -660,14 +706,14 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 		FleetMaintained: false,
 		Filename:        "foo",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
-		Categories:      []string{},
+		Categories:      optjson.SetSlice([]string{}),
 		DisplayName:     "foo",
 	}}, false)
 	require.NoError(t, err)
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		status, _, packages, _, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.

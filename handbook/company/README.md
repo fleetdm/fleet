@@ -15,7 +15,7 @@ This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.co
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company with 60+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
+Fleet Device Management Inc. is an all-remote company with 70+ team members spread across four continents and nine time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open-source code base, documentation, website, and [company handbook](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).
 
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
@@ -126,6 +126,11 @@ Fleet added support for [scripting and management capabilities](https://fleetdm.
 ### 2024: Fleet is growing globally 
 Fleet has expanded into 90+ countries, with 100+ customers and 2.24 million computers and virtual hosts enrolled (including the world's most powerful computers). 
 
+### 2025: Android support
+After growing revenue 6x during the previous two years, Fleet raised its Series B funding round, bringing total funding up to $52M, and announced support for Android devices.
+
+### 2026: Mainstream adoption
+Of the 8 most anticipated IPOs in 2026, over half are Fleet customers.
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 

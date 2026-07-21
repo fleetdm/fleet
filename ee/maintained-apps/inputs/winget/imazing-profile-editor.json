@@ -1,0 +1,12 @@
+{
+  "name": "iMazing Profile Editor",
+  "slug": "imazing-profile-editor/windows",
+  "package_identifier": "DigiDNA.iMazingProfileEditor",
+  "unique_identifier": "iMazing Profile Editor",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing-profile-editor_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing-profile-editor_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

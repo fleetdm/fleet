@@ -1,0 +1,10 @@
+{
+  "name": "SoundSource",
+  "unique_identifier": "com.rogueamoeba.soundsource",
+  "token": "soundsource",
+  "installer_format": "zip",
+  "slug": "soundsource/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

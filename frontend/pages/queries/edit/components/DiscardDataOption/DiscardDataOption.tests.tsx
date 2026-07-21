@@ -16,11 +16,9 @@ describe("DiscardDataOption component", () => {
       />
     );
 
-    expect(screen.getByText(/Discard data/)).toBeInTheDocument();
+    expect(screen.getByText(/Store data/)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /The most recent results for each host will not be available in Fleet./
-      )
+      screen.getByText(/When disabled, results will not be available in Fleet./)
     ).toBeInTheDocument();
   });
 
@@ -32,7 +30,7 @@ describe("DiscardDataOption component", () => {
       />
     );
 
-    expect(screen.getByText(/Discard data/)).toBeInTheDocument();
+    expect(screen.getByText(/Store data/)).toBeInTheDocument();
     expect(screen.getByText(/This setting is ignored/)).toBeInTheDocument();
   });
 
@@ -45,7 +43,7 @@ describe("DiscardDataOption component", () => {
     );
 
     // disabled
-    expect(screen.getByText(/Discard data/)).toBeInTheDocument();
+    expect(screen.getByText(/Store data/)).toBeInTheDocument();
     expect(screen.getByText(/This setting is ignored/)).toBeInTheDocument();
 
     // enable
@@ -53,9 +51,7 @@ describe("DiscardDataOption component", () => {
 
     // normal text
     expect(
-      screen.getByText(
-        /The most recent results for each host will not be available in Fleet./
-      )
+      screen.getByText(/When disabled, results will not be available in Fleet./)
     ).toBeInTheDocument();
   });
   it('Renders the info banner when  "Differential"  logging option is selected', () => {

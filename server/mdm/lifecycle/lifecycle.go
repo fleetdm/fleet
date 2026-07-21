@@ -46,6 +46,12 @@ type HostOptions struct {
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
 	FromMDMMigration        bool
+	// TeamID is currently only used for resetApple to assign the host to the correct team for account driven enrollments.
+	TeamID *uint
+	// IsPersonalEnrollment indicates a manual (profile-driven) BYOD enrollment
+	// where the end user chose "Personal" on the /enroll page. For Account-Driven
+	// User Enrollments (UserEnrollmentID != "") this is set automatically.
+	IsPersonalEnrollment bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -142,7 +148,9 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 }
 
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
-	isPersonalEnrollment := false
+	// Account-Driven User Enrollment (BYOD iOS) uses UserEnrollmentID as
+	// the device identifier when UUID/serial are not yet known.
+	isPersonalEnrollment := opts.IsPersonalEnrollment
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
@@ -157,6 +165,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 		HardwareSerial: opts.HardwareSerial,
 		HardwareModel:  opts.HardwareModel,
 		Platform:       opts.Platform,
+		TeamID:         opts.TeamID,
 	}
 
 	// FIXME: Why skip this step if we're in the middle of a SCEP renewal?
@@ -170,8 +179,33 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 		}
 	}
 
-	err := t.ds.MDMResetEnrollment(ctx, opts.UUID, opts.SCEPRenewalInProgress)
-	return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
+	if err := t.ds.MDMResetEnrollment(ctx, opts.UUID, opts.SCEPRenewalInProgress); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
+	}
+
+	// Reconcile host-name template enforcement on (re-)enrollment. Skipped during
+	// SCEP renewal, which isn't a real enrollment change and where host.ID isn't
+	// populated (the upsert above is skipped too).
+	if !opts.SCEPRenewalInProgress {
+		if err := t.reconcileHostNameEnforcement(ctx, host.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// reconcileHostNameEnforcement upserts or deletes the host's host-name template
+// enforcement row based on its current team template, so a host enrolling into a
+// team with a template gets a queued row.
+func (t *HostLifecycle) reconcileHostNameEnforcement(ctx context.Context, hostID uint) error {
+	if hostID == 0 {
+		return nil
+	}
+	if err := t.ds.ReconcileHostDeviceNamesForHosts(ctx, []uint{hostID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "reconcile host name enforcement")
+	}
+	return nil
 }
 
 func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error {
@@ -234,6 +268,18 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	var tmID *uint
 	if info.TeamID != 0 {
 		tmID = &info.TeamID
+	}
+
+	// Reconcile host-name template enforcement now that the host is enrolled: if
+	// its team has a template and it's eligible.
+	// Done before the branches below since they return early.
+	//
+	// resetApple also reconciles, so a normal Authenticate->TokenUpdate enrollment
+	// reconciles twice; that's intentional and idempotent. Both hooks are needed
+	// because a re-enrollment can arrive as Authenticate (resetApple) without a
+	// fresh TokenUpdate reaching this branch (guarded on TokenUpdateTally == 1).
+	if err := t.reconcileHostNameEnforcement(ctx, info.HostID); err != nil {
+		return err
 	}
 
 	// TODO: improve this to not enqueue the job if a host that is

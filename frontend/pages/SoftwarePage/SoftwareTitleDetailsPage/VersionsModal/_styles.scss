@@ -1,0 +1,10 @@
+.versions-modal {
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    margin-bottom: $pad-medium;
+    border: 0;
+    padding: 0;
+  }
+}

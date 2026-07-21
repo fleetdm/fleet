@@ -1,6 +1,6 @@
 {
   "name": "Suspicious Package",
-  "unique_identifier": "com.mothersruin.SuspiciousPackage",
+  "unique_identifier": "com.mothersruin.SuspiciousPackageApp",
   "token": "suspicious-package",
   "installer_format": "dmg",
   "slug": "suspicious-package/darwin",

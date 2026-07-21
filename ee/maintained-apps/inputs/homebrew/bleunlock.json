@@ -1,0 +1,10 @@
+{
+  "name": "BLEUnlock",
+  "unique_identifier": "jp.sone.BLEUnlock",
+  "token": "bleunlock",
+  "installer_format": "zip",
+  "slug": "bleunlock/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

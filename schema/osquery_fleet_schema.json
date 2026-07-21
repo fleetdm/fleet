@@ -229,6 +229,124 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/adobe_plugins.yml"
   },
   {
+    "name": "ai_tools",
+    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, agent instruction files, and browser extensions. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```\n\nList AI browser extensions and their risk flags.\n\n```\nSELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';\n```",
+    "notes": "The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.",
+    "columns": [
+      {
+        "name": "type",
+        "description": "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, `agent_instruction`, or `browser_extension`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "name",
+        "description": "Server, plugin, agent, app, process, or instruction-file name.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "identifier",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "category",
+        "description": "Classification bucket (e.g. `coding-assistant`, `agent-runtime`, `inference-api-local`, `mcp-remote-egress`, `ai-api-egress`, `mcp-server`, `agent-instruction`).",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "location",
+        "description": "`local` or `remote`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "source",
+        "description": "Provenance: MCP client, editor, install method, platform source, socket direction, or instruction tool.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "version",
+        "description": "Version of the tool, if available.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "path",
+        "description": "Config, install, binary, app, process, or instruction-file path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "endpoint",
+        "description": "Remote MCP URL or socket remote `addr:port`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "running",
+        "description": "Whether the tool is currently running (1 = yes, 0 = no).",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID if the tool is running.",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "port",
+        "description": "Listening port, API port, or local port (varies by type).",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "risk_flags",
+        "description": "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "sha256",
+        "description": "SHA-256 content hash of the primary artifact (config file, binary, or instruction file) for change detection and threat-intel matching.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "uid",
+        "description": "User ID of the owner.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "username",
+        "description": "Username of the owner.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "detail",
+        "description": "Compact JSON with type-specific extras (empty fields omitted). Examples: `transport`, `command`, `args`, `env_keys`, `capabilities`, `launch_hash`, `permission_mode`, `markers`, `scope`, `publisher`, `editor_family`, `runtime`, `protocol`, `remote_host`, `cmdline`.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/ai_tools",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ai_tools.yml"
+  },
+  {
     "name": "alf",
     "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
@@ -3543,6 +3661,19 @@
         "index": false
       },
       {
+        "name": "subject2",
+        "description": "Certificate distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
+      },
+      {
         "name": "issuer",
         "description": "Certificate issuer distinguished name (deprecated, use issuer2)",
         "type": "text",
@@ -3550,6 +3681,19 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "issuer2",
+        "description": "Certificate issuer distinguished name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "Linux",
+          "macOS"
+        ]
       },
       {
         "name": "ca",
@@ -3726,32 +3870,6 @@
         "index": false,
         "platforms": [
           "Windows"
-        ]
-      },
-      {
-        "name": "issuer2",
-        "description": "Certificate issuer distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
-      },
-      {
-        "name": "subject2",
-        "description": "Certificate distinguished name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
         ]
       }
     ],
@@ -4776,9 +4894,15 @@
         "type": "integer",
         "required": false,
         "description": "PID of the container process."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
+    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```\n\nQuery containers from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_containers WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
     "url": "https://fleetdm.com/tables/containerd_containers",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
@@ -4826,9 +4950,15 @@
         "type": "text",
         "required": false,
         "description": "Mount options (comma-separated)."
+      },
+      {
+        "name": "socket_path",
+        "type": "text",
+        "required": false,
+        "description": "Path to the containerd socket to query (default: /run/containerd/containerd.sock)."
       }
     ],
-    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```",
+    "examples": "Get all mounts for all containers:\n\n```\nSELECT * FROM containerd_mounts;\n```\n\nGet mounts for a specific container:\n\n```\nSELECT * FROM containerd_mounts WHERE container_id='abc123';\n```\n\nGet all bind mounts:\n\n```\nSELECT * FROM containerd_mounts WHERE type='bind';\n```\n\nQuery mounts from a k3s containerd socket:\n\n```\nSELECT * FROM containerd_mounts WHERE socket_path = '/run/k3s/containerd/containerd.sock';\n```",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd_mounts` table is available on Linux systems with containerd installed. It provides\ninformation about the mounts configured for containers managed by containerd.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_container_mounts` table for information about mounts in Docker containers.",
     "url": "https://fleetdm.com/tables/containerd_mounts",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_mounts.yml"
@@ -23062,7 +23192,7 @@
   },
   {
     "name": "process_open_handles",
-    "description": "Enumerate open handles for a specified process. Defaults to the osquery process if no pid constraint is provided.",
+    "description": "Enumerate open handles for a specified process.",
     "url": "https://fleetdm.com/tables/process_open_handles",
     "platforms": [
       "windows"
@@ -25248,6 +25378,18 @@
     "evented": false,
     "examples": "Confirm Santa is running in lockdown mode across all macOS hosts.\n```\nSELECT mode FROM santa_status;\n```",
     "columns": [
+      {
+        "name": "daemon_reachable",
+        "description": "Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the `error` column contains the santactl error and the remaining columns are NULL.",
+        "required": false,
+        "type": "integer"
+      },
+      {
+        "name": "error",
+        "description": "The error returned by `santactl status` when the daemon is unreachable (daemon_reachable=0); empty when the daemon is reachable.",
+        "required": false,
+        "type": "text"
+      },
       {
         "name": "sync_server",
         "description": "The server Santa syncs rules and configuration from",

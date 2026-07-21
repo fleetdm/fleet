@@ -80,6 +80,9 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		if err != nil {
 			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
 		}
+		if err := svc.validateCustomHostVitalCriteria(ctx, label.HostVitalsCriteria); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
 			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
@@ -110,8 +113,26 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		}
 	}
 
-	// first create the new label, which will fail if the name is not unique
+	// For a manual label, resolve the target hosts and verify the caller is
+	// authorized to write labels to each of them before creating anything, so
+	// that a user with write access to one team cannot attach hosts from
+	// another team by supplying their IDs.
 	var err error
+	var manualHostIDs []uint
+	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
+		manualHostIDs = p.HostIDs
+		if len(p.Hosts) > 0 {
+			manualHostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		if err := svc.authorizeWriteLabelOnHosts(ctx, manualHostIDs); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// first create the new label, which will fail if the name is not unique
 	label, err = svc.ds.NewLabel(ctx, label)
 	if err != nil {
 		return nil, nil, err
@@ -126,16 +147,72 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}
 
 	if label.LabelMembershipType == fleet.LabelMembershipTypeManual {
-		hostIDs := p.HostIDs
-		if len(p.Hosts) > 0 {
-			hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, p.Hosts)
-			if err != nil {
-				return nil, nil, err
-			}
-		}
-		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, *label, hostIDs, filter)
+		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, *label, manualHostIDs, filter)
 	}
 	return label, nil, nil
+}
+
+// validateCustomHostVitalCriteria verifies that a custom_host_vital criterion
+// references a custom host vital that actually exists. Without this a label
+// could be created against a stale or made-up id, which would silently match
+// zero hosts (the membership join finds no rows) instead of erroring.
+func (svc *Service) validateCustomHostVitalCriteria(ctx context.Context, raw *json.RawMessage) error {
+	if raw == nil {
+		return nil
+	}
+	var criteria fleet.HostVitalCriteria
+	if err := json.Unmarshal(*raw, &criteria); err != nil {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+	}
+	if criteria.CustomHostVitalID == nil {
+		return nil
+	}
+	id := *criteria.CustomHostVitalID
+
+	existing, err := svc.ds.GetCustomHostVitals(ctx, []uint{id})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validate custom host vital criteria")
+	}
+	if len(existing) == 0 {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("custom host vital %d does not exist", id))
+	}
+	return nil
+}
+
+// authorizeWriteLabelOnHosts verifies that the caller is authorized to write
+// labels (the write_host_label action) to every host in hostIDs. It returns a
+// permission error if the caller lacks write access to any of them, which
+// prevents attaching hosts from teams the caller can't write to via their raw
+// IDs.
+func (svc *Service) authorizeWriteLabelOnHosts(ctx context.Context, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load hosts for label membership authorization")
+	}
+
+	// Make sure every requested host exists. A non-existent ID is not returned
+	// by ListHostsLiteByIDs and would otherwise skip the authorization check
+	// below. Use a set so that duplicate IDs in the request are tolerated.
+	foundIDs := make(map[uint]struct{}, len(hosts))
+	for _, host := range hosts {
+		foundIDs[host.ID] = struct{}{}
+	}
+	for _, id := range hostIDs {
+		if _, ok := foundIDs[id]; !ok {
+			return fleet.NewInvalidArgumentError("host_ids", fmt.Sprintf("host %d does not exist", id))
+		}
+	}
+
+	for _, host := range hosts {
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionWriteHostLabel); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -215,6 +292,13 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 
 	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
 		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+	}
+
+	// Verify the caller is authorized to write labels to each target host
+	// before updating membership, so that hosts from teams the caller can't
+	// write to cannot be attached via their raw IDs.
+	if err := svc.authorizeWriteLabelOnHosts(ctx, hostIDs); err != nil {
+		return nil, nil, err
 	}
 
 	if hostIDs != nil {
@@ -626,6 +710,18 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		// Validate mutually exclusive field combinations per label membership type
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
 			return err.WithStatus(http.StatusUnprocessableEntity)
+		}
+		// Validate host vitals criteria structurally (unknown vital, missing
+		// custom_host_vital_id, etc.) and that any referenced custom vital
+		// exists, mirroring the checks in NewLabel so a bad spec fails at apply
+		// rather than silently matching no hosts at cron evaluation time.
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals {
+			if _, _, err := (&fleet.Label{HostVitalsCriteria: spec.HostVitalsCriteria}).CalculateHostVitalsQuery(); err != nil {
+				return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error())).WithStatus(http.StatusUnprocessableEntity)
+			}
+			if err := svc.validateCustomHostVitalCriteria(ctx, spec.HostVitalsCriteria); err != nil {
+				return err
+			}
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.

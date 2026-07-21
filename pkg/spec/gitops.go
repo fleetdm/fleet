@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
@@ -175,6 +178,8 @@ type GitOpsControls struct {
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup" renameto:"setup_experience"`
 	MacOSMigration any               `json:"macos_migration"`
 
+	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
+
 	WindowsUpdates                 any `json:"windows_updates"`
 	WindowsSettings                any `json:"windows_settings"`
 	WindowsEnabledAndConfigured    any `json:"windows_enabled_and_configured"`
@@ -191,6 +196,7 @@ type GitOpsControls struct {
 	EnableDiskEncryption       any              `json:"enable_disk_encryption"`
 	EnableRecoveryLockPassword any              `json:"enable_recovery_lock_password"`
 	RequireBitLockerPIN        any              `json:"windows_require_bitlocker_pin,omitempty"`
+	NameTemplate               any              `json:"name_template"`
 	Scripts                    []fleet.BaseItem `json:"scripts"`
 
 	Defined bool
@@ -204,7 +210,9 @@ func (c GitOpsControls) Set() bool {
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
 		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
 		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
-		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil
+		c.WindowsEntraTenantIDs != nil || c.WindowsEntraClientIDs != nil || c.RequireBitLockerPIN != nil ||
+		c.AppleAccountProvisioning != nil ||
+		c.NameTemplate != nil
 }
 
 type Policy struct {
@@ -280,25 +288,50 @@ type SoftwarePackage struct {
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
-	if spec.InstallScript.Path != "" || spec.UninstallScript.Path != "" ||
-		spec.PostInstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" || spec.PreInstallQuery.Path != "" {
+	isScript := fleet.IsScriptPackage(ext)
+
+	// Script-only packages are configured inline in the team YAML, so their
+	// uninstall/post-install scripts and pre-install query are allowed here;
+	// other packages keep those in a package YAML. install_script, url, and hash
+	// are never valid at the team level.
+	if spec.InstallScript.Path != "" || spec.URL != "" || spec.SHA256 != "" ||
+		(!isScript && (spec.UninstallScript.Path != "" || spec.PostInstallScript.Path != "" || spec.PreInstallQuery.Path != "")) {
+		if isScript {
+			return packageLevel, fmt.Errorf("the software package defined in %s must not have install_script, URL, or hash specified at the team level", *spec.Path)
+		}
 		return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
 	}
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
-		if ext != ".sh" && ext != ".ps1" {
+		if !fleet.IsScriptPackage(ext) {
 			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
 		}
 	}
 
-	packageLevel.Categories = spec.Categories
-	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
-	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
-	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
-	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
-	packageLevel.SelfService = spec.SelfService
-	packageLevel.Configuration = spec.Configuration
+	// Inherit fleet-level fields onto any package that didn't set them, so a value
+	// set once at the fleet level applies to every package of the title. Which level
+	// a field may live at for a yaml file with multiple packages is validated separately.
+	if !packageLevel.SelfService {
+		packageLevel.SelfService = spec.SelfService
+	}
+	if len(packageLevel.Categories.Value) == 0 {
+		packageLevel.Categories = spec.Categories
+	}
+	if len(packageLevel.LabelsIncludeAny) == 0 && len(packageLevel.LabelsExcludeAny) == 0 && len(packageLevel.LabelsIncludeAll) == 0 {
+		packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
+		packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+		packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
+	}
+	if !packageLevel.InstallDuringSetup.Valid {
+		packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	}
+	if !packageLevel.SetupExperiencePlatform.Set {
+		packageLevel.SetupExperiencePlatform = spec.SetupExperiencePlatform
+	}
+	if packageLevel.Configuration.Path == "" {
+		packageLevel.Configuration = spec.Configuration
+	}
 
 	// This will only override display name set at path: path/to/software.yml level
 	// if display_name is specified at the team level yml
@@ -307,6 +340,32 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	}
 
 	return packageLevel, nil
+}
+
+func validatePackageFieldPlacement(teamLevel SoftwarePackage, pkg *fleet.SoftwarePackageSpec, multiple bool) error {
+	id := pkg.URL
+	if id == "" {
+		id = pkg.SHA256
+	}
+	if id == "" {
+		id = pkg.ReferencedYamlPath
+	}
+
+	if (teamLevel.SelfService && pkg.SelfService) ||
+		(len(teamLevel.Categories.Value) > 0 && len(pkg.Categories.Value) > 0) {
+		return fmt.Errorf(fleet.SoftwareSelfServiceCategoriesConflictMessage, id)
+	}
+	if multiple && pkg.InstallDuringSetup.Valid {
+		return fmt.Errorf(fleet.SoftwareSetupExperienceFleetLevelOnlyMessage, id)
+	}
+	// A single package may set labels at either level but not both. If multiple
+	// packages are defined, labels are not allowed at the fleet level.
+	teamLevelLabels := len(teamLevel.LabelsIncludeAny) > 0 || len(teamLevel.LabelsExcludeAny) > 0 || len(teamLevel.LabelsIncludeAll) > 0
+	pkgLabels := len(pkg.LabelsIncludeAny) > 0 || len(pkg.LabelsExcludeAny) > 0 || len(pkg.LabelsIncludeAll) > 0
+	if !multiple && teamLevelLabels && pkgLabels {
+		return fmt.Errorf(fleet.SoftwareLabelsConflictMessage, id)
+	}
+	return nil
 }
 
 type Software struct {
@@ -363,6 +422,10 @@ type GitOps struct {
 	Labels              []*fleet.LabelSpec
 	LabelChangesSummary LabelChangesSummary
 
+	// CustomHostVitals are the custom host vital definitions (names only; per-host
+	// values are never set via GitOps). Global-only: cannot be set on a team/fleet file.
+	CustomHostVitals []fleet.CustomHostVital
+
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -374,6 +437,15 @@ type GitOps struct {
 	SoftwarePresent bool
 	// SecretsPresent indicates that the `secrets:` key was explicitly present in the YAML file.
 	SecretsPresent bool
+	// CustomHostVitalsPresent indicates that the `custom_host_vitals:` key was explicitly present in the YAML file.
+	CustomHostVitalsPresent bool
+}
+
+// GitOpsCustomHostVital defines the valid keys for an item in the top-level
+// `custom_host_vitals:` list. Definitions only (a name) -- per-host values are
+// never set via GitOps.
+type GitOpsCustomHostVital struct {
+	Name string `json:"name"`
 }
 
 type GitOpsSoftware struct {
@@ -447,7 +519,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels"}
+	topKeys := []string{"name", "settings", "org_settings", "agent_options", "controls", "policies", "reports", "software", "labels", "custom_host_vitals"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -510,9 +582,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	for _, topKey := range topKeys {
 		// "name" is handled later with special logic based on the filename.
-		// "labels" and "software" are special cases where omitting may be a no-op (based on exception settings),
-		// rather than a directive to clear settings. settings keys were handled above.
-		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "settings" || topKey == "org_settings" {
+		// "labels" and "software" are special cases where omitting may be a no-op (based on
+		// exception settings), rather than a directive to clear settings.
+		// "custom_host_vitals" has no exception setting -- omitting it always means clear-all -- but still needs its own
+		// presence tracking (parseCustomHostVitals below), so it's excluded from the generic
+		// null-default handling too. settings keys were handled above.
+		if topKey == "name" || topKey == "labels" || topKey == "software" || topKey == "custom_host_vitals" || topKey == "settings" || topKey == "org_settings" {
 			continue
 		}
 		// "controls" can be set on _either_ global or "no team" file, and we can't say which it is if both
@@ -539,6 +614,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		} else {
 			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 		}
+	}
+	// Get the custom host vitals. CustomHostVitalsPresent tracks whether the key was in the YAML.
+	if _, ok := top["custom_host_vitals"]; ok {
+		result.CustomHostVitalsPresent = true
+		multiError = parseCustomHostVitals(top, result, filePath, multiError)
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
@@ -651,15 +731,96 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
+			// Anchor relative paths from a nested org_settings file to its own directory;
+			// otherwise they'd later resolve against the main file's baseDir and fail.
+			if orgSettingsTop.Path != nil {
+				orgSettingsDir := filepath.Dir(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
+				reanchorOrgSettingsPaths(result.OrgSettings, orgSettingsDir)
+			}
+
 			multiError = parseSecrets(result, multiError)
 			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 			multiError = validateGitOpsConfig(result.OrgSettings, multiError)
+			multiError = validateSSOConfig(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return multiError
+}
+
+// absPathFrom resolves a relative file path to an absolute one anchored at baseDir.
+// Absolute paths are independent of any baseDir, so a later resolveApplyRelativePath
+// is a guaranteed no-op — this lets paths authored in one gitops file survive being
+// applied under a different file's baseDir.
+func absPathFrom(baseDir, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	if abs, err := filepath.Abs(filepath.Join(baseDir, p)); err == nil {
+		return abs
+	}
+	return filepath.Join(baseDir, p) // fallback: at least anchored
+}
+
+// ResolveFilePathsAbs rewrites the controls' file-path fields that are resolved at
+// APPLY time to absolute paths against baseDir. Used when controls from
+// no-team.yml/unassigned.yml are applied onto the global config, which is applied
+// under a different (global) baseDir — making these paths absolute means the
+// apply-side resolveApplyRelativePath becomes a no-op, so paths authored relative to
+// the no-team file (e.g. ../lib/...) keep working.
+//
+// Only fields resolved at apply time are touched. Deliberately excluded:
+//   - controls.scripts and macos_settings/windows_settings profiles are already
+//     resolved at parse time against the file's own dir (see parseControls), so
+//     re-resolving here would double-anchor them.
+func (c *GitOpsControls) ResolveFilePathsAbs(baseDir string) {
+	if c.MacOSSetup == nil {
+		return
+	}
+	c.MacOSSetup.MacOSSetupAssistant.Value = absPathFrom(baseDir, c.MacOSSetup.MacOSSetupAssistant.Value)
+	c.MacOSSetup.Script.Value = absPathFrom(baseDir, c.MacOSSetup.Script.Value)
+	for _, sw := range c.MacOSSetup.Software.Value {
+		if sw != nil {
+			sw.PackagePath = absPathFrom(baseDir, sw.PackagePath)
+		}
+	}
+}
+
+// reanchorOrgSettingsPaths rewrites the relative path-bearing fields inside org_settings
+// to be absolute against orgSettingsDir. Without this, paths authored in a nested
+// org_settings file are later resolved against the main file's baseDir.
+func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string) {
+	anchor := func(v string) string {
+		return absPathFrom(orgSettingsDir, v)
+	}
+
+	if orgInfo, ok := orgSettings["org_info"].(map[string]any); ok {
+		for _, key := range []string{"org_logo_path_light_mode", "org_logo_path_dark_mode"} {
+			if s, ok := orgInfo[key].(string); ok && s != "" {
+				orgInfo[key] = anchor(s)
+			}
+		}
+	}
+
+	if rules, ok := orgSettings["yara_rules"].([]any); ok {
+		for _, r := range rules {
+			rule, ok := r.(map[string]any)
+			if !ok {
+				continue
+			}
+			if p, ok := rule["path"].(string); ok && p != "" {
+				rule["path"] = anchor(p)
+			}
+		}
+	}
+
+	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
+		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
+			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+	}
 }
 
 // validateOrgInfoLogo rejects org_info configurations that specify both a path
@@ -682,6 +843,40 @@ func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Erro
 	}
 	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
 	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
+	return multiError
+}
+
+// Verify that if SSO is enabled, the IdP is completely configured: idp_name,
+// entity_id, and at least one of metadata/metadata_url must all be set. This
+// mirrors the server-side complete-IdP predicate enforced by
+// validateSSOProviderSettings in overwrite (gitops) mode, so the user gets the
+// same rejection early at parse time. One error is emitted per missing piece.
+func validateSSOConfig(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	if sso, ok := orgSettings["sso_settings"].(map[string]any); ok {
+		enabled, _ := sso["enable_sso"].(bool)
+		if !enabled {
+			return multiError
+		}
+		idpName, _ := sso["idp_name"].(string)
+		entityID, _ := sso["entity_id"].(string)
+		metadata, _ := sso["metadata"].(string)
+		metadataURL, _ := sso["metadata_url"].(string)
+		if idpName == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, idp_name must be set",
+			))
+		}
+		if entityID == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, entity_id must be set",
+			))
+		}
+		if metadata == "" && metadataURL == "" {
+			multiError = multierror.Append(multiError, errors.New(
+				"When org_settings.sso_settings.enable_sso is true, either metadata or metadata_url must be set",
+			))
+		}
+	}
 	return multiError
 }
 
@@ -934,6 +1129,40 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	return multiError
 }
 
+// parseCustomHostVitals parses the top-level `custom_host_vitals:` key.
+// Global-only: custom host vital definitions aren't team-scoped, so the key
+// isn't valid on a team file. An empty (or explicitly null) list is a
+// declarative clear-all, same as an absent secrets/yara_rules list.
+func parseCustomHostVitals(top map[string]json.RawMessage, result *GitOps, filePath string, multiError *multierror.Error) *multierror.Error {
+	raw := top["custom_host_vitals"]
+
+	if !result.global() {
+		return multierror.Append(multiError, errors.New("'custom_host_vitals' cannot be set on a team file"))
+	}
+
+	result.CustomHostVitals = []fleet.CustomHostVital{}
+	if len(raw) == 0 || string(raw) == "null" {
+		return multiError
+	}
+
+	var vitals []GitOpsCustomHostVital
+	if err := json.Unmarshal(raw, &vitals); err != nil {
+		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"custom_host_vitals"}, err))
+	}
+	// Validate unknown keys in the custom_host_vitals section.
+	multiError = multierror.Append(multiError, validateRawKeys(raw, reflect.TypeFor[[]GitOpsCustomHostVital](), filePath, []string{"custom_host_vitals"})...)
+
+	for _, v := range vitals {
+		if err := fleet.ValidateCustomHostVitalName(v.Name); err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("'custom_host_vitals': %w", err))
+			continue
+		}
+		result.CustomHostVitals = append(result.CustomHostVitals, fleet.CustomHostVital{Name: v.Name})
+	}
+
+	return multiError
+}
+
 func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
 	if result.IsNoTeam() {
@@ -1007,6 +1236,14 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// Validate unknown keys in controls section.
 	multiError = multierror.Append(multiError, validateRawKeys(controlsRaw, reflect.TypeFor[GitOpsControls](), yamlFilename, []string{"controls"})...)
 	controlsTop.Defined = true
+
+	// apple_account_provisioning is a global-only MDM setting (it maps to global
+	// AppConfig.MDM). Reject it in a specific team's file; it belongs in the
+	// global configuration (or the no-team/unassigned file).
+	if controlsTop.AppleAccountProvisioning != nil && !result.global() && !result.IsNoTeam() && !result.IsUnassignedTeam() {
+		multiError = multierror.Append(multiError, fmt.Errorf(
+			"%s: apple_account_provisioning can only be configured in the global configuration, not for a specific team", yamlFilename))
+	}
 	controlsFilePath := yamlFilename
 	multiError = multierror.Append(multiError, processControlsPathIfNeeded(controlsTop, result, &controlsFilePath)...)
 
@@ -1047,6 +1284,17 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	// Validate that name_template, if present, is a string, and collect any
+	// $FLEET_SECRET_ it references so GitOps uploads it (its placeholder is left
+	// in the template for the server to validate and expand).
+	if result.Controls.NameTemplate != nil {
+		if tmpl, ok := result.Controls.NameTemplate.(string); !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.name_template' must be a string in %s", controlsFilePath))
+		} else if err := LookupEnvSecrets(tmpl, result.FleetSecrets); err != nil {
+			multiError = multierror.Append(multiError, err)
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
@@ -1080,6 +1328,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				return multierror.Append(multiError, err)
 			}
 		}
+
+		// Apple DDM assets follow the same path/paths + secret handling as
+		// profiles, so reuse the same expansion and resolution helpers.
+		macOSSettings.Assets, errs = expandBaseItems(macOSSettings.Assets, controlsDir, "asset", GlobExpandOptions{
+			AllowedExtensions: map[string]bool{".json": true},
+			LogFn:             logFn,
+		})
+		multiError = multierror.Append(multiError, errs...)
+		for i := range macOSSettings.Assets {
+			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+
 		// Since we already unmarshalled and updated the path, we need to update the result struct.
 		result.Controls.MacOSSettings = macOSSettings
 	}
@@ -1169,7 +1432,97 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		result.Controls.AndroidSettings = androidSettings
 	}
 
+	if err := validateOSUpdatesProfileConflict(result.Controls); err != nil {
+		multiError = multierror.Append(multiError, err)
+	}
+
 	return multiError
+}
+
+// validateOSUpdatesProfileConflict rejects a config that both configures managed
+// OS updates and includes a custom configuration profile that enforces OS
+// updates. The server checks it for non-dry runs; we replicate it here against
+// the incoming payload so dry-runs fail too.
+func validateOSUpdatesProfileConflict(controls GitOpsControls) error {
+	macOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.MacOSUpdates)
+	iOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IOSUpdates)
+	iPadOSConfigured := osUpdatesConfigured[fleet.AppleOSUpdateSettings](controls.IPadOSUpdates)
+	if macOSConfigured || iOSConfigured || iPadOSConfigured {
+		macOSSettings, _ := controls.MacOSSettings.(fleet.MacOSSettings)
+		for _, profile := range macOSSettings.CustomSettings {
+			contains, err := profileFileContains(profile.Path, apple_mdm.DeclarationTypeSoftwareUpdate)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.apple_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	windowsConfigured := osUpdatesConfigured[fleet.WindowsUpdates](controls.WindowsUpdates)
+	if windowsConfigured {
+		windowsSettings, _ := controls.WindowsSettings.(fleet.WindowsSettings)
+		for _, profile := range windowsSettings.CustomSettings.Value {
+			contains, err := windowsProfileFileTargetsReservedLocURI(profile.Path, syncml.FleetOSUpdateTargetLocURI)
+			if err != nil {
+				return err
+			}
+			if contains {
+				return fmt.Errorf("controls.windows_settings.configuration_profiles[]: %s", fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+			}
+		}
+	}
+
+	return nil
+}
+
+// osUpdatesSettings is implemented by the OS update settings types that report
+// whether managed OS updates are configured.
+type osUpdatesSettings interface {
+	Configured() bool
+}
+
+// osUpdatesConfigured unmarshals the raw controls value (e.g. controls.macos_updates)
+// into T and reports whether it configures managed OS updates.
+func osUpdatesConfigured[T osUpdatesSettings](v any) bool {
+	if v == nil {
+		return false
+	}
+	data, err := json.Marshal(v)
+	if err != nil {
+		return false
+	}
+	var settings T
+	if err := json.Unmarshal(data, &settings); err != nil {
+		return false
+	}
+	return settings.Configured()
+}
+
+// profileFileContains reports whether the profile file at path contains needle.
+func profileFileContains(path, needle string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return bytes.Contains(fileBytes, []byte(needle)), nil
+}
+
+// windowsProfileFileTargetsReservedLocURI reports whether the Windows profile file at path targets the given Fleet-reserved
+// LocURI node.
+func windowsProfileFileTargetsReservedLocURI(path, reservedLocURI string) (bool, error) {
+	if path == "" {
+		return false, nil
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to read profile file %s: %v", path, err)
+	}
+	return fleet.ProfileTargetsReservedLocURI(fileBytes, reservedLocURI), nil
 }
 
 func processControlsPathIfNeeded(controlsTop GitOpsControls, result *GitOps, controlsFilePath *string) []error {
@@ -1593,6 +1946,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	// Make sure team name is correct, and do additional validation
+	var patchSlugs []string
 	for _, item := range result.Policies {
 		if item.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
@@ -1616,6 +1970,11 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					),
 				)
 			}
+			if item.FleetMaintainedAppSlug != "" {
+				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+		} else if item.FleetMaintainedAppSlug != "" {
+			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -1633,6 +1992,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
+	}
+	for _, slug := range getDuplicateNames(patchSlugs, func(s string) string { return s }) {
+		multiError = multierror.Append(multiError, fmt.Errorf(`Couldn't add multiple policies with type "patch" for "fleet_maintained_app_slug": %q.`, slug))
 	}
 	return multiError
 }
@@ -1904,6 +2266,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		// Validate unknown keys in software section.
 		multiError = multierror.Append(multiError, validateRawKeys(softwareRaw, reflect.TypeFor[Software](), filePath, []string{"software"})...)
 	}
+
 	for _, item := range software.AppStoreApps {
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
@@ -1984,21 +2347,25 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			ext := strings.ToLower(filepath.Ext(resolvedPath))
-			switch ext {
-			case ".sh", ".ps1":
+			switch {
+			case fleet.IsScriptPackage(ext):
 				// Script files: only gather FLEET_SECRET_ variables, don't expand
 				// regular env vars (they are shell variables meant for the endpoint).
 				if err := gatherFileSecrets(result, resolvedPath); err != nil {
 					multiError = multierror.Append(multiError, err)
 					continue
 				}
-				// Script file becomes the install script for a script-only package
+				// The script file is the install script; the uninstall/post-install
+				// scripts and pre-install query come from the team YAML.
 				scriptSpec := fleet.SoftwarePackageSpec{
 					ReferencedYamlPath: resolvedPath,
 					Icon:               teamLevelPackage.Icon,
+					UninstallScript:    teamLevelPackage.UninstallScript,
+					PostInstallScript:  teamLevelPackage.PostInstallScript,
+					PreInstallQuery:    teamLevelPackage.PreInstallQuery,
 				}
-				// Icon path needs to be resolved, but since this function will set
-				// the install script it needs to be set to the correct path again.
+				// Resolve icon and script/query paths first; the install script path
+				// is set afterward since it's the script file itself.
 				scriptSpec = scriptSpec.ResolveSoftwarePackagePaths(baseDir)
 				scriptSpec.InstallScript.Path = resolvedPath
 
@@ -2009,51 +2376,54 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				}
 				softwarePackageSpecs = append(softwarePackageSpecs, &scriptSpec)
 
-			case ".yml", ".yaml":
+			case ext == ".yml" || ext == ".yaml":
 				// Replace $var and ${var} with env values in YAML files only.
 				fileBytes, err = ExpandEnvBytes(fileBytes)
 				if err != nil {
 					multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 					continue
 				}
-				var singlePackageSpec SoftwarePackage
-				singlePackageSpec.ReferencedYamlPath = resolvedPath
-				if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[SoftwarePackage](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					if singlePackageSpec.IncludesFieldsDisallowedInPackageFile() {
-						multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-						continue
-					}
-					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec.SoftwarePackageSpec)
-				} else if err = YamlUnmarshal(fileBytes, &softwarePackageSpecs); err == nil {
-					// Failing that, try to unmarshal as a list of SoftwarePackageSpecs
-					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
-					for i, spec := range softwarePackageSpecs {
-						if spec.IncludesFieldsDisallowedInPackageFile() {
-							multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
-							continue
-						}
 
-						softwarePackageSpecs[i].ReferencedYamlPath = resolvedPath
-					}
+				// A package YAML file is a list of packages. A file written as a single
+				// object is treated as a one-element list.
+				var singlePackageSpec fleet.SoftwarePackageSpec
+				listErr := YamlUnmarshal(fileBytes, &softwarePackageSpecs)
+				if listErr == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[[]fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+				} else if err := YamlUnmarshal(fileBytes, &singlePackageSpec); err == nil {
+					multiError = multierror.Append(multiError, validateYAMLKeys(fileBytes, reflect.TypeFor[fleet.SoftwarePackageSpec](), *teamLevelPackage.Path, []string{"software", "packages"})...)
+					softwarePackageSpecs = append(softwarePackageSpecs, &singlePackageSpec)
 				} else {
-					// If we reached here, we couldn't unmarshal as either format.
-					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
+					// couldn't unmarshal as a list or a single object
+					multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, listErr))
 					continue
 				}
 
-				for i, spec := range softwarePackageSpecs {
-					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(spec.ReferencedYamlPath))
+				// Collect the packages that validate and hydrate, dropping any that fail.
+				multiple := len(softwarePackageSpecs) > 1
+				// This label rule is at the fleet level, so check it once here rather than per package.
+				if multiple && (len(teamLevelPackage.LabelsIncludeAny) > 0 || len(teamLevelPackage.LabelsExcludeAny) > 0 || len(teamLevelPackage.LabelsIncludeAll) > 0) {
+					multiError = multierror.Append(multiError, fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, *teamLevelPackage.Path))
+				}
+				var valid []*fleet.SoftwarePackageSpec
+				for _, spec := range softwarePackageSpecs {
+					spec.ReferencedYamlPath = resolvedPath
+					if err := validatePackageFieldPlacement(teamLevelPackage, spec, multiple); err != nil {
+						multiError = multierror.Append(multiError, err)
+						continue
+					}
+					softwarePackageSpec := spec.ResolveSoftwarePackagePaths(filepath.Dir(resolvedPath))
 					softwarePackageSpec, err = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec, ext)
 					if err != nil {
 						multiError = multierror.Append(multiError, err)
 						continue
 					}
-					softwarePackageSpecs[i] = &softwarePackageSpec
+					valid = append(valid, &softwarePackageSpec)
 				}
+				softwarePackageSpecs = valid
 
 			default:
-				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, or .ps1 files are supported", *teamLevelPackage.Path, ext))
+				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, .ps1, or .py files are supported", *teamLevelPackage.Path, ext))
 				continue
 			}
 		} else {

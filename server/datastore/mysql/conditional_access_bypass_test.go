@@ -306,7 +306,7 @@ func testConditionalAccessBypassDeviceWithBlockingPolicy(t *testing.T, ds *Datas
 	require.NoError(t, err)
 
 	// Record a failing result for this policy on the host
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// Bypass should fail because the host has a failing CA-enabled policy
@@ -362,7 +362,7 @@ func testConditionalAccessBypassAllowedWithNonCAFailingCriticalPolicy(t *testing
 	})
 	require.NoError(t, err)
 
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		caPolicy.ID:    ptr.Bool(true),  // passing
 		nonCAPolicy.ID: ptr.Bool(false), // failing
 	}, time.Now(), false, nil)
@@ -413,7 +413,7 @@ func testConditionalAccessBypassAllowedWithCAEnabledNonCriticalPolicy(t *testing
 	})
 	require.NoError(t, err)
 
-	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		nonCriticalCAPolicy.ID: ptr.Bool(false), // failing
 	}, time.Now(), false, nil)
 	require.NoError(t, err)

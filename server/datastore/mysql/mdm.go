@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -400,10 +399,7 @@ WHERE
 
 	WHERE
 		mwe.host_uuid IN (?)
-		AND NOT EXISTS (
-			SELECT 1 FROM windows_mdm_command_results r
-			WHERE r.enrollment_id = wq.enrollment_id AND r.command_uuid = wq.command_uuid
-		)
+		AND wq.acked_at IS NULL
 
 		%[1]s
 
@@ -610,7 +606,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
-		if updates.AndroidConfigProfile, err = ds.batchSetMDMAndroidProfiles(ctx, tx, tmID, androidProfiles); err != nil {
+		if updates.AndroidConfigProfile, err = ds.batchSetMDMAndroidProfiles(ctx, tx, tmID, androidProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set android profiles")
 		}
 
@@ -638,7 +634,7 @@ func batchTrackUpdateConfigProfilesDB(ctx context.Context, tx sqlx.ExtContext, t
 	}
 
 	for _, p := range winProfiles {
-		if !bytes.Contains(p.SyncML, []byte(syncml.FleetOSUpdateTargetLocURI)) {
+		if !fleet.ProfileTargetsReservedLocURI(p.SyncML, syncml.FleetOSUpdateTargetLocURI) {
 			continue
 		}
 		var profileUUID string
@@ -1284,134 +1280,12 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host)
-	case "windows":
-		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", host.Platform)
 	}
 }
 
-func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
-	stmt := `
--- profiles without labels
-SELECT
-    mwcp.profile_uuid AS profile_uuid,
-	name,
-	syncml AS raw_profile,
-	min(mwcp.uploaded_at) AS earliest_install_date,
-	0 AS count_profile_labels,
-	0 AS count_non_broken_labels,
-	0 AS count_host_labels
-FROM
-	mdm_windows_configuration_profiles mwcp
-WHERE
-	mwcp.team_id = ? AND
-	NOT EXISTS (
-		SELECT
-			1
-		FROM
-			mdm_configuration_profile_labels mcpl
-		WHERE
-			mcpl.windows_profile_uuid = mwcp.profile_uuid
-	)
-GROUP BY profile_uuid, name, syncml
-
-UNION
-
--- label-based profiles where the host is a member of all the labels (include-all).
--- by design, "include" labels cannot match if they are broken (the host cannot be
--- a member of a deleted label).
-SELECT
-	mwcp.profile_uuid AS profile_uuid,
-	name,
-	syncml AS raw_profile,
-	min(mwcp.uploaded_at) AS earliest_install_date,
-	COUNT(*) AS count_profile_labels,
-	COUNT(mcpl.label_id) as count_non_broken_labels,
-	COUNT(lm.label_id) AS count_host_labels
-FROM
-	mdm_windows_configuration_profiles mwcp
-	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
-	LEFT OUTER JOIN label_membership lm
-		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
-WHERE
-	mwcp.team_id = ?
-GROUP BY
-	profile_uuid, name, syncml
-HAVING
-	count_profile_labels > 0 AND
-	count_host_labels = count_profile_labels
-
-UNION
-
--- label-based entities where the host is NOT a member of any of the labels (exclude-any).
--- explicitly ignore profiles with broken excluded labels so that they are never applied.
-SELECT
-	mwcp.profile_uuid AS profile_uuid,
-	name,
-	syncml AS raw_profile,
-	min(mwcp.uploaded_at) AS earliest_install_date,
-	COUNT(*) AS count_profile_labels,
-	COUNT(mcpl.label_id) as count_non_broken_labels,
-	COUNT(lm.label_id) AS count_host_labels
-FROM
-	mdm_windows_configuration_profiles mwcp
-	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
-	LEFT OUTER JOIN label_membership lm
-		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
-WHERE
-	mwcp.team_id = ?
-GROUP BY
-	profile_uuid, name, syncml
-HAVING
-	-- considers only the profiles with labels, without any broken label, and with the host not in any label
-	count_profile_labels > 0 AND
-	count_profile_labels = count_non_broken_labels AND
-	count_host_labels = 0
-
-UNION
-
--- label-based profiles where the host is a member of at least one of the labels (include-any)
-SELECT
-	mwcp.profile_uuid AS profile_uuid,
-	name,
-	syncml AS raw_profile,
-	min(mwcp.uploaded_at) AS earliest_install_date,
-	COUNT(*) AS count_profile_labels,
-	COUNT(mcpl.label_id) as count_non_broken_labels,
-	COUNT(lm.label_id) AS count_host_labels
-FROM
-	mdm_windows_configuration_profiles mwcp
-	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
-	LEFT OUTER JOIN label_membership lm
-		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
-WHERE
-	mwcp.team_id = ?
-GROUP BY
-	profile_uuid, name, syncml
-HAVING
-	count_profile_labels > 0 AND
-	count_host_labels > 0
-`
-	var profiles []*fleet.ExpectedMDMProfile
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID, hostID, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
-	}
-
-	byName := make(map[string]*fleet.ExpectedMDMProfile, len(profiles))
-	for _, r := range profiles {
-		byName[r.Name] = r
-	}
-
-	return byName, nil
-}
-
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
-	// TODO This will need to be updated to support scopes
 	stmt := `
 -- profiles without labels
 SELECT
@@ -1444,9 +1318,8 @@ WHERE
 
 UNION
 
--- label-based profiles where the host is a member of all the labels (include-all)
--- by design, "include" labels cannot match if they are broken (the host cannot be
--- a member of a deleted label).
+-- include-all only (no exclude labels): host must be a member of every include label.
+-- broken include labels disqualify the profile.
 SELECT
 	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
@@ -1469,7 +1342,11 @@ FROM
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
-	macp.team_id = ?
+	macp.team_id = ? AND
+	NOT EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	)
 GROUP BY
 	profile_uuid, identifier
 HAVING
@@ -1478,8 +1355,8 @@ HAVING
 
 UNION
 
--- label-based entities where the host is NOT a member of any of the labels (exclude-any).
--- explicitly ignore profiles with broken excluded labels so that they are never applied.
+-- exclude-any only (no include labels): host must NOT be a member of any exclude label.
+-- broken or not-yet-scanned dynamic exclude labels disqualify the profile.
 SELECT
 	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
@@ -1502,7 +1379,11 @@ FROM
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
-	macp.team_id = ?
+	macp.team_id = ? AND
+	NOT EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 0
+	)
 GROUP BY
 	profile_uuid, identifier
 HAVING
@@ -1513,7 +1394,8 @@ HAVING
 
 UNION
 
--- label-based profiles where the host is a member of at least one of the labels (include-any)
+-- include-any only (no exclude labels): host must be a member of at least one include label.
+-- broken include labels are skipped (host can't be a member of a deleted label).
 SELECT
 	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
@@ -1536,16 +1418,124 @@ FROM
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
-	macp.team_id = ?
+	macp.team_id = ? AND
+	NOT EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	)
 GROUP BY
 	profile_uuid, identifier
 HAVING
 	count_profile_labels > 0 AND
 	count_host_labels > 0
+
+UNION
+
+-- include-all + exclude-any: host must be in ALL include labels AND NOT in ANY exclude label.
+-- broken include labels or broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+SELECT
+	macp.profile_uuid AS profile_uuid,
+	macp.identifier AS identifier,
+	SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+	SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+	SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.apple_profile_uuid = macp.profile_uuid
+	JOIN hosts h
+		ON h.id = ?
+	LEFT OUTER JOIN labels lbl
+		ON lbl.id = mcpl.label_id
+	LEFT OUTER JOIN label_membership lm_inc
+		ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = ? AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm_exc
+		ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = ? AND mcpl.exclude = 1
+WHERE
+	macp.team_id = ? AND
+	EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 0 AND require_all = 1
+	) AND
+	EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	)
+GROUP BY
+	profile_uuid, identifier
+HAVING
+	-- include gate: host in all include labels (no broken include labels)
+	count_profile_labels > 0 AND count_non_broken_labels = count_profile_labels AND count_host_labels = count_profile_labels AND
+	-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels (reusing count_host_updated_after_labels)
+	SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+		WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+		WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+		ELSE 0 END) = 0
+
+UNION
+
+-- include-any + exclude-any: host must be in AT LEAST ONE include label AND NOT in ANY exclude label.
+-- broken/not-yet-scanned dynamic exclude labels disqualify the profile.
+SELECT
+	macp.profile_uuid AS profile_uuid,
+	macp.identifier AS identifier,
+	SUM(CASE WHEN mcpl.exclude = 0 THEN 1 ELSE 0 END) as count_profile_labels,
+	SUM(CASE WHEN mcpl.exclude = 0 AND mcpl.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_non_broken_labels,
+	SUM(CASE WHEN mcpl.exclude = 0 AND lm_inc.label_id IS NOT NULL THEN 1 ELSE 0 END) as count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.apple_profile_uuid = macp.profile_uuid
+	JOIN hosts h
+		ON h.id = ?
+	LEFT OUTER JOIN labels lbl
+		ON lbl.id = mcpl.label_id
+	LEFT OUTER JOIN label_membership lm_inc
+		ON lm_inc.label_id = mcpl.label_id AND lm_inc.host_id = ? AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm_exc
+		ON lm_exc.label_id = mcpl.label_id AND lm_exc.host_id = ? AND mcpl.exclude = 1
+WHERE
+	macp.team_id = ? AND
+	EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 0 AND require_all = 0
+	) AND
+	EXISTS (
+		SELECT 1 FROM mdm_configuration_profile_labels
+		WHERE apple_profile_uuid = macp.profile_uuid AND exclude = 1
+	)
+GROUP BY
+	profile_uuid, identifier
+HAVING
+	-- include gate: host in at least one include label
+	count_host_labels >= 1 AND
+	-- exclude gate: host not in any exclude label, no broken/unscanned exclude labels
+	SUM(CASE WHEN mcpl.exclude = 1 AND lm_exc.label_id IS NOT NULL THEN 1
+		WHEN mcpl.exclude = 1 AND (lbl.label_membership_type = 0 AND lbl.created_at IS NOT NULL AND h.label_updated_at < lbl.created_at) THEN 1
+		WHEN mcpl.exclude = 1 AND mcpl.label_id IS NULL THEN 1
+		ELSE 0 END) = 0
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID, host.ID, host.ID, host.ID, teamID, host.ID, host.ID, host.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -1697,17 +1687,17 @@ WHERE hmap.command_uuid = ?
 }
 
 func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	// Reads the persisted flag, not the config profile's mobileconfig: on a
+	// RemoveProfile ack the config profile is already deleted.
 	const stmt = `
 SELECT
-	h.id              AS host_id,
-	h.platform        AS platform,
-	hmap.profile_uuid AS profile_uuid,
-	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+	h.id                  AS host_id,
+	h.platform            AS platform,
+	hmap.profile_uuid     AS profile_uuid,
+	hmap.has_acme_payload AS has_acme_payload
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
-	JOIN mdm_apple_configuration_profiles mac
-		ON mac.profile_uuid = hmap.profile_uuid
 WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
@@ -2283,7 +2273,7 @@ func batchSetProfileVariableAssociationsDB(
 	case platform == "windows":
 		columnName = "windows_profile_uuid"
 	case platform == "android":
-		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
+		columnName = "android_profile_uuid"
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}

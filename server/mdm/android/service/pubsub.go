@@ -729,19 +729,14 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.Device.DeviceID = deviceID
 
-	var idpFullname string
-	idpAcct, err := svc.fleetDS.GetMDMIdPAccountByHostUUID(ctx, host.Host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting IdP account for host")
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, &host.Host.ID, host.Host.UUID, "")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for host")
 	}
-	if idpAcct != nil {
-		idpFullname = idpAcct.Fullname
-	}
-
-	host.Host.ComputerName = getComputerName(device, idpFullname)
-	host.Host.Hostname = getComputerName(device, idpFullname)
+	host.Host.ComputerName = computerName
+	host.Host.Hostname = computerName
 	host.Host.Platform = "android"
-	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
+	host.Host.OSVersion = androidHostOSVersion(device.SoftwareInfo)
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
@@ -768,6 +763,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll, companyOwned)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
+	}
+
+	if fromEnroll {
+		if err := svc.fleetDS.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(host.TeamID, []uint{host.Host.ID})); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting team for re-enrolled Android host")
+		}
+		if err := svc.ds.UpdateTeamIDOnAndroidDevices(ctx, []string{host.Host.UUID}, host.TeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "syncing android_devices team_id for re-enrolled Android host")
+		}
 	}
 
 	// Populate the operating_systems table so the host can be filtered via
@@ -819,6 +823,33 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	return nil
 }
 
+// androidOSVersion folds the Android version with the security patch level when
+// present, e.g. "16 (2026-05-01)", falling back to the bare version ("16") when
+// the device does not report a patch level (older devices may not). The major
+// version + security patch level pair is the vulnerability-relevant granularity
+// for Android (AMAPI exposes no "minor" version).
+func androidOSVersion(sw *androidmanagement.SoftwareInfo) string {
+	if sw == nil {
+		return ""
+	}
+	if sw.AndroidVersion == "" || sw.SecurityPatchLevel == "" {
+		return sw.AndroidVersion
+	}
+	return fmt.Sprintf("%s (%s)", sw.AndroidVersion, sw.SecurityPatchLevel)
+}
+
+// androidHostOSVersion returns the value stored in hosts.os_version, e.g.
+// "Android 16 (2026-05-01)". All SoftwareInfo fields are optional per the
+// Android Management API, so a device may report no version at all; in that
+// case we store "Android" without a dangling space or patch level.
+func androidHostOSVersion(sw *androidmanagement.SoftwareInfo) string {
+	version := androidOSVersion(sw)
+	if version == "" {
+		return "Android"
+	}
+	return "Android " + version
+}
+
 // updateHostOperatingSystem upserts the host's OS into the operating_systems
 // and host_operating_system tables. Without this, Android hosts cannot be
 // filtered via the os_name/os_version host list parameters and do not appear
@@ -829,7 +860,7 @@ func (svc *Service) updateHostOperatingSystem(ctx context.Context, hostID uint, 
 	}
 	if err := svc.fleetDS.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
 		Name:     "Android",
-		Version:  device.SoftwareInfo.AndroidVersion,
+		Version:  androidOSVersion(device.SoftwareInfo),
 		Platform: "android",
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host operating system")
@@ -860,6 +891,14 @@ func setAndroidHostUUID(host *fleet.AndroidHost, device *androidmanagement.Devic
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
+	// Validate before dereferencing device.SoftwareInfo/MemoryInfo/HardwareInfo
+	// below. enrollHost already validates before dispatching here, but this keeps
+	// addNewHost self-contained so it cannot panic if called from another path,
+	// matching updateHost.
+	if err := svc.validateDevice(ctx, device); err != nil {
+		return err
+	}
+
 	var enrollmentTokenRequest enrollmentTokenRequest
 	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
 	if err != nil {
@@ -888,24 +927,18 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable := svc.calculateAndroidStorageMetrics(ctx, device, false)
 
-	var idpFullname string
-	if enrollmentTokenRequest.IdpUUID != "" {
-		idpAcct, err := svc.ds.GetMDMIdPAccountByUUID(ctx, enrollmentTokenRequest.IdpUUID)
-		if err != nil && !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "getting IdP account for new host")
-		}
-		if idpAcct != nil {
-			idpFullname = idpAcct.Fullname
-		}
+	computerName, err := getComputerName(ctx, svc.fleetDS, device, nil, "", enrollmentTokenRequest.IdpUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting computer name for new host")
 	}
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			TeamID:                    teamID,
-			ComputerName:              getComputerName(device, idpFullname),
-			Hostname:                  getComputerName(device, idpFullname),
+			ComputerName:              computerName,
+			Hostname:                  computerName,
 			Platform:                  "android",
-			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
+			OSVersion:                 androidHostOSVersion(device.SoftwareInfo),
 			Build:                     device.SoftwareInfo.AndroidBuildNumber,
 			Memory:                    device.MemoryInfo.TotalRam,
 			GigsTotalDiskSpace:        gigsTotalDiskSpace,
@@ -992,13 +1025,44 @@ func getHardwareModel(device *androidmanagement.Device) string {
 	return cases.Title(language.English, cases.Compact).String(device.HardwareInfo.Brand) + " " + device.HardwareInfo.Model
 }
 
-func getComputerName(device *androidmanagement.Device, idpFullname string) string {
+// Priority: SCIM full name (via GetEndUsers) → IdP fullname (mdm_idp_accounts) → hardware model.
+// For existing hosts pass hostID + hostUUID
+// For new hosts (not yet inserted) pass hostID=nil and enrollmentIdpUUID from the enrollment token.
+func getComputerName(ctx context.Context, ds fleet.Datastore, device *androidmanagement.Device, hostID *uint, hostUUID, enrollmentIdpUUID string) (string, error) {
 	hardwareModel := getHardwareModel(device)
-	name := strings.TrimSpace(idpFullname)
-	if name == "" {
-		return hardwareModel
+
+	var endUsers []fleet.HostEndUser
+	if hostID != nil {
+		var err error
+		endUsers, err = fleet.GetEndUsers(ctx, ds, *hostID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "getting end users")
+		}
 	}
-	return name + "'s " + hardwareModel
+
+	if len(endUsers) > 0 && endUsers[0].IdpFullName != "" {
+		return endUsers[0].IdpFullName + "'s " + hardwareModel, nil
+	}
+
+	var idpAcct *fleet.MDMIdPAccount
+	var err error
+	switch {
+	case hostUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	case enrollmentIdpUUID != "":
+		idpAcct, err = ds.GetMDMIdPAccountByUUID(ctx, enrollmentIdpUUID)
+	}
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "getting IdP account")
+	}
+
+	if idpAcct != nil {
+		if name := strings.TrimSpace(idpAcct.Fullname); name != "" {
+			return name + "'s " + hardwareModel, nil
+		}
+	}
+
+	return hardwareModel, nil
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
@@ -1038,7 +1102,8 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 
-	svc.logger.DebugContext(ctx, "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+	svc.logger.DebugContext(ctx, "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion,
+		"non_compliance_count", len(device.NonComplianceDetails))
 
 	// Get all host_mdm_android_profiles that are pending or failed due to non compliance reasons,
 	// and included_in_policy_version <= device.AppliedPolicyVersion. That way we can either fully
@@ -1050,6 +1115,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		svc.logger.ErrorContext(ctx, "error getting pending profiles", "err", err)
 		return
 	}
+
+	svc.logger.DebugContext(ctx, "pending install profiles for verification", "host_uuid", hostUUID,
+		"pending_count", len(pendingInstallProfiles), "applied_policy_version", appliedPolicyVersion)
 
 	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
@@ -1090,6 +1158,23 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 					policyRequestUUID = *profile.PolicyRequestUUID
 				}
 			}
+		}
+
+		if policyRequestUUID == "" {
+			var nilPolicyReqCount, nilVersionCount int
+			for _, p := range pendingInstallProfiles {
+				if p.PolicyRequestUUID == nil {
+					nilPolicyReqCount++
+				}
+				if p.IncludedInPolicyVersion == nil {
+					nilVersionCount++
+				}
+			}
+			svc.logger.WarnContext(ctx, "no matching policy request UUID found for non-compliance verification",
+				"host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion,
+				"pending_profiles", len(pendingInstallProfiles),
+				"nil_policy_request_uuid", nilPolicyReqCount, "nil_included_in_policy_version", nilVersionCount,
+				"non_compliance_count", len(device.NonComplianceDetails))
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "12.7",
+      "version": "12.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '12.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ru.keepcoder.Telegram' AND version_compare(bundle_short_version, '12.9') < 0);"
       },
-      "installer_url": "https://osx.telegram.org/updates/Telegram-12.7.281600.app.zip",
+      "installer_url": "https://osx.telegram.org/updates/Telegram-12.9.282555.app.zip",
       "install_script_ref": "75a03f48",
       "uninstall_script_ref": "c15d54aa",
-      "sha256": "f17f1912bc59b192c9234c2de436253c010fcbeef260db0f0de42360b392dd93",
+      "sha256": "4407eac056c74363059418cef3be024f3f2f8135bb85b12ee511b21c92269f47",
       "default_categories": [
         "Communication"
       ]

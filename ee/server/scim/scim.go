@@ -268,6 +268,10 @@ func RegisterSCIM(
 		handler = debugPayloadDumpMiddleware(scimLogger, dumpPayloadsEnabled, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
+		// Placed before (outside) LastRequestMiddleware so that ignored SCIM
+		// requests don't overwrite the last-sync status owned by the Google
+		// Workspace sync.
+		handler = GoogleWorkspaceExclusionMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -401,6 +405,40 @@ func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Han
 	})
 }
 
+// GoogleWorkspaceExclusionMiddleware short-circuits SCIM requests when a Google
+// Workspace integration is configured. Google Workspace and SCIM are mutually
+// exclusive sources for IdP host vitals: while Google Workspace is configured,
+// Fleet pulls the directory itself and must ignore SCIM pushes so they cannot
+// clobber the synced data. It is placed before LastRequestMiddleware so ignored
+// requests don't overwrite the last-sync status.
+func GoogleWorkspaceExclusionMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			// Fail open: if the (cached) config can't be read, fall back to normal
+			// SCIM handling rather than breaking provisioning on a transient error.
+			logger.ErrorContext(ctx, "scim: failed to load app config for google workspace exclusion", "err", err)
+			next.ServeHTTP(w, r)
+			return
+		}
+		if len(appConfig.Integrations.GoogleWorkspace) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		logger.WarnContext(ctx, "ignoring SCIM request because a Google Workspace integration is configured",
+			"method", r.Method, "path", r.URL.Path)
+		w.Header().Set("Content-Type", "application/scim+json")
+		w.WriteHeader(http.StatusConflict)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:Error"},
+			"detail":  "SCIM provisioning is disabled because a Google Workspace integration is configured in Fleet.",
+			"status":  fmt.Sprintf("%d", http.StatusConflict),
+		})
+	})
+}
+
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
 // These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Handler) http.Handler {
@@ -412,9 +450,16 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 		switch {
 		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
 			status = "success"
-		case multi.statusCode == http.StatusUnauthorized:
-			// We do not save unauthenticated error details; we simply log them.
-			logger.InfoContext(r.Context(), "unauthenticated request",
+		case multi.statusCode == http.StatusUnauthorized || multi.statusCode == http.StatusForbidden:
+			// We do not save authentication (401) or authorization (403) failures; we
+			// simply log them. Otherwise an authenticated-but-unauthorized user (e.g. an
+			// observer) could overwrite the admin-visible last_request telemetry with
+			// their rejected attempts.
+			msg := "unauthenticated request"
+			if multi.statusCode == http.StatusForbidden {
+				msg = "unauthorized request"
+			}
+			logger.InfoContext(r.Context(), msg,
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,

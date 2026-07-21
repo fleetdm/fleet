@@ -10,11 +10,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -259,7 +261,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
-			team_id = :team_id,
 			detail_updated_at = :detail_updated_at,
 			label_updated_at = :label_updated_at,
 			hostname = :hostname,
@@ -277,7 +278,6 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
 			"id":                host.Host.ID,
-			"team_id":           host.TeamID,
 			"detail_updated_at": host.DetailUpdatedAt,
 			"label_updated_at":  host.LabelUpdatedAt,
 			"hostname":          host.Hostname,
@@ -411,11 +411,15 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 
 func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
-		TeamID *uint `db:"team_id"`
+		TeamID         *uint  `db:"team_id"`
+		Platform       string `db:"platform"`
+		HardwareSerial string `db:"hardware_serial"`
 		*android.Device
 	}
 	stmt := `SELECT
 		h.team_id,
+		h.platform,
+		h.hardware_serial,
 		ad.id,
 		ad.host_id,
 		ad.device_id,
@@ -435,9 +439,11 @@ func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID str
 	}
 	result := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			ID:     host.Device.HostID,
-			UUID:   hostUUID,
-			TeamID: host.TeamID,
+			ID:             host.Device.HostID,
+			UUID:           hostUUID,
+			TeamID:         host.TeamID,
+			Platform:       host.Platform,
+			HardwareSerial: host.HardwareSerial,
 		},
 		Device: host.Device,
 	}
@@ -601,7 +607,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
 
-func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
 	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -671,6 +677,11 @@ INSERT INTO
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "android"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting android profile label associations")
 		}
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profileUUID, FleetVariables: usesFleetVars},
+		}, "android", false); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting android profile variable associations")
+		}
 
 		return nil
 	})
@@ -718,6 +729,95 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 		}
 	}
 	return &profile, nil
+}
+
+// UpdateMDMAndroidConfigProfile updates an existing profile's contents (if
+// cp.RawJSON is non-empty) and/or label targeting in place. cp.Name must
+// match the existing profile's -- name is an Android profile's only
+// identity, so it never changes on this path.
+func (ds *Datastore) UpdateMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var existing struct {
+			Name string `db:"name"`
+		}
+		err := sqlx.GetContext(ctx, tx, &existing,
+			`SELECT name FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, cp.ProfileUUID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
+			}
+			return ctxerr.Wrap(ctx, err, "get existing android config profile")
+		}
+		if existing.Name != cp.Name {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "The new profile's name must match the existing profile's name.",
+			})
+		}
+
+		if len(cp.RawJSON) > 0 {
+			// Preserve uploaded_at on unchanged content (matching the batch
+			// upsert) so a no-op edit doesn't read as a fresh upload. The IF sees
+			// the pre-update raw_json (SET evaluates left to right), and the
+			// parameter must be CAST to JSON -- a json column never equals a
+			// bare string.
+			stmt := `UPDATE mdm_android_configuration_profiles SET uploaded_at = IF(raw_json = CAST(? AS JSON), uploaded_at, CURRENT_TIMESTAMP()), raw_json = ? WHERE profile_uuid = ? AND name = ?`
+			res, err := tx.ExecContext(ctx, stmt, cp.RawJSON, cp.RawJSON, cp.ProfileUUID, cp.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating android mdm config profile contents")
+			}
+			if aff, _ := res.RowsAffected(); aff == 0 {
+				return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(cp.ProfileUUID))
+			}
+
+			// Reset variable associations only on a content update, but then
+			// unconditionally, so an edit that removes the profile's last Fleet
+			// variable still clears the stale association. A labels-only update
+			// must leave them alone or variable-driven redelivery would break.
+			if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+				{ProfileUUID: cp.ProfileUUID, FleetVariables: usesFleetVars},
+			}, "android", false); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating android profile variable associations")
+			}
+		}
+
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsIncludeAny)+len(cp.LabelsExcludeAny))
+		for i := range cp.LabelsIncludeAll {
+			cp.LabelsIncludeAll[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAll[i].RequireAll = true
+			cp.LabelsIncludeAll[i].Exclude = false
+			labels = append(labels, cp.LabelsIncludeAll[i])
+		}
+		for i := range cp.LabelsIncludeAny {
+			cp.LabelsIncludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsIncludeAny[i].RequireAll = false
+			cp.LabelsIncludeAny[i].Exclude = false
+			labels = append(labels, cp.LabelsIncludeAny[i])
+		}
+		for i := range cp.LabelsExcludeAny {
+			cp.LabelsExcludeAny[i].ProfileUUID = cp.ProfileUUID
+			cp.LabelsExcludeAny[i].RequireAll = false
+			cp.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, cp.LabelsExcludeAny[i])
+		}
+		var profsWithoutLabel []string
+		if len(labels) == 0 {
+			profsWithoutLabel = append(profsWithoutLabel, cp.ProfileUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "android"); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating android profile label associations")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := ds.GetMDMAndroidConfigProfile(ctxdb.RequirePrimary(ctx, true), cp.ProfileUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get updated android config profile")
+	}
+	return updated, nil
 }
 
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
@@ -1315,6 +1415,18 @@ const androidApplicableProfilesQuery = `
 		count_host_updated_after_labels = 0
 `
 
+// GetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
+// the mysqlredis wrapper backs it with Redis.
+func (ds *Datastore) GetMDMAndroidReconcileCursor(_ context.Context) (string, error) {
+	return "", nil
+}
+
+// SetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
+// the mysqlredis wrapper writes to Redis.
+func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
 // ListMDMAndroidProfilesToSend is the android platform equivalent to
 // ListMDMAppleProfilesToInstall/Remove and
 // ListMDMWindowsProfilesToInstall/Remove. It plays a similar role but is quite
@@ -1338,12 +1450,28 @@ const androidApplicableProfilesQuery = `
 //
 // See https://github.com/fleetdm/fleet/issues/32032#issuecomment-3229548389
 // for more details on the rationale of that approach.
-func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
+func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor string, batchSize int) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	var toApplyProfiles, toRemoveProfiles []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var installCursorPred, removeCursorPred string
+		var args []any
+		if cursor != "" {
+			installCursorPred = "AND ds.host_uuid > ?"
+			removeCursorPred = "AND hmap.host_uuid > ?"
+			args = []any{cursor, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, cursor}
+		} else {
+			args = []any{fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending}
+		}
+
+		var limitClause string
+		if batchSize > 0 {
+			limitClause = fmt.Sprintf("LIMIT %d", batchSize)
+		}
+
 		hostsWithChangesStmt := fmt.Sprintf(`
 	WITH ds AS ( %s )
 
+	SELECT host_uuid FROM (
 	SELECT
 		DISTINCT ds.host_uuid
 	FROM ds
@@ -1364,6 +1492,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			-- profile needs retry (status reset to NULL after transient failure)
 			hmap.status IS NULL
 		)
+		%s
 
 	UNION
 
@@ -1384,7 +1513,15 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.host_uuid IS NULL AND
 		-- and it is not in pending remove status (in which case it was processed)
 		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )
-`, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
+		%s
+	) AS all_changes
+	ORDER BY host_uuid
+	%s
+`, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"),
+			installCursorPred,
+			removeCursorPred,
+			limitClause,
+		)
 
 		// NOTE: we explicitly don't "ignore" profiles to remove based on broken labels,
 		// because of how Android profiles are applied vs other platforms (ignoring
@@ -1399,8 +1536,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
 
 		var hostUUIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
-			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 
@@ -1683,6 +1819,7 @@ func (ds *Datastore) batchSetMDMAndroidProfiles(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAndroidConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	if len(profiles) == 0 {
 		rowsAffected, err := ds.deleteAllAndroidProfiles(ctx, tx, tmID)
@@ -1817,7 +1954,7 @@ WHERE
 		})
 	}
 
-	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, nil)
+	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, profilesVariablesByIdentifier)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}
@@ -1888,7 +2025,7 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		return false, nil
 	}
 
-	profilesToInstall, profilesToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profilesToInstall, profilesToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list android profiles to send")
 	}
@@ -2232,6 +2369,76 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
+	}
+
+	// Track which fleet variables this app config uses so SCIM can trigger resends.
+	var appConfigID uint
+	if err := sqlx.GetContext(ctx, tx, &appConfigID,
+		`SELECT id FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`,
+		appID, teamID,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android app configuration id for variable tracking")
+	}
+
+	found := variables.Find(string(config))
+	fleetVars := make([]fleet.FleetVarName, len(found))
+	for i, v := range found {
+		fleetVars[i] = fleet.FleetVarName(v)
+	}
+	if err := setAppConfigVariableAssociations(ctx, tx, appConfigID, fleetVars); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting app config variable associations")
+	}
+
+	return nil
+}
+
+// setAppConfigVariableAssociations replaces the variable associations for an
+// android app configuration in mdm_configuration_profile_variables.
+func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, appConfigID uint, fleetVars []fleet.FleetVarName) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE android_app_configuration_id = ?`, appConfigID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting app config variable associations")
+	}
+
+	if len(fleetVars) == 0 {
+		return nil
+	}
+
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+	var varDefs []varDef
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, `SELECT id, name, is_prefix FROM fleet_variables`); err != nil {
+		return ctxerr.Wrap(ctx, err, "loading fleet variables")
+	}
+
+	var values strings.Builder
+	var args []any
+	for _, v := range fleetVars {
+		varWithPrefix := "FLEET_VAR_" + string(v)
+		for _, def := range varDefs {
+			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
+			if match {
+				values.WriteString("(?, ?),")
+				args = append(args, appConfigID, def.ID)
+				break
+			}
+		}
+	}
+
+	if len(args) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO mdm_configuration_profile_variables (android_app_configuration_id, fleet_variable_id)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE fleet_variable_id = VALUES(fleet_variable_id)
+	`, strings.TrimSuffix(values.String(), ","))
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting app config variable associations")
 	}
 	return nil
 }

@@ -66,7 +66,7 @@ The engineering output and architecture DRI reviews and triages engineering-init
 
 1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming sprint.
+2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming release.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
@@ -76,16 +76,50 @@ The engineering output and architecture DRI reviews and triages engineering-init
 All bug fix pull requests should reference the issue they resolve with the issue number in the description. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the issues to auto-close when the PR is merged.
 
 
+#### Handle a security report
+
+Security reports come in through the [confidential repo](https://github.com/fleetdm/confidential). Not every report is a fire drill — the severity determines the timing, not the urgency the reporter feels.
+
+**Initial review:** An engineer or Engineering Manager reviews every new security report within **one business day** to confirm the report, assign a severity, and decide on a remediation path.
+
+**Severity timelines:**
+
+- **Critical** — Cut a patch release as soon as the fix is ready. Do not wait for the next scheduled release.
+- **High** — Merge the fix into `main` within the next **2-3 weeks**. Schedule the fix for the next patch release.
+- **Medium** — Address in the next minor release.
+
+**New High reports during an in-flight patch:**
+
+When a patch release branch has already been cut to ship previously fixed High issues, newly reported High issues should be scheduled for the patch release *after* the in-flight one. This keeps the in-flight patch focused and avoids destabilizing it with last-minute additions.
+
+**Exception — high-impact reports:** If we believe a newly reported High issue would affect a large number of customers, we pull it into the in-flight patch instead of deferring it. The EM and on-call engineer make this call.
+
+
+#### Stage a fix for a security report
+
+All conversation about an unfixed vulnerability stays in the confidential repo — never cross-post details, reproduction steps, or affected components into the public `fleet` repo.
+
+**Keep the fix obscure in public history.** Fleet's commit log and open PRs are public, so anyone watching can correlate a vague commit with the upcoming release. Write the PR title and commit message so a reader cannot identify the vulnerability:
+
+- Do not reference the security report, advisory, or CVE.
+- Do not describe the bug or its impact in terms a reporter would recognize.
+- Frame the change as a routine refactor, hardening, or input-validation improvement — whatever is least surprising for the files touched.
+- Keep the diff scoped to the fix; avoid bundling unrelated cleanup that makes the change look larger or more interesting than it is.
+- Do not use `Resolves: #<ticket>` or any other link back to the confidential ticket — that would expose the ticket number publicly.
+
+**Private security advisory fork.** If the fix itself would tip off an attacker (for example, the patch is small and the vulnerable code path is obvious from the diff), develop it in the private fork attached to a GitHub [security advisory](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/about-repository-security-advisories) instead of an open PR. Either way, once the PR merges to `main` the change is in public history — coordinate the merge with the patch release so the fix ships immediately.
+
+**Link the PR back to the confidential ticket.** Since the PR description can't reference the confidential issue, post a comment on the confidential ticket with the PR URL when the PR opens (and again when it merges). That's how we maintain the audit trail without exposing the link publicly.
+
+
 #### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be built in a single release cycle. When an Engineering Manager (EM) knows a user story will be pushed, it is the EM's responsibility to notify stakeholders:
 
-1. Add the `~pushed` label to the user story.
-2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
+1. Send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `customer-` labels are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
-> Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
+> Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
 
 ### Community contributions
@@ -103,12 +137,12 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 **For PRs that change the product:**
 
 - Assign the PR to the appropriate Product Designer (PD).
-- Notify the relevant PD in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
+- @ mention the relevant PD in a comment on the PR.
 
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
 - Set the PR to draft.
-- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#scrum-items) and bring it through drafting or put the change to the side (not prioritize).
+- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) and bring it through drafting or put the change to the side (not prioritize).
 - Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
 
 
@@ -182,7 +216,7 @@ Because remote-triggered sessions run as you, on your machine, take the followin
 
 #### On-call engineer
 
-Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each sprint accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering Managers are asked to be aware of the [on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#on-call-engineer) and reduce estimated capacity for each release cycle accordingly. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
 On-call engineers are available during the business hours of 9am - 5pm Central. The [on-call support SLA](https://fleetdm.com/handbook/company/product-groups#on-call-responsibilities) requires a 1-hour response time during business hours to any `@oncall` mention.
 
@@ -193,12 +227,12 @@ The on-call engineer is responsible for:
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next engineer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-To provide full-time focus to the role, the on-call engineer is not expected to work on sprint issues during their on-call assignment.
+To provide full-time focus to the role, the on-call engineer is not expected to work on release issues during their on-call assignment.
 
 
 #### Incident on-call engineer
 
-Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each sprint accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full sprint's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next sprint if necessary.
+Engineering Managers are asked to be aware of the [incident on-call engineer rotations](https://fleetdm.com/handbook/company/product-groups#incident-on-call-engineer) and plan estimated capacity for each release cycle accordingly. While there are no incidents most weeks, when they occur the incident on-call responsibilities can sometimes take up a substantial portion of the engineer's time. A full release cycle's capacity should be planned for the engineer, but one week of capacity should be non-urgent issues that can be delayed to the next release cycle if necessary.
 
 Incident on-call engineers are available 24/7 during their one-week shift. They respond only to P0 issues that have an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md) filed. Notifications are sent via incident.io, triggered by creating an incident response issue.
 

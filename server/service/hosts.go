@@ -1316,7 +1316,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -1491,7 +1491,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
-		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name()); err != nil {
+		if err := worker.QueueBulkSetAndroidAppsAvailableForHosts(ctx, svc.ds, svc.logger, androidUUIDs, enterprise.Name(), svc.config.MDM.AndroidBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue bulk set available android apps for hosts job")
 		}
 	}
@@ -1828,6 +1828,24 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// raw decryptable key status.
 				host.MDM.PopulateOSSettingsAndMacOSSettings(profs, mobileconfig.FleetFileVaultPayloadIdentifier)
 
+				// populate host-name template enforcement status (macOS, iOS, iPadOS).
+				// Omitted entirely when the host has no enforcement row.
+				dnEnforcement, err := svc.ds.GetHostDeviceNameEnforcement(ctx, host.UUID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get host device name enforcement")
+				}
+				if dnEnforcement != nil {
+					// A NULL DB status is a queued row waiting; it renders as pending
+					status := fleet.HostNameSettingPending
+					if dnEnforcement.Status != nil {
+						status = fleet.HostNameSettingStatus(*dnEnforcement.Status)
+					}
+					host.MDM.OSSettings.HostName = &fleet.HostMDMHostNameSetting{
+						Status: status,
+						Detail: dnEnforcement.Detail,
+					}
+				}
+
 				// populate recovery lock password status for macOS hosts
 				if host.Platform == "darwin" {
 					rlpStatus, err := svc.ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
@@ -1897,6 +1915,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			if status.Status != nil && *status.Status == fleet.DiskEncryptionVerified {
 				host.MDM.EncryptionKeyAvailable = true
 			}
+		} else {
+			// Linux hosts only have OS settings via the disk-encryption (LUKS)
+			// path above. When disk encryption isn't enabled, clear the stray
+			// empty struct initialized at the top of this method (which runs
+			// whenever any platform's MDM is enabled & configured) so the API
+			// reports no OS settings instead of an empty object.
+			host.MDM.OSSettings = nil
 		}
 	}
 
@@ -1922,6 +1947,26 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 	suppressAndroidBYODWipeStatus(host)
 
+	// Populate wipe/lock/clear_passcode allowed flags for manually-enrolled Apple hosts.
+	if fleet.IsApplePlatform(host.Platform) &&
+		host.MDM.EnrollmentStatus != nil &&
+		(*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusManual ||
+			*host.MDM.EnrollmentStatus == fleet.MDMEnrollmentStatusPersonal) {
+		perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
+		}
+		rights := apple_mdm.MDMAccessRightAll
+		if perms != nil {
+			rights = perms.AccessRights
+		}
+		wipeAllowed := rights&apple_mdm.MDMAccessRightDeviceErase != 0
+		lockAllowed := rights&apple_mdm.MDMAccessRightDeviceLock != 0
+		host.MDM.WipeAllowed = &wipeAllowed
+		host.MDM.LockAllowed = &lockAllowed
+		host.MDM.ClearPasscodeAllowed = &lockAllowed // same bit as lock
+	}
+
 	host.Policies = policies
 
 	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
@@ -1935,6 +1980,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	conditionalAccessBypassed := conditionalAccessBypassedAt != nil
 
+	customHostVitals, err := svc.ds.GetHostCustomHostVitals(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get custom host vitals for host")
+	}
+
 	return &fleet.HostDetail{
 		Host:                          *host,
 		Labels:                        labels,
@@ -1942,6 +1992,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Batteries:                     &bats,
 		MaintenanceWindow:             nextMw,
 		EndUsers:                      endUsers,
+		CustomHostVitals:              customHostVitals,
 		LastMDMEnrolledAt:             mdmLastEnrollment,
 		LastMDMCheckedInAt:            mdmLastCheckedIn,
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
@@ -2357,15 +2408,29 @@ func (svc *Service) SetHostDeviceMapping(ctx context.Context, hostID uint, email
 		if err == nil && scimUser != nil {
 			// User exists in SCIM, create/update the mapping for additional attributes
 			// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
-			if err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID); err != nil {
+			resentCerts, err := svc.ds.SetOrUpdateHostSCIMUserMapping(ctx, hostID, scimUser.ID)
+			if err != nil {
 				// Log the error but don't fail the request since the main IDP mapping succeeded
 				svc.logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		} else {
 			// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
-			if err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID); err != nil && !fleet.IsNotFound(err) {
+			resentCerts, err := svc.ds.DeleteHostSCIMUserMapping(ctx, hostID)
+			if err != nil && !fleet.IsNotFound(err) {
 				// Log the error but don't fail the request
 				svc.logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
+			} else {
+				for _, cert := range resentCerts {
+					if err := svc.NewActivity(ctx, nil, cert); err != nil {
+						svc.logger.DebugContext(ctx, "failed to create resent_certificate activity", "err", err)
+					}
+				}
 			}
 		}
 
@@ -3245,11 +3310,13 @@ func (svc *Service) OSVersions(
 		})
 	}
 
-	// Total count BEFORE pagination
-	count = len(osVersions.OSVersions)
+	filtered := filterOSVersions(osVersions.OSVersions, opts)
+
+	// Total count BEFORE pagination but AFTER filtering.
+	count = len(filtered)
 
 	// Paginate first
-	paged, meta := paginateOSVersions(osVersions.OSVersions, opts)
+	paged, meta := paginateOSVersions(filtered, opts)
 
 	// Pull vulnerabilities ONLY for the paginated slice, as the full list slows
 	// response times down significantly with many CVEs.
@@ -3292,6 +3359,22 @@ func (svc *Service) OSVersions(
 		CountsUpdatedAt: osVersions.CountsUpdatedAt,
 		OSVersions:      paged,
 	}, count, meta, nil
+}
+
+// filterOSVersions checks the MatchQuery and filters on the platform name.
+// MatchQuery can be a comma-separated list of platform names.
+func filterOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
+	if opts.MatchQuery == "" {
+		return slice
+	}
+
+	var filtered []fleet.OSVersion
+	for _, osVersion := range slice {
+		if strings.Contains(strings.ToLower(opts.MatchQuery), strings.ToLower(osVersion.Platform)) {
+			filtered = append(filtered, osVersion)
+		}
+	}
+	return filtered
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
@@ -4065,6 +4148,16 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 			return nil, nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 		}
 		host = h
+	}
+
+	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// This applies to both the user-authenticated host software endpoint and the
+	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
+	// these filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+		if !license.IsPremium(ctx) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
 	}
 
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)

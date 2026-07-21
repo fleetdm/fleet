@@ -91,7 +91,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
 | Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
-
+| [Usage statistics](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618)                     | <sup><sub>_See [🌦️ SVP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 
 ## Meetings
 
@@ -193,7 +193,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+Team calendars are the primary source for release rituals; they facilitate the execution of each release cycle. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
@@ -214,7 +214,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 
 > **Are you scheduling time with the CEO?**
 >
-> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo)).
+> Please do not add events to the CEO's calendar, *even if the CEO asks you to*. Instead, [get scheduling help from the Executive Assistant](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 
 ## Shadowing meetings
@@ -260,7 +260,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create a IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** [Create an IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
 
 
 ### Key Slack channels
@@ -428,7 +428,7 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
-| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
+| `#g-`             | Group issue | _An issue requesting something from a group at Fleet, such that it will be seen and processed on their kanban board within 1 business day._
 
 Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
@@ -504,7 +504,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
+- Don't enable closed captions during release demo recording (they're added later if needed).
 
 
 ## Feedback

@@ -730,6 +730,12 @@ export default {
     );
   },
 
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
+  },
+
   getHostSoftware: (
     params: IHostSoftwareQueryKey
   ): Promise<IGetHostSoftwareResponse> => {

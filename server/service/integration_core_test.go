@@ -1532,8 +1532,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -2153,7 +2153,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	resp = listHostsResponse{}
@@ -2417,7 +2417,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	for _, host := range hosts {
 		// All hosts pass the globalPolicy1
-		err := s.ds.RecordPolicyQueryExecutions(
+		_, err := s.ds.RecordPolicyQueryExecutions(
 			context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil,
 		)
 		require.NoError(t, err)
@@ -3263,8 +3263,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3313,14 +3313,14 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 
 	// Record query executions
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil,
-		),
+		)),
 	)
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil,
-		),
+		)),
 	)
 	// Update policy stats
 	require.NoError(t, s.ds.UpdateHostPolicyCounts(context.Background()))
@@ -3505,8 +3505,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?team_id=%d&policy_id=%d&policy_response=passing", team1.ID, policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3714,7 +3714,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
-	err = s.ds.RecordPolicyQueryExecutions(
+	_, err = s.ds.RecordPolicyQueryExecutions(
 		context.Background(),
 		host1,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
@@ -5700,7 +5700,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -5757,7 +5757,7 @@ func (s *integrationTestSuite) TestLabels() {
 			queryValuesJson, err := json.Marshal(queryValues)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
+			assert.Equal(t, "SELECT %s FROM %s JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_users.department = ? GROUP BY hosts.id", query)
 			assert.Equal(t, `["department_good"]`, string(queryValuesJson))
 
 			// Update label membership.
@@ -6138,7 +6138,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	// Add MDM info
@@ -8248,6 +8248,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -8850,6 +8853,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// apply spec, empty and whitespace-only secrets are rejected
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "   "}}},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// error conditions should create new activities
@@ -9793,7 +9804,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	// create a policy and make the host fail it
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// refetch the host details
@@ -10539,7 +10550,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// create some device mappings for host[2]
@@ -12961,20 +12972,20 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	for i, host := range hosts {
 		// All hosts pass the globalPolicy0
-		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
+		_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		if i%2 == 0 {
 			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		} else {
 			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -14080,8 +14091,8 @@ func (s *integrationTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil))
 
@@ -15114,19 +15125,45 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	}
 	// Do dry run
 	req.DryRun = true
+	idBeforeDryRun := s.lastActivityMatches("", "", 0)
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
+	// A dry run persists nothing, so it must not emit any activity.
+	require.Equal(t, idBeforeDryRun, s.lastActivityMatches("", "", 0))
 
-	// Do real run
+	// Do real run: creating the variable emits a created_custom_variable activity.
 	req.DryRun = false
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		0,
+	)
+
+	// Re-applying the same spec is a no-op and must not emit any activity.
+	idAfterCreate := s.lastActivityMatches("", "", 0)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	require.Equal(t, idAfterCreate, s.lastActivityMatches("", "", 0))
+
+	// Changing the value via the spec endpoint emits an updated_custom_variable activity.
+	req.SecretVariables[0].Value = "new-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "new-value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityUpdatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_name":%q}`, validName),
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestSecretVariables() {
@@ -15676,7 +15713,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}
@@ -15846,24 +15883,19 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 	}
 }
 
-func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
-	t := s.T()
-
-	var resp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
-	require.False(t, resp.License.ManagedCloud)
-
-	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
+	// Microsoft compliance partner APIs should fail on Fleet Free (this suite
+	// runs without a premium license).
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
 		MicrosoftTenantID: "foobar",
-	}, http.StatusBadRequest, &r)
+	}, http.StatusPaymentRequired, &r)
 	var c conditionalAccessMicrosoftConfirmResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &c)
+		http.StatusPaymentRequired, &c)
 	var d conditionalAccessMicrosoftDeleteResponse
-	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &d)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
+		http.StatusPaymentRequired, &d)
 }
 
 func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {
@@ -16935,9 +16967,9 @@ func (s *integrationTestSuite) TestListHostReports() {
 	})
 }
 
-// TestLabelScopePremiumGate verifies that the include_all scope fields is
-// premium-gated on all entry points for the free-tier (core) server, while
-// existing free-tier label fields (policy include/exclude_any) still work.
+// TestLabelScopePremiumGate verifies that all policy label scope fields
+// (include_any, include_all, exclude_any, exclude_all) are premium-gated on
+// every entry point for the free-tier (core) server.
 func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	t := s.T()
 
@@ -16946,33 +16978,37 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
 	lbl := lblResp.Label
 
-	// LabelsIncludeAll on Global/TeamPolicyRequest is tagged `premium:"true"`, so
-	// the endpoint decoder rejects with 400 before reaching the service handler.
-	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "premium-gated-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAll: []string{lbl.Name},
-	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	// All policy label scope fields on GlobalPolicyRequest are tagged
+	// `premium:"true"`, so the endpoint decoder rejects with 400 before reaching
+	// the service handler.
+	for _, req := range []fleet.GlobalPolicyRequest{
+		{Name: "premium-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "premium-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "premium-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "premium-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/policies", req, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+	}
 
-	// Free-tier should still allow creating a policy with LabelsIncludeAny (existing field).
+	// A policy without any label scope can still be created on free-tier.
 	var freeOK fleet.GlobalPolicyResponse
 	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
-		Name:             "free-include-any-" + t.Name(),
-		Query:            "SELECT 1",
-		LabelsIncludeAny: []string{lbl.Name},
+		Name:  "free-no-labels-" + t.Name(),
+		Query: "SELECT 1",
 	}, http.StatusOK, &freeOK)
 	require.NotNil(t, freeOK.Policy)
 
-	// Free-tier should reject PATCHing a policy to add LabelsIncludeAll (middleware → 400).
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: []string{lbl.Name}},
-	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
-
-	s.DoRaw("PATCH",
-		fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID),
-		fmt.Appendf(nil, `{"labels_include_any":[%q]}`, lbl.Name),
-		http.StatusOK,
-	)
+	// Free-tier should reject PATCHing a policy to add any label scope (middleware → 400).
+	for _, payload := range []fleet.ModifyPolicyPayload{
+		{LabelsIncludeAll: []string{lbl.Name}},
+		{LabelsIncludeAny: []string{lbl.Name}},
+		{LabelsExcludeAll: []string{lbl.Name}},
+		{LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+			ModifyPolicyPayload: payload,
+		}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+	}
 
 	for _, payload := range []fleet.QueryPayload{
 		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
@@ -16983,13 +17019,16 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 
 	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
 	// so the gate fires at the service layer and returns 402 (PaymentRequired).
-	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
-		Specs: []*fleet.PolicySpec{{
-			Name:             "spec-premium-gate-" + t.Name(),
-			Query:            "SELECT 1",
-			LabelsIncludeAll: []string{lbl.Name},
-		}},
-	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	for _, spec := range []*fleet.PolicySpec{
+		{Name: "spec-include-all-" + t.Name(), Query: "SELECT 1", LabelsIncludeAll: []string{lbl.Name}},
+		{Name: "spec-include-any-" + t.Name(), Query: "SELECT 1", LabelsIncludeAny: []string{lbl.Name}},
+		{Name: "spec-exclude-all-" + t.Name(), Query: "SELECT 1", LabelsExcludeAll: []string{lbl.Name}},
+		{Name: "spec-exclude-any-" + t.Name(), Query: "SELECT 1", LabelsExcludeAny: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+			Specs: []*fleet.PolicySpec{spec},
+		}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+	}
 
 	// Same for QuerySpec.
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{

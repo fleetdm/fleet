@@ -1,0 +1,10 @@
+{
+  "name": "HazeOver",
+  "unique_identifier": "com.pointum.hazeover",
+  "token": "hazeover",
+  "installer_format": "dmg",
+  "slug": "hazeover/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

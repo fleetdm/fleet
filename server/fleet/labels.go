@@ -31,11 +31,14 @@ const (
 )
 
 type HostVitalCriteria struct {
-	Vital    *string             `json:"vital,omitempty"`
-	Value    *string             `json:"value,omitempty"`
-	Operator *HostVitalOperator  `json:"operator,omitempty"`
-	And      []HostVitalCriteria `json:"and,omitempty"`
-	Or       []HostVitalCriteria `json:"or,omitempty"`
+	Vital    *string            `json:"vital,omitempty"`
+	Value    *string            `json:"value,omitempty"`
+	Operator *HostVitalOperator `json:"operator,omitempty"`
+	// CustomHostVitalID is required when Vital is "custom_host_vital": that name
+	// alone doesn't identify which custom vital to match, so the id selects it.
+	CustomHostVitalID *uint               `json:"custom_host_vital_id,omitempty"`
+	And               []HostVitalCriteria `json:"and,omitempty"`
+	Or                []HostVitalCriteria `json:"or,omitempty"`
 }
 
 type LabelPayload struct {
@@ -373,6 +376,24 @@ func LabelIdentsToNames(idents []LabelIdent) []string {
 	return out
 }
 
+// LabelOverlap returns the first label name that appears in both the include
+// list and the exclude list, or an empty string if there is none.
+// `include` should be the union of all include scopes (e.g. labels_include_all and
+// labels_include_any).
+// `exclude` should be the union of all exclude scopes.
+func LabelOverlap(include, exclude []string) string {
+	seen := make(map[string]struct{}, len(include))
+	for _, n := range include {
+		seen[n] = struct{}{}
+	}
+	for _, n := range exclude {
+		if _, overlapExists := seen[n]; overlapExists {
+			return n
+		}
+	}
+	return ""
+}
+
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
 // profiles and software installers, to subsets of hosts.
 type LabelScope string
@@ -479,13 +500,30 @@ func parseHostVitalCriteria(criteria *HostVitalCriteria, foreignVitalsGroups map
 	if !ok {
 		return "", fmt.Errorf("unknown vital %s", *criteria.Vital)
 	}
-	// If the vital is a foreign vitals group, add it to the list of foreign vitals groups.
-	if vital.VitalType == HostVitalTypeForeign {
+	switch vital.VitalType {
+	case HostVitalTypeForeign:
+		// If the vital is a foreign vitals group, add it to the list of foreign vitals groups.
 		foreignVitalsGroup, ok := hostForeignVitalGroups[*vital.ForeignVitalGroup]
 		if !ok {
 			return "", fmt.Errorf("unknown foreign vital group %s", *vital.ForeignVitalGroup)
 		}
 		foreignVitalsGroups[&foreignVitalsGroup] = struct{}{}
+	case HostVitalTypeCustom:
+		if criteria.CustomHostVitalID == nil {
+			return "", errors.New("custom_host_vital criteria must have a custom_host_vital_id")
+		}
+		// Join only this vital's per-host rows. The id is appended to values
+		// before the criterion value below because the join is concatenated
+		// ahead of the WHERE clause in CalculateHostVitalsQuery, so its
+		// placeholder must bind first. A fresh group per call is fine: only a
+		// single criterion is supported (And/Or are rejected above), so at most
+		// one parameterized join exists.
+		group := HostForeignVitalGroup{
+			Name:  "custom_host_vital",
+			Query: "JOIN host_custom_host_vitals ON (hosts.id = host_custom_host_vitals.host_id AND host_custom_host_vitals.custom_host_vital_id = ?)",
+		}
+		foreignVitalsGroups[&group] = struct{}{}
+		*values = append(*values, *criteria.CustomHostVitalID)
 	}
 	*values = append(*values, *criteria.Value)
 

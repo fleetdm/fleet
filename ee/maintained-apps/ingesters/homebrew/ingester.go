@@ -1,8 +1,10 @@
 package homebrew
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
@@ -30,9 +34,12 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	}
 
 	i := &brewIngester{
-		baseURL: baseBrewAPIURL,
-		logger:  logger,
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL:          baseBrewAPIURL,
+		buildhubURL:      buildhubAPIURL,
+		logger:           logger,
+		client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		retryInterval:    2 * time.Second,
+		retryMaxAttempts: 5,
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
@@ -87,13 +94,34 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 	return manifestApps, nil
 }
 
-const baseBrewAPIURL = "https://formulae.brew.sh/api/"
+const (
+	baseBrewAPIURL = "https://formulae.brew.sh/api/"
+	// buildhubAPIURL is Mozilla's build metadata search API.
+	buildhubAPIURL = "https://buildhub.moz.tools/api/search"
+)
 
 type brewIngester struct {
-	baseURL string
-	logger  *slog.Logger
-	client  *http.Client
+	baseURL     string
+	buildhubURL string
+	logger      *slog.Logger
+	client      *http.Client
+
+	// retryInterval and retryMaxAttempts control retries of transient brew API
+	// failures (network errors and 5xx/429 responses). formulae.brew.sh is
+	// served by GitHub Pages, which intermittently returns 503s; without
+	// retries a single blip aborts the whole ingestion run. Defaults are set in
+	// IngestApps; tests override them to keep runs fast.
+	retryInterval    time.Duration
+	retryMaxAttempts int
 }
+
+// transientErr wraps a brew API failure that is worth retrying (a network error
+// or a 5xx/429 server response). Non-transient failures (404, other 4xx) are
+// returned unwrapped so the retry loop gives up immediately.
+type transientErr struct{ err error }
+
+func (e *transientErr) Error() string { return e.err.Error() }
+func (e *transientErr) Unwrap() error { return e.err }
 
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
 	cask, err := i.fetchCask(ctx, input)
@@ -127,6 +155,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	if input.Token == "swiftdialog" {
+		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment
+		// profile renewal; don't treat orbit's copy as the installed app for install or patch status.
+		// The patch policy generated below inherits this exclusion.
+		out.Queries.Exists = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';",
+			out.UniqueIdentifier,
+		)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -200,8 +237,203 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "sonos" {
+		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
+		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
+		// the unrelated marketing version (e.g. "17.2.3"). Compare bundle_version so
+		// patch status reflects the actual installed build.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "firefox@developer-edition" {
+		// The bundle reports only the base version ("153.0") for cask version
+		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
+		// via buildhub) to distinguish betas; fall back to a cycle-granular
+		// base-version comparison if buildhub is unavailable.
+		column := "bundle_version"
+		patchVersion, err := i.firefoxDevEditionMacBundleVersion(ctx, out.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "resolving Firefox Developer Edition bundle version failed; patch policy falls back to base-version comparison", "err", err.Error())
+			column, patchVersion = "bundle_short_version", firefoxBetaBaseVersion(out.Version)
+		}
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(%s, '%s') < 0);",
+			out.UniqueIdentifier, column, patchVersion,
+		)
+	}
+	if input.Token == "firefox@nightly" {
+		// Nightly's CFBundleShortVersionString ("154.0a1") is constant all cycle;
+		// derive CFBundleVersion from the cask version's build timestamp for
+		// day-level patch status.
+		bundleVersion, err := firefoxNightlyMacBundleVersion(cask.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "deriving Firefox Nightly bundle version failed; patch policy falls back to short-version comparison", "err", err.Error())
+		} else {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, bundleVersion,
+			)
+		}
+	}
 
 	return out, nil
+}
+
+var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)
+
+// firefoxBetaBaseVersion strips the beta suffix from a Firefox pre-release
+// version ("153.0b13" -> "153.0"); non-matching versions pass through unchanged.
+func firefoxBetaBaseVersion(version string) string {
+	if m := firefoxBetaVersionPattern.FindStringSubmatch(version); m != nil {
+		return m[1]
+	}
+	return version
+}
+
+// firefoxMacBundleVersion computes a Firefox mac build's CFBundleVersion:
+// "<major><yy>.<month>.<day>", unpadded ("153.0b13" + "20260715" -> "15326.7.15").
+func firefoxMacBundleVersion(version, buildDate string) (string, error) {
+	major, _, _ := strings.Cut(version, ".")
+	if major == "" || strings.Trim(major, "0123456789") != "" {
+		return "", fmt.Errorf("cannot parse major version from %q", version)
+	}
+	if len(buildDate) < 8 {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	date, err := time.Parse("20060102", buildDate[:8])
+	if err != nil {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	yy := buildDate[2:4]
+	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
+}
+
+// firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
+// Nightly cask version ("154.0a1,2026-07-17-09-27-13").
+var firefoxNightlyCaskVersionPattern = regexp.MustCompile(`^[^,]+,(\d{4})-(\d{2})-(\d{2})(?:-|$)`)
+
+// firefoxNightlyMacBundleVersion derives CFBundleVersion from a Nightly cask
+// version ("154.0a1,2026-07-17-09-27-13" -> "15426.7.17").
+func firefoxNightlyMacBundleVersion(caskVersion string) (string, error) {
+	m := firefoxNightlyCaskVersionPattern.FindStringSubmatch(caskVersion)
+	if m == nil {
+		return "", fmt.Errorf("cask version %q has no build timestamp", caskVersion)
+	}
+	return firefoxMacBundleVersion(caskVersion, m[1]+m[2]+m[3])
+}
+
+// firefoxDevEditionMacBundleVersion resolves a Developer Edition mac build's
+// CFBundleVersion ("153.0b13" -> "15326.7.15") by looking up its build id in
+// buildhub, where DevEd is indexed as product "firefox", channel "aurora".
+func (i *brewIngester) firefoxDevEditionMacBundleVersion(ctx context.Context, version string) (string, error) {
+	type term map[string]map[string]string
+	reqBody, err := json.Marshal(map[string]any{
+		"size": 1,
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []term{
+					{"term": {"source.product": "firefox"}},
+					{"term": {"target.channel": "aurora"}},
+					{"term": {"target.platform": "mac"}},
+					{"term": {"target.version": version}},
+				},
+			},
+		},
+		"sort": []term{{"build.id": {"order": "desc"}}},
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal buildhub query")
+	}
+
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+
+	var body []byte
+	attempt := 0
+	err = retry.Do(func() error {
+		attempt++
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, i.buildhubURL, bytes.NewReader(reqBody))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create buildhub http request")
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "buildhub request failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute buildhub http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "reading buildhub response failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read buildhub response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			i.logger.WarnContext(ctx, "buildhub returned transient error, retrying", "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		Hits struct {
+			Hits []struct {
+				Source struct {
+					Build struct {
+						ID string `json:"id"`
+					} `json:"build"`
+				} `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshal buildhub response")
+	}
+	if len(resp.Hits.Hits) == 0 {
+		return "", ctxerr.Errorf(ctx, "no buildhub build found for version %s", version)
+	}
+
+	return firefoxMacBundleVersion(version, resp.Hits.Hits[0].Source.Build.ID)
 }
 
 // fetchCask resolves the brew cask JSON for the given input app from
@@ -230,38 +462,96 @@ func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask,
 
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "create http request")
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
 	}
 
-	res, err := i.client.Do(req)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
+	var body []byte
+	attempt := 0
+	err := retry.Do(func() error {
+		attempt++
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return cask, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return cask, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create http request")
 		}
-		return cask, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying so
+			// we don't sleep through the backoff after the run was canceled.
+			// Checking ctx.Err() (rather than the returned error) avoids
+			// misclassifying the client's own request timeout, which we do
+			// want to retry.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// Network-level failures are transient; retry.
+			i.logger.WarnContext(ctx, "brew API request failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// A truncated/interrupted read is transient; retry.
+			i.logger.WarnContext(ctx, "reading brew API response failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read http response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusNotFound:
+			return ctxerr.New(ctx, "app not found in brew API")
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			// formulae.brew.sh (GitHub Pages) intermittently returns these;
+			// retry before giving up.
+			i.logger.WarnContext(ctx, "brew API returned transient error, retrying", "token", input.Token, "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return cask, err
 	}
 
 	if err := json.Unmarshal(body, &cask); err != nil {
 		return cask, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
 	}
 	return cask, nil
+}
+
+// truncateBody limits an error-response body to a sane length for log/error output.
+func truncateBody(body []byte) string {
+	if len(body) > 512 {
+		body = body[:512]
+	}
+	return string(body)
 }
 
 type inputApp struct {

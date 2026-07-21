@@ -1,44 +1,42 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosResponse } from "axios";
-import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import PATHS from "router/paths";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import labelsAPI, {
+  getCustomLabels,
+  listNamesFromSelectedLabels,
+} from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
-import SearchField from "components/forms/fields/SearchField";
 
-// @ts-ignore
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-// @ts-ignore
-import Checkbox from "components/forms/fields/Checkbox";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
-// @ts-ignore
-import Radio from "components/forms/fields/Radio";
 import Spinner from "components/Spinner";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
+import {
+  TargetLabelSelector,
+  ILabelConfig,
+  LabelTargetMode,
+  TargetType,
+} from "components/TargetLabelSelector";
 import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
+  generateCustomTargetLabelKey,
   getErrorMessage,
   IParseFileResult,
   parseFile,
 } from "../../helpers";
-import { generateLabelKey, listNamesFromSelectedLabels } from "./helpers";
 
 const baseClass = "add-profile-modal";
-
-type TargetType = "All hosts" | "Custom";
 
 interface IFileChooserProps {
   isLoading: boolean;
@@ -115,24 +113,21 @@ const AddProfileModal = ({
   onUpload,
   setShowModal,
 }: IAddProfileModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [isLoading, setIsLoading] = useState(false);
   const [fileDetails, setFileDetails] = useState<IParseFileResult | null>(null);
   const [selectedTargetType, setSelectedTargetType] = useState<TargetType>(
     "All hosts"
   );
-  const [selectedLabelTabIndex, setSelectedLabelTabIndex] = useState(0);
-  const [selectedLabelIncludeMode, setSelectedLabelIncludeMode] = useState<
-    "any" | "all"
-  >("any");
+  const [
+    selectedLabelIncludeMode,
+    setSelectedLabelIncludeMode,
+  ] = useState<LabelTargetMode>("any");
   const [selectedIncludeLabels, setSelectedIncludeLabels] = useState<
     Record<string, boolean>
   >({});
   const [selectedExcludeLabels, setSelectedExcludeLabels] = useState<
     Record<string, boolean>
   >({});
-  const [labelSearchQuery, setLabelSearchQuery] = useState("");
 
   const fileRef = useRef<File | null>(null);
 
@@ -142,7 +137,7 @@ const AddProfileModal = ({
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
+    ["custom_labels", currentTeamId],
     () =>
       labelsAPI
         .summary(currentTeamId)
@@ -160,34 +155,35 @@ const AddProfileModal = ({
     setFileDetails(null);
     setSelectedIncludeLabels({});
     setSelectedExcludeLabels({});
-    setLabelSearchQuery("");
     setShowModal(false);
   }, [fileRef, setShowModal]);
 
   const onFileUpload = async () => {
     if (!fileRef.current) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      notify.error(DEFAULT_ERROR_MESSAGE);
       return;
     }
     const file = fileRef.current;
 
     setIsLoading(true);
     try {
-      const labelKey = generateLabelKey(
-        selectedTargetType,
-        selectedLabelIncludeMode,
-        selectedIncludeLabels,
-        selectedExcludeLabels
-      );
+      const labelKey = generateCustomTargetLabelKey({
+        targetType: selectedTargetType,
+        includeMode: selectedLabelIncludeMode,
+        includeLabels: selectedIncludeLabels,
+        excludeLabels: selectedExcludeLabels,
+      });
       await mdmAPI.uploadProfile({
         file,
         teamId: currentTeamId,
         ...labelKey,
       });
-      renderFlash("success", "Successfully uploaded.");
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e as AxiosResponse<IApiError>));
+      notify.error(getErrorMessage(e as AxiosResponse<IApiError>), {
+        response: e,
+      });
     } finally {
       setIsLoading(false);
       onDone();
@@ -208,224 +204,43 @@ const AddProfileModal = ({
       const details = await parseFile(file);
       setFileDetails(details);
     } catch (e) {
-      renderFlash("error", "Invalid file type");
+      notify.error("Invalid file type", { response: e });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onSelectIncludeLabel = ({
-    name,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    setSelectedIncludeLabels((prev) => ({ ...prev, [name]: value }));
+  const includeTab: ILabelConfig = {
+    selectedLabels: selectedIncludeLabels,
+    onSelectLabel: ({ name, value }) =>
+      setSelectedIncludeLabels((prev) => ({ ...prev, [name]: value })),
+    showModeToggle: true,
+    mode: selectedLabelIncludeMode,
+    onSelectMode: setSelectedLabelIncludeMode,
+    anyTooltip: (
+      <>
+        Profile will be applied to hosts that{" "}
+        <em>
+          <b>have any</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
+    allTooltip: (
+      <>
+        Profile will be applied to hosts that{" "}
+        <em>
+          <b>have all</b>
+        </em>{" "}
+        of these labels.
+      </>
+    ),
   };
 
-  const onSelectExcludeLabel = ({
-    name,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    setSelectedExcludeLabels((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const renderSelectedBadges = (
-    selected: Record<string, boolean>,
-    onChange: (arg: { name: string; value: boolean }) => void
-  ) => {
-    const selectedNames = listNamesFromSelectedLabels(selected);
-    if (!selectedNames.length) return null;
-    return (
-      <div className={`${baseClass}__selected-badges`}>
-        {selectedNames.map((name) => (
-          <button
-            key={name}
-            className={`${baseClass}__selected-badge`}
-            onClick={() => onChange({ name, value: false })}
-          >
-            <span>{name}</span>
-            <Icon name="close" size="small" color="ui-fleet-black-75" />
-          </button>
-        ))}
-      </div>
-    );
-  };
-
-  const renderLabelCheckboxes = (
-    filteredLabels: ILabelSummary[],
-    selected: Record<string, boolean>,
-    disabledLabels: Record<string, boolean>,
-    onChange: (arg: { name: string; value: boolean }) => void
-  ) => (
-    <div className="target-label-selector__checkboxes">
-      {filteredLabels.map((label) => (
-        <div className="target-label-selector__label" key={label.name}>
-          <Checkbox
-            className="target-label-selector__checkbox"
-            name={label.name}
-            value={!!selected[label.name]}
-            disabled={!!disabledLabels[label.name]}
-            onChange={onChange}
-            parseTarget
-          >
-            {label.name}
-          </Checkbox>
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderCustomTarget = () => {
-    if (isFetchingLabels || isLoadingLabels) {
-      return <Spinner centered={false} />;
-    }
-    if (isErrorLabels) {
-      return <DataError />;
-    }
-    const hasLabels = !!labels?.length;
-
-    const filteredLabels = hasLabels
-      ? (labels || []).filter((l) =>
-          l.name.toLowerCase().includes(labelSearchQuery.toLowerCase())
-        )
-      : [];
-
-    const onSelectTab = (index: number) => {
-      setSelectedLabelTabIndex(index);
-      setLabelSearchQuery("");
-    };
-
-    const renderNoLabels = () => (
-      <div className={`${baseClass}__no-labels`}>
-        <span className={`${baseClass}__no-labels--title`}>No labels</span>
-        <span className={`${baseClass}__no-labels--description`}>
-          Add a label to target your configuration profile.
-        </span>
-        <Button
-          onClick={() => {
-            window.location.href = PATHS.LABEL_NEW_DYNAMIC;
-          }}
-        >
-          Add label
-        </Button>
-      </div>
-    );
-
-    return (
-      <TabNav secondary>
-        <Tabs selectedIndex={selectedLabelTabIndex} onSelect={onSelectTab}>
-          <TabList>
-            <Tab>
-              <TabText
-                showCheck={
-                  listNamesFromSelectedLabels(selectedIncludeLabels).length > 0
-                }
-              >
-                Include
-              </TabText>
-            </Tab>
-            <Tab>
-              <TabText
-                showCheck={
-                  listNamesFromSelectedLabels(selectedExcludeLabels).length > 0
-                }
-              >
-                Exclude
-              </TabText>
-            </Tab>
-          </TabList>
-          <TabPanel>
-            {!hasLabels ? (
-              renderNoLabels()
-            ) : (
-              <>
-                <Radio
-                  className="target-label-selector__radio-input"
-                  label="Any"
-                  id="include-any-radio"
-                  checked={selectedLabelIncludeMode === "any"}
-                  value="any"
-                  name="include-mode"
-                  tooltip={
-                    <>
-                      Profile will be applied to hosts that{" "}
-                      <em>
-                        <b>have any</b>
-                      </em>{" "}
-                      of these labels.
-                    </>
-                  }
-                  onChange={(val: string) =>
-                    setSelectedLabelIncludeMode(val as "any" | "all")
-                  }
-                />
-                <Radio
-                  className="target-label-selector__radio-input"
-                  label="All"
-                  id="include-all-radio"
-                  checked={selectedLabelIncludeMode === "all"}
-                  value="all"
-                  name="include-mode"
-                  tooltip={
-                    <>
-                      Profile will be applied to hosts that{" "}
-                      <em>
-                        <b>have all</b>
-                      </em>{" "}
-                      of these labels.
-                    </>
-                  }
-                  onChange={(val: string) =>
-                    setSelectedLabelIncludeMode(val as "any" | "all")
-                  }
-                />
-                <SearchField
-                  placeholder="Search labels"
-                  onChange={setLabelSearchQuery}
-                />
-                {renderSelectedBadges(
-                  selectedIncludeLabels,
-                  onSelectIncludeLabel
-                )}
-                {renderLabelCheckboxes(
-                  filteredLabels,
-                  selectedIncludeLabels,
-                  selectedExcludeLabels,
-                  onSelectIncludeLabel
-                )}
-              </>
-            )}
-          </TabPanel>
-          <TabPanel>
-            {!hasLabels ? (
-              renderNoLabels()
-            ) : (
-              <>
-                <SearchField
-                  placeholder="Search labels"
-                  onChange={setLabelSearchQuery}
-                />
-                {renderSelectedBadges(
-                  selectedExcludeLabels,
-                  onSelectExcludeLabel
-                )}
-                {renderLabelCheckboxes(
-                  filteredLabels,
-                  selectedExcludeLabels,
-                  selectedIncludeLabels,
-                  onSelectExcludeLabel
-                )}
-              </>
-            )}
-          </TabPanel>
-        </Tabs>
-      </TabNav>
-    );
+  const excludeTab: ILabelConfig = {
+    selectedLabels: selectedExcludeLabels,
+    onSelectLabel: ({ name, value }) =>
+      setSelectedExcludeLabels((prev) => ({ ...prev, [name]: value })),
   };
 
   const hasSelectedLabels =
@@ -446,33 +261,21 @@ const AddProfileModal = ({
             )}
           </Card>
           {isPremiumTier && (
-            <div className={`target-label-selector form ${baseClass}__target`}>
-              <div className="form-field">
-                <div className="form-field__label">Target</div>
-                <Radio
-                  className="target-label-selector__radio-input"
-                  label="All hosts"
-                  id="all-hosts-target-radio-btn"
-                  checked={selectedTargetType === "All hosts"}
-                  value="All hosts"
-                  name="target-type"
-                  onChange={(val: string) =>
-                    setSelectedTargetType(val as TargetType)
-                  }
-                />
-                <Radio
-                  className="target-label-selector__radio-input"
-                  label="Custom"
-                  id="custom-target-radio-btn"
-                  checked={selectedTargetType === "Custom"}
-                  value="Custom"
-                  name="target-type"
-                  onChange={(val: string) =>
-                    setSelectedTargetType(val as TargetType)
-                  }
-                />
-              </div>
-              {selectedTargetType === "Custom" && renderCustomTarget()}
+            <div className={`form-field ${baseClass}__target`}>
+              <div className="form-field__label">Target</div>
+              <TargetLabelSelector
+                selectedTargetType={selectedTargetType}
+                onSelectTargetType={setSelectedTargetType}
+                labels={labels || []}
+                includeConfig={includeTab}
+                excludeConfig={excludeTab}
+                isLoadingLabels={isFetchingLabels}
+                isErrorLabels={isErrorLabels}
+                emptyStateDescription="Add a label to target your configuration profile."
+                onAddLabel={() => {
+                  window.location.href = PATHS.LABEL_NEW_DYNAMIC;
+                }}
+              />
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>

@@ -2,8 +2,6 @@ import React, { useContext, useEffect, useState } from "react";
 
 import paths from "router/paths";
 
-import { NotificationContext } from "context/notification";
-
 import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
@@ -13,6 +11,7 @@ import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import { notify } from "components/ToastNotification";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -28,7 +27,6 @@ import DataError from "components/DataError";
 import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -51,7 +49,6 @@ const DeleteConditionalAccessModal = ({
   provider,
   config,
 }: IDeleteConditionalAccessModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const providerName =
@@ -81,13 +78,13 @@ const DeleteConditionalAccessModal = ({
           },
         });
       }
-      renderFlash("success", `Successfully disconnected from ${providerName}.`);
+      notify.success(`Successfully disconnected from ${providerName}.`);
       toggleDeleteConditionalAccessModal();
       onDelete(updatedConfig);
-    } catch {
-      renderFlash(
-        "error",
-        `Could not disconnect from ${providerName}, please try again.`
+    } catch (e) {
+      notify.error(
+        `Could not disconnect from ${providerName}, please try again.`,
+        { response: e }
       );
     }
     setIsDeleting(false);
@@ -166,8 +163,6 @@ enum EntraPhase {
 
 const ConditionalAccess = () => {
   // HOOKS
-  const { renderFlash } = useContext(NotificationContext);
-
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
@@ -202,8 +197,7 @@ const ConditionalAccess = () => {
     onSuccess: ({ configuration_completed, setup_error }) => {
       if (configuration_completed) {
         setEntraPhase(EntraPhase.Configured);
-        renderFlash(
-          "success",
+        notify.success(
           "Successfully verified Microsoft Entra conditional access integration"
         );
       } else {
@@ -216,8 +210,7 @@ const ConditionalAccess = () => {
             "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
           )
         ) {
-          renderFlash(
-            "error",
+          notify.error(
             "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
           );
         } else if (
@@ -225,8 +218,7 @@ const ConditionalAccess = () => {
             'No "Fleet conditional access" Entra ID group was found'
           )
         ) {
-          renderFlash(
-            "error",
+          notify.error(
             `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
           );
         } else {
@@ -238,8 +230,7 @@ const ConditionalAccess = () => {
           //  - The API response contains the setup_error.
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
-          renderFlash(
-            "error",
+          notify.error(
             "Couldn't connect. Please contact your Fleet administrator."
           );
         }
@@ -257,9 +248,6 @@ const ConditionalAccess = () => {
   } = config?.conditional_access || {};
 
   const oktaConfigured = isOktaConditionalAccessConfigured(config);
-
-  // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
-  const isManagedCloud = config?.license?.managed_cloud || false;
 
   // Check Entra configuration state
   // Note: entraPhase is intentionally included in the dependency array to allow
@@ -343,12 +331,6 @@ const ConditionalAccess = () => {
     setProviderToDelete("okta");
   };
 
-  const onBypassDisabledChange = ({
-    value,
-  }: IInputFieldParseTarget<boolean>) => {
-    setBypassDisabled(value);
-  };
-
   const handleSaveBypassSettings = async (evt: React.FormEvent) => {
     evt.preventDefault();
     setIsUpdatingBypass(true);
@@ -369,12 +351,11 @@ const ConditionalAccess = () => {
         },
       });
       setConfig(updatedConfig);
-      renderFlash(
-        "success",
-        "Successfully updated conditional access settings."
-      );
-    } catch {
-      renderFlash("error", "Could not update conditional access settings.");
+      notify.success("Successfully updated conditional access settings.");
+    } catch (e) {
+      notify.error("Could not update conditional access settings.", {
+        response: e,
+      });
     }
     setIsUpdatingBypass(false);
   };
@@ -506,7 +487,7 @@ const ConditionalAccess = () => {
     return (
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
-        {isManagedCloud && renderEntraContent()}
+        {renderEntraContent()}
       </div>
     );
   };
@@ -547,28 +528,23 @@ const ConditionalAccess = () => {
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
             <Checkbox
-              onChange={onBypassDisabledChange}
+              onChange={() => setBypassDisabled(!bypassDisabled)}
               name="bypassDisabled"
-              value={bypassDisabled}
-              parseTarget
+              value={!bypassDisabled}
             >
               <TooltipWrapper
                 tipContent={
                   <>
-                    Disables bypassing Okta conditional access for non-critical
-                    policies.{" "}
-                    <em>
-                      (Default: <strong>Off</strong>)
-                    </em>
-                    <br />
-                    <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.
+                    in audit logs. Critical policies can never be bypassed.{" "}
+                    <em>
+                      (Default: <strong>On</strong>)
+                    </em>
                   </>
                 }
                 showArrow={false}
               >
-                Disable bypass
+                Bypass for non-critical policies
               </TooltipWrapper>
             </Checkbox>
             <Button

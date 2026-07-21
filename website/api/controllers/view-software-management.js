@@ -38,7 +38,7 @@ module.exports = {
         'Kenny Botelho',
         'Erik Gomez',
         'Eric Tan',
-        'Dan Grzelak',
+        'Adam Pippert',
         'Justin LaBo',
         'Brian LaShomb',
       ];

@@ -129,9 +129,7 @@ module.exports.custom = {
     // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
-    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw', //« API endpoint display names in the Fleet UI (API-only users)
     'docs/get-started/faq': 'zayhanlon',
-    'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -179,7 +177,7 @@ module.exports.custom = {
     'handbook/it': 'allenhouchins',
     'handbook/sales': 'sampfluger88',
     'handbook/customer-success': 'zayhanlon',
-    'handbook/marketing': 'akuthiala',
+    'handbook/marketing': 'ireedy',
     'handbook/ceo': 'mikermcneil',
     'handbook/README.md': 'mikermcneil',
     'handbook/company/README.md': 'mikermcneil',
@@ -238,18 +236,19 @@ module.exports.custom = {
     'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw', 'lukeheath'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
+    'server/api_endpoints/api_endpoints.yml': 'rachaelshaw',// « API endpoint display names in the Fleet UI (API-only users)
 
     // Fleet's internal IT and security (+dogfooding)
     'it-and-security': ['allenhouchins'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
-    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath', 'allenhouchins'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'allenhouchins'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': ['eashaw', 'mike-j-thomas', 'johnjeremiah', 'akuthiala'],
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
@@ -309,7 +308,7 @@ module.exports.custom = {
     'handbook/it': ['sampfluger88', 'mikermcneil', 'allenhouchins'],
     'handbook/finance': ['sampfluger88', 'mikermcneil', 'rfoo2015'],
     'handbook/sales': ['sampfluger88', 'mikermcneil'],
-    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'akuthiala'],
+    'handbook/marketing': ['sampfluger88', 'mikermcneil', 'ireedy'],
     'handbook/customer-success': ['sampfluger88', ' mikermcneil', 'zayhanlon'],
 
     // 🫧 Pricing and features and dev process
@@ -371,7 +370,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -516,8 +515,6 @@ module.exports.custom = {
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
-  // cloudCustomerCompliancePartnerSharedSecret: '…',
-  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy

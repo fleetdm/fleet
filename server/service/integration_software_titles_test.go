@@ -112,7 +112,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	    "team_id": %d,
 		"self_service": false,
 		"software_title_id": %d,
-		"software_display_name": "%s"
+		"software_display_name": "%s",
+		"pinned_version": null
 	}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -168,7 +169,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	    "team_id": %d,
 		"self_service": true,
 		"software_title_id": %d,
-		"software_display_name": "%s"
+		"software_display_name": "%s",
+		"pinned_version": null
 	}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "RubyUpdate1")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -204,7 +206,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles display name is empty
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -387,7 +389,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Empty(stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories or labels
 	s.Assert().True(stResp.SoftwareTitle.AppStoreApp.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.AppStoreApp.Categories)
 	s.Assert().ElementsMatch([]string{lbl1Name, lbl2Name}, func() []string {
 		var ret []string
 		for _, l := range stResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny {
@@ -475,7 +477,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		    "team_id": %d,
 			"self_service": true,
 			"software_title_id": %d,
-			"software_display_name": "%s"
+			"software_display_name": "%s",
+			"pinned_version": null
 		}`,
 		team.Name, team.Name, team.ID, team.ID, titleID, "InHouseAppUpdate2")
 	s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -491,7 +494,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal("InHouseAppUpdate2", stResp.SoftwareTitle.DisplayName)
 	// PATCH semantics, so we shouldn't overwrite self service or categories
 	s.Assert().True(stResp.SoftwareTitle.SoftwarePackage.SelfService)
-	s.Assert().ElementsMatch([]string{"Developer tools", "Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
+	s.ElementsMatch([]string{"🧰 Developer tools", "🌎 Browsers"}, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
 	// List software titles has display name
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
@@ -790,6 +793,106 @@ func (s *integrationMDMTestSuite) TestListSoftwareTitlesByHashAndName() {
 		"team_id", fmt.Sprint(team1.ID),
 		"available_for_install", "true")
 	require.GreaterOrEqual(t, len(respAll.SoftwareTitles), 2) // At least the two packages we uploaded
+}
+
+func (s *integrationMDMTestSuite) TestSoftwarePackageTitleValidation() {
+	t := s.T()
+	ctx := t.Context()
+
+	var teamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())}}, http.StatusOK, &teamResp)
+	team := teamResp.Team
+
+	type counts struct {
+		titles     int
+		installers int
+		activities int
+	}
+	rowCounts := func() counts {
+		var got counts
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &got.titles, `SELECT COUNT(*) FROM software_titles`); err != nil {
+				return err
+			}
+			if err := sqlx.GetContext(ctx, q, &got.installers, `SELECT COUNT(*) FROM software_installers`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &got.activities, `SELECT COUNT(*) FROM activity_past`)
+		})
+		return got
+	}
+	softwareTitleID := func(filename string) uint {
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, team.ID, filename)
+		})
+		return titleID
+	}
+	assertRejectedWithoutWrites := func(payload *fleet.UploadSoftwareInstallerPayload) {
+		t.Helper()
+		before := rowCounts()
+		s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, payload.Filename))
+		require.Equal(t, before, rowCounts())
+	}
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "ruby.deb",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	rubyTitleID := softwareTitleID("ruby.deb")
+	require.NotZero(t, rubyTitleID)
+
+	assertRejectedWithoutWrites(&fleet.UploadSoftwareInstallerPayload{
+		Filename: "EchoApp.pkg",
+		TeamID:   &team.ID,
+		TitleID:  &rubyTitleID,
+	})
+
+	// dummy_installer.pkg resolves to its own title, so claiming it belongs to Ruby is rejected.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		TeamID:   &team.ID,
+	}, http.StatusOK, "")
+	assertRejectedWithoutWrites(&fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		TeamID:   &team.ID,
+		TitleID:  &rubyTitleID,
+	})
+
+	nonexistentTitleID := uint(999999)
+	assertRejectedWithoutWrites(&fleet.UploadSoftwareInstallerPayload{
+		Filename: "ruby_arm64.deb",
+		TeamID:   &team.ID,
+		TitleID:  &nonexistentTitleID,
+	})
+
+	uploadScript := func(filename, contents string, titleID *uint, expectedStatus int, expectedError string) {
+		t.Helper()
+		fr, err := fleet.NewTempFileReader(strings.NewReader(contents), t.TempDir)
+		require.NoError(t, err)
+		defer fr.Close()
+		s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+			Filename:      filename,
+			InstallerFile: fr,
+			TeamID:        &team.ID,
+			TitleID:       titleID,
+		}, expectedStatus, expectedError)
+	}
+
+	uploadScript("deploy.sh", "#!/bin/sh\necho first\n", nil, http.StatusOK, "")
+	deployTitleID := softwareTitleID("deploy.sh")
+	beforeMatching := rowCounts()
+	uploadScript("deploy.sh", "#!/bin/sh\necho second\n", &deployTitleID, http.StatusOK, "")
+	afterMatching := rowCounts()
+	require.Equal(t, beforeMatching.titles, afterMatching.titles)
+	require.Equal(t, beforeMatching.installers+1, afterMatching.installers)
+	require.Equal(t, beforeMatching.activities+1, afterMatching.activities)
+
+	beforeScriptMismatch := rowCounts()
+	uploadScript("other.sh", "#!/bin/sh\necho other\n", &deployTitleID, http.StatusBadRequest,
+		fmt.Sprintf(fleet.SoftwarePackageTitleMismatchMessage, "other.sh"))
+	require.Equal(t, beforeScriptMismatch, rowCounts())
 }
 
 func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {

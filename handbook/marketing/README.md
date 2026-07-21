@@ -6,10 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Chief Marketing Officer | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([*@akuthiala*](https://github.com/akuthiala))_
 | Content Specialist | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([*@irenareedy*](https://github.com/irenareedy))_
-| Technical product marketing and content specialist (Consultant) | [Dan Gordon](https://www.linkedin.com/in/dangordon/) · [@danbgordon](https://github.com/danbgordon) · Create core technical marketing strategy, positioning, messaging and assets for IT technical teams Market Fleet releases  Create, drive and manage analyst relations for Fleet |
-| Product marketing (Consultant) | [Erin Miska](https://www.linkedin.com/in/erinmiska/) · [*@miskaek*](https://github.com/miskaek) · Positioning and messaging  Leadership marketing facing assets,  Sales and partner enablement  Content strategy |
 | Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
 | Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
@@ -28,7 +25,7 @@ The complete list of all marketing assets is listed on [this handbook page](http
 
 ### Press boilerplate text
 
-Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by an human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
 Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
@@ -101,26 +98,6 @@ This view displays the website's efficiency by tracking the rate at which users 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 
-### Organize work in GitHub issues with marketing labels
-
-In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets. 
-
-| Label | Color | Hex Code | Definition (When to use it) |
-| :---- | :---- | :---- | :---- |
-| **:mktg-ar** | Teal | \#0F766E | For tasks related to analyst relations \- briefing, responding to reports, inquiries, etc. |
-| **:mktg-campaign** | Purple | \#6B4FBB | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
-| **:mktg-content** | Blue | \#0052CC | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
-| **:mktg-enablement** | Gold | \#D97706 | All work associated with designing, developing, and delivering enablement content for sales, partners, etc. |
-| **:mktg-event** | Orange | \#F97316 | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
-| **:mktg-ops** | Green | \#10B981 | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
-| **:mktg-pr** | Gray | \#6B7280 | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
-| **:mktg-web** | Purple | \#2b27d0 | Tasks to update the website. |
-| **:mktg-ritual** | Red | \#9d2455 | Tasks created through automated rituals. |
-| **:mktg-social** | Pink | \#E11D48 | For tasks related to managing organic social media channels or creating social posts. |
-
-Note: for event execution, additional labels are used to manage the process and track specific events.
-
-
 ### Prepare "Let's get you set up!" meeting notes
 
 Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
@@ -152,6 +129,41 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
 4. Launch campaign once approved.
 
+
+### Settle event strategy
+
+Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. The Content Specialist, Head of Strategic Growth, and Head of People will meet weekly to settle upcoming events and manage the execution of planned events using the ["🎪 Events" spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) and the [Event planning agenda](https://docs.google.com/document/d/190wBBkf8pPMX4lLsjfnTv4KL7n0lffT1aJwvAM9--Jg/edit?tab=t.0).
+
+
+> DRIs:
+> 
+> The Head of Strategic Growth is the DRI for planning GitOps workshops.
+> The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for event execution.
+> The [Head of People](https://fleetdm.com/handbook/marketing#team) serves as the DRI for managing the event process.
+
+<!--
+The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
+
+The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+
+Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
+
+1. Proposed events are tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Attend the 30m quarterly event strategy meeting. During this meeting, we will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
+3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
+-->
 
 ### Settle content strategy
 
@@ -323,11 +335,11 @@ After every GitOps workshop, Fleet issues a certificate to all participants who 
 -->
 
 
-### Publish sprint demo video
+### Publish release demo video
 
-After each sprint demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
 
-1. **Download the sprint demo recording**
+1. **Download the release demo recording**
 
    This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
    
@@ -358,7 +370,7 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 6. **Upload the video to Youtube**
    Follow the steps to [upload the video to YouTube](#upload-to-youtube).
 
-   Make sure the YouTube title follows the pattern `Sprint-demo - <version #.##.#>` (eg. "Sprint demo - 4.82.0").
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
 
    Add a brief description highlighting the new features.
 
@@ -367,14 +379,14 @@ After each sprint demo, the marketing team is responsible for doing a quick post
 
 ### Upload to YouTube
 
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
 
 - Login to the Fleet YouTube channel, click the create button and then upload the video.
 - Fill out relevant information such as:
     * title - make sure it is SEO friendly
     * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
     * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
-    * playlists - Add to approrpiate one(s)
+    * playlists - Add to appropriate one(s)
     * audience - not "made for kids"
     * video details - allow auto chapters, no featured places or automatic concepts
     * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
@@ -411,6 +423,9 @@ Although details on how to format and meta tag a blog are in [the writing handbo
 #### Stubs
 The following stubs are included only to make links backward compatible
 
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
+
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
 
@@ -426,5 +441,5 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-<meta name="maintainedBy" value="akuthiala">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🫧 Marketing">

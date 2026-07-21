@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -143,17 +145,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil && *teamID != 0 {
-		// This auth check ensures we return 403 if the user doesn't have access to the team
+	if teamID != nil {
+		// Verify the caller has permission for the requested scope (team or global).
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
@@ -188,33 +192,84 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if license.IsPremium() {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
-			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+				return nil, ctxerr.Wrap(ctx, err, "get software packages")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
-				}
-				meta.Status = summary
-			}
-			software.SoftwarePackage = meta
-
-			// Populate FleetMaintainedVersions if this is an FMA
-			if meta != nil && meta.FleetMaintainedAppID != nil {
-				fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
-				}
-				meta.FleetMaintainedVersions = fmaVersions
-
-				// Populate PatchPolicy if there is one
-				patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+			if len(pkgs) > 0 {
+				// Display name and icon are title-level; fetch once from the first-added package.
+				titleMeta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
 				if err != nil && !fleet.IsNotFound(err) {
-					return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+					return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 				}
-				meta.PatchPolicy = patchPolicy
+
+				// Categories are per-package.
+				installerIDs := make([]uint, len(pkgs))
+				for i, pkg := range pkgs {
+					installerIDs[i] = pkg.InstallerID
+				}
+				categoriesByInstaller, err := svc.ds.GetCategoriesForSoftwareInstallers(ctx, installerIDs)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
+				}
+
+				// Key policies by installer_id so each package on a multi-package
+				// title only surfaces the ones actually bound to it. VPP-backed
+				// policies have nil InstallerID and dispatch via AppStoreApp.
+				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+				if titleMeta != nil {
+					for _, p := range titleMeta.AutomaticInstallPolicies {
+						if p.InstallerID == nil {
+							continue
+						}
+						policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+					}
+				}
+
+				for _, pkg := range pkgs {
+					summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, pkg.InstallerID)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+					}
+					pkg.Status = summary
+					pkg.Categories = categoriesByInstaller[pkg.InstallerID]
+
+					if titleMeta != nil {
+						pkg.DisplayName = titleMeta.DisplayName
+						pkg.IconUrl = titleMeta.IconUrl
+					}
+					pkg.AutomaticInstallPolicies = policiesByInstaller[pkg.InstallerID]
+
+					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
+					// An FMA title has a single active package, so this runs on it.
+					if pkg.FleetMaintainedAppID != nil {
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id, false)
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+						}
+						pkg.FleetMaintainedVersions = fmaVersions
+
+						// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+						pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+						if err != nil && !errors.Is(err, sql.ErrNoRows) {
+							return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+						}
+						pkg.PinnedVersion = pinnedVersion
+
+						patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+						}
+						pkg.PatchPolicy = patchPolicy
+					}
+				}
+
+				// software_package is kept for backwards compatibility and equals the first-added package.
+				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
+				for i, pkg := range pkgs {
+					software.Packages[i] = *pkg
+				}
+				software.SoftwarePackage = pkgs[0]
 			}
 		}
 

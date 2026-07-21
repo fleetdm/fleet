@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.2",
+      "version": "2026.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CLion %' AND publisher = 'JetBrains s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CLion %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '2026.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CLion %' AND publisher = 'JetBrains s.r.o.' AND version_compare(version, '262.8665.262') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.1.2.exe",
+      "installer_url": "https://download.jetbrains.com/cpp/CLion-2026.2.exe",
       "install_script_ref": "f1faeca2",
       "uninstall_script_ref": "7da7c7ff",
-      "sha256": "e1b17183cd625904f97af5c5dce8554b9bef287098f1627ad468240a85694404",
+      "sha256": "44e86485fcd0b23804d165a02bd9a002ace860198f4a62ca2168b638e30b7637",
       "default_categories": [
         "Developer tools"
       ]

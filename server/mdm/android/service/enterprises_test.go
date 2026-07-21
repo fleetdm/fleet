@@ -231,6 +231,12 @@ func InitCommonDSMocks() *AndroidMockDS {
 	ds.Store.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 		return nil, &notFoundError{}
 	}
+	ds.Store.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		return nil
+	}
+	ds.Store.UpdateTeamIDOnAndroidDevicesFunc = func(ctx context.Context, hostUUIDs []string, teamID *uint) error {
+		return nil
+	}
 	return &ds
 }
 
