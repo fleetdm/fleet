@@ -544,6 +544,28 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // DELETE /api/delete-history/:claude_session_id
+  if (req.method === 'DELETE' && pathParts[0] === 'api' && pathParts[1] === 'delete-history' && pathParts[2]) {
+    const sid = decodeURIComponent(pathParts[2]);
+    const state = loadState();
+    const idx = state.history.findIndex(h => h.claude_session_id === sid);
+    if (idx === -1) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: 'Not found' }));
+      return;
+    }
+    state.history.splice(idx, 1);
+    // Also remove from snapshot if it was a carried-over missing session
+    state.snapshot.sessions = state.snapshot.sessions.filter(s => s.claude_session_id !== sid);
+    state.snapshot.session_count = state.snapshot.sessions.length;
+    // Clean up note
+    delete state.notes[sid];
+    saveState(state);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // PUT /api/note/:session_id
   if (req.method === 'PUT' && pathParts[0] === 'api' && pathParts[1] === 'note' && pathParts[2]) {
     const body = await new Promise((resolve) => {
@@ -777,6 +799,56 @@ function getDashboardHTML() {
   }
   .btn-new:hover { opacity: 0.85; }
   .btn-new:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-delete {
+    background: #dc322f;
+  }
+  .btn-delete:hover { opacity: 0.85; }
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #fdf6e3;
+    border: 2px solid #dc322f;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+  }
+  .modal h3 {
+    color: #dc322f;
+    font-size: 15px;
+    margin-bottom: 12px;
+  }
+  .modal p {
+    color: #586e75;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .modal .badge-name {
+    color: #d33682;
+    font-weight: 700;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  .btn-cancel {
+    background: #93a1a1;
+  }
+  .btn-cancel:hover { opacity: 0.85; }
+  .btn-confirm-delete {
+    background: #dc322f;
+  }
+  .btn-confirm-delete:hover { opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -832,6 +904,18 @@ function getDashboardHTML() {
   </thead>
   <tbody id="history-body"></tbody>
 </table>
+
+<div id="delete-modal" class="modal-overlay">
+  <div class="modal">
+    <h3>Delete Session Forever</h3>
+    <p>This will permanently remove <span class="badge-name" id="modal-badge"></span> from the parked list.</p>
+    <p>The Claude conversation history will remain in <code>~/.claude/</code> but ttracker will no longer track it.</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-confirm-delete" id="modal-confirm">Delete Forever</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const API = '';
@@ -914,9 +998,13 @@ function renderHistory(entries) {
   }
 
   el.innerHTML = entries.map((h, i) => {
-    const action = h.status === 'running'
-      ? '<span style="color:#859900;font-size:12px">open</span>'
-      : '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>';
+    let action = '';
+    if (h.status === 'running') {
+      action = '<span style="color:#859900;font-size:12px">open</span>';
+    } else {
+      action = '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>'
+        + ' <button class="btn btn-delete" onclick="confirmDelete(\\'' + h.claude_session_id + '\\', \\'' + escapeHtml(h.badge) + '\\')">Delete</button>';
+    }
     const noteVal = escapeHtml(h.note);
     const folder = h.cwd ? h.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
@@ -941,6 +1029,21 @@ async function refresh() {
   const [sessions, history] = await Promise.all([fetchSessions(), fetchHistory()]);
   renderActive(sessions);
   renderHistory(history);
+}
+
+function confirmDelete(sessionId, badge) {
+  const modal = document.getElementById('delete-modal');
+  document.getElementById('modal-badge').textContent = badge || sessionId.slice(0, 12) + '...';
+  document.getElementById('modal-confirm').onclick = async function() {
+    await fetch(API + '/api/delete-history/' + encodeURIComponent(sessionId), { method: 'DELETE' });
+    closeModal();
+    await refresh();
+  };
+  modal.classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('delete-modal').classList.remove('active');
 }
 
 async function newSession() {
