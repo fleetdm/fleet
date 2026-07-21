@@ -129,6 +129,12 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			require.Equal(t, "org1", orgName)
+			require.False(t, invalid)
+			return false, nil
+		}
+
 		profUUID, modTime, err := depSvc.EnsureDefaultSetupAssistant(ctx, nil, "org1")
 		require.NoError(t, err)
 		require.Equal(t, "abcd", profUUID)
@@ -137,6 +143,7 @@ func TestDEPService(t *testing.T) {
 		require.True(t, ds.GetMDMAppleEnrollmentProfileByTypeFuncInvoked)
 		require.True(t, ds.GetMDMAppleDefaultSetupAssistantFuncInvoked)
 		require.True(t, ds.SetMDMAppleDefaultSetupAssistantProfileUUIDFuncInvoked)
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 		require.True(t, depStorage.RetrieveConfigFuncInvoked)
 		require.False(t, depStorage.StoreAssignerProfileFuncInvoked) // not used anymore
 	})
@@ -149,6 +156,122 @@ func TestDEPService(t *testing.T) {
 		url, err := EnrollURL("token", appCfg)
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
+	})
+}
+
+func TestNewDEPClient_TokenInvalid(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.DiscardHandler)
+	const orgName = "org1"
+
+	// setupTest wires a DEP client up to a fake Apple DEP server that
+	// authenticates a session normally, then responds to the /account request
+	// with whatever accountHandler decides. It returns the mock Datastore (so
+	// the caller can stub SetABMTokenInvalidForOrgNameFunc before calling) and
+	// a call func that triggers the actual AccountDetail request.
+	setupTest := func(t *testing.T, accountHandler http.HandlerFunc) (*mock.Store, func() error) {
+		ds := new(mock.Store)
+		depStorage := new(nanodep_mock.Storage)
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/session":
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+			case "/account":
+				accountHandler(w, r)
+			default:
+				t.Errorf("unexpected request to %s", r.URL.Path)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		depStorage.RetrieveConfigFunc = func(ctx context.Context, name string) (*client.Config, error) {
+			return &client.Config{BaseURL: srv.URL}, nil
+		}
+		depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*client.OAuth1Tokens, error) {
+			return &client.OAuth1Tokens{}, nil
+		}
+
+		depClient := NewDEPClient(depStorage, ds, logger)
+		call := func() error {
+			_, err := depClient.AccountDetail(ctx, orgName)
+			return err
+		}
+		return ds, call
+	}
+
+	t.Run("token rejected sets token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`"TOKEN_REJECTED"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.True(t, gotInvalid)
+	})
+
+	t.Run("signature invalid sets token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`"SIGNATURE_INVALID"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.True(t, gotInvalid)
+	})
+
+	t.Run("success clears token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"admin_id": "admin123", "org_name": "org1"}`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return false, nil
+		}
+		// incidental to this test: any successful call also flows through the
+		// hook's pre-existing terms-expired bookkeeping, which needs these
+		// stubbed to short-circuit cleanly (zero count, clear AppConfig flag).
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		require.NoError(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.False(t, gotInvalid)
+	})
+
+	t.Run("unrelated error does not touch token_invalid", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`"SERVER_ERROR"`))
+		})
+
+		require.Error(t, call())
+		require.False(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 	})
 }
 
