@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
@@ -1584,6 +1586,46 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	if details.HostID != host.ID {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no installer found for this host")
 	}
+
+	// resolve Fleet variables in the installer's scripts for this host, after
+	// the secrets and custom host vitals expansions done by the datastore
+	var failures []string
+	for _, script := range []*string{&details.InstallScript, &details.PostInstallScript, &details.UninstallScript} {
+		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, *script)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and install %s", host.ID, installUUID))
+		}
+		if failureMessage != "" {
+			if !slices.Contains(failures, failureMessage) {
+				failures = append(failures, failureMessage)
+			}
+			continue
+		}
+		*script = expanded
+	}
+	if len(failures) > 0 {
+		// Record the failed result server-side so the install leaves the
+		// pending queue, then return not-found: fleetd tolerates a not-found
+		// details fetch, and with the queue advanced it stops asking. Skip
+		// recording if the execution already has a result so a repeated fetch
+		// can't record a second one (and its activity) for the same install.
+		current, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing result before recording fleet variable resolution failure")
+		}
+		if current == nil || current.Status == fleet.SoftwareInstallPending {
+			failureMessage := strings.Join(failures, "\n")
+			if err := svc.SaveHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: new(int(fleet.ScriptFleetVarResolutionFailedExitCode)),
+				InstallScriptOutput:   &failureMessage,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure for software install")
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "software install with unresolvable fleet variables")
+	}
+
 	return details, nil
 }
 

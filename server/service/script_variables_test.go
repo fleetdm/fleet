@@ -262,3 +262,122 @@ func TestGetHostScriptFleetVariables(t *testing.T) {
 		require.Equal(t, lockScript, script.ScriptContents)
 	})
 }
+
+func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
+	host := &fleet.Host{
+		ID:             42,
+		UUID:           "ABC-123",
+		HardwareSerial: "SERIAL-1",
+		Platform:       "ubuntu",
+		OsqueryHostID:  new("osquery-42"),
+	}
+
+	newSvcAndCtx := func(t *testing.T, details *fleet.SoftwareInstallDetails) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+		ctx = test.HostContext(ctx, host)
+		ds.GetSoftwareInstallDetailsFunc = func(ctx context.Context, executionID string) (*fleet.SoftwareInstallDetails, error) {
+			return details, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("variables expand in all three scripts", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
+			HostID:            host.ID,
+			ExecutionID:       "install-1",
+			InstallScript:     "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
+			PostInstallScript: "post ${FLEET_VAR_HOST_UUID}",
+			UninstallScript:   "uninstall $FLEET_VAR_HOST_PLATFORM",
+		})
+
+		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
+		require.NoError(t, err)
+		require.Equal(t, "install SERIAL-1", details.InstallScript)
+		require.Equal(t, "post ABC-123", details.PostInstallScript)
+		require.Equal(t, "uninstall ubuntu", details.UninstallScript)
+	})
+
+	t.Run("scripts without variables are unchanged", func(t *testing.T) {
+		svc, ctx, _ := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
+			HostID:        host.ID,
+			ExecutionID:   "install-1",
+			InstallScript: "install --flag",
+		})
+
+		details, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
+		require.NoError(t, err)
+		require.Equal(t, "install --flag", details.InstallScript)
+		require.Empty(t, details.PostInstallScript)
+	})
+
+	t.Run("unresolvable variable records failed install and returns not found", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
+			HostID:          host.ID,
+			ExecutionID:     "install-1",
+			InstallScript:   "install $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+			UninstallScript: "uninstall $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+		})
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, newNotFoundError()
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		hsi := &fleet.HostSoftwareInstallerResult{
+			InstallUUID: "install-1",
+			HostID:      host.ID,
+			Status:      fleet.SoftwareInstallPending,
+		}
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return hsi, nil
+		}
+		var savedResult *fleet.HostSoftwareInstallResultPayload
+		ds.SetHostSoftwareInstallResultFunc = func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (bool, error) {
+			savedResult = result
+			return false, nil
+		}
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return false, nil
+		}
+
+		_, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected not-found, got: %v", err)
+
+		// the failure was recorded through the normal result-saving path, with
+		// the identical failure reported once even though two scripts hit it
+		require.NotNil(t, savedResult)
+		require.NotNil(t, savedResult.InstallScriptExitCode)
+		require.Equal(t, fleet.ScriptFleetVarResolutionFailedExitCode, *savedResult.InstallScriptExitCode)
+		require.NotNil(t, savedResult.InstallScriptOutput)
+		require.Equal(t, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.", *savedResult.InstallScriptOutput)
+	})
+
+	t.Run("already-recorded install failure is not re-recorded", func(t *testing.T) {
+		svc, ctx, ds := newSvcAndCtx(t, &fleet.SoftwareInstallDetails{
+			HostID:        host.ID,
+			ExecutionID:   "install-1",
+			InstallScript: "install $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+		})
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return nil, newNotFoundError()
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				InstallUUID: "install-1",
+				HostID:      host.ID,
+				Status:      fleet.SoftwareInstallFailed,
+			}, nil
+		}
+
+		_, err := svc.GetSoftwareInstallDetails(ctx, "install-1")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err), "expected not-found, got: %v", err)
+		require.False(t, ds.SetHostSoftwareInstallResultFuncInvoked)
+	})
+}

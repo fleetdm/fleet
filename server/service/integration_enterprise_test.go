@@ -34719,3 +34719,27 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 		require.Contains(t, syncResp.Output, "There is no IdP username for this host.")
 	})
 }
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// batch (gitops): script-only package with an unsupported variable is
+	// rejected, including on dry runs; supported variables pass a dry run
+	scriptOnly := []*fleet.SoftwareInstallerPayload{{
+		URL:           "script://config.sh",
+		InstallScript: "echo $FLEET_VAR_NONEXISTENT",
+	}}
+	for _, dryRun := range []string{"true", "false"} {
+		resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
+			http.StatusUnprocessableEntity, "team_name", tm.Name, "dry_run", dryRun)
+		require.Contains(t, extractServerErrorText(resp.Body),
+			"Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.", "dry_run=%s", dryRun)
+	}
+	scriptOnly[0].InstallScript = "echo $FLEET_VAR_HOST_UUID"
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
+		http.StatusAccepted, "team_name", tm.Name, "dry_run", "true")
+}
