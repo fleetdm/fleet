@@ -904,7 +904,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	team := newTeamResp.Team
 
 	var newTeam2Resp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeam2Resp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("team_2_" + t.Name())}}, http.StatusOK, &newTeam2Resp)
 	team2 := newTeam2Resp.Team
 
 	// Enroll a host
@@ -973,7 +973,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		fmt.Sprint(titleID),
 	)
 	s.Require().Empty(listResp.Hosts)
-	s.Assert().Nil(listResp.SoftwareTitle)
+	s.Nil(listResp.SoftwareTitle)
 
 	// Add a custom package and set a display name for the software title
 	payload := &fleet.UploadSoftwareInstallerPayload{
