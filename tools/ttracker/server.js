@@ -369,7 +369,9 @@ end tell`);
     try { fs.unlinkSync(tmpFile); } catch {}
   }
 
-  setTimeout(() => takeSnapshot(), 5000);
+  // Wait for the window and badge to be set, then snapshot
+  await new Promise(r => setTimeout(r, 4000));
+  await takeSnapshot();
   return { ok: true };
 }
 
@@ -1061,7 +1063,7 @@ async function newSession() {
   input.value = '';
   btn.textContent = '+ New Claude Session';
   btn.disabled = false;
-  setTimeout(refresh, 4000);
+  await refresh();
 }
 
 async function forceSnapshot() {
