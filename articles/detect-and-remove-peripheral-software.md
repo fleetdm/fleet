@@ -355,7 +355,7 @@ Script automations attempt up to 3 times, retriggering on non-zero exit codes. I
 
 <meta name="articleTitle" value="Detect and remove unwanted software installed by peripherals in Fleet">
 <meta name="authorFullName" value="Dhruv Majumdar">
-<meta name="authorGitHubUsername" value="dmajumdar">
+<meta name="authorGitHubUsername" value="karmine05">
 <meta name="publishedOn" value="2026-07-21">
 <meta name="category" value="guides">
 <meta name="description" value="Detect and remove unwanted software installed by peripherals and docking stations using Fleet policies and scripts.">
