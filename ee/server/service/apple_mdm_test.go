@@ -627,7 +627,7 @@ func startDEPServer(t *testing.T, sessionStatus, disownStatus int, serialStatus 
 			var req struct {
 				Devices []string `json:"devices"`
 			}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			out := make(map[string]string, len(req.Devices))
 			for _, s := range req.Devices {
 				st := "SUCCESS"
@@ -636,7 +636,7 @@ func startDEPServer(t *testing.T, sessionStatus, disownStatus int, serialStatus 
 				}
 				out[s] = st
 			}
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": out}))
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": out}))
 		}
 	}))
 	t.Cleanup(ts.Close)
@@ -792,6 +792,7 @@ func TestReleaseABDevicesPerHostErrors(t *testing.T) {
 	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2, 3, 4, 5, 6})
 	require.NoError(t, err)
 	m := byHostID(resp)
+	require.NotNil(t, m)
 
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
 	require.Empty(t, m[1].Error)
@@ -853,7 +854,7 @@ func TestReleaseABDevicesDEPGenericError(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp, 1)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), resp[0].Status)
-	require.Contains(t, resp[0].Error, "Couldn't release host from Apple Business. Error:")
+	require.Contains(t, resp[0].Error, "Couldn't release host from Apple Business.") // full error is logged on the server side
 	require.NotContains(t, resp[0].Error, "Apple rejected this request")
 }
 
@@ -877,6 +878,7 @@ func TestReleaseABDevicesNonSuccessStatus(t *testing.T) {
 	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2})
 	require.NoError(t, err)
 	m := byHostID(resp)
+	require.NotNil(t, m)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), m[2].Status)
 	require.Contains(t, m[2].Error, "NOT_ACCESSIBLE")
@@ -963,9 +965,9 @@ func TestReleaseABDevicesMultiToken(t *testing.T) {
 	// Org1 succeeds, Org2's session is rejected (auth error).
 	okServer := startDEPServer(t, 0, 0, nil)
 	authFailServer := startDEPServer(t, http.StatusForbidden, 0, nil)
-	seen := map[string]bool{}
+	seen := map[string]struct{}{}
 	dep.RetrieveConfigFunc = func(_ context.Context, name string) (*nanodep_client.Config, error) {
-		seen[name] = true
+		seen[name] = struct{}{}
 		if name == "Org2" {
 			return &nanodep_client.Config{BaseURL: authFailServer.URL}, nil
 		}
@@ -975,14 +977,17 @@ func TestReleaseABDevicesMultiToken(t *testing.T) {
 	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2, 3})
 	require.NoError(t, err)
 	m := byHostID(resp)
+	require.NotNil(t, m)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[2].Status)
 	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), m[3].Status)
 	require.Contains(t, m[3].Error, "Apple rejected this request")
 
 	// Each token was resolved by its own organization name.
-	assert.True(t, seen["Org1"])
-	assert.True(t, seen["Org2"])
+	_, ok := seen["Org1"]
+	assert.True(t, ok)
+	_, ok = seen["Org2"]
+	assert.True(t, ok)
 
 	// Only the successful token clears its assignments; the failed token does not.
 	require.ElementsMatch(t, []string{"S1", "S2"}, deleted[token1])

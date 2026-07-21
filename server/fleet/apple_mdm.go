@@ -1646,7 +1646,7 @@ type ABReleaseDeviceResponse struct {
 
 // ABReleaseDeviceAuthz is used to check user authorization to release a device from AB.
 type ABReleaseDeviceAuthz struct {
-	TeamID *uint `json:"team_id,omitempty,omitzero"` // required for authorization by team
+	TeamID *uint `json:"team_id,omitempty,omitzero"` // nolint:apiparamcheck // used for rego policy, and we only support team_id there.
 }
 
 func (a ABReleaseDeviceAuthz) AuthzType() string {

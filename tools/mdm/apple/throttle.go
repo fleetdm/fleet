@@ -143,7 +143,7 @@ type client struct {
 // transfer moves the host to the given team. A nil team means "No team".
 func (c *client) transfer(ctx context.Context, teamID *uint) error {
 	body, err := json.Marshal(struct {
-		TeamID  *uint  `json:"team_id"`
+		TeamID  *uint  `json:"team_id"` // nolint:apiparamcheck // custom tool
 		HostIDs []uint `json:"hosts"`
 	}{TeamID: teamID, HostIDs: []uint{c.hostID}})
 	if err != nil {

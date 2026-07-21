@@ -470,7 +470,8 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 
 	// authz check on all teams from gathered hostID's
 	for teamID := range teamIDs {
-		if err := svc.authz.Authorize(ctx, &fleet.ABReleaseDeviceAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		tid := teamID
+		if err := svc.authz.Authorize(ctx, &fleet.ABReleaseDeviceAuthz{TeamID: &tid}, fleet.ActionWrite); err != nil {
 			return nil, err
 		}
 	}
@@ -556,7 +557,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 			}
 
 			// Other generic HTTP/network/JSON errors.
-			svc.logger.ErrorContext(ctx, "Failed to released AB devices", "token_id", tokenID, "organization_name", token.OrganizationName, "error", err)
+			svc.logger.ErrorContext(ctx, "Failed to release AB devices", "token_id", tokenID, "organization_name", token.OrganizationName, "error", err)
 			for _, serial := range serials {
 				setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
 			}
