@@ -9073,6 +9073,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		Platform:       "macos",
 		HardwareSerial: "non-dep-serial",
 	})
+	require.NoError(t, err)
 
 	// non-DEP host should return a not-found error (so callers can skip the
 	// OS updates check and allow enrollment to proceed)
