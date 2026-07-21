@@ -23,6 +23,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -3016,6 +3017,20 @@ func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
 		require.Equal(t, "WS-$FLEET_HOST_VITAL_1", savedTemplate)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_1")
+		require.Error(t, err)
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+		require.Contains(t, err.Error(), "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
 	})
 }
 

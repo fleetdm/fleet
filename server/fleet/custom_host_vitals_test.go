@@ -1,8 +1,10 @@
 package fleet
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,4 +58,27 @@ func TestMissingCustomHostVitalValueError(t *testing.T) {
 	require.Contains(t, multi.Error(), "custom host vitals")
 	require.Contains(t, multi.Error(), `"$FLEET_HOST_VITAL_5"`)
 	require.Contains(t, multi.Error(), `"$FLEET_HOST_VITAL_9"`)
+}
+
+// TestIsInvalidReferencedCustomHostVitalsError covers the classification
+// callers of ValidateReferencedCustomHostVitals rely on to decide whether to
+// report a 422 (unknown ID / malformed reference) or propagate the error as-is
+// (any other error, e.g. a wrapped DB failure, which must surface as a 500).
+func TestIsInvalidReferencedCustomHostVitalsError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"unknown vital id", &MissingCustomHostVitalsError{MissingIDs: []uint{5}}, true},
+		{"malformed reference", &InvalidCustomHostVitalRefError{Refs: []string{"FLEET_HOST_VITAL_asset_tag"}}, true},
+		{"plain infra error", errors.New("connection refused"), false},
+		{"wrapped infra error", ctxerr.Wrap(t.Context(), errors.New("connection refused"), "validating custom host vitals"), false},
+		{"nil", nil, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, IsInvalidReferencedCustomHostVitalsError(c.err))
+		})
+	}
 }

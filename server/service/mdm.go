@@ -2262,6 +2262,9 @@ func (svc *Service) BatchSetMDMProfiles(
 		customHostVitalDocs = append(customHostVitalDocs, string(p.Contents))
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, customHostVitalDocs); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profiles", err.Error()))
 	}
 

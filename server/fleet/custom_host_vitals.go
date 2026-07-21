@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -95,6 +96,15 @@ func (e MissingCustomHostVitalValueError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf("Couldn't populate custom host vital%s %s: no value set for this host", plural, strings.Join(tokens, ", "))
+}
+
+// IsInvalidReferencedCustomHostVitalsError reports whether err is a user-input validation failure:
+// - an unknown vital ID (MissingCustomHostVitalsError)
+// - or a malformed $FLEET_HOST_VITAL_<x> reference (InvalidCustomHostVitalRefError)
+func IsInvalidReferencedCustomHostVitalsError(err error) bool {
+	var missing *MissingCustomHostVitalsError
+	var invalid *InvalidCustomHostVitalRefError
+	return errors.As(err, &missing) || errors.As(err, &invalid)
 }
 
 // CustomHostVitalEntity identifies the kind of entity that can reference a custom host vital.

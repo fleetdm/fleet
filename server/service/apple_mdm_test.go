@@ -31,6 +31,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -846,6 +847,37 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	// succeeds without labels on free license
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
 	require.NoError(t, err)
+}
+
+func TestNewMDMAppleConfigProfileCustomHostVitalErrors(t *testing.T) {
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	mcBytes := mcBytesForTest("Foo", "test.identifier.$FLEET_HOST_VITAL_5", "UUID")
+
+	t.Run("unknown vital id is rejected", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{5}}
+		}
+		_, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_HOST_VITAL_5")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, err := svc.NewMDMAppleConfigProfile(ctx, 0, mcBytes, nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+	})
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {

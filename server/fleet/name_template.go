@@ -156,7 +156,10 @@ func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl
 	// $FLEET_HOST_VITAL_<id> reference is only caught here, same as scripts and
 	// profiles validate their own embedded vital references.
 	if err := ds.ValidateReferencedCustomHostVitals(ctx, []string{validated}); err != nil {
-		return "", NewInvalidArgumentError("name_template", err.Error())
+		if IsInvalidReferencedCustomHostVitalsError(err) {
+			return "", NewInvalidArgumentError("name_template", err.Error())
+		}
+		return "", err
 	}
 	return validated, nil
 }

@@ -118,6 +118,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		// Redo per-script to report which script references the undefined custom host vital.
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &payload.InstallScript, argErr)
@@ -399,6 +402,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, scripts); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", payload.InstallScript, argErr)
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
@@ -2720,6 +2726,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allScripts); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 	}
