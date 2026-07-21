@@ -578,6 +578,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent="Currently only supported for macOS, Windows, Linux, and ChromeOS."
+          tooltipClass="agent-header-tooltip"
           fixedPositionStrategy
         >
           Agent
