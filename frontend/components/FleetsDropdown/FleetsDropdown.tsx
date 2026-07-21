@@ -110,6 +110,12 @@ interface IFleetsDropdownProps {
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  /**
+   * Optional callback fired when a global admin clicks "+ Add fleet". Lets
+   * the consuming page navigate with its own `router.push` (recommended)
+   * instead of the fallback `browserHistory.push(PATHS.ADMIN_FLEETS + …)`.
+   */
+  onAddFleet?: () => void;
   /** Indicates that this fleets dropdown should be styled as a form field */
   asFormField?: boolean;
 }
@@ -132,9 +138,10 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (showSearch) inputRef.current?.focus();
-  }, [showSearch]);
+  // Autofocus via native browser behavior. react-select unmounts / remounts
+  // <components.Menu> across every open/close cycle, so the input is a fresh
+  // DOM node on each open — autoFocus fires reliably each time without
+  // relying on effect deps semantics.
 
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
@@ -166,6 +173,8 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           <div className={`${baseClass}__search-field`}>
             <input
               ref={inputRef}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
               className={`${baseClass}__search-input`}
               value={searchQuery ?? ""}
               name="fleet-search-input"
@@ -223,12 +232,15 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
     props.innerRef?.(el as HTMLDivElement);
   };
 
-  // Measure whether the options list is scrollable after every layout — the
-  // ref-callback path fires before layout, so scrollHeight / clientHeight can
-  // both read 0 on the first render and the fade wouldn't appear at all.
+  // Measure whether the options list is scrollable after layout — the
+  // ref-callback path fires before layout, so scrollHeight / clientHeight
+  // can both read 0 on the first render and the fade wouldn't appear at
+  // all. Keying on the child count avoids re-measuring on unrelated
+  // renders (e.g. every keystroke inside the search input); the onScroll
+  // handler covers user-driven position changes.
   useLayoutEffect(() => {
     updateHasMoreBelow();
-  });
+  }, [React.Children.count(props.children)]);
 
   return (
     <components.MenuList
@@ -264,6 +276,7 @@ const FleetsDropdown = ({
   onChange,
   onOpen,
   onClose,
+  onAddFleet,
   asFormField = false,
 }: IFleetsDropdownProps): JSX.Element => {
   const { isGlobalAdmin } = useContext(AppContext);
@@ -375,7 +388,14 @@ const FleetsDropdown = ({
     setMenuIsOpen(false);
     setSearchQuery("");
     onClose?.();
-    browserHistory.push(`${PATHS.ADMIN_FLEETS}?create_fleet=1`);
+    if (onAddFleet) {
+      onAddFleet();
+    } else {
+      // Fallback for callers that haven't wired their own router-based
+      // navigation. `browserHistory` is inconsistent with the router prop
+      // pattern used elsewhere; consumers should migrate to onAddFleet.
+      browserHistory.push(`${PATHS.ADMIN_FLEETS}?create_fleet=1`);
+    }
   };
 
   const wrapperClasses = classnames(`${baseClass}-wrapper`, {
@@ -410,7 +430,8 @@ const FleetsDropdown = ({
       backgroundColor: COLORS["core-fleet-white"],
       boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "8px",
-      zIndex: 6,
+      // Page-overlay tier (99) per the 9/99/999 z-index convention.
+      zIndex: 99,
       overflow: "hidden",
       border: 0,
       marginTop: PADDING["pad-xsmall"],

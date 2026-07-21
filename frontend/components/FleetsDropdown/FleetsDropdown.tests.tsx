@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
-// TODOL Replace renderWithAppContext with createCustomRenderer
+// TODO: Replace renderWithAppContext with createCustomRenderer
 import { renderWithAppContext } from "test/test-utils";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
