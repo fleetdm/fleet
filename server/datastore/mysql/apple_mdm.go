@@ -8442,7 +8442,7 @@ func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs
 	var res []*fleet.HostDEPAssignment
 	query, args, err := sqlx.In(`SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed, hardware_serial
 		FROM host_dep_assignments hdep
-		WHERE hdep.host_id IN (?) AND hdep.deleted_at IS`, hostIDs)
+		WHERE hdep.host_id IN (?) AND hdep.deleted_at IS NULL`, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query for host dep assignments by host IDs")
 	}

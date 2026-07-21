@@ -42,9 +42,8 @@ type Profile struct {
 // ProfileResponse corresponds to the Apple DEP API "AssignProfileResponse" structure.
 // See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
 type ProfileResponse struct {
-	ProfileUUID       string            `json:"profile_uuid"`
-	Devices           map[string]string `json:"devices"`
-	RetryAfterSeconds int               `json:"retry_after_seconds,omitempty"`
+	ProfileUUID string            `json:"profile_uuid"`
+	Devices     map[string]string `json:"devices"`
 }
 
 // AssignProfiles uses the Apple "Assign a profile to a list of devices" API
