@@ -26,6 +26,10 @@ import (
 // their enrollment IDs, and recomputing the denormalized has_pending_commands flag for the affected enrollments.
 const windowsMDMCommandQueueBatchSize = 10000
 
+// windowsProfilesStatusRollupBatchSize bounds how many host UUIDs are recomputed per statement in
+// updateWindowsProfilesStatusRollupDB and per page in ReconcileWindowsProfilesStatus.
+const windowsProfilesStatusRollupBatchSize = 1000
+
 func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, h *fleet.Host) (bool, error) {
 	var unused string
 
@@ -1974,10 +1978,6 @@ func windowsHostProfileStatusCaseExpr(statusPrefix string) (string, []any) {
 	return stmt, args
 }
 
-// windowsProfilesStatusRollupBatchSize bounds how many host UUIDs are recomputed per statement in
-// updateWindowsProfilesStatusRollupDB and per page in ReconcileWindowsProfilesStatus.
-const windowsProfilesStatusRollupBatchSize = 1000
-
 // windowsProfilesStatusUpsertStmtAndArgs returns the upsert statement (and its leading args) that recomputes
 // host_mdm_windows_profiles_status rows for a set of hosts from their current host_mdm_windows_profiles rows.
 func windowsProfilesStatusUpsertStmtAndArgs() (string, []any) {
@@ -2097,19 +2097,9 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 	return &res, nil
 }
 
-// ReconcileWindowsProfilesStatus recomputes host_mdm_windows_profiles_status from
-// host_mdm_windows_profiles for every host and removes rollup rows for hosts that no longer have any
-// profile rows. The in-transaction write-path maintenance (updateWindowsProfilesStatusRollupDB) keeps
-// the rollup correct in real time; this periodic full sweep is a self-healing safety net that also
-// backstops a future write path that forgets to maintain the rollup. It runs on the hourly cleanups
-// cron and logs how many rows it corrected so persistent drift is visible.
-//
-// Both passes page by host_uuid in bounded batches, one statement per page. Fleet runs MySQL at its
-// default REPEATABLE READ isolation, where the SELECT side of INSERT ... SELECT takes shared locks on
-// the host_mdm_windows_profiles rows it scans for the statement's duration; that table is written on
-// every Windows host check-in, so a single unbounded statement over all of it would periodically stall
-// check-ins on large deployments. Thanks to ON DUPLICATE KEY UPDATE the upsert only rewrites rows whose
-// bucket actually changed, so a drift-free run performs no rollup writes.
+// ReconcileWindowsProfilesStatus recomputes host_mdm_windows_profiles_status from host_mdm_windows_profiles for every host and
+// removes rollup rows for hosts that no longer have any profile rows. Both passes page by host_uuid in bounded batches, one
+// statement per page.
 func (ds *Datastore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
 	batchSize := windowsProfilesStatusRollupBatchSize
 	if ds.testWindowsProfilesStatusReconcileBatchSize > 0 {
@@ -2118,9 +2108,7 @@ func (ds *Datastore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
 
 	upsertStmt, upsertArgs := windowsProfilesStatusUpsertStmtAndArgs()
 
-	// Pass 1: recompute the rollup for every host that currently has profile rows. DISTINCT host_uuid
-	// pages the leftmost column of the (host_uuid, profile_uuid) clustered PK in index order, so each
-	// page is a bounded range scan.
+	// Pass 1: recompute the rollup for every host that currently has profile rows.
 	var rowsChanged int64
 	cursor := ""
 	for {
@@ -2154,11 +2142,8 @@ SELECT DISTINCT host_uuid FROM host_mdm_windows_profiles WHERE host_uuid > ? ORD
 		cursor = hostUUIDs[len(hostUUIDs)-1]
 	}
 
-	// Pass 2: remove rollup rows for hosts that no longer have any profile rows. Candidates come from a
-	// non-locking read; the DELETE re-checks NOT EXISTS at execution time, so a host that concurrently
-	// regained profile rows (and re-upserted its rollup row) is not deleted. The cursor advances past
-	// every candidate whether or not it was deleted, so a candidate skipped by the re-check cannot make
-	// the loop spin.
+	// Pass 2: remove rollup rows for hosts that no longer have any profile rows. Candidates come from a non-locking read; the DELETE
+	// re-checks NOT EXISTS at execution time.
 	var orphansRemoved int64
 	cursor = ""
 	for {
@@ -2215,11 +2200,7 @@ func getMDMWindowsStatusCountsProfilesOnlyDB(ctx context.Context, ds *Datastore,
 	}
 
 	// The per-host profile status bucket ('failed'|'pending'|'verifying'|'verified'|empty) is maintained in
-	// host_mdm_windows_profiles_status (issue #48340), so this is an O(hosts) grouped read instead of the
-	// former O(hosts x profiles-per-host) correlated aggregation. The LEFT JOIN + COALESCE reproduces the
-	// prior behavior for enrolled hosts with no profile rows (they count under the empty status). The outer
-	// FROM/WHERE/GROUP BY shape is otherwise unchanged, so row-level counts (including duplicate enrolled
-	// rows in mdm_windows_enrollments, if any) match the prior implementation.
+	// host_mdm_windows_profiles_status, so this is an O(hosts) grouped read.
 	stmt := fmt.Sprintf(`
 SELECT
     COALESCE(hmwps.status, '') AS final_status,
@@ -2278,11 +2259,7 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
 		ds.whereBitLockerStatus(ctx, fleet.DiskEncryptionFailed, bitLockerPINRequired),
 	)
 
-	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status
-	// rollup (issue #48340) instead of recomputing a correlated aggregation over host_mdm_windows_profiles
-	// per host; only the (cheap, one-row-per-host) BitLocker status is still computed on the fly. A missing
-	// rollup row COALESCEs to the empty string and falls through to the ELSE branch, so a host with only
-	// BitLocker (no config profiles) still reports its BitLocker status, exactly as before.
+	// The per-host profile status bucket is read from the maintained host_mdm_windows_profiles_status rollup.
 	stmt := fmt.Sprintf(`
 SELECT
     CASE COALESCE(hmwps.status, '')
@@ -2441,11 +2418,7 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 		}
 	}
 
-	// Keep the per-host profile status rollup current for the affected hosts (issue #48340), once all
-	// profile rows are written; the helper dedupes the host UUIDs and batches its work. This path runs
-	// outside a transaction, which is safe here: the rollup helper upserts each host's row in place, and
-	// this path only inserts/updates profile rows (never deletes them), so it can never orphan a rollup
-	// row and a host is never transiently missing from the rollup for a concurrent summary read.
+	// Keep the per-host profile status rollup current for the affected hosts.
 	hostUUIDs := make([]string, 0, len(payload))
 	for _, p := range payload {
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
@@ -2617,8 +2590,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 		}
 	}
 
-	// Refresh the per-host profile status rollup for the hosts whose rows were deleted (issue #48340),
-	// in the same transaction as the deletes above.
+	// Refresh the per-host profile status rollup for the hosts whose rows were deleted.
 	hostUUIDs := make([]string, 0, len(profs))
 	for _, p := range profs {
 		hostUUIDs = append(hostUUIDs, p.HostUUID)
@@ -3162,32 +3134,35 @@ func (ds *Datastore) ResendWindowsMDMCommand(ctx context.Context, mdmDeviceId st
 			return ctxerr.Wrap(ctx, err, "inserting new windows mdm command for hosts")
 		}
 
+		// Resolve the host UUID once; it drives both the profile row update and the rollup refresh below.
+		var hostUUID sql.NullString
+		if err := sqlx.GetContext(ctx, tx, &hostUUID,
+			`SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+			mdmDeviceId); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "resolving host uuid for windows mdm command resend")
+		}
+		if !hostUUID.Valid || hostUUID.String == "" {
+			// No enrollment for this device
+			return nil
+		}
+
 		updateStmt := fmt.Sprintf(`
 			UPDATE host_mdm_windows_profiles
 			SET command_uuid = ?,
 			status = '%s',
 			retries = retries, -- Keep retries the same to avoid endlessly resending.
 			detail = ''
-			WHERE host_uuid = (SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1) AND command_uuid = ?`, fleet.MDMDeliveryPending)
+			WHERE host_uuid = ? AND command_uuid = ?`, fleet.MDMDeliveryPending)
 		// Keep the profile in pending while we resend with Replace.
-
-		_, err = tx.ExecContext(ctx, updateStmt, newCmd.CommandUUID, mdmDeviceId, oldCmd.CommandUUID)
+		_, err = tx.ExecContext(ctx, updateStmt, newCmd.CommandUUID, hostUUID.String, oldCmd.CommandUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host_mdm_windows_profiles with new command uuid")
 		}
 
-		// Keep the per-host profile status rollup current for this host (issue #48340).
-		var hostUUID sql.NullString
-		if err := sqlx.GetContext(ctx, tx, &hostUUID,
-			`SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_device_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
-			mdmDeviceId); err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return ctxerr.Wrap(ctx, err, "resolving host uuid for windows profiles status rollup")
-		}
-		if hostUUID.Valid && hostUUID.String != "" {
-			// This path only updates profile rows (status to pending), so no rollup row can be orphaned.
-			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
-			}
+		// Keep the per-host profile status rollup current for this host.
+		// This path only updates profile rows (status to pending), so no rollup row can be orphaned.
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID.String}, true); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after resend")
 		}
 
 		return nil
