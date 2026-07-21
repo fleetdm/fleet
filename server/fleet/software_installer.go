@@ -1142,19 +1142,22 @@ type HostSoftwareInstallResultPayload struct {
 	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
-// Status returns the status computed from the result payload. It should match the logic
-// found in the database-computed status (see
-// softwareInstallerHostStatusNamedQuery in mysql/software.go).
+// Status returns the status computed from the result payload. It must match the
+// precedence of the database-computed status and execution_status generated
+// columns on host_software_installs (see schema.sql). A non-zero install-script
+// exit code is a terminal failure: the post-install script runs regardless of
+// the install script's outcome, so its exit code must not be allowed to report a
+// failed install as installed.
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
+		return SoftwareInstallFailed
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
 		return SoftwareInstalled
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
 		return SoftwareInstallFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
 		return SoftwareInstalled
-	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
-		return SoftwareInstallFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
 		return SoftwareInstallFailed
 	default:

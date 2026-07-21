@@ -811,15 +811,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
 		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
+			// SetFleetMaintainedAppActiveInstaller also redirects installs frozen on
+			// the version we pinned away from to the newly-active one.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
-			}
-
-			// cancel pending installs of the version we pinned away from
-			if activeInstallerID != existingInstaller.InstallerID {
-				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
-				}
 			}
 
 			// the pinned version is now the active installer; return it, not the one we pinned away from
@@ -1540,7 +1535,7 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 }
 
 // installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
-// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh runs on any unix-like host).
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh and .py run on any unix-like host).
 func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
 	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
@@ -1549,7 +1544,7 @@ func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet
 	if host.FleetPlatform() == requiredPlatform {
 		return true
 	}
-	return ext == ".sh" && fleet.IsUnixLike(host.Platform)
+	return (ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {

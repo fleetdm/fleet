@@ -2802,6 +2802,46 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, hasSelfService, "windows host should NOT see .sh packages")
 
+	// Create a new team for .py testing
+	teamPy, err := ds.NewTeam(ctx, &fleet.Team{Name: "team py darwin test"})
+	require.NoError(t, err)
+
+	// Initially, darwin should not see any self-service installers in this team
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamPy.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "darwin should not see self-service before .py is created")
+
+	// Create a self-service .py installer (stored as platform='linux', extension='py')
+	// This should be visible to darwin hosts due to the unix-like script exception
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "py script for darwin",
+		Source:          "py_packages",
+		InstallScript:   "python3 installer.py",
+		TeamID:          &teamPy.ID,
+		Filename:        "script.py",
+		Platform:        "linux", // .py files are stored as linux
+		Extension:       "py",
+		SelfService:     true,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Darwin host should now see self-service .py package
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamPy.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "darwin host should see self-service .py packages")
+
+	// Linux host should also see it
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "linux", &teamPy.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "linux host should see self-service .py packages")
+
+	// Windows host shouldn't see .py packages
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "windows", &teamPy.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "windows host should NOT see .py packages")
+
 	// Create a self-service VPP for team/darwin
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)
 	require.NoError(t, err)
@@ -6905,6 +6945,10 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	const patchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '%s') < 0);"
+	v1Query := fmt.Sprintf(patchQueryFmt, "1.0")
+	v2Query := fmt.Sprintf(patchQueryFmt, "2.0")
+
 	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
 	})
@@ -6917,25 +6961,17 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		InstallScript: "echo install", UninstallScript: "echo uninstall",
 		InstallerFile: tfr, StorageID: "storageid1", Filename: "test.pkg", Version: "1.0",
 		UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{}, FleetMaintainedAppID: new(fma.ID),
+		PatchQuery: v1Query,
 	})
 	require.NoError(t, err)
 
-	// Add a second cached version (inactive) for the same no-team title.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO software_installers
-				(team_id, global_or_team_id, storage_id, filename, extension, version, platform, title_id,
-				 fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, is_active, package_ids, patch_query)
-			SELECT team_id, global_or_team_id, 'storageid2', 'test2.pkg', extension, '2.0', platform, title_id,
-				fleet_maintained_app_id, install_script_content_id, uninstall_script_content_id, 0, package_ids, patch_query
-			FROM software_installers WHERE id = ?
-		`, v1ID)
-		return err
+	// Cache a second version (inactive) for the same no-team title, the same way the
+	// auto-update cron does, carrying its own version-baked patch query.
+	v2ID, err := ds.InsertFleetMaintainedAppVersion(ctx, v1ID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0", StorageID: "storageid2", Filename: "test2.pkg", Extension: "pkg",
+		InstallScript: "echo install", UninstallScript: "echo uninstall", PatchQuery: v2Query,
 	})
-	var v2ID uint
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &v2ID, `SELECT id FROM software_installers WHERE title_id=? AND global_or_team_id=0 AND version='2.0'`, titleID)
-	})
+	require.NoError(t, err)
 
 	// GetFleetMaintainedVersionsByTitleID returns each cached version's own filename.
 	fmaVersions, err := ds.GetFleetMaintainedVersionsByTitleID(ctx, nil, titleID, false)
@@ -6954,24 +6990,68 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 		return id
 	}
 
+	// No patch policy for the title yet: flipping the active installer must not error, the policy update is a no-op.
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
+	require.Equal(t, v2ID, activeID())
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v1ID))
+	require.Equal(t, v1ID, activeID())
+
+	// The patch policy query is generated from the active installer and must follow it across flips.
+	patchPolicy, err := ds.NewTeamPolicy(ctx, 0, &user.ID, fleet.PolicyPayload{Type: fleet.PolicyTypePatch, PatchSoftwareTitleID: &titleID})
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
+
 	// A non-nil pin is authoritative: it upserts the pin row.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("^1")}, v1ID))
 	require.Equal(t, v1ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
 	pin, err := ds.GetPinnedVersion(ctx, nil, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin)
+
+	// Have a host report a pass for the policy and aggregate stats; the next flip
+	// changes the query, so both must be cleared for hosts to re-evaluate.
+	host := test.NewHost(t, ds, "patchhost", "1", "patchhostkey", "patchhostuuid", time.Now())
+	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{patchPolicy.ID: new(true)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	err = ds.UpdateHostPolicyCounts(ctx)
+	require.NoError(t, err)
+	policyResultCounts := func() (membership int, stats int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.GetContext(ctx, q, &membership, `SELECT COUNT(*) FROM policy_membership WHERE policy_id = ?`, patchPolicy.ID); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &stats, `SELECT COUNT(*) FROM policy_stats WHERE policy_id = ?`, patchPolicy.ID)
+		})
+		return membership, stats
+	}
+	membership, stats := policyResultCounts()
+	require.Equal(t, 1, membership)
+	require.Equal(t, 1, stats)
 
 	// A nil pin flips the active installer but leaves the pin row untouched —
 	// this is what the auto-update cron relies on to avoid clobbering an admin's pin.
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: nil}, v2ID))
 	require.Equal(t, v2ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v2Query, patchPolicy.Query)
 	pin, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.NoError(t, err)
 	require.Equal(t, new("^1"), pin) // unchanged
+	// The query changed on the flip, so the policy's stale results were cleared.
+	membership, stats = policyResultCounts()
+	require.Zero(t, membership, "version flip must clear stale policy membership")
+	require.Zero(t, stats, "version flip must clear stale policy stats")
 
 	// A non-nil empty pin clears it (Latest).
 	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, PinnedVersion: new("")}, v1ID))
 	require.Equal(t, v1ID, activeID())
+	patchPolicy, err = ds.Policy(ctx, patchPolicy.ID)
+	require.NoError(t, err)
+	require.Equal(t, v1Query, patchPolicy.Query)
 	_, err = ds.GetPinnedVersion(ctx, nil, titleID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }

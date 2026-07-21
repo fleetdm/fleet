@@ -167,7 +167,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or working group.
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or product group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -189,6 +189,20 @@ Document the completion of a customer promise through the following steps:
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
 5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
+### Submit a feature request for CSA review (For CSMs)
+
+Submit a feature request to the CSA team for review following these steps:
+- Navigate to the help-customers board in GitHub
+- Press "Add item" under the "New requests" column
+- Select "Custom request" as the issue type
+- Title your request "FR for (customer-codename-here)"
+- In the description field, add the following information
+    - What is the specific feature being requested?
+    - Why is this impactful to the customer?
+    - What priority is this issue to the customer?
+    - Any additional infromation that may be helpful for the CSA to understand your customer's request
+- Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
+- Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 
 ### File a customer bug report
 
@@ -588,7 +602,7 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
 1. **fleetdm.com**
     - Create a confidential website request issue
-    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website product group will delete the account and let you know in a comment when the user account is deleted.
 2.  **Salesforce**
     1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
 3. **Stripe** 
