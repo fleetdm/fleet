@@ -926,6 +926,43 @@ ORDER BY
 	return commands, nil
 }
 
+// MDMWindowsGetESPReleaseAckStatus summarizes the delivery state of ESP release commands targeting the given LocURI for
+// the enrollment. Attempts are matched on BOTH the target LocURI and the command_uuid prefix Fleet stamps on its own
+// release attempts, so an admin-enqueued raw command that happens to target the same LocURI can neither trigger the
+// resend phase nor complete the ESP.
+func (ds *Datastore) MDMWindowsGetESPReleaseAckStatus(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+	const query = `
+SELECT
+	COUNT(*) > 0 AS attempted,
+	COALESCE(MAX(r.status_code = '200'), FALSE) AS acked200,
+	COALESCE(MAX(wmcq.acked_at IS NULL), FALSE) AS has_unacked,
+	COALESCE(SUBSTRING_INDEX(GROUP_CONCAT(r.status_code ORDER BY wmcq.acked_at DESC), ',', 1), '') AS latest_status
+FROM
+	windows_mdm_command_queue wmcq
+INNER JOIN
+	windows_mdm_commands wmc ON wmc.command_uuid = wmcq.command_uuid
+LEFT JOIN
+	windows_mdm_command_results r ON r.enrollment_id = wmcq.enrollment_id AND r.command_uuid = wmcq.command_uuid
+WHERE
+	wmcq.enrollment_id = ? AND wmc.target_loc_uri = ? AND wmc.command_uuid LIKE CONCAT(?, '%')
+`
+	var row struct {
+		Attempted    bool   `db:"attempted"`
+		Acked200     bool   `db:"acked200"`
+		HasUnacked   bool   `db:"has_unacked"`
+		LatestStatus string `db:"latest_status"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, enrollmentID, targetLocURI, cmdUUIDPrefix); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get Windows ESP release ack status")
+	}
+	return &fleet.MDMWindowsESPReleaseAckStatus{
+		Attempted:    row.Attempted,
+		Acked200:     row.Acked200,
+		HasUnacked:   row.HasUnacked,
+		LatestStatus: row.LatestStatus,
+	}, nil
+}
+
 // compressWindowsMDMResponse gzip-compresses a full SyncML response envelope
 func compressWindowsMDMResponse(raw []byte) ([]byte, error) {
 	var buf bytes.Buffer
