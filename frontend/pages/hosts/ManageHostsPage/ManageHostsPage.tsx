@@ -1878,7 +1878,6 @@ const ManageHostsPage = ({
         buttonText: "Run script",
         variant: "secondary",
         iconSvg: "run",
-        iconStroke: true,
         hideButton: !canRunScriptBatch,
         isDisabled: !!disableRunScriptBatchTooltipContent,
         tooltipContent: disableRunScriptBatchTooltipContent,

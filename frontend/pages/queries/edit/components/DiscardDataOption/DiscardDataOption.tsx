@@ -57,7 +57,6 @@ const DiscardDataOption = ({
             variant="subdued"
             size="small"
             className={`${baseClass}__edit-anyway`}
-            iconStroke
           >
             <>
               Edit anyway

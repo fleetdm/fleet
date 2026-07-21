@@ -25,7 +25,6 @@ const EntraClientIDsListHeader = ({
               variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddClientId}
-              iconStroke
             >
               <>
                 <Icon name="plus" />

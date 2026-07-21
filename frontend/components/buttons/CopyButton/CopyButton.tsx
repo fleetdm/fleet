@@ -7,12 +7,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { stringToClipboard } from "utilities/copy_text";
 
-type CopyButtonVariant =
-  | "icon"
-  | "inverse"
-  | "secondary"
-  | "subdued"
-  | "compact";
+type CopyButtonVariant = "secondary" | "subdued" | "compact";
 
 interface ICopyButtonProps {
   copyText: string;
@@ -20,8 +15,6 @@ interface ICopyButtonProps {
   children?: React.ReactNode;
   /** `"subdued"` (default) — borderless low-emphasis icon-only button —
    *  see #35329.
-   *  `"icon"` — standard 36×36 icon button. DEPRECATED — use "subdued".
-   *  `"inverse"` — bordered icon-with-text button (use with children).
    *  `"secondary"` — bordered 36×36 icon-only button (the current preferred
    *  secondary style — see #35329).
    *  `"compact"` — icon collapsed to its natural size, no extra vertical
@@ -68,10 +61,9 @@ const CopyButton = ({
 
   const onClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
-    // Fleet Button's --icon variant uses :focus (not :focus-visible) for its
-    // hover-background, so a mouse click leaves the button visually "stuck"
-    // highlighted. Drop focus only for mouse activations — keyboard Enter/
-    // Space report `detail === 0` and must keep their tab position.
+    // Drop focus only for mouse activations, so a lingering focus ring
+    // doesn't stay visible after a click — keyboard Enter/Space report
+    // `detail === 0` and must keep their tab position.
     if (evt.detail !== 0) {
       evt.currentTarget.blur();
     }
@@ -106,7 +98,6 @@ const CopyButton = ({
       <Button
         variant={isCompact ? "subdued" : variant}
         size={size}
-        iconStroke
         onClick={onClick}
         className={classnames(
           `${baseClass}__button`,

@@ -24,7 +24,6 @@ const CertAuthorityListHeader = ({
               variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
-              iconStroke
             >
               <>
                 <Icon name="plus" />

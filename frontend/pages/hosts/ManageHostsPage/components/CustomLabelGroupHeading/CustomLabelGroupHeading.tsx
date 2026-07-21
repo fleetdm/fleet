@@ -68,7 +68,6 @@ const CustomLabelGroupHeading = (
             className={`${baseClass}__add-label-button`}
             variant="secondary"
             onClick={onAddLabel}
-            iconStroke
           >
             <Icon name="plus" />
           </Button>

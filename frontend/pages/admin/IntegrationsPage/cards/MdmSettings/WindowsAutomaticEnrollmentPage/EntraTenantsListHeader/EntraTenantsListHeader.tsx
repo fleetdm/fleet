@@ -25,7 +25,6 @@ const EntraTenantsListHeader = ({
               variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddTenant}
-              iconStroke
             >
               <>
                 <Icon name="plus" />

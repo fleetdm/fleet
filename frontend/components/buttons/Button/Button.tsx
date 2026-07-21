@@ -11,13 +11,8 @@ export type ButtonVariant =
   | "pill"
   | "grey-pill"
   | "link" // Looks like CustomLink with animated underline on hover
-  | "brand-inverse-icon" // Green icon with text, no underline on hover
-  | "text-icon" // DEPRECATED — use "inverse" instead. Swept in the 2025-09 UI reskin (#33558); kept for legacy callers only. New code: always reach for "inverse".
-  | "icon" // Buttons without text
   | "secondary" // Bordered secondary button (off-white fill + border). The new preferred secondary — see #35329.
   | "subdued" // Low-emphasis borderless text + icon button. Not to be confused with a link.
-  | "inverse" // Use this anywhere you'd reflexively reach for "text-icon".
-  | "inverse-alert"
   | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
   | "oversized";
@@ -42,8 +37,6 @@ export interface IButtonProps {
       ) => void);
   isLoading?: boolean;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
-  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
-  iconStroke?: boolean;
   ariaHasPopup?:
     | boolean
     | "false"
@@ -128,7 +121,6 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant,
       isLoading,
       customOnKeyDown,
-      iconStroke,
       ariaHasPopup,
       ariaExpanded,
       ariaLabel,
@@ -153,17 +145,13 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}--${variant}__small`]: size === "small",
         [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
-        [`${baseClass}--icon-stroke`]: iconStroke,
         [`${baseClass}--icon-only`]: isIconOnly,
       }
     );
     const onWhite =
       variant === "link" ||
-      variant === "inverse" ||
       variant === "secondary" ||
       variant === "subdued" ||
-      variant === "brand-inverse-icon" ||
-      variant === "text-icon" ||
       variant === "pill" ||
       variant === "grey-pill";
 
