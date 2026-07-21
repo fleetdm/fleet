@@ -718,6 +718,12 @@ type UpdateSoftwareInstallerPayload struct {
 	PinnedVersion *string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
 	Configuration []byte
+	// Patch controls the patch policy for a Fleet-maintained app: true creates or keeps it,
+	// false deletes it. nil leaves the patch policy unchanged. FMA-only.
+	Patch *bool
+	// PatchWhenClosed sets patch_when_closed on the title's patch policy so the install is
+	// skipped while the app is open. nil leaves it unchanged. FMA-only.
+	PatchWhenClosed *bool
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
@@ -725,7 +731,7 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
-		u.PinnedVersion == nil
+		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -873,8 +879,9 @@ type AutomaticInstallPolicy struct {
 }
 
 type PatchPolicyData struct {
-	ID   uint   `json:"id" db:"id"`
-	Name string `json:"name" db:"name"`
+	ID              uint   `json:"id" db:"id"`
+	Name            string `json:"name" db:"name"`
+	PatchWhenClosed bool   `json:"patch_when_closed" db:"patch_when_closed"`
 }
 
 // SoftwarePackageOrApp provides information about a software installer
