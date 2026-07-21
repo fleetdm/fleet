@@ -326,8 +326,8 @@ tell application "iTerm2"
         end repeat
     end repeat
 end tell`);
+      console.log(`[park] isAtPrompt=${isAtPrompt} for ${itermUuid}`);
       if (isAtPrompt === 'true') {
-        // Run fc -l -30 and capture output via a temp file
         const histTmp = path.join(os.tmpdir(), `tt-hist-${Date.now()}.txt`);
         await runOsascript(`
 tell application "iTerm2"
@@ -345,16 +345,21 @@ tell application "iTerm2"
         end repeat
     end repeat
 end tell`);
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 2000));
         try {
           const histRaw = fs.readFileSync(histTmp, 'utf8');
           cmdHistory = histRaw.split('\n')
             .map(l => l.replace(/^\s*\d+\s+/, '').trim())
             .filter(l => l && !l.startsWith('fc '));
           fs.unlinkSync(histTmp);
-        } catch {}
+          console.log(`[park] captured ${cmdHistory.length} commands`);
+        } catch (e) {
+          console.log(`[park] failed to read history: ${e.message}`);
+        }
       }
-    } catch {}
+    } catch (e) {
+      console.log(`[park] history capture error: ${e.message}`);
+    }
   }
 
   // Add to history
@@ -457,8 +462,9 @@ async function restoreSession(sessionId, fromHistory) {
     // Non-Claude session: print saved command history if available
     const hist = session.cmd_history || [];
     if (hist.length) {
-      const histDisplay = hist.map(c => c.replace(/'/g, "'\\''")).join('\\n');
-      launchCmd = `echo ''; echo '\\033[1;36m--- Last commands before parking ---\\033[0m'; echo '${histDisplay}'; echo '\\033[1;36m------\\033[0m'; echo ''`;
+      const histFile = path.join(os.tmpdir(), `tt-hist-display-${Date.now()}.txt`);
+      fs.writeFileSync(histFile, hist.join('\n'));
+      launchCmd = `echo '' && printf '\\033[1;36m--- Last commands before parking ---\\033[0m\\n' && cat ${histFile} && printf '\\033[1;36m------\\033[0m\\n' && echo '' && rm -f ${histFile}`;
     } else {
       launchCmd = '';
     }
