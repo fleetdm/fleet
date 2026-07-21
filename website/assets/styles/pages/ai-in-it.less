@@ -42,10 +42,11 @@
   [purpose='page-hero'] {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 120px;
     [purpose='page-heading'] {
       text-align: center;
-
+      max-width: 882px;
     }
     [purpose='hero-image'] {
       img {
@@ -260,6 +261,41 @@
         margin-right: auto;
       }
     }
+    [purpose='feature-cards'] {
+      flex-direction: column;
+      [purpose='card'] {
+        width: 100%;
+      }
+    }
+    [purpose='report-card'] {
+      display: flex;
+      flex-direction: column-reverse;
+      border-radius: 16px;
+      border: 1px solid var(--Fleet-Black-10, #E2E4EA);
+      background: var(--Off-white, #F9FAFC);
+      [purpose='card-text'] {
+        width: 100%;
+        display: flex;
+        // height: 546px;
+        padding: 48px var(--Spacing-Section-Tighter, 48px);
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        flex: 1 0 0;
+      }
+      [purpose='card-image'] {
+        width: 100%;
+        height: 473px;
+        max-width: unset;
+        background: url('/images/ai-powered-it-banner-525x546@2x.png');
+        background-size: cover;
+        background-position: center;
+        border-top-right-radius: 16px;
+        border-top-left-radius: 16px;
+        border-bottom-right-radius: 0px;
+      }
+    }
 
   }
 
@@ -270,6 +306,13 @@
     h2 {
       font-size: 24px;
     }
+    [purpose='page-hero'] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 36px;
+    }
+
     [purpose='feature-with-image'] {
       [purpose='feature-text'] {
         width: 100%;
