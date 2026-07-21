@@ -220,11 +220,13 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
 // full scroll container and its scrollbar spans only the options.
 const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
   const menuListElRef = useRef<HTMLDivElement | null>(null);
+  const [hasMoreAbove, setHasMoreAbove] = useState(false);
   const [hasMoreBelow, setHasMoreBelow] = useState(false);
 
-  const updateHasMoreBelow = () => {
+  const updateScrollFades = () => {
     const el = menuListElRef.current;
     if (!el) return;
+    setHasMoreAbove(el.scrollTop > 1);
     setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
   };
 
@@ -237,12 +239,12 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
 
   // Measure whether the options list is scrollable after layout — the
   // ref-callback path fires before layout, so scrollHeight / clientHeight
-  // can both read 0 on the first render and the fade wouldn't appear at
+  // can both read 0 on the first render and the fades wouldn't appear at
   // all. Keying on the child count avoids re-measuring on unrelated
   // renders (e.g. every keystroke inside the search input); the onScroll
   // handler covers user-driven position changes.
   useLayoutEffect(() => {
-    updateHasMoreBelow();
+    updateScrollFades();
   }, [React.Children.count(props.children)]);
 
   return (
@@ -251,7 +253,7 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
       innerRef={setMenuListRef}
       innerProps={{
         ...props.innerProps,
-        onScroll: updateHasMoreBelow,
+        onScroll: updateScrollFades,
         onMouseDown: (event: React.MouseEvent) => event.stopPropagation(),
         // Chrome (and other browsers with `keyboard-focusable-scrollers`
         // enabled) auto-focuses scrollable containers to allow keyboard
@@ -262,9 +264,18 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
         tabIndex: -1,
       }}
     >
+      {hasMoreAbove && (
+        <div
+          className={`${baseClass}__scroll-fade ${baseClass}__scroll-fade--top`}
+          aria-hidden
+        />
+      )}
       {props.children}
       {hasMoreBelow && (
-        <div className={`${baseClass}__scroll-fade`} aria-hidden />
+        <div
+          className={`${baseClass}__scroll-fade ${baseClass}__scroll-fade--bottom`}
+          aria-hidden
+        />
       )}
     </components.MenuList>
   );
