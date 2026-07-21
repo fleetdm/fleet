@@ -8876,6 +8876,49 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
 }
 
+func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
+	t := s.T()
+
+	// hacky check to make sure the assets were built (they require `-tags full`
+	// when building the tests otherwise this test will always fail due to a
+	// panic in server/bindata package)
+	defer func() {
+		if panicVal := recover(); panicVal != nil {
+			s, ok := panicVal.(string)
+			if ok && strings.Contains(s, "Assets may not be used when running Fleet as a library") {
+				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
+			}
+		}
+	}()
+	_, _ = bindata.Asset("check if assets are build")
+
+	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
+	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
+	unsafeRedirectURIs := map[string]string{
+		"javascript": "javascript:console.log(424281957)//",
+		"data":       "data:text/html,<script>alert(1)</script>",
+		"vbscript":   "vbscript:msgbox(1)",
+	}
+
+	for name, redirectURI := range unsafeRedirectURIs {
+		t.Run(name, func(t *testing.T) {
+			resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri="+url.QueryEscape(redirectURI)+
+				"&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			resContent := string(resBytes)
+
+			// The response must be a SOAP fault rather than the rendered TOS page, and must not reflect the payload.
+			require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+			require.True(t, s.isXMLTagPresent("s:fault", resContent))
+			require.NotContains(t, resContent, redirectURI)
+			require.NotContains(t, resContent, "Agree and continue")
+			require.NotContains(t, resContent, "IsAccepted=true")
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	t := s.T()
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
