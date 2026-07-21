@@ -875,6 +875,106 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders an 'edited_macos_profile' single-profile edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppleOSProfile,
+      details: {
+        profile_name: "Test Profile",
+        profile_identifier: "com.example.test",
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_macos_profile' batch edit when no profile_name is set", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAppleOSProfile,
+      details: {
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited configuration profiles for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet via fleetctl."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_windows_profile' single-profile edit on free tier", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedWindowsProfile,
+      details: {
+        profile_name: "Test Profile",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for all Windows hosts."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_android_profile' single-profile edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedAndroidProfile,
+      details: {
+        profile_name: "Test Profile",
+        team_name: "Mobile",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the configuration profile <b>Test Profile</b> for Android hosts assigned to the <b>Mobile</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_declaration_profile' single-declaration edit for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDeclarationProfile,
+      details: {
+        profile_name: "Test Declaration",
+        profile_identifier: "com.example.decl",
+        team_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText((content, node) => {
+        return (
+          node?.innerHTML ===
+          "<b>Test User </b> edited the declaration (DDM) profile <b>Test Declaration</b> for macOS, iOS, and iPadOS hosts assigned to the <b>Workstations</b> fleet."
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'added_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedBootstrapPackage,
@@ -1815,6 +1915,60 @@ describe("Activity Feed", () => {
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
     expect(screen.getByText(/failed to run/i)).toBeInTheDocument(); // For status: "failed_install"
     expect(screen.getByText("Script-only Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package ran status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "installed",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/ran/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package pending run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "pending_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/told Fleet to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
+  });
+
+  it("renders py script package failed run status in InstalledSoftware activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Script Admin",
+      details: {
+        software_title: "Python Script Software",
+        source: "py_packages",
+        status: "failed_install",
+        software_package: "install.py",
+        host_display_name: "Example Host",
+      },
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText(/failed to run/i)).toBeInTheDocument();
+    expect(screen.getByText("Python Script Software")).toBeInTheDocument();
   });
 
   it("renders addedNdesScepProxy activity correctly", () => {

@@ -70,6 +70,8 @@ const getGraphicName = (ext: string) => {
     return "file-sh";
   } else if (ext === "ps1") {
     return "file-ps1";
+  } else if (ext === "py") {
+    return "file-py";
   }
   return "file-pkg";
 };
@@ -95,14 +97,17 @@ const renderSoftwareDeployWarningBanner = () => (
 const renderFileTypeMessage = () => {
   return (
     <>
-      macOS (.pkg,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>),
-      iOS/iPadOS (.ipa),
-      <br />
-      Windows (.msi, .exe,{" "}
-      <TooltipWrapper tipContent="Script-only package">.ps1</TooltipWrapper>),
-      or Linux (.deb, .rpm, .tar.gz,{" "}
-      <TooltipWrapper tipContent="Script-only package">.sh</TooltipWrapper>)
+      <TooltipWrapper tipContent="Supports .pkg, .sh, and .py">
+        macOS
+      </TooltipWrapper>
+      , <TooltipWrapper tipContent="Supports .ipa">iOS/iPadOS</TooltipWrapper>,{" "}
+      <TooltipWrapper tipContent="Supports .msi, .exe, .ps1">
+        Windows
+      </TooltipWrapper>
+      , or{" "}
+      <TooltipWrapper tipContent="Supports .deb, .rpm, .tar.gz, .sh, and .py">
+        Linux
+      </TooltipWrapper>
     </>
   );
 };
@@ -149,7 +154,7 @@ interface IPackageFormProps {
 }
 // application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
 const ACCEPTED_EXTENSIONS =
-  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.ipa";
+  ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz,.sh,.ps1,.py,.ipa";
 
 const PackageForm = ({
   labels,

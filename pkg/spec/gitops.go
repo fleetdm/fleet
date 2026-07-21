@@ -288,7 +288,7 @@ type SoftwarePackage struct {
 }
 
 func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec, ext string) (fleet.SoftwarePackageSpec, error) {
-	isScript := ext == ".sh" || ext == ".ps1"
+	isScript := fleet.IsScriptPackage(ext)
 
 	// Script-only packages are configured inline in the team YAML, so their
 	// uninstall/post-install scripts and pre-install query are allowed here;
@@ -304,7 +304,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 
 	// Icon should be allowed at the team level yaml for script packages which must be specified as a path
 	if spec.Icon.Path != "" {
-		if ext != ".sh" && ext != ".ps1" {
+		if !fleet.IsScriptPackage(ext) {
 			return packageLevel, fmt.Errorf("the software package defined in %s must not have icons, scripts, queries, URL, or hash specified at the team level", *spec.Path)
 		}
 	}
@@ -2347,8 +2347,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 
 			ext := strings.ToLower(filepath.Ext(resolvedPath))
-			switch ext {
-			case ".sh", ".ps1":
+			switch {
+			case fleet.IsScriptPackage(ext):
 				// Script files: only gather FLEET_SECRET_ variables, don't expand
 				// regular env vars (they are shell variables meant for the endpoint).
 				if err := gatherFileSecrets(result, resolvedPath); err != nil {
@@ -2376,7 +2376,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				}
 				softwarePackageSpecs = append(softwarePackageSpecs, &scriptSpec)
 
-			case ".yml", ".yaml":
+			case ext == ".yml" || ext == ".yaml":
 				// Replace $var and ${var} with env values in YAML files only.
 				fileBytes, err = ExpandEnvBytes(fileBytes)
 				if err != nil {
@@ -2423,7 +2423,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				softwarePackageSpecs = valid
 
 			default:
-				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, or .ps1 files are supported", *teamLevelPackage.Path, ext))
+				multiError = multierror.Append(multiError, fmt.Errorf("software package path %s has unsupported extension %q; only .yml, .yaml, .sh, .ps1, or .py files are supported", *teamLevelPackage.Path, ext))
 				continue
 			}
 		} else {

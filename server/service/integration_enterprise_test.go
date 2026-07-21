@@ -1728,6 +1728,11 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
 
+	// empty and whitespace-only secrets are rejected
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "   "}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "validSecret"},{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+
 	// No new activities should be generated
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
 	require.Len(t, seenActivitiesIDs, 2)
@@ -1986,6 +1991,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with an empty enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "empty_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: ""}},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with a whitespace-only enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "whitespace_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: "   "}},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// create a team with invalid host expiry window
 	team4 := &fleet.TeamPayload{
@@ -2342,7 +2361,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			},
 		},
 	}
-	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	// team_gitops can modify its team but must not be able to read the team's
+	// enroll secrets (matching the enroll_secret authorization policy).
+	team_gitops := &fleet.User{
+		Name:  "Team GitOps",
+		Email: "team_gitops@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	// team_admin can modify its team and is allowed to read enroll secrets, so
+	// it should still receive the plaintext secret in write responses.
+	team_admin := &fleet.User{
+		Name:  "Team Admin",
+		Email: "team_admin@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	// global_gitops can create and modify any team but must not be able to read
+	// enroll secrets.
+	global_gitops := &fleet.User{
+		Name:       "Global GitOps",
+		Email:      "global_gitops@example.com",
+		GlobalRole: new(fleet.RoleGitOps),
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus, team_gitops, team_admin, global_gitops}
 	for _, u := range users {
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -2458,6 +2508,82 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 				}
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------
+	// A team gitops user can modify a team but must not receive plaintext
+	// enroll secrets in the PATCH response (regression test for the write
+	// endpoint leaking secrets to a role that cannot read them).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_gitops.Email, test.GoodPassword)
+
+	// gitops is forbidden from reading the team and its secrets directly.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID), nil, http.StatusForbidden, &getTeamResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teams[0].ID), nil, http.StatusForbidden, &teamEnrollSecretsResponse{})
+
+	// ...but the PATCH write response must mask the secret.
+	var gitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by gitops")}, http.StatusOK, &gitopsPatchResp)
+	require.NotEmpty(t, gitopsPatchResp.Team.Secrets)
+	for _, secret := range gitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// The modify agent options write endpoint must mask the secret too.
+	var gitopsAgentResp teamResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", teams[0].ID),
+		json.RawMessage(`{}`), http.StatusOK, &gitopsAgentResp)
+	require.NotEmpty(t, gitopsAgentResp.Team.Secrets)
+	for _, secret := range gitopsAgentResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A global gitops user must not receive plaintext secrets from the
+	// PATCH response nor when creating a team (the create response can leak
+	// the server-generated enroll secret).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, global_gitops.Email, test.GoodPassword)
+
+	var globalGitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by global gitops")}, http.StatusOK, &globalGitopsPatchResp)
+	require.NotEmpty(t, globalGitopsPatchResp.Team.Secrets)
+	for _, secret := range globalGitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	var gitopsCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("gitops-created-team")}, http.StatusOK, &gitopsCreateResp)
+	require.NotEmpty(t, gitopsCreateResp.Team.Secrets)
+	for _, secret := range gitopsCreateResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A team admin can read enroll secrets, so the PATCH response must
+	// still contain the plaintext secret.
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_admin.Email, test.GoodPassword)
+
+	var adminPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by admin")}, http.StatusOK, &adminPatchResp)
+	require.NotEmpty(t, adminPatchResp.Team.Secrets)
+	for _, secret := range adminPatchResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// A global admin creating a team can read the generated secret.
+	s.token = s.getTestAdminToken()
+	var adminCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("admin-created-team")}, http.StatusOK, &adminCreateResp)
+	require.NotEmpty(t, adminCreateResp.Team.Secrets)
+	for _, secret := range adminCreateResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
 	}
 }
 
@@ -8857,7 +8983,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitLinuxClient is no longer a member of the 'Foobar' label.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
-		foobarLabel.ID: nil,
+		foobarLabel.ID: new(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -17151,6 +17277,77 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	})
 	require.Empty(t, storedURL, "cache-hit re-apply must drop the placeholder url too")
 
+	pyContent := "#!/usr/bin/env python3\nprint('Installing...')\n"
+	pyFile, err := fleet.NewTempFileReader(strings.NewReader(pyContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer pyFile.Close()
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:         "install-app.py",
+		TeamID:           &team.ID,
+		AutomaticInstall: true,
+		InstallerFile:    pyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .py packages.")
+
+	err = pyFile.Rewind()
+	require.NoError(t, err)
+
+	badPyContent := "print('no shebang')\n"
+	badPyFile, err := fleet.NewTempFileReader(strings.NewReader(badPyContent), func() string { return t.TempDir() })
+	require.NoError(t, err)
+	defer badPyFile.Close()
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "no-shebang.py",
+		TeamID:        &team.ID,
+		InstallerFile: badPyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Script validation failed")
+
+	// install_script is derived from the file, so any install_script param is ignored.
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename:          "install-app.py",
+		Title:             "install-app.py",
+		TeamID:            &team.ID,
+		InstallScript:     "this should be ignored",
+		UninstallScript:   "echo 'uninstall py'",
+		PostInstallScript: "echo 'post py'",
+		PreInstallQuery:   "SELECT 1;",
+		InstallerFile:     pyFile,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var pyStored struct {
+		Source            string `db:"source"`
+		InstallScript     string `db:"install_script"`
+		UninstallScript   string `db:"uninstall_script"`
+		PostInstallScript string `db:"post_install_script"`
+		PreInstallQuery   string `db:"pre_install_query"`
+		Platform          string `db:"platform"`
+	}
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &pyStored, `
+			SELECT
+				st.source,
+				COALESCE(inst.contents, '') AS install_script,
+				COALESCE(uninst.contents, '') AS uninstall_script,
+				COALESCE(postinst.contents, '') AS post_install_script,
+				si.pre_install_query,
+				si.platform
+			FROM software_installers si
+			JOIN software_titles st ON st.id = si.title_id
+			LEFT JOIN script_contents inst ON inst.id = si.install_script_content_id
+			LEFT JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id
+			LEFT JOIN script_contents postinst ON postinst.id = si.post_install_script_content_id
+			WHERE si.global_or_team_id = ? AND si.filename = ?`, team.ID, payload.Filename)
+	})
+	require.Equal(t, "py_packages", pyStored.Source, "py package should be stored with py_packages source")
+	require.Equal(t, pyContent, pyStored.InstallScript, "install_script should be the .py file contents, not the ignored param")
+	require.Equal(t, "echo 'uninstall py'", pyStored.UninstallScript)
+	require.Equal(t, "echo 'post py'", pyStored.PostInstallScript)
+	require.Equal(t, "SELECT 1;", pyStored.PreInstallQuery)
+	require.Equal(t, "linux", pyStored.Platform, ".py packages are stored with the linux platform")
+
 	// Fresh team so filename collisions from earlier assertions don't leak in.
 	crossTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "cross"})
 	require.NoError(t, err)
@@ -22689,6 +22886,11 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 	err = os.WriteFile(ps1ScriptPath, ps1ScriptContent, 0o644)
 	require.NoError(t, err)
 
+	pyScriptPath := filepath.Join(tmpDir, "test-script.py")
+	pyScriptContent := []byte("#!/usr/bin/env python3\nprint('Installing...')\n")
+	err = os.WriteFile(pyScriptPath, pyScriptContent, 0o644)
+	require.NoError(t, err)
+
 	t.Run("sh script package preserves advanced options", func(t *testing.T) {
 		installerFile, err := fleet.NewKeepFileReader(shScriptPath)
 		require.NoError(t, err)
@@ -22777,6 +22979,53 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploadValidation() {
 		require.Equal(t, "Write-Host 'post-install'", installer.PostInstallScript, ".ps1 script package should persist post_install_script")
 		require.Equal(t, "Write-Host 'uninstall'", installer.UninstallScript, ".ps1 script package should persist uninstall_script")
 		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".ps1 script package should persist pre_install_query")
+
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
+	})
+
+	t.Run("py script package preserves advanced options", func(t *testing.T) {
+		installerFile, err := fleet.NewKeepFileReader(pyScriptPath)
+		require.NoError(t, err)
+		defer installerFile.Close()
+
+		// install_script is ignored (the file is the install script); the rest persist.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:     "print('install_script is ignored')",
+			PostInstallScript: "echo 'post-install'",
+			UninstallScript:   "echo 'uninstall'",
+			PreInstallQuery:   "SELECT 1",
+			Filename:          "test-script.py",
+			InstallerFile:     installerFile,
+		}
+
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var listResp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+
+		var found bool
+		var titleID uint
+		for _, sw := range listResp.SoftwareTitles {
+			if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "test-script.py" {
+				found = true
+				titleID = sw.ID
+				break
+			}
+		}
+		require.True(t, found, "Script package should be created")
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		installer := titleResp.SoftwareTitle.SoftwarePackage
+
+		require.Equal(t, "py_packages", titleResp.SoftwareTitle.Source, ".py script package should have py_packages source")
+		require.Equal(t, string(pyScriptContent), installer.InstallScript, ".py script package should have install_script from file contents")
+		require.NotEqual(t, "print('install_script is ignored')", installer.InstallScript, "user-provided install_script should be overwritten")
+		require.Equal(t, "echo 'post-install'", installer.PostInstallScript, ".py script package should persist post_install_script")
+		require.Equal(t, "echo 'uninstall'", installer.UninstallScript, ".py script package should persist uninstall_script")
+		require.Equal(t, "SELECT 1", installer.PreInstallQuery, ".py script package should persist pre_install_query")
 
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, 204, "team_id", "0")
 	})
@@ -23403,10 +23652,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 		s.clearOktaConditionalAccess()
 	})
 
-	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.True(t, acResp.License.ManagedCloud)
 
 	// Test global maintainer fails to create the integration.
 	u := &fleet.User{
@@ -27951,17 +28197,23 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	// Each cached version carries its own patch query with the version baked in, as real FMA manifests do.
+	const warpPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND version_compare(version, '%s') < 0);"
+	warpQueryV1 := fmt.Sprintf(warpPatchQueryFmt, "1.0")
+	warpQueryV2 := fmt.Sprintf(warpPatchQueryFmt, "2.0")
+
 	// Mock the FMA manifest + installer CDN via the shared helper. The state is
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi"}
+	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
 	setManifest := func(version string, b []byte) {
 		warp.version = version
 		warp.installerBytes = b
+		warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, version)
 		warp.ComputeSHA(b)
 	}
 	runCron := func() {
@@ -28032,6 +28284,18 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	titleID := title.ID
 	require.True(t, activeSelfService(team.ID, titleID))
 
+	// A patch policy generated from the active v1.0 installer; the cron must keep its query on the active version.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
 	runCron()
@@ -28040,6 +28304,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 	// Per-team config is carried forward onto the new version.
 	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
+	// The cron flip must rewrite the patch policy query to the newly active 2.0 version.
+	require.Equal(t, warpQueryV2, patchPolicyQuery())
 
 	// The cached bytes are real and installable: a host install serves v2.0 bytes.
 	host := createOrbitEnrolledHost(t, "windows", "orbit-autoupdate", s.ds)
@@ -33381,13 +33647,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Each cached zoom version ships its own patch query with the version baked in, as real FMA manifests do.
+	const zoomPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom' AND version_compare(version, '%s') < 0);"
+	zoomQueryV1 := fmt.Sprintf(zoomPatchQueryFmt, "1.0")
+	zoomQueryV2 := fmt.Sprintf(zoomPatchQueryFmt, "2.0")
+
 	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
 	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
 	zoom := &fmaTestState{
 		version:        "1.0",
 		installerBytes: []byte("zoom-1.0"),
 		installerPath:  "/zoom.msi",
-		patchQuery:     "SELECT 1 FROM osquery_info;",
+		patchQuery:     zoomQueryV1,
 	}
 	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
 	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
@@ -33420,6 +33691,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	bumpVersion := func(version string, bytes []byte) {
 		zoom.version = version
 		zoom.installerBytes = bytes
+		zoom.patchQuery = fmt.Sprintf(zoomPatchQueryFmt, version)
 		zoom.ComputeSHA(bytes)
 	}
 
@@ -33466,6 +33738,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
 		return *id
 	}
+	patchPolicyQuery := func(policyID uint) string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
 
 	// Two cached versions (1.0, 2.0); the no-version GitOps applies above left the title on Latest (active = newest,
 	// no pin).
@@ -33491,6 +33768,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	patchVersion := func(version string) {
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -33528,6 +33806,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV1, patchPolicyQuery(patchPol.Policy.ID))
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
@@ -33536,6 +33815,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")

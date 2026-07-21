@@ -11,7 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TruncatedTextList from "components/TruncatedTextList";
 import { ILabelSoftwareTitle } from "interfaces/label";
-import { InstallerType } from "interfaces/software";
+import { InstallerType, SoftwareSource } from "interfaces/software";
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
@@ -49,6 +49,9 @@ export interface ILibraryItemAccordionProps {
   isLatestFmaVersion?: boolean;
   /** Hide the version entirely (script-only packages). */
   isScriptPackage?: boolean;
+  /** Software source, threaded to the installer widget to pick the file icon
+   * (e.g. `file-py` for `py_packages`). */
+  source?: SoftwareSource;
   isTarballPackage?: boolean;
   /** Apple App Store app whose platform is iOS or iPadOS. Drops the
    * "policy automation" leg from the info-icon tooltip — `automatic_install`
@@ -144,6 +147,7 @@ const LibraryItemAccordion = ({
   isFma = false,
   isLatestFmaVersion,
   isScriptPackage = false,
+  source,
   isTarballPackage = false,
   isIosOrIpadosApp = false,
   isActive,
@@ -643,6 +647,7 @@ const LibraryItemAccordion = ({
         isFma={isFma}
         isLatestFmaVersion={isLatestFmaVersion}
         isScriptPackage={isScriptPackage}
+        source={source}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
         // Inactive rows surface a single hover tooltip (the rollback hint);
