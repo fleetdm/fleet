@@ -308,14 +308,27 @@ const FleetsDropdown = ({
   // when it lands. Also hide when the dropdown is embedded in a form
   // (asFormField) — clicking "Add fleet" navigates away and would
   // abandon any in-progress form input.
-  const isAddFleetDisabled =
-    !!config?.partnerships?.enable_primo ||
-    !!(config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url);
+  const isPrimoModeEnabled = !!config?.partnerships?.enable_primo;
+  const isGitOpsModeEnabled = !!(
+    config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url
+  );
+  const isAddFleetDisabled = isPrimoModeEnabled || isGitOpsModeEnabled;
   const canAddFleet = !!isGlobalAdmin && !isAddFleetDisabled && !asFormField;
   const [searchQuery, setSearchQuery] = useState("");
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // react-select-5's SelectInstance doesn't surface `inputRef` on its
+  // public typings, but the hidden control's input is exposed at
+  // runtime. Consolidate the type-hole to one place so the escape hatch
+  // is auditable — if react-select ever renames this field, both the
+  // hidden-input-focus effect and the forwardNavKey bridge break at the
+  // same site, not in two duplicated casts.
+  const getHiddenInput = () =>
+    ((selectRef.current as unknown) as {
+      inputRef?: HTMLInputElement | null;
+    })?.inputRef ?? null;
 
   const fleetOptions: INumberDropdownOption[] = useMemo(
     () =>
@@ -372,10 +385,8 @@ const FleetsDropdown = ({
   // input on mount and the forwardNavKey bridge takes it from there.
   useEffect(() => {
     if (!menuIsOpen || showSearch) return;
-    const hiddenInput = ((selectRef.current as unknown) as {
-      inputRef?: HTMLInputElement | null;
-    })?.inputRef;
-    hiddenInput?.focus();
+    getHiddenInput()?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuIsOpen, showSearch]);
 
   // Fire onClose exactly once whenever menuIsOpen transitions true -> false,
@@ -384,15 +395,23 @@ const FleetsDropdown = ({
   // select, blur) — not on controlled prop flips (click-outside,
   // toggleMenu, onClickAddFleet). Threading the notification through this
   // effect gives consumers a single, reliable close event.
+  //
+  // `onClose` is stashed in a ref so an inline callback from a parent
+  // doesn't retrigger this effect on every parent render — the effect
+  // deps stay stable on `[menuIsOpen]` alone.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const wasOpenRef = useRef(false);
   useEffect(() => {
     if (menuIsOpen) {
       wasOpenRef.current = true;
     } else if (wasOpenRef.current) {
       wasOpenRef.current = false;
-      onClose?.();
+      onCloseRef.current?.();
     }
-  }, [menuIsOpen, onClose]);
+  }, [menuIsOpen]);
 
   const toggleMenu = () => {
     if (isDisabled) return;
@@ -422,9 +441,7 @@ const FleetsDropdown = ({
   // hidden input so its built-in keyDown handler runs (option highlighting,
   // selection, menu close).
   const forwardNavKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    const input = ((selectRef.current as unknown) as {
-      inputRef?: HTMLInputElement | null;
-    })?.inputRef;
+    const input = getHiddenInput();
     if (!input) return;
     input.dispatchEvent(
       new KeyboardEvent("keydown", {
