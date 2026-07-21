@@ -83,18 +83,26 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 // so the delivery failure detail shown to admins names the real cause.
 type MissingCustomHostVitalValueError struct {
 	MissingIDs []uint
+	MissingNames []string
 }
 
 func (e MissingCustomHostVitalValueError) Error() string {
 	tokens := make([]string, 0, len(e.MissingIDs))
-	for _, id := range e.MissingIDs {
-		tokens = append(tokens, fmt.Sprintf("\"$%s%d\"", CustomHostVitalPrefix, id))
+	for i, id := range e.MissingIDs {
+		var name string
+		if i < len(e.MissingNames) {
+			name = e.MissingNames[i]
+		}
+		tokens = append(tokens, fmt.Sprintf("%s ($%s%d)", name, CustomHostVitalPrefix, id))
 	}
 	plural := ""
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't populate custom host vital%s %s: no value set for this host", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf(
+		"Couldn't populate the custom host vital%s %s because there's no value set for this host.",
+		plural, strings.Join(tokens, ", "),
+	)
 }
 
 // CustomHostVitalEntity identifies the kind of entity that can reference a custom host vital.
