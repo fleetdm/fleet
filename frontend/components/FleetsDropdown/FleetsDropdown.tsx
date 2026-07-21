@@ -238,6 +238,13 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
         ...props.innerProps,
         onScroll: updateHasMoreBelow,
         onMouseDown: (event: React.MouseEvent) => event.stopPropagation(),
+        // Chrome (and other browsers with `keyboard-focusable-scrollers`
+        // enabled) auto-focuses scrollable containers to allow keyboard
+        // scrolling — that steals Tab from the search input and lands on
+        // an outlined MenuList instead of the "Add fleet" button. tabIndex
+        // -1 opts out; the search input + forwardNavKey bridge already
+        // handle keyboard nav through options.
+        tabIndex: -1,
       }}
     >
       {props.children}

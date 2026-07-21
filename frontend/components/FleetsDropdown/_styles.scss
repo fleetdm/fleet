@@ -104,6 +104,14 @@
     }
   }
 
+  // Belt-and-suspenders: even with tabIndex=-1 the MenuList can still receive
+  // programmatic focus (e.g. click-to-scroll). Suppress the browser's default
+  // focus outline so the scroll container never renders a stray blue ring.
+  &__menu-list:focus,
+  &__menu-list:focus-visible {
+    outline: none;
+  }
+
   // Sticky-bottom scroll-fade lives INSIDE the MenuList (the scroll container)
   // so it pins to the visible bottom of the options area — and it's not
   // rendered when the user has scrolled to the last option. Negative bottom
