@@ -114,12 +114,10 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 
 #### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be completed in a single release cycle. When the Tech Lead knows a user story will be pushed, it is the product group Tech Lead's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be built in a single release cycle. When an Engineering Manager (EM) knows a user story will be pushed, it is the EM's responsibility to notify stakeholders:
 
-1. Add the `~pushed` label to the user story.
-2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the Head of Product Design, the product group's Engineering Manager, and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+1. Send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `customer-` labels are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
