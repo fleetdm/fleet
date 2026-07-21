@@ -1049,7 +1049,7 @@ function renderActive(data) {
     const folder = s.cwd ? s.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
-      + '<td><input class="badge-input" value="' + escapeHtml(s.badge) + '" '
+      + '<td><input class="badge-input" value="' + escapeHtml(s.badge) + '" placeholder="badge" '
       + 'onblur="saveBadge(\\'' + (s.claude_session_id || s.iterm_uuid) + '\\', this.value, \\'' + s.iterm_uuid + '\\')" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(s.session_name) + '</td>'
@@ -1086,7 +1086,7 @@ function renderHistory(entries) {
     const folder = h.cwd ? h.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
-      + '<td><input class="badge-input" value="' + escapeHtml(h.badge) + '" '
+      + '<td><input class="badge-input" value="' + escapeHtml(h.badge) + '" placeholder="badge" '
       + 'onblur="saveBadge(\\'' + h.claude_session_id + '\\', this.value, \\'\\')" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td>' + escapeHtml(h.session_name) + '</td>'
