@@ -903,20 +903,12 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	// NOTE: the windows MDM client enrollment is only done after receiving a
 	// notification via the config in the runOrbitLoop.
 	if a.macMDMClient != nil {
-		if err := a.macMDMClient.Enroll(); err != nil {
-			log.Printf("macOS MDM enroll failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			return
-		}
+		mdmEnrollWithRetry("macOS", a.stats.IncrementMDMErrors, a.macMDMClient.Enroll)
 		a.setMDMEnrolled()
 		a.stats.IncrementMDMEnrollments()
 
 		if rand.Float64() < a.mdmUserProb {
-			if err := a.macMDMClient.UserEnroll(); err != nil {
-				log.Printf("macOS MDM user enroll failed: %s", err)
-				a.stats.IncrementMDMUserErrors()
-				return
-			}
+			mdmEnrollWithRetry("macOS user channel", a.stats.IncrementMDMUserErrors, a.macMDMClient.UserEnroll)
 			a.setMDMUserEnrolled()
 			a.stats.IncrementMDMUserEnrollments()
 		}
@@ -2023,6 +2015,21 @@ func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
 		response, err = http.DefaultClient.Do(a.sign(fn()))
 	}
 	return response
+}
+
+// mdmEnrollWithRetry runs enroll until it succeeds, sleeping a random 1-120s
+// between attempts (same spread as waitingDo) so that agents starting at the
+// same time don't repeatedly hammer the server with simultaneous enrollments.
+func mdmEnrollWithRetry(deviceLabel string, incrementErrStat func(), enroll func() error) {
+	for {
+		err := enroll()
+		if err == nil {
+			return
+		}
+		log.Printf("%s MDM enroll failed, will retry: %s", deviceLabel, err)
+		incrementErrStat()
+		time.Sleep(time.Duration(rand.Intn(120)+1) * time.Second)
+	}
 }
 
 // TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
@@ -3668,11 +3675,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		softwareSource = "ipados_apps"
 	}
 
-	if err := mdmClient.Enroll(); err != nil {
-		log.Printf("%s MDM enroll failed: %s", a.model, err)
-		a.stats.IncrementMDMErrors()
-		return
-	}
+	mdmEnrollWithRetry(a.model, a.stats.IncrementMDMErrors, mdmClient.Enroll)
 
 	a.stats.IncrementMDMEnrollments()
 
