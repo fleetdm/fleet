@@ -1,0 +1,1 @@
+- Improved LocURI validation in Windows profile handling to canonicalize element content before checking.
