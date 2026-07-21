@@ -22,6 +22,7 @@ import { PADDING } from "styles/var/padding";
 
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
@@ -110,12 +111,6 @@ interface IFleetsDropdownProps {
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
-  /**
-   * Optional callback fired when a global admin clicks "+ Add fleet". Lets
-   * the consuming page navigate with its own `router.push` (recommended)
-   * instead of the fallback `browserHistory.push(PATHS.ADMIN_FLEETS + …)`.
-   */
-  onAddFleet?: () => void;
   /** Indicates that this fleets dropdown should be styled as a form field */
   asFormField?: boolean;
 }
@@ -177,9 +172,10 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
               autoFocus
               className={`${baseClass}__search-input`}
               value={searchQuery ?? ""}
-              name="fleet-search-input"
               type="text"
               placeholder="Search fleets"
+              aria-label="Search fleets"
+              autoComplete="off"
               onKeyDown={handleKeyDown}
               onChange={onChangeSearchQuery}
               onClick={handleInputClick}
@@ -276,7 +272,6 @@ const FleetsDropdown = ({
   onChange,
   onOpen,
   onClose,
-  onAddFleet,
   asFormField = false,
 }: IFleetsDropdownProps): JSX.Element => {
   const { isGlobalAdmin, config } = useContext(AppContext);
@@ -398,14 +393,9 @@ const FleetsDropdown = ({
     setMenuIsOpen(false);
     setSearchQuery("");
     onClose?.();
-    if (onAddFleet) {
-      onAddFleet();
-    } else {
-      // Fallback for callers that haven't wired their own router-based
-      // navigation. `browserHistory` is inconsistent with the router prop
-      // pattern used elsewhere; consumers should migrate to onAddFleet.
-      browserHistory.push(`${PATHS.ADMIN_FLEETS}?create_fleet=1`);
-    }
+    browserHistory.push(
+      getPathWithQueryParams(PATHS.ADMIN_FLEETS, { create_fleet: "1" })
+    );
   };
 
   const wrapperClasses = classnames(`${baseClass}-wrapper`, {
