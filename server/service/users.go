@@ -1521,23 +1521,25 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
-	// Atomically consume the token before applying the change. This is the single
-	// point that enforces one-time-use semantics: under concurrent requests with the
-	// same token, exactly one caller succeeds here and the rest are rejected, which
-	// prevents a race where several requests overwrite the password simultaneously.
-	// All validation above is read-only, so a rejected password (e.g. reused or too
-	// weak) never burns the token.
-	if err := svc.ds.ConsumePasswordResetRequest(ctx, token); err != nil {
+	// Hash the new password before touching the database. Hashing is the only step that
+	// can reject the password (bcrypt rejects passwords longer than its limit), and it is
+	// CPU-bound, so it must run before — and outside of — the reset transaction. Doing it
+	// here also guarantees a rejected password never consumes the token.
+	if err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
+
+	// Consume the token and apply the password change atomically. Within a single
+	// transaction this consumes the token, saves the new password, and invalidates the
+	// user's other reset links and sessions. It enforces one-time-use semantics (exactly
+	// one concurrent request can consume a given token) and, because it is transactional,
+	// a failure in any step rolls back the token consumption so the reset link stays
+	// usable.
+	if err := svc.ds.ResetPassword(ctx, token, user); err != nil {
 		if fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, fleet.NewAuthFailedError("invalid password reset token"), "password reset token already used")
 		}
-		return ctxerr.Wrap(ctx, err, "consuming password reset token")
-	}
-
-	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password, true)
-	if err != nil {
-		return fleet.NewInvalidArgumentError("new_password", err.Error())
+		return ctxerr.Wrap(ctx, err, "resetting password")
 	}
 
 	return nil

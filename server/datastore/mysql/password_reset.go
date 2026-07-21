@@ -57,24 +57,40 @@ func (ds *Datastore) FindPasswordResetByToken(ctx context.Context, token string)
 	return passwordResetRequest, nil
 }
 
-func (ds *Datastore) ConsumePasswordResetRequest(ctx context.Context, token string) error {
-	res, err := ds.writer(ctx).ExecContext(ctx, `
-		DELETE FROM password_reset_requests
-		WHERE token = ? AND CURRENT_TIMESTAMP < expires_at
-	`, token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "consuming password reset request")
-	}
+func (ds *Datastore) ResetPassword(ctx context.Context, token string, user *fleet.User) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, `
+			DELETE FROM password_reset_requests
+			WHERE token = ? AND CURRENT_TIMESTAMP < expires_at
+		`, token)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "consuming password reset request")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reading affected rows for password reset request")
+		}
+		if n == 0 {
+			return ctxerr.Wrap(ctx, notFound("PasswordResetRequest"), "password reset token already used or invalid")
+		}
 
-	n, err := res.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading affected rows for password reset request")
-	}
-	if n == 0 {
-		return ctxerr.Wrap(ctx, notFound("PasswordResetRequest"), "password reset token already used or invalid")
-	}
+		// Persist the new (already-hashed) password.
+		if err := saveUserDB(ctx, tx, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving changed password")
+		}
 
-	return nil
+		// Invalidate any other outstanding reset links for the user.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM password_reset_requests WHERE user_id = ?`, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+		}
+
+		// Force the user to log in again by destroying all of their sessions.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {

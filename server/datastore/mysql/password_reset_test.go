@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ func TestPasswordReset(t *testing.T) {
 		{"Requests", testPasswordResetRequests},
 		{"TokenExpiration", testPasswordResetTokenExpiration},
 		{"CleanupExpiredPasswordResetRequests", testCleanupExpiredPasswordResetRequests},
-		{"ConsumeIsAtomic", testConsumePasswordResetRequestIsAtomic},
+		{"ResetIsAtomic", testResetPasswordIsAtomic},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -114,28 +115,52 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testConsumePasswordResetRequestIsAtomic(t *testing.T, ds *Datastore) {
+func testResetPasswordIsAtomic(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	createTestUsers(t, ds)
+	users := createTestUsers(t, ds)
+	require.NotEmpty(t, users)
+	user := users[0]
 
-	// Consuming an unknown token returns a not-found error.
-	err := ds.ConsumePasswordResetRequest(ctx, "does-not-exist")
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	// userWithPassword returns a fresh copy of the user with the given (hashed) password,
+	// mirroring what the service passes in after hashing.
+	userWithPassword := func(pw string) *fleet.User {
+		u := *user
+		require.NoError(t, u.SetPassword(pw, 10, 10))
+		return &u
+	}
 
-	// Consuming an expired token returns a not-found error (and leaves no room for reuse).
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	// An unknown token returns a not-found error and changes nothing.
+	require.True(t, fleet.IsNotFound(ds.ResetPassword(ctx, "does-not-exist", userWithPassword("Unknown!Pass123"))))
+
+	// An expired token returns a not-found error.
+	_, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO password_reset_requests (user_id, token, expires_at) VALUES (?, ?, ?)`,
-		uint(1), "expired-token", time.Now().UTC().Add(-time.Hour))
+		user.ID, "expired-token", time.Now().UTC().Add(-time.Hour))
 	require.NoError(t, err)
-	err = ds.ConsumePasswordResetRequest(ctx, "expired-token")
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
+	require.True(t, fleet.IsNotFound(ds.ResetPassword(ctx, "expired-token", userWithPassword("Expired!Pass123"))))
+
+	// A valid token is consumed, the new password is persisted, and the user's active
+	// sessions are destroyed.
+	const okToken = "valid-token"
+	_, err = ds.NewPasswordResetRequest(ctx, &fleet.PasswordResetRequest{UserID: user.ID, Token: okToken})
+	require.NoError(t, err)
+	_, err = ds.NewSession(ctx, user.ID, 32)
+	require.NoError(t, err)
+	require.NoError(t, ds.ResetPassword(ctx, okToken, userWithPassword("Valid!Pass1234")))
+
+	saved, err := ds.UserByID(ctx, user.ID)
+	require.NoError(t, err)
+	require.NoError(t, saved.ValidatePassword("Valid!Pass1234"), "new password should be persisted")
+	_, err = ds.FindPasswordResetByToken(ctx, okToken)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	sessions, err := ds.ListSessionsForUser(ctx, user.ID)
+	require.NoError(t, err)
+	require.Empty(t, sessions, "resetting the password should destroy the user's sessions")
 
 	// A single valid token consumed concurrently must be claimed by exactly one caller;
 	// every other caller must get a not-found error.
-	const token = "single-use-token"
-	_, err = ds.NewPasswordResetRequest(ctx, &fleet.PasswordResetRequest{UserID: 1, Token: token})
+	const raceToken = "single-use-token"
+	_, err = ds.NewPasswordResetRequest(ctx, &fleet.PasswordResetRequest{UserID: user.ID, Token: raceToken})
 	require.NoError(t, err)
 
 	const n = 10
@@ -146,8 +171,9 @@ func testConsumePasswordResetRequestIsAtomic(t *testing.T, ds *Datastore) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
+			u := userWithPassword(fmt.Sprintf("Race!Pass%d1234", i))
 			<-start
-			errs[i] = ds.ConsumePasswordResetRequest(ctx, token)
+			errs[i] = ds.ResetPassword(ctx, raceToken, u)
 		}(i)
 	}
 	close(start)
@@ -164,7 +190,7 @@ func testConsumePasswordResetRequestIsAtomic(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, claimed, "exactly one concurrent caller should consume a single-use token")
 
 	// The token is gone after being consumed.
-	_, err = ds.FindPasswordResetByToken(ctx, token)
+	_, err = ds.FindPasswordResetByToken(ctx, raceToken)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 

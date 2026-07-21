@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1063,6 +1064,12 @@ func TestResetPasswordTokenSurvivesRejection(t *testing.T) {
 	// A password that fails the strength requirements is rejected before consuming the token.
 	require.Error(t, svc.ResetPassword(ctx, token, "short"))
 
+	// A password that satisfies the strength requirements but is too long for bcrypt to
+	// hash is rejected before consuming the token. Hashing happens after the strength
+	// check, so without hashing-before-consume this rejection would burn the token.
+	tooLong := "aA1!" + strings.Repeat("x", 60) // 64 chars: has a number and symbol, exceeds bcrypt's limit
+	require.Error(t, svc.ResetPassword(ctx, token, tooLong))
+
 	// Reusing the current password is rejected before consuming the token.
 	require.Error(t, svc.ResetPassword(ctx, token, test.GoodPassword))
 
@@ -1907,37 +1914,28 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil, errors.New("user not found")
 		}
 
-		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
-			return nil
-		}
-
-		ds.ConsumePasswordResetRequestFunc = func(ctx context.Context, token string) error {
-			if token == resetToken {
-				return nil
-			}
-			return errors.New("token not found")
-		}
-
-		var deletedPasswordResetForUserID uint
-		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
-			deletedPasswordResetForUserID = userID
-			return nil
-		}
-
-		var destroyedSessionsForUserID uint
-		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
-			destroyedSessionsForUserID = userID
+		// Consuming the token, saving the password, and clearing the user's other reset
+		// links and sessions now happen atomically inside the datastore, so the service
+		// delegates to a single ResetPassword call.
+		var (
+			passedToken string
+			passedUser  *fleet.User
+		)
+		ds.ResetPasswordFunc = func(ctx context.Context, token string, u *fleet.User) error {
+			passedToken = token
+			passedUser = u
 			return nil
 		}
 
 		err = svc.ResetPassword(ctx, resetToken, test.GoodPassword2)
 		require.NoError(t, err)
 
-		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
-		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
-
-		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
-		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+		require.True(t, ds.ResetPasswordFuncInvoked, "ResetPassword should be called")
+		assert.Equal(t, resetToken, passedToken, "should consume the provided token")
+		require.NotNil(t, passedUser)
+		assert.Equal(t, targetUser.ID, passedUser.ID, "should reset the correct user")
+		// The password must already be hashed before it reaches the datastore transaction.
+		require.NoError(t, passedUser.ValidatePassword(test.GoodPassword2), "new password should be hashed before the reset transaction")
 	})
 
 	t.Run("PerformRequiredPasswordReset clears other sessions but keeps current", func(t *testing.T) {
