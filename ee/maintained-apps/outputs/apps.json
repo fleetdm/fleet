@@ -6604,6 +6604,13 @@
     },
     {
       "name": "Prisma Browser",
+      "slug": "prisma-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.talon-sec.Work",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
+    },
+    {
+      "name": "Prisma Browser",
       "slug": "prisma-browser/windows",
       "platform": "windows",
       "unique_identifier": "Prisma Access Browser",

@@ -444,7 +444,9 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 	// A vital with an empty value counts as missing: we refuse to ship an empty
 	// substitution.
 	valueByID := make(map[uint]string, len(vitals))
+	nameByID := make(map[uint]string, len(vitals))
 	for _, v := range vitals {
+		nameByID[v.CustomHostVitalID] = v.Name
 		if v.Value == "" {
 			continue
 		}
@@ -452,14 +454,16 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 	}
 
 	var missingIDs []uint
+	var missingNames []string
 	for _, id := range refIDs {
 		if _, ok := valueByID[id]; !ok {
 			missingIDs = append(missingIDs, id)
+			missingNames = append(missingNames, nameByID[id])
 		}
 	}
 	if len(missingIDs) > 0 {
 		// The vital exists (validated on upload); the host just has no value for it.
-		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs}
+		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs, MissingNames: missingNames}
 	}
 
 	expanded := expandDocumentVars(document, func(s string) (string, bool) {

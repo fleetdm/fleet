@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "11.0.4",
+      "version": "11.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor' AND version_compare(bundle_short_version, '11.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stairways.keyboardmaestro.editor' AND version_compare(bundle_short_version, '11.1') < 0);"
       },
-      "installer_url": "https://files.stairways.com/keyboardmaestro-1104.zip",
+      "installer_url": "https://files.stairways.com/keyboardmaestro-1110.zip",
       "install_script_ref": "fa2c8696",
       "uninstall_script_ref": "79f21c95",
-      "sha256": "f86d23bf729b5f9a2d1194e67eebc70c4756cf1e94e813d6fc4db6dfce66e99f",
+      "sha256": "5731a24504211879a61d3b7685922976180a9938ae520154b0c36741113e0c48",
       "default_categories": [
         "Productivity"
       ]
