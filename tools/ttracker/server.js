@@ -873,7 +873,7 @@ async function main() {
 
   // Start HTTP server
   const server = http.createServer(handleRequest);
-  server.listen(PORT, () => {
+  server.listen(PORT, '127.0.0.1', () => {
     console.log(`\nttracker dashboard: http://localhost:${PORT}`);
     console.log(`Snapshot interval: ${INTERVAL_MIN} minutes`);
     console.log(`Permission mode: ${SAFE_MODE ? 'safe' : 'dangerously-skip-permissions'}`);
