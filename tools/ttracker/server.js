@@ -433,27 +433,32 @@ async function restoreSession(sessionId, fromHistory) {
       ? `claude --resume ${session.claude_session_id}`
       : `claude --dangerously-skip-permissions --resume ${session.claude_session_id}`;
   } else {
-    // Non-Claude session: print saved command history if available
-    const hist = session.cmd_history || [];
-    if (hist.length) {
-      const histFile = path.join(os.tmpdir(), `tt-hist-display-${Date.now()}.txt`);
-      fs.writeFileSync(histFile, hist.join('\n'));
-      launchCmd = `echo '' && printf '\\033[1;36m--- Last commands before parking ---\\033[0m\\n' && cat ${histFile} && printf '\\033[1;36m------\\033[0m\\n' && echo '' && rm -f ${histFile}`;
-    } else {
-      launchCmd = '';
-    }
+    launchCmd = '';
   }
 
-  // Write temp AppleScript file (avoids escaping issues)
+  // Write a shell script that does cd, badge, launch, and optionally prints history
+  // This avoids all AppleScript escaping issues
+  const restoreScript = path.join(os.tmpdir(), `tt-restore-${Date.now()}.sh`);
+  let script = `#!/bin/bash\ncd '${cwd}'\n`;
+  if (badgeB64) {
+    script += `printf '\\e]1337;SetBadgeFormat=%s\\a' '${badgeB64}'\nsleep 1\n`;
+  }
+  if (!launchCmd && session.cmd_history && session.cmd_history.length) {
+    const histFile = path.join(os.tmpdir(), `tt-hist-display-${Date.now()}.txt`);
+    fs.writeFileSync(histFile, session.cmd_history.join('\n'));
+    script += `echo ''\nprintf '\\033[1;36m--- Last commands before parking ---\\033[0m\\n'\ncat ${histFile}\nprintf '\\033[1;36m------\\033[0m\\n'\necho ''\nrm -f ${histFile}\n`;
+  }
+  if (launchCmd) {
+    script += `${launchCmd}\n`;
+  }
+  fs.writeFileSync(restoreScript, script);
+  fs.chmodSync(restoreScript, '755');
+
   const tmpFile = path.join(os.tmpdir(), `tt-restore-${Date.now()}.applescript`);
-  const launchLine = launchCmd ? `write text "${launchCmd.replace(/"/g, '\\"')}"` : '';
   fs.writeFileSync(tmpFile, `tell application "iTerm2"
     set newWindow to (create window with default profile)
     tell current session of current tab of newWindow
-        write text "cd '${cwd}'"
-        delay 1
-        ${badgeLine}
-        ${launchLine}
+        write text "source ${restoreScript} && rm -f ${restoreScript}"
     end tell
 end tell`);
 
