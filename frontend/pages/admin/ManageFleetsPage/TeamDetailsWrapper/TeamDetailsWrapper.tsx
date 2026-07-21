@@ -26,7 +26,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import BackButton from "components/BackButton";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import MainContent from "components/MainContent";
 import { notify } from "components/ToastNotification";
 import DeleteFleetModal from "../components/DeleteFleetModal";
@@ -402,7 +402,7 @@ const TeamDetailsWrapper = ({
             {userTeams?.length === 1 ? (
               <h1>{currentTeamDetails.name}</h1>
             ) : (
-              <TeamsDropdown
+              <FleetsDropdown
                 selectedTeamId={currentTeamId}
                 currentUserTeams={userTeams || []}
                 isDisabled={isLoadingTeams}

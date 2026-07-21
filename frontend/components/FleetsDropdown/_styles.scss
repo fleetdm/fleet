@@ -1,4 +1,4 @@
-.team-dropdown-wrapper {
+.fleet-dropdown-wrapper {
   // Shrink to fit the Button so the menu (positioned at left: 0 of the
   // react-select root, which spans the wrapper) doesn't overflow way off to
   // the side when the wrapper is dropped into a block-level page header.
@@ -11,7 +11,7 @@
   }
 }
 
-.team-dropdown {
+.fleet-dropdown {
   &__button {
     display: inline-flex;
     align-items: center;
@@ -56,28 +56,16 @@
   }
 
   &__search-row {
-    display: flex;
-    align-items: center;
-    // When the search input isn't rendered (few fleets), the "+" button sits
-    // alone on the right so its position doesn't shift between menu open
-    // states with different team counts.
-    justify-content: flex-end;
-    gap: $pad-small;
-    position: sticky;
-    top: 0;
-    // Negative horizontal margins + matching padding extend the opaque
-    // background beyond the menuList's inner padding so options scrolling up
-    // can't peek through the sides of the search row.
-    margin: 0 (-$pad-small) 0;
-    padding: $pad-small $pad-small 0;
+    // Sits at Menu level (above the scrolling MenuList). Menu owns the outer
+    // pad-medium inset; padding-bottom here provides the pad-medium gap
+    // between the search input and the first option below.
+    padding-bottom: $pad-medium;
     background-color: $core-fleet-white;
-    z-index: 2;
   }
 
   &__search-field {
     position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
+    display: flex;
 
     .icon {
       position: absolute;
@@ -116,70 +104,38 @@
     }
   }
 
-  &__add-team-button {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    background-color: $ui-off-white;
-    border: solid 1px $ui-fleet-black-25;
-    border-radius: $border-radius;
-    cursor: pointer;
-
-    &:hover,
-    &:focus-visible {
-      background-color: $ui-fleet-black-5;
-      border-color: $ui-fleet-black-50;
-      outline: none;
-
-      svg path {
-        fill: $ui-fleet-black-75-over;
-      }
-    }
-
-    &:active {
-      background-color: $ui-fleet-black-10;
-    }
+  // Sticky-bottom scroll-fade lives INSIDE the MenuList (the scroll container)
+  // so it pins to the visible bottom of the options area — and it's not
+  // rendered when the user has scrolled to the last option. Negative bottom
+  // pulls the fade past MenuList's pad-small paddingBottom so it sits flush
+  // against the outer edge of the scroll area rather than 8px above it.
+  &__scroll-fade {
+    position: sticky;
+    bottom: -$pad-small;
+    height: $pad-large;
+    // Fade from opaque Fleet-white at the bottom to transparent Fleet-white at
+    // the top. Uses the shared -transparent variant (same RGB as
+    // $core-fleet-white with alpha 0 in both light and dark themes) so
+    // dark-mode variable swaps carry through with no additional overrides —
+    // same pattern as the horizontal table shadows.
+    background: linear-gradient(
+      to top,
+      $core-fleet-white 0%,
+      $core-fleet-white-transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
   }
 
-  &__options-spacer {
-    height: $pad-small;
-  }
-
-  &__add-team-footer {
+  &__add-fleet-footer {
+    // Sits at Menu level below the scrolling MenuList. Menu owns the outer
+    // pad-medium inset and the pad-medium gap to the MenuList above. The
+    // divider is a plain border-top now that the footer's full width already
+    // matches the design's inset content column. padding-top pushes the
+    // "Add fleet" button pad-medium (16px) below the divider line.
+    padding-top: $pad-medium;
+    background-color: $core-fleet-white;
     display: flex;
-    align-items: center;
-    gap: $pad-small;
-    width: 100%;
-    // Match the option row padding so the "+" icon lines up with option text.
-    padding: 10px 8px;
-    margin-top: $pad-xsmall;
-    background: none;
-    border: 0;
-    border-radius: $border-radius;
-    font-family: "Inter", sans-serif;
-    font-size: $x-small;
-    font-weight: 600;
-    color: $core-fleet-black;
-    text-align: left;
-    cursor: pointer;
-
-    &:hover,
-    &:focus-visible {
-      background-color: $ui-fleet-black-5;
-      outline: none;
-    }
-
-    &:active {
-      background-color: $ui-fleet-black-10;
-    }
-
-    .icon svg path {
-      fill: $core-fleet-black;
-    }
+    border-top: solid 1px $ui-fleet-black-10;
   }
 }

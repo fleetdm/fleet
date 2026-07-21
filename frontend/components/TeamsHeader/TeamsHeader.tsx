@@ -2,7 +2,7 @@ import React from "react";
 
 import { ITeamSummary } from "interfaces/team";
 
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 
 interface ITeamsHeader {
   isOnGlobalTeam?: boolean;
@@ -20,7 +20,7 @@ const TeamsHeader = ({
   if (userTeams) {
     if (userTeams.length > 1 || isOnGlobalTeam) {
       return (
-        <TeamsDropdown
+        <FleetsDropdown
           currentUserTeams={userTeams}
           selectedTeamId={currentTeamId}
           onChange={onTeamChange}

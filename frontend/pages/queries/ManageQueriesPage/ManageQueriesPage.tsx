@@ -37,7 +37,7 @@ import Button from "components/buttons/Button";
 import AutomationsButton from "components/buttons/AutomationsButton";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import TooltipWrapper from "components/TooltipWrapper";
 import QueriesTable from "./components/QueriesTable";
@@ -282,7 +282,7 @@ const ManageQueriesPage = ({
     if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
+          <FleetsDropdown
             currentUserTeams={userTeams}
             selectedTeamId={currentTeamId}
             onChange={onTeamChange}

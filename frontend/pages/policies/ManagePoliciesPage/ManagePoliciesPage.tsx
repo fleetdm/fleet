@@ -55,7 +55,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
@@ -963,7 +963,7 @@ const ManagePolicyPage = ({
     if (isPremiumTier && !isPrimoMode) {
       if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
+          <FleetsDropdown
             currentUserTeams={userTeams || []}
             selectedTeamId={currentTeamId}
             onChange={onTeamChange}

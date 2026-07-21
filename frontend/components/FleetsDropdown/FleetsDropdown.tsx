@@ -1,8 +1,16 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Select, {
   components,
   GroupBase,
   MenuListProps,
+  MenuProps,
   SelectInstance,
   StylesConfig,
 } from "react-select-5";
@@ -25,10 +33,13 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 declare module "react-select-5/dist/declarations/src/Select" {
+  // Generic parameters must match react-select's own Props interface even
+  // though this augmentation only reads Option; underscore-prefix silences
+  // the eslint no-unused-vars rule for the required-by-shape params.
   export interface Props<
     Option,
-    IsMulti extends boolean,
-    Group extends GroupBase<Option>
+    _IsMulti extends boolean,
+    _Group extends GroupBase<Option>
   > {
     searchQuery?: string;
     onChangeSearchQuery?: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -36,16 +47,16 @@ declare module "react-select-5/dist/declarations/src/Select" {
     // input to react-select's own (hidden) input so option highlighting and
     // selection still work while the search input has focus.
     forwardNavKey?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-    onClickAddTeam?: () => void;
-    showAddTeamButton?: boolean;
+    onClickAddFleet?: () => void;
+    showAddFleetButton?: boolean;
     showSearch?: boolean;
   }
 }
 
 // Search input only appears once the list is long enough to be worth
-// filtering. Below this, the "+" button (when the user can add fleets) still
-// renders on its own row.
-const MIN_TEAMS_FOR_SEARCH = 6;
+// filtering. The "Add fleet" footer always renders for global admins,
+// regardless of how many fleets exist.
+const MIN_FLEETS_FOR_SEARCH = 10;
 
 export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
   value: number;
@@ -87,7 +98,7 @@ const filterOptionsBySearch = (
 
 const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
 
-interface ITeamsDropdownProps {
+interface IFleetsDropdownProps {
   currentUserTeams: ITeamSummary[];
   selectedTeamId?: number;
   includeAllTeams?: boolean;
@@ -96,25 +107,28 @@ interface ITeamsDropdownProps {
   onChange: (newSelectedValue: number) => void;
   onOpen?: () => void;
   onClose?: () => void;
-  /** Indicates that this teams dropdown should be styled as a form field */
+  /** Indicates that this fleets dropdown should be styled as a form field */
   asFormField?: boolean;
 }
 
-const baseClass = "team-dropdown";
+const baseClass = "fleet-dropdown";
 
-const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
+// Custom Menu wraps the search input (above) and the "Add fleet" footer
+// (below) *outside* the scrolling MenuList. Keeping them out of the scroll
+// container means the native scrollbar spans only the options area — it
+// doesn't run behind the sticky search or the sticky footer.
+const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   const { selectProps } = props;
   const {
     searchQuery,
     onChangeSearchQuery,
     forwardNavKey,
-    onClickAddTeam,
-    showAddTeamButton,
+    onClickAddFleet,
+    showAddFleetButton,
     showSearch,
   } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Autofocus the search input when the menu opens (only if it's rendered).
   useEffect(() => {
     if (showSearch) inputRef.current?.focus();
   }, [showSearch]);
@@ -128,8 +142,6 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (NAV_KEYS.has(event.key)) {
-      // Let react-select's own keyDown handler do option highlighting /
-      // selection / menu close, but keep visible focus on the search input.
       event.preventDefault();
       forwardNavKey?.(event);
       return;
@@ -137,85 +149,103 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
     event.stopPropagation();
   };
 
-  // Block clicks on the MenuList's own padding from bubbling to the Menu
-  // element's onMouseDown handler in react-select, which would otherwise call
-  // focusInput() and steal focus to the hidden Control input — making a
-  // subsequent click on the search input look like a close.
-  // When there are few enough fleets that no search is needed, the "+" moves
-  // to the bottom as a full-width labeled action instead of a top-row icon.
-  const addTeamAtTop = showAddTeamButton && showSearch;
-  const addTeamAtBottom = showAddTeamButton && !showSearch;
-
-  const addTeamMouseDown = (event: React.MouseEvent) => {
+  const addFleetMouseDown = (event: React.MouseEvent) => {
     // Keep focus out of react-select's hidden input so the click fires on a
     // still-mounted menu.
     event.preventDefault();
     event.stopPropagation();
   };
 
-  const addTeamClick = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    onClickAddTeam?.();
+  return (
+    <components.Menu {...props}>
+      {showSearch && (
+        <div className={`${baseClass}__search-row`}>
+          <div className={`${baseClass}__search-field`}>
+            <input
+              ref={inputRef}
+              className={`${baseClass}__search-input`}
+              value={searchQuery ?? ""}
+              name="fleet-search-input"
+              type="text"
+              placeholder="Search fleets"
+              onKeyDown={handleKeyDown}
+              onChange={onChangeSearchQuery}
+              onClick={handleInputClick}
+              onMouseDown={(event) => event.stopPropagation()}
+            />
+            <Icon name="search" />
+          </div>
+        </div>
+      )}
+      {props.children}
+      {showAddFleetButton && (
+        <div
+          className={`${baseClass}__add-fleet-footer`}
+          onMouseDown={addFleetMouseDown}
+        >
+          <Button
+            variant="brand-inverse-icon"
+            onClick={onClickAddFleet}
+            iconStroke
+            size="small"
+          >
+            <>
+              Add fleet
+              <Icon name="plus" color="core-fleet-green" />
+            </>
+          </Button>
+        </div>
+      )}
+    </components.Menu>
+  );
+};
+
+// CustomMenuList only wraps the option list + a sticky scroll-fade at the
+// bottom. Because search + footer moved to CustomMenu, this element is the
+// full scroll container and its scrollbar spans only the options.
+const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
+  const menuListElRef = useRef<HTMLDivElement | null>(null);
+  const [hasMoreBelow, setHasMoreBelow] = useState(false);
+
+  const updateHasMoreBelow = () => {
+    const el = menuListElRef.current;
+    if (!el) return;
+    setHasMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 1);
   };
+
+  const setMenuListRef = (el: HTMLDivElement | null) => {
+    menuListElRef.current = el;
+    // Chain react-select's own innerRef so its scroll-to-highlighted-option
+    // logic keeps working.
+    props.innerRef?.(el as HTMLDivElement);
+  };
+
+  // Measure whether the options list is scrollable after every layout — the
+  // ref-callback path fires before layout, so scrollHeight / clientHeight can
+  // both read 0 on the first render and the fade wouldn't appear at all.
+  useLayoutEffect(() => {
+    updateHasMoreBelow();
+  });
 
   return (
     <components.MenuList
       {...props}
+      innerRef={setMenuListRef}
       innerProps={{
         ...props.innerProps,
+        onScroll: updateHasMoreBelow,
         onMouseDown: (event: React.MouseEvent) => event.stopPropagation(),
       }}
     >
-      {(showSearch || addTeamAtTop) && (
-        <div className={`${baseClass}__search-row`}>
-          {showSearch && (
-            <div className={`${baseClass}__search-field`}>
-              <input
-                ref={inputRef}
-                className={`${baseClass}__search-input`}
-                value={searchQuery ?? ""}
-                name="team-search-input"
-                type="text"
-                placeholder="Search fleets"
-                onKeyDown={handleKeyDown}
-                onChange={onChangeSearchQuery}
-                onClick={handleInputClick}
-                onMouseDown={(event) => event.stopPropagation()}
-              />
-              <Icon name="search" />
-            </div>
-          )}
-          {addTeamAtTop && (
-            <button
-              type="button"
-              className={`${baseClass}__add-team-button`}
-              aria-label="Add fleet"
-              onMouseDown={addTeamMouseDown}
-              onClick={addTeamClick}
-            >
-              <Icon name="plus" />
-            </button>
-          )}
-        </div>
-      )}
-      <div className={`${baseClass}__options-spacer`} />
       {props.children}
-      {addTeamAtBottom && (
-        <button
-          type="button"
-          className={`${baseClass}__add-team-footer`}
-          onMouseDown={addTeamMouseDown}
-          onClick={addTeamClick}
-        >
-          <Icon name="plus" />
-          <span>Add fleet</span>
-        </button>
+      {hasMoreBelow && (
+        <div className={`${baseClass}__scroll-fade`} aria-hidden />
       )}
     </components.MenuList>
   );
 };
 
-const TeamsDropdown = ({
+const FleetsDropdown = ({
   currentUserTeams,
   selectedTeamId,
   includeAllTeams = true,
@@ -225,14 +255,14 @@ const TeamsDropdown = ({
   onOpen,
   onClose,
   asFormField = false,
-}: ITeamsDropdownProps): JSX.Element => {
+}: IFleetsDropdownProps): JSX.Element => {
   const { isGlobalAdmin } = useContext(AppContext);
   const [searchQuery, setSearchQuery] = useState("");
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const teamOptions: INumberDropdownOption[] = useMemo(
+  const fleetOptions: INumberDropdownOption[] = useMemo(
     () =>
       generateDropdownOptions(
         currentUserTeams,
@@ -243,20 +273,20 @@ const TeamsDropdown = ({
   );
 
   const filteredOptions = useMemo(
-    () => filterOptionsBySearch(teamOptions, searchQuery),
-    [teamOptions, searchQuery]
+    () => filterOptionsBySearch(fleetOptions, searchQuery),
+    [fleetOptions, searchQuery]
   );
 
-  const showSearch = teamOptions.length >= MIN_TEAMS_FOR_SEARCH;
+  const showSearch = fleetOptions.length >= MIN_FLEETS_FOR_SEARCH;
 
-  const selectedValue = teamOptions.find(
+  const selectedValue = fleetOptions.find(
     (option) => selectedTeamId === option.value
   )
     ? selectedTeamId
-    : teamOptions[0]?.value;
+    : fleetOptions[0]?.value;
 
   const selectedLabel =
-    teamOptions.find((o) => o.value === selectedValue)?.label ?? "All fleets";
+    fleetOptions.find((o) => o.value === selectedValue)?.label ?? "All fleets";
 
   // Close menu when clicking outside the wrapper.
   useEffect(() => {
@@ -273,6 +303,19 @@ const TeamsDropdown = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [menuIsOpen]);
+
+  // When the menu opens with no search input, focus react-select's hidden
+  // input directly so Arrow / Enter / Escape drive option highlighting
+  // natively — otherwise focus stays on the trigger and keydowns never reach
+  // react-select. When search is visible, CustomMenuList focuses the search
+  // input on mount and the forwardNavKey bridge takes it from there.
+  useEffect(() => {
+    if (!menuIsOpen || showSearch) return;
+    const hiddenInput = ((selectRef.current as unknown) as {
+      inputRef?: HTMLInputElement | null;
+    })?.inputRef;
+    hiddenInput?.focus();
+  }, [menuIsOpen, showSearch]);
 
   const toggleMenu = () => {
     if (isDisabled) return;
@@ -318,7 +361,7 @@ const TeamsDropdown = ({
     );
   };
 
-  const onClickAddTeam = () => {
+  const onClickAddFleet = () => {
     setMenuIsOpen(false);
     setSearchQuery("");
     onClose?.();
@@ -356,26 +399,43 @@ const TeamsDropdown = ({
       ...baseStyles,
       backgroundColor: COLORS["core-fleet-white"],
       boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
-      borderRadius: "4px",
+      borderRadius: "8px",
       zIndex: 6,
       overflow: "hidden",
       border: 0,
       marginTop: PADDING["pad-xsmall"],
       width: 340,
-      maxHeight: "none",
+      // Cap total menu height so the whole dropdown (search + options list +
+      // footer) fits 14 options before the scrollbar engages — scroll first
+      // shows at 15 fleets per design. `min(...)` also clamps against the
+      // viewport with ~32px breathing room — the design's "or when
+      // restricted by page height" clause.
+      maxHeight: "min(715px, calc(100vh - 32px))",
+      // Menu owns the outer pad-medium inset; the search-row provides the
+      // pad-medium gap below the input, and the footer's padding-top
+      // provides the pad-medium above the "Add fleet" button. The options
+      // list abuts the footer's border-top directly (no gap in between).
+      padding: PADDING["pad-medium"],
+      display: "flex",
+      flexDirection: "column",
       position: "absolute",
       left: 0,
       animation: "fade-in 150ms ease-out",
     }),
     menuList: (baseStyles) => ({
       ...baseStyles,
-      maxHeight: 360,
-      // Search field owns the top padding via its own padding-top so options
-      // scrolling up are hidden by the sticky background.
-      paddingTop: 0,
-      paddingBottom: PADDING["pad-small"],
-      paddingLeft: PADDING["pad-small"],
-      paddingRight: PADDING["pad-small"],
+      // The scrolling area. Fills remaining height inside the Menu flex
+      // column so the scrollbar spans only the options — never behind the
+      // (Menu-level) search-row or "Add fleet" footer.
+      flex: "1 1 auto",
+      minHeight: 0,
+      overflowY: "auto",
+      maxHeight: "none",
+      // Menu owns the outer horizontal padding; a pad-small paddingBottom
+      // gives the last option a bit of breathing room above the footer's
+      // divider when the list is scrolled to the end.
+      padding: `0 0 ${PADDING["pad-small"]}`,
+      position: "relative",
     }),
     noOptionsMessage: (baseStyles) => ({
       ...baseStyles,
@@ -425,7 +485,7 @@ const TeamsDropdown = ({
       <Select<INumberDropdownOption, false>
         ref={selectRef}
         options={filteredOptions}
-        value={teamOptions.find((option) => option.value === selectedValue)}
+        value={fleetOptions.find((option) => option.value === selectedValue)}
         onChange={handleChange}
         isDisabled={isDisabled}
         isSearchable={false}
@@ -437,6 +497,7 @@ const TeamsDropdown = ({
         }}
         styles={customStyles}
         components={{
+          Menu: CustomMenu,
           MenuList: CustomMenuList,
           DropdownIndicator: () => null,
           IndicatorSeparator: () => null,
@@ -450,8 +511,8 @@ const TeamsDropdown = ({
         searchQuery={searchQuery}
         onChangeSearchQuery={onChangeSearchQuery}
         forwardNavKey={forwardNavKey}
-        onClickAddTeam={onClickAddTeam}
-        showAddTeamButton={!!isGlobalAdmin}
+        onClickAddFleet={onClickAddFleet}
+        showAddFleetButton={!!isGlobalAdmin}
         showSearch={showSearch}
         noOptionsMessage={() => "No matching fleets"}
       />
@@ -459,4 +520,4 @@ const TeamsDropdown = ({
   );
 };
 
-export default TeamsDropdown;
+export default FleetsDropdown;

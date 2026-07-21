@@ -52,7 +52,7 @@ import {
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import { SingleValue } from "react-select-5";
@@ -898,7 +898,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
-            <TeamsDropdown
+            <FleetsDropdown
               selectedTeamId={currentTeamId}
               currentUserTeams={userTeams}
               onChange={handleTeamChange}

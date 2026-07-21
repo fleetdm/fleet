@@ -6,7 +6,7 @@ import { noop } from "lodash";
 import { renderWithAppContext } from "test/test-utils";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
-import TeamsDropdown from "./TeamsDropdown";
+import FleetsDropdown from "./FleetsDropdown";
 
 const mockPush = jest.fn();
 jest.mock("react-router", () => ({
@@ -20,39 +20,39 @@ jest.mock("react-router", () => ({
 const getTrigger = (name: RegExp) =>
   screen.getByRole("button", { name, hidden: false });
 
-describe("TeamsDropdown - component", () => {
-  const USER_TEAMS = [
+describe("FleetsDropdown - component", () => {
+  const USER_FLEETS = [
     { id: -1, name: "All fleets" },
-    { id: 1, name: "Team 1" },
-    { id: 2, name: "Team 2" },
+    { id: 1, name: "Fleet 1" },
+    { id: 2, name: "Fleet 2" },
   ];
 
   beforeEach(() => {
     mockPush.mockClear();
   });
 
-  it("renders the given selected team from selectedTeamId", () => {
+  it("renders the given selected fleet from selectedTeamId", () => {
     render(
-      <TeamsDropdown
-        currentUserTeams={USER_TEAMS}
+      <FleetsDropdown
+        currentUserTeams={USER_FLEETS}
         selectedTeamId={1}
         onChange={noop}
       />
     );
 
-    expect(getTrigger(/Team 1/)).toBeInTheDocument();
+    expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
-  it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
+  it("renders the first fleet option when includeAllTeams is false and when no selectedTeamId is given", () => {
     render(
-      <TeamsDropdown
-        currentUserTeams={USER_TEAMS}
+      <FleetsDropdown
+        currentUserTeams={USER_FLEETS}
         includeAllTeams={false}
         onChange={noop}
       />
     );
 
-    expect(getTrigger(/Team 1/)).toBeInTheDocument();
+    expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
   describe("user is on the global team", () => {
@@ -62,119 +62,126 @@ describe("TeamsDropdown - component", () => {
 
     it("renders 'All fleets' when no selectedTeamId is given", () => {
       renderWithAppContext(
-        <TeamsDropdown currentUserTeams={USER_TEAMS} onChange={noop} />,
+        <FleetsDropdown currentUserTeams={USER_FLEETS} onChange={noop} />,
         { contextValue }
       );
 
       expect(getTrigger(/All fleets/)).toBeInTheDocument();
     });
 
-    it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
+    it("renders the first fleet option when includeAllTeams is false and when no selectedTeamId is given", () => {
       renderWithAppContext(
-        <TeamsDropdown
-          currentUserTeams={USER_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
           includeAllTeams={false}
           onChange={noop}
         />,
         { contextValue }
       );
 
-      expect(getTrigger(/Team 1/)).toBeInTheDocument();
+      expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
     });
   });
 
   describe("user is not on the global team", () => {
     const contextValue = { isOnGlobalTeam: false };
-    const filteredUserTeams = USER_TEAMS.filter(
+    const filteredUserFleets = USER_FLEETS.filter(
       (t) => t.id > APP_CONTEXT_NO_TEAM_ID
     );
 
-    it("renders the first team when no selectedTeamId is given", () => {
+    it("renders the first fleet when no selectedTeamId is given", () => {
       renderWithAppContext(
-        <TeamsDropdown currentUserTeams={filteredUserTeams} onChange={noop} />,
+        <FleetsDropdown
+          currentUserTeams={filteredUserFleets}
+          onChange={noop}
+        />,
         { contextValue }
       );
 
-      expect(getTrigger(/Team 1/)).toBeInTheDocument();
+      expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
     });
   });
 
   describe("in-menu search", () => {
-    // Search only appears once the list is long enough to be worth filtering.
-    const MANY_TEAMS = [
+    // Search only appears once the list has 10+ fleets.
+    const MANY_FLEETS = [
       { id: -1, name: "All fleets" },
-      { id: 1, name: "Team 1" },
-      { id: 2, name: "Team 2" },
-      { id: 3, name: "Team 3" },
-      { id: 4, name: "Team 4" },
-      { id: 5, name: "Team 5" },
+      { id: 1, name: "Fleet 1" },
+      { id: 2, name: "Fleet 2" },
+      { id: 3, name: "Fleet 3" },
+      { id: 4, name: "Fleet 4" },
+      { id: 5, name: "Fleet 5" },
+      { id: 6, name: "Fleet 6" },
+      { id: 7, name: "Fleet 7" },
+      { id: 8, name: "Fleet 8" },
+      { id: 9, name: "Fleet 9" },
     ];
 
-    it("hides the search input when there are fewer than 6 fleets", async () => {
+    it("hides the search input when there are fewer than 10 fleets", async () => {
       const user = userEvent.setup();
       render(
-        <TeamsDropdown
-          currentUserTeams={USER_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       expect(
         screen.queryByPlaceholderText("Search fleets")
       ).not.toBeInTheDocument();
     });
 
-    it("renders a search input when there are 6 or more fleets", async () => {
+    it("renders a search input when there are 10 or more fleets", async () => {
       const user = userEvent.setup();
       render(
-        <TeamsDropdown
-          currentUserTeams={MANY_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={MANY_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       expect(screen.getByPlaceholderText("Search fleets")).toBeInTheDocument();
     });
 
     it("filters options by the search query", async () => {
       const user = userEvent.setup();
       render(
-        <TeamsDropdown
-          currentUserTeams={MANY_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={MANY_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       fireEvent.change(screen.getByPlaceholderText("Search fleets"), {
-        target: { value: "Team 2" },
+        target: { value: "Fleet 2" },
       });
 
-      // The trigger button also contains "Team 1"; scope option lookups to
+      // The trigger button also contains "Fleet 1"; scope option lookups to
       // react-select's option class so the trigger doesn't count.
       const optionLabels = Array.from(
-        document.querySelectorAll(".team-dropdown__option")
+        document.querySelectorAll(".fleet-dropdown__option")
       ).map((o) => o.textContent);
-      expect(optionLabels).toContain("Team 2");
+      expect(optionLabels).toContain("Fleet 2");
       expect(optionLabels).not.toContain("All fleets");
     });
 
     it("shows the empty-state message when nothing matches", async () => {
       const user = userEvent.setup();
       render(
-        <TeamsDropdown
-          currentUserTeams={MANY_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={MANY_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       fireEvent.change(screen.getByPlaceholderText("Search fleets"), {
         target: { value: "nothing-matches-this" },
       });
@@ -184,27 +191,31 @@ describe("TeamsDropdown - component", () => {
   });
 
   describe("Add fleet button", () => {
-    const MANY_TEAMS = [
+    const MANY_FLEETS = [
       { id: -1, name: "All fleets" },
-      { id: 1, name: "Team 1" },
-      { id: 2, name: "Team 2" },
-      { id: 3, name: "Team 3" },
-      { id: 4, name: "Team 4" },
-      { id: 5, name: "Team 5" },
+      { id: 1, name: "Fleet 1" },
+      { id: 2, name: "Fleet 2" },
+      { id: 3, name: "Fleet 3" },
+      { id: 4, name: "Fleet 4" },
+      { id: 5, name: "Fleet 5" },
+      { id: 6, name: "Fleet 6" },
+      { id: 7, name: "Fleet 7" },
+      { id: 8, name: "Fleet 8" },
+      { id: 9, name: "Fleet 9" },
     ];
 
     it("does not render for non-global-admin users", async () => {
       const user = userEvent.setup();
       renderWithAppContext(
-        <TeamsDropdown
-          currentUserTeams={USER_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: false } }
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       expect(
         screen.queryByRole("button", { name: /add fleet/i })
       ).not.toBeInTheDocument();
@@ -213,15 +224,15 @@ describe("TeamsDropdown - component", () => {
     it("renders as a labeled footer for global admins when the list is short", async () => {
       const user = userEvent.setup();
       renderWithAppContext(
-        <TeamsDropdown
-          currentUserTeams={USER_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: true } }
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       const addButton = screen.getByRole("button", { name: /add fleet/i });
       expect(addButton).toHaveTextContent("Add fleet");
 
@@ -229,21 +240,20 @@ describe("TeamsDropdown - component", () => {
       expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");
     });
 
-    it("renders as an icon-only top button for global admins when the list is long", async () => {
+    it("renders the same labeled footer for global admins when the list is long", async () => {
       const user = userEvent.setup();
       renderWithAppContext(
-        <TeamsDropdown
-          currentUserTeams={MANY_TEAMS}
+        <FleetsDropdown
+          currentUserTeams={MANY_FLEETS}
           selectedTeamId={1}
           onChange={noop}
         />,
         { contextValue: { isGlobalAdmin: true } }
       );
 
-      await user.click(getTrigger(/Team 1/));
+      await user.click(getTrigger(/Fleet 1/));
       const addButton = screen.getByRole("button", { name: /add fleet/i });
-      // Icon-only variant has no visible text label.
-      expect(addButton).not.toHaveTextContent("Add fleet");
+      expect(addButton).toHaveTextContent("Add fleet");
 
       await user.click(addButton);
       expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");
