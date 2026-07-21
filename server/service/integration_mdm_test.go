@@ -8859,8 +8859,6 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 			if ok && strings.Contains(s, "Assets may not be used when running Fleet as a library") {
 				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
 			}
-			// Re-panic anything other than the known assets-not-built panic so unexpected failures stay visible.
-			panic(panicVal)
 		}
 	}()
 	_, _ = bindata.Asset("check if assets are build")
@@ -8880,21 +8878,6 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 
 func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
 	t := s.T()
-
-	// hacky check to make sure the assets were built (they require `-tags full`
-	// when building the tests otherwise this test will always fail due to a
-	// panic in server/bindata package)
-	defer func() {
-		if panicVal := recover(); panicVal != nil {
-			s, ok := panicVal.(string)
-			if ok && strings.Contains(s, "Assets may not be used when running Fleet as a library") {
-				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
-			}
-			// Re-panic anything other than the known assets-not-built panic so unexpected failures stay visible.
-			panic(panicVal)
-		}
-	}()
-	_, _ = bindata.Asset("check if assets are build")
 
 	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
 	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
