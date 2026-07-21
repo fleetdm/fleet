@@ -732,44 +732,6 @@ Premium version supported for bug fixes: **Latest version only**
 Premium support for support/troubleshooting: **All versions**
 
 
-## Fleet-maintained apps
-
-Fleet-maintained apps (FMAs) are a curated catalog of popular applications that Fleet packages for install, uninstall, and automatic updates on macOS and Windows hosts. Fleet-maintained apps are available in Fleet Premium. The [Auto Patching group](#auto-patching-group) maintains the catalog, and the [Fleet-maintained apps DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) is accountable for it.
-
-Every app manifest, install script, and uninstall script is open source in the [fleetdm/fleet repository](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps), so customers can audit exactly what runs on their hosts and see the history of every change.
-
-For a customer-facing overview of the pipeline, including a diagram of the add, review, and validation workflows, see [how Fleet keeps Fleet-maintained apps safe and up to date](https://fleetdm.com/articles/inside-fleet-maintained-apps).
-
-### How apps are kept up to date
-
-1. Fleet checks upstream package sources every 4 hours for new versions: [Homebrew casks](https://formulae.brew.sh/) for macOS and [winget](https://github.com/microsoft/winget-pkgs) for Windows.
-2. When a new version is found, automation opens a pull request that updates the version, download URL, and SHA-256 hash, and regenerates the install and uninstall scripts.
-3. Automated tests download each changed app and verify that it installs and uninstalls correctly on real macOS and Windows hosts, on the matching processor architecture.
-4. A Fleet team member reviews and merges the pull request.
-5. Customer Fleet servers refresh the catalog every hour, so updated apps appear in Fleet without a server upgrade.
-
-If a new version fails validation, Fleet freezes the app at the last version that installed successfully and files a bug, rather than shipping a broken update. In rare cases, a vendor removes the download link for the older version while the app is frozen. If this happens, installs of that app fail until Fleet publishes a fixed version.
-
-### Security expectations
-
-- **Installers come directly from the vendor.** Fleet never re-hosts or modifies vendor installers. When you add or update an app, your Fleet server downloads the installer from the vendor's official distribution URL.
-- **Installers are verified with pinned hashes.** Each app version records the SHA-256 hash published in the upstream package manifest, and the Fleet server rejects a downloaded installer that doesn't match. Some vendors only publish rolling "latest" URLs that can't be pinned to a hash. For those apps, Fleet records the hash of the installer at download time instead.
-- **Every change is tested and reviewed.** Automated tests exercise install and uninstall on real hosts, and a Fleet team member reviews every catalog change before it's published.
-
-To report a suspected security issue in a Fleet-maintained app, use Fleet's [vulnerability disclosure program](https://github.com/fleetdm/fleet/blob/main/SECURITY.md).
-
-### Service level objectives (SLOs)
-
-| Activity | Target |
-|:---------|:-------|
-| Check upstream package sources for new app versions | Every 4 hours |
-| Publish a validated app update after a new version is detected | Within 1 business day |
-| Customer Fleet servers pick up published catalog changes | Within 1 hour |
-| Review community pull requests that add a new app | Within 3 business days |
-
-To request a new Fleet-maintained app, [file a feature request](https://fleetdm.com/handbook/company/product-groups#making-a-request). Community members can also [contribute a new app directly](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/README.md). For contributors using Claude Code, the repository's [`new-fma` skill](https://github.com/fleetdm/fleet/blob/main/.claude/skills/new-fma/SKILL.md) automates most of the contribution workflow.
-
-
 ## Release testing
 
 When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.

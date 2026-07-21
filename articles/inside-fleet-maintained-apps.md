@@ -61,7 +61,18 @@ The catalog's security rests on a few plain commitments:
 - **Pinned hashes.** Each app version records the SHA-256 hash published in the upstream package manifest, and your Fleet server rejects a downloaded installer that doesn't match. Some vendors only publish rolling "latest" URLs that can't be pinned in advance. For those apps, Fleet records the installer's hash at download time instead.
 - **Open source, end to end.** Every manifest, install script, and uninstall script lives in the public Fleet repository, and every change arrives as a pull request with its validation results attached. You never have to wonder what a Fleet-maintained app will run on your hosts. You can read it.
 
-Fleet's process commitments for the catalog, including update and review targets, are documented in the [Fleet handbook](https://fleetdm.com/handbook/company/product-groups#fleet-maintained-apps). If you find a suspected security issue in a Fleet-maintained app, report it through Fleet's [vulnerability disclosure program](https://github.com/fleetdm/fleet/blob/main/SECURITY.md).
+If you find a suspected security issue in a Fleet-maintained app, report it through Fleet's [vulnerability disclosure program](https://github.com/fleetdm/fleet/blob/main/SECURITY.md).
+
+## Our service level objectives
+
+These are the targets Fleet holds itself to for the catalog:
+
+| Activity | Target |
+|:---------|:-------|
+| Check upstream package sources for new app versions | Every 4 hours |
+| Publish a validated app update after a new version is detected | Within 1 business day |
+| Customer Fleet servers pick up published catalog changes | Within 1 hour |
+| Review community pull requests that add a new app | Within 3 business days |
 
 ## Contribute an app to the catalog
 
