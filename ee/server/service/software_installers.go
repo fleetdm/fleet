@@ -1535,7 +1535,7 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 }
 
 // installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
-// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh runs on any unix-like host).
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh and .py run on any unix-like host).
 func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
 	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
@@ -1544,7 +1544,7 @@ func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet
 	if host.FleetPlatform() == requiredPlatform {
 		return true
 	}
-	return ext == ".sh" && fleet.IsUnixLike(host.Platform)
+	return (ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
