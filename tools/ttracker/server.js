@@ -328,7 +328,7 @@ tell application "iTerm2"
             repeat with s from 1 to (count of sessions of tab t of win)
                 set sess to session s of tab t of win
                 if (unique ID of sess) is "${itermUuid}" then
-                    close win
+                    close sess
                     return "closed"
                 end if
             end repeat
@@ -378,21 +378,19 @@ end tell`);
 async function restoreSession(claudeSessionId, fromHistory) {
   const state = loadState();
   let session;
+  let historyIdx = -1;
 
   if (fromHistory) {
     const idx = state.history.findIndex(h => h.claude_session_id === claudeSessionId);
     if (idx === -1) return { ok: false, error: 'Not found in history' };
-    session = state.history[idx];
-
-    // Remove from history
-    state.history.splice(idx, 1);
-    saveState(state);
+    session = { ...state.history[idx] };
+    historyIdx = idx;
   } else {
     session = state.snapshot.sessions.find(s => s.claude_session_id === claudeSessionId);
     if (!session) return { ok: false, error: 'Session not found' };
   }
 
-  const cwd = session.cwd || os.homedir();
+  const cwd = (session.cwd || os.homedir()).replace(/'/g, "'\\''");
   const badgeB64 = Buffer.from(session.badge || '').toString('base64');
   const claudeCmd = SAFE_MODE
     ? `claude --resume ${claudeSessionId}`
@@ -403,7 +401,7 @@ async function restoreSession(claudeSessionId, fromHistory) {
   fs.writeFileSync(tmpFile, `tell application "iTerm2"
     set newWindow to (create window with default profile)
     tell current session of current tab of newWindow
-        write text "cd ${cwd}"
+        write text "cd '${cwd}'"
         delay 1
         write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
         delay 2
@@ -413,12 +411,22 @@ end tell`);
 
   try {
     await runOsascriptFile(tmpFile);
+  } catch (err) {
+    return { ok: false, error: err.message };
   } finally {
     try { fs.unlinkSync(tmpFile); } catch {}
   }
 
+  // Remove from history only after successful restore
+  if (fromHistory && historyIdx >= 0) {
+    const freshState = loadState();
+    freshState.history.splice(historyIdx, 1);
+    saveState(freshState);
+  }
+
   // Take fresh snapshot after a delay (let the window open)
-  setTimeout(() => takeSnapshot(), 5000);
+  await new Promise(r => setTimeout(r, 4000));
+  await takeSnapshot();
   return { ok: true, badge: session.badge };
 }
 
@@ -1219,16 +1227,20 @@ async function handleRequest(req, res) {
 async function main() {
   fs.mkdirSync(SNAPSHOT_DIR, { recursive: true });
 
-  // Kill any existing process on our port
+  // Kill any existing ttracker server on our port (only node processes)
   try {
     const { stdout } = await new Promise((resolve) => {
       exec(`lsof -ti:${PORT}`, (err, stdout) => resolve({ stdout: (stdout || '').trim() }));
     });
     if (stdout) {
       for (const pid of stdout.split('\n').filter(Boolean)) {
-        try { process.kill(parseInt(pid)); } catch {}
+        // Only kill node processes to avoid killing unrelated services
+        const cmdOut = await runCommand('ps', ['-p', pid, '-o', 'command=']);
+        if (cmdOut.includes('node') && cmdOut.includes('server.js')) {
+          try { process.kill(parseInt(pid)); } catch {}
+          console.log('Stopped previous server');
+        }
       }
-      console.log('Stopped previous server');
       await new Promise(r => setTimeout(r, 500));
     }
   } catch {}
