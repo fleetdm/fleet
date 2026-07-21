@@ -728,6 +728,8 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
+	// HardwareSerial is the hardware serial number of the host. Empty in JSON to avoid overpopulating old responses
+	HardwareSerial string `db:"hardware_serial" json:"-"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -1627,4 +1629,29 @@ type DDMAssetAuthz struct {
 // AuthzType implements authz.AuthzTyper.
 func (d DDMAssetAuthz) AuthzType() string {
 	return "ddm_asset"
+}
+
+type ABReleaseDeviceStatus string
+
+// These are discovered based on the apple-device-services schema repo
+// https://github.com/micromdm/apple-device-services/blob/main/dep/schemas/DeviceStatusResponse.json
+const (
+	ABReleaseDeviceStatusSuccess       ABReleaseDeviceStatus = "success"
+	ABReleaseDeviceStatusError         ABReleaseDeviceStatus = "failed"
+	ABReleaseDeviceStatusNotAccessible ABReleaseDeviceStatus = "not_accessible"
+)
+
+type ABReleaseDeviceResponse struct {
+	HostID uint   `json:"host_id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+// ABReleaseDeviceAuthz is used to check user authorization to release a device from AB.
+type ABReleaseDeviceAuthz struct {
+	TeamID *uint `json:"team_id,omitempty,omitzero"` // required for authorization by team
+}
+
+func (a ABReleaseDeviceAuthz) AuthzType() string {
+	return "mdm_ab_release"
 }

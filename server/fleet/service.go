@@ -1612,6 +1612,9 @@ type Service interface {
 	// for a team (used by GitOps). It upserts the given assets and deletes any
 	// existing assets not in the set.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+	// ReleaseABDevices releases the specified Apple Business devices.
+	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
 }
 
 type KeyValueStore interface {

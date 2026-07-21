@@ -16,7 +16,7 @@ const (
 	ADMAuthSession        = "X-ADM-Auth-Session"
 	ServerProtocolVersion = "X-Server-Protocol-Version"
 
-	DefaultServerProtocolVersion = "9"
+	DefaultServerProtocolVersion = "10"
 
 	SessionEndpoint = "/session"
 
