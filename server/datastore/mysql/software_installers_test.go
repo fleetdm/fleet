@@ -7209,7 +7209,7 @@ func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
 	}
 
 	// The managed "is app open" query round-trips through create -> metadata read.
-	const managed = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE name = 'App');"
+	const managed = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.example.app');"
 	titleID := newInstaller(t, "app-open-1", managed)
 	meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, false)
 	require.NoError(t, err)
