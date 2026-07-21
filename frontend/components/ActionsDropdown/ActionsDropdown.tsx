@@ -38,11 +38,7 @@ const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
 };
 
 // "small-button" mirrors the bordered secondary button — see #35329
-const getControlBackgroundColor = (
-  variant: string | undefined,
-  isFocused: boolean
-) => {
-  if (isFocused) return COLORS["ui-fleet-black-5"];
+const getControlBackgroundColor = (variant: string | undefined) => {
   return variant === "small-button" ? COLORS["ui-off-white"] : "initial";
 };
 
@@ -153,6 +149,33 @@ const ActionsDropdown = ({
   const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // react-select's hidden input always matches :focus-visible, even on a
+  // mouse click (browsers treat text inputs specially), so CSS alone can't
+  // tell a Tab-focus apart from a click. Track the last input method
+  // ourselves — same approach as UserMenu.tsx — so the focus ring only
+  // shows up for keyboard tabbing.
+  const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        setIsKeyboardFocus(true);
+      }
+    };
+
+    const handleMouseDown = () => {
+      setIsKeyboardFocus(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, []);
+
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -217,7 +240,7 @@ const ActionsDropdown = ({
       // Need minHeight to override default
       minHeight: variant === "small-button" ? "28px" : "32px", // Match button height
       padding: variant === "small-button" ? "4px 8px" : "8px", // Match button padding
-      backgroundColor: getControlBackgroundColor(variant, state.isFocused),
+      backgroundColor: getControlBackgroundColor(variant),
       border:
         variant === "small-button"
           ? `1px solid ${COLORS["ui-fleet-black-25"]}` // Match secondary button border — see #35329
@@ -244,8 +267,6 @@ const ActionsDropdown = ({
           stroke: COLORS["ui-fleet-black-75-down"],
         },
       },
-      // TODO: Figure out a way to apply separate &:focus-visible styling
-      // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         background: COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator svg": {
@@ -253,6 +274,12 @@ const ActionsDropdown = ({
           transition: "transform 0.25s ease",
         },
       }),
+      // Same ring Button's :focus-visible draws — only for keyboard tabbing,
+      // never a mouse click (see isKeyboardFocus above).
+      ...(state.isFocused &&
+        isKeyboardFocus && {
+          boxShadow: `0 0 0 1px ${COLORS["core-fleet-black"]}`,
+        }),
     }),
     placeholder: (provided, state) => ({
       ...provided,
