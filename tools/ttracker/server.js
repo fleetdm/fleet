@@ -281,11 +281,9 @@ function getRunningSessionIds() {
 
 async function focusSession(itermUuid) {
   try {
-    // First bring iTerm2 to front
-    await runOsascript('tell application "iTerm2" to activate');
-    // Then select the specific window
     await runOsascript(`
 tell application "iTerm2"
+    activate
     repeat with w from 1 to (count of windows)
         set win to window w
         repeat with t from 1 to (count of tabs of win)
