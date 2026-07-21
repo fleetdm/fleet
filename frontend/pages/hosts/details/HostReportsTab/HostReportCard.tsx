@@ -192,7 +192,7 @@ const HostReportCard = ({
             options={actionOptions}
             placeholder="Actions"
             onChange={onActionChange}
-            variant="small-button"
+            variant="secondary"
             menuAlign="right"
           />
         </div>

@@ -359,7 +359,7 @@ const SoftwareDetailsSummary = ({
                   onChange={onSelectSoftwareAction}
                   placeholder="Actions"
                   options={actionOptions}
-                  variant="small-button"
+                  variant="secondary"
                   menuAlign="right"
                 />
               )}

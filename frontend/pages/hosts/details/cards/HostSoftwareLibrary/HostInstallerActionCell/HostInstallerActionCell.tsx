@@ -378,7 +378,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="small-button"
+            variant="secondary"
             disabled={moreDisabled}
           />
         </div>

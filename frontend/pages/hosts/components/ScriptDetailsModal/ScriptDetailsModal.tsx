@@ -240,6 +240,7 @@ const ScriptDetailsModal = ({
                       selectedScriptDetails as IHostScript
                     )}
                     menuPlacement="top"
+                    variant="subdued"
                   />
                 </div>
               )}

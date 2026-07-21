@@ -29,7 +29,9 @@ interface IActionsDropdownProps {
   className?: string;
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
-  variant?: "button" | "brand-button" | "small-button";
+  /** Mirrors Fleet's Primary/Secondary/Subdued button styles — see #35329.
+   *  Default: "subdued" */
+  variant?: "primary" | "secondary" | "subdued";
   buttonLabel?: string;
 }
 
@@ -37,9 +39,8 @@ const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
-// "small-button" mirrors the bordered secondary button — see #35329
 const getControlBackgroundColor = (variant: string | undefined) => {
-  return variant === "small-button" ? COLORS["ui-off-white"] : "initial";
+  return variant === "secondary" ? COLORS["ui-off-white"] : "initial";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -69,14 +70,14 @@ const CustomDropdownIndicator = (
 ) => {
   const { isFocused, selectProps } = props;
   const variant = (selectProps as {
-    variant?: "button" | "brand-button" | "small-button";
+    variant?: "primary" | "secondary" | "subdued";
   }).variant;
 
   const color =
     isFocused ||
     selectProps.menuIsOpen ||
-    variant === "button" ||
-    variant === "small-button"
+    variant === "subdued" ||
+    variant === "secondary"
       ? "ui-fleet-black-75"
       : "core-fleet-black";
 
@@ -85,7 +86,7 @@ const CustomDropdownIndicator = (
       <Icon
         name="chevron-down"
         color={color}
-        size={variant === "small-button" ? "small" : undefined}
+        size={variant === "secondary" ? "small" : undefined}
         className={`${baseClass}__icon`}
       />
     </components.DropdownIndicator>
@@ -132,19 +133,19 @@ const ActionsDropdown = ({
   className,
   menuAlign = "default",
   menuPlacement = "bottom",
-  variant,
+  variant = "subdued",
   buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
   // Portal the menu only when rendered inside a TableContainer's data-table
   // block, where .data-table__wrapper's overflow-x: auto would otherwise clip
-  // the menu vertically. The brand-button variant nulls out react-select's
+  // the menu vertically. The primary variant nulls out react-select's
   // Control, and MenuPortal bails when controlElement is missing — so don't
-  // use brand-button inside a table cell.
+  // use primary inside a table cell.
   const { insideTable } = useContext(TableLayoutContext);
 
-  // Used for brand Action button
+  // Used for the primary Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -200,11 +201,11 @@ const ActionsDropdown = ({
     };
   }, [menuIsOpen]);
 
-  const isBrandButton = variant === "brand-button";
+  const isPrimary = variant === "primary";
 
   // CustomControl rerenders on state change, preventing arrow animation
-  // Render brand button outside of CustomControl instead
-  const renderBrandButton = () => (
+  // Render primary button outside of CustomControl instead
+  const renderPrimaryButton = () => (
     <Button
       type="button"
       onClick={() => setMenuIsOpen((v) => !v)}
@@ -238,11 +239,11 @@ const ActionsDropdown = ({
       flexDirection: "row",
       width: "max-content",
       // Need minHeight to override default
-      minHeight: variant === "small-button" ? "28px" : "32px", // Match button height
-      padding: variant === "small-button" ? "4px 8px" : "8px", // Match button padding
+      minHeight: variant === "secondary" ? "28px" : "32px", // Match button height
+      padding: variant === "secondary" ? "4px 8px" : "8px", // Match button padding
       backgroundColor: getControlBackgroundColor(variant),
       border:
-        variant === "small-button"
+        variant === "secondary"
           ? `1px solid ${COLORS["ui-fleet-black-25"]}` // Match secondary button border — see #35329
           : 0,
       boxSizing: "border-box",
@@ -260,7 +261,7 @@ const ActionsDropdown = ({
       },
       "&:active": {
         background:
-          variant === "small-button"
+          variant === "secondary"
             ? COLORS["ui-fleet-black-10"] // Match secondary button active — see #35329
             : COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator path": {
@@ -284,12 +285,12 @@ const ActionsDropdown = ({
     placeholder: (provided, state) => ({
       ...provided,
       color:
-        state.isFocused || variant === "button" || variant === "small-button"
+        state.isFocused || variant === "subdued" || variant === "secondary"
           ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
       fontSize: "14px",
       fontWeight:
-        variant === "button" || variant === "small-button" ? "600" : undefined,
+        variant === "subdued" || variant === "secondary" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
@@ -317,7 +318,7 @@ const ActionsDropdown = ({
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
-      marginTop: isBrandButton ? "20px" : "0",
+      marginTop: isPrimary ? "20px" : "0",
       width: "auto",
       minWidth: "100%",
       position: "absolute",
@@ -367,25 +368,25 @@ const ActionsDropdown = ({
 
   return (
     <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
-      {isBrandButton && renderBrandButton()}
+      {isPrimary && renderPrimaryButton()}
       <Select<IDropdownOption, false>
         ref={selectRef}
         options={options}
-        placeholder={isBrandButton ? "" : placeholder}
+        placeholder={isPrimary ? "" : placeholder}
         onChange={handleChange}
         isDisabled={disabled}
         isSearchable={isSearchable}
         styles={customStyles}
         menuIsOpen={menuIsOpen}
-        onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for brand-action button
-        onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for brand-action-button
+        onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for the primary Action button
+        onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for the primary Action button
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
-          ...(isBrandButton && { Control: () => null }), // Remove Control entirely and renderBrandButton instead
+          ...(isPrimary && { Control: () => null }), // Remove Control entirely and renderPrimaryButton instead
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
@@ -395,7 +396,7 @@ const ActionsDropdown = ({
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
         menuPortalTarget={insideTable ? document.body : undefined}
-        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
+        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "subdued"
       />
     </div>
   );

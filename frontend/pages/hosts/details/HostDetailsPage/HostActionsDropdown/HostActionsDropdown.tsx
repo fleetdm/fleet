@@ -132,7 +132,7 @@ const HostActionsDropdown = ({
         placeholder="Actions"
         options={options}
         menuAlign="right"
-        variant="brand-button"
+        variant="primary"
       />
     </div>
   );

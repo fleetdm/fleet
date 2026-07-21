@@ -130,7 +130,7 @@ const CategoryFilter = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Close menu when clicking outside the wrapper (mirrors the
-  // ActionsDropdown brand-button pattern in components/ActionsDropdown).
+  // ActionsDropdown primary-variant pattern in components/ActionsDropdown).
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -292,7 +292,7 @@ const CategoryFilter = ({
         A real Fleet <Button> renders the visible trigger so it inherits
         the Button's :focus-visible outline (Button/_styles.scss
         button-variant mixin). react-select's own Control is hidden via
-        components.Control: () => null. This mirrors the brand-button
+        components.Control: () => null. This mirrors the primary variant
         path in components/ActionsDropdown/ActionsDropdown.tsx.
       */}
       <Button
