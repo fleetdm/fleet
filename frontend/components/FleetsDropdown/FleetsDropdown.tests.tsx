@@ -103,7 +103,7 @@ describe("FleetsDropdown - component", () => {
   });
 
   describe("in-menu search", () => {
-    // Search only appears once the list has 10+ fleets.
+    // Search only appears once the list has 10+ rows.
     const MANY_FLEETS = [
       { id: -1, name: "All fleets" },
       { id: 1, name: "Fleet 1" },
@@ -117,7 +117,7 @@ describe("FleetsDropdown - component", () => {
       { id: 9, name: "Fleet 9" },
     ];
 
-    it("hides the search input when there are fewer than 10 fleets", async () => {
+    it("hides the search input when there are fewer than 10 rows", async () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
@@ -133,7 +133,7 @@ describe("FleetsDropdown - component", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("renders a search input when there are 10 or more fleets", async () => {
+    it("renders a search input when there are 10 or more rows", async () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown

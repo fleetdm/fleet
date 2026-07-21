@@ -68,7 +68,7 @@ export default meta;
 type Story = StoryObj<typeof FleetsDropdown>;
 
 // ---------------------------------------------------------------------------
-// Below the search threshold (<10 fleets)
+// Below the search threshold (<10 rows)
 // ---------------------------------------------------------------------------
 
 export const FewFleetsAsAdmin: Story = {
@@ -84,7 +84,7 @@ export const FewFleetsAsNonAdmin: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// At the search threshold, still fits without scroll (10–14 fleets)
+// At the search threshold, still fits without scroll (10–14 rows)
 // ---------------------------------------------------------------------------
 
 export const ManyFleetsAsAdmin: Story = {
@@ -100,7 +100,7 @@ export const ManyFleetsAsNonAdmin: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Beyond the scroll threshold (15+ fleets) — scroll-fade appears
+// Beyond the scroll threshold (15+ rows) — scroll-fade appears
 // ---------------------------------------------------------------------------
 
 export const ScrollableAsAdmin: Story = {

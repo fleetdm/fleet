@@ -57,10 +57,11 @@ declare module "react-select-5/dist/declarations/src/Select" {
   }
 }
 
-// Search input only appears once the list is long enough to be worth
-// filtering. The "Add fleet" footer always renders for global admins,
-// regardless of how many fleets exist.
-const MIN_FLEETS_FOR_SEARCH = 10;
+// Search input only appears once the option list has this many rows or more
+// — rows include "All fleets" and "Unassigned" alongside real fleets, so the
+// threshold is measured in rows rather than fleets. The "Add fleet" footer
+// always renders for global admins, regardless of row count.
+const MIN_ROWS_FOR_SEARCH = 10;
 
 export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
   value: number;
@@ -305,7 +306,7 @@ const FleetsDropdown = ({
     [fleetOptions, searchQuery]
   );
 
-  const showSearch = fleetOptions.length >= MIN_FLEETS_FOR_SEARCH;
+  const showSearch = fleetOptions.length >= MIN_ROWS_FOR_SEARCH;
 
   const selectedValue = fleetOptions.find(
     (option) => selectedFleetId === option.value
@@ -441,7 +442,7 @@ const FleetsDropdown = ({
       width: 340,
       // Cap total menu height so the whole dropdown (search + options list +
       // footer) fits 14 options before the scrollbar engages — scroll first
-      // shows at 15 fleets per design. `min(...)` also clamps against the
+      // shows at 15 rows per design. `min(...)` also clamps against the
       // viewport with ~32px breathing room — the design's "or when
       // restricted by page height" clause.
       maxHeight: "min(715px, calc(100vh - 32px))",
