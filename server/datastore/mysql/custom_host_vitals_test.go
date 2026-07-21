@@ -465,13 +465,14 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("setup experience scripts", func(t *testing.T) {
-		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		_, err := ds.SetSetupExperienceScript(ctx, &fleet.Script{
 			Name:           "setup.sh",
 			ScriptContents: fmt.Sprintf("echo %s", token),
 			TeamID:         &foobarTeam.ID,
-		}))
+		})
+		require.NoError(t, err)
 
-		_, err := ds.DeleteCustomHostVital(ctx, id)
+		_, err = ds.DeleteCustomHostVital(ctx, id)
 		require.Error(t, err)
 		var useErr *fleet.CustomHostVitalUsedError
 		require.ErrorAs(t, err, &useErr)

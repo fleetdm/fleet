@@ -164,6 +164,8 @@ export enum ActivityType {
   DeletedCustomVariable = "deleted_custom_variable",
   EditedCustomHostVitalValue = "edited_custom_host_vital_value",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
+  CreatedSetupExperienceScript = "created_setup_experience_script",
+  DeletedSetupExperienceScript = "deleted_setup_experience_script",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
   EditedGoogleWorkspaceIntegration = "edited_google_workspace_integration",
@@ -574,6 +576,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
+  [ActivityType.CreatedSetupExperienceScript]: "Added setup experience script",
+  [ActivityType.DeletedSetupExperienceScript]:
+    "Deleted setup experience script",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedGoogleWorkspaceIntegration]:
     "Added Google Workspace integration",

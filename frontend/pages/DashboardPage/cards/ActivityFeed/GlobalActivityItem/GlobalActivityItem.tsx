@@ -2108,6 +2108,40 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdSetupExperienceScript: (activity: IActivity) => {
+    const { script_name, fleet_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        added setup experience script <b>{script_name}</b> for{" "}
+        {fleet_name ? (
+          <>
+            the <b>{fleet_name}</b> fleet
+          </>
+        ) : (
+          `unassigned`
+        )}
+        .
+      </>
+    );
+  },
+  deletedSetupExperienceScript: (activity: IActivity) => {
+    const { script_name, fleet_name } = activity.details || {};
+    return (
+      <>
+        {" "}
+        deleted setup experience script <b>{script_name}</b> for{" "}
+        {fleet_name ? (
+          <>
+            the <b>{fleet_name}</b> fleet
+          </>
+        ) : (
+          `unassigned`
+        )}
+        .
+      </>
+    );
+  },
   editedHostIdpData: (activity: IActivity) => {
     const { host_display_name, host_idp_username } = activity.details || {};
     const removed = host_idp_username === "";
@@ -2675,6 +2709,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedSetupExperienceSoftware: {
       return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
+    }
+    case ActivityType.CreatedSetupExperienceScript: {
+      return TAGGED_TEMPLATES.createdSetupExperienceScript(activity);
+    }
+    case ActivityType.DeletedSetupExperienceScript: {
+      return TAGGED_TEMPLATES.deletedSetupExperienceScript(activity);
     }
     case ActivityType.EditedHostIdpData: {
       return TAGGED_TEMPLATES.editedHostIdpData(activity);
