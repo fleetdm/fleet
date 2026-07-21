@@ -319,7 +319,9 @@ const FleetsDropdown = ({
 
   // Close menu when clicking outside the wrapper. Only attach the listener
   // while the menu is actually open — no need to run this handler on every
-  // document mousedown for the rest of the app's lifetime.
+  // document mousedown for the rest of the app's lifetime. `onMenuClose`
+  // fires once react-select observes menuIsOpen flipping false, so
+  // consumer-facing `onClose` is delivered from that single site.
   useEffect(() => {
     if (!menuIsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
@@ -328,13 +330,11 @@ const FleetsDropdown = ({
         !wrapperRef.current.contains(event.target as Node)
       ) {
         setMenuIsOpen(false);
-        setSearchQuery("");
-        onClose?.();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuIsOpen, onClose]);
+  }, [menuIsOpen]);
 
   // When the menu opens with no search input, focus react-select's hidden
   // input directly so Arrow / Enter / Escape drive option highlighting
@@ -351,13 +351,12 @@ const FleetsDropdown = ({
 
   const toggleMenu = () => {
     if (isDisabled) return;
+    // Only fire onOpen here; onClose is delivered via react-select's
+    // onMenuClose (single source) so consumers can't see it fire twice on
+    // the same close.
     setMenuIsOpen((open) => {
       const next = !open;
       if (next) onOpen?.();
-      else {
-        setSearchQuery("");
-        onClose?.();
-      }
       return next;
     });
   };
@@ -365,9 +364,9 @@ const FleetsDropdown = ({
   const handleChange = (newValue: INumberDropdownOption | null) => {
     if (!newValue) return;
     onChange(newValue.value);
-    setSearchQuery("");
+    // Search reset + onClose fire via onMenuClose once react-select
+    // observes menuIsOpen flipping false — see comment there.
     setMenuIsOpen(false);
-    onClose?.();
   };
 
   const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -394,9 +393,8 @@ const FleetsDropdown = ({
   };
 
   const onClickAddFleet = () => {
+    // onMenuClose owns the search reset + onClose fire.
     setMenuIsOpen(false);
-    setSearchQuery("");
-    onClose?.();
     browserHistory.push(
       getPathWithQueryParams(PATHS.ADMIN_FLEETS, { create_fleet: "1" })
     );

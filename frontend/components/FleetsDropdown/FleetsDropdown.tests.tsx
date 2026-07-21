@@ -55,51 +55,21 @@ describe("FleetsDropdown - component", () => {
     expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
-  describe("user is on the global team", () => {
-    const contextValue = {
-      isOnGlobalTeam: true,
-    };
+  it("renders 'All fleets' when no selectedFleetId is given", () => {
+    render(<FleetsDropdown currentUserTeams={USER_FLEETS} onChange={noop} />);
 
-    it("renders 'All fleets' when no selectedFleetId is given", () => {
-      renderWithAppContext(
-        <FleetsDropdown currentUserTeams={USER_FLEETS} onChange={noop} />,
-        { contextValue }
-      );
-
-      expect(getTrigger(/All fleets/)).toBeInTheDocument();
-    });
-
-    it("renders the first fleet option when includeAllFleets is false and when no selectedFleetId is given", () => {
-      renderWithAppContext(
-        <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
-          includeAllFleets={false}
-          onChange={noop}
-        />,
-        { contextValue }
-      );
-
-      expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
-    });
+    expect(getTrigger(/All fleets/)).toBeInTheDocument();
   });
 
-  describe("user is not on the global team", () => {
-    const contextValue = { isOnGlobalTeam: false };
-    const filteredUserFleets = USER_FLEETS.filter(
+  it("renders the first fleet when the current-user list has no 'All fleets' row and no selectedFleetId is given", () => {
+    const withoutAllFleets = USER_FLEETS.filter(
       (t) => t.id > APP_CONTEXT_NO_TEAM_ID
     );
+    render(
+      <FleetsDropdown currentUserTeams={withoutAllFleets} onChange={noop} />
+    );
 
-    it("renders the first fleet when no selectedFleetId is given", () => {
-      renderWithAppContext(
-        <FleetsDropdown
-          currentUserTeams={filteredUserFleets}
-          onChange={noop}
-        />,
-        { contextValue }
-      );
-
-      expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
-    });
+    expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
   describe("in-menu search", () => {
@@ -187,6 +157,31 @@ describe("FleetsDropdown - component", () => {
       });
 
       expect(screen.getByText("No matching fleets")).toBeInTheDocument();
+    });
+
+    it("Escape on the search input closes the menu via the forwardNavKey bridge", async () => {
+      const user = userEvent.setup();
+      render(
+        <FleetsDropdown
+          currentUserTeams={MANY_FLEETS}
+          selectedFleetId={1}
+          onChange={noop}
+        />
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      expect(screen.getByPlaceholderText("Search fleets")).toBeInTheDocument();
+
+      // Escape hits the search input's onKeyDown, gets forwarded to
+      // react-select's hidden input, which closes the menu. If the bridge
+      // ever regresses, the search input stays mounted.
+      fireEvent.keyDown(screen.getByPlaceholderText("Search fleets"), {
+        key: "Escape",
+      });
+
+      expect(
+        screen.queryByPlaceholderText("Search fleets")
+      ).not.toBeInTheDocument();
     });
   });
 
