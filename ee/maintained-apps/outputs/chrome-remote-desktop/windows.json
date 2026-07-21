@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "150.0.7871.19",
+      "version": "151.0.7922.13",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Chrome Remote Desktop Host' AND publisher = 'Google LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Chrome Remote Desktop Host' AND publisher = 'Google LLC' AND version_compare(version, '150.0.7871.19') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Chrome Remote Desktop Host' AND publisher = 'Google LLC' AND version_compare(version, '151.0.7922.13') < 0);"
       },
-      "installer_url": "https://dl.google.com/release2/misc/fxlsbskztvb3k6jdn5urrbv4f4_150.0.7871.19/remoting-host.msi",
+      "installer_url": "https://dl.google.com/release2/misc/d2fzthshhdpbekrl7yigl6s7qe_151.0.7922.13/remoting-host.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "6c652c0d",
-      "sha256": "74745500a6e81f53aedfeffd7eec801cd548ad25839784425f26b597e4498671",
+      "sha256": "4d4810a9f10b3fc663fb114246328faeceb2e6eb82f32e08a844effadc0c484e",
       "default_categories": [
         "Productivity"
       ],

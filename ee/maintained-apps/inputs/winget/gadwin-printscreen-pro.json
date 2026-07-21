@@ -1,0 +1,12 @@
+{
+  "name": "Gadwin PrintScreen Pro",
+  "slug": "gadwin-printscreen-pro/windows",
+  "package_identifier": "Gadwin.PrintScreen.Pro",
+  "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}
