@@ -68,16 +68,16 @@ export interface INumberDropdownOption extends Omit<IDropdownOption, "value"> {
 }
 
 const generateDropdownOptions = (
-  teams: ITeamSummary[] | undefined,
+  fleets: ITeamSummary[] | undefined,
   includeAllFleets: boolean,
   includeUnassigned?: boolean
 ): INumberDropdownOption[] => {
-  if (!teams) return [];
+  if (!fleets) return [];
 
-  const options: INumberDropdownOption[] = teams.map((team) => ({
+  const options: INumberDropdownOption[] = fleets.map((fleet) => ({
     disabled: false,
-    label: team.name,
-    value: team.id,
+    label: fleet.name,
+    value: fleet.id,
   }));
 
   return options.filter(
