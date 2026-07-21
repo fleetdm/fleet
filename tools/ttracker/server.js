@@ -196,8 +196,20 @@ async function takeSnapshot() {
       sessions
     };
 
-    // Update state
+    // Update state, preserving missing Claude sessions from previous snapshot
     const state = loadState();
+    const liveUuids = new Set(sessions.map(s => s.iterm_uuid));
+    const parkedIds = new Set(state.history.map(h => h.claude_session_id));
+    if (state.snapshot && state.snapshot.sessions) {
+      for (const prev of state.snapshot.sessions) {
+        // Keep sessions that: had a Claude session, aren't in the live snapshot, and aren't parked
+        if (prev.claude_session_id && !liveUuids.has(prev.iterm_uuid) && !parkedIds.has(prev.claude_session_id)) {
+          sessions.push(prev);
+        }
+      }
+      snapshot.sessions = sessions;
+      snapshot.session_count = sessions.length;
+    }
     state.snapshot = snapshot;
     saveState(state);
 
