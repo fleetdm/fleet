@@ -638,7 +638,7 @@ module.exports.routes = {
   'GET /ai': {
     action: 'view-ai-in-it',
     locals: {
-      pageTitleForMeta: 'AI in IT',
+      pageTitleForMeta: 'AI-powered IT',
       pageDescriptionForMeta: 'AI in IT means more than answering questions. See how Fleet lets AI safely make changes across your fleet, with you in control.',
       currentSection: 'platform',
     }
