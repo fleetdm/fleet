@@ -1234,10 +1234,15 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	return resSyncMLmsg, nil
 }
 
-// allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM TOS redirect_uri. The value
-// is reflected into a window.location assignment in the TOS page, so only schemes that cannot execute script are
-// allowed. The legitimate Autopilot/Entra enrollment flow hands control back to the native Azure AD broker via the
-// ms-appx-web scheme (e.g. ms-appx-web://Microsoft.AAD.BrokerPlugin); https covers browser-based federated flows.
+// allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
+// redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
+// this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
+// two schemes that protocol uses:
+//   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
+//     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
+//     The value seen in practice is ms-appx-web://Microsoft.AAD.BrokerPlugin (the Azure AD broker plugin package).
+//     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
+//   - https: the browser-based federated flow.
 var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
 	"https":       {},
 	"ms-appx-web": {},
