@@ -290,6 +290,7 @@ tell application "iTerm2"
                 set sess to session s of tab t of win
                 if (unique ID of sess) is "${itermUuid}" then
                     select win
+                    activate
                     return "focused"
                 end if
             end repeat
