@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260713150609(t *testing.T) {
+func TestUp_20260721141651(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// user with live sessions: backfilled from the most recent session
