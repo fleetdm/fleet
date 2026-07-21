@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/homebrew_outdated"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
@@ -74,6 +75,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
+		table.NewPlugin("homebrew_outdated", homebrew_outdated.Columns(), homebrew_outdated.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),

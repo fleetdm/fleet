@@ -1,0 +1,48 @@
+name: homebrew_outdated
+platforms:
+  - darwin
+description: List Homebrew packages (formulae and casks) that have a newer version available. Returns one row per installed version of each outdated package. This table is provided by Fleet's agent (fleetd) and is only available on macOS hosts with Homebrew installed.
+columns:
+  - name: app_name
+    description: Name of the installed app (casks only).
+    type: text
+    required: false
+  - name: auto_updates
+    description: 1 if the cask auto-updates, otherwise 0. Empty for formulae.
+    type: integer
+    required: false
+  - name: name
+    description: Package name.
+    type: text
+    required: false
+  - name: install_path
+    description: Package install path.
+    type: text
+    required: false
+  - name: type
+    description: Package type ('formula' or 'cask').
+    type: text
+    required: false
+  - name: installed_version
+    description: Currently installed (linked) version.
+    type: text
+    required: false
+  - name: current_version
+    description: Latest available version from Homebrew (not the installed version).
+    type: text
+    required: false
+  - name: pinned_version
+    description: Version the package is pinned to, if pinned. Empty when not pinned.
+    type: text
+    required: false
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. If the console user does not own the Homebrew installation, `current_version` may be out of date because Homebrew's update step can fail for a non-owner. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.
+evented: false
+examples: |-
+  Check the installed and latest available version of an outdated package. This
+  example checks ffmpeg, which should be replaced by the actual package you want
+  to check for. This is useful for finding outdated or vulnerable installs,
+  though Fleet will detect vulnerable packages automatically.
+
+  ```
+  SELECT installed_version, current_version FROM homebrew_outdated WHERE name = 'ffmpeg';
+  ```
