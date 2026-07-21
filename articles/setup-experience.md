@@ -394,7 +394,7 @@ If you deploy a custom fleetd, also add the software and scripts you want to ins
 
 ### swiftDialog
 
-Fleet only deploys [swiftDialog](https://github.com/swiftDialog/swiftDialog) during setup experience, if there is setup experience [software](#install-software) or [scripts](#run-script), and the [end user migration workflow](https://fleetdm.com/guides/mdm-migration#end-user-workflow). After setup experinece and migration, swiftDialog stays installed.
+Fleet only deploys [swiftDialog](https://github.com/swiftDialog/swiftDialog) during setup experience, if there is setup experience [software](#install-software) or [scripts](#run-script), and the [end user migration workflow](https://fleetdm.com/guides/mdm-migration#end-user-workflow). After setup experience and migration, swiftDialog stays installed.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
