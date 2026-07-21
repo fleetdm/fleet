@@ -266,7 +266,8 @@ tell application "iTerm2"
 end tell`);
   } catch { /* window may already be closed */ }
 
-  // Take fresh snapshot
+  // Wait for iTerm2 to finish processing the close, then snapshot
+  await new Promise(r => setTimeout(r, 2000));
   await takeSnapshot();
   return { ok: true, badge: session.badge };
 }
