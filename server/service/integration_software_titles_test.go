@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strings"
 	"time"
 
@@ -904,8 +903,9 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_" + t.Name())}}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeamResp)
-	team2 := newTeamResp.Team
+	var newTeam2Resp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("team_2_" + t.Name())}}, http.StatusOK, &newTeam2Resp)
+	team2 := newTeam2Resp.Team
 
 	// Enroll a host
 	token := "good_token"
@@ -928,6 +928,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Require().NoError(err)
 
 	s.Require().NoError(s.ds.SyncHostsSoftware(ctx, time.Now()))
+	s.Require().NoError(s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
 	sw, _, err := s.ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{})
 	s.Require().NoError(err)
@@ -957,7 +958,9 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
 	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
 
-	// Use the other team ID, should still get a response with the name and title ID
+	// Use the other team ID: the title isn't installed on any host on this
+	// team, so no hosts should match and its name/display_name must not leak.
+	listResp = listHostsResponse{}
 	s.DoJSON(
 		"GET",
 		"/api/latest/fleet/hosts",
@@ -969,16 +972,8 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		"software_title_id",
 		fmt.Sprint(titleID),
 	)
-	s.Require().Len(listResp.Hosts, 1)
-	s.Assert().NotNil(listResp.SoftwareTitle)
-	s.Assert().Equal(titleID, listResp.SoftwareTitle.ID)
-	s.Assert().Equal("bar", listResp.SoftwareTitle.Name)
-	v := reflect.ValueOf(*listResp.SoftwareTitle)
-	for i := 0; i < v.NumField(); i++ {
-		if v.Type().Field(i).Name != "ID" && v.Type().Field(i).Name != "Name" {
-			s.Assert().True(v.Field(i).IsZero())
-		}
-	}
+	s.Require().Empty(listResp.Hosts)
+	s.Assert().Nil(listResp.SoftwareTitle)
 
 	// Add a custom package and set a display name for the software title
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1056,8 +1051,10 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 
 	s.token = s.getTestToken(*params.Email, *params.Password)
 
-	// Use the other team ID, should still get a response with the display name and title ID
-	fmt.Println("before final call")
+	// The observer is scoped to their own team (team1): querying it still
+	// returns the full title details for the custom package, including the
+	// custom display name.
+	listResp = listHostsResponse{}
 	s.DoJSON(
 		"GET",
 		"/api/latest/fleet/hosts",
@@ -1065,7 +1062,7 @@ func (s *integrationMDMTestSuite) TestListHostsSoftwareTitleIDFilter() {
 		http.StatusOK,
 		&listResp,
 		"team_id",
-		fmt.Sprint(team2.ID),
+		fmt.Sprint(team.ID),
 		"software_title_id",
 		fmt.Sprint(titleID),
 	)
