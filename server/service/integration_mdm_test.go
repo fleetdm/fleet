@@ -8859,6 +8859,8 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 			if ok && strings.Contains(s, "Assets may not be used when running Fleet as a library") {
 				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
 			}
+			// Re-panic anything other than the known assets-not-built panic so unexpected failures stay visible.
+			panic(panicVal)
 		}
 	}()
 	_, _ = bindata.Asset("check if assets are build")
@@ -8888,6 +8890,8 @@ func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
 			if ok && strings.Contains(s, "Assets may not be used when running Fleet as a library") {
 				t.Skip("skipping, test will fail due to assets not built (requires '-tags full')")
 			}
+			// Re-panic anything other than the known assets-not-built panic so unexpected failures stay visible.
+			panic(panicVal)
 		}
 	}()
 	_, _ = bindata.Asset("check if assets are build")
