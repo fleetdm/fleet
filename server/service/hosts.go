@@ -299,31 +299,15 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		titleID := *req.Opts.SoftwareTitleIDFilter
 
-		// 1. Try full title for this team.
-		// Needed in order to grab display_name if it exists
+		// Needed in order to grab display_name if it exists. If the title is
+		// out of the caller's team scope, SoftwareTitleByID returns NotFound;
+		// leave softwareTitle unset rather than falling back to an unscoped
+		// lookup, which would leak the title's name across teams.
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:
-			fmt.Println("regular")
 			softwareTitle = st
-
 		case fleet.IsNotFound(err):
-			// Not found: only ID + Name as string from helper.
-			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
-			if errName != nil && !fleet.IsNotFound(errName) {
-				return listHostsResponse{Err: errName}, nil
-			}
-			if errName == nil {
-				fmt.Println("here")
-				softwareTitle = &fleet.SoftwareTitle{
-					ID: titleID,
-				}
-				if displayName != "" {
-					softwareTitle.DisplayName = displayName
-				} else {
-					softwareTitle.Name = name
-				}
-			}
 		default:
 			return listHostsResponse{Err: err}, nil
 		}

@@ -5929,6 +5929,67 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	assert.Empty(t, resp.Software)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	// create 2 teams
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	// create 1 host on team1
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "h1"),
+		NodeKey:         new(t.Name() + "h1"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h1.local",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Install software only on h1 (team1).
+	testSw := fleet.Software{Name: "UniqueTitleApp", Version: "3.4.5", Source: "apps", BundleIdentifier: "com.unique.titleapp"}
+	_, err = s.ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, h1, false))
+	require.Len(t, h1.Software, 1)
+	require.NotNil(t, h1.Software[0].TitleID)
+	titleID := *h1.Software[0].TitleID
+
+	// Sync title host counts so the team-scoped SoftwareTitleByID query (used
+	// to enrich the in-scope response below) can find the title for team1.
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Filtering team1 (in-scope) by the software title returns the host and the title's name.
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
+	require.NotNil(t, resp.SoftwareTitle)
+	assert.Equal(t, testSw.Name, resp.SoftwareTitle.Name)
+
+	// Filtering team2 (out-of-scope: the title isn't installed on any host on
+	// this team) must not leak the title's name/display_name — software_title
+	// should be omitted entirely, not backfilled from an unscoped lookup.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team2.ID),
+	)
+	require.Empty(t, resp.Hosts)
+	assert.Nil(t, resp.SoftwareTitle)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	t := s.T()
 
