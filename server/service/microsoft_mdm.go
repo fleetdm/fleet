@@ -1238,15 +1238,12 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 // is reflected into a window.location assignment in the TOS page, so only schemes that cannot execute script are
 // allowed. The legitimate Autopilot/Entra enrollment flow hands control back to the native Azure AD broker via the
 // ms-appx-web scheme (e.g. ms-appx-web://Microsoft.AAD.BrokerPlugin); https covers browser-based federated flows.
-// Schemes such as javascript, data, and vbscript are rejected to prevent reflected XSS (issue #16880).
 var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
 	"https":       {},
 	"ms-appx-web": {},
 }
 
-// windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page. It parses
-// the URI and allows only the schemes in allowedWindowsTOSRedirectSchemes, rejecting script-executing schemes
-// (javascript:, data:, vbscript:) as well as malformed or scheme-less values.
+// windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page.
 func windowsTOSRedirectURIAllowed(redirectURI string) bool {
 	parsed, err := url.Parse(redirectURI)
 	if err != nil {
@@ -1262,8 +1259,7 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	svc.authz.SkipAuthorization(ctx)
 
 	// redirectUri is reflected into a window.location assignment in the TOS page template, so validate its scheme to
-	// prevent reflected XSS via javascript:/data:/vbscript: URLs. The legitimate Autopilot/Entra flow uses an
-	// ms-appx-web:// broker callback, so we allow-list safe schemes rather than forcing https (issue #16880).
+	// prevent reflected XSS via javascript:/data:/vbscript: URLs.
 	if !windowsTOSRedirectURIAllowed(redirectUri) {
 		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
 	}
