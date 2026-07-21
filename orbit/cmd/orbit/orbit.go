@@ -251,6 +251,11 @@ func main() {
 			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
+		&cli.BoolFlag{
+			Name:    "bypass-end-user-auth",
+			Usage:   "Bypasses end-user authentication during enrollment on Linux and Windows (e.g. when the user already authenticated via Autopilot)",
+			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -1187,6 +1192,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		signerWrapper,
 		hostIdentityCertificatePath,
+		c.Bool("bypass-end-user-auth"),
 	)
 	if err != nil {
 		return fmt.Errorf("error new orbit client: %w", err)
@@ -1448,6 +1454,7 @@ func orbitAction(c *cli.Context) error {
 		},
 		nil,
 		"",
+		c.Bool("bypass-end-user-auth"),
 	)
 	if err != nil {
 		return fmt.Errorf("new client for capabilities checker: %w", err)

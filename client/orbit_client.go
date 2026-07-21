@@ -201,6 +201,8 @@ var (
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
 //   - onGetConfigErrFns can be used to handle errors in the GetConfig request.
+//   - bypassEndUserAuth, when true, omits the end-user auth capability so the server enrolls the
+//     host without prompting for end-user authentication (only meaningful on Linux and Windows).
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -212,8 +214,15 @@ func NewOrbitClient(
 	onGetConfigErrFns *OnGetConfigErrFuncs,
 	httpSignerWrapper func(*http.Client) *http.Client,
 	hostIdentityCertPath string,
+	bypassEndUserAuth bool,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
+	if bypassEndUserAuth {
+		// Don't advertise the end-user auth capability so the Fleet server enrolls this host
+		// without prompting for end-user authentication (e.g. the user already authenticated
+		// via Autopilot/Intune). See https://github.com/fleetdm/fleet/issues/46644.
+		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
+	}
 	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
 	if err != nil {
 		return nil, err
