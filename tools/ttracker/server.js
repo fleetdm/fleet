@@ -226,6 +226,30 @@ function getHistorySessionIds() {
 
 // ─── Park Logic ──────────────────────────────────────────────────────────────
 
+async function focusSession(itermUuid) {
+  try {
+    await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        set win to window w
+        repeat with t from 1 to (count of tabs of win)
+            repeat with s from 1 to (count of sessions of tab t of win)
+                set sess to session s of tab t of win
+                if (unique ID of sess) is "${itermUuid}" then
+                    select win
+                    return "focused"
+                end if
+            end repeat
+        end repeat
+    end repeat
+    return "not found"
+end tell`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 async function parkSession(itermUuid) {
   const snapshot = readJSON(LATEST_FILE);
   if (!snapshot) return { ok: false, error: 'No snapshot' };
@@ -371,6 +395,14 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // POST /api/focus/:iterm_uuid
+  if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'focus' && pathParts[2]) {
+    const result = await focusSession(decodeURIComponent(pathParts[2]));
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
   // POST /api/park/:iterm_uuid
   if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'park' && pathParts[2]) {
     const result = await parkSession(decodeURIComponent(pathParts[2]));
@@ -506,6 +538,12 @@ function getDashboardHTML() {
     transition: all 0.15s;
   }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-focus {
+    background: #fdf6e3;
+    color: #859900;
+    border-color: #859900;
+  }
+  .btn-focus:hover:not(:disabled) { background: #f0f5e3; }
   .btn-park {
     background: #fdf6e3;
     color: #b58900;
@@ -550,7 +588,7 @@ function getDashboardHTML() {
       <th>Process</th>
       <th>Claude Session</th>
       <th>Status</th>
-      <th style="width:100px">Action</th>
+      <th style="width:150px">Action</th>
     </tr>
   </thead>
   <tbody id="active-body"></tbody>
@@ -618,7 +656,8 @@ function renderActive(data) {
   el.innerHTML = claudeSessions.map((s, i) => {
     let action = '';
     if (s.status === 'running') {
-      action = '<button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
+      action = '<button class="btn btn-focus" onclick="focusSession(\\'' + s.iterm_uuid + '\\')">Focus</button> '
+        + '<button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
     } else if (s.status === 'missing') {
       action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>';
     }
@@ -667,6 +706,10 @@ async function refresh() {
 async function forceSnapshot() {
   await fetch(API + '/api/snapshot', { method: 'POST' });
   await refresh();
+}
+
+async function focusSession(itermUuid) {
+  await fetch(API + '/api/focus/' + encodeURIComponent(itermUuid), { method: 'POST' });
 }
 
 async function parkSession(itermUuid) {
