@@ -1,1 +1,1 @@
-- Added a `--bypass-end-user-auth` flag to `fleetctl package` that configures the generated fleetd installer to skip the end-user authentication prompt during enrollment on Linux and Windows hosts (e.g. when the end user already authenticated via another MDM).
+- Added a `--bypass-end-user-auth` flag to `fleetctl package` that configures the generated fleetd installer to skip the end-user authentication prompt during enrollment on Linux and Windows hosts (e.g. when the end user already authenticated via another MDM). Requires fleetd v1.60.0 or higher.
