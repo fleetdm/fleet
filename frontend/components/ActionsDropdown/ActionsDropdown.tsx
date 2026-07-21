@@ -102,6 +102,7 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
   const optionContent = (
     <div
       className={`${baseClass}__option`}
+      data-testid="dropdown-option"
       ref={innerRef}
       tabIndex={isDisabled ? -1 : 0} // Tabbing skipped when disabled
       aria-disabled={isDisabled}
