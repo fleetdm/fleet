@@ -4367,10 +4367,10 @@ type releaseABDevicesRequest struct {
 
 type releaseABDevicesResponse struct {
 	Results []*fleet.ABReleaseDeviceResponse `json:"results"`
+	Err     error                            `json:"error,omitempty"`
 }
 
-// We never return an error, as it can be partial success/failure, so it's up to the caller to check each passed ID's result.
-func (r releaseABDevicesResponse) Error() error { return nil }
+func (r releaseABDevicesResponse) Error() error { return r.Err }
 
 func releaseABDevicesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*releaseABDevicesRequest)

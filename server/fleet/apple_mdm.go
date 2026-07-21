@@ -728,7 +728,7 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
-	// HardwareSerial is the hardware serial number of the host. Empty in JSON to avoid overpopulating old responses
+	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
 	HardwareSerial string `db:"hardware_serial" json:"-"`
 }
 

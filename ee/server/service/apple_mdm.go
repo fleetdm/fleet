@@ -385,6 +385,16 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 }
 
 func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	user := authz.UserFromContext(ctx)
+	if user == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewAuthRequiredError("user not found in context")
+	}
+
+	if !user.IsAnyAdmin() {
+		return nil, authz.ForbiddenWithInternal("release AB devices requires an admin role", user, nil, fleet.ActionWrite)
+	}
+
 	if len(hostIDs) > 32_000 {
 		svc.authz.SkipAuthorization(ctx)
 		// Arbitrary limit, Apple does not document what a fair limit is.

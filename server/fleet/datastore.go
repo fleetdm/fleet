@@ -1614,7 +1614,7 @@ type Datastore interface {
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
 
 	// GetHostDEPAssignmentsByHostIDs returns the DEP assignments for the hosts with the specified host IDs,
-	//  deleted_at IS NULL, hardware_serial NOT EMPTY, and a valid ABM token reference.
+	// and deleted_at IS NULL.
 	GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs []uint) ([]*HostDEPAssignment, error)
 
 	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
