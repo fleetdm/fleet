@@ -274,6 +274,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	HostNameTemplate optjson.String `json:"name_template"`
+
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -1930,9 +1932,6 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 	// AllowDisableTelemetry allows specific customers to not send analytics
 	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
-	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
-	// Currently only used to display UI features only present on cloud instances.
-	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {

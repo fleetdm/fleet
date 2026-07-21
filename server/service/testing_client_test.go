@@ -476,6 +476,21 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+// LoginMDMSSOUserSetupExperience drives the Orbit Setup Experience MDM SSO flow
+// (Linux/Windows), which carries the device's host UUID through the SSO request
+// data. This exercises the mdmSSOHandleCallbackAuth path that persists the IdP
+// account for a known host, unlike LoginMDMSSOUser (Apple flow) where the host
+// UUID is not yet known. Returns the callback response (a redirect).
+func (ts *withServer) LoginMDMSSOUserSetupExperience(username, password, hostUUID string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{
+		Initiator: fleet.SSOInitiatorOrbitSetupExperience,
+		HostUUID:  hostUUID,
+	})
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
 // LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
 // /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
 // SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
@@ -878,6 +893,9 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	if payload.TeamID != nil {
 		require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", *payload.TeamID)))
 	}
+	if payload.TitleID != nil {
+		require.NoError(t, w.WriteField("software_title_id", fmt.Sprintf("%d", *payload.TitleID)))
+	}
 	// add the remaining fields
 	require.NoError(t, w.WriteField("install_script", payload.InstallScript))
 	require.NoError(t, w.WriteField("pre_install_query", payload.PreInstallQuery))
@@ -956,6 +974,9 @@ func (ts *withServer) updateSoftwareInstaller(
 		tmID = *payload.TeamID
 	}
 	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	if payload.InstallerID != 0 {
+		require.NoError(t, w.WriteField("installer_id", fmt.Sprintf("%d", payload.InstallerID)))
+	}
 	// add the remaining fields
 	if payload.InstallScript != nil {
 		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))

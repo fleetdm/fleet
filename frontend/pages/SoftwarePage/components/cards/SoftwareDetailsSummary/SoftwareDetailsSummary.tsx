@@ -25,7 +25,10 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
+import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
@@ -201,6 +204,10 @@ interface ISoftwareDetailsSummaryProps {
   /** Apple VPP — gates Edit software behind the gitops tooltip. See
    * `BuildActionOptionsArgs.isAppleVpp` for the canonical computation. */
   isAppleVpp?: boolean;
+  /** Custom non-FMA packages collapse the Actions dropdown into a single
+   * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
+   * Per-installer Edit lives on the Library accordion row. */
+  useSingleEditAppearanceButton?: boolean;
 }
 
 const SoftwareDetailsSummary = ({
@@ -226,6 +233,7 @@ const SoftwareDetailsSummary = ({
   patchPolicyId,
   headerPills,
   isAppleVpp = false,
+  useSingleEditAppearanceButton = false,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -256,8 +264,8 @@ const SoftwareDetailsSummary = ({
     }
   };
 
-  // Remove host count for tgz_packages, sh_packages, and ps1_packages only
-  // or if viewing details summary from edit icon preview modal
+  // Remove host count for sources without version/host data (tgz and script
+  // packages) or if viewing details summary from edit icon preview modal
   const showHostCount =
     !!hostCount && !NO_VERSION_OR_HOST_DATA_SOURCES.includes(source || "");
 
@@ -329,15 +337,35 @@ const SoftwareDetailsSummary = ({
           </h1>
           {canManageSoftware && (
             <div className={`${baseClass}__actions-wrapper`}>
-              <DropdownWrapper
-                className={`${baseClass}__actions-dropdown`}
-                name="software-actions"
-                onChange={onSelectSoftwareAction}
-                placeholder="Actions"
-                options={actionOptions}
-                variant="button"
-                nowrapMenu
-              />
+              {useSingleEditAppearanceButton ? (
+                // GitOps mode wraps the button so hover surfaces the
+                // "Managed by GitOps" tooltip + repo link, mirroring how the
+                // Actions dropdown's items are disabled with the same tip.
+                <GitOpsModeTooltipWrapper
+                  entityType="software"
+                  position="top"
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      variant="inverse"
+                      onClick={onClickEditAppearance}
+                      disabled={disableChildren || !onClickEditAppearance}
+                    >
+                      <Icon name="pencil" />
+                      Edit
+                    </Button>
+                  )}
+                />
+              ) : (
+                <DropdownWrapper
+                  className={`${baseClass}__actions-dropdown`}
+                  name="software-actions"
+                  onChange={onSelectSoftwareAction}
+                  placeholder="Actions"
+                  options={actionOptions}
+                  variant="button"
+                  nowrapMenu
+                />
+              )}
             </div>
           )}
           <dl className={`${baseClass}__description-list`}>

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.6.7",
+      "version": "1.6.122",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow' AND version_compare(bundle_short_version, '1.6.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.wispr-flow' AND version_compare(bundle_short_version, '1.6.122') < 0);"
       },
-      "installer_url": "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.6.7.dmg",
+      "installer_url": "https://dl.wisprflow.com/wispr-flow/darwin/arm64/dmgs/Flow-v1.6.122.dmg",
       "install_script_ref": "3a49fcfd",
       "uninstall_script_ref": "e0cf2e96",
-      "sha256": "9bc84506abf094a545d0943c611ce83858ab8c18a196ffcd3b2fcf87c3cea506",
+      "sha256": "0762e5fcc14710c7201d2d965ef573d08b804d681d2dc0ba55b690ef7ebf6de8",
       "default_categories": [
         "Productivity"
       ]

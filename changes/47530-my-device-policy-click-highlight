@@ -1,0 +1,1 @@
+- Removed the blue active-state background flash when clicking a row in a single-select data table (e.g., **My device > Policies**).
