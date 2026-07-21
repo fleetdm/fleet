@@ -4,17 +4,17 @@
 
 ## Prerequisites
 
-<!-- Heading may instead be "Requirements," "What you'll need," or "Before you begin" — pick one, keep it consistent within the guide. -->
+<!-- Heading may instead be "Requirements," "What you'll need," or "Before you begin." Pick one, keep it consistent within the guide. -->
 
 Check these before you start:
 
-- [Concrete, checkable requirement — version, access level, or artifact in hand]
+- [Concrete, checkable requirement: version, access level, or artifact in hand]
 - [Another requirement. Gate by version inline if needed: "Fleet v4.86 or earlier: do X. Fleet v4.87 or later: no action needed."]
 
 <!-- If there's a mistake that's costly or hard to undo, flag it here as a callout, not just a bullet: -->
 > **Warning:** [What goes wrong, and how to avoid it. Keep it to the risk that matters most.]
 
-## [First action, as an imperative heading — e.g. "Create a recipe override"]
+## [First action, as an imperative heading, e.g. "Create a recipe override"]
 
 [One or two sentences of setup, then the command or click-path.]
 
@@ -59,11 +59,14 @@ Check these before you start:
 
 ## Further reading
 
-<!-- Optional. Rename to "Related resources" or "Get help" if that fits the content better — "Get help" for community-maintained tools without official support. -->
+<!-- Optional. Rename to "Related resources" or "Get help" if that fits the content better. Use "Get help" for community-maintained tools without official support. -->
 
 - [Link with descriptive text, not "here"]
 - [Another link]
 
+<!-- Required. Every guide ships with all six tags below. Fill in articleTitle and description
+     yourself; ask the author for authorFullName, authorGitHubUsername, and publishedOn rather
+     than guessing. Never delete this block. -->
 <meta name="articleTitle" value="[Must match the H1 exactly]">
 <meta name="authorFullName" value="[author name]">
 <meta name="authorGitHubUsername" value="[github username]">
