@@ -34,7 +34,7 @@ describe("FleetsDropdown - component", () => {
   it("renders the given selected fleet from selectedFleetId", () => {
     render(
       <FleetsDropdown
-        currentUserTeams={USER_FLEETS}
+        currentUserFleets={USER_FLEETS}
         selectedFleetId={1}
         onChange={noop}
       />
@@ -46,7 +46,7 @@ describe("FleetsDropdown - component", () => {
   it("renders the first fleet option when includeAllFleets is false and when no selectedFleetId is given", () => {
     render(
       <FleetsDropdown
-        currentUserTeams={USER_FLEETS}
+        currentUserFleets={USER_FLEETS}
         includeAllFleets={false}
         onChange={noop}
       />
@@ -56,7 +56,7 @@ describe("FleetsDropdown - component", () => {
   });
 
   it("renders 'All fleets' when no selectedFleetId is given", () => {
-    render(<FleetsDropdown currentUserTeams={USER_FLEETS} onChange={noop} />);
+    render(<FleetsDropdown currentUserFleets={USER_FLEETS} onChange={noop} />);
 
     expect(getTrigger(/All fleets/)).toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe("FleetsDropdown - component", () => {
       (t) => t.id > APP_CONTEXT_NO_TEAM_ID
     );
     render(
-      <FleetsDropdown currentUserTeams={withoutAllFleets} onChange={noop} />
+      <FleetsDropdown currentUserFleets={withoutAllFleets} onChange={noop} />
     );
 
     expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />
@@ -107,7 +107,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
-          currentUserTeams={MANY_FLEETS}
+          currentUserFleets={MANY_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />
@@ -121,7 +121,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
-          currentUserTeams={MANY_FLEETS}
+          currentUserFleets={MANY_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />
@@ -145,7 +145,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
-          currentUserTeams={MANY_FLEETS}
+          currentUserFleets={MANY_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />
@@ -163,7 +163,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       render(
         <FleetsDropdown
-          currentUserTeams={MANY_FLEETS}
+          currentUserFleets={MANY_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />
@@ -203,7 +203,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />,
@@ -220,7 +220,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />,
@@ -239,7 +239,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={MANY_FLEETS}
+          currentUserFleets={MANY_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />,
@@ -258,7 +258,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />,
@@ -285,7 +285,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
           asFormField
@@ -303,7 +303,7 @@ describe("FleetsDropdown - component", () => {
       const user = userEvent.setup();
       renderWithAppContext(
         <FleetsDropdown
-          currentUserTeams={USER_FLEETS}
+          currentUserFleets={USER_FLEETS}
           selectedFleetId={1}
           onChange={noop}
         />,

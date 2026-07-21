@@ -404,7 +404,7 @@ const TeamDetailsWrapper = ({
             ) : (
               <FleetsDropdown
                 selectedFleetId={currentTeamId}
-                currentUserTeams={userTeams || []}
+                currentUserFleets={userTeams || []}
                 isDisabled={isLoadingTeams}
                 includeAllFleets={false}
                 onChange={handleTeamChange}

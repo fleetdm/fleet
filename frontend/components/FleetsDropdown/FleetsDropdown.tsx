@@ -104,7 +104,7 @@ const filterOptionsBySearch = (
 const NAV_KEYS = new Set(["ArrowDown", "ArrowUp", "Enter", "Escape"]);
 
 interface IFleetsDropdownProps {
-  currentUserTeams: ITeamSummary[];
+  currentUserFleets: ITeamSummary[];
   selectedFleetId?: number;
   includeAllFleets?: boolean;
   includeUnassigned?: boolean;
@@ -271,7 +271,7 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
 };
 
 const FleetsDropdown = ({
-  currentUserTeams,
+  currentUserFleets,
   selectedFleetId,
   includeAllFleets = true,
   includeUnassigned = false,
@@ -302,11 +302,11 @@ const FleetsDropdown = ({
   const fleetOptions: INumberDropdownOption[] = useMemo(
     () =>
       generateDropdownOptions(
-        currentUserTeams,
+        currentUserFleets,
         includeAllFleets,
         includeUnassigned
       ),
-    [currentUserTeams, includeAllFleets, includeUnassigned]
+    [currentUserFleets, includeAllFleets, includeUnassigned]
   );
 
   const filteredOptions = useMemo(

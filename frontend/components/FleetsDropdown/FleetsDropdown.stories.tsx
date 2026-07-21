@@ -57,7 +57,7 @@ const meta: Meta<typeof FleetsDropdown> = {
   title: "Components/FleetsDropdown",
   component: FleetsDropdown,
   args: {
-    currentUserTeams: FLEETS_MANY,
+    currentUserFleets: FLEETS_MANY,
     includeUnassigned: true,
     onChange: noop,
   },
@@ -73,13 +73,13 @@ type Story = StoryObj<typeof FleetsDropdown>;
 
 export const FewFleetsAsAdmin: Story = {
   name: "Few fleets — global admin (no search, footer only)",
-  args: { currentUserTeams: FLEETS_FEW },
+  args: { currentUserFleets: FLEETS_FEW },
   decorators: [withAppContext(true)],
 };
 
 export const FewFleetsAsNonAdmin: Story = {
   name: "Few fleets — non-admin (no search, no footer)",
-  args: { currentUserTeams: FLEETS_FEW },
+  args: { currentUserFleets: FLEETS_FEW },
   decorators: [withAppContext(false)],
 };
 
@@ -89,13 +89,13 @@ export const FewFleetsAsNonAdmin: Story = {
 
 export const ManyFleetsAsAdmin: Story = {
   name: "Many fleets — global admin (search + footer, no scroll)",
-  args: { currentUserTeams: FLEETS_MANY },
+  args: { currentUserFleets: FLEETS_MANY },
   decorators: [withAppContext(true)],
 };
 
 export const ManyFleetsAsNonAdmin: Story = {
   name: "Many fleets — non-admin (search only, no scroll)",
-  args: { currentUserTeams: FLEETS_MANY },
+  args: { currentUserFleets: FLEETS_MANY },
   decorators: [withAppContext(false)],
 };
 
@@ -105,13 +105,13 @@ export const ManyFleetsAsNonAdmin: Story = {
 
 export const ScrollableAsAdmin: Story = {
   name: "Scrollable list — global admin (search + fade + footer)",
-  args: { currentUserTeams: FLEETS_SCROLLABLE },
+  args: { currentUserFleets: FLEETS_SCROLLABLE },
   decorators: [withAppContext(true)],
 };
 
 export const ScrollableAsNonAdmin: Story = {
   name: "Scrollable list — non-admin (search + fade only)",
-  args: { currentUserTeams: FLEETS_SCROLLABLE },
+  args: { currentUserFleets: FLEETS_SCROLLABLE },
   decorators: [withAppContext(false)],
 };
 
@@ -122,7 +122,7 @@ export const ScrollableAsNonAdmin: Story = {
 export const AsFormField: Story = {
   name: "As form field (Save as new report modal)",
   args: {
-    currentUserTeams: FLEETS_MANY,
+    currentUserFleets: FLEETS_MANY,
     asFormField: true,
     includeAllFleets: false,
     selectedFleetId: 1,
@@ -132,7 +132,7 @@ export const AsFormField: Story = {
 
 export const Disabled: Story = {
   args: {
-    currentUserTeams: FLEETS_MANY,
+    currentUserFleets: FLEETS_MANY,
     isDisabled: true,
   },
   decorators: [withAppContext(true)],
@@ -141,7 +141,7 @@ export const Disabled: Story = {
 export const LongFleetName: Story = {
   name: "Long fleet name (trigger + option truncation)",
   args: {
-    currentUserTeams: [
+    currentUserFleets: [
       { id: -1, name: "All fleets" },
       {
         id: 1,

@@ -21,7 +21,7 @@ const TeamsHeader = ({
     if (userTeams.length > 1 || isOnGlobalTeam) {
       return (
         <FleetsDropdown
-          currentUserTeams={userTeams}
+          currentUserFleets={userTeams}
           selectedFleetId={currentTeamId}
           onChange={onTeamChange}
           includeUnassigned

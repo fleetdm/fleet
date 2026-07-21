@@ -203,7 +203,7 @@ const SaveAsNewQueryModal = ({
             <div className="form-field__label">Fleet</div>
             <FleetsDropdown
               asFormField
-              currentUserTeams={userTeams || []}
+              currentUserFleets={userTeams || []}
               selectedFleetId={formData.team.id}
               onChange={onTeamChange}
             />

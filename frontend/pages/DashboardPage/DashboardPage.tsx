@@ -900,7 +900,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           return (
             <FleetsDropdown
               selectedFleetId={currentTeamId}
-              currentUserTeams={userTeams}
+              currentUserFleets={userTeams}
               onChange={handleTeamChange}
             />
           );

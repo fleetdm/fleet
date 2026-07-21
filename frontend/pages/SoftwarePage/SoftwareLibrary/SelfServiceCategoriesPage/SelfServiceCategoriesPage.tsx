@@ -144,7 +144,7 @@ const SelfServiceCategoriesPage = ({
       {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
           <FleetsDropdown
-            currentUserTeams={userTeams ?? []}
+            currentUserFleets={userTeams ?? []}
             selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
             includeAllFleets={false}
