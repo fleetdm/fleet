@@ -312,7 +312,7 @@ environments:
   # Fleet's macOS MDM features.  In a production environment, it is recommended that
   # you store this private key in a secret and use envsFrom to reference the secret below.
   # Leave this as an empty string (the default) when providing the key via
-  # envsFrom above -- entries left empty here are omitted from the rendered
+  # envsFrom below -- entries left empty here are omitted from the rendered
   # env list, so there won't be a duplicate/conflicting entry for the same
   # name.
   # For more information, check out the docs: https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key

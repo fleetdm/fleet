@@ -440,7 +440,7 @@ spec:
           # empty default here, which server-side apply rejects as a
           # duplicate env entry.
           {{- range $key, $value := .Values.environments }}
-          {{- if not (empty $value) }}
+          {{- if and (ne (kindOf $value) "invalid") (or (ne (kindOf $value) "string") (ne $value "")) }}
           - name: {{ $key }}
             value: {{ $value | quote }}
           {{- end }}
