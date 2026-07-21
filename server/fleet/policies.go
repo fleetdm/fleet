@@ -131,9 +131,8 @@ type NewTeamPolicyPayload struct {
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	ContinuousAutomationsEnabled bool
-
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
-	PatchWhenClosed bool `json:"patch_when_closed" premium:"true"`
+	PatchWhenClosed bool
 }
 
 var (
@@ -355,7 +354,6 @@ type ModifyPolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
-
 	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
 	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
 }

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/stretchr/testify/require"
 )
 
@@ -215,10 +214,11 @@ func TestIngestValidations(t *testing.T) {
 				)
 			}
 
-			// The managed "is app open" query is generated from the bundle identifier.
-			expectedOpen, err := patch_policy.GenerateOpenQuery("darwin", out.Name, out.UniqueIdentifier)
-			require.NoError(t, err)
-			require.Equal(t, expectedOpen, out.Queries.Open)
+			// The managed "is app open" query matches a running process inside the app bundle.
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%%') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier),
+				out.Queries.Open,
+			)
 		})
 	}
 }

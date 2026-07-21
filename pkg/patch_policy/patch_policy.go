@@ -167,7 +167,7 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 	// match any process running from inside that path.
 	// alternatives considered:
 	// - get processes by name - requires a lot of manual overrides
-	// - use the running_apps table - not reliable when ran through orbit
+	// - use the running_apps table - not reliable when run through orbit
 	// - use the "app" artifact in the homebrew cask - requires extra code to extract
 	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%%') WHERE a.bundle_identifier = '%s');"
 	return fmt.Sprintf(openTemplate, bundleIdentifier)
