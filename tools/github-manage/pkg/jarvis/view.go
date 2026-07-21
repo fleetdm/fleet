@@ -34,7 +34,7 @@ func (m Model) View() string {
 	case stateError:
 		return "\n" + errStyle.Render("  Jarvis hit an error.") + "\n" +
 			fmt.Sprintf("  %v\n\n", m.err) +
-			dimStyle.Render("  Check `gh auth status` and your network, then press r to retry · q to quit") + "\n"
+			dimStyle.Render("  Check `gh auth status` and your network, then press R to retry · q to quit") + "\n"
 	}
 	if m.focusView {
 		return m.renderFocus()
@@ -125,7 +125,7 @@ func (m Model) renderBoard() string {
 	title := fmt.Sprintf("🎩 Jarvis · @%s · %d shown · %s %s",
 		m.login, m.filtered.Total(), when, m.lastRefresh.Format("15:04:05"))
 	if m.fromCache {
-		title += " (r to refresh)"
+		title += " (R to refresh)"
 	}
 	b.WriteString(titleBarStyle.Render(title))
 	b.WriteString("\n")
@@ -395,7 +395,7 @@ func (m Model) footer() string {
 		return m.startWorkFooter()
 	default:
 		if m.focusView {
-			nav := "↑/↓ move · g/G top/bottom · enter open · J jump · b project · f board-view · r/R refresh(all/one) · q quit"
+			nav := "↑/↓ move · g/G top/bottom · enter open · J jump · b project · f board-view · r/R refresh(one/all) · q quit"
 			actions := "w start · v in-review · m merge · M merge+cherry-pick · a awaiting-qa · p unpin"
 			return dimStyle.Render(nav) + "\n" + dimStyle.Render(actions)
 		}
@@ -407,7 +407,7 @@ func (m Model) footer() string {
 			}
 			hidden = dimStyle.Render(fmt.Sprintf(" · %d hidden (H to %s)", m.hidden, state))
 		}
-		nav := "↑/↓ move · g/G top/bottom · enter open · b project · f focus · J jump · r/R refresh(all/one) · q quit"
+		nav := "↑/↓ move · g/G top/bottom · enter open · b project · f focus · J jump · r/R refresh(one/all) · q quit"
 		actions := "w start · v review · m merge · M merge+cp · p pin · c comment · s snooze · d dismiss · x done · u clear"
 		return dimStyle.Render(nav) + hidden + "\n" + dimStyle.Render(actions)
 	}

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"fleetdm/gm/pkg/ghapi"
 )
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -60,8 +62,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// Record the authoritative link, auto-pin, and reflect the new status now.
-		m.links.Set(msg.issue, Link{ClonePath: msg.clonePath, Branch: msg.branch, Project: msg.project})
-		_ = m.links.Save()
+		// SetAndSave merges with disk so a sibling jarvis instance can see this branch
+		// is started locally (and we don't clobber links it wrote).
+		_ = m.links.SetAndSave(msg.issue, Link{ClonePath: msg.clonePath, Branch: msg.branch, Project: msg.project})
 		m.focus.Add(msg.issue)
 		_ = m.focus.Save()
 		if msg.statusSet != "" {
@@ -105,7 +108,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.kind {
 		case KindPR:
 			if msg.pr != nil {
-				m.replacePR(*msg.pr)
+				switch {
+				case msg.forIssue != 0 && msg.pr.IsDone():
+					// Merged/closed PR found by branch — record it against the issue
+					// (kept off the board) so it shows as merged, ready for QA.
+					if m.mergedPRs == nil {
+						m.mergedPRs = map[int]*ghapi.PullRequest{}
+					}
+					m.mergedPRs[msg.forIssue] = msg.pr
+				default:
+					m.replacePR(*msg.pr)
+				}
 			}
 		case KindIssue:
 			m.statuses[msg.number] = msg.status
@@ -126,10 +139,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.noticeErr = false
 		return m, nil
 
+	case projectRefreshedMsg:
+		if msg.err != nil {
+			m.notice = fmt.Sprintf("refresh project failed: %s", truncate(firstLine(msg.err.Error()), 80))
+			m.noticeErr = true
+			return m, nil
+		}
+		m.replaceProjectView(msg)
+		m.autoMarkCompleted()
+		m.rebuild()
+		_ = SaveCache(m.cachePath, m.currentFetchResult())
+		m.notice = fmt.Sprintf("refreshed %s ✓", msg.title)
+		m.noticeErr = false
+		return m, nil
+
 	case sessionReturnedMsg:
 		// Returned from a Claude session jarvis launched/resumed. Don't hit GitHub —
-		// just drop back to the cached loadout we already have in memory (press r to
-		// refresh when you actually want fresh data).
+		// just drop back to the cached loadout we already have in memory (press R to
+		// refresh everything when you actually want fresh data).
 		m.state = stateLoaded
 		return m, nil
 
@@ -182,12 +209,12 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 
-	case "r":
+	case "R":
 		m.state = stateLoading
 		m.err = nil
 		return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
 
-	case "R":
+	case "r":
 		// Small refresh: re-fetch only the highlighted item's data (no full pull).
 		if m.focusView {
 			if w, ok := m.currentWork(); ok {
@@ -197,8 +224,8 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				case w.PR != nil:
 					cmds = append(cmds, refreshPRCmd(m.repo, w.PR.Number))
 				case w.Branch != "":
-					// No PR linked yet — look for one opened since the last full fetch.
-					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch))
+					// No PR linked yet — look for one opened/merged since the last full fetch.
+					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, w.Number))
 				}
 				return m, tea.Batch(cmds...)
 			}
@@ -216,11 +243,14 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				// No PR linked yet but we know the branch — discover a PR opened
 				// since the last full fetch and inject it into the board.
 				if w.PR == nil && w.Branch != "" {
-					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch))
+					cmds = append(cmds, refreshPRByBranchCmd(m.repo, w.Branch, it.Number))
 				}
 				return m, tea.Batch(cmds...)
+			case KindProject:
+				m.notice = fmt.Sprintf("refreshing project %s…", it.Title)
+				return m, refreshProjectCmd(m.repo, it.Number, m.login, m.linkBranches())
 			default:
-				m.notice = "nothing to refresh here (r for a full refresh)"
+				m.notice = "nothing to refresh here (R for a full refresh)"
 			}
 		}
 
@@ -273,7 +303,7 @@ func (m *Model) handleNormalKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.notice = fmt.Sprintf("opening #%d's latest project (#%d)", w.Number, num)
 				return m, openURLCmd(m.orgProjectURL(num))
 			}
-			m.notice = fmt.Sprintf("#%d isn't on any known project (try r to refresh)", w.Number)
+			m.notice = fmt.Sprintf("#%d isn't on any known project (try R to refresh)", w.Number)
 			m.noticeErr = true
 			return m, nil
 		}

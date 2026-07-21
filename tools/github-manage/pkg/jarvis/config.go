@@ -28,6 +28,23 @@ func normalizeProjectName(s string) string {
 	return strings.ToLower(strings.TrimPrefix(strings.TrimSpace(s), "#"))
 }
 
+// projectHandle derives a clean, human-editable config entry from a project title.
+// Titles carry emoji/`#` prefixes (e.g. "🍎 #g-apple-at-work"); we take the text
+// after the first '#', else strip any leading non-letter/digit run (the emoji).
+// The result (e.g. "g-apple-at-work") resolves back via resolveProject's name match.
+func projectHandle(title string) string {
+	if i := strings.IndexByte(title, '#'); i >= 0 {
+		return strings.TrimSpace(title[i+1:])
+	}
+	t := strings.TrimSpace(title)
+	for i, r := range t {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return strings.TrimSpace(t[i:])
+		}
+	}
+	return t
+}
+
 // DefaultConfigPath returns ~/.config/gm/jarvis/config.json.
 func DefaultConfigPath() string {
 	return configPath("config.json")
@@ -43,6 +60,18 @@ func LoadConfig(path string) *Config {
 		c.CloneBaseDirs = []string{"~/projects"}
 	}
 	return c
+}
+
+// Save writes the config to disk as indented JSON, creating parent dirs as needed.
+func (c *Config) Save(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 // expandHome expands a leading ~ in a path to the user's home directory.

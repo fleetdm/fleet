@@ -2,6 +2,7 @@ package jarvis
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
@@ -70,6 +71,18 @@ func buildProjectViews(login, owner string, primary []string) (views []ProjectVi
 		}
 	}
 	return views, shown, projects, statuses
+}
+
+// RefreshProjectView reloads a single project's view live (its header, the issues
+// assigned to you, and the Ready-unassigned count) plus the status/project maps
+// for those issues. It's the per-project counterpart to buildProjectViews, backing
+// a targeted refresh so newly-assigned issues appear without a full pull.
+func RefreshProjectView(num int, owner, login string) (ProjectView, map[int]string, map[int]int) {
+	statuses := map[int]string{}
+	projects := map[int]int{}
+	orgProjects, _ := ghapi.ListOrgProjects(owner)
+	pv := loadProject(strconv.Itoa(num), owner, orgProjects, login, statuses, projects)
+	return pv, statuses, projects
 }
 
 // loadProject resolves one configured entry to a project and loads its items.

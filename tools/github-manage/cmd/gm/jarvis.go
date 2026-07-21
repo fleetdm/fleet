@@ -14,8 +14,8 @@ var jarvisCmd = &cobra.Command{
 leverage-ordered buckets: what's blocking others, what you can merge right now,
 what needs your hands, your review queue, and what's gone cold.
 
-Navigate with ↑/↓, open an item with enter, refresh everything with r or just
-the highlighted item with R. Press f for the
+Navigate with ↑/↓, open an item with enter, refresh the highlighted item with r
+or everything with R. Press f for the
 Focus view — an issue-centric card list of the work you've pinned, each showing
 its project Status, linked PR, Claude session, and the next step to take.
 
@@ -41,8 +41,8 @@ Sources:
   - issues assigned to you, with their project board Status
 
 Fetches are cached at ~/.config/gm/jarvis/cache.json; jarvis opens instantly
-from a cache younger than 4h (press r to refresh, or pass --no-cache to force a
-live pull on startup).
+from a cache younger than 4h (press R to refresh everything, or pass --no-cache to
+force a live pull on startup).
 
 Local clones for "start work" are discovered under the directories in
 ~/.config/gm/jarvis/config.json (clone_base_dirs; defaults to ~/projects).`,
@@ -57,5 +57,5 @@ Local clones for "start work" are discovered under the directories in
 func init() {
 	jarvisCmd.Flags().StringP("repo", "R", ghapi.DefaultRepo, "Repository to scan (owner/name)")
 	jarvisCmd.Flags().IntP("limit", "l", 100, "Max items to fetch per source")
-	jarvisCmd.Flags().Bool("no-cache", false, "Ignore the cached fetch and pull live on startup (data is cached for 4h by default; press r to refresh anytime)")
+	jarvisCmd.Flags().Bool("no-cache", false, "Ignore the cached fetch and pull live on startup (data is cached for 4h by default; press R to refresh everything anytime)")
 }

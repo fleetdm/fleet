@@ -23,6 +23,10 @@ type FetchResult struct {
 	// LocalBranches maps a branch name → the local clone folder that has it, so
 	// the Project View can show where a branch lives.
 	LocalBranches map[string]string
+	// LinkedMergedPRs maps an issue number → its merged/closed PR, discovered by
+	// branch for Project View issues whose PR has dropped off the open list. Lets
+	// the issue keep showing its shipped PR (as merged) so it's clearly ready for QA.
+	LinkedMergedPRs map[int]*ghapi.PullRequest
 }
 
 // ProjectRef is a lightweight reference to a project an issue belongs to.
@@ -157,6 +161,43 @@ func dropFinishedNotificationItems(board *Board, repo string) {
 		}
 		board.Buckets[bk] = kept
 	}
+}
+
+// linkedMergedPRs finds, for each Project View issue with a recorded branch but no
+// open PR in the board, the merged/closed PR on that branch — so the issue keeps
+// showing its shipped PR (as merged) and is clearly ready to advance to QA.
+// Best-effort: branches already served by an open PR are skipped (that PR flows
+// through the normal bucket path), and lookups that error or find nothing are
+// simply omitted. Returns nil when nothing was found.
+func linkedMergedPRs(repo string, board Board, branchByIssue map[int]string) map[int]*ghapi.PullRequest {
+	openBranch := map[string]bool{}
+	for _, bk := range BucketOrder {
+		for _, it := range board.Buckets[bk] {
+			if it.Kind == KindPR && it.PR != nil && it.PR.HeadRefName != "" {
+				openBranch[it.PR.HeadRefName] = true
+			}
+		}
+	}
+	out := map[int]*ghapi.PullRequest{}
+	for _, it := range board.Buckets[BucketPrimary] {
+		if it.Kind != KindIssue {
+			continue
+		}
+		branch := branchByIssue[it.Number]
+		if branch == "" || openBranch[branch] {
+			continue
+		}
+		pr, ok, err := ghapi.GetPRByBranch(repo, branch)
+		if err != nil || !ok || !pr.IsDone() {
+			continue
+		}
+		prCopy := pr
+		out[it.Number] = &prCopy
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // repoOwner returns the owner segment of an "owner/name" repo string.

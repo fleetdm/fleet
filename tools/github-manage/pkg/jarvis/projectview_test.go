@@ -6,6 +6,59 @@ import (
 	"fleetdm/gm/pkg/ghapi"
 )
 
+func TestReplaceProjectView(t *testing.T) {
+	// Two projects in the Project View, plus the same issue #200 lingering in a
+	// leverage bucket from the last full fetch.
+	m := &Model{
+		board: Board{Buckets: map[Bucket][]Item{
+			BucketPrimary: {
+				{Kind: KindProject, Number: 108, Title: "apple"},
+				{Kind: KindIssue, Number: 100},
+				{Kind: KindProject, Number: 109, Title: "patching"},
+				{Kind: KindIssue, Number: 300},
+			},
+			BucketNeedsYourHands: {{Kind: KindIssue, Number: 200}},
+		}},
+		statuses: map[int]string{},
+		projects: map[int]int{},
+	}
+
+	// Refresh project 108: issue #100 stays and newly-assigned #200 appears.
+	m.replaceProjectView(projectRefreshedMsg{
+		project: 108,
+		header:  Item{Kind: KindProject, Number: 108, Title: "apple"},
+		issues: []Item{
+			{Kind: KindIssue, Number: 100},
+			{Kind: KindIssue, Number: 200},
+		},
+		statuses: map[int]string{200: "In progress"},
+		projects: map[int]int{200: 108},
+	})
+
+	primary := m.board.Buckets[BucketPrimary]
+	var gotNums []int
+	for _, it := range primary {
+		gotNums = append(gotNums, it.Number)
+	}
+	// project 108 segment refreshed (108,100,200), project 109 segment untouched (109,300).
+	want := []int{108, 100, 200, 109, 300}
+	if len(gotNums) != len(want) {
+		t.Fatalf("BucketPrimary = %v, want %v", gotNums, want)
+	}
+	for i := range want {
+		if gotNums[i] != want[i] {
+			t.Fatalf("BucketPrimary = %v, want %v", gotNums, want)
+		}
+	}
+	// #200 must be removed from the leverage bucket (no longer shown twice).
+	if len(m.board.Buckets[BucketNeedsYourHands]) != 0 {
+		t.Errorf("expected #200 dropped from NeedsYourHands, got %v", m.board.Buckets[BucketNeedsYourHands])
+	}
+	if m.statuses[200] != "In progress" || m.projects[200] != 108 {
+		t.Errorf("expected #200 status/project merged, got %q/%d", m.statuses[200], m.projects[200])
+	}
+}
+
 func TestNormalizeStatus(t *testing.T) {
 	cases := map[string]string{
 		"🥚 Ready":             "ready",

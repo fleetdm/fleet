@@ -63,6 +63,18 @@ func (s *LinkStore) Save() error {
 	return os.WriteFile(s.path, data, 0o644)
 }
 
+// Reload re-reads the store from disk, replacing the in-memory map. Disk is the
+// source of truth (every write is persisted immediately), so this lets one jarvis
+// instance pick up links written by another. A missing file yields an empty store.
+func (s *LinkStore) Reload() error {
+	fresh, err := LoadLinkStore(s.path)
+	if err != nil {
+		return err
+	}
+	s.Links = fresh.Links
+	return nil
+}
+
 // Get returns the link for an issue, if any.
 func (s *LinkStore) Get(issue int) (Link, bool) {
 	l, ok := s.Links[strconv.Itoa(issue)]
@@ -75,6 +87,16 @@ func (s *LinkStore) Set(issue int, l Link) {
 		s.Links = map[string]Link{}
 	}
 	s.Links[strconv.Itoa(issue)] = l
+}
+
+// SetAndSave records a link and persists it, merging with what's on disk first so
+// a concurrent jarvis instance's entries aren't clobbered. Since Save writes the
+// whole map, reloading disk before overlaying our entry preserves links other
+// instances wrote since we last read.
+func (s *LinkStore) SetAndSave(issue int, l Link) error {
+	_ = s.Reload() // best-effort: adopt other instances' entries before overlaying ours
+	s.Set(issue, l)
+	return s.Save()
 }
 
 // configPath joins a filename under ~/.config/gm/jarvis, falling back to the

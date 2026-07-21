@@ -2,9 +2,11 @@ package jarvis
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,8 +62,9 @@ type Model struct {
 	// Issue-centric overlay, rebuilt from the board + stores + cached statuses.
 	statuses      map[int]string
 	projects      map[int]int
-	issueProjects map[int][]ProjectRef // issue number → projects it's on (+ updatedAt)
-	localBranches map[string]string    // branch name → local clone folder that has it
+	issueProjects map[int][]ProjectRef       // issue number → projects it's on (+ updatedAt)
+	localBranches map[string]string          // branch name → local clone folder that has it
+	mergedPRs     map[int]*ghapi.PullRequest // issue number → merged/closed PR found by branch
 	work          []WorkItem
 	workByIssue   map[int]WorkItem
 
@@ -162,6 +165,9 @@ func (m *Model) applyFetch(res FetchResult) {
 	if res.LocalBranches != nil {
 		m.localBranches = res.LocalBranches
 	}
+	if res.LinkedMergedPRs != nil {
+		m.mergedPRs = res.LinkedMergedPRs
+	}
 	m.autoMarkCompleted()
 	m.rebuild()
 }
@@ -183,6 +189,12 @@ func (m *Model) key(it Item) string {
 // rebuild recomputes the filtered board and flat list from the raw board, the
 // triage store, and the show-hidden toggle.
 func (m *Model) rebuild() {
+	// Pick up links written by other jarvis instances (e.g. a branch started
+	// locally in a parallel session) so the issue-centric overlay reflects them
+	// without needing a PR to tie things together. Disk is authoritative.
+	if m.links != nil {
+		_ = m.links.Reload()
+	}
 	now := time.Now()
 	filtered := Board{Buckets: map[Bucket][]Item{}}
 	hidden := 0
@@ -209,7 +221,7 @@ func (m *Model) rebuild() {
 
 	// Rebuild the issue-centric overlay from the raw board + stores + cached
 	// statuses (cheap; no network) so pin/unpin and status writes reflect at once.
-	m.work = BuildWorkItems(m.board, m.links, m.focus, m.statuses, m.projects)
+	m.work = BuildWorkItems(m.board, m.links, m.focus, m.statuses, m.projects, m.mergedPRs)
 	m.workByIssue = make(map[int]WorkItem, len(m.work))
 	m.focusList = m.focusList[:0]
 	for _, w := range m.work {
@@ -305,6 +317,7 @@ func (m *Model) currentFetchResult() FetchResult {
 	return FetchResult{
 		Login: m.login, Board: m.board,
 		Statuses: m.statuses, Projects: m.projects, IssueProjects: m.issueProjects,
+		LocalBranches: m.localBranches, LinkedMergedPRs: m.mergedPRs,
 	}
 }
 
@@ -422,27 +435,146 @@ type statusWriteMsg struct {
 
 // itemRefreshedMsg carries fresh data for a single highlighted item (small refresh).
 type itemRefreshedMsg struct {
-	kind    Kind
-	number  int
-	pr      *ghapi.PullRequest // KindPR
-	status  string             // KindIssue
-	project int                // KindIssue
-	refs    []ProjectRef       // KindIssue
-	closed  bool               // KindIssue: the issue is closed on GitHub
-	err     error
+	kind     Kind
+	number   int
+	pr       *ghapi.PullRequest // KindPR
+	status   string             // KindIssue
+	project  int                // KindIssue
+	refs     []ProjectRef       // KindIssue
+	closed   bool               // KindIssue: the issue is closed on GitHub
+	forIssue int                // KindPR from a branch lookup: the issue it belongs to
+	err      error
+}
+
+// projectRefreshedMsg carries a single project's freshly reloaded view.
+type projectRefreshedMsg struct {
+	project   int
+	title     string
+	header    Item
+	issues    []Item
+	statuses  map[int]string
+	projects  map[int]int
+	mergedPRs map[int]*ghapi.PullRequest
+	err       error
+}
+
+// refreshProjectCmd reloads one project's view live: its assigned issues (so
+// newly-assigned ones appear), Ready-unassigned count, and the merged/closed PRs
+// linked to its issues by branch. Errors when the project can't be resolved.
+func refreshProjectCmd(repo string, project int, login string, branchByIssue map[int]string) tea.Cmd {
+	return func() tea.Msg {
+		owner := repoOwner(repo)
+		pv, statuses, projects := RefreshProjectView(project, owner, login)
+		if !pv.Resolved {
+			return projectRefreshedMsg{project: project, err: fmt.Errorf("could not resolve project %d", project)}
+		}
+		merged := map[int]*ghapi.PullRequest{}
+		for _, it := range pv.Issues {
+			branch := branchByIssue[it.Number]
+			if branch == "" {
+				continue
+			}
+			if pr, ok, err := ghapi.GetPRByBranch(repo, branch); err == nil && ok && pr.IsDone() {
+				prCopy := pr
+				merged[it.Number] = &prCopy
+			}
+		}
+		return projectRefreshedMsg{
+			project: project, title: pv.Title,
+			header: projectHeaderItem(pv), issues: pv.Issues,
+			statuses: statuses, projects: projects, mergedPRs: merged,
+		}
+	}
+}
+
+// replaceProjectView splices a freshly reloaded project's segment (header + its
+// issues) into BucketPrimary, merges its status/project/merged-PR data, and drops
+// its issues from the other buckets so a newly-assigned issue isn't shown twice.
+func (m *Model) replaceProjectView(msg projectRefreshedMsg) {
+	old := m.board.Buckets[BucketPrimary]
+	out := make([]Item, 0, len(old))
+	for i := 0; i < len(old); {
+		it := old[i]
+		if it.Kind == KindProject && it.Number == msg.project {
+			out = append(out, msg.header)
+			out = append(out, msg.issues...)
+			// Skip the stale segment: the old header and its issues up to the next header.
+			for i++; i < len(old) && old[i].Kind != KindProject; i++ {
+			}
+			continue
+		}
+		out = append(out, it)
+		i++
+	}
+	m.board.Buckets[BucketPrimary] = out
+
+	for n, s := range msg.statuses {
+		m.statuses[n] = s
+	}
+	for n, p := range msg.projects {
+		m.projects[n] = p
+	}
+	if msg.mergedPRs != nil {
+		if m.mergedPRs == nil {
+			m.mergedPRs = map[int]*ghapi.PullRequest{}
+		}
+		for n, pr := range msg.mergedPRs {
+			m.mergedPRs[n] = pr
+		}
+	}
+
+	// These issues now live in the Project View; remove any stale copies elsewhere.
+	refreshed := map[int]bool{}
+	for _, it := range msg.issues {
+		refreshed[it.Number] = true
+	}
+	for _, bk := range BucketOrder {
+		if bk == BucketPrimary {
+			continue
+		}
+		items := m.board.Buckets[bk]
+		kept := items[:0]
+		for _, it := range items {
+			if it.Kind == KindIssue && refreshed[it.Number] {
+				continue
+			}
+			kept = append(kept, it)
+		}
+		m.board.Buckets[bk] = kept
+	}
 }
 
 func (m *Model) fetchCmd() tea.Cmd {
 	repo, limit := m.repo, m.limit
 	primary := m.config.PrimaryProjects
 	baseDirs := m.config.CloneBaseDirs
+	branchByIssue := m.linkBranches()
 	return func() tea.Msg {
 		res, err := Fetch(repo, limit, primary)
 		if err == nil {
 			res.LocalBranches = LocalBranchFolders(baseDirs, repo)
+			res.LinkedMergedPRs = linkedMergedPRs(repo, res.Board, branchByIssue)
 		}
 		return fetchDoneMsg{res: res, err: err}
 	}
+}
+
+// linkBranches snapshots the recorded issue → branch map from the link store, so
+// the fetch goroutine can look up merged PRs without racing on the live store.
+func (m *Model) linkBranches() map[int]string {
+	out := map[int]string{}
+	if m.links == nil {
+		return out
+	}
+	for k, l := range m.links.Links {
+		if l.Branch == "" {
+			continue
+		}
+		if n, err := strconv.Atoi(k); err == nil {
+			out[n] = l.Branch
+		}
+	}
+	return out
 }
 
 func mergeCmd(repo string, it Item, key string, issue, project int) tea.Cmd {
@@ -535,20 +667,22 @@ func refreshPRCmd(repo string, number int) tea.Cmd {
 	}
 }
 
-// refreshPRByBranchCmd looks up the open PR for a head branch and injects it into
-// the board (via the KindPR refresh path), so a single-item refresh on an issue
-// can discover a PR opened since the last full fetch. A no-op (nil msg) when the
-// branch has no open PR; BuildWorkItems then links the injected PR by branch.
-func refreshPRByBranchCmd(repo, branch string) tea.Cmd {
+// refreshPRByBranchCmd looks up the PR for a head branch so a single-item refresh
+// on an issue can pick up a PR opened — or merged — since the last full fetch. An
+// open PR is injected into the board; a merged/closed one is recorded against the
+// issue so it still shows as merged. A no-op (nil msg) when the branch has no PR.
+func refreshPRByBranchCmd(repo, branch string, issue int) tea.Cmd {
 	return func() tea.Msg {
 		pr, ok, err := ghapi.GetPRByBranch(repo, branch)
 		if err != nil || !ok {
 			return nil // no PR yet (or lookup failed) — leave the issue as-is
 		}
-		if c, e := ghapi.GetUnresolvedReviewThreadCount(repo, pr.Number); e == nil {
-			pr.UnresolvedThreads = c
+		if !pr.IsDone() {
+			if c, e := ghapi.GetUnresolvedReviewThreadCount(repo, pr.Number); e == nil {
+				pr.UnresolvedThreads = c
+			}
 		}
-		return itemRefreshedMsg{kind: KindPR, number: pr.Number, pr: &pr}
+		return itemRefreshedMsg{kind: KindPR, number: pr.Number, pr: &pr, forIssue: issue}
 	}
 }
 
@@ -615,8 +749,19 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Run launches the dashboard TUI. When noCache is true it ignores any cached
-// fetch and pulls live on startup.
+// fetch and pulls live on startup. On first run (no config.json) it walks the user
+// through picking their primary project board(s) and writes the config first.
 func Run(repo string, limit int, noCache bool) error {
+	cfgPath := DefaultConfigPath()
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		cancelled, err := runOnboarding(repo, cfgPath)
+		if err != nil {
+			return err
+		}
+		if cancelled {
+			return nil // user aborted setup; don't launch or write a config
+		}
+	}
 	m := NewModel(repo, limit, noCache)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	_, err := p.Run()

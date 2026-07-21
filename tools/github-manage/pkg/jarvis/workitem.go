@@ -75,6 +75,20 @@ func (w WorkItem) hasSession() bool { return w.SessionID != "" }
 func (w WorkItem) nextAction() Action {
 	if w.PR != nil {
 		pr := w.PR.PR
+		if pr != nil && pr.IsMerged() {
+			// PR merged — the work shipped; advance the issue to QA if it hasn't.
+			if w.awaitingQA() {
+				return ActNone
+			}
+			return ActMarkAwaitingQA
+		}
+		if pr != nil && pr.IsClosed() {
+			// Closed without merging — nothing shipped; reopen work if a session's live.
+			if w.hasSession() {
+				return ActOpenPR
+			}
+			return ActNone
+		}
 		if pr != nil && pr.CanMergeNow() {
 			if w.inReview() {
 				return ActMerge
@@ -105,7 +119,12 @@ func (w WorkItem) nextAction() Action {
 //
 // statuses maps issue number → project Status; projects maps issue number → the
 // board id that Status came from. Both may be empty (best-effort enrichment).
-func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int) []WorkItem {
+//
+// mergedPRs maps issue number → a merged/closed PR discovered by branch. These PRs
+// have dropped off the open-PR list (so they're not in the board), but we still
+// surface them on the issue — labeled merged/closed — so it's clear the work
+// shipped and the issue is ready to advance to QA. May be nil.
+func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[int]string, projects map[int]int, mergedPRs map[int]*ghapi.PullRequest) []WorkItem {
 	// Index PR items by number and by head branch.
 	prByNum := map[int]*Item{}
 	prByBranch := map[string]*Item{}
@@ -182,6 +201,17 @@ func BuildWorkItems(b Board, links *LinkStore, focus *FocusStore, statuses map[i
 				// A session linked onto the PR (by linkSessions) drives this issue.
 				if pr.HasSession {
 					w.SessionID, w.Cwd = pr.SessionID, pr.Cwd
+				}
+			}
+
+			// No open PR — fall back to a merged/closed PR found by branch, so the
+			// issue still shows its shipped PR (as merged) rather than losing it.
+			if w.PR == nil {
+				if mp := mergedPRs[it.Number]; mp != nil {
+					w.PR = &Item{Kind: KindPR, Number: mp.Number, Title: mp.Title, URL: mp.URL, PR: mp}
+					if w.Branch == "" {
+						w.Branch = mp.HeadRefName
+					}
 				}
 			}
 

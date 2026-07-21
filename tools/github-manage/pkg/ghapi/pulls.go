@@ -127,6 +127,16 @@ func (pr PullRequest) ChangesRequested() bool { return pr.ReviewDecision == "CHA
 // HasConflicts reports whether the PR has merge conflicts.
 func (pr PullRequest) HasConflicts() bool { return pr.Mergeable == "CONFLICTING" }
 
+// IsMerged reports whether the PR has been merged.
+func (pr PullRequest) IsMerged() bool { return strings.EqualFold(pr.State, "MERGED") }
+
+// IsClosed reports whether the PR was closed without merging.
+func (pr PullRequest) IsClosed() bool { return strings.EqualFold(pr.State, "CLOSED") }
+
+// IsDone reports whether the PR has left the open list (merged or closed) — its
+// implementation work is finished, so the linked issue can advance to QA.
+func (pr PullRequest) IsDone() bool { return pr.IsMerged() || pr.IsClosed() }
+
 // Mergeable-now: approved, no conflicts, CI green, not a draft.
 func (pr PullRequest) CanMergeNow() bool {
 	return !pr.IsDraft && pr.IsApproved() && pr.Mergeable == "MERGEABLE" && pr.CIStatus() == "passing"
@@ -243,10 +253,12 @@ func GetReviewRequestedPRs(repo string, limit int) ([]PullRequest, error) {
 	return listPullRequests(repo, "review-requested:@me", prReviewFields, limit)
 }
 
-// GetPRByBranch returns the open PR whose head branch is `branch`, if any. It's
-// used by the single-item refresh to discover a PR opened since the last full
-// fetch (which BuildWorkItems can then link to the issue by branch). Returns
-// (PullRequest{}, false, nil) when no open PR has that head branch.
+// GetPRByBranch returns the most relevant PR whose head branch is `branch`, in any
+// state, if any. It backs both the single-item refresh (discovering a PR opened
+// since the last full fetch) and merged-PR enrichment (surfacing a merged PR that
+// dropped off the open list). When a branch has several PRs, an open one wins;
+// otherwise the highest-numbered (most recent) is returned. Returns
+// (PullRequest{}, false, nil) when the branch has no PR.
 func GetPRByBranch(repo, branch string) (PullRequest, bool, error) {
 	if repo == "" {
 		repo = DefaultRepo
@@ -255,7 +267,7 @@ func GetPRByBranch(repo, branch string) (PullRequest, bool, error) {
 		return PullRequest{}, false, nil
 	}
 	cmd := fmt.Sprintf(
-		"gh pr list --repo %s --state open --head %q --json %s --limit 1",
+		"gh pr list --repo %s --state all --head %q --json %s --limit 10",
 		repo, branch, prListFields,
 	)
 	out, err := RunCommandWithRetry(cmd, 3)
@@ -269,7 +281,16 @@ func GetPRByBranch(repo, branch string) (PullRequest, bool, error) {
 	if len(prs) == 0 {
 		return PullRequest{}, false, nil
 	}
-	return prs[0], true, nil
+	best := prs[0]
+	for _, pr := range prs[1:] {
+		// An open PR always wins; among same-state PRs, the newest (highest number).
+		bestOpen := strings.EqualFold(best.State, "OPEN")
+		prOpen := strings.EqualFold(pr.State, "OPEN")
+		if (prOpen && !bestOpen) || (prOpen == bestOpen && pr.Number > best.Number) {
+			best = pr
+		}
+	}
+	return best, true, nil
 }
 
 // MergePR merges a pull request using the given method (default "squash").
