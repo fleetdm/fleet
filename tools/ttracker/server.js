@@ -757,8 +757,13 @@ async function refresh() {
 }
 
 async function forceSnapshot() {
+  const btn = document.querySelector('.refresh-btn');
+  btn.textContent = 'Snapshotting...';
+  btn.disabled = true;
   await fetch(API + '/api/snapshot', { method: 'POST' });
   await refresh();
+  btn.textContent = 'Snapshot Now';
+  btn.disabled = false;
 }
 
 async function saveNote(sessionId, note) {
