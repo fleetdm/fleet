@@ -757,6 +757,8 @@ function renderHistory(entries) {
 }
 
 async function refresh() {
+  // Skip refresh if user is typing in a note field
+  if (document.activeElement && document.activeElement.classList.contains('note-input')) return;
   const [sessions, history] = await Promise.all([fetchSessions(), fetchHistory()]);
   renderActive(sessions);
   renderHistory(history);
