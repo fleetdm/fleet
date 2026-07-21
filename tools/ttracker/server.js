@@ -617,6 +617,7 @@ function getDashboardHTML() {
     font-style: italic;
   }
   .parked-at { color: #93a1a1; font-size: 12px; }
+  .actions { white-space: nowrap; }
   .note-input {
     background: transparent;
     border: 1px solid transparent;
@@ -660,7 +661,7 @@ function getDashboardHTML() {
       <th>Process</th>
       <th>Claude Session</th>
       <th>Status</th>
-      <th style="width:150px">Action</th>
+      <th style="width:200px">Action</th>
     </tr>
   </thead>
   <tbody id="active-body"></tbody>
@@ -746,7 +747,7 @@ function renderActive(data) {
       + '<td>' + escapeHtml(s.process) + '</td>'
       + '<td class="session-id">' + escapeHtml(s.claude_session_id) + '</td>'
       + '<td>' + statusDot(s.status) + '</td>'
-      + '<td>' + action + '</td>'
+      + '<td class="actions">' + action + '</td>'
       + '</tr>';
   }).join('');
 }
@@ -774,7 +775,7 @@ function renderHistory(entries) {
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
       + '<td class="parked-at">' + escapeHtml(h.parked_at) + '</td>'
       + '<td>' + statusDot(h.status) + '</td>'
-      + '<td>' + action + '</td>'
+      + '<td class="actions">' + action + '</td>'
       + '</tr>';
   }).join('');
 }
