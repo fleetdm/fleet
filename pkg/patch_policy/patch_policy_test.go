@@ -86,6 +86,16 @@ func TestGenerateOpenQuery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
 
+	// Apostrophes in the bundle identifier are escaped so they can't break the literal.
+	got, err = patch_policy.GenerateOpenQuery("darwin", "O'Reilly", "com.oreilly.o'reilly")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.oreilly.o''reilly');", got)
+
+	// Apostrophes in the derived Windows executable are escaped too.
+	got, err = patch_policy.GenerateOpenQuery("windows", "O'Reilly", "")
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');", got)
+
 	// Unknown platform is rejected.
 	_, err = patch_policy.GenerateOpenQuery("linux", "foo", "com.example.foo")
 	require.ErrorIs(t, err, patch_policy.ErrWrongPlatform)

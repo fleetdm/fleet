@@ -202,6 +202,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 			app.Categories = cached.Categories
 			app.UpgradeCode = cached.UpgradeCode
 			app.PatchQuery = cached.PatchQuery
+			app.AppOpenQuery = cached.AppOpenQuery
 			return app, nil
 		}
 		// Cache miss: fall through to the remote manifest so a not-yet-cached

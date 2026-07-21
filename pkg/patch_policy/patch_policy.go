@@ -170,7 +170,7 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 	// - use the running_apps table - not reliable when run through orbit
 	// - use the "app" artifact in the homebrew cask - requires extra code to extract
 	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%%') WHERE a.bundle_identifier = '%s');"
-	return fmt.Sprintf(openTemplate, bundleIdentifier)
+	return fmt.Sprintf(openTemplate, escapeSQLLiteral(bundleIdentifier))
 }
 
 func defaultWindowsOpenQuery(softwareTitle string) string {
@@ -183,5 +183,10 @@ func defaultWindowsOpenQuery(softwareTitle string) string {
 	}
 	executable := strings.ToLower(base) + ".exe"
 	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s');"
-	return fmt.Sprintf(openTemplate, executable)
+	return fmt.Sprintf(openTemplate, escapeSQLLiteral(executable))
+}
+
+func escapeSQLLiteral(s string) string {
+	// double single quotes so the value can't terminate or alter the surrounding literal
+	return strings.ReplaceAll(s, "'", "''")
 }

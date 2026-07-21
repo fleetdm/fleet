@@ -1185,7 +1185,8 @@ func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *
 			COALESCE(usc.contents, '') AS uninstall_script,
 			COALESCE(si.pre_install_query, '') AS pre_install_query,
 			si.upgrade_code,
-			si.patch_query
+			si.patch_query,
+			si.app_open_query
 		FROM software_installers si
 		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
 		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
