@@ -281,10 +281,6 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 	}
 
 	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
-		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup
-		// (issue #48340). Production write paths keep it current, but this test seeds
-		// host_mdm_windows_profiles directly, so reconcile the rollup before reading. This also asserts
-		// the reconciler reproduces the reference expectations below.
 		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
@@ -913,10 +909,6 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
-		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup
-		// (issue #48340). Production write paths keep it current, but this test seeds
-		// host_mdm_windows_profiles directly, so reconcile the rollup before reading. This also asserts
-		// the reconciler reproduces the reference expectations below.
 		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
@@ -4089,10 +4081,10 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	})
 	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
-	// The check-in path (updateMDMWindowsHostProfileStatusFromResponseDB) must maintain the per-host
-	// profile status rollup in the same transaction (issue #48340). After processing the response, the
-	// rollup row must already exist and equal what a full reconcile would compute (reconcile is a no-op),
-	// proving the hot check-in path keeps host_mdm_windows_profiles_status current without a reconcile.
+	// The check-in path (updateMDMWindowsHostProfileStatusFromResponseDB) must maintain the per-host profile status rollup in the
+	// same transaction. After processing the response, the rollup row must already exist and equal what a full reconcile would
+	// compute (reconcile is a no-op), proving the hot check-in path keeps host_mdm_windows_profiles_status current without a
+	// reconcile.
 	rollupAfterCheckin := readWindowsProfilesStatusRollup(t, ds)[enrolledDevice1.HostUUID]
 	require.NotEmpty(t, rollupAfterCheckin, "check-in must materialize the host's profile status rollup")
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(context.Background()))
@@ -4434,6 +4426,62 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteComma
 				assert.Equal(t, 0, count, "terminal remove row should be deleted")
 			})
 		}
+
+		t.Run("terminal remove of the last profile row drops the rollup row", func(t *testing.T) {
+			// The check-in path skips the rollup orphan-delete only when it deleted no profile rows. When
+			// a terminal remove deletes the host's LAST profile row, the orphan-delete must run in the
+			// same call and remove the host's rollup row, with no reconcile. This is the regression net
+			// for the skipOrphanDelete condition in updateMDMWindowsHostProfileStatusFromResponseDB.
+			dev := createEnrolledDevice(t, ds)
+			deleteCommandUUID := uuid.NewString()
+			cmd := &fleet.MDMWindowsCommand{
+				CommandUUID: deleteCommandUUID,
+				RawCommand: fmt.Appendf([]byte{}, `
+	<Delete>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+			</Target>
+		</Item>
+	</Delete>
+`, deleteCommandUUID),
+			}
+			err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+				[]string{dev.MDMDeviceID}, cmd)
+			require.NoError(t, err)
+
+			// The host's ONLY profile row is the pending remove; the raw insert bypasses the write paths
+			// that maintain the rollup, so seed the rollup row it would have (remove-verifying resolves to
+			// the empty bucket).
+			profileUUID := uuid.NewString()
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'verifying', 'remove', ?, 'disable-onedrive', ?)`, dev.HostUUID, deleteCommandUUID, profileUUID)
+				return err
+			})
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(t.Context(),
+					`INSERT INTO host_mdm_windows_profiles_status (host_uuid, status) VALUES (?, '')`, dev.HostUUID)
+				return err
+			})
+
+			enrichedSyncML := createResponseAsEnrichedSyncML(t, dev, []enrichResponseEntry{
+				{Type: "Delete", StatusCode: 200, UUID: deleteCommandUUID},
+			})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), dev, enrichedSyncML, []string{})
+			require.NoError(t, err)
+
+			var count int
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(t.Context(), q, &count, `
+SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE host_uuid = ?`, dev.HostUUID)
+			})
+			require.Equal(t, 0, count, "the host's last profile row should be deleted")
+			_, ok := readWindowsProfilesStatusRollup(t, ds)[dev.HostUUID]
+			require.False(t, ok, "orphan-delete must remove the rollup row in the check-in call, without a reconcile")
+		})
 	})
 
 	t.Run("mixed install and remove in same batch", func(t *testing.T) {
@@ -6383,17 +6431,6 @@ func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
-// testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every
-// possible (status, operation_type, reserved) shape a host_mdm_windows_profiles
-// row can take and exercises every 0-, 1-, and 2-profile host configuration
-// through GetMDMWindowsProfilesSummary.
-//
-// The input universe is finite and small: status is FK-constrained to
-// {NULL, failed, pending, verifying, verified} (5 values) and operation_type
-// is FK-constrained to {NULL, install, remove} (3 values); a profile is either
-// reserved or non-reserved (2). Per row that is 30 shapes; for 2-profile hosts
-// we enumerate all 30x30 = 900 ordered pairs, plus 30 single-profile cases,
-// plus one zero-profile case.
 // readWindowsProfilesStatusRollup returns every host_mdm_windows_profiles_status row keyed by host
 // UUID, read directly from the table (no reconcile).
 func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]string {
@@ -6415,12 +6452,10 @@ func readWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) map[string]str
 	return rollup
 }
 
-// testWindowsProfilesStatusRollup verifies that the per-host profile status rollup
-// (host_mdm_windows_profiles_status) that backs GetMDMWindowsProfilesSummary is maintained
-// INCREMENTALLY by the real write paths, with no reconcile. This is the property that lets the summary
-// read the rollup instead of recomputing an O(hosts x profiles) aggregation per request (issue #48340).
+// testWindowsProfilesStatusRollup verifies that the per-host profile status rollup (host_mdm_windows_profiles_status) that backs
+// GetMDMWindowsProfilesSummary is maintained INCREMENTALLY by the real write paths, with no reconcile.
 func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Use the profiles-only summary path (disk encryption disabled).
 	ac, err := ds.AppConfig(ctx)
@@ -6450,14 +6485,13 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 	}
 
 	installPayload := func(h *fleet.Host, profUUID, name string, status fleet.MDMDeliveryStatus) *fleet.MDMWindowsBulkUpsertHostProfilePayload {
-		s := status
 		return &fleet.MDMWindowsBulkUpsertHostProfilePayload{
 			ProfileUUID:   profUUID,
 			ProfileName:   name,
 			HostUUID:      h.UUID,
 			CommandUUID:   "cmd-" + profUUID + "-" + h.UUID,
 			OperationType: fleet.MDMOperationTypeInstall,
-			Status:        &s,
+			Status:        &status,
 			Checksum:      []byte("csum"),
 		}
 	}
@@ -6472,10 +6506,10 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 	}))
 	gotA, okA := rollupStatus(t, hostA.UUID)
 	require.True(t, okA)
-	require.Equal(t, "pending", gotA)
+	require.Equal(t, string(fleet.MDMDeliveryPending), gotA)
 	gotB, okB := rollupStatus(t, hostB.UUID)
 	require.True(t, okB)
-	require.Equal(t, "verified", gotB)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), gotB)
 	assertSummary(t, fleet.MDMProfilesSummary{Pending: 1, Verified: 1})
 
 	// 2) Transition hostA to verified.
@@ -6483,7 +6517,7 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 		installPayload(hostA, "wp1", "Profile 1", fleet.MDMDeliveryVerified),
 	}))
 	gotA, _ = rollupStatus(t, hostA.UUID)
-	require.Equal(t, "verified", gotA)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), gotA)
 	assertSummary(t, fleet.MDMProfilesSummary{Verified: 2})
 
 	// 3) Add a failed profile to hostA: failed wins over verified.
@@ -6491,7 +6525,7 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 		installPayload(hostA, "wp2", "Profile 2", fleet.MDMDeliveryFailed),
 	}))
 	gotA, _ = rollupStatus(t, hostA.UUID)
-	require.Equal(t, "failed", gotA)
+	require.Equal(t, string(fleet.MDMDeliveryFailed), gotA)
 	assertSummary(t, fleet.MDMProfilesSummary{Failed: 1, Verified: 1})
 
 	// 4) Delete the failed profile via BulkDelete: hostA recomputes back to verified (wp1 remains).
@@ -6499,7 +6533,7 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 		{HostUUID: hostA.UUID, ProfileUUID: "wp2"},
 	}))
 	gotA, _ = rollupStatus(t, hostA.UUID)
-	require.Equal(t, "verified", gotA)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), gotA)
 	assertSummary(t, fleet.MDMProfilesSummary{Verified: 2})
 
 	// 5) A reserved profile ("Windows OS Updates") is excluded: hostB stays verified.
@@ -6507,14 +6541,14 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 		installPayload(hostB, "wpR", mdm.FleetWindowsOSUpdatesProfileName, fleet.MDMDeliveryFailed),
 	}))
 	gotB, _ = rollupStatus(t, hostB.UUID)
-	require.Equal(t, "verified", gotB)
+	require.Equal(t, string(fleet.MDMDeliveryVerified), gotB)
 	assertSummary(t, fleet.MDMProfilesSummary{Verified: 2})
 
 	// 6) Single-profile resend (ResendHostMDMProfile) sets the row's status to NULL, which counts as
 	// pending: hostA flips without a reconcile. Then restore hostA to verified.
 	require.NoError(t, ds.ResendHostMDMProfile(ctx, hostA.UUID, "wp1"))
 	gotA, _ = rollupStatus(t, hostA.UUID)
-	require.Equal(t, "pending", gotA)
+	require.Equal(t, string(fleet.MDMDeliveryPending), gotA)
 	assertSummary(t, fleet.MDMProfilesSummary{Pending: 1, Verified: 1})
 	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
 		installPayload(hostA, "wp1", "Profile 1", fleet.MDMDeliveryVerified),
@@ -6568,18 +6602,18 @@ func testWindowsProfilesStatusRollup(t *testing.T, ds *Datastore) {
 	assertSummary(t, fleet.MDMProfilesSummary{})
 }
 
-// testWindowsProfilesStatusReconcileBatching verifies that ReconcileWindowsProfilesStatus pages its
-// work correctly: with a page size smaller than the host count, every host with profile rows still
-// resolves to the right rollup bucket and every orphan rollup row is removed (issue #48340).
+// testWindowsProfilesStatusReconcileBatching verifies that ReconcileWindowsProfilesStatus pages its work correctly: with a page
+// size smaller than the host count, every host with profile rows still resolves to the right rollup bucket and every orphan
+// rollup row is removed.
 func testWindowsProfilesStatusReconcileBatching(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	ds.testWindowsProfilesStatusReconcileBatchSize = 2
 	t.Cleanup(func() { ds.testWindowsProfilesStatusReconcileBatchSize = 0 })
 
 	// Seed profile rows directly (bypassing the write paths that maintain the rollup) for five hosts
 	// whose statuses resolve to different buckets.
-	insertProfile := func(hostUUID string, status *string) {
+	insertProfile := func(hostUUID string, status *fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `
 				INSERT INTO host_mdm_windows_profiles
@@ -6589,20 +6623,18 @@ func testWindowsProfilesStatusReconcileBatching(t *testing.T, ds *Datastore) {
 			return err
 		})
 	}
-	statusPtr := func(s string) *string { return &s }
-
 	want := map[string]string{
-		"batch-host-a": "failed",
-		"batch-host-b": "pending", // NULL status counts as pending
-		"batch-host-c": "verifying",
-		"batch-host-d": "verified",
-		"batch-host-e": "pending",
+		"batch-host-a": string(fleet.MDMDeliveryFailed),
+		"batch-host-b": string(fleet.MDMDeliveryPending), // NULL status counts as pending
+		"batch-host-c": string(fleet.MDMDeliveryVerifying),
+		"batch-host-d": string(fleet.MDMDeliveryVerified),
+		"batch-host-e": string(fleet.MDMDeliveryPending),
 	}
-	insertProfile("batch-host-a", statusPtr("failed"))
+	insertProfile("batch-host-a", new(fleet.MDMDeliveryFailed))
 	insertProfile("batch-host-b", nil)
-	insertProfile("batch-host-c", statusPtr("verifying"))
-	insertProfile("batch-host-d", statusPtr("verified"))
-	insertProfile("batch-host-e", statusPtr("pending"))
+	insertProfile("batch-host-c", new(fleet.MDMDeliveryVerifying))
+	insertProfile("batch-host-d", new(fleet.MDMDeliveryVerified))
+	insertProfile("batch-host-e", new(fleet.MDMDeliveryPending))
 
 	// Seed orphan rollup rows: hosts with a rollup row but no profile rows.
 	for _, orphanHostUUID := range []string{"batch-orphan-a", "batch-orphan-b", "batch-orphan-c", "batch-orphan-d", "batch-orphan-e"} {
@@ -6644,6 +6676,9 @@ func testWindowsProfilesStatusReconcileBatching(t *testing.T, ds *Datastore) {
 	require.Equal(t, stampsBeforeSecondReconcile, readUpdatedAtStamps(t), "a drift-free reconcile must not rewrite any rollup row")
 }
 
+// testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every possible (status, operation_type, reserved) shape a
+// host_mdm_windows_profiles row can take and exercises every 0-, 1-, and 2-profile host configuration through
+// GetMDMWindowsProfilesSummary.
 func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -6815,10 +6850,8 @@ func testMDMWindowsProfilesSummaryEnumeration(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	// The rows above were seeded directly into host_mdm_windows_profiles, bypassing the write paths that
-	// maintain host_mdm_windows_profiles_status, so reconcile the rollup before reading. This makes the
-	// enumeration a direct check that the reconciler matches the reference implementation over every
-	// configuration (issue #48340).
+	// The rows above were seeded directly into host_mdm_windows_profiles, bypassing the write paths that maintain
+	// host_mdm_windows_profiles_status, so reconcile the rollup before reading.
 	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 
 	// 1) Aggregate bucket counts via GetMDMWindowsProfilesSummary.

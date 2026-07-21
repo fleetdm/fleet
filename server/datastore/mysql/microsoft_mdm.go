@@ -1357,6 +1357,8 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		}
 	}
 
+	// Only the terminal remove cleanup above deletes profile rows; when it did not run, no rollup row
+	// can have been orphaned and the orphan-delete is safely skipped (the common case for check-ins).
 	if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, len(deleteCommandUUIDs) == 0); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup from response")
 	}

@@ -933,7 +933,6 @@ func (ds *Datastore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, p
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles")
 			}
-			// Clear the per-host profile status rollup as well (issue #48340).
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_windows_profiles_status`); err != nil {
 				return ctxerr.Wrap(ctx, err, "deleting all rows from host_mdm_windows_profiles_status")
 			}
@@ -1120,12 +1119,9 @@ func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host
 		if err := setMDMProfilesRetryDB(ctx, tx, host, toRetry); err != nil {
 			return err
 		}
-		// The set* helpers above change host_mdm_windows_profiles statuses for Windows hosts, so refresh
-		// the per-host Windows profile status rollup in the same transaction (issue #48340). Only the
-		// Apple profile verifier calls this today, but the helpers support the windows platform, so keep
-		// the rollup invariant intact for any future caller.
+		// Refresh the per-host Windows profile status rollup in the same transaction. Only the Apple profile verifier calls this today
+		// (2026/07/21), but the helpers support the windows platform, so keep the rollup invariant intact for any future caller.
 		if host.Platform == "windows" {
-			// The set* helpers only update profile rows, so no rollup row can be orphaned.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{host.UUID}, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after verification update")
 			}
@@ -2158,8 +2154,8 @@ func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, 
 			ds.logger.DebugContext(ctx, "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
-		// The row now has status NULL, which the summary reports as pending, so refresh the per-host
-		// Windows profile status rollup in the same transaction (issue #48340).
+		// The row now has status NULL, which the summary reports as pending, so refresh the per-host Windows profile status rollup in the
+		// same transaction.
 		if table == "host_mdm_windows_profiles" {
 			// This path only updates the profile row, so no rollup row can be orphaned.
 			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
@@ -2416,13 +2412,7 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 		}
 		count, _ = res.RowsAffected()
 
-		// Refresh the per-host Windows profile status rollup for the affected hosts in the same
-		// transaction (issue #48340). Selecting status IS NULL rows AFTER the update sees this
-		// transaction's own writes, so it cannot miss a row the update touched (a pre-update snapshot
-		// read could, if a concurrent commit changed a row's status in between). It also picks up rows
-		// that were already NULL, which is harmless: the rollup recompute is idempotent. host_uuid values
-		// are already unique here because (host_uuid, profile_uuid) is the PK and the filter is on a
-		// single profile UUID.
+		// Refresh the per-host Windows profile status rollup for the affected hosts in the same transaction.
 		if table == "host_mdm_windows_profiles" {
 			var windowsHostUUIDs []string
 			if err := sqlx.SelectContext(ctx, tx, &windowsHostUUIDs,
@@ -3216,7 +3206,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 					return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
 				}
 				// The rows above now have status NULL, which the summary reports as pending, so refresh
-				// the per-host Windows profile status rollup in the same transaction (issue #48340).
+				// the per-host Windows profile status rollup in the same transaction.
 				if table == "host_mdm_windows_profiles" {
 					hostUUIDs := make([]string, 0, len(hostCertsToRenew))
 					for _, hostCertToRenew := range hostCertsToRenew {
