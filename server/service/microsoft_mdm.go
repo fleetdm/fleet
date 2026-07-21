@@ -1240,7 +1240,6 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 // two schemes that protocol uses:
 //   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
 //     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
-//     The value seen in practice is ms-appx-web://Microsoft.AAD.BrokerPlugin (the Azure AD broker plugin package).
 //     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
 //   - https: the browser-based federated flow.
 var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
