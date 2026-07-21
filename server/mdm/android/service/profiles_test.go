@@ -1497,7 +1497,7 @@ func testMissingCustomHostVitalValueMarksProfileFailed(t *testing.T, ds fleet.Da
 			ProfileName:   p1.Name,
 			Status:        &fleet.MDMDeliveryFailed,
 			OperationType: fleet.MDMOperationTypeInstall,
-			Detail:        (&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{vital.ID}}).Error(),
+			Detail:        (&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{vital.ID}, MissingNames: []string{vital.Name}}).Error(),
 		},
 	})
 

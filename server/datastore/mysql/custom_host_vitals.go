@@ -151,12 +151,15 @@ type customHostVitalRefEntity struct {
 	Contents string `db:"contents"`
 }
 
-// customHostVitalUsedBy scans script_contents, Apple configuration profiles,
-// Apple declarations, Windows configuration profiles, and Android configuration
-// profiles for a $FLEET_HOST_VITAL_<id> (or ${FLEET_HOST_VITAL_<id>}) reference
-// to the given vital id. It returns a *fleet.CustomHostVitalUsedInfo describing
-// the first referencing entity found, or nil if unreferenced. Mirrors the scan
-// structure of DeleteSecretVariable. The second return is a real DB error.
+// customHostVitalUsedBy scans scripts, Apple configuration profiles, Apple
+// declarations, Windows configuration profiles, Android configuration
+// profiles, software installer scripts, and setup-experience scripts for a
+// $FLEET_HOST_VITAL_<id> (or ${FLEET_HOST_VITAL_<id>}) reference to the given
+// vital id, then separately checks host-vitals labels (which reference the
+// vital by id in their criteria JSON, not via the token). It returns a
+// *fleet.CustomHostVitalUsedInfo describing the first referencing entity
+// found, or nil if unreferenced. Mirrors the scan structure of
+// DeleteSecretVariable. The second return is a real DB error.
 func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtContext, id uint, name string) (*fleet.CustomHostVitalUsedInfo, error) {
 	// The token embeds the numeric id (survives renames), so match by id, not name.
 	token := fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, id)
@@ -465,7 +468,9 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 	// A vital with an empty value counts as missing: we refuse to ship an empty
 	// substitution.
 	valueByID := make(map[uint]string, len(vitals))
+	nameByID := make(map[uint]string, len(vitals))
 	for _, v := range vitals {
+		nameByID[v.CustomHostVitalID] = v.Name
 		if v.Value == "" {
 			continue
 		}
@@ -473,14 +478,16 @@ func (ds *Datastore) ExpandCustomHostVitals(ctx context.Context, hostID uint, do
 	}
 
 	var missingIDs []uint
+	var missingNames []string
 	for _, id := range refIDs {
 		if _, ok := valueByID[id]; !ok {
 			missingIDs = append(missingIDs, id)
+			missingNames = append(missingNames, nameByID[id])
 		}
 	}
 	if len(missingIDs) > 0 {
 		// The vital exists (validated on upload); the host just has no value for it.
-		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs}
+		return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: missingIDs, MissingNames: missingNames}
 	}
 
 	expanded := expandDocumentVars(document, func(s string) (string, bool) {

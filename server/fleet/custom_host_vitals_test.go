@@ -46,14 +46,17 @@ func TestMissingCustomHostVitalsError(t *testing.T) {
 }
 
 func TestMissingCustomHostVitalValueError(t *testing.T) {
-	single := MissingCustomHostVitalValueError{MissingIDs: []uint{5}}
-	require.Contains(t, single.Error(), `"$FLEET_HOST_VITAL_5"`)
-	require.Contains(t, single.Error(), "no value set for this host")
+	single := MissingCustomHostVitalValueError{MissingIDs: []uint{5}, MissingNames: []string{"Asset tag"}}
+	require.Equal(
+		t,
+		"Couldn't populate the custom host vital Asset tag ($FLEET_HOST_VITAL_5) because there's no value set for this host.",
+		single.Error(),
+	)
 	// Distinct from the upload-time "is not defined" wording.
 	require.NotContains(t, single.Error(), "is not defined")
 
-	multi := MissingCustomHostVitalValueError{MissingIDs: []uint{5, 9}}
+	multi := MissingCustomHostVitalValueError{MissingIDs: []uint{5, 9}, MissingNames: []string{"Asset tag", "Department"}}
 	require.Contains(t, multi.Error(), "custom host vitals")
-	require.Contains(t, multi.Error(), `"$FLEET_HOST_VITAL_5"`)
-	require.Contains(t, multi.Error(), `"$FLEET_HOST_VITAL_9"`)
+	require.Contains(t, multi.Error(), "Asset tag ($FLEET_HOST_VITAL_5)")
+	require.Contains(t, multi.Error(), "Department ($FLEET_HOST_VITAL_9)")
 }
