@@ -1,5 +1,5 @@
 #!/bin/bash
-# terminal-tracker/status.sh
+# ttracker/status.sh
 #
 # Reports all open iTerm2 terminal sessions with:
 #   - iTerm2 window/session info (name, window ID, session UUID)

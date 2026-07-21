@@ -1,5 +1,5 @@
 #!/bin/bash
-# terminal-tracker/restore.sh
+# ttracker/restore.sh
 #
 # Restores Claude sessions from the latest snapshot.
 # - Reads latest.json to find all Claude sessions that should be open

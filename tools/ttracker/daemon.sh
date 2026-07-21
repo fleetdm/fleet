@@ -1,5 +1,5 @@
 #!/bin/bash
-# terminal-tracker/daemon.sh
+# ttracker/daemon.sh
 #
 # Background daemon that snapshots all iTerm2 terminal sessions every N minutes.
 # Stores snapshots as JSON so restore.sh can reopen missing Claude sessions.
