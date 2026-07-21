@@ -218,9 +218,7 @@ func NewOrbitClient(
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
 	if bypassEndUserAuth {
-		// Don't advertise the end-user auth capability so the Fleet server enrolls this host
-		// without prompting for end-user authentication (e.g. the user already authenticated
-		// via Autopilot/Intune). See https://github.com/fleetdm/fleet/issues/46644.
+		// Don't advertise the end-user auth capability so the Fleet server enrolls this host without prompting for EUA.
 		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
 	}
 	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)

@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestBypassEndUserAuthTemplates verifies that the --bypass-end-user-auth switch is wired into the
-// generated package for every platform (Linux env file, macOS launchd plist, and Windows MSI), and
-// that it is absent when the option is not set. See https://github.com/fleetdm/fleet/issues/46644.
+// TestBypassEndUserAuthTemplates verifies the --bypass-end-user-auth switch is wired into the generated Linux env file
+// and Windows MSI arguments when enabled, and absent when not. macOS is intentionally excluded.
 func TestBypassEndUserAuthTemplates(t *testing.T) {
 	baseOpt := Options{
 		FleetURL:        "https://fleet.example.com",
@@ -23,40 +23,26 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 		Architecture:    ArchAmd64,
 	}
 
-	t.Run("linux env file", func(t *testing.T) {
-		t.Run("included when enabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = true
-			var buf bytes.Buffer
-			require.NoError(t, envTemplate.Execute(&buf, opt))
-			assert.Contains(t, buf.String(), "ORBIT_BYPASS_END_USER_AUTH=true")
-		})
-		t.Run("absent when disabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = false
-			var buf bytes.Buffer
-			require.NoError(t, envTemplate.Execute(&buf, opt))
-			assert.NotContains(t, buf.String(), "ORBIT_BYPASS_END_USER_AUTH")
-		})
-	})
-
-	// macOS is intentionally excluded: macOS orbit never advertises the end-user auth capability
-	// (EUA is handled during MDM enrollment), so the flag is not wired into the launchd plist,
-	// matching the --disable-setup-experience precedent. Guard against it being re-added.
-	t.Run("macos launchd plist never carries the flag", func(t *testing.T) {
+	// render executes tmpl with the bypass option toggled and returns the generated output.
+	render := func(t *testing.T, tmpl *template.Template, bypass bool) string {
+		t.Helper()
 		opt := baseOpt
-		opt.BypassEndUserAuth = true
+		opt.BypassEndUserAuth = bypass
 		var buf bytes.Buffer
-		require.NoError(t, macosLaunchdTemplate.Execute(&buf, opt))
-		assert.NotContains(t, buf.String(), "ORBIT_BYPASS_END_USER_AUTH")
+		require.NoError(t, tmpl.Execute(&buf, opt))
+		return buf.String()
+	}
+
+	t.Run("linux env file", func(t *testing.T) {
+		assert.Contains(t, render(t, envTemplate, true), "ORBIT_BYPASS_END_USER_AUTH=true")
+		assert.NotContains(t, render(t, envTemplate, false), "ORBIT_BYPASS_END_USER_AUTH")
 	})
 
-	t.Run("windows msi", func(t *testing.T) {
-		argsLine := func(t *testing.T, opt Options) string {
+	t.Run("windows msi args", func(t *testing.T) {
+		// The flag is one of many appended to the service's ServiceInstall Arguments; isolate that line.
+		argsLine := func(output string) string {
 			t.Helper()
-			var buf bytes.Buffer
-			require.NoError(t, windowsWixTemplate.Execute(&buf, opt))
-			for line := range strings.SplitSeq(buf.String(), "\n") {
+			for line := range strings.SplitSeq(output, "\n") {
 				if strings.Contains(line, "Arguments=") && strings.Contains(line, "--fleet-url") {
 					return line
 				}
@@ -64,16 +50,12 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 			t.Fatal("ServiceInstall Arguments line not found in template output")
 			return ""
 		}
+		assert.Contains(t, argsLine(render(t, windowsWixTemplate, true)), "--bypass-end-user-auth")
+		assert.NotContains(t, argsLine(render(t, windowsWixTemplate, false)), "--bypass-end-user-auth")
+	})
 
-		t.Run("included when enabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = true
-			assert.Contains(t, argsLine(t, opt), "--bypass-end-user-auth")
-		})
-		t.Run("absent when disabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = false
-			assert.NotContains(t, argsLine(t, opt), "--bypass-end-user-auth")
-		})
+	// Guard the deliberate macOS exclusion: the flag must never leak into the launchd plist.
+	t.Run("macos launchd plist excluded", func(t *testing.T) {
+		assert.NotContains(t, render(t, macosLaunchdTemplate, true), "ORBIT_BYPASS_END_USER_AUTH")
 	})
 }

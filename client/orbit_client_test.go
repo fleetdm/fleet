@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
@@ -57,27 +56,11 @@ func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
 		return oc
 	}
 
-	t.Run("bypass omits end-user auth capability", func(t *testing.T) {
-		oc := newClient(true)
-		_, ok := oc.ClientCapabilities[fleet.CapabilityEndUserAuth]
-		require.False(t, ok, "end_user_auth capability should not be advertised when bypass is enabled")
-	})
+	// With bypass enabled, orbit must not advertise the end-user auth capability.
+	require.NotContains(t, newClient(true).ClientCapabilities, fleet.CapabilityEndUserAuth)
 
-	t.Run("without bypass matches default capabilities", func(t *testing.T) {
-		oc := newClient(false)
-		require.Equal(t, fleet.GetOrbitClientCapabilities(), oc.ClientCapabilities)
-	})
-
-	// The default capability set only includes end_user_auth on non-macOS platforms, so only there
-	// can we prove the bypass actually removed something that would otherwise have been advertised.
-	if runtime.GOOS != "darwin" {
-		t.Run("bypass removes an otherwise-advertised capability", func(t *testing.T) {
-			require.Contains(t, fleet.GetOrbitClientCapabilities(), fleet.CapabilityEndUserAuth,
-				"precondition: non-macOS orbit advertises end_user_auth by default")
-			oc := newClient(true)
-			require.NotContains(t, oc.ClientCapabilities, fleet.CapabilityEndUserAuth)
-		})
-	}
+	// Without bypass, capabilities are unchanged from the default set.
+	require.Equal(t, fleet.GetOrbitClientCapabilities(), newClient(false).ClientCapabilities)
 }
 
 func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {

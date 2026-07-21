@@ -253,7 +253,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "bypass-end-user-auth",
-			Usage:   "Bypasses end-user authentication during enrollment on Linux and Windows (e.g. when the user already authenticated via Autopilot)",
+			Usage:   "Bypasses end-user authentication during fleetd enrollment on Linux and Windows",
 			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
 		},
 	}
@@ -1174,11 +1174,10 @@ func orbitAction(c *cli.Context) error {
 		)
 	}
 
-	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM
-	// installer supplies an EUA token, the user already authenticated during MDM enrollment and the
-	// server links the host's IdP account from that token. Processing the token requires that orbit
-	// keep advertising the end-user auth capability, so a present token takes precedence over the
-	// bypass flag. See https://github.com/fleetdm/fleet/issues/46644.
+	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM installer supplies
+	// an EUA token, the user already authenticated during MDM enrollment and the server links the host's IdP account
+	// from that token. Processing the token requires that orbit keep advertising the end-user auth capability, so a
+	// present token takes precedence over the bypass flag.
 	euaToken := c.String("eua-token")
 	hasEUAToken := euaToken != "" && euaToken != constant.UnusedFlagKeyword
 	bypassEndUserAuth := c.Bool("bypass-end-user-auth") && !hasEUAToken

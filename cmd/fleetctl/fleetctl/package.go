@@ -132,7 +132,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "bypass-end-user-auth",
-				Usage:       "Skip the end-user authentication prompt during enrollment (applies to Linux and Windows hosts; macOS handles end-user auth during MDM enrollment)",
+				Usage:       "Skip the end-user authentication prompt during fleetd enrollment (applies to Linux and Windows hosts; macOS only handles end-user auth during MDM enrollment)",
 				Destination: &opt.BypassEndUserAuth,
 			},
 			&cli.StringFlag{
