@@ -432,14 +432,15 @@ async function handleAPI(req, res) {
     const running = getRunningSessionIds();
     const parkedIds = new Set(state.history.filter(h => h.claude_session_id).map(h => h.claude_session_id));
 
-    const sessions = state.snapshot.sessions.map(s => ({
-      ...s,
-      note: state.notes[s.claude_session_id] || state.notes[s.iterm_uuid] || '',
-      status: !s.claude_session_id ? 'no-claude'
-        : parkedIds.has(s.claude_session_id) ? 'parked'
-        : running.has(s.claude_session_id) ? 'running'
-        : 'missing'
-    }));
+    const sessions = state.snapshot.sessions
+      .filter(s => !parkedIds.has(s.claude_session_id))
+      .map(s => ({
+        ...s,
+        note: state.notes[s.claude_session_id] || state.notes[s.iterm_uuid] || '',
+        status: !s.claude_session_id ? 'no-claude'
+          : running.has(s.claude_session_id) ? 'running'
+          : 'missing'
+      }));
 
     // Sort by last_active descending (most recent first)
     sessions.sort((a, b) => (b.last_active || '').localeCompare(a.last_active || ''));
