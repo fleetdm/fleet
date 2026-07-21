@@ -172,6 +172,19 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
     event.stopPropagation();
   };
 
+  const addFleetKeyDown = (event: React.KeyboardEvent) => {
+    // Enter (and Space) on the Add fleet button fires the Button's own
+    // onClick correctly, but the event ALSO bubbles up to
+    // SelectContainer's onKeyDown where react-select treats it as
+    // "select the currently highlighted option" and fires onChange for
+    // an unintended fleet. Stop propagation so only the button's own
+    // click path runs. Other keys (Escape, Tab, Arrow) still bubble
+    // through so react-select's menu-close / focus behaviors work.
+    if (event.key === "Enter" || event.key === " ") {
+      event.stopPropagation();
+    }
+  };
+
   return (
     <components.Menu {...props}>
       {showSearch && (
@@ -201,6 +214,7 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
         <div
           className={`${baseClass}__add-fleet-footer`}
           onMouseDown={addFleetMouseDown}
+          onKeyDown={addFleetKeyDown}
         >
           <Button
             variant="brand-inverse-icon"
