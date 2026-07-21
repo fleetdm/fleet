@@ -1,4 +1,4 @@
-name: homebrew_packages
+name: homebrew_outdated
 columns:
   - name: app_name
     description: Name of the installed App (for Casks)
@@ -12,23 +12,15 @@ columns:
     description: Package name
     type: text
     required: false
-  - name: path
+  - name: install_path
     description: Package install path
-    type: test
-    required: false
-  - name: prefix
-    description: Homebrew install prefix
     type: text
     required: false
   - name: type
     description: Package type ('formula' or 'cask')
     type: text
     required: false
-  - name: version
-    description: Current 'linked' version
-    type: text
-    required: false
-  - name: version
+  - name: installed_version
     description: Current 'linked' version
     type: text
     required: false
@@ -36,16 +28,12 @@ columns:
     description: Latest available version from Homebrew (not the installed version). Empty if unavailable.
     type: text
     required: false
-  - name: is_latest
-    description: "yes" if the installed version matches the latest available version, "no" otherwise. Empty if latest_version is unavailable.
-    type: text
-    required: false
 examples: |-
-  Check the version of a package installed via homebrew. This example checks the
-  version of ffmeg, which should be replaced by the actual package you want to
-  check for. This is useful for finding problematic or vulnerable installs,
+  Check the installed and latest available version of an outdated package. This
+  example checks ffmpeg, which should be replaced by the actual package you want
+  to check for. This is useful for finding outdated or vulnerable installs,
   though Fleet will detect vulnerable packages automatically.
 
   ```
-  SELECT version FROM homebrew_packages WHERE name = 'ffmpeg';
+  SELECT installed_version, current_version FROM homebrew_outdated WHERE name = 'ffmpeg';
   ```
