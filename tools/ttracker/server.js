@@ -309,9 +309,9 @@ async function parkSession(itermUuid) {
   const session = state.snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
   if (!session) return { ok: false, error: 'Session not found' };
 
-  // For non-Claude sessions at a shell prompt, capture command history
+  // If session is at a shell prompt (no active process), capture command history
   let cmdHistory = [];
-  if (!session.claude_session_id) {
+  {
     try {
       const isAtPrompt = await runOsascript(`
 tell application "iTerm2"
