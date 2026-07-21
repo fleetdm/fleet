@@ -1,29 +1,29 @@
 ---
 name: fleet-article-formatting
-description: Apply Fleet's house format and voice to Fleet ARTICLES — the blog pieces tagged with the meta category "articles" (thought-leadership, how-to articles, and competitive/comparison pieces). Use this whenever writing a NEW Fleet article, OR editing, refreshing, tightening, or enhancing an EXISTING one, even if the user doesn't explicitly say "use the format." Covers the title → dek → key takeaways → CTA button → intro → body → closing CTA structure, the key-takeaways pattern (immediately after the dek, above the fold), the post-takeaways CTA button, Fleet terminology rules (e.g. "Fleet's agent," not "osquery"), honest-claims guardrails, de-duplication, and a step-by-step checklist for converting older articles into the current format. This skill governs STRUCTURE and article-specific voice; for general voice, grammar, and word choice, use the content-style skill alongside it. Do NOT use this for case studies, announcements, or guides — those are different categories with their own conventions; if the piece's meta category is anything other than "articles" or "comparison", this format does not apply.
+description: Apply Fleet's house article format and article-specific voice to Fleet ARTICLES — blog pieces with meta category "articles" or "comparison" (thought-leadership, how-to, and comparison pieces). Use when writing a NEW article or editing, refreshing, or tightening an EXISTING one, even if the user doesn't say "use the format." Governs structure and article-specific voice; pair with content-style for word-level voice. Do NOT use for guides, case studies, or announcements — those are separate content types with their own skills.
 allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git diff*), Bash(git status*)
 effort: medium
 ---
 
 # Fleet article formatting
 
-This skill encodes the house style for Fleet **articles**: the structure, the voice, and the rules for keeping claims honest. Use it to draft new articles and to bring older ones up to the current standard.
+This skill governs article **structure and article-specific voice** — the section order, the key-takeaways pattern, the CTAs, and the honest-claims guardrails — for drafting new articles and bringing older ones up to standard. For word-level voice (sentence case, em dashes, filler, Fleet terminology, positioning), run the `content-style` skill over the prose. Apply both together on every article.
 
-This skill governs article **structure and article-specific voice** (the section order, the key-takeaways pattern, the CTAs, honest-claims guardrails). For general voice, tone, grammar, and word choice — sentence case, em dashes, filler words, Fleet terminology, brand positioning — use the `content-style` skill and its `references/style-rules.md`. **Apply both together** whenever you write or review a Fleet article: run this skill for the format and run `content-style` over the prose.
+The format does one job: let a busy reader get the whole argument from the top of the page, then keep reading for the proof. "Key takeaways" and the CTA button sit immediately after the dek — before the intro — so a reader who scrolls no further still leaves with the argument and a next step. Every rule below serves that.
 
-## Scope — when this skill applies
+## Content types
 
-This format is for Fleet **articles only** — pieces published under `<meta name="category" value="articles">`. That covers thought-leadership posts, how-to articles, and competitive/comparison pieces that live in the articles category.
+Fleet publishes several content types under `articles/`. This skill governs the **article** format only. Identify the type first (the `<meta name="category" ...>` value is the routing signal), then apply the matching format. The canonical list of valid `category` values lives in [`website/scripts/build-static-content.js`](../../../website/scripts/build-static-content.js) (`validArticleCategories`); a fuller per-type explainer is in [`content-style/references/content-types.md`](../content-style/references/content-types.md).
 
-It does **not** apply to:
+| Content type | What it is | `category` value(s) | Format governed by |
+|---|---|---|---|
+| **Article** | Thought-leadership, how-to, and comparison pieces in the house format (title → dek → key takeaways → CTA → body → closing) | `articles`, `comparison` | **this skill** (+ `content-style` for prose) |
+| **Guide** | Step-by-step operational how-to | `guides` | `fleet-guide-formatting` |
+| **Case study** | Customer story; requires summary/quote meta tags | `case study` | its own template (build-enforced) |
+| **Announcement** | Product/news announcement | `announcements` | `content-style` |
+| Release notes, podcasts, webinars, whitepapers, reports | Other content types | `releases`, `podcasts`, `webinar`, `whitepaper`, `report`, … | out of scope here |
 
-- **Case studies** (`category` = `success stories` / case studies)
-- **Announcements** (`category` = `announcements`)
-- **Guides** (`category` = `guides`)
-
-These are separate content types with their own conventions. Before applying this format, check the piece's `<meta name="category" ...>` value (or ask the author which category it's destined for). If it isn't `articles`, stop and don't impose this structure — flag the mismatch to the author instead.
-
-The format exists to do one job well: let a busy reader get the whole argument from the top of the page, then keep reading for the proof. In practice that means "Key takeaways" and the CTA button sit immediately after the dek — before the intro — so a reader who scrolls no further still leaves with the argument and a next step. Every rule below serves that.
+**Scope follows from this table:** apply this skill when the piece is an **Article** — `category` is `articles` *or* `comparison`. Both use the same format; `comparison` differs only in routing (it sets `category=comparison` and carries extra routing meta tags — see the website build requirements). For any other type, stop and use the owning skill; flag the mismatch to the author rather than reshaping their piece.
 
 ## The structure
 
@@ -36,7 +36,7 @@ Use this skeleton for Fleet articles — thought-leadership posts, how-to articl
 ## Key takeaways
 - **Bold lead-in.** One to three sentences, outcome-first. (5–6 bullets.)
 
-<a purpose="cta-button" href="/relevant-page">Short action label</a>
+<a purpose="cta-button" href="https://fleetdm.com/relevant-page">Short action label</a>
 
 [Intro — keep it short (about two short paragraphs); it opens the body proper.]
 
@@ -64,8 +64,6 @@ One or two sentences, italicized. It frames the question the piece answers or th
 
 ### Key takeaways — the heart of the format
 
-This is the section that makes the format work, so get it right.
-
 - Place it immediately after the dek, before the intro and the first body section. Nothing but the title and dek comes before it — the reader gets the whole argument at the very top of the page.
 - 5–6 bullets. Each bullet: `**Bold lead-in phrase.**` followed by one to three sentences.
 - **Lead with the business outcome, not the feature.** The bold phrase should state what's true for the reader or what they get ("Fleet sees it across every OS, in real time"), and the sentences explain why it matters. Avoid bullets that just name a feature.
@@ -81,11 +79,10 @@ This is the section that makes the format work, so get it right.
 
 ### CTA button after the key takeaways
 
-Place a single call-to-action button directly after the key takeaways list, before the intro. A reader who got the whole argument from the takeaways should have an immediate next step right there, without scrolling at all.
+Place a single call-to-action button directly after the key takeaways list, before the intro.
 
-- **Syntax:** `<a purpose="cta-button" href="/path">Short action label</a>` — the same hook Fleet's website uses for its primary (green) button.
-- **It depends on the article template.** This renders as a styled button only where the article stylesheet applies the `cta-button` style to article-body anchors. Where that style isn't in place yet, the tag degrades to a plain link. If you need a guaranteed-visible CTA today and aren't sure the style has shipped, use a bold-link fallback instead: `**[Short action label](/path)**`. (Raw inline HTML is uncommon in Fleet articles — confirm a local build passes the `<a>` through unescaped before relying on it.)
-- **Make it relevant to the piece.** Match label and destination to the argument: "See it managed as code" → `/infrastructure-as-code` for a config-as-code post, "Compare features" → `/pricing` for a comparison, "Get a demo" → `/contact` as the default.
+- **Syntax:** `<a purpose="cta-button" href="https://fleetdm.com/path">Short action label</a>` — an established pattern that renders as Fleet's primary (green) button in the article body. Use a full `https://fleetdm.com/…` URL, as existing articles do.
+- **Make it relevant to the piece.** Match label and destination to the argument: "See config-as-code in Fleet" → `/infrastructure-as-code` for a config-as-code post, "Compare features" → `/pricing` for a comparison, "Get a demo" → `/contact` as the default.
 - **One button only.** The fuller menu of next steps belongs in the closing CTA, not here. If the closing block also offers "Get a demo," vary the top button so the two CTAs aren't identical.
 
 ### Intro
@@ -144,7 +141,7 @@ Each distinct point gets one primary home. A claim that appears five times acros
 2. Draft the body sections first — that's where the substance is. Ground every claim; flag anything unverified.
 3. Write the dek and the intro. Keep the intro to about two short paragraphs; it opens the body, so end it on a bridge into the first section.
 4. Derive the **key takeaways** from the finished body: one outcome-first bullet per major section, 5–6 total, previewing without echoing. Place them immediately after the dek, before the intro — each bullet must stand alone with no setup.
-5. Add the **post-takeaways CTA button** directly after the takeaways, before the intro, with a label and destination relevant to the piece (bold-link fallback if the button style isn't available).
+5. Add the **post-takeaways CTA button** (`<a purpose="cta-button" href="https://fleetdm.com/path">…</a>`) directly after the takeaways, before the intro, with a label and destination relevant to the piece.
 6. Write the closing and the closing CTA.
 7. Run the `content-style` skill over the whole draft for voice, sentence case, em dashes, filler, and Fleet terminology.
 8. Run the self-check below.
@@ -153,11 +150,11 @@ Each distinct point gets one primary home. A claim that appears five times acros
 
 Use this to bring older Fleet content up to the current format. Work through it in order.
 
-1. **Confirm it's an article.** Check the `<meta name="category" ...>` value. If it's `articles`, proceed. If it's a case study, announcement, or guide, stop — this format doesn't apply; tell the author rather than reshaping their piece.
+1. **Confirm it's an article.** Check the `<meta name="category" ...>` value against the Content types table. If it's `articles` or `comparison`, proceed. Otherwise stop — this format doesn't apply; tell the author rather than reshaping their piece.
 2. **Read the whole piece** and identify its main argument and its natural section breaks.
 3. **Add a dek** if there isn't one — an italic one-or-two-sentence framing under the title.
 4. **Insert a "Key takeaways" section** immediately after the dek, before the intro. Derive 5–6 outcome-first bullets, roughly one per major section. Make them preview the body without copying sentences out of it, and make sure each stands alone — the reader hasn't seen the intro yet.
-5. **Add the post-takeaways CTA button** (`<a purpose="cta-button" href="/path">…</a>`, or a bold-link fallback) directly after the takeaways, before the intro, with a label/destination relevant to the piece.
+5. **Add the post-takeaways CTA button** (`<a purpose="cta-button" href="https://fleetdm.com/path">…</a>`) directly after the takeaways, before the intro, with a label/destination relevant to the piece.
 6. **Tighten the intro** to about two short paragraphs. It now follows the CTA button and opens the body, so it should set up the problem and bridge into the first section — not restate the takeaways.
 7. **Sweep terminology**: replace "osquery" with "Fleet's agent"/"fleetd" in prose, fix Title Case headings to sentence case, fix capitalized credential/product names.
 8. **De-duplicate**: find claims repeated across sections and keep each in its strongest single home.
@@ -171,7 +168,7 @@ Use this to bring older Fleet content up to the current format. Work through it 
 
 - Title is sentence case and outcome-led; there's an italic dek that frames rather than summarizes.
 - "Key takeaways" sits immediately after the dek, before the intro: 5–6 outcome-first bullets, each previewing a section, each standing alone, none echoing a body sentence verbatim.
-- A single CTA button (or bold-link fallback) follows the key takeaways and precedes the intro, with a label and destination relevant to the piece.
+- A single CTA button follows the key takeaways and precedes the intro, with a label and destination relevant to the piece.
 - The intro is short (about two short paragraphs), doesn't restate the takeaways, and ends on a bridge into the first body section.
 - Body sections lead with their point and use grounded specifics; comparison pieces credit the other tool before adding depth.
 - No "osquery" in customer-facing prose; headings and credential names are sentence case.
@@ -183,5 +180,3 @@ Use this to bring older Fleet content up to the current format. Work through it 
 ## Reference
 
 A blank, copyable skeleton lives at `assets/article-template.md`. Start new articles from it when helpful.
-
-Note on the CTA button: rendering as a styled button requires the article template to apply Fleet's `cta-button` style to article-body anchors. If that styling isn't yet in place, the tag falls back to a plain link — submit a `#g-website` request to enable it, or use the bold-link form in the meantime.

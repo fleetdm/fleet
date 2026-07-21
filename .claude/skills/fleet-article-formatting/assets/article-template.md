@@ -18,7 +18,7 @@
 - **Bold lead-in.** …
 - **Bold lead-in.** …
 
-<a purpose="cta-button" href="/relevant-page">Short action label</a>
+<a purpose="cta-button" href="https://fleetdm.com/relevant-page">Short action label</a>
 
 [Intro — about two short paragraphs. Set up the problem or tension and end on a bridge into the first body section. Don't restate the takeaways.]
 

@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 24 workflow skills (invoke with /) — see "Skills reference" below
+├── skills/                    # 26 workflow skills (invoke with /) — see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 19 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 21 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -200,6 +200,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/command-palette` | `/command-palette` | Authoring guide for the Fleet command palette — adding/editing items in `frontend/components/CommandPalette/groups/`, router paths, and new pages/actions that need a palette entry. |
 | `/tier-modes` | `/tier-modes` | Authoring guide for Fleet Free (`!isPremiumTier`) and Primo (`isPrimoMode`) gating in the frontend — for new pages/surfaces or when introducing new tier gating. |
 | `/content-style` | `/content-style` | Writes, edits, and reviews public-facing Fleet content (website, handbook, docs, articles, release notes, UI copy) to follow Fleet's voice and style guidelines. |
+| `/fleet-article-formatting` | `/fleet-article-formatting` | Applies Fleet's house article format and article-specific voice to articles (`category` `articles` or `comparison`) — title → dek → key takeaways → CTA button → body → closing. Pairs with `/content-style` for word-level voice. |
 | `/openspec-*` | `/openspec-propose` | OpenSpec spec-driven workflow for larger changes (explore → propose → apply → archive). Four skills: `openspec-explore`, `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`. Vendored by the `openspec` CLI — see `openspec/README.md`. |
 
 ### Using `/project` for workstream context
