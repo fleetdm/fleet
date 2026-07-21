@@ -167,6 +167,18 @@ async function takeSnapshot() {
         }
       }
 
+      // Get cwd from the shell process if not already set (non-Claude terminals)
+      if (!cwd) {
+        const shellMatch = psOut.split('\n').find(l => l.includes('-zsh') || l.includes('bash'));
+        if (shellMatch) {
+          const shellPid = shellMatch.trim().split(/\s+/)[0];
+          cwd = await runCommand('lsof', ['-p', shellPid, '-Fn', '-d', 'cwd']).then(out => {
+            const line = out.split('\n').find(l => l.startsWith('n'));
+            return line ? line.slice(1) : '';
+          });
+        }
+      }
+
       // Find foreground process
       const statOut = await runCommand('ps', ['-t', shortTty, '-o', 'stat,command']);
       let procName = 'unknown';
