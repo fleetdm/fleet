@@ -3131,7 +3131,7 @@ CREATE TABLE `software_installers` (
   `patch_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `http_etag` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `dedup_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (if((`fleet_maintained_app_id` is null),`storage_id`,`version`)) VIRTUAL,
-  `app_open_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `app_open_query` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT (_utf8mb4''),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_installers_dedup` (`global_or_team_id`,`title_id`,`dedup_token`),
   KEY `fk_software_installers_title` (`title_id`),

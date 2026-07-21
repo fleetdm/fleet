@@ -75,6 +75,7 @@ func TestRunApiCommand(t *testing.T) {
     "conditional_access_enabled": false,
     "type": "dynamic",
     "continuous_automations_enabled": false,
+    "patch_when_closed": false,
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,

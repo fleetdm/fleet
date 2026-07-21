@@ -23,7 +23,7 @@ func Up_20260721173820(tx *sql.Tx) error {
 	if !columnExists(tx, "software_installers", "app_open_query") {
 		if _, err := tx.Exec(`
 			ALTER TABLE software_installers
-			ADD COLUMN app_open_query TEXT COLLATE utf8mb4_unicode_ci NOT NULL
+			ADD COLUMN app_open_query TEXT COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ('')
 		`); err != nil {
 			return fmt.Errorf("add app_open_query to software_installers: %w", err)
 		}
