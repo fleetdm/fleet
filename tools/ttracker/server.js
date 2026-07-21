@@ -502,6 +502,21 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // POST /api/minimize-all
+  if (req.method === 'POST' && url.pathname === '/api/minimize-all') {
+    try {
+      await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        set miniaturized of (window w) to true
+    end repeat
+end tell`);
+    } catch {}
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
   // POST /api/focus/:iterm_uuid
   if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'focus' && pathParts[2]) {
     const result = await focusSession(decodeURIComponent(pathParts[2]));
@@ -933,6 +948,7 @@ function getDashboardHTML() {
     <span id="snapshot-time"></span>
     <span id="session-counts"></span>
     <button class="refresh-btn" onclick="forceSnapshot()">Snapshot Now</button>
+    <button class="refresh-btn" onclick="minimizeAll()">Minimize All</button>
   </div>
 </div>
 
@@ -1137,6 +1153,10 @@ async function newSession() {
   btn.textContent = '+ New Claude Session';
   btn.disabled = false;
   await refresh();
+}
+
+async function minimizeAll() {
+  await fetch(API + '/api/minimize-all', { method: 'POST' });
 }
 
 async function forceSnapshot() {
