@@ -309,53 +309,23 @@ async function parkSession(itermUuid) {
   const session = state.snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
   if (!session) return { ok: false, error: 'Session not found' };
 
-  // If session is at a shell prompt (no active process), capture command history
+  // Capture command history by writing fc output to a temp file via the TTY
   let cmdHistory = [];
-  {
+  if (session.tty) {
     try {
-      const isAtPrompt = await runOsascript(`
-tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        repeat with t from 1 to (count of tabs of (window w))
-            repeat with s from 1 to (count of sessions of tab t of (window w))
-                set sess to session s of tab t of (window w)
-                if (unique ID of sess) is "${itermUuid}" then
-                    return (is at shell prompt of sess) as text
-                end if
-            end repeat
-        end repeat
-    end repeat
-end tell`);
-      console.log(`[park] isAtPrompt=${isAtPrompt} for ${itermUuid}`);
-      if (isAtPrompt === 'true') {
-        const histTmp = path.join(os.tmpdir(), `tt-hist-${Date.now()}.txt`);
-        await runOsascript(`
-tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        repeat with t from 1 to (count of tabs of (window w))
-            repeat with s from 1 to (count of sessions of tab t of (window w))
-                set sess to session s of tab t of (window w)
-                if (unique ID of sess) is "${itermUuid}" then
-                    tell sess
-                        write text "fc -l -30 > ${histTmp} 2>/dev/null"
-                    end tell
-                    return "done"
-                end if
-            end repeat
-        end repeat
-    end repeat
-end tell`);
-        await new Promise(r => setTimeout(r, 2000));
-        try {
-          const histRaw = fs.readFileSync(histTmp, 'utf8');
-          cmdHistory = histRaw.split('\n')
-            .map(l => l.replace(/^\s*\d+\s+/, '').trim())
-            .filter(l => l && !l.startsWith('fc '));
-          fs.unlinkSync(histTmp);
-          console.log(`[park] captured ${cmdHistory.length} commands`);
-        } catch (e) {
-          console.log(`[park] failed to read history: ${e.message}`);
-        }
+      const histTmp = path.join(os.tmpdir(), `tt-hist-${Date.now()}.txt`);
+      // Write fc command directly to the TTY - this works even without shell integration
+      fs.writeFileSync(session.tty, `fc -l -30 > ${histTmp} 2>/dev/null\n`);
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const histRaw = fs.readFileSync(histTmp, 'utf8');
+        cmdHistory = histRaw.split('\n')
+          .map(l => l.replace(/^\s*\d+\s+/, '').trim())
+          .filter(l => l && !l.startsWith('fc '));
+        fs.unlinkSync(histTmp);
+        console.log(`[park] captured ${cmdHistory.length} commands`);
+      } catch (e) {
+        console.log(`[park] no history file: ${e.message}`);
       }
     } catch (e) {
       console.log(`[park] history capture error: ${e.message}`);
