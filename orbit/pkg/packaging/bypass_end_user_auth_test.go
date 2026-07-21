@@ -40,21 +40,15 @@ func TestBypassEndUserAuthTemplates(t *testing.T) {
 		})
 	})
 
-	t.Run("macos launchd plist", func(t *testing.T) {
-		t.Run("included when enabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = true
-			var buf bytes.Buffer
-			require.NoError(t, macosLaunchdTemplate.Execute(&buf, opt))
-			assert.Contains(t, buf.String(), "<key>ORBIT_BYPASS_END_USER_AUTH</key>")
-		})
-		t.Run("absent when disabled", func(t *testing.T) {
-			opt := baseOpt
-			opt.BypassEndUserAuth = false
-			var buf bytes.Buffer
-			require.NoError(t, macosLaunchdTemplate.Execute(&buf, opt))
-			assert.NotContains(t, buf.String(), "ORBIT_BYPASS_END_USER_AUTH")
-		})
+	// macOS is intentionally excluded: macOS orbit never advertises the end-user auth capability
+	// (EUA is handled during MDM enrollment), so the flag is not wired into the launchd plist,
+	// matching the --disable-setup-experience precedent. Guard against it being re-added.
+	t.Run("macos launchd plist never carries the flag", func(t *testing.T) {
+		opt := baseOpt
+		opt.BypassEndUserAuth = true
+		var buf bytes.Buffer
+		require.NoError(t, macosLaunchdTemplate.Execute(&buf, opt))
+		assert.NotContains(t, buf.String(), "ORBIT_BYPASS_END_USER_AUTH")
 	})
 
 	t.Run("windows msi", func(t *testing.T) {
