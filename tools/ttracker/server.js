@@ -726,6 +726,7 @@ function getDashboardHTML() {
       <th>Session Name</th>
       <th>Folder</th>
       <th>Note</th>
+      <th>Claude Session</th>
       <th>Parked At</th>
       <th>Status</th>
       <th style="width:100px">Action</th>
@@ -810,7 +811,7 @@ function renderHistory(entries) {
   document.getElementById('history-count').textContent = '(' + entries.length + ')';
 
   if (entries.length === 0) {
-    el.innerHTML = '<tr><td colspan="8" class="empty-state">No parked sessions</td></tr>';
+    el.innerHTML = '<tr><td colspan="9" class="empty-state">No parked sessions</td></tr>';
     return;
   }
 
@@ -828,6 +829,7 @@ function renderHistory(entries) {
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
       + 'onblur="saveNote(\\'' + h.claude_session_id + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
+      + '<td class="session-id">' + escapeHtml(h.claude_session_id) + '</td>'
       + '<td class="parked-at">' + escapeHtml(h.parked_at) + '</td>'
       + '<td>' + statusDot(h.status) + '</td>'
       + '<td class="actions">' + action + '</td>'
