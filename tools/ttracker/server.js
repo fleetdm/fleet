@@ -594,30 +594,14 @@ async function handleAPI(req, res) {
     }
     saveState(state);
 
-    // Update iTerm2 badge if session is live and at a shell prompt
-    if (iterm_uuid) {
+    // Update iTerm2 badge by writing escape sequence directly to the TTY device
+    // This works even when a process (claude, node, etc.) is running in the terminal
+    const ttySession = state.snapshot.sessions.find(s =>
+      s.claude_session_id === sid || s.iterm_uuid === sid);
+    if (ttySession && ttySession.tty) {
       const badgeB64 = Buffer.from(badge).toString('base64');
       try {
-        await runOsascript(`
-tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        set win to window w
-        repeat with t from 1 to (count of tabs of win)
-            repeat with s from 1 to (count of sessions of tab t of win)
-                set sess to session s of tab t of win
-                if (unique ID of sess) is "${iterm_uuid}" then
-                    if (is at shell prompt of sess) then
-                        tell sess
-                            write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
-                        end tell
-                        return "updated"
-                    end if
-                    return "skipped"
-                end if
-            end repeat
-        end repeat
-    end repeat
-end tell`);
+        fs.writeFileSync(ttySession.tty, `\x1b]1337;SetBadgeFormat=${badgeB64}\x07`);
       } catch {}
     }
 
