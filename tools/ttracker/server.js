@@ -594,6 +594,7 @@ function getDashboardHTML() {
   }
   .session-name { color: #586e75; }
   .process-cell { color: #2aa198; font-weight: 500; }
+  .folder-cell { color: #b58900; font-size: 12px; }
   .session-id {
     color: #93a1a1;
     font-size: 11px;
@@ -693,6 +694,7 @@ function getDashboardHTML() {
       <th style="width:50px">#</th>
       <th>Badge</th>
       <th>Session Name</th>
+      <th>Folder</th>
       <th>Note</th>
       <th>Process</th>
       <th>Claude Session</th>
@@ -710,6 +712,7 @@ function getDashboardHTML() {
       <th style="width:50px">#</th>
       <th>Badge</th>
       <th>Session Name</th>
+      <th>Folder</th>
       <th>Note</th>
       <th>Parked At</th>
       <th>Status</th>
@@ -759,7 +762,7 @@ function renderActive(data) {
   document.getElementById('session-counts').textContent = running + ' running, ' + missing + ' missing';
 
   if (sessions.length === 0) {
-    el.innerHTML = '<tr><td colspan="8" class="empty-state">No sessions found</td></tr>';
+    el.innerHTML = '<tr><td colspan="9" class="empty-state">No sessions found</td></tr>';
     return;
   }
 
@@ -773,10 +776,12 @@ function renderActive(data) {
     }
     const noteKey = s.claude_session_id || s.iterm_uuid;
     const noteVal = escapeHtml(s.note);
+    const folder = s.cwd ? s.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td class="badge-cell">' + escapeHtml(s.badge) + '</td>'
       + '<td>' + escapeHtml(s.session_name) + '</td>'
+      + '<td class="folder-cell">' + escapeHtml(folder) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
       + 'onblur="saveNote(\\'' + noteKey + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
@@ -793,19 +798,21 @@ function renderHistory(entries) {
   document.getElementById('history-count').textContent = '(' + entries.length + ')';
 
   if (entries.length === 0) {
-    el.innerHTML = '<tr><td colspan="7" class="empty-state">No parked sessions</td></tr>';
+    el.innerHTML = '<tr><td colspan="8" class="empty-state">No parked sessions</td></tr>';
     return;
   }
 
   el.innerHTML = entries.map((h, i) => {
     const action = h.status === 'running'
-      ? '<span style="color:#3fb950;font-size:12px">open</span>'
+      ? '<span style="color:#859900;font-size:12px">open</span>'
       : '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + h.claude_session_id + '\\')">Restore</button>';
     const noteVal = escapeHtml(h.note);
+    const folder = h.cwd ? h.cwd.replace(/^\\/Users\\/[^\\/]+\\//, '~/') : '';
     return '<tr>'
       + '<td>' + (i + 1) + '</td>'
       + '<td class="badge-cell">' + escapeHtml(h.badge) + '</td>'
       + '<td>' + escapeHtml(h.session_name) + '</td>'
+      + '<td class="folder-cell">' + escapeHtml(folder) + '</td>'
       + '<td><input class="note-input" value="' + noteVal + '" placeholder="..." '
       + 'onblur="saveNote(\\'' + h.claude_session_id + '\\', this.value)" '
       + 'onkeydown="if(event.key===\\'Enter\\')this.blur()" /></td>'
