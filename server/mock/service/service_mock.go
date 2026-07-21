@@ -756,6 +756,8 @@ type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, f
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
+type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error
+
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *string, profiles []fleet.MDMProfileBatchPayload, dryRun bool, skipBulkPending bool, assumeEnabled *bool, noCache bool) error
@@ -2084,6 +2086,9 @@ type Service struct {
 
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
+
+	UpdateMDMConfigProfileFunc        UpdateMDMConfigProfileFunc
+	UpdateMDMConfigProfileFuncInvoked bool
 
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
@@ -4998,6 +5003,13 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMInvalidJSONConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
+}
+
+func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+	s.mu.Lock()
+	s.UpdateMDMConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMConfigProfileFunc(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 }
 
 func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
