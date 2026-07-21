@@ -642,7 +642,7 @@ function getDashboardHTML() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23073642'/><rect x='6' y='6' width='88' height='22' rx='4' fill='%23586e75'/><circle cx='18' cy='17' r='5' fill='%23dc322f'/><circle cx='33' cy='17' r='5' fill='%23b58900'/><circle cx='48' cy='17' r='5' fill='%23859900'/><text x='50' y='72' font-size='38' text-anchor='middle' fill='%23d33682'>✳</text></svg>">
+<link rel="icon" href="https://claude.ai/favicon.ico">
 <title>ttracker</title>
 <style>
   /* Solarized Light - full palette
