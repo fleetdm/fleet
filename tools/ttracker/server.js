@@ -188,6 +188,16 @@ async function takeSnapshot() {
         procName = path.basename(cmd);
       }
 
+      // Get last activity time from JSONL file modification time
+      let lastActive = '';
+      if (claudeSessionId) {
+        const jsonlFile = path.join(os.homedir(), '.claude', 'projects', '-Users-sharonkatz-repos-fleet', `${claudeSessionId}.jsonl`);
+        try {
+          const stat = fs.statSync(jsonlFile);
+          lastActive = stat.mtime.toISOString().replace('T', ' ').slice(0, 16);
+        } catch {}
+      }
+
       sessions.push({
         window_id: parseInt(winId) || 0,
         tab: parseInt(tab) || 1,
@@ -198,7 +208,8 @@ async function takeSnapshot() {
         session_name: sessName || '',
         process: procName,
         claude_session_id: claudeSessionId,
-        cwd
+        cwd,
+        last_active: lastActive
       });
     }
 
@@ -401,6 +412,9 @@ async function handleAPI(req, res) {
         : 'missing'
     }));
 
+    // Sort by last_active descending (most recent first)
+    sessions.sort((a, b) => (b.last_active || '').localeCompare(a.last_active || ''));
+
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ...state.snapshot, sessions }));
     return;
@@ -416,6 +430,9 @@ async function handleAPI(req, res) {
       note: (h.claude_session_id && state.notes[h.claude_session_id]) || '',
       status: running.has(h.claude_session_id) ? 'running' : 'parked'
     }));
+
+    // Sort by parked_at descending (most recent first)
+    entries.sort((a, b) => (b.parked_at || '').localeCompare(a.parked_at || ''));
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(entries));
