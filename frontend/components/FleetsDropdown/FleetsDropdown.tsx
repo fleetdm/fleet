@@ -147,12 +147,18 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // Always stop propagation. Nav keys (Arrow / Enter / Escape) are
+    // forwarded explicitly to react-select's hidden input via
+    // forwardNavKey; without stopPropagation, the original event ALSO
+    // bubbles up through Menu → SelectContainer and triggers react-select's
+    // delegated handler, which processes the key a second time (visible in
+    // jsdom as onChange firing twice on Enter, and as double option-index
+    // increments on Arrow keys).
+    event.stopPropagation();
     if (NAV_KEYS.has(event.key)) {
       event.preventDefault();
       forwardNavKey?.(event);
-      return;
     }
-    event.stopPropagation();
   };
 
   const addFleetMouseDown = (event: React.MouseEvent) => {
