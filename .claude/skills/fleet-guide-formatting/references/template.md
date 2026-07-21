@@ -1,10 +1,10 @@
 # [Task-verb-led title in sentence case]
 
-[One short paragraph. State the problem and what the reader ends up with. No history lesson, no "in today's landscape." If the guide doesn't cover every scenario, say so here in one sentence.]
+[One short paragraph. State the problem and what the reader ends up with. No history lesson, no "in today's landscape". If the guide doesn't cover every scenario, say so here in one sentence.]
 
 ## Prerequisites
 
-<!-- Heading may instead be "Requirements," "What you'll need," or "Before you begin." Pick one, keep it consistent within the guide. -->
+<!-- Heading may instead be "Requirements", "What you'll need", or "Before you begin". Pick one, keep it consistent within the guide. Headings take no end punctuation. -->
 
 Check these before you start:
 
