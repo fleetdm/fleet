@@ -344,6 +344,35 @@ end tell`);
   return { ok: true, badge: session.badge };
 }
 
+async function createNewSession(badge) {
+  const cwd = path.join(os.homedir(), 'repos', 'fleet');
+  const badgeB64 = badge ? Buffer.from(badge).toString('base64') : '';
+  const claudeCmd = 'claude --dangerously-skip-permissions';
+
+  const tmpFile = path.join(os.tmpdir(), `tt-new-${Date.now()}.applescript`);
+  const badgeLine = badgeB64
+    ? `write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"\n        delay 2`
+    : '';
+  fs.writeFileSync(tmpFile, `tell application "iTerm2"
+    set newWindow to (create window with default profile)
+    tell current session of current tab of newWindow
+        write text "cd ${cwd}"
+        delay 1
+        ${badgeLine}
+        write text "${claudeCmd}"
+    end tell
+end tell`);
+
+  try {
+    await runOsascriptFile(tmpFile);
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
+
+  setTimeout(() => takeSnapshot(), 5000);
+  return { ok: true };
+}
+
 async function restoreSession(claudeSessionId, fromHistory) {
   const state = loadState();
   let session;
@@ -436,6 +465,20 @@ async function handleAPI(req, res) {
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(entries));
+    return;
+  }
+
+  // POST /api/new-session
+  if (req.method === 'POST' && url.pathname === '/api/new-session') {
+    const body = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', c => data += c);
+      req.on('end', () => resolve(data));
+    });
+    const { badge } = JSON.parse(body);
+    const result = await createNewSession(badge || '');
+    res.writeHead(result.ok ? 200 : 400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
     return;
   }
 
@@ -701,6 +744,39 @@ function getDashboardHTML() {
     border-color: #268bd2;
     background: #eee8d5;
   }
+  .new-session {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .new-session input {
+    background: #eee8d5;
+    border: 1px solid #93a1a1;
+    border-radius: 5px;
+    color: #586e75;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 5px 10px;
+    width: 180px;
+  }
+  .new-session input:focus {
+    outline: none;
+    border-color: #268bd2;
+  }
+  .btn-new {
+    background: #268bd2;
+    color: #fdf6e3;
+    border: none;
+    border-radius: 5px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .btn-new:hover { opacity: 0.85; }
+  .btn-new:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -714,6 +790,11 @@ function getDashboardHTML() {
     <span id="session-counts"></span>
     <button class="refresh-btn" onclick="forceSnapshot()">Snapshot Now</button>
   </div>
+</div>
+
+<div class="new-session">
+  <input id="new-badge" type="text" placeholder="badge (optional)" onkeydown="if(event.key==='Enter')document.getElementById('new-btn').click()" />
+  <button id="new-btn" class="btn-new" onclick="newSession()">+ New Claude Session</button>
 </div>
 
 <h2>Active Sessions <span class="count" id="active-count"></span></h2>
@@ -860,6 +941,23 @@ async function refresh() {
   const [sessions, history] = await Promise.all([fetchSessions(), fetchHistory()]);
   renderActive(sessions);
   renderHistory(history);
+}
+
+async function newSession() {
+  const btn = document.getElementById('new-btn');
+  const input = document.getElementById('new-badge');
+  const badge = input.value.trim();
+  btn.disabled = true;
+  btn.textContent = 'Opening...';
+  await fetch(API + '/api/new-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ badge })
+  });
+  input.value = '';
+  btn.textContent = '+ New Claude Session';
+  btn.disabled = false;
+  setTimeout(refresh, 4000);
 }
 
 async function forceSnapshot() {
