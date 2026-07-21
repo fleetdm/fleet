@@ -3728,6 +3728,18 @@ Enabling this bypasses checks for forbidden declaration types, reserved identifi
     allow_all_declarations: true
   ```
 
+### mdm.allow_legacy_orbit_enrollment_without_end_user_auth
+
+When a team requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet blocks Linux and Windows hosts from enrolling through Orbit until the end user has authenticated. Older `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow and are therefore blocked. Set this to `true` to allow backwards-compatible behavior: Orbit versions that do not support end user authentication are allowed to enroll into a team that requires it. Use this only while migrating a fleet that still runs pre-end-user-auth agents, and turn it off once those agents are upgraded. Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_LEGACY_ORBIT_ENROLLMENT_WITHOUT_END_USER_AUTH`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_legacy_orbit_enrollment_without_end_user_auth: true
+  ```
+
 ### fleet_allow_bootstrap_package_during_migration
 
 When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.

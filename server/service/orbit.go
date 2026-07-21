@@ -251,13 +251,16 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			// Orbit enrollment is only gated by end user auth for Linux and Windows hosts.
 			// For macOS hosts the MDM enrollment process handles end user auth.
 			if platform == "linux" || platform == "windows" {
-				// If the Orbit client doesn't support end user auth, complain loudly and let the host enroll.
-				mp, ok := capabilities.FromContext(ctx)
+				// Enforcement is based solely on server policy. The client-supplied
+				// X-Fleet-Capabilities header is an informational hint and must not
+				// gate this decision.
+				//
+				// The one exception is the opt-in AllowLegacyOrbitEnrollmentWithoutEndUserAuth
+				// escape hatch, which an admin can enable to let pre-EUA agents enroll
+				// during a migration.
+				mp, capsOK := capabilities.FromContext(ctx)
+				clientSupportsEUA := capsOK && mp.Has(fleet.CapabilityEndUserAuth)
 				switch {
-				case !ok:
-					svc.logger.ErrorContext(ctx, "allowing unauthenticated enrollment: could not determine orbit end-user auth capability", "host_uuid", hostInfo.HardwareUUID)
-				case !mp.Has(fleet.CapabilityEndUserAuth):
-					svc.logger.WarnContext(ctx, "allowing unauthenticated enrollment: orbit version does not support end-user authentication", "host_uuid", hostInfo.HardwareUUID)
 				case platform == "windows" && euaToken != "":
 					// A Windows host already authenticated during MDM enrollment and the
 					// EUA token was passed by the MSI installer.
@@ -269,6 +272,10 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 					euaDeviceID = deviceID
 					euaIdpAcctUUID = idpAcctUUID
 					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
+				case svc.config.MDM.AllowLegacyOrbitEnrollmentWithoutEndUserAuth && !clientSupportsEUA:
+					svc.logger.WarnContext(ctx, "allowing unauthenticated enrollment: legacy orbit enrollment without end-user auth is enabled and the client does not support it",
+						"host_uuid", hostInfo.HardwareUUID)
+					// Continue enrollment — do not return END_USER_AUTH_REQUIRED.
 				default:
 					// A host that already exists in Fleet and was previously orbit-enrolled is re-enrolling (e.g. after a
 					// service restart, node key file loss, or osquery DB rebuild), not enrolling for the first time. We must not
@@ -278,7 +285,18 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 						return "", fleet.OrbitError{Message: "failed to check for prior orbit enrollment: " + err.Error()}
 					}
 					if !previouslyEnrolled {
-						// Otherwise report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						// Report the unauthenticated host and let Orbit handle it (e.g. by prompting the user to authenticate).
+						// Dereference the team ID so the log shows the numeric value; leave it nil for a global enroll secret.
+						var teamID any
+						if secret.TeamID != nil {
+							teamID = *secret.TeamID
+						}
+						svc.logger.WarnContext(ctx, "blocking enrollment: end-user authentication required but not completed",
+							"host_uuid", hostInfo.HardwareUUID,
+							"hardware_serial", hostInfo.HardwareSerial,
+							"platform", platform,
+							"team_id", teamID,
+						)
 						return "", fleet.NewOrbitIDPAuthRequiredError()
 					}
 					svc.logger.InfoContext(ctx, "allowing re-enrollment without end-user authentication: host previously orbit-enrolled",

@@ -1,0 +1,1 @@
+- Orbit enrollment now determines end user authentication requirements from server policy rather than client-advertised capabilities. Fleets running agents that predate end user authentication support can restore the previous behavior with the `mdm.allow_legacy_orbit_enrollment_without_end_user_auth` server setting (disabled by default).

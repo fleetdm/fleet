@@ -948,6 +948,11 @@ type MDMConfig struct {
 	EnableCustomDiskEncryption bool `yaml:"enable_custom_disk_encryption"`
 	AllowAllDeclarations       bool `yaml:"allow_all_declarations"`
 
+	// AllowLegacyOrbitEnrollmentWithoutEndUserAuth restores the backward-compatible
+	// behavior where an Orbit/fleetd version that does not support end user
+	// authentication is allowed to enroll into a team that requires it.
+	AllowLegacyOrbitEnrollmentWithoutEndUserAuth bool `yaml:"allow_legacy_orbit_enrollment_without_end_user_auth"`
+
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
 }
@@ -1804,6 +1809,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("mdm.enable_custom_filevault", false, "Allows usage of custom Apple MDM profiles for FileVault (Fleet Premium required)")
 	man.addConfigBool("mdm.enable_custom_disk_encryption", false, "Allows usage of custom Apple MDM profiles for FileVault and custom Windows profiles for BitLocker (Fleet Premium required)")
 	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigBool("mdm.allow_legacy_orbit_enrollment_without_end_user_auth", false, "Allow Orbit versions that do not support end user authentication to enroll into teams that require it")
 	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
 	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
 	man.hideConfig("mdm.android_agent.package")
@@ -2120,35 +2126,36 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 		MDM: MDMConfig{
-			AppleAPNsCert:                     man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes:                man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:                      man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:                 man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:                     man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes:                man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:                      man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:                 man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:                man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:                       man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:                  man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
-			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
-			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
-			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
-			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
-			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
-			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
-			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
-			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
-			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
-			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
-			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
-			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
-			EnableCustomFileVault:             man.getConfigBool("mdm.enable_custom_filevault"),
-			EnableCustomDiskEncryption:        man.getConfigBool("mdm.enable_custom_disk_encryption"),
-			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AppleAPNsCert:                                man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:                           man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:                                 man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:                            man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:                                man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:                           man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:                                 man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:                            man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:                           man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes:                      man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:                                  man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:                             man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:                                   man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:                              man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleEnable:                                  man.getConfigBool("mdm.apple_enable"),
+			AppleSCEPSignerValidityDays:                  man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleConnectJWT:                              man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
+			AppleSCEPChallenge:                           man.getConfigString("mdm.apple_scep_challenge"),
+			AppleDEPSyncPeriodicity:                      man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			WindowsWSTEPIdentityCert:                     man.getConfigString("mdm.windows_wstep_identity_cert"),
+			WindowsWSTEPIdentityKey:                      man.getConfigString("mdm.windows_wstep_identity_key"),
+			WindowsWSTEPIdentityCertBytes:                man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
+			WindowsWSTEPIdentityKeyBytes:                 man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:                        man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			CertificateProfilesLimit:                     man.getConfigInt("mdm.certificate_profiles_limit"),
+			EnableCustomOSUpdatesAndFileVault:            man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			EnableCustomFileVault:                        man.getConfigBool("mdm.enable_custom_filevault"),
+			EnableCustomDiskEncryption:                   man.getConfigBool("mdm.enable_custom_disk_encryption"),
+			AllowAllDeclarations:                         man.getConfigBool("mdm.allow_all_declarations"),
+			AllowLegacyOrbitEnrollmentWithoutEndUserAuth: man.getConfigBool("mdm.allow_legacy_orbit_enrollment_without_end_user_auth"),
 			AndroidAgent: AndroidAgentConfig{
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
