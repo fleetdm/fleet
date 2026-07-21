@@ -1,8 +1,8 @@
 #!/bin/bash
 # ttracker/done.sh
 #
-# Marks the current terminal's Claude session as "done" so restore.sh
-# won't reopen it. Run this after exiting Claude, before closing the terminal.
+# Parks the current terminal's Claude session into history.
+# It won't be auto-restored, but you can bring it back via history.sh.
 #
 # Usage (typically via alias):
 #   ttdone
@@ -11,30 +11,30 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SNAPSHOT_DIR="$SCRIPT_DIR/snapshots"
-DISMISSED_FILE="$SNAPSHOT_DIR/dismissed.txt"
+HISTORY_FILE="$SNAPSHOT_DIR/history.json"
 SNAPSHOT_FILE="$SNAPSHOT_DIR/latest.json"
 
 if [ ! -f "$SNAPSHOT_FILE" ]; then
-    echo "No snapshot found. Nothing to dismiss."
+    echo "No snapshot found. Nothing to park."
     exit 1
 fi
 
 # Find which Claude session was running on this TTY
 my_tty=$(tty)
 
-# Look up session ID from the latest snapshot by matching TTY
-session_info=$(python3 -c "
+# Look up full session info from the latest snapshot by matching TTY
+session_json=$(python3 -c "
 import json
 data = json.load(open('$SNAPSHOT_FILE'))
 for s in data['sessions']:
     if s.get('tty') == '$my_tty' and s.get('claude_session_id'):
-        print(s['claude_session_id'] + '\t' + s.get('badge', ''))
+        print(json.dumps(s))
         break
 " 2>/dev/null || echo "")
 
-if [ -z "$session_info" ]; then
+if [ -z "$session_json" ]; then
     echo "No Claude session found for this terminal ($my_tty)."
-    echo "If Claude already exited, the session may not match. Checking by badge..."
+    echo "Checking by iTerm2 session..."
 
     # Fallback: try matching by iTerm2 session UUID via AppleScript
     iterm_uuid=$(osascript -e '
@@ -54,32 +54,46 @@ if [ -z "$session_info" ]; then
     end tell' 2>/dev/null || echo "")
 
     if [ -n "$iterm_uuid" ]; then
-        session_info=$(python3 -c "
+        session_json=$(python3 -c "
 import json
 data = json.load(open('$SNAPSHOT_FILE'))
 for s in data['sessions']:
     if s.get('iterm_uuid') == '$iterm_uuid' and s.get('claude_session_id'):
-        print(s['claude_session_id'] + '\t' + s.get('badge', ''))
+        print(json.dumps(s))
         break
 " 2>/dev/null || echo "")
     fi
 
-    if [ -z "$session_info" ]; then
-        echo "Could not find a matching session. Nothing dismissed."
+    if [ -z "$session_json" ]; then
+        echo "Could not find a matching session. Nothing parked."
         exit 1
     fi
 fi
 
-sid=$(echo "$session_info" | cut -f1)
-badge=$(echo "$session_info" | cut -f2)
+# Add parked_at timestamp and append to history
+python3 -c "
+import json, os
+from datetime import datetime
 
-# Add to dismissed list (if not already there)
-mkdir -p "$SNAPSHOT_DIR"
-touch "$DISMISSED_FILE"
-if grep -q "^${sid}$" "$DISMISSED_FILE" 2>/dev/null; then
-    echo "Session already dismissed: $badge ($sid)"
-else
-    echo "$sid" >> "$DISMISSED_FILE"
-    echo "Dismissed: $badge (${sid:0:8}...)"
-    echo "This session will not be restored. You can close the terminal."
-fi
+entry = json.loads('$session_json')
+entry['parked_at'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+history_file = '$HISTORY_FILE'
+history = []
+if os.path.exists(history_file):
+    with open(history_file) as f:
+        history = json.load(f)
+
+# Skip if already in history
+if any(h['claude_session_id'] == entry['claude_session_id'] for h in history):
+    badge = entry.get('badge', '')
+    print(f'Already parked: {badge}')
+else:
+    history.append(entry)
+    with open(history_file, 'w') as f:
+        json.dump(history, f, indent=2)
+    badge = entry.get('badge', '')
+    sid_short = entry['claude_session_id'][:8]
+    print(f'Parked: {badge} ({sid_short}...)')
+    print('Retrieve it anytime with: tthistory')
+"

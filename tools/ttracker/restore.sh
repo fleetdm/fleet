@@ -95,11 +95,19 @@ for f in "$HOME"/.claude/sessions/*.json; do
     fi
 done
 
-# Load dismissed sessions
-DISMISSED_FILE="$SNAPSHOT_DIR/dismissed.txt"
+# Load parked (done) sessions from history
+HISTORY_FILE="$SNAPSHOT_DIR/history.json"
 dismissed_sessions=""
-if [ -f "$DISMISSED_FILE" ]; then
-    dismissed_sessions=$(cat "$DISMISSED_FILE")
+if [ -f "$HISTORY_FILE" ]; then
+    dismissed_sessions=$(python3 -c "
+import json
+with open('$HISTORY_FILE') as f:
+    history = json.load(f)
+for h in history:
+    sid = h.get('claude_session_id', '')
+    if sid:
+        print(sid)
+" 2>/dev/null || echo "")
 fi
 
 # Compare and find missing sessions
@@ -121,7 +129,7 @@ while IFS=$'\t' read -r sid badge cwd name; do
 
     if echo "$dismissed_sessions" | grep -q "^${sid}$"; then
         dismissed_count=$((dismissed_count + 1))
-        printf "${DIM}%-4s %-20s %-40s done${RESET}\n" "$idx" "$display_badge" "$display_name"
+        printf "${DIM}%-4s %-20s %-40s parked${RESET}\n" "$idx" "$display_badge" "$display_name"
     elif echo "$current_sessions" | grep -q "^${sid}$"; then
         already_count=$((already_count + 1))
         printf "${DIM}%-4s %-20s %-40s ${GREEN}already open${RESET}\n" "$idx" "$display_badge" "$display_name"
@@ -133,7 +141,7 @@ while IFS=$'\t' read -r sid badge cwd name; do
 done <<< "$saved_sessions"
 
 printf "%s\n" "$(printf '%.0s-' {1..100})"
-printf "\n${BOLD}Already open:${RESET} %d  |  ${BOLD}Missing:${RESET} %d  |  ${BOLD}Done:${RESET} %d\n\n" "$already_count" "$missing_count" "$dismissed_count"
+printf "\n${BOLD}Already open:${RESET} %d  |  ${BOLD}Missing:${RESET} %d  |  ${BOLD}Parked:${RESET} %d\n\n" "$already_count" "$missing_count" "$dismissed_count"
 
 if [ "$missing_count" -eq 0 ]; then
     printf "${GREEN}All sessions are already open. Nothing to restore.${RESET}\n\n"
