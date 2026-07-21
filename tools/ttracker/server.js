@@ -439,19 +439,25 @@ async function restoreSession(sessionId, fromHistory) {
   // Write a shell script that does cd, badge, launch, and optionally prints history
   // This avoids all AppleScript escaping issues
   const restoreScript = path.join(os.tmpdir(), `tt-restore-${Date.now()}.sh`);
-  let script = `#!/bin/bash\ncd '${cwd}'\n`;
+  const lines = ['#!/bin/bash', `cd '${cwd}'`];
   if (badgeB64) {
-    script += `printf '\\e]1337;SetBadgeFormat=%s\\a' '${badgeB64}'\nsleep 1\n`;
+    lines.push(`printf '\\e]1337;SetBadgeFormat=%s\\a' '${badgeB64}'`);
+    lines.push('sleep 1');
   }
   if (!launchCmd && session.cmd_history && session.cmd_history.length) {
     const histFile = path.join(os.tmpdir(), `tt-hist-display-${Date.now()}.txt`);
     fs.writeFileSync(histFile, session.cmd_history.join('\n'));
-    script += `echo ''\nprintf '\\033[1;36m--- Last commands before parking ---\\033[0m\\n'\ncat ${histFile}\nprintf '\\033[1;36m------\\033[0m\\n'\necho ''\nrm -f ${histFile}\n`;
+    lines.push('echo ""');
+    lines.push(`printf '\\033[1;36m--- Last commands before parking ---\\033[0m\\n'`);
+    lines.push(`cat ${histFile}`);
+    lines.push(`printf '\\033[1;36m------\\033[0m\\n'`);
+    lines.push('echo ""');
+    lines.push(`rm -f ${histFile}`);
   }
   if (launchCmd) {
-    script += `${launchCmd}\n`;
+    lines.push(launchCmd);
   }
-  fs.writeFileSync(restoreScript, script);
+  fs.writeFileSync(restoreScript, lines.join('\n') + '\n');
   fs.chmodSync(restoreScript, '755');
 
   const tmpFile = path.join(os.tmpdir(), `tt-restore-${Date.now()}.applescript`);
