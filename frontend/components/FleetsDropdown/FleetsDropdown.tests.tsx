@@ -258,5 +258,56 @@ describe("FleetsDropdown - component", () => {
       await user.click(addButton);
       expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");
     });
+
+    it("hides the button for global admins when GitOps mode is enabled", async () => {
+      const user = userEvent.setup();
+      renderWithAppContext(
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
+          selectedFleetId={1}
+          onChange={noop}
+        />,
+        {
+          contextValue: {
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://github.com/fleetdm/fleet",
+              },
+            } as any,
+          },
+        }
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      expect(
+        screen.queryByRole("button", { name: /add fleet/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the button for global admins when Primo mode is enabled", async () => {
+      const user = userEvent.setup();
+      renderWithAppContext(
+        <FleetsDropdown
+          currentUserTeams={USER_FLEETS}
+          selectedFleetId={1}
+          onChange={noop}
+        />,
+        {
+          contextValue: {
+            isGlobalAdmin: true,
+            config: {
+              partnerships: { enable_primo: true },
+            } as any,
+          },
+        }
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      expect(
+        screen.queryByRole("button", { name: /add fleet/i })
+      ).not.toBeInTheDocument();
+    });
   });
 });

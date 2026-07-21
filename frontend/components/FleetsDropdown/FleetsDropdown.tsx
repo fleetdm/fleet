@@ -279,7 +279,17 @@ const FleetsDropdown = ({
   onAddFleet,
   asFormField = false,
 }: IFleetsDropdownProps): JSX.Element => {
-  const { isGlobalAdmin } = useContext(AppContext);
+  const { isGlobalAdmin, config } = useContext(AppContext);
+
+  // Mirror the gate used by ManageFleetsPage's in-page "Add fleet" button:
+  // Primo mode and GitOps mode both disable fleet creation. Hide the
+  // affordance entirely rather than link to a page where the button is
+  // disabled — otherwise the deep link (?create_fleet=1) silently no-ops
+  // when it lands.
+  const isAddFleetDisabled =
+    !!config?.partnerships?.enable_primo ||
+    !!(config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url);
+  const canAddFleet = !!isGlobalAdmin && !isAddFleetDisabled;
   const [searchQuery, setSearchQuery] = useState("");
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);
@@ -543,7 +553,7 @@ const FleetsDropdown = ({
         onChangeSearchQuery={onChangeSearchQuery}
         forwardNavKey={forwardNavKey}
         onClickAddFleet={onClickAddFleet}
-        showAddFleetButton={!!isGlobalAdmin}
+        showAddFleetButton={canAddFleet}
         showSearch={showSearch}
         noOptionsMessage={() => "No matching fleets"}
       />
