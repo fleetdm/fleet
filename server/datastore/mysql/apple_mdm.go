@@ -6465,6 +6465,25 @@ func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgN
 	return wasSet, nil
 }
 
+func (ds *Datastore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+	const stmt = `UPDATE abm_tokens SET token_invalid = ? WHERE organization_name = ? AND token_invalid != ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, orgName, invalid)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update abm_tokens token_invalid")
+	}
+	affRows, _ := res.RowsAffected()
+
+	if affRows > 0 {
+		// if it did update the row, then the previous value was the opposite of
+		// invalid
+		wasSet = !invalid
+	} else {
+		// if it did not update any row, then the previous value was the same
+		wasSet = invalid
+	}
+	return wasSet, nil
+}
+
 func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
 	// The expectation is that abm_tokens will have few rows (we don't even
 	// support pagination on the "list ABM tokens" endpoint), so this query
