@@ -247,6 +247,9 @@ Create a new profile and add an **Extensible Single Sign-On** payload.
 Same as above, but also add these Platform SSO settings:
 - **Platform SSO Authentication Method:** Password
 - **Use Shared Device Keys:** Checked
+- **Token To User Mapping:** Maps `AccountName` to `macOSAccountUsername` and `FullName` to `macOSAccountFullName` (see note below)
+
+> If Platform SSO is creating the local user account (rather than the account already existing before registration), Okta ignores the username and full name Fleet would otherwise populate during [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication). Instead, the account is locked to whatever value Okta puts in the PSSO token (usually the user's full email) for both the username and full name. Add a `TokenToUserMapping` dictionary (shown below) to map these correctly. See [Okta's JIT provisioning documentation](https://help.okta.com/oie/en-us/content/topics/oda/macos-pw-sync/jit-provisioning-oda.htm) for the corresponding Okta-side attribute configuration.
 
 Example configuration for macOS 14:
 
@@ -259,6 +262,13 @@ Example configuration for macOS 14:
     <string>Password</string>
     <key>UseSharedDeviceKeys</key>
     <true/>
+    <key>TokenToUserMapping</key>
+    <dict>
+        <key>AccountName</key>
+        <string>macOSAccountUsername</string>
+        <key>FullName</key>
+        <string>macOSAccountFullName</string>
+    </dict>
 </dict>
 <key>ExtensionIdentifier</key>
 <string>com.okta.mobile.auth-service-extension</string>
