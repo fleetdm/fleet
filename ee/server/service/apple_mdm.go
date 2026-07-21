@@ -575,8 +575,15 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		}
 
 		releasedSerials := make([]string, 0, len(disownResp.Devices))
-		for serial, status := range disownResp.Devices {
+		for _, serial := range serials {
 			hostID := serialToHostID[serial]
+
+			status, ok := disownResp.Devices[serial]
+			if !ok {
+				svc.logger.ErrorContext(ctx, "No status returned for serial from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial)
+				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
+			}
+
 			if strings.EqualFold(string(status), string(fleet.ABReleaseDeviceStatusSuccess)) {
 				setSuccessResponse(hostID)
 				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeReleasedDeviceFromAB{
@@ -591,6 +598,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 				svc.logger.ErrorContext(ctx, "Got non success status from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial, "status", status)
 				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Error releasing device: %s", status))
 			}
+
 		}
 
 		if err := svc.ds.DeleteHostDEPAssignments(ctx, token.ID, releasedSerials); err != nil {
