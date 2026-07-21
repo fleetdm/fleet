@@ -291,6 +291,28 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 			name:     "nil ndes vars returns nil",
 			contents: validProfile,
 		},
+		{
+			name: "subject name with trailing whitespace in LocURI bypasses renewal id check",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+		{
+			name: "challenge with trailing whitespace in LocURI still validates correctly",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge ", "hardcoded-password") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "server url with trailing whitespace in LocURI still validates correctly",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL ", "https://hardcoded.example.com"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "ServerURL" field`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -304,6 +326,67 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				require.Error(t, err)
 				var badReqErr *fleet.BadRequestError
 				require.ErrorAs(t, err, &badReqErr, "expected BadRequestError for: %s", tt.name)
+				require.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
+	t.Parallel()
+
+	addItem := func(locURI, data string) string {
+		return fmt.Sprintf(
+			`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`,
+			locURI, data,
+		)
+	}
+
+	customSCEPVars := &CustomSCEPVarsFound{}
+	customSCEPVars, _ = customSCEPVars.SetURL("ca1")
+	customSCEPVars, _ = customSCEPVars.SetChallenge("ca1")
+	customSCEPVars, _ = customSCEPVars.SetRenewalID()
+
+	tests := []struct {
+		name        string
+		contents    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid custom SCEP profile",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			),
+		},
+		{
+			name: "subject name missing renewal id",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+		{
+			name: "subject name with trailing whitespace in LocURI bypasses renewal id check",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := additionalCustomSCEPValidationForWindowsProfiles(tt.contents, customSCEPVars)
+			if tt.wantErr {
+				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.errContains)
 			} else {
 				require.NoError(t, err)
