@@ -316,21 +316,24 @@ const FleetsDropdown = ({
   const selectedLabel =
     fleetOptions.find((o) => o.value === selectedValue)?.label ?? "All fleets";
 
-  // Close menu when clicking outside the wrapper.
+  // Close menu when clicking outside the wrapper. Only attach the listener
+  // while the menu is actually open — no need to run this handler on every
+  // document mousedown for the rest of the app's lifetime.
   useEffect(() => {
+    if (!menuIsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        menuIsOpen &&
         wrapperRef.current &&
         !wrapperRef.current.contains(event.target as Node)
       ) {
         setMenuIsOpen(false);
         setSearchQuery("");
+        onClose?.();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuIsOpen]);
+  }, [menuIsOpen, onClose]);
 
   // When the menu opens with no search input, focus react-select's hidden
   // input directly so Arrow / Enter / Escape drive option highlighting
@@ -525,6 +528,7 @@ const FleetsDropdown = ({
         onMenuClose={() => {
           setMenuIsOpen(false);
           setSearchQuery("");
+          onClose?.();
         }}
         styles={customStyles}
         components={{
