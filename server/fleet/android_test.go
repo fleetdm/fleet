@@ -255,6 +255,12 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 			rawJSON: `{"name": "$FLEET_HOST_VITAL_007"}`,
 			wantErr: false,
 		},
+		{
+			name:      "malformed custom host vital reference is rejected",
+			rawJSON:   `{"name": "$FLEET_HOST_VITAL_asset_tag"}`,
+			wantErr:   true,
+			errSubstr: "Invalid custom host vital reference",
+		},
 	}
 
 	for _, tt := range tests {

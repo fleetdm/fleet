@@ -124,12 +124,21 @@ func parseAndroidProfileValidationError(err error) error {
 func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any) error {
 	contents := string(rawJSON)
 
+	// Malformed vital refs (e.g. a typo like $FLEET_HOST_VITAL_asset_tag) are
+	// rejected here rather than left solely to the service-layer existence
+	// check (ds.ValidateReferencedCustomHostVitals), so this function doesn't
+	// depend on callers always pairing it with that check to catch a malformed
+	// reference — mirrors the same rejection in ValidateAndroidAppConfiguration.
+	if malformed := ContainsMalformedCustomHostVitalRefs(contents); len(malformed) > 0 {
+		return fmt.Errorf("Couldn't edit profile. %s", (&InvalidCustomHostVitalRefError{Refs: malformed}).Error())
+	}
+
 	// Custom host vitals ($FLEET_HOST_VITAL_<id>) are validated for existence
-	// (and malformed refs are rejected) at the service layer via
-	// ds.ValidateReferencedCustomHostVitals, same as Apple/Windows profiles.
-	// Here we only enforce that the token sits inside a JSON string value,
-	// mirroring the $FLEET_VAR_* check below, since a token used as a JSON key
-	// would corrupt the profile structure once substituted at delivery time.
+	// at the service layer via ds.ValidateReferencedCustomHostVitals, same as
+	// Apple/Windows profiles. Here we only enforce that the token sits inside a
+	// JSON string value, mirroring the $FLEET_VAR_* check below, since a token
+	// used as a JSON key would corrupt the profile structure once substituted
+	// at delivery time.
 	vitalIDs := FindCustomHostVitalIDs(contents)
 
 	found := variables.Find(contents)
