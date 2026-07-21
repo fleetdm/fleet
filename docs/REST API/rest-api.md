@@ -7107,10 +7107,6 @@ _Available in Fleet Premium_
 
 Sets a naming convention for all macOS, iOS, and iPadOS hosts in a fleet (or "Unassigned"). Fleet resolves the template per host, renames the host on the device via an Apple MDM command, and updates the host's name in Fleet.
 
-The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) and the deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
-
-If a host is missing the IdP data a variable needs, that host's rename fails. A referenced custom variable must already exist (an undefined one returns a `422`); custom variables are global, and a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
-
 Sending an empty `name_template` clears the template. Clearing the template stops enforcement but doesn't rename any host.
 
 `POST /api/v1/fleet/host_name_template`
@@ -7121,6 +7117,10 @@ Sending an empty `name_template` clears the template. Clearing the template stop
 | ------------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------ |
 | fleet_id      | integer | body | The fleet ID to apply the host name template to. The template is applied to "Unassigned" hosts if the value is absent or `0`. |
 | name_template | string  | body | The host name template. Send an empty string to clear the template.                                                            |
+
+The template supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; each also works in its `${...}` form. Certificate authority variables (SCEP challenges and proxy URLs, DigiCert data, certificate renewal IDs, the Platform SSO device registration token) and the deprecated `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variable aren't supported and return a `422` — they resolve to secrets or certificate data that are meaningless and unsafe as a host name.
+
+If a host is missing the IdP data a variable needs, that host's rename fails. A referenced custom variable must already exist (an undefined one returns a `422`); custom variables are global, and a custom variable's value becomes the host's (publicly visible) name, so it isn't kept hidden as it is in scripts and configuration profiles.
 
 #### Example
 
