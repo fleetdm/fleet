@@ -172,7 +172,7 @@ async function takeSnapshot() {
         const shellMatch = psOut.split('\n').find(l => l.includes('-zsh') || l.includes('bash'));
         if (shellMatch) {
           const shellPid = shellMatch.trim().split(/\s+/)[0];
-          cwd = await runCommand('lsof', ['-p', shellPid, '-Fn', '-d', 'cwd']).then(out => {
+          cwd = await runCommand('lsof', ['-a', '-p', shellPid, '-d', 'cwd', '-Fn']).then(out => {
             const line = out.split('\n').find(l => l.startsWith('n'));
             return line ? line.slice(1) : '';
           });
