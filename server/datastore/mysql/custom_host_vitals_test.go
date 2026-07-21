@@ -602,6 +602,8 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	// A macOS host must be MDM-enrolled to enter the reconcile window; otherwise
 	// the snapshot skips loading declarations entirely.
 	host := test.NewHost(t, ds, "macos-1", "1", "macos-1-key", "macos-1-uuid", time.Now())
+	err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")
