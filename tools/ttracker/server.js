@@ -594,7 +594,7 @@ async function handleAPI(req, res) {
     }
     saveState(state);
 
-    // Update iTerm2 badge if session is live
+    // Update iTerm2 badge if session is live and at a shell prompt
     if (iterm_uuid) {
       const badgeB64 = Buffer.from(badge).toString('base64');
       try {
@@ -606,10 +606,13 @@ tell application "iTerm2"
             repeat with s from 1 to (count of sessions of tab t of win)
                 set sess to session s of tab t of win
                 if (unique ID of sess) is "${iterm_uuid}" then
-                    tell sess
-                        write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
-                    end tell
-                    return "done"
+                    if (is at shell prompt of sess) then
+                        tell sess
+                            write text "printf '\\\\e]1337;SetBadgeFormat=%s\\\\a' '${badgeB64}'"
+                        end tell
+                        return "updated"
+                    end if
+                    return "skipped"
                 end if
             end repeat
         end repeat
