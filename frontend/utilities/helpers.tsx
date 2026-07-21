@@ -4,7 +4,6 @@ import {
   flatMap,
   omit,
   pick,
-  memoize,
   reduce,
   trim,
   trimEnd,
@@ -13,7 +12,6 @@ import {
 } from "lodash";
 import md5 from "js-md5";
 import {
-  formatDistanceToNow,
   formatDuration,
   intlFormat,
   intervalToDuration,
@@ -22,6 +20,7 @@ import {
 } from "date-fns";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import { timeAgo } from "utilities/date_format";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -43,7 +42,6 @@ import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -578,14 +576,14 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (lastSeen === "Unavailable") {
     return "Unavailable";
   }
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
   if (!enrolled || enrolled < INITIAL_FLEET_DATE) {
     return "Never";
   }
-  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
+  return timeAgo(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -599,7 +597,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
     return "unavailable";
   }
   try {
-    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+    return timeAgo(new Date(detailUpdated), { addSuffix: true });
   } catch {
     return "unavailable";
   }
@@ -614,7 +612,7 @@ export const humanLastSeen = (lastSeen: string): string => {
     return "Unavailable";
   }
 
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const internationalTimeFormat = (date: number | Date): string => {
@@ -651,7 +649,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 
   try {
-    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+    return timeAgo(new Date(lastRun), { addSuffix: true });
   } catch {
     return "Unavailable";
   }
@@ -826,18 +824,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
     );
   });
 };
-
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
 
 // returns a mixture of props from host
 export const normalizeEmptyValues = (

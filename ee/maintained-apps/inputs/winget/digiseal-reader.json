@@ -1,0 +1,13 @@
+{
+  "name": "digiSeal Reader",
+  "slug": "digiseal-reader/windows",
+  "package_identifier": "secrypt.digiSealreader",
+  "unique_identifier": "digiSeal reader",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "",
+  "ignore_hash": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/digiseal-reader_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/digiseal-reader_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

@@ -126,7 +126,7 @@ const generateDefaultTableHeaders = (
               <>
                 Vulnerabilities are currently supported on
                 <br />
-                macOS, Windows, and Linux.{" "}
+                macOS, Windows, Linux, and Android.{" "}
                 <CustomLink
                   url="https://fleetdm.com/guides/vulnerability-processing#coverage"
                   variant="tooltip-link"

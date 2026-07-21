@@ -8248,6 +8248,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -8850,6 +8853,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// apply spec, empty and whitespace-only secrets are rejected
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "   "}}},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// error conditions should create new activities
@@ -15114,19 +15125,45 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	}
 	// Do dry run
 	req.DryRun = true
+	idBeforeDryRun := s.lastActivityMatches("", "", 0)
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
+	// A dry run persists nothing, so it must not emit any activity.
+	require.Equal(t, idBeforeDryRun, s.lastActivityMatches("", "", 0))
 
-	// Do real run
+	// Do real run: creating the variable emits a created_custom_variable activity.
 	req.DryRun = false
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		0,
+	)
+
+	// Re-applying the same spec is a no-op and must not emit any activity.
+	idAfterCreate := s.lastActivityMatches("", "", 0)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	require.Equal(t, idAfterCreate, s.lastActivityMatches("", "", 0))
+
+	// Changing the value via the spec endpoint emits an updated_custom_variable activity.
+	req.SecretVariables[0].Value = "new-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "new-value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityUpdatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_name":%q}`, validName),
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestSecretVariables() {
@@ -15846,24 +15883,19 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 	}
 }
 
-func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
-	t := s.T()
-
-	var resp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
-	require.False(t, resp.License.ManagedCloud)
-
-	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
+	// Microsoft compliance partner APIs should fail on Fleet Free (this suite
+	// runs without a premium license).
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
 		MicrosoftTenantID: "foobar",
-	}, http.StatusBadRequest, &r)
+	}, http.StatusPaymentRequired, &r)
 	var c conditionalAccessMicrosoftConfirmResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &c)
+		http.StatusPaymentRequired, &c)
 	var d conditionalAccessMicrosoftDeleteResponse
-	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &d)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
+		http.StatusPaymentRequired, &d)
 }
 
 func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {

@@ -2270,6 +2270,111 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 	})
 }
 
+func TestAuthorizeDDMAssets(t *testing.T) {
+	t.Parallel()
+
+	globalAsset := &fleet.DDMAssetAuthz{}
+	team1Asset := &fleet.DDMAssetAuthz{
+		TeamID: new(uint(1)),
+	}
+	runTestCases(t, []authTestCase{
+		{user: test.UserNoRoles, object: globalAsset, action: write, allow: false},
+		{user: test.UserNoRoles, object: globalAsset, action: read, allow: false},
+		{user: test.UserNoRoles, object: team1Asset, action: write, allow: false},
+		{user: test.UserNoRoles, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserAdmin, object: globalAsset, action: write, allow: true},
+		{user: test.UserAdmin, object: globalAsset, action: read, allow: true},
+		{user: test.UserAdmin, object: team1Asset, action: write, allow: true},
+		{user: test.UserAdmin, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserMaintainer, object: globalAsset, action: write, allow: true},
+		{user: test.UserMaintainer, object: globalAsset, action: read, allow: true},
+		{user: test.UserMaintainer, object: team1Asset, action: write, allow: true},
+		{user: test.UserMaintainer, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserObserver, object: globalAsset, action: write, allow: false},
+		{user: test.UserObserver, object: globalAsset, action: read, allow: false},
+		{user: test.UserObserver, object: team1Asset, action: write, allow: false},
+		{user: test.UserObserver, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserObserverPlus, object: globalAsset, action: write, allow: false},
+		{user: test.UserObserverPlus, object: globalAsset, action: read, allow: false},
+		{user: test.UserObserverPlus, object: team1Asset, action: write, allow: false},
+		{user: test.UserObserverPlus, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTechnician, object: globalAsset, action: write, allow: false},
+		{user: test.UserTechnician, object: globalAsset, action: read, allow: true},
+		{user: test.UserTechnician, object: team1Asset, action: write, allow: false},
+		{user: test.UserTechnician, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserGitOps, object: globalAsset, action: write, allow: true},
+		{user: test.UserGitOps, object: globalAsset, action: read, allow: true},
+		{user: test.UserGitOps, object: team1Asset, action: write, allow: true},
+		{user: test.UserGitOps, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamAdminTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamAdminTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamAdminTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamAdminTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamMaintainerTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamMaintainerTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamObserverPlusTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamGitOpsTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Asset, action: write, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamGitOpsTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam2, object: team1Asset, action: read, allow: false},
+
+		{user: test.UserTeamTechnicianTeam1, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: team1Asset, action: read, allow: true},
+
+		{user: test.UserTeamTechnicianTeam2, object: globalAsset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: globalAsset, action: read, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Asset, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam2, object: team1Asset, action: read, allow: false},
+	})
+}
+
 func TestAuthorizeMDMAppleSettings(t *testing.T) {
 	t.Parallel()
 
@@ -3247,6 +3352,49 @@ func TestAuthorizeSecretVariables(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: secretVariable, action: write, allow: false},
 		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: read, allow: true},
 		{user: test.UserTeamTechnicianTeam1, object: secretVariable, action: write, allow: false},
+	})
+}
+
+func TestAuthorizeCustomHostVitals(t *testing.T) {
+	t.Parallel()
+
+	customHostVital := &fleet.CustomHostVital{}
+	runTestCases(t, []authTestCase{
+		{user: nil, object: customHostVital, action: read, allow: false},
+
+		{user: test.UserNoRoles, object: customHostVital, action: read, allow: false},
+
+		// Global admins, maintainers, and gitops can read/write.
+		{user: test.UserAdmin, object: customHostVital, action: read, allow: true},
+		{user: test.UserAdmin, object: customHostVital, action: write, allow: true},
+		{user: test.UserMaintainer, object: customHostVital, action: read, allow: true},
+		{user: test.UserMaintainer, object: customHostVital, action: write, allow: true},
+		{user: test.UserGitOps, object: customHostVital, action: read, allow: true},
+		{user: test.UserGitOps, object: customHostVital, action: write, allow: true},
+
+		// Global observers and observer_plus can read but cannot write.
+		{user: test.UserObserver, object: customHostVital, action: read, allow: true},
+		{user: test.UserObserver, object: customHostVital, action: write, allow: false},
+		{user: test.UserObserverPlus, object: customHostVital, action: read, allow: true},
+		{user: test.UserObserverPlus, object: customHostVital, action: write, allow: false},
+
+		// Global technicians can read but cannot write.
+		{user: test.UserTechnician, object: customHostVital, action: read, allow: true},
+		{user: test.UserTechnician, object: customHostVital, action: write, allow: false},
+
+		// Team users can read but cannot write.
+		{user: test.UserTeamAdminTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamMaintainerTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamGitOpsTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamObserverPlusTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamObserverTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: customHostVital, action: write, allow: false},
+		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: read, allow: true},
+		{user: test.UserTeamTechnicianTeam1, object: customHostVital, action: write, allow: false},
 	})
 }
 

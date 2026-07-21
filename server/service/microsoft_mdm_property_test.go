@@ -30,16 +30,17 @@ import (
 //     BlockInStatusPage (block: 1 = Reset PC; warn: 5 = Reset PC + Continue Anyway) and CustomErrorText
 //     (block: reason-specific static text; warn: dynamic failed-software list).
 //   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning plus
-//     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope
-//     Provider node is created during the hold phase via Add commands so the user-scope SHFP write
-//     lands instead of being 405-rejected.
+//     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope write is
+//     rejected with 405 until the device's user MDM context initializes, so the release path does NOT CAS to
+//     None: the enrollment stays Active and the Replace is re-sent until a 200 ack (handleESPUserReleaseRetry).
 //   - Persisted CommandUUIDs equal inline CmdID.Value (the ack-clearing invariant).
 //   - Persist runs as a single batched call (a regression that loops single inserts would split CustomErrorText
 //     and the block flags across multiple TX boundaries).
 //   - Cancel block fires iff (timedOut || (observedHasFailure && requireAll)); when it fires,
 //     CancelHostUpcomingActivity is called once per Pending/Running row in input. Cancel-upcoming runs strictly
-//     before cancel-status; both run strictly before persist; persist runs strictly before CAS. The warn path
-//     never cancels: all items already reached a terminal state and the user may continue.
+//     before cancel-status; both run strictly before persist; persist runs strictly before CAS on the block
+//     paths (the release path defers the CAS to the ack). The warn path never cancels: all items already
+//     reached a terminal state and the user may continue.
 //
 // Order independence is implicit: pbtESPSpec is a pure function of the multiset of statuses (no positional
 // dependency) and rapid samples many orderings, so any introduced order-dependence in production code
@@ -144,6 +145,9 @@ func newPBTESPSvc(
 		trace.callOrder = append(trace.callOrder, "cas")
 		return true, nil
 	}
+	ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+		return &fleet.MDMWindowsESPReleaseAckStatus{}, nil
+	}
 
 	svc := &Service{ds: ds, logger: pbtESPLogger}
 	svc.SetActivityService(&mock.MockActivityService{})
@@ -232,6 +236,7 @@ func pbtFindCmdByLocURI(cmds []*fleet.SyncMLCmd, substr string) *fleet.SyncMLCmd
 	return nil
 }
 
+// TestPBT_HandleESPRelease tests releases due to software failures or timeout. It does not test the happy path (which requires an Ack from device). The happy path is covered by other tests.
 func TestPBT_HandleESPRelease(t *testing.T) {
 	statusGen := rapid.SampledFrom([]fleet.SetupExperienceStatusResultStatus{
 		fleet.SetupExperienceStatusPending,
@@ -256,7 +261,7 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			}
 		}
 		svc, device, trace := newPBTESPSvc(statuses, timedOut, requireAll)
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoErrorf(rt, err, "statuses=%v timedOut=%v requireAll=%v", statuses, timedOut, requireAll)
 
 		if expected == pbtESPWait {
@@ -341,8 +346,8 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "CustomErrorText"),
 				"release path must NOT include CustomErrorText")
 			// Release writes ServerHasFinishedProvisioning at BOTH Device and User scope. Device scope completes
-			// the Device setup phase; User scope completes Account setup. The User-scope write requires the
-			// user-scope DMClient Provider node to have been created earlier via the hold-phase Add commands.
+			// the Device setup phase; User scope completes Account setup. The User-scope write is rejected with
+			// 405 until the user MDM context initializes, which is why its ack gates the Active -> None CAS.
 			shfpDeviceFound, shfpUserFound := false, false
 			for _, c := range cmds {
 				uri := c.GetTargetURI()
@@ -407,8 +412,16 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			}
 		}
 		require.NotEqualf(rt, -1, firstPersist, "persist must run for non-wait outcomes")
-		require.NotEqualf(rt, -1, firstCas, "CAS must run for non-wait outcomes")
-		require.Lessf(rt, firstPersist, firstCas, "persist must run before CAS; callOrder=%v", trace.callOrder)
+		// CAS Active -> None runs only on the block-flavored paths. The release path stays Active: the
+		// transition is deferred until the device acks the user-scope ServerHasFinishedProvisioning Replace
+		// with a 200 (handleESPUserReleaseRetry on a later checkin).
+		if expected == pbtESPRelease {
+			require.Equalf(rt, -1, firstCas,
+				"release path must NOT CAS to None before the user-scope release ack; callOrder=%v", trace.callOrder)
+		} else {
+			require.NotEqualf(rt, -1, firstCas, "CAS must run for block outcomes")
+			require.Lessf(rt, firstPersist, firstCas, "persist must run before CAS; callOrder=%v", trace.callOrder)
+		}
 		if lastCancelUpcoming != -1 && firstCancelStatus != -1 {
 			require.Lessf(rt, lastCancelUpcoming, firstCancelStatus,
 				"cancel-upcoming must run before cancel-status; callOrder=%v", trace.callOrder)

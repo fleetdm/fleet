@@ -187,7 +187,12 @@
     "@types/react-dom": "18.2.0",
     "**/serialize-javascript": "7.0.5",
     "**/yaml": "1.10.3",
-    "**/react-tooltip/uuid": "^14.0.0"
+    "**/react-tooltip/uuid": "14.0.0",
+    "**/node-notifier/uuid": "11.1.1",
+    "**/jest-junit/uuid": "11.1.1",
+    "**/jest-playwright-preset/uuid": "11.1.1",
+    "**/istanbul-lib-processinfo/uuid": "11.1.1",
+    "**/@storybook/addon-actions/uuid": "11.1.1"
   },
   "browserslist": [
     "defaults"
