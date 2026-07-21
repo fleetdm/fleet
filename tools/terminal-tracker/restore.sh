@@ -116,7 +116,7 @@ while IFS=$'\t' read -r sid badge cwd name; do
         printf "${DIM}%-4s %-20s %-40s ${GREEN}already open${RESET}\n" "$idx" "$display_badge" "$display_name"
     else
         missing_count=$((missing_count + 1))
-        missing_list+="${sid}\t${badge}\t${cwd}\t${name}"$'\n'
+        missing_list+="${sid}"$'\t'"${badge}"$'\t'"${cwd}"$'\t'"${name}"$'\n'
         printf "${YELLOW}%-4s${RESET} ${MAGENTA}%-20s${RESET} %-40s ${RED}MISSING${RESET}\n" "$idx" "$display_badge" "$display_name"
     fi
 done <<< "$saved_sessions"
