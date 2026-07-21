@@ -215,8 +215,8 @@ func TestIngestValidations(t *testing.T) {
 				)
 			}
 
-			// The managed "is app open" query is generated from the software title.
-			expectedOpen, err := patch_policy.GenerateOpenQuery("darwin", out.Name)
+			// The managed "is app open" query is generated from the bundle identifier.
+			expectedOpen, err := patch_policy.GenerateOpenQuery("darwin", out.Name, out.UniqueIdentifier)
 			require.NoError(t, err)
 			require.Equal(t, expectedOpen, out.Queries.Open)
 		})

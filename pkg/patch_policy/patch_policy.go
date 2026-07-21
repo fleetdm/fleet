@@ -151,10 +151,10 @@ func defaultWindowsQuery(softwareTitle string, version string) string {
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
-func GenerateOpenQuery(platform string, softwareTitle string) (string, error) {
+func GenerateOpenQuery(platform string, softwareTitle string, bundleIdentifier string) (string, error) {
 	switch platform {
 	case "darwin":
-		return defaultMacOSOpenQuery(softwareTitle), nil
+		return defaultMacOSOpenQuery(bundleIdentifier), nil
 	case "windows":
 		return defaultWindowsOpenQuery(softwareTitle), nil
 	default:
@@ -162,34 +162,15 @@ func GenerateOpenQuery(platform string, softwareTitle string) (string, error) {
 	}
 }
 
-// macOSProcessOverrides maps a software title to the processes-table predicate that detects the
-// running app, for apps whose process name/path differs from the title. Values are from #48662.
-var macOSProcessOverrides = map[string]string{
-	"AWS Client VPN":               "name = 'AWS VPN Client'",
-	"Android Studio":               "path LIKE '/Applications/Android Studio.app/%'",
-	"Brave":                        "name = 'Brave Browser'",
-	"Docker Desktop":               "path LIKE '/Applications/Docker.app/%'",
-	"Logi Options+":                "name = 'logioptionsplus'",
-	"Microsoft Visual Studio Code": "path LIKE '/Applications/Visual Studio Code.app/%'",
-	"Mozilla Firefox":              "name = 'firefox'",
-	"Parallels Desktop":            "name = 'prl_client_app'",
-	"Sublime Text":                 "name = 'sublime_text'",
-	"Zed":                          "path LIKE '/Applications/Zed.app/%'",
-	"Zoom":                         "name = 'zoom.us'",
-}
-
-func defaultMacOSOpenQuery(softwareTitle string) string {
-	// TODO(JK): decide on approach
-	// alternatives (all can have overrides):
-	// - processes by name: current choice
-	// - running_apps table
-	// - homebrew artifact
-	// - join apps table with processes table
-	predicate := fmt.Sprintf("name = '%s'", softwareTitle)
-	if override, ok := macOSProcessOverrides[softwareTitle]; ok {
-		predicate = override
-	}
-	return fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE %s);", predicate)
+func defaultMacOSOpenQuery(bundleIdentifier string) string {
+	// Resolve the app's install path from its bundle identifier via the apps table, then
+	// match any process running from inside that path.
+	// alternatives considered:
+	// - get processes by name - requires a lot of manual overrides
+	// - use the running_apps table - not reliable when ran through orbit
+	// - use the "app" artifact in the homebrew cask - requires extra code to extract
+	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%%') WHERE a.bundle_identifier = '%s');"
+	return fmt.Sprintf(openTemplate, bundleIdentifier)
 }
 
 func defaultWindowsOpenQuery(softwareTitle string) string {
@@ -200,6 +181,7 @@ func defaultWindowsOpenQuery(softwareTitle string) string {
 	if len(fields) > 0 {
 		base = fields[len(fields)-1]
 	}
-	exe := strings.ToLower(base) + ".exe"
-	return fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s');", exe)
+	executable := strings.ToLower(base) + ".exe"
+	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s');"
+	return fmt.Sprintf(openTemplate, executable)
 }
