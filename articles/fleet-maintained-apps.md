@@ -89,11 +89,19 @@ Use a caret (`^`) constraint to pin to a major version (for example, `"^147"`). 
 
 You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:id/package`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
 
-## Roll back to a previous version
+## Rollback to a previous version
 
-If a new version introduces a bug, roll back by pinning the app to the previous version using the same **Actions > Versions** workflow (or the GitOps `version` key or REST API above).
+If a new version introduces a bug, and you want to rollback to the older version, follow the steps below:
 
-> Hosts already running the newer version will downgrade to the pinned version the next time the app is installed.
+1. Pin the app to the previous version using the same **Actions > Versions** workflow (or the GitOps `version` key or REST API above).
+2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, disable software install automation for this policy.
+3. Create a new policy that checks if the host has a version with a bug and enable software automation. Use the query below for this policy.
+
+```sql
+SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM programs WHERE name = 'Zoom' AND version = '<version_with_bug>'
+);
+```
 
 ## Keep apps up to date with patch policies
 
