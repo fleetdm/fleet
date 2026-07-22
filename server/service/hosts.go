@@ -309,12 +309,9 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		case fleet.IsNotFound(err):
 			// SoftwareTitleByID depends on the software_titles_host_counts
 			// aggregate, populated only by the periodic
-			// SyncHostsSoftwareTitles job: a title just installed on an
-			// in-scope host can be NotFound here until the next sync run.
-			// Fall back to a live, team-scoped join (which independently
-			// confirms presence in req.Opts.TeamFilter, so it cannot
-			// leak an out-of-scope title's name) rather than leaving
-			// softwareTitle unset until the sync catches up.
+			// SyncHostsSoftwareTitles job, so a title just installed on an
+			// in-scope host can be NotFound here until the next sync. Fall
+			// back to a live join instead of leaving softwareTitle unset.
 			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID, req.Opts.TeamFilter)
 			if errName != nil && !fleet.IsNotFound(errName) {
 				return listHostsResponse{Err: errName}, nil

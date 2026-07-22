@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -172,16 +171,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		IncludeObserver: true,
 	})
 	if err != nil {
-		if fleet.IsNotFound(err) && teamID == nil {
-			// here we use a global admin as filter because we want to check if the software exists
-			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-			_, err = svc.ds.SoftwareTitleByID(ctx, id, nil, filter)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
-			}
-
-			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to a fleet you don't have permissions to view.")
-		}
+		// A title that exists only on a team outside the caller's visibility
+		// must return the same NotFound as a title that doesn't exist at
+		// all, so existence elsewhere can't be inferred from the response.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
@@ -340,12 +332,15 @@ func (svc *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint,
 		return "", "", err
 	}
 
-	name, displayName, err = svc.ds.SoftwareTitleNameForHostFilter(ctx, id, teamID)
-	if err != nil {
-		return "", "", err
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", "", fleet.ErrNoContext
 	}
 
-	return name, displayName, nil
+	return svc.ds.SoftwareTitleNameForHostFilter(ctx, id, teamID, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 }
 
 /////////////////////////////////////////////////////////////////////////////////

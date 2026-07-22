@@ -132,27 +132,27 @@ GROUP BY
 	return &title, nil
 }
 
-// SoftwareTitleNameForHostFilter returns the name and display_name of a
-// software title by ID, confirming its presence via a live host/software
-// join rather than the aggregated software_titles_host_counts table that
-// SoftwareTitleByID relies on. This closes the window (up to the periodic
-// sync interval) between a host reporting new software and the next
-// SyncHostsSoftwareTitles run, while remaining strictly team-scoped: it
-// returns NotFound (no title data at all) unless the given team currently
-// has a host with this title installed, so it cannot be used to enumerate
-// titles across teams.
-func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
-	// "No team" hosts are stored with hosts.team_id IS NULL, never a
-	// literal 0, so both a nil teamID and an explicit team_id=0 ("No team"
-	// in the UI) must use the IS NULL form rather than an equality that
-	// would never match any row.
+// SoftwareTitleNameForHostFilter confirms a software title's presence via a
+// live host/software join, instead of the software_titles_host_counts
+// aggregate SoftwareTitleByID relies on, and returns its name/display_name.
+// A nil teamID is scoped to every team tmFilter's user can access (the same
+// boundary whereFilterHostsByTeams applies elsewhere), never to any team at
+// all, so it can't disclose a title outside that boundary; both branches
+// return NotFound rather than revealing which team(s) hold the title.
+func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name, displayName string, err error) {
+	// "No team" hosts have hosts.team_id IS NULL, never a literal 0.
 	hostTeamFilter := "h.team_id IS NULL"
-	var displayNameTeamID uint
-	args := []any{}
-	if teamID != nil && *teamID != 0 {
+	switch {
+	case teamID != nil && *teamID != 0:
 		hostTeamFilter = "h.team_id = ?"
-		displayNameTeamID = *teamID
-		args = append(args, *teamID)
+	case teamID == nil:
+		hostTeamFilter = ds.whereFilterHostsByTeams(tmFilter, "h")
+	}
+
+	// Display name is per-team; skip it entirely when no team is given.
+	displayNameJoinCond := "FALSE"
+	if teamID != nil {
+		displayNameJoinCond = "stdn.team_id = ?"
 	}
 
 	stmt := fmt.Sprintf(`
@@ -161,7 +161,7 @@ func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint
 		stdn.display_name
 	FROM software_titles st
 		LEFT JOIN software_title_display_names stdn
-			ON stdn.software_title_id = st.id AND stdn.team_id = ?
+			ON stdn.software_title_id = st.id AND %s
    	WHERE st.id = ?
 	AND EXISTS (
 		SELECT 1
@@ -170,9 +170,16 @@ func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint
 		INNER JOIN hosts h ON h.id = hs.host_id
 		WHERE sw.title_id = st.id AND %s
 	)
-  `, hostTeamFilter)
+  `, displayNameJoinCond, hostTeamFilter)
 
-	allArgs := append([]any{displayNameTeamID, id}, args...)
+	var allArgs []any
+	if teamID != nil {
+		allArgs = append(allArgs, *teamID)
+	}
+	allArgs = append(allArgs, id)
+	if teamID != nil && *teamID != 0 {
+		allArgs = append(allArgs, *teamID)
+	}
 
 	var results struct {
 		Name        string  `db:"name"`

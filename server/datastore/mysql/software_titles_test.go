@@ -2344,12 +2344,8 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
 }
 
-// testSoftwareTitleNameForHostFilter verifies that
-// SoftwareTitleNameForHostFilter finds a title via a live host/software
-// join, closing the staleness window that SoftwareTitleByID's dependency
-// on the software_titles_host_counts sync introduces, while still
-// refusing to disclose a title's name for a team that has no host with
-// that title installed.
+// testSoftwareTitleNameForHostFilter verifies SoftwareTitleNameForHostFilter's
+// live-join lookup and its team/tmFilter scoping.
 func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2368,30 +2364,33 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host1.Software[0].TitleID)
 	titleID := *host1.Software[0].TitleID
 
-	// Deliberately do NOT call SyncHostsSoftwareTitles: this method must
-	// find the title via a live join, not the aggregated
-	// software_titles_host_counts table that sync populates.
+	// Scoped to team1 only: can't see team2 or "no team" hosts.
+	team1ScopedUser := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team1Filter := fleet.TeamFilter{User: team1ScopedUser, IncludeObserver: true}
 
-	// In-scope team: name is found immediately, pre-sync.
-	name, displayName, err := ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID)
+	globalAdminUser := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalAdminFilter := fleet.TeamFilter{User: globalAdminUser, IncludeObserver: true}
+
+	// No SyncHostsSoftwareTitles call: this must find titles via a live
+	// join, not the aggregate table sync populates.
+
+	// In-scope team: found immediately, pre-sync.
+	name, displayName, err := ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
 	require.NoError(t, err)
 	assert.Equal(t, testSw.Name, name)
 	assert.Empty(t, displayName)
 
 	// Out-of-scope team: NotFound, no data disclosed.
-	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID)
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID, team1Filter)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Nonexistent title ID: NotFound.
-	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID)
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID, team1Filter)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 
-	// "No team" (team_id=0): a host with no team is stored with
-	// hosts.team_id IS NULL, never a literal 0, so the no-team scope must
-	// be queried that way rather than as a literal team_id = 0 equality
-	// (which would never match any row).
+	// "No team" (team_id=0).
 	noTeamHost := test.NewHost(t, ds, "no-team-host", "", "no-team-hostkey", "no-team-hostuuid", time.Now())
 	noTeamSw := fleet.Software{Name: "UniqueNoTeamTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.noteamtitleapp"}
 	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{noTeamSw})
@@ -2402,7 +2401,24 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	noTeamTitleID := *noTeamHost.Software[0].TitleID
 
 	zero := uint(0)
-	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, &zero)
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, &zero, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// nil teamID: scoped to every team the caller can access.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, nil, team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// ...but not "no team", which this caller can't see.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A global admin can see "no team" too.
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, nil, globalAdminFilter)
 	require.NoError(t, err)
 	assert.Equal(t, noTeamSw.Name, name)
 	assert.Empty(t, displayName)

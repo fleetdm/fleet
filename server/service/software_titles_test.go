@@ -307,3 +307,27 @@ func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
 	_, err = svc.SoftwareTitleByID(adminCtx, 1, teamIDZero)
 	checkAuthErr(t, false, err)
 }
+
+func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		if tmFilter.User != nil && tmFilter.User.GlobalRole != nil && *tmFilter.User.GlobalRole == fleet.RoleAdmin {
+			// Simulates the title existing on a team outside the caller's own visibility.
+			return &fleet.SoftwareTitle{ID: id}, nil
+		}
+		return nil, newNotFoundError()
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	teamUser := &fleet.User{
+		ID:    1,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamUser})
+
+	_, err := svc.SoftwareTitleByID(ctx, 1, nil)
+	require.Error(t, err)
+	// A title's existence on a team the caller can't see must not be
+	// distinguishable (via status code) from it not existing at all.
+	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+}
