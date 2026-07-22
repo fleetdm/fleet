@@ -110,5 +110,5 @@ _All configuration keys and features discussed here are pre-release. Apple flags
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-06-09">
-<meta name="category" value="guides">
+<meta name="category" value="articles">
 <meta name="description" value="WWDC 2026 delivers sweeping device management changes. Here's what IT admins need to prioritize before OS 27 ships this fall.">
