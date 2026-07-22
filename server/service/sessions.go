@@ -223,6 +223,20 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 			return nil, nil, fleet.NewAuthFailedError(err.Error())
 		}
 
+		// A correct password on an MFA-enabled account triggers a verification
+		// email. Record it so this event is visible in the activity feed and
+		// audit stream, since it is otherwise the only observable signal that a
+		// valid password was submitted.
+		if actErr := svc.NewActivity(
+			ctx, nil, fleet.ActivityTypeUserMFARequested{
+				Email:    email,
+				PublicIP: publicip.FromContext(ctx),
+			}); actErr != nil {
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to generate MFA requested activity",
+			)
+		}
+
 		err = sendingMFAEmail
 		return nil, nil, err
 	}

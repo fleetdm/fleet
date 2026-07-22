@@ -238,6 +238,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  userMFARequested: (activity: IActivity) => {
+    const { email, public_ip } = activity.details || {};
+
+    const actor = email ? (
+      <>
+        Somebody using <b>{email}</b>
+      </>
+    ) : (
+      <>Somebody</>
+    );
+
+    return (
+      <>
+        {actor} submitted valid credentials for an MFA-enabled account and was
+        sent a verification email from public IP {public_ip}.
+      </>
+    );
+  },
   userCreated: (activity: IActivity) => {
     return activity.actor_id === activity.details?.user_id ? (
       <>activated their account.</>
@@ -2241,6 +2259,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserFailedLogin: {
       return TAGGED_TEMPLATES.userFailedLogin(activity);
+    }
+    case ActivityType.UserMFARequested: {
+      return TAGGED_TEMPLATES.userMFARequested(activity);
     }
     case ActivityType.UserCreated: {
       return TAGGED_TEMPLATES.userCreated(activity);
