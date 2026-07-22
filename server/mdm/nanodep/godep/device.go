@@ -95,16 +95,21 @@ func (c *Client) SyncDevices(ctx context.Context, name string, opts ...DeviceReq
 	return resp, c.doWithAfterHook(ctx, name, http.MethodPost, "/devices/sync", req, resp)
 }
 
+type DeviceDetails struct {
+	Device
+	ResponseStatus string `json:"response_status"`
+}
+
 // GetDevicesDetails uses the Apple "Get Device Details" API endpoint to
 // retrieve the details (such as its assigned enrollment profile UUID) for the
 // specified device, identified by its serial number.
 // See https://developer.apple.com/documentation/devicemanagement/get_device_details
-func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string) (*Device, error) {
+func (c *Client) GetDeviceDetails(ctx context.Context, name, serialNumber string) (*DeviceDetails, error) {
 	type request struct {
 		Devices []string `json:"devices"`
 	}
 	type response struct {
-		Devices map[string]*Device `json:"devices"`
+		Devices map[string]*DeviceDetails `json:"devices"`
 	}
 	resp := new(response)
 	if err := c.doWithAfterHook(ctx, name, http.MethodPost, "/devices", request{
