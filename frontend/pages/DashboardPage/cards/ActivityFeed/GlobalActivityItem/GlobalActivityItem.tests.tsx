@@ -314,6 +314,21 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders a user_mfa_requested without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserMFARequested,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody submitted valid credentials", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("from public IP 192.168.0.1.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   // // // // // // // // // // // //
   // created_user tests
   // // // // // //// // // // // //
