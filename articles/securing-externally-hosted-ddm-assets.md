@@ -229,4 +229,4 @@ Externally hosted assets let you serve DDM asset data from wherever suits your i
 <meta name="authorGitHubUsername" value="MagnusHJensen">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-07-20">
-<meta name="description" value="A technical guide to securing externally hosted DDM assets by verifying the Apple MDM-Signature header, or mutual TLS, against Fleet's certificate authority.">
+<meta name="description" value="A technical guide to securing externally hosted DDM assets by verifying the Apple MDM-Signature header, or mutual TLS (mTLS), against Fleet's CA.">
