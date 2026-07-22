@@ -7407,7 +7407,7 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 ##### Request body
 
 ```http
-profile="Passcode.json"
+profile="DDM.json"
 fleet_id="1"
 labels_include_all="Label name 1"
 activation="{\"Type\":\"com.apple.activation.simple\",\"Identifier\":\"01234567-ABCD-EFGH-IJKL-0123456789AB\",\"Payload\":{\"StandardConfigurations\":[\"01234567-ABCD-EFGH-IJKL-0123456789YZ\"]}}"
