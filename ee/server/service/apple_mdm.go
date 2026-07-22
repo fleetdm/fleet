@@ -387,15 +387,19 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
 	user := authz.UserFromContext(ctx)
 	if user == nil {
+		// skipauth: Without a user in context we cannot perform a Rego authorization check
 		svc.authz.SkipAuthorization(ctx)
 		return nil, fleet.NewAuthRequiredError("user not found in context")
 	}
 
 	if !user.IsAnyAdmin() {
+		// skipauth: Authorization is enforced via the role check in this branch
+		svc.authz.SkipAuthorization(ctx)
 		return nil, authz.ForbiddenWithInternal("release AB devices requires an admin role", user, nil, fleet.ActionWrite)
 	}
 
 	if len(hostIDs) > 32_000 {
+		// skipauth: For a bad request we don't need a rego check
 		svc.authz.SkipAuthorization(ctx)
 		// Arbitrary limit, Apple does not document what a fair limit is.
 		// Mainly to avoid querying more than 65k if that should ever happen in one MySQL statement, and break with too many statements.
@@ -403,6 +407,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 	}
 
 	if len(hostIDs) == 0 {
+		// skipauth: For a bad request we don't need a rego check
 		svc.authz.SkipAuthorization(ctx)
 
 		return nil, &fleet.BadRequestError{Message: "No host IDs provided."}
