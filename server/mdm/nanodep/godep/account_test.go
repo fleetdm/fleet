@@ -19,22 +19,22 @@ func TestIsTokenRejected(t *testing.T) {
 		{"unrelated error", errors.New("boom"), false},
 		{
 			"HTTPError with matching status and body",
-			&HTTPError{StatusCode: http.StatusUnauthorized, Body: []byte(`"TOKEN_REJECTED"`)},
+			&HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
 			true,
 		},
 		{
 			"HTTPError with matching body but wrong status",
-			&HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"TOKEN_REJECTED"`)},
+			&HTTPError{StatusCode: http.StatusUnauthorized, Body: []byte(`"token_rejected"`)},
 			false,
 		},
 		{
 			"AuthError with matching status and body",
-			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"TOKEN_REJECTED"`)},
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
 			true,
 		},
 		{
 			"AuthError with matching status but different body",
-			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"SIGNATURE_INVALID"`)},
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
 			false,
 		},
 	}
@@ -55,22 +55,22 @@ func TestIsSignatureInvalid(t *testing.T) {
 		{"unrelated error", errors.New("boom"), false},
 		{
 			"HTTPError with matching status and body",
-			&HTTPError{StatusCode: http.StatusUnauthorized, Body: []byte(`"SIGNATURE_INVALID"`)},
+			&HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
 			true,
 		},
 		{
 			"HTTPError with matching body but wrong status",
-			&HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"SIGNATURE_INVALID"`)},
+			&HTTPError{StatusCode: http.StatusUnauthorized, Body: []byte(`"signature_invalid"`)},
 			false,
 		},
 		{
 			"AuthError with matching status and body",
-			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"SIGNATURE_INVALID"`)},
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
 			true,
 		},
 		{
 			"AuthError with matching status but different body",
-			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"TOKEN_REJECTED"`)},
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
 			false,
 		},
 	}

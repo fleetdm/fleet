@@ -203,8 +203,8 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 
 	t.Run("token rejected sets token_invalid", func(t *testing.T) {
 		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`"TOKEN_REJECTED"`))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
 		})
 		var gotOrgName string
 		var gotInvalid bool
@@ -221,8 +221,8 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 
 	t.Run("signature invalid sets token_invalid", func(t *testing.T) {
 		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`"SIGNATURE_INVALID"`))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"signature_invalid"`))
 		})
 		var gotOrgName string
 		var gotInvalid bool
@@ -273,6 +273,47 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 		require.Error(t, call())
 		require.False(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 	})
+}
+
+func TestClassifyDEPDeviceError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want fleet.DEPDeviceErrorType
+	}{
+		{"nil error", nil, ""},
+		{"unrelated error", errors.New("boom"), fleet.DEPDeviceErrorUnavailable},
+		{
+			"token rejected",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			fleet.DEPDeviceErrorTokenInvalid,
+		},
+		{
+			"signature invalid",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			fleet.DEPDeviceErrorTokenInvalid,
+		},
+		{
+			"terms not signed",
+			&godep.HTTPError{StatusCode: http.StatusForbidden, Body: []byte(`"T_C_NOT_SIGNED"`)},
+			fleet.DEPDeviceErrorTermsExpired,
+		},
+		{
+			"server error",
+			&godep.HTTPError{StatusCode: http.StatusServiceUnavailable, Body: []byte(`"SERVICE_UNAVAILABLE"`)},
+			fleet.DEPDeviceErrorServerError,
+		},
+		{
+			"unrelated 4xx",
+			&godep.HTTPError{StatusCode: http.StatusBadRequest, Body: []byte(`"INVALID_CURSOR"`)},
+			fleet.DEPDeviceErrorUnavailable,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, ClassifyDEPDeviceError(c.err))
+		})
+	}
 }
 
 func TestAddEnrollmentRefToFleetURL(t *testing.T) {

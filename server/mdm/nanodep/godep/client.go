@@ -69,6 +69,18 @@ func authErrorContains(err error, status int, s string) bool {
 	return false
 }
 
+// IsServerError returns true if err is a DEP HTTPError with a 5xx status
+// code, indicating a problem on Apple's end rather than with the request
+// itself. Auth failures are always reported as AuthError (see client.go's
+// do method), so this only needs to check HTTPError.
+func IsServerError(err error) bool {
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) && httpErr.StatusCode >= http.StatusInternalServerError {
+		return true
+	}
+	return false
+}
+
 // ClientStorage provides the required data needed to connect to the Apple DEP APIs.
 type ClientStorage interface {
 	depclient.AuthTokensRetriever

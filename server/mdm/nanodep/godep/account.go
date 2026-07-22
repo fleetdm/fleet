@@ -60,8 +60,8 @@ func IsTermsNotSigned(err error) bool {
 // Business Manager without the new token being uploaded to Fleet.
 // See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsTokenRejected(err error) bool {
-	return httpErrorContains(err, http.StatusUnauthorized, "TOKEN_REJECTED") ||
-		authErrorContains(err, http.StatusUnauthorized, "TOKEN_REJECTED")
+	return httpErrorContains(err, http.StatusForbidden, "token_rejected") ||
+		authErrorContains(err, http.StatusForbidden, "token_rejected")
 }
 
 // IsSignatureInvalid returns true if err is a DEP "signature invalid" error.
@@ -69,6 +69,6 @@ func IsTokenRejected(err error) bool {
 // Business Manager without the new token being uploaded to Fleet.
 // See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsSignatureInvalid(err error) bool {
-	return httpErrorContains(err, http.StatusUnauthorized, "SIGNATURE_INVALID") ||
-		authErrorContains(err, http.StatusUnauthorized, "SIGNATURE_INVALID")
+	return httpErrorContains(err, http.StatusForbidden, "signature_invalid") ||
+		authErrorContains(err, http.StatusForbidden, "signature_invalid")
 }
