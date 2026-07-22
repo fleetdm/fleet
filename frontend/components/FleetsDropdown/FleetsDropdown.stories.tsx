@@ -44,9 +44,10 @@ const withAppContext = (isGlobalAdmin: boolean) => (
   Story: React.ComponentType
 ) => (
   <AppContext.Provider value={{ ...initialState, isGlobalAdmin }}>
-    {/* Fixed 600px canvas so every story renders at a consistent height
-        and the open menu has room to display below the trigger. */}
-    <div style={{ height: 600 }}>
+    {/* minHeight matches the menu's runtime maxHeight (715px) plus room for
+        the trigger, so scrollable-list stories render the full open menu
+        without clipping. */}
+    <div style={{ minHeight: 780 }}>
       <Story />
     </div>
   </AppContext.Provider>

@@ -167,7 +167,13 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
     // Stop Enter/Space from bubbling to SelectContainer, which would treat
     // them as "select highlighted option" alongside the button's own click.
     // Escape/Tab/Arrow still bubble so react-select's close/focus work.
-    if (event.key === "Enter" || event.key === " ") {
+    // preventDefault on Enter — Fleet Button's handleKeyDown already
+    // synthesizes onClick from Enter, so without preventDefault the browser
+    // would ALSO synthesize a native click and fire onClickAddFleet twice.
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+    } else if (event.key === " ") {
       event.stopPropagation();
     }
   };
@@ -326,11 +332,23 @@ const FleetsDropdown = ({
 
   // react-select's SelectInstance doesn't type `inputRef` publicly.
   // Centralize the cast — if react-select ever renames this field, both
-  // call sites (focus effect + forwardNavKey bridge) fail together.
-  const getHiddenInput = () =>
-    ((selectRef.current as unknown) as {
+  // call sites (focus effect + forwardNavKey bridge) fail together. The
+  // dev-only warning surfaces the loss of keyboard nav loudly on a
+  // react-select upgrade instead of silently regressing.
+  const getHiddenInput = () => {
+    const ref = selectRef.current;
+    if (!ref) return null;
+    const input = ((ref as unknown) as {
       inputRef?: HTMLInputElement | null;
-    })?.inputRef ?? null;
+    }).inputRef;
+    if (process.env.NODE_ENV !== "production" && input === undefined) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "FleetsDropdown: react-select's SelectInstance is missing the expected `inputRef` field. Keyboard nav may not work."
+      );
+    }
+    return input ?? null;
+  };
 
   const fleetOptions: INumberDropdownOption[] = useMemo(
     () =>
@@ -360,8 +378,7 @@ const FleetsDropdown = ({
     APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
 
   // Close menu on click outside. Only attach the listener while the menu
-  // is open. Reset searchQuery at origin — react-select's onMenuClose
-  // doesn't fire for controlled-prop closes.
+  // is open. The transition effect below owns searchQuery clearing.
   useEffect(() => {
     if (!menuIsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
@@ -370,7 +387,6 @@ const FleetsDropdown = ({
         !wrapperRef.current.contains(event.target as Node)
       ) {
         setMenuIsOpen(false);
-        setSearchQuery("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -389,9 +405,11 @@ const FleetsDropdown = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuIsOpen, showSearch]);
 
-  // Fire onClose once per true -> false transition. react-select's own
-  // onMenuClose only fires on its own closes; this effect catches all
-  // paths. onClose is stashed in a ref so an inline parent callback
+  // Fire onClose + clear searchQuery once per true -> false transition.
+  // react-select's own onMenuClose only fires on its own closes; this
+  // effect catches all paths (controlled and library-driven), so we can
+  // stop repeating the same setSearchQuery("") + onClose at each close
+  // origin. onClose is stashed in a ref so an inline parent callback
   // doesn't retrigger this effect.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -403,6 +421,7 @@ const FleetsDropdown = ({
       wasOpenRef.current = true;
     } else if (wasOpenRef.current) {
       wasOpenRef.current = false;
+      setSearchQuery("");
       onCloseRef.current?.();
     }
   }, [menuIsOpen]);
@@ -410,12 +429,10 @@ const FleetsDropdown = ({
   const toggleMenu = () => {
     if (isDisabled) return;
     // Keep side effects out of the state updater — Strict Mode runs
-    // updaters twice, which would double-fire onOpen and double-clear
-    // searchQuery. A single user click can't race with itself, so
-    // reading menuIsOpen directly is safe.
+    // updaters twice, which would double-fire onOpen. searchQuery clear
+    // + onClose fire from the transition effect above.
     if (menuIsOpen) {
       setMenuIsOpen(false);
-      setSearchQuery("");
     } else {
       setMenuIsOpen(true);
       onOpen?.();
@@ -426,7 +443,6 @@ const FleetsDropdown = ({
     if (!newValue) return;
     onChange(newValue.value);
     setMenuIsOpen(false);
-    setSearchQuery("");
   };
 
   const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -451,7 +467,6 @@ const FleetsDropdown = ({
 
   const onClickAddFleet = () => {
     setMenuIsOpen(false);
-    setSearchQuery("");
     // TODO: hoist navigation to an onAddFleet callback prop so consumers own it.
     browserHistory.push(
       getPathWithQueryParams(PATHS.ADMIN_FLEETS, { create_fleet: "1" })
@@ -582,10 +597,7 @@ const FleetsDropdown = ({
         isSearchable={false}
         menuIsOpen={menuIsOpen}
         onMenuOpen={() => setMenuIsOpen(true)}
-        onMenuClose={() => {
-          setMenuIsOpen(false);
-          setSearchQuery("");
-        }}
+        onMenuClose={() => setMenuIsOpen(false)}
         styles={customStyles}
         components={{
           Menu: CustomMenu,
