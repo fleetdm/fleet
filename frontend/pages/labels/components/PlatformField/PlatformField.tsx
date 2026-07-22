@@ -19,7 +19,6 @@ const platformOptions: CustomOptionType[] = [
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Ubuntu", value: "ubuntu" },
-  { label: "Zorin OS", value: "zorin" },
   { label: "Centos", value: "centos" },
 ];
 

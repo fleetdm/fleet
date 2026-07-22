@@ -77,6 +77,8 @@ Replace:
 
 Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days and Fleet will automatically renew them. [Learn more](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#renewal).
 
+> **Upgrading from Fleet 4.85 or earlier?** Your existing Conditional Access deployment continues to work, but auto-renewal activates only on profiles redeployed in 4.86 or later. To opt in, re-download the User scope profile above and re-deploy via custom OS settings.
+
 > If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
 
 ## Step 3: Create IdP in Okta

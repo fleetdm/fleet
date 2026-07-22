@@ -2048,7 +2048,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
 		// so we don't leak ESP state to unauthenticated devices.
 		if enrolledDevice.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone {
-			espCmds, err = svc.getESPCommands(ctx, enrolledDevice)
+			espCmds, err = svc.getESPCommands(ctx, enrolledDevice, reqMsg)
 			if err != nil {
 				return nil, fmt.Errorf("ESP commands error: %w", err)
 			}
@@ -2136,13 +2136,14 @@ func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device 
 // to Active once orbit links the host UUID.
 //
 // For awaiting_configuration=Active: run the wait gates (profiles + setup-experience software) and release or block
-// the device when ready, including the 3-hour timeout.
-func (svc *Service) getESPCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+// the device when ready, including the 3-hour timeout. After the release is sent, the enrollment stays Active until
+// the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200.
+func (svc *Service) getESPCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
 	switch device.AwaitingConfiguration {
 	case fleet.WindowsMDMAwaitingConfigurationPending:
 		return svc.handleESPHoldOrTransition(ctx, device)
 	case fleet.WindowsMDMAwaitingConfigurationActive:
-		return svc.handleESPRelease(ctx, device)
+		return svc.handleESPRelease(ctx, device, reqMsg)
 	default:
 		return nil, nil
 	}
@@ -2235,7 +2236,7 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 //     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
 //     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
 //   - release (no failure and no timeout): the device proceeds to login.
-func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
 	if device.HostUUID == "" {
 		return nil, nil
 	}
@@ -2244,6 +2245,22 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
 	if timedOut {
 		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
+	}
+
+	// If the release has already been sent (a queued command targeting the user-scope release URI exists), the
+	// enrollment is in the resend phase: stay Active and re-send the user-scope Replace until the device acks it with a
+	// 200, then transition to None. During OOBE the device rejects user-scope writes with SyncML 405 until the user MDM
+	// context initializes.
+	//
+	// Require the primary: the ack this read must observe was recorded by MDMWindowsSaveResponse earlier in this same request.
+	ack, err := svc.ds.MDMWindowsGetESPReleaseAckStatus(ctxdb.RequirePrimary(ctx, true), device.ID,
+		espUserReleaseLocURI(syncml.DocProvisioningAppProviderID), espReleaseAttemptCmdIDPrefix)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ESP release ack status")
+	}
+	if ack.Attempted {
+		// re-send release or finish enrollment
+		return svc.handleESPUserReleaseRetry(ctx, device, ack, timedOut, reqMsg)
 	}
 
 	// hasSoftwareFailure tracks setup-experience software failures only.
@@ -2630,24 +2647,11 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// The persist is a single transactional batch (MDMWindowsInsertCommandsForHost) so a partial-fail-then-retry can't
 	// leave orphan rows in the queue.
 	//
-	// On concurrent-CAS races (two checkins both reach this point) both callers persist with fresh UUIDs and only one
-	// wins the CAS. The loser's rows are delivered later by the regular command queue, the device acks them as
-	// idempotent Replaces of post-ESP-irrelevant DMClient nodes, and the queue clears -- no permanent leak, just brief
-	// extra traffic.
+	// On concurrent races (two checkins both reach this point) both callers persist with fresh UUIDs. The loser's
+	// rows are delivered later by the regular command queue, the device acks them as idempotent Replaces of
+	// post-ESP-irrelevant DMClient nodes, and the queue clears -- no permanent leak, just brief extra traffic.
 	if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
-	}
-
-	// CAS Active -> None: only one concurrent checkin commits the finalize. Cancel and persist above ran for both
-	// concurrent winners, but cancel is idempotent and persist's losers get harmlessly delivered as orphan Replaces.
-	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
-	}
-	if !transitioned {
-		// Another concurrent checkin already finalized.
-		return nil, nil
 	}
 
 	svc.logger.InfoContext(ctx, "ESP: finalizing",
@@ -2659,7 +2663,118 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		"blocking", shouldBlock,
 		"soft_blocking", shouldWarn)
 
+	// Release path. The enrollment stays Active until the device acks the user-scope ServerHasFinishedProvisioning
+	// Replace with a 200 (handleESPUserReleaseRetry, entered on later checkins via the attempt rows persisted above).
+	if !shouldBlock && !shouldWarn {
+		return cmds, nil
+	}
+
+	// Enrollment is blocked (due to software failure or timeout).
+	transitioned, err := svc.casESPActiveToNone(ctx, device, "block finalize")
+	if err != nil {
+		return nil, err
+	}
+	if !transitioned {
+		// Another concurrent checkin already finalized.
+		return nil, nil
+	}
+
 	return cmds, nil
+}
+
+// casESPActiveToNone commits the terminal ESP transition (awaiting_configuration Active -> None) via
+// compare-and-swap and reports whether this checkin won it.
+func (svc *Service) casESPActiveToNone(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reason string) (bool, error) {
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set awaiting configuration to none: "+reason)
+	}
+	return transitioned, nil
+}
+
+// espUserReleaseLocURI returns the LocURI of the user-scope ServerHasFinishedProvisioning node for the given provider ID.
+func espUserReleaseLocURI(provID string) string {
+	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
+}
+
+// espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
+// finalize's Replace and each retry).
+const espReleaseAttemptCmdIDPrefix = "esp-release-"
+
+// espRetryAllowedForMessage bounds user-scope release retries to the start of an OMA-DM session (device MsgID 1 or 2; in
+// practice MsgID 1 is auth and MsgID 2 is trusted request). The device acks commands within the same session (message
+// N's commands are acked in message N+1, which runs this handler again), so retrying on every message would ping-pong a
+// failing Replace for as long as the device keeps the session open. One attempt per session is enough: the deciding
+// condition (user MDM context readiness) changes on session boundaries, not between messages of one session.
+//
+// Defaults to true on a missing/unreadable header: occasionally retrying too often is better than never.
+func espRetryAllowedForMessage(reqMsg *fleet.SyncML) bool {
+	if reqMsg == nil {
+		return true
+	}
+	msgID, err := reqMsg.GetMessageID()
+	if err != nil {
+		return true
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(msgID))
+	if err != nil {
+		return true
+	}
+	return n <= 2
+}
+
+// handleESPUserReleaseRetry handles an Active enrollment whose release commands have already been sent: the ESP is
+// finished only when the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200. Until then the
+// enrollment stays Active and the Replace is re-sent once per session. Convergence is quick in practice: the device
+// polls every ~60s during the ESP, and the write starts succeeding as soon as the user MDM context initializes.
+func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice,
+	ack *fleet.MDMWindowsESPReleaseAckStatus, timedOut bool, reqMsg *fleet.SyncML,
+) ([]*mdm_types.SyncMLCmd, error) {
+	switch {
+	case ack.Acked200:
+		// Commit ESP completion, now confirmed by the device's ack. Enrollment complete.
+		transitioned, err := svc.casESPActiveToNone(ctx, device, "user-scope release ack")
+		if err != nil {
+			return nil, err
+		}
+		if transitioned {
+			svc.logger.InfoContext(ctx, "ESP: user-scope release acked, ESP complete",
+				"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+		}
+		return nil, nil
+
+	case timedOut:
+		// Same 3-hour bound as the pre-release path: CAS Active -> None to stop retrying and let the device's own
+		// ESP timeout handling take over.
+		svc.logger.WarnContext(ctx, "ESP: timeout waiting for user-scope release ack, finalizing without it",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		if _, err := svc.casESPActiveToNone(ctx, device, "user-scope release timeout"); err != nil {
+			return nil, err
+		}
+		return nil, nil
+
+	case ack.HasUnacked:
+		// An attempt is in flight: either the device hasn't responded yet, or the response was dropped and the
+		// command queue's redelivery will resend the persisted attempt.
+		svc.logger.DebugContext(ctx, "ESP: user-scope release attempt in flight, waiting for ack",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		return nil, nil
+
+	case !espRetryAllowedForMessage(reqMsg):
+		// The last attempt failed, but retry only at the start of the next session (see espRetryAllowedForMessage).
+		return nil, nil
+
+	default:
+		// The last attempt was acked with a non-200 (405 until the user MDM context initializes): re-send a fresh Replace.
+		svc.logger.InfoContext(ctx, "ESP: user-scope release not acked yet, retrying",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		cmds := []*mdm_types.SyncMLCmd{newESPUserReleaseCmd(syncml.DocProvisioningAppProviderID)}
+		if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "persist ESP user-scope release retry")
+		}
+		return cmds, nil
+	}
 }
 
 // BlockInStatusPage values per Microsoft DMClient CSP docs (bit flags): 1=Reset PC, 2=Try Again, 4=Continue Anyway.
@@ -2725,13 +2840,19 @@ func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
-		newSyncMLCmdBool(fleet.CmdReplace,
-			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 	}
 	for _, cmd := range cmds {
 		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
 	}
-	return cmds
+	// The user-scope release goes last: it is the command whose 200 ack gates the Active -> None transition to finish enrollment.
+	return append(cmds, newESPUserReleaseCmd(provID))
+}
+
+// newESPUserReleaseCmd builds the user-scope ServerHasFinishedProvisioning Replace that completes the ESP "Account setup" phase
+func newESPUserReleaseCmd(provID string) *mdm_types.SyncMLCmd {
+	cmd := newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(provID), "true")
+	cmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
+	return cmd
 }
 
 // persistESPFinalCommands stores backup copies of every finalization command
@@ -3550,6 +3671,13 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
 }
 
+// windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
+// processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
+// or any $FLEET_HOST_VITAL_<id> custom host vital.
+func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
+	return variables.ContainsBytes(syncML) || len(fleet.ContainsCustomHostVitalIDs(string(syncML))) > 0
+}
+
 // ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
 //
 // It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
@@ -3706,6 +3834,19 @@ func filterWindowsPayloadsByHost(payloads []*fleet.MDMWindowsProfilePayload, all
 	return out
 }
 
+// modifyDeleteKey identifies one retained prior profile version during reconcile: the edited profile and the version a host still has
+// installed (raw checksum bytes as a string so it can be a map key). All hosts on the same version share one prior-content lookup.
+type modifyDeleteKey struct {
+	profileUUID  string
+	fromChecksum string
+}
+
+// hostProfileKey identifies one (host, profile) pair during reconcile.
+type hostProfileKey struct {
+	hostUUID    string
+	profileUUID string
+}
+
 // executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
 // produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
 // profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
@@ -3809,6 +3950,84 @@ func executeWindowsProfileReconcileBatch(
 		}
 	}
 
+	// Modify-installs (content changed) may also need supplemental <Delete> commands for LocURIs the edit removed: a re-install only
+	// Replaces/Adds the new content, it never reverts a LocURI that was dropped. Collect them keyed by (profileUUID, the version the
+	// host currently has installed) so we can look up the retained removed-LocURI set per version, and pull in the other profiles
+	// desired on those hosts so their LocURIs can protect shared settings from being deleted (same protection as the remove path).
+	modifyHostsByKey := make(map[modifyDeleteKey][]string)
+	seenModifyHost := make(map[string]struct{}, len(toInstall))
+	for _, p := range toInstall {
+		if len(p.PreviousInstalledChecksum) == 0 {
+			continue // fresh install, nothing was removed
+		}
+		k := modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.PreviousInstalledChecksum)}
+		modifyHostsByKey[k] = append(modifyHostsByKey[k], p.HostUUID)
+		if _, ok := seenModifyHost[p.HostUUID]; !ok {
+			seenModifyHost[p.HostUUID] = struct{}{}
+			for _, q := range desiredByHost[p.HostUUID] {
+				toGetContents[q] = true
+			}
+		}
+	}
+
+	// Version keys for the remove path: each removed-from host's <Delete> is built from the exact version that host has installed
+	// (its row checksum) when that version is retained, so LocURIs dropped by edits the host never applied still get cleaned up. A
+	// key with no retained row is normal here (e.g. the host is on the live version of a still-live profile being unassigned);
+	// those hosts fall back to the profile's current content in the remove pass below.
+	removeVersionKeys := make(map[modifyDeleteKey]struct{})
+	for _, p := range toRemove {
+		if len(p.Checksum) == 0 {
+			continue
+		}
+		removeVersionKeys[modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.Checksum)}] = struct{}{}
+	}
+
+	// Fetch the retained prior contents for the modify and remove version keys now, BEFORE the install loop advances the host rows
+	// to the new checksum. While those rows still reference the prior version, the reference-counted GC cannot collect it, so this
+	// read cannot race with a concurrent cleanup tick.
+	priorContentByKey := make(map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent, len(modifyHostsByKey)+len(removeVersionKeys))
+	if len(modifyHostsByKey)+len(removeVersionKeys) > 0 {
+		keySet := make(map[modifyDeleteKey]struct{}, len(modifyHostsByKey)+len(removeVersionKeys))
+		for k := range modifyHostsByKey {
+			keySet[k] = struct{}{}
+		}
+		for k := range removeVersionKeys {
+			keySet[k] = struct{}{}
+		}
+		keys := make([]fleet.MDMWindowsProfileVersionKey, 0, len(keySet))
+		for k := range keySet {
+			keys = append(keys, fleet.MDMWindowsProfileVersionKey{ProfileUUID: k.profileUUID, Checksum: []byte(k.fromChecksum)})
+		}
+		// Read from the primary: this pass consumes each modify-install once (the re-install advances the host's checksum, so the host
+		// won't be revisited as a modify), so a replica-lag miss would permanently drop the supplemental <Delete>. The retained row is
+		// written in the same transaction as the profile edit, so the primary always has it. Eliminating this primary-read requirement
+		// would take retry/tracking logic (persisting a pending-delete marker per host-version).
+		priorContents, err := ds.GetWindowsMDMProfilePriorContents(ctxdb.RequirePrimary(ctx, true), keys)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get prior content for edited profiles")
+		}
+		for _, pc := range priorContents {
+			priorContentByKey[modifyDeleteKey{profileUUID: pc.ProfileUUID, fromChecksum: string(pc.Checksum)}] = pc
+		}
+
+		// Only modify keys are guaranteed retained (every edit path retains the outgoing version in the same transaction as the
+		// overwrite); a miss there means a version overwritten before prior-content retention shipped (bounded post-upgrade
+		// transition) or an invariant violation (an edit path that skipped retention).
+		missingModify := 0
+		for k := range modifyHostsByKey {
+			if _, ok := priorContentByKey[k]; !ok {
+				missingModify++
+			}
+		}
+		if missingModify > 0 {
+			missErr := ctxerr.NewWithData(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				map[string]any{"requested": len(modifyHostsByKey), "missing": missingModify})
+			logger.ErrorContext(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				"requested", len(modifyHostsByKey), "missing", missingModify)
+			ctxerr.Handle(ctx, missErr)
+		}
+	}
+
 	// Grab the contents of all the profiles we need to install
 	profileUUIDs := make([]string, 0, len(toGetContents))
 	for pid := range toGetContents {
@@ -3867,7 +4086,7 @@ func executeWindowsProfileReconcileBatch(
 			continue
 		}
 		p, ok := profileContents[profUUID]
-		if !ok || variables.ContainsBytes(p.SyncML) {
+		if !ok || windowsProfileNeedsPerHostProcessing(p.SyncML) {
 			continue // variable profiles get per-host commands, can't pre-build
 		}
 		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
@@ -3881,6 +4100,10 @@ func executeWindowsProfileReconcileBatch(
 			return ctxerr.Wrap(ctx, err, "bulk inserting commands")
 		}
 	}
+
+	// enqueuedInstalls tracks the (host, profile) pairs whose install command was actually enqueued (and host row advanced to the
+	// new checksum). The modify-install <Delete> pass below only reverts removed LocURIs for these.
+	enqueuedInstalls := make(map[hostProfileKey]struct{}, len(toInstall))
 
 	for profUUID, target := range installTargets {
 		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
@@ -3912,7 +4135,7 @@ func executeWindowsProfileReconcileBatch(
 			continue
 		}
 
-		if !variables.ContainsBytes(p.SyncML) {
+		if !windowsProfileNeedsPerHostProcessing(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
 			payloads, ok := batchProfileCmdsMap[target.cmdUUID]
 			if !ok {
@@ -3936,6 +4159,9 @@ func executeWindowsProfileReconcileBatch(
 			}
 			if err := ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+			}
+			for _, hostUUID := range target.hostUUIDs {
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
 			}
 		} else {
 			// Profile contains Fleet variables, process each host individually
@@ -3989,6 +4215,7 @@ func executeWindowsProfileReconcileBatch(
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
 					continue
 				}
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
 			}
 		}
 	}
@@ -4014,6 +4241,19 @@ func executeWindowsProfileReconcileBatch(
 		return uris
 	}
 
+	// priorLocURIsFor caches SCEP-resolved LocURIs of retained prior versions, keyed by (profile, version); the fallback (live or
+	// newest-retained) content is cached by locURIsFor above.
+	resolvedPriorLocURIs := make(map[modifyDeleteKey][]string)
+	priorLocURIsFor := func(k modifyDeleteKey, syncML []byte) []string {
+		if v, ok := resolvedPriorLocURIs[k]; ok {
+			return v
+		}
+		resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(syncML, []byte(k.profileUUID))
+		uris := fleet.ExtractLocURIsFromProfileBytes(resolved)
+		resolvedPriorLocURIs[k] = uris
+		return uris
+	}
+
 	for profUUID, target := range removeTargets {
 		if _, ok := profileContents[profUUID]; !ok {
 			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
@@ -4025,49 +4265,72 @@ func executeWindowsProfileReconcileBatch(
 		}
 		removedURIs := locURIsFor(profUUID)
 
+		// Index this profile's remove payloads by host
+		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
+		for _, rp := range removePayloadData[profUUID] {
+			payloadByHost[rp.HostUUID] = rp
+		}
+
+		// version distinguishes which content a group's <Delete> is built from: the raw checksum of the host's own retained
+		// version, or "" for the fallback (live or newest-retained) content.
+		type removeGroupKey struct {
+			version   string
+			protected string // sorted "\n"-joined protected subset of the group's candidate LocURIs
+		}
 		type removeGroup struct {
+			syncML        []byte
 			activeLocURIs map[string]struct{}
 			hostUUIDs     []string
 		}
-		groups := make(map[string]*removeGroup)
+		groups := make(map[removeGroupKey]*removeGroup)
 		for _, hostUUID := range target.hostUUIDs {
+			// Build this host's <Delete> from the exact version it has installed when that version is retained, so LocURIs dropped
+			// by edits the host never applied are still cleaned up. Hosts on the current version (or with no retained match, e.g.
+			// pre-retention rows) use the fallback content.
+			hostSyncML := profileContents[profUUID].SyncML
+			hostVersion := ""
+			candidateURIs := removedURIs
+			if rp := payloadByHost[hostUUID]; rp != nil && len(rp.Checksum) > 0 {
+				k := modifyDeleteKey{profileUUID: profUUID, fromChecksum: string(rp.Checksum)}
+				if pc, ok := priorContentByKey[k]; ok {
+					hostSyncML = pc.SyncML
+					hostVersion = k.fromChecksum
+					candidateURIs = priorLocURIsFor(k, pc.SyncML)
+				}
+			}
+
+			// Protection compares CanonicalLocURI forms so spelling variants of the same node ("./Device/Vendor/X" vs "./Vendor/X")
+			// protect each other.
 			active := make(map[string]struct{})
 			for _, desiredUUID := range desiredByHost[hostUUID] {
 				if desiredUUID == profUUID {
 					continue
 				}
 				for _, uri := range locURIsFor(desiredUUID) {
-					active[uri] = struct{}{}
+					active[fleet.CanonicalLocURI(uri)] = struct{}{}
 				}
 			}
 			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
-			// single command; the common (no label) case collapses to one group.
+			// single command; the common (no label, single version) case collapses to one group.
 			var keyURIs []string
-			for _, uri := range removedURIs {
-				if _, ok := active[uri]; ok {
+			for _, uri := range candidateURIs {
+				if _, ok := active[fleet.CanonicalLocURI(uri)]; ok {
 					keyURIs = append(keyURIs, uri)
 				}
 			}
 			slices.Sort(keyURIs)
-			key := strings.Join(keyURIs, "\n")
+			key := removeGroupKey{version: hostVersion, protected: strings.Join(keyURIs, "\n")}
 			g := groups[key]
 			if g == nil {
-				g = &removeGroup{activeLocURIs: active}
+				g = &removeGroup{syncML: hostSyncML, activeLocURIs: active}
 				groups[key] = g
 			}
 			g.hostUUIDs = append(g.hostUUIDs, hostUUID)
 		}
 
-		// Index this profile's remove payloads by host once so each group builds its command payloads with O(1) lookups instead of
-		// rescanning the full per-profile payload list per group (which is O(groups x hosts) when label scoping forms many groups).
-		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
-		for _, rp := range removePayloadData[profUUID] {
-			payloadByHost[rp.HostUUID] = rp
-		}
-
 		for _, g := range groups {
 			cmdUUID := uuid.New().String()
-			command, err := fleet.BuildDeleteCommandFromProfileBytes(profileContents[profUUID].SyncML, cmdUUID, profUUID, g.activeLocURIs)
+			command, err := fleet.BuildDeleteCommandFromProfileBytes(g.syncML, cmdUUID, profUUID, g.activeLocURIs)
 			if err != nil {
 				logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
 				continue
@@ -4101,6 +4364,106 @@ func executeWindowsProfileReconcileBatch(
 			}
 			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+			}
+		}
+	}
+
+	// Enqueue supplemental <Delete> commands for LocURIs removed by profile edits, for the modify-installs collected above. A
+	// re-install only Replaces/Adds the new content, so a LocURI dropped from the profile would otherwise stay enforced on the
+	// device. For each (profile, host-version) we diff the retained prior content (fetched before the install loop) against the live
+	// version and delete the LocURIs that no still-applicable profile on the host enforces (per-host protection, mirroring the remove
+	// path). The host's re-install upserts its row to the new checksum separately; once it does, the (profile, old-version) retained
+	// set is GC'd.
+	if len(modifyHostsByKey) > 0 {
+		// removedByKey holds, per (profile, prior version), the LocURIs that version had but the new (live) version no longer does --
+		// the candidates to <Delete>. Diffing against the live content (rather than a stored delta) is correct even when a host skips
+		// versions or the edit re-added a LocURI a prior edit removed.
+		removedByKey := make(map[modifyDeleteKey][]string, len(modifyHostsByKey))
+		for k := range modifyHostsByKey {
+			pc, ok := priorContentByKey[k]
+			if !ok {
+				continue // never retained (pre-retention edit); already surfaced above
+			}
+			// SCEP-resolve to the profile's own UUID so LocURIs compare on resolved paths, consistent with locURIsFor and the install side.
+			resolvedPrior := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(pc.SyncML, []byte(pc.ProfileUUID))
+			desired := make(map[string]struct{})
+			for _, uri := range locURIsFor(pc.ProfileUUID) { // the new (live) version's LocURIs
+				desired[fleet.CanonicalLocURI(uri)] = struct{}{}
+			}
+			var removed []string
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedPrior) {
+				if _, stillDesired := desired[fleet.CanonicalLocURI(uri)]; !stillDesired {
+					removed = append(removed, uri)
+				}
+			}
+			if len(removed) > 0 {
+				removedByKey[k] = removed
+			}
+		}
+
+		for k, hostUUIDs := range modifyHostsByKey {
+			removedURIs := removedByKey[k]
+			if len(removedURIs) == 0 {
+				// The edit removed no LocURIs from this version (only values changed), or its prior content was never retained (the
+				// version was overwritten before prior-content retention shipped). Nothing to do.
+				continue
+			}
+
+			// Group hosts by the protected subset of the removed URIs, like the remove path: a removed URI is deleted on a host only
+			// when no OTHER profile still applicable to that host enforces it. A label-scoped protector that applies to only some hosts
+			// splits them into separate groups; the common (no shared LocURIs) case collapses to a single group.
+			type modGroup struct {
+				toDelete  []string
+				hostUUIDs []string
+			}
+			groups := make(map[string]*modGroup)
+			for _, hostUUID := range hostUUIDs {
+				if _, ok := enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: k.profileUUID}]; !ok {
+					// The reinstall for this host was skipped or failed this tick, so don't revert its old settings. A skipped host keeps
+					// its old checksum and is retried on a later tick.
+					continue
+				}
+				// Protection compares CanonicalLocURI forms, like the remove path.
+				active := make(map[string]struct{})
+				for _, desiredUUID := range desiredByHost[hostUUID] {
+					if desiredUUID == k.profileUUID {
+						continue // the edited profile's new content can't protect a LocURI it no longer contains
+					}
+					for _, uri := range locURIsFor(desiredUUID) {
+						active[fleet.CanonicalLocURI(uri)] = struct{}{}
+					}
+				}
+				var toDelete []string
+				for _, uri := range removedURIs {
+					if _, protected := active[fleet.CanonicalLocURI(uri)]; !protected {
+						toDelete = append(toDelete, uri)
+					}
+				}
+				if len(toDelete) == 0 {
+					continue
+				}
+				slices.Sort(toDelete)
+				groupKey := strings.Join(toDelete, "\n")
+				g := groups[groupKey]
+				if g == nil {
+					g = &modGroup{toDelete: toDelete}
+					groups[groupKey] = g
+				}
+				g.hostUUIDs = append(g.hostUUIDs, hostUUID)
+			}
+
+			for _, g := range groups {
+				cmd, err := fleet.BuildDeleteCommandFromLocURIs(g.toDelete, uuid.New().String())
+				if err != nil {
+					logger.InfoContext(ctx, "error building delete command for removed LocURIs", "err", err, "profile_uuid", k.profileUUID)
+					continue
+				}
+				if cmd == nil {
+					continue
+				}
+				if err := ds.MDMWindowsInsertCommandForHostUUIDs(ctx, g.hostUUIDs, cmd); err != nil {
+					return ctxerr.Wrap(ctx, err, "enqueuing delete commands for removed LocURIs")
+				}
 			}
 		}
 	}
@@ -4141,11 +4504,7 @@ func executeWindowsProfileReconcileBatch(
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := profileBytes
-	if strings.Contains(string(rawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") && !strings.Contains(string(rawCommand), "<Atomic>") {
-		// It's a SCEP profile, so wrap it with <Atomic>
-		rawCommand = fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", rawCommand)
-	}
+	rawCommand := fleet.WrapSCEPProfileInAtomic(profileBytes)
 	cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(rawCommand)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling profile bytes: %w", err)

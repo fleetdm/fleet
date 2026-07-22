@@ -48,7 +48,7 @@
       }
       gtag("consent", "default", {
           ad_storage: "denied",
-          ad_user_data: "denied", 
+          ad_user_data: "denied",
           ad_personalization: "denied",
           analytics_storage: "denied",
           functionality_storage: "denied",
@@ -63,9 +63,9 @@
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
     <script>
       window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-  	// Google Ads configuration (including Enhanced Conversions) 
+  	// Google Ads configuration (including Enhanced Conversions)
   	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
-    </script>      
+    </script>
 
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
@@ -93,8 +93,8 @@
     !function(r){var e={};function o(n){if(e[n])return e[n].exports;var t=e[n]={i:n,l:!1,exports:{}};return r[n].call(t.exports,t,t.exports,o),t.l=!0,t.exports}o.m=r,o.c=e,o.d=function(r,e,n){o.o(r,e)||Object.defineProperty(r,e,{enumerable:!0,get:n})},o.r=function(r){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(r,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(r,"__esModule",{value:!0})},o.t=function(r,e){if(1&e&&(r=o(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var n=Object.create(null);if(o.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var t in r)o.d(n,t,function(e){return r[e]}.bind(null,t));return n},o.n=function(r){var e=r&&r.__esModule?function(){return r.default}:function(){return r};return o.d(e,"a",e),e},o.o=function(r,e){return Object.prototype.hasOwnProperty.call(r,e)},o.p="",o(o.s=0)}([function(r,e,o){"use strict";var n=o(1),t=o(5);_rollbarConfig=_rollbarConfig||{},_rollbarConfig.rollbarJsUrl=_rollbarConfig.rollbarJsUrl||"https://cdn.rollbar.com/rollbarjs/refs/tags/v2.22.0/rollbar.min.js",_rollbarConfig.async=void 0===_rollbarConfig.async||_rollbarConfig.async;var a=n.setupShim(window,_rollbarConfig),l=t(_rollbarConfig);window.rollbar=n.Rollbar,a.loadFull(window,document,!_rollbarConfig.async,_rollbarConfig,l)},function(r,e,o){"use strict";var n=o(2),t=o(3);function a(r){return function(){try{return r.apply(this,arguments)}catch(r){try{console.error("[Rollbar]: Internal error",r)}catch(r){}}}}var l=0;function i(r,e){this.options=r,this._rollbarOldOnError=null;var o=l++;this.shimId=function(){return o},"undefined"!=typeof window&&window._rollbarShims&&(window._rollbarShims[o]={handler:e,messages:[]})}var s=o(4),d=function(r,e){return new i(r,e)},c=function(r){return new s(d,r)};function u(r){return a((function(){var e=this,o=Array.prototype.slice.call(arguments,0),n={shim:e,method:r,args:o,ts:new Date};window._rollbarShims[this.shimId()].messages.push(n)}))}i.prototype.loadFull=function(r,e,o,n,t){var l=!1,i=e.createElement("script"),s=e.getElementsByTagName("script")[0],d=s.parentNode;i.crossOrigin="",i.src=n.rollbarJsUrl,o||(i.async=!0),i.onload=i.onreadystatechange=a((function(){if(!(l||this.readyState&&"loaded"!==this.readyState&&"complete"!==this.readyState)){i.onload=i.onreadystatechange=null;try{d.removeChild(i)}catch(r){}l=!0,function(){var e;if(void 0===r._rollbarDidLoad){e=new Error("rollbar.js did not load");for(var o,n,a,l,i=0;o=r._rollbarShims[i++];)for(o=o.messages||[];n=o.shift();)for(a=n.args||[],i=0;i<a.length;++i)if("function"==typeof(l=a[i])){l(e);break}}"function"==typeof t&&t(e)}()}})),d.insertBefore(i,s)},i.prototype.wrap=function(r,e,o){try{var n;if(n="function"==typeof e?e:function(){return e||{}},"function"!=typeof r)return r;if(r._isWrap)return r;if(!r._rollbar_wrapped&&(r._rollbar_wrapped=function(){o&&"function"==typeof o&&o.apply(this,arguments);try{return r.apply(this,arguments)}catch(o){var e=o;throw e&&("string"==typeof e&&(e=new String(e)),e._rollbarContext=n()||{},e._rollbarContext._wrappedSource=r.toString(),window._rollbarWrappedError=e),e}},r._rollbar_wrapped._isWrap=!0,r.hasOwnProperty))for(var t in r)r.hasOwnProperty(t)&&(r._rollbar_wrapped[t]=r[t]);return r._rollbar_wrapped}catch(e){return r}};for(var p="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,captureEvent,captureDomContentLoaded,captureLoad".split(","),f=0;f<p.length;++f)i.prototype[p[f]]=u(p[f]);r.exports={setupShim:function(r,e){if(r){var o=e.globalAlias||"Rollbar";if("object"==typeof r[o])return r[o];r._rollbarShims={},r._rollbarWrappedError=null;var l=new c(e);return a((function(){e.captureUncaught&&(l._rollbarOldOnError=r.onerror,n.captureUncaughtExceptions(r,l,!0),e.wrapGlobalEventHandlers&&t(r,l,!0)),e.captureUnhandledRejections&&n.captureUnhandledRejections(r,l,!0);var a=e.autoInstrument;return!1!==e.enabled&&(void 0===a||!0===a||"object"==typeof a&&a.network)&&r.addEventListener&&(r.addEventListener("load",l.captureLoad.bind(l)),r.addEventListener("DOMContentLoaded",l.captureDomContentLoaded.bind(l))),r[o]=l,l}))()}},Rollbar:c}},function(r,e,o){"use strict";function n(r,e,o,n){r._rollbarWrappedError&&(n[4]||(n[4]=r._rollbarWrappedError),n[5]||(n[5]=r._rollbarWrappedError._rollbarContext),r._rollbarWrappedError=null);var t=e.handleUncaughtException.apply(e,n);o&&o.apply(r,n),"anonymous"===t&&(e.anonymousErrorsPending+=1)}r.exports={captureUncaughtExceptions:function(r,e,o){if(r){var t;if("function"==typeof e._rollbarOldOnError)t=e._rollbarOldOnError;else if(r.onerror){for(t=r.onerror;t._rollbarOldOnError;)t=t._rollbarOldOnError;e._rollbarOldOnError=t}e.handleAnonymousErrors();var a=function(){var o=Array.prototype.slice.call(arguments,0);n(r,e,t,o)};o&&(a._rollbarOldOnError=t),r.onerror=a}},captureUnhandledRejections:function(r,e,o){if(r){"function"==typeof r._rollbarURH&&r._rollbarURH.belongsToShim&&r.removeEventListener("unhandledrejection",r._rollbarURH);var n=function(r){var o,n,t;try{o=r.reason}catch(r){o=void 0}try{n=r.promise}catch(r){n="[unhandledrejection] error getting `promise` from event"}try{t=r.detail,!o&&t&&(o=t.reason,n=t.promise)}catch(r){}o||(o="[unhandledrejection] error getting `reason` from event"),e&&e.handleUnhandledRejection&&e.handleUnhandledRejection(o,n)};n.belongsToShim=o,r._rollbarURH=n,r.addEventListener("unhandledrejection",n)}}}},function(r,e,o){"use strict";function n(r,e,o){if(e.hasOwnProperty&&e.hasOwnProperty("addEventListener")){for(var n=e.addEventListener;n._rollbarOldAdd&&n.belongsToShim;)n=n._rollbarOldAdd;var t=function(e,o,t){n.call(this,e,r.wrap(o),t)};t._rollbarOldAdd=n,t.belongsToShim=o,e.addEventListener=t;for(var a=e.removeEventListener;a._rollbarOldRemove&&a.belongsToShim;)a=a._rollbarOldRemove;var l=function(r,e,o){a.call(this,r,e&&e._rollbar_wrapped||e,o)};l._rollbarOldRemove=a,l.belongsToShim=o,e.removeEventListener=l}}r.exports=function(r,e,o){if(r){var t,a,l="EventTarget,Window,Node,ApplicationCache,AudioTrackList,ChannelMergerNode,CryptoOperation,EventSource,FileReader,HTMLUnknownElement,IDBDatabase,IDBRequest,IDBTransaction,KeyOperation,MediaController,MessagePort,ModalWindow,Notification,SVGElementInstance,Screen,TextTrack,TextTrackCue,TextTrackList,WebSocket,WebSocketWorker,Worker,XMLHttpRequest,XMLHttpRequestEventTarget,XMLHttpRequestUpload".split(",");for(t=0;t<l.length;++t)r[a=l[t]]&&r[a].prototype&&n(e,r[a].prototype,o)}}},function(r,e,o){"use strict";function n(r,e){this.impl=r(e,this),this.options=e,function(r){for(var e=function(r){return function(){var e=Array.prototype.slice.call(arguments,0);if(this.impl[r])return this.impl[r].apply(this.impl,e)}},o="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,_createItem,wrap,loadFull,shimId,captureEvent,captureDomContentLoaded,captureLoad".split(","),n=0;n<o.length;n++)r[o[n]]=e(o[n])}(n.prototype)}n.prototype._swapAndProcessMessages=function(r,e){var o,n,t;for(this.impl=r(this.options);o=e.shift();)n=o.method,t=o.args,this[n]&&"function"==typeof this[n]&&("captureDomContentLoaded"===n||"captureLoad"===n?this[n].apply(this,[t[0],o.ts]):this[n].apply(this,t));return this},r.exports=n},function(r,e,o){"use strict";r.exports=function(r){return function(e){if(!e&&!window._rollbarInitialized){for(var o,n,t=(r=r||{}).globalAlias||"Rollbar",a=window.rollbar,l=function(r){return new a(r)},i=0;o=window._rollbarShims[i++];)n||(n=o.handler),o.handler._swapAndProcessMessages(l,o.messages);window[t]=n,window._rollbarInitialized=!0}}}}]);
     // End Rollbar Snippet
     </script>
-   
-    <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
+
+    <% /* Google Analytics, Google Tag Manager, Qualified etc. */ %>
 
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
@@ -114,8 +114,19 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
-    <% /* Clay */ %>
-      <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
+    <% /* Snitcher */ %>
+    <script>
+      !function (e) { "use strict"; var t = e && e.namespace; if (t && e.profileId && e.cdn) { var i = window[t]; if (i && Array.isArray(i) || (i = window[t] = []), !i.initialized && !i._loaded) if (i._loaded) console && console.warn("[Radar] Duplicate initialization attempted"); else { i._loaded = !0;["track", "page", "identify", "group", "alias", "ready", "debug", "on", "off", "once", "trackClick", "trackSubmit", "trackLink", "trackForm", "pageview", "screen", "reset", "register", "setAnonymousId", "addSourceMiddleware", "addIntegrationMiddleware", "addDestinationMiddleware", "giveCookieConsent"].forEach((function (e) { var a; i[e] = (a = e, function () { var e = window[t]; if (e.initialized) return e[a].apply(e, arguments); var i = [].slice.call(arguments); return i.unshift(a), e.push(i), e }) })), -1 === e.apiEndpoint.indexOf("http") && (e.apiEndpoint = "https://" + e.apiEndpoint), i.bootstrap = function () { var t, i = document.createElement("script"); i.async = !0, i.type = "text/javascript", i.id = "__radar__", i.setAttribute("data-settings", JSON.stringify(e)), i.src = [-1 !== (t = e.cdn).indexOf("http") ? "" : "https://", t, "/releases/latest/radar.min.js"].join(""); var a = document.scripts[0]; a.parentNode.insertBefore(i, a) }, i.bootstrap() } } else "undefined" != typeof console && console.error("[Radar] Configuration incomplete") }({
+        "apiEndpoint": "radar.snitcher.com",
+        "cdn": "cdn.snitcher.com",
+        "namespace": "Snitcher",
+        "profileId": "8416878"
+      });
+    </script>
+    <% /* Reddit */ %>
+    <script>
+    !function(w,d){if(!w.rdt){var p=w.rdt=function(){p.sendEvent?p.sendEvent.apply(p,arguments):p.callQueue.push(arguments)};p.callQueue=[];var t=d.createElement("script");t.src="https://www.redditstatic.com/ads/pixel.js?pixel_id=a2_j930ircnvcyb",t.async=!0;var s=d.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}}(window,document);rdt('init','a2_j930ircnvcyb');rdt('track', 'PageVisit');
+    </script>
     <% /* Qualified */ %>
     <% if(!disableChatbotAndIndexing) {%>
       <script>
@@ -126,14 +137,6 @@
     <% } else {%>
       <meta name="robots" content="noindex">
     <% } %>
-    <% /* Snitcher */ %>
-    <script>
-        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
-        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-        snid('verify', '8416878');
-    </script>
     <% /* Hotjar code */ %>
     <script>
       (function(h,o,t,j,a,r){
@@ -265,17 +268,17 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="AI-powered IT" href="/ai">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                            <img src="/images/nav-icon-ai-powered-it-40x40@2x.png" alt="AI-powered IT">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Linux device management
+                              AI-powered IT
                             </p>
                             <p purpose="nav-item-body">
-                              Manage Linux devices with full visibility and control.
+                              Move faster with AI, safely and in your control.
                             </p>
                           </div>
                         </div>
@@ -490,17 +493,17 @@
                         </div>
                       </a>
 
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="AI-powered IT" href="/ai">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                            <img src="/images/nav-icon-ai-powered-it-40x40@2x.png" alt="AI-powered IT">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Linux device management
+                              AI-powered IT
                             </p>
                             <p purpose="nav-item-body">
-                              Manage Linux devices with full visibility and control.
+                              Move faster with AI, safely and in your control.
                             </p>
                           </div>
                         </div>
@@ -945,6 +948,7 @@
     <script src="/js/pages/admin/query-generator.page.js"></script>
     <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
+    <script src="/js/pages/ai-in-it.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
     <script src="/js/pages/articles/basic-comparison.page.js"></script>
@@ -1164,7 +1168,9 @@
       vgo('setAccount', '652899825');
       vgo('setTrackByDefault', true);
       vgo('process');
-    </script>      
+    </script>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
    <% } %>
     <% /* Remove query params from the page URLs after the page is fully loaded. */ %>
     <script>

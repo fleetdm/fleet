@@ -304,9 +304,8 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 }
 
 func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
-		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+		if LocURITargetsReservedNode(locURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
 				if allowCustomDiskEncryption {
 					continue
@@ -406,9 +405,9 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 }
 
 func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
-	trimmed := strings.TrimSpace(locURI)
+	normalized := canonicalizeSCEPScope(locURI)
 	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
-	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+	return strings.ReplaceAll(normalized, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
 }
 
 func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
@@ -508,6 +507,22 @@ func IsWindowsSCEPLocURI(locURI string) bool {
 		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
 }
 
+// canonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
+// (which key off the "./Device/"/"./User/" prefix) can't be bypassed by a scope-less spelling. Non-SCEP LocURIs are returned unchanged.
+func canonicalizeSCEPScope(locURI string) string {
+	// CanonicalLocURI strips the device scope to the bare "Vendor/MSFT/..." form and preserves explicit user scope as
+	// "User/Vendor/MSFT/...".
+	canon := CanonicalLocURI(locURI)
+	switch {
+	case strings.HasPrefix(canon, scepInstallLocURINode+"/"):
+		return "./Device/" + canon
+	case strings.HasPrefix(canon, "User/"+scepInstallLocURINode+"/"):
+		return "./" + canon
+	default:
+		return locURI
+	}
+}
+
 func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 	if !v.isSCEPProfile() {
 		// Cheeky validation here, to only allow Exec elements in SCEP profiles.
@@ -563,6 +578,22 @@ type MDMWindowsProfilePayload struct {
 	Retries          int                `db:"retries"`
 	Checksum         []byte             `db:"checksum"`
 	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
+	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
+	// install is triggered because the profile content changed (a modify, not a fresh install).
+	PreviousInstalledChecksum []byte `db:"-"`
+}
+
+// MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
+type MDMWindowsProfileVersionKey struct {
+	ProfileUUID string
+	Checksum    []byte
+}
+
+// MDMWindowsProfilePriorContent is the retained syncml of a prior version of a Windows config profile (the version a host still has).
+type MDMWindowsProfilePriorContent struct {
+	ProfileUUID string `db:"profile_uuid"`
+	Checksum    []byte `db:"checksum"`
+	SyncML      []byte `db:"syncml"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {

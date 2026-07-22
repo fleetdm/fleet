@@ -1,0 +1,8 @@
+{
+  "name": "Mozilla Firefox Nightly",
+  "slug": "firefox@nightly/darwin",
+  "unique_identifier": "org.mozilla.nightly",
+  "token": "firefox@nightly",
+  "installer_format": "dmg",
+  "default_categories": ["Browsers"]
+}

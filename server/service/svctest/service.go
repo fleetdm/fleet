@@ -170,7 +170,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
-		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+		// The Conditional Access feature is gated on Fleet Premium; callers that
+		// exercise it must provide a premium license via opts[0].License.
+		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
@@ -258,6 +260,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
+			nil, // PSSO nonce store; integration tests don't exercise PSSO
 		)
 		if err != nil {
 			panic(err)

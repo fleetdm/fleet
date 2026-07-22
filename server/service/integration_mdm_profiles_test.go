@@ -3813,6 +3813,259 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// TODO: Add tests for OS updates declaration when implemented.
 }
 
+func (s *integrationMDMTestSuite) TestUpdateConfigProfile() {
+	t := s.T()
+	ctx := context.Background()
+
+	lblA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "update-prof-lbl-a", Query: "select 1;"})
+	require.NoError(t, err)
+	lblB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "update-prof-lbl-b", Query: "select 2;"})
+	require.NoError(t, err)
+
+	createProfile := func(fileName string, content []byte, wantUUIDPrefix string) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileUUID)
+		require.Equal(t, wantUUIDPrefix, string(resp.ProfileUUID[0]))
+		return resp.ProfileUUID
+	}
+
+	// an empty fileName with nil content produces a form without a "profile"
+	// file part, i.e. a labels-only edit
+	patchProfile := func(profileUUID, fileName string, content []byte, fields map[string][]string, wantStatus int) *http.Response {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
+		return s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers)
+	}
+
+	decodePatchResp := func(res *http.Response) updateMDMConfigProfileResponse {
+		var resp updateMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		return resp
+	}
+
+	getProfile := func(profileUUID string) getMDMConfigProfileResponse {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, nil, http.StatusOK, &resp)
+		return resp
+	}
+
+	downloadProfile := func(profileUUID string) []byte {
+		res := s.Do("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, nil, http.StatusOK, "alt", "media")
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+		return b
+	}
+
+	assertEditedActivity := func(activityName, profileName, profileIdentifier string) {
+		identJSON := ""
+		if profileIdentifier != "" {
+			// profile_identifier is omitempty and only set for Apple profiles
+			identJSON = fmt.Sprintf(`"profile_identifier": %q, `, profileIdentifier)
+		}
+		wantJSON := fmt.Sprintf(
+			`{"profile_name": %q, %s"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`,
+			profileName, identJSON,
+		)
+		s.lastActivityOfTypeMatches(activityName, wantJSON, 0)
+	}
+
+	declJSONWithEcho := func(ident, echo string) []byte {
+		return fmt.Appendf(nil, `{
+  "Type": "com.apple.configuration.management.test",
+  "Payload": {
+    "Echo": %q
+  },
+  "Identifier": %q
+}`, echo, ident)
+	}
+
+	// create the initial profiles through the real POST endpoint so the UUIDs
+	// have the correct platform prefixes
+	appleIdent := "update-apple-ident"
+	appleUUID := createProfile("update-apple-profile.mobileconfig", mobileconfigForTest("update-apple-profile", appleIdent), fleet.MDMAppleProfileUUIDPrefix)
+	winUUID := createProfile("update-win-profile.xml", syncMLForTest("./TestUpdateProfile"), fleet.MDMWindowsProfileUUIDPrefix)
+	declIdent := "update-decl-ident"
+	declUUID := createProfile("update-apple-decl.json", declJSONWithEcho(declIdent, "v1"), fleet.MDMAppleDeclarationUUIDPrefix)
+	androidUUID := createProfile("update-android-profile.json", []byte(`{"removeUserDisabled": false}`), fleet.MDMAndroidProfileUUIDPrefix)
+
+	//
+	// Apple .mobileconfig
+	//
+
+	// content-only edit: same PayloadIdentifier, new payload content (fresh
+	// random PayloadUUID), no label fields
+	origChecksum := getProfile(appleUUID).Checksum
+	require.Len(t, origChecksum, 16)
+	appleContent2 := mobileconfigForTest("update-apple-profile", appleIdent)
+	res := patchProfile(appleUUID, "update-apple-profile.mobileconfig", appleContent2, nil, http.StatusOK)
+	patchResp := decodePatchResp(res)
+	require.Equal(t, appleUUID, patchResp.ProfileUUID)
+	require.Equal(t, appleContent2, downloadProfile(appleUUID))
+	prof := getProfile(appleUUID)
+	require.Equal(t, "update-apple-profile", prof.Name)
+	require.Len(t, prof.Checksum, 16)
+	require.NotEqual(t, origChecksum, prof.Checksum)
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile", appleIdent)
+
+	// content edit with a changed PayloadDisplayName (same identifier) renames
+	// the profile
+	appleContent3 := mobileconfigForTest("update-apple-profile-renamed", appleIdent)
+	patchProfile(appleUUID, "update-apple-profile.mobileconfig", appleContent3, nil, http.StatusOK)
+	prof = getProfile(appleUUID)
+	require.Equal(t, "update-apple-profile-renamed", prof.Name)
+	require.Equal(t, appleContent3, downloadProfile(appleUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile-renamed", appleIdent)
+
+	// labels-only edit: no file, labels persisted, content and checksum
+	// unchanged
+	checksumBeforeLabels := prof.Checksum
+	res = patchProfile(appleUUID, "", nil, map[string][]string{"labels_include_any": {lblA.Name}}, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, appleUUID, patchResp.ProfileUUID)
+	prof = getProfile(appleUUID)
+	require.Equal(t, []fleet.ConfigurationProfileLabel{{LabelID: lblA.ID, LabelName: lblA.Name}}, prof.LabelsIncludeAny)
+	require.Empty(t, prof.LabelsIncludeAll)
+	require.Empty(t, prof.LabelsExcludeAny)
+	require.Equal(t, checksumBeforeLabels, prof.Checksum)
+	require.Equal(t, appleContent3, downloadProfile(appleUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedMacosProfile{}.ActivityName(), "update-apple-profile-renamed", appleIdent)
+
+	// content-only edit after labels were set clears label targeting (replace
+	// semantics)
+	appleContent4 := mobileconfigForTest("update-apple-profile-renamed", appleIdent)
+	patchProfile(appleUUID, "update-apple-profile.mobileconfig", appleContent4, nil, http.StatusOK)
+	prof = getProfile(appleUUID)
+	require.Empty(t, prof.LabelsIncludeAny)
+	require.Empty(t, prof.LabelsIncludeAll)
+	require.Empty(t, prof.LabelsExcludeAny)
+	require.Equal(t, appleContent4, downloadProfile(appleUUID))
+
+	// upload with a different PayloadIdentifier is rejected
+	res = patchProfile(appleUUID, "update-apple-profile.mobileconfig", mobileconfigForTest("update-apple-profile-renamed", "some-other-ident"), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "PayloadIdentifier must match")
+
+	// renaming via PayloadDisplayName to collide with an existing Windows
+	// profile's name in the same team is rejected
+	res = patchProfile(appleUUID, "update-apple-profile.mobileconfig", mobileconfigForTest("update-win-profile", appleIdent), nil, http.StatusConflict)
+	require.Contains(t, extractServerErrorText(res.Body), SameProfileNameUploadErrorMsg)
+	prof = getProfile(appleUUID)
+	require.Equal(t, "update-apple-profile-renamed", prof.Name)
+
+	// only one of labels_include_all/labels_include_any may be provided
+	res = patchProfile(appleUUID, "", nil, map[string][]string{
+		"labels_include_all": {lblA.Name},
+		"labels_include_any": {lblB.Name},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `Only one of "labels_include_all" or "labels_include_any" can be included.`)
+
+	// nonexistent profile UUID with a valid Apple prefix
+	patchProfile(fleet.MDMAppleProfileUUIDPrefix+uuid.NewString(), "update-apple-profile.mobileconfig", mobileconfigForTest("update-apple-profile", appleIdent), nil, http.StatusNotFound)
+
+	// unknown UUID prefix
+	res = patchProfile("zno-such-profile", "update-apple-profile.mobileconfig", mobileconfigForTest("update-apple-profile", appleIdent), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "not yet supported")
+
+	// changing the PayloadScope of an existing profile is rejected
+	payloadScopeSystem := fleet.PayloadScopeSystem
+	payloadScopeUser := fleet.PayloadScopeUser
+	scopedIdent := "update-apple-scoped-ident"
+	scopedUUID := createProfile("update-apple-scoped.mobileconfig", scopedMobileconfigForTest("update-apple-scoped", scopedIdent, &payloadScopeSystem), fleet.MDMAppleProfileUUIDPrefix)
+	res = patchProfile(scopedUUID, "update-apple-scoped.mobileconfig", scopedMobileconfigForTest("update-apple-scoped", scopedIdent, &payloadScopeUser), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "PayloadScope")
+
+	// profiles managed by Fleet can't be edited; create one directly in the DB
+	// as the POST endpoint rejects Fleet payload identifiers
+	fleetManagedUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.NewString()
+	fleetManagedIdent := mobileconfig.FleetFileVaultPayloadIdentifier
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mc := mcBytesForTest(fleetManagedIdent, fleetManagedIdent, uuid.NewString())
+		_, err := q.ExecContext(ctx,
+			"INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum, team_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP())",
+			fleetManagedUUID, fleetManagedIdent, fleetManagedIdent, mc, "1234", 0)
+		return err
+	})
+	res = patchProfile(fleetManagedUUID, "", nil, map[string][]string{"labels_include_any": {lblA.Name}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "managed by Fleet")
+
+	//
+	// Windows
+	//
+
+	// content-only edit; the uploaded filename is ignored, the profile keeps
+	// its name
+	winContent2 := syncMLForTest("./TestUpdateProfileEdited")
+	res = patchProfile(winUUID, "some-other-filename.xml", winContent2, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	require.Equal(t, winContent2, downloadProfile(winUUID))
+	prof = getProfile(winUUID)
+	require.Equal(t, "update-win-profile", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+
+	// labels-only edit
+	res = patchProfile(winUUID, "", nil, map[string][]string{"labels_include_all": {lblA.Name, lblB.Name}}, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, winUUID, patchResp.ProfileUUID)
+	prof = getProfile(winUUID)
+	sort.Slice(prof.LabelsIncludeAll, func(i, j int) bool {
+		return prof.LabelsIncludeAll[i].LabelName < prof.LabelsIncludeAll[j].LabelName
+	})
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
+		{LabelID: lblA.ID, LabelName: lblA.Name},
+		{LabelID: lblB.ID, LabelName: lblB.Name},
+	}, prof.LabelsIncludeAll)
+	require.Equal(t, winContent2, downloadProfile(winUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedWindowsProfile{}.ActivityName(), "update-win-profile", "")
+
+	//
+	// Apple DDM declaration
+	//
+
+	// content edit with the same Identifier
+	declContent2 := declJSONWithEcho(declIdent, "v2")
+	res = patchProfile(declUUID, "some-other-filename.json", declContent2, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, declUUID, patchResp.ProfileUUID)
+	require.Equal(t, declContent2, downloadProfile(declUUID))
+	prof = getProfile(declUUID)
+	require.Equal(t, "update-apple-decl", prof.Name)
+	require.Equal(t, declIdent, prof.Identifier)
+	assertEditedActivity(fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(), "update-apple-decl", declIdent)
+
+	// content upload with a different Identifier is rejected
+	res = patchProfile(declUUID, "update-apple-decl.json", declJSONWithEcho("some-other-decl-ident", "v3"), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Identifier must match")
+	require.Equal(t, declContent2, downloadProfile(declUUID))
+
+	//
+	// Android
+	//
+
+	// content-only edit
+	androidContent2 := []byte(`{"removeUserDisabled": true}`)
+	res = patchProfile(androidUUID, "update-android-profile.json", androidContent2, nil, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, androidUUID, patchResp.ProfileUUID)
+	require.Equal(t, androidContent2, downloadProfile(androidUUID))
+	prof = getProfile(androidUUID)
+	require.Equal(t, "update-android-profile", prof.Name)
+	assertEditedActivity(fleet.ActivityTypeEditedAndroidProfile{}.ActivityName(), "update-android-profile", "")
+
+	// labels-only edit
+	res = patchProfile(androidUUID, "", nil, map[string][]string{"labels_exclude_any": {lblB.Name}}, http.StatusOK)
+	patchResp = decodePatchResp(res)
+	require.Equal(t, androidUUID, patchResp.ProfileUUID)
+	prof = getProfile(androidUUID)
+	require.Equal(t, []fleet.ConfigurationProfileLabel{{LabelID: lblB.ID, LabelName: lblB.Name}}, prof.LabelsExcludeAny)
+	require.Equal(t, androidContent2, downloadProfile(androidUUID))
+	assertEditedActivity(fleet.ActivityTypeEditedAndroidProfile{}.ActivityName(), "update-android-profile", "")
+}
+
 func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	t := s.T()
 	ctx := context.Background()
@@ -4666,7 +4919,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device should get:
-		// - 1 <Delete> for the removed AllowCortana LocURI (from batchSet edit diff)
+		// - 1 <Delete> for the removed AllowCortana LocURI (enqueued by the reconciler)
 		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
 		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
 		s.awaitTriggerProfileSchedule(t)
@@ -4996,7 +5249,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTestWithType("D1", dt)},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported", dt)
+		require.Contains(t, errMsg, "is a forbidden declaration type", dt)
 	}
 	// and one more for the software update declaration
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -5302,7 +5555,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 			{DisplayName: "N4", Profile: declarationForTestWithType("D1", dt)},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported", dt)
+		require.Contains(t, errMsg, "is a forbidden declaration", dt)
 	}
 	// and one more for the software update declaration which should succeed.
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
@@ -6543,13 +6796,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 	"Type": "com.apple.configuration.decl%d",
 	"Identifier": "com.fleet.config%d",
 	"Payload": {
-		"ServiceType": "com.apple.bash%d",
-		"DataAssetReference": "com.fleet.asset.bash"
+		"ServiceType": "com.apple.bash%d"
 	}
 }`
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return fmt.Appendf(nil, tmpl, i, i, i)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -6559,23 +6811,18 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 		return string(profile.RawJSON)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "json", "darwin", false)
 }
 
 func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func(i int) []byte,
-	getProfileContents func(profileUUID string) string, fileExtension string, platform string,
+	getProfileContents func(profileUUID string) string, fileExtension string, platform string, testWholeProfileSecret bool,
 ) {
 	t := s.T()
-	const numProfiles = 2
-	var profiles [][]byte
-	for i := 0; i < numProfiles; i++ {
-		profiles = append(profiles, newProfileBytes(i))
-	}
-	// Use secrets
+	numProfiles := 1
+	profiles := [][]byte{newProfileBytes(0)}
+
 	myBash := "com.apple.bash0"
 	profiles[0] = []byte(strings.ReplaceAll(string(profiles[0]), myBash, "$"+fleet.ServerSecretPrefix+"BASH"))
-	secretProfile := profiles[1]
-	profiles[1] = []byte("${" + fleet.ServerSecretPrefix + "PROFILE}")
 
 	body, headers := generateNewProfileMultipartRequest(
 		t, "secret-config0."+fileExtension, profiles[0], s.token, nil,
@@ -6590,12 +6837,20 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 				Name:  "FLEET_SECRET_BASH",
 				Value: myBash,
 			},
-			{
-				Name:  "FLEET_SECRET_PROFILE",
-				Value: string(secretProfile),
-			},
 		},
 	}
+
+	if testWholeProfileSecret {
+		secretProfile := newProfileBytes(1)
+		profiles = append(profiles, []byte("${"+fleet.ServerSecretPrefix+"PROFILE}"))
+
+		req.SecretVariables = append(req.SecretVariables, fleet.SecretVariable{
+			Name:  "FLEET_SECRET_PROFILE",
+			Value: string(secretProfile),
+		})
+		numProfiles++
+	}
+
 	secretResp := fleet.CreateSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
@@ -6604,14 +6859,16 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp.ProfileUUID)
 
-	body, headers = generateNewProfileMultipartRequest(
-		t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
-	)
-	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
-	err = json.NewDecoder(res.Body).Decode(&resp)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.ProfileUUID)
+	if testWholeProfileSecret {
+		body, headers = generateNewProfileMultipartRequest(
+			t, "secret-config1."+fileExtension, profiles[1], s.token, nil,
+		)
+		s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		err = json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp.ProfileUUID)
+	}
 
 	var listResp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
@@ -6693,7 +6950,7 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 		return string(profile.Mobileconfig)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "mobileconfig", "darwin", true)
 }
 
 // TestWindowsConfigSecretVariablesUpload tests uploading Windows profiles with secrets via the /configuration_profiles endpoint
@@ -6722,7 +6979,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 		return string(profile.SyncML)
 	}
 
-	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows")
+	s.testSecretVariablesUpload(newProfileBytes, getProfileContents, "xml", "windows", true)
 }
 
 func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
@@ -8481,7 +8738,9 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	scepCount := verifyCommands(1, syncml.CmdStatusOK)
 	require.Equal(t, 1, scepCount, "SCEP exchange should have run exactly once")
 
-	// Verify profile status is Verified due to successful response
+	// The device ACKed the SCEP <Exec>, but for a Fleet-proxied SCEP profile that only means the exchange was
+	// accepted, not that a certificate landed on the host. The profile stays "verifying" until Fleet observes the
+	// matching certificate.
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	foundProfile = false
@@ -8490,6 +8749,34 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			profileUUID = p.ProfileUUID
+			require.NotNil(t, p.Status)
+			assert.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+		}
+	}
+	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
+
+	// Simulate osquery reporting the issued certificate. It carries the profile's renewal-ID marker
+	// (fleet-<profile_uuid>) in its OU, which Fleet matches back to the profile's managed-certificate row.
+	sha1Sum := make([]byte, 20)
+	copy(sha1Sum, profileUUID)
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
+		HostID:                    host.ID,
+		CommonName:                "windows-scep-cert",
+		SubjectCommonName:         "windows-scep-cert",
+		SubjectOrganizationalUnit: "fleet-" + profileUUID,
+		SHA1Sum:                   sha1Sum,
+		NotValidBefore:            time.Now().Add(-time.Hour),
+		NotValidAfter:             time.Now().Add(365 * 24 * time.Hour),
+		Source:                    fleet.SystemHostCertificate,
+	}}, fleet.HostCertificateOriginOsquery, nil))
+
+	// Now that Fleet has observed the matching certificate, the profile is verified.
+	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	foundProfile = false
+	for _, p := range profiles {
+		if p.Name == "WindowsSCEPProfile" {
+			foundProfile = true
 			require.NotNil(t, p.Status)
 			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
@@ -8682,7 +8969,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	// we trigger a resend before the acknowledgement comes back
 
 	// 1. Trigger an IDP variable change by updating SCIM user
-	err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
+	_, err = s.ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUserID, UserName: "newuser@example.com"})
 	require.NoError(t, err)
 
 	// 2. At this point, the profile should be marked for resend (status = NULL)

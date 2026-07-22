@@ -431,9 +431,26 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
-	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	p.MFAEnabled = new(invite.MFAEnabled)
 	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
 	p.InviteID = &invite.ID
+	p.SSOEnabled = new(invite.SSOEnabled)
+	p.SSOInvite = new(invite.SSOEnabled)
+	if invite.SSOEnabled {
+		// SSO invites must not create local password credentials. Reject the
+		// payload if it carries a password field at all, even an empty one.
+		if p.Password != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
+		}
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
+	}
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -476,6 +493,22 @@ func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	return resp, nil
 }
 
+// filterUserTeamsToRequesterScope returns the subset of teams that the
+// requester is permitted to see. A requester with any global role sees all
+// teams unchanged; a team-scoped requester sees only teams they have a role in.
+func filterUserTeamsToRequesterScope(teams []fleet.UserTeam, requester *fleet.User) []fleet.UserTeam {
+	if requester.HasAnyGlobalRole() {
+		return teams
+	}
+	filtered := make([]fleet.UserTeam, 0, len(teams))
+	for _, t := range teams {
+		if requester.HasAnyRoleInTeam(t.ID) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	user := &fleet.User{}
 	if opt.TeamID != 0 {
@@ -485,7 +518,26 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	users, err := svc.ds.ListUsers(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// The datastore loads each user's full team membership. A team-scoped
+	// requester is only authorized to list users of a team they administer, so
+	// strip any team memberships (IDs/names/roles) for teams the requester has
+	// no role in before returning them. Global roles are authorized to see all
+	// teams and are left untouched.
+	for _, user := range users {
+		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
+	}
+
+	return users, nil
 }
 
 func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {

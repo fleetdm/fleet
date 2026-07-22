@@ -47,7 +47,7 @@ You can install a Fleet-maintained app three ways:
 
 You can track the installation process in the **Activities** section on the **Details** tab of this **Host Details** page.
 
-To keep the app up to date automatically, add a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet).
+Fleet keeps Fleet-maintained apps up to date automatically (see [Update apps automatically](#update-apps-automatically)). You can also add a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to detect and remediate hosts running outdated versions.
 
 ## Uninstall the app
 
@@ -57,17 +57,43 @@ Fleet will run the uninstall script configured for the software title. For macOS
 
 The uninstallation process is also visible in the  **Activities** section on the **Details** tab of this **Host Details** page.
 
-## Update app
+## Update apps automatically
 
-To get the latest version of a Fleet-maintained app,
+By default, Fleet keeps each Fleet-maintained app up to date. When the app's publisher releases a new version, Fleet downloads it and uses it for new installs. Hosts running an older version update to the latest version the next time the app is installed, for example, via [Self-service](https://fleetdm.com/guides/software-self-service) or [policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-1. Remove the app from the fleet.
-2. Re-add it from the Fleet-maintained list on the **Software** page.
-3. Install the new version of the app via one of the three methods above.
+This "Latest" behavior is the default. To control which version Fleet installs, pin the app to a specific or major version.
 
-A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/32993).
+## Pin a version
 
-With a [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) and [GitOps](https://fleetdm.com/docs/configuration/yaml-files#patch-policy), the query automatically updates to include the latest version each time specs are applied. Combined with install automation, outdated hosts receive the update automatically.
+Pin a Fleet-maintained app to keep it on a specific version instead of automatically updating to the latest version.
+
+1. On the **Software** page, select the app to open its details page.
+2. Select **Actions > Versions**.
+3. Choose **Pin to {version}** to stay on a specific version, or **Pin to major version ({N})** to stay on a major version and receive only its minor and patch updates.
+4. Select **Save**.
+
+New installs use the pinned version. To return to automatic updates, open **Actions > Versions** again and select **Automatically update to latest**.
+
+> Pinning is available in Fleet Premium and requires the Maintainer role or higher.
+
+With [GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps), set the `version` key under the app's `fleet_maintained_apps` entry:
+
+```yaml
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+      version: "149.0.7827.54"
+```
+
+Use a caret (`^`) constraint to pin to a major version (for example, `"^147"`). Omit `version` to keep the app on the latest version. See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps) for details.
+
+You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:id/package`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
+
+## Roll back to a previous version
+
+If a new version introduces a bug, roll back by pinning the app to the previous version using the same **Actions > Versions** workflow (or the GitOps `version` key or REST API above).
+
+> Hosts already running the newer version will downgrade to the pinned version the next time the app is installed.
 
 ## Keep apps up to date with patch policies
 
@@ -96,6 +122,8 @@ Fleet:
 - fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub hourly (or when you run `fleetctl trigger --name=maintained_apps`; interval was daily prior to Fleet 4.71.0)
 - fetches an individual app's manifest when the **Add** button is pressed from the maintained apps list in the UI, and when an individual app is [retrieved](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-maintained-app) or [added](https://fleetdm.com/docs/rest-api/rest-api#add-fleet-maintained-app) via the REST API
 - DOES NOT directly pull data from WinGet or Homebrew to end-user devices
+
+For a deeper look at the whole pipeline, including validation on real hosts, how broken updates are frozen, and the security model, see [how Fleet keeps Fleet-maintained apps safe and up to date](https://fleetdm.com/articles/inside-fleet-maintained-apps).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">

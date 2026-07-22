@@ -3023,6 +3023,123 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 	}
 }
 
+func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
+	t := s.T()
+	ctx := context.Background()
+
+	createInvite := func(email string, ssoEnabled bool) *fleet.Invite {
+		createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+			Email:      new(email),
+			Name:       new("SSO Invitee"),
+			GlobalRole: null.StringFrom(fleet.RoleObserver),
+			SSOEnabled: new(ssoEnabled),
+		}}
+		createInviteResp := createInviteResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+		t.Cleanup(func() {
+			// Ignore the error: an accepted invite is consumed (deleted) by the
+			// acceptance flow, so it may no longer exist at cleanup time.
+			_ = s.ds.DeleteInvite(ctx, createInviteResp.Invite.ID)
+		})
+		// the token is not returned via the response's json, must get it from the db
+		invite, err := s.ds.Invite(ctx, createInviteResp.Invite.ID)
+		require.NoError(t, err)
+		return invite
+	}
+
+	// An SSO-only invite must not be acceptable through the password flow.
+	t.Run("sso invite rejects password payload", func(t *testing.T) {
+		email := "sso-password-attack@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    &test.GoodPassword,
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		// no user should have been created
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// An empty password field on an SSO invite must also be rejected: the
+	// presence of the field at all is not allowed.
+	t.Run("sso invite rejects empty password field", func(t *testing.T) {
+		email := "sso-empty-password@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    new(""),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// The legitimate SSO acceptance flow must create an SSO-enabled user.
+	t.Run("sso invite accepted via sso flow", func(t *testing.T) {
+		email := "sso-legit@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("SSO User"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusOK, &resp)
+		require.NotNil(t, resp.User)
+		require.True(t, resp.User.SSOEnabled)
+		t.Cleanup(func() { require.NoError(t, s.ds.DeleteUser(ctx, resp.User.ID)) })
+	})
+
+	// A non-SSO invite accepted with SSO flags but no password must be rejected
+	// (and must not panic on a nil password).
+	t.Run("password invite rejects sso payload without password", func(t *testing.T) {
+		email := "password-as-sso@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("No Password"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// A non-SSO invite accepted with SSOInvite falsely set must still enforce
+	// password complexity: setting the SSO flag must not let a weak password
+	// slip past validation.
+	t.Run("password invite rejects sso payload with weak password", func(t *testing.T) {
+		email := "password-as-sso-weak@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Weak Password"),
+			Email:       new(email),
+			Password:    new("weak"), // too short, no number or symbol
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()
@@ -8248,6 +8365,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -8850,6 +8970,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// apply spec, empty and whitespace-only secrets are rejected
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "   "}}},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// error conditions should create new activities
@@ -15114,19 +15242,45 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	}
 	// Do dry run
 	req.DryRun = true
+	idBeforeDryRun := s.lastActivityMatches("", "", 0)
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
+	// A dry run persists nothing, so it must not emit any activity.
+	require.Equal(t, idBeforeDryRun, s.lastActivityMatches("", "", 0))
 
-	// Do real run
+	// Do real run: creating the variable emits a created_custom_variable activity.
 	req.DryRun = false
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		0,
+	)
+
+	// Re-applying the same spec is a no-op and must not emit any activity.
+	idAfterCreate := s.lastActivityMatches("", "", 0)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	require.Equal(t, idAfterCreate, s.lastActivityMatches("", "", 0))
+
+	// Changing the value via the spec endpoint emits an updated_custom_variable activity.
+	req.SecretVariables[0].Value = "new-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "new-value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityUpdatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_name":%q}`, validName),
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestSecretVariables() {
@@ -15846,24 +16000,19 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 	}
 }
 
-func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
-	t := s.T()
-
-	var resp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
-	require.False(t, resp.License.ManagedCloud)
-
-	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
+	// Microsoft compliance partner APIs should fail on Fleet Free (this suite
+	// runs without a premium license).
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
 		MicrosoftTenantID: "foobar",
-	}, http.StatusBadRequest, &r)
+	}, http.StatusPaymentRequired, &r)
 	var c conditionalAccessMicrosoftConfirmResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &c)
+		http.StatusPaymentRequired, &c)
 	var d conditionalAccessMicrosoftDeleteResponse
-	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &d)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
+		http.StatusPaymentRequired, &d)
 }
 
 func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {

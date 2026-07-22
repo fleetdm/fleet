@@ -84,6 +84,19 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
+			name: "Reserved LocURI with scope-less prefix",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
 			name: "XML with Multiple Replace Elements",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -696,6 +709,21 @@ func TestValidateUserProvided(t *testing.T) {
 							<Format xmlns="syncml:metinf">chr</Format>
 						</Meta>
 						<Data>0DE4135C02E5E3C040FE1353E204D8B6F331F47A</Data>
+					</Item>
+				</Add>
+				`),
+			},
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+		},
+		{
+			name: fmt.Sprintf("scope-less SCEP LocURI is treated as Device SCEP (missing $FLEET_VAR_%s rejected)", FleetVarSCEPWindowsCertificateID),
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<Item>
+						<Target>
+							<LocURI>Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-id-that-is-not-fleet-var/Install/CAThumbprint</LocURI>
+						</Target>
 					</Item>
 				</Add>
 				`),

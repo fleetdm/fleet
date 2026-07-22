@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.24.0",
+      "version": "7.27.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id' AND version_compare(bundle_short_version, '7.24.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id' AND version_compare(bundle_short_version, '7.27.0') < 0);"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-7.24.0-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-7.27.0-arm64.dmg",
       "install_script_ref": "20b617ec",
       "uninstall_script_ref": "5400135a",
-      "sha256": "cd60b41350e1e48b31d83e46b5cf7e68112d66d356fa820a86f50ea382232097",
+      "sha256": "436d41aa3171252138de5b45c57cd85b9c7150d4c0b08c4e8d171e13700d4994",
       "default_categories": [
         "Productivity"
       ]

@@ -34,6 +34,18 @@ describe("InstallerDetailsWidget", () => {
     expect(screen.queryByTestId("software-icon")).not.toBeInTheDocument();
   });
 
+  it("renders the Python icon for a py_packages script package", () => {
+    render(<InstallerDetailsWidget {...defaultProps} source="py_packages" />);
+    expect(screen.queryByTestId("file-py-graphic")).toBeInTheDocument();
+    expect(screen.queryByTestId("file-pkg-graphic")).not.toBeInTheDocument();
+  });
+
+  it("renders the generic package icon for other script sources", () => {
+    render(<InstallerDetailsWidget {...defaultProps} source="sh_packages" />);
+    expect(screen.queryByTestId("file-pkg-graphic")).toBeInTheDocument();
+    expect(screen.queryByTestId("file-py-graphic")).not.toBeInTheDocument();
+  });
+
   it("renders the software name", () => {
     render(<InstallerDetailsWidget {...defaultProps} />);
     expect(screen.getByText("Test Software")).toBeInTheDocument();

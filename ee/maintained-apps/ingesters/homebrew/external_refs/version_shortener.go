@@ -102,3 +102,19 @@ func PdVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps
 	app.Version = strings.ReplaceAll(app.Version, "-", ".")
 	return app, nil
 }
+
+// SmallstepAgentVersionTransformer prepends "v" to match what macOS reports as
+// bundle_short_version for Smallstep Agent (e.g. "0.68.0" → "v0.68.0"; the app's
+// CFBundleShortVersionString carries the "v" prefix). Without this, osquery's
+// version_compare treats the "v" prefix as making the host version always
+// greater, breaking patch policy detection.
+func SmallstepAgentVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Smallstep Agent")
+	}
+	if strings.HasPrefix(app.Version, "v") {
+		return app, nil
+	}
+	app.Version = "v" + app.Version
+	return app, nil
+}

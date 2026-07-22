@@ -212,14 +212,14 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		}
 
 		// test reporting client errors
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage)
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", nil, expectedErrorMessage, "")
 		require.NoError(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
 		// blank passphrase
 		ds.ReportEscrowErrorFuncInvoked = false
 		expectedErrorMessage = "passphrase, salt, and key_slot must be provided to escrow LUKS data"
-		err = svc.EscrowLUKSData(ctx, "", "bar", ptr.Uint(0), "")
+		err = svc.EscrowLUKSData(ctx, "", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -227,7 +227,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		passphrase, salt := "foo", ""
 		var keySlot *uint
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint,
+			encryptedBase64Salt string, keySlotToPersist *uint,
 		) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
@@ -240,13 +240,13 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, salt, decryptedSalt)
 
-			require.Equal(t, *keySlot, keySlotToPersist)
+			require.Equal(t, keySlot, keySlotToPersist)
 
 			return true, nil
 		}
 
 		// with no salt
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -254,7 +254,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with no key slot
 		ds.ReportEscrowErrorFuncInvoked = false
 		salt = "baz"
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 		require.False(t, ds.SaveLUKSDataFuncInvoked)
@@ -262,11 +262,86 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		// with salt and key slot
 		keySlot = ptr.Uint(0)
 		ds.ReportEscrowErrorFuncInvoked = false
-		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "")
+		err = svc.EscrowLUKSData(ctx, passphrase, salt, keySlot, "", "")
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
 		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("recovery key escrow has no salt or key slot", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		host := &fleet.Host{
+			OsqueryHostID: new("test"),
+			ID:            1,
+		}
+		ctx = test.HostContext(ctx, host)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					EnableDiskEncryption: optjson.SetBool(true),
+				},
+			}, nil
+		}
+
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
+			return nil
+		}
+
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			return nil
+		}
+
+		recoveryKey := "55055-39320-64491-48436-47667-15525-36879-32875"
+		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
+			encryptedBase64Salt string, keySlotToPersist *uint,
+		) (bool, error) {
+			require.Equal(t, host.ID, incomingHost.ID)
+			key := config.TestConfig().Server.PrivateKey
+
+			decrypted, err := mdm.DecodeAndDecrypt(encryptedBase64Passphrase, key)
+			require.NoError(t, err)
+			require.Equal(t, recoveryKey, decrypted)
+
+			// snapd owns the LUKS key slots, so a recovery key has no salt or
+			// numeric key slot to escrow.
+			require.Empty(t, encryptedBase64Salt)
+			require.Nil(t, keySlotToPersist)
+
+			return true, nil
+		}
+
+		// A recovery key requires no salt or key slot.
+		err := svc.EscrowLUKSData(ctx, recoveryKey, "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.NoError(t, err)
+		require.False(t, ds.ReportEscrowErrorFuncInvoked)
+		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+		// A recovery key escrow with no key still fails validation.
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, "", "", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		// Stray salt / key slot on the recovery-key path are rejected, not
+		// silently discarded — those fields are meaningless when snapd owns the
+		// LUKS key slots, and accepting them would hide client bugs.
+		ds.SaveLUKSDataFuncInvoked = false
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "some-salt", nil, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
+
+		ds.SaveLUKSDataFuncInvoked = false
+		strayKeySlot := uint(0)
+		err = svc.EscrowLUKSData(ctx, recoveryKey, "", &strayKeySlot, "", fleet.LUKSKeyTypeRecoveryKey)
+		require.Error(t, err)
+		require.False(t, ds.SaveLUKSDataFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -295,7 +370,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = ""
 		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err := svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
+		err := svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 
@@ -304,7 +379,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		cfg.Server.PrivateKey = "invalid"
 		svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ctx = test.HostContext(ctx, host)
-		err = svc.EscrowLUKSData(ctx, "foo", "bar", ptr.Uint(0), "")
+		err = svc.EscrowLUKSData(ctx, "foo", "bar", new(uint(0)), "", "")
 		require.Error(t, err)
 		require.True(t, ds.ReportEscrowErrorFuncInvoked)
 	})
@@ -865,17 +940,23 @@ func TestRetrySoftwareInstall(t *testing.T) {
 	}
 
 	var capturedOpts fleet.HostSoftwareInstallOptions
+	var capturedInstallerID uint
 	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 		require.Equal(t, host.ID, hostID)
-		require.Equal(t, installerID, softwareInstallerID)
+		capturedInstallerID = softwareInstallerID
 		capturedOpts = opts
 		return "new-uuid", nil
+	}
+	// By default the frozen installer is still the active one for its title.
+	ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, installerID uint) (uint, error) {
+		return installerID, nil
 	}
 
 	t.Run("preserves self-service and user ID", func(t *testing.T) {
 		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
 		require.NoError(t, err)
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, installerID, capturedInstallerID)
 		require.True(t, capturedOpts.SelfService)
 		require.NotNil(t, capturedOpts.UserID)
 		require.Equal(t, userID, *capturedOpts.UserID)
@@ -889,6 +970,65 @@ func TestRetrySoftwareInstall(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
 		require.True(t, capturedOpts.ForSetupExperience)
+	})
+
+	t.Run("retries the active installer after a version change", func(t *testing.T) {
+		const activeID = uint(99)
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, gotID uint) (uint, error) {
+			require.Equal(t, installerID, gotID)
+			return activeID, nil
+		}
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, activeID, capturedInstallerID, "retry targets the current active installer, not the frozen one")
+	})
+}
+
+func TestRetryPolicyAutomationSoftwareInstall(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	ctx := context.Background()
+
+	frozenID := uint(42)
+	policyID := uint(5)
+	host := &fleet.Host{ID: 1}
+	hsi := &fleet.HostSoftwareInstallerResult{
+		SoftwareInstallerID: &frozenID,
+		PolicyID:            &policyID,
+		AttemptNumber:       new(1),
+	}
+
+	var capturedInstallerID uint
+	var capturedOpts fleet.HostSoftwareInstallOptions
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		require.Equal(t, host.ID, hostID)
+		capturedInstallerID = softwareInstallerID
+		capturedOpts = opts
+		return "new-uuid", nil
+	}
+
+	t.Run("retries the frozen installer when it is still active", func(t *testing.T) {
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) { return id, nil }
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, frozenID, capturedInstallerID)
+		require.Equal(t, &policyID, capturedOpts.PolicyID)
+	})
+
+	t.Run("retries the active installer after a version change", func(t *testing.T) {
+		const activeID = uint(99)
+		ds.ResolveActiveInstallerForRetryFunc = func(ctx context.Context, id uint) (uint, error) {
+			require.Equal(t, frozenID, id)
+			return activeID, nil
+		}
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		require.NoError(t, svc.retryPolicyAutomationSoftwareInstall(ctx, host, hsi))
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.Equal(t, activeID, capturedInstallerID, "policy retry targets the current active installer, not the frozen one")
+		require.Equal(t, &policyID, capturedOpts.PolicyID)
 	})
 }
 

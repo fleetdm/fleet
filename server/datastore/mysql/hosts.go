@@ -609,6 +609,7 @@ var hostRefs = []string{
 	"host_vpp_software_installs",
 	"host_last_known_locations",
 	"host_issues",
+	"host_custom_host_vitals",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -627,6 +628,11 @@ var hostRefs = []string{
 // Orbit re-enrollment recreates the host row and the existing password row remains
 // reachable for view/rotate. Apple-MDM unenroll/re-enroll is handled separately by
 // MDMResetEnrollment, which soft-deletes the row.
+// - mdm_apple_psso_devices / mdm_apple_psso_keys: keyed by host_uuid, intentionally
+// preserved across host deletion for the same reason — the Mac may still be
+// MDM-enrolled with Platform SSO active, and its registered keys must keep
+// authenticating token requests. ADE re-enrollment clears them via
+// MDMAppleResetOnReenrollment.
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
@@ -659,6 +665,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_android_profiles":             "host_uuid",
 	"host_certificate_templates":            "host_uuid",
 	"host_mdm_apple_enrollment_permissions": "host_uuid",
+	"host_mdm_apple_device_names":           "host_uuid",
 }
 
 // additionalHostRefsSoftDelete are tables that reference a host but for which
@@ -1428,12 +1435,14 @@ func (ds *Datastore) applyHostFilters(
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
 	mdmRecoveryLockStatusJoin := ""
+	mdmDeviceNameStatusJoin := ""
 	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 		mdmRecoveryLockStatusJoin = sqlJoinRecoveryLockStatus()
+		mdmDeviceNameStatusJoin = sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1486,6 +1495,7 @@ func (ds *Datastore) applyHostFilters(
     %s
 	%s
 	%s
+	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
     `,
 
@@ -1501,6 +1511,7 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
 		mdmRecoveryLockStatusJoin,
+		mdmDeviceNameStatusJoin,
 		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 		hostMDMSeenJoin,
@@ -1767,7 +1778,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
 	if diskEncryptionConfig.Enabled {
-		includeLinuxCond = `(h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')`
+		includeLinuxCond = `(h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%')`
 	}
 
 	sqlFmt := ` AND (
@@ -1893,7 +1904,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'rhel')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'zorin', 'rhel')"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1902,7 +1913,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	sqlFmt += ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1 AND hmdm.is_server = 0 AND %s) -- windows
 		OR (h.platform = 'darwin' AND ne.id IS NOT NULL AND hmdm.enrolled = 1 AND %s) -- apple
-		OR ((h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
+		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
 	)`
 
 	var subqueryMacOS string
@@ -3639,6 +3650,16 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsT
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
 				}
 
+				// Reconcile host-name template enforcement against the destination
+				// team: eligible hosts moving into a template team get queued rows,
+				// and hosts moving to a template-less team or "No team" have their rows deleted.
+				// This runs after the team_id update above; teamID is the authoritative
+				// destination for the whole batch, so the template is resolved once
+				// rather than per row.
+				if err := reconcileHostDeviceNamesForTeamDB(ctx, tx, teamID, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam reconcile host device names")
+				}
+
 				return nil
 			},
 		)
@@ -4248,7 +4269,7 @@ func (ds *Datastore) DeleteHostIDP(ctx context.Context, id uint) error {
 
 		// remove an scim associations, if present. Note that this will not delete the associated row in
 		// scim_users, if it exists
-		if err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
+		if _, err := deleteHostSCIMUserMapping(ctx, tx, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete existing host SCIM user mapping")
 		}
 
@@ -4811,7 +4832,7 @@ WHERE %s`
 	// host_id (INSERT ... ON DUPLICATE KEY UPDATE) and handles its own profile resend,
 	// so calling it once per host is safe.
 	for _, hid := range hostIDs {
-		if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
+		if _, err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
 			return ctxerr.Wrapf(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host %d with scim user", hid)
 		}
 	}
@@ -4885,7 +4906,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return nil
 	}
 
-	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
+	_, err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
@@ -4895,11 +4916,12 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		_, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		return err
 	})
 }
 
-func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	// On conflict with host_scim_user.PRIMARY (host_id), reassign the host to the current SCIM user.
 	result, err := tx.ExecContext(
 		ctx,
@@ -4908,14 +4930,14 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 		hostID, scimUserID,
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+		return nil, ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
+		return nil, ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
 	}
 	if rows == 0 {
-		return nil
+		return nil, nil
 	}
 	// resend profiles that depend on the user now associated with that host
 	//
@@ -4925,37 +4947,68 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 }
 
 // deleteHostSCIMUserMapping is a helper function to delete SCIM user mapping for a host
-func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) error {
-	_, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
+func deleteHostSCIMUserMapping(ctx context.Context, exec sqlx.ExtContext, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	result, err := exec.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+		return nil, ctxerr.Wrap(ctx, err, "delete host SCIM user mapping")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete host SCIM user mapping rows affected")
+	}
+	if rows == 0 {
+		return nil, nil
 	}
 
-	return triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID},
-		[]fleet.FleetVarName{
-			fleet.FleetVarHostEndUserIDPUsername,
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-			fleet.FleetVarHostEndUserIDPGroups,
-			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname,
-		})
+	vars := []fleet.FleetVarName{
+		fleet.FleetVarHostEndUserIDPUsername,
+		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+		fleet.FleetVarHostEndUserIDPGroups,
+		fleet.FleetVarHostEndUserIDPDepartment,
+		fleet.FleetVarHostEndUserIDPFullname,
+	}
+	resentCerts, err := selectCertTemplatesToResend(ctx, exec, []uint{hostID}, fleetVarNamesToDBVars(vars))
+	if err != nil {
+		return nil, err
+	}
+	if err := triggerResendProfilesUsingVariables(ctx, exec, []uint{hostID}, vars); err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Remove any existing SCIM user mapping for this host
-		if err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
+func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID uint, scimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		resentCerts = nil
+		if _, err := deleteHostSCIMUserMapping(ctx, tx, hostID); err != nil {
 			return err
 		}
 
-		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		certs, err := associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+		if err != nil {
+			return err
+		}
+		resentCerts = certs
+		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
-func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return deleteHostSCIMUserMapping(ctx, tx, hostID)
+func (ds *Datastore) DeleteHostSCIMUserMapping(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	var resentCerts []fleet.ActivityTypeResentCertificate
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var txErr error
+		resentCerts, txErr = deleteHostSCIMUserMapping(ctx, tx, hostID)
+		return txErr
 	})
+	if err != nil {
+		return nil, err
+	}
+	return resentCerts, nil
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
@@ -6426,6 +6479,33 @@ SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE 
 	}
 
 	return count, nil
+}
+
+// numHostsFleetMDMEnrolledDB returns the number of macOS and Windows hosts that are currently enrolled in Fleet's own
+// MDM. It excludes hosts enrolled in a third-party MDM, server hosts (host_mdm.is_server = 1), and hosts that are not
+// currently enrolled (host_mdm.enrolled = 0, which includes ABM-pending and unenrolled hosts).
+func numHostsFleetMDMEnrolledDB(ctx context.Context, db sqlx.QueryerContext) (macOS int, windows int, err error) {
+	var counts struct {
+		MacOS   int `db:"macos"`
+		Windows int `db:"windows"`
+	}
+	const stmt = `
+SELECT
+	COALESCE(SUM(CASE WHEN h.platform = 'darwin' THEN 1 ELSE 0 END), 0) AS macos,
+	COALESCE(SUM(CASE WHEN h.platform = 'windows' THEN 1 ELSE 0 END), 0) AS windows
+FROM host_mdm hm
+	JOIN hosts h ON h.id = hm.host_id
+	JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
+WHERE hm.enrolled = 1
+	AND NOT COALESCE(hm.is_server, false)
+	AND mdms.name = ?
+	AND h.platform IN ('darwin', 'windows')
+	`
+	if err := sqlx.GetContext(ctx, db, &counts, stmt, fleet.WellKnownMDMFleet); err != nil {
+		return 0, 0, err
+	}
+
+	return counts.MacOS, counts.Windows, nil
 }
 
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {

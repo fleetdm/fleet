@@ -2335,7 +2335,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.enableABM(t.Name())
 
 	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
-	latestMacOSBuild := "23G93"    // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
 	deadline := "2023-12-31"
 	scepChallenge := "scepcha/><llenge"
 	scepURL := s.server.URL + "/mdm/apple/scep"
@@ -2668,8 +2667,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-				OSVersion:    latestMacOSVersion,
-				BuildVersion: latestMacOSBuild,
+				OSVersion: latestMacOSVersion,
 			},
 		},
 		{
@@ -2730,9 +2728,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: scepChallenge,
-							SCEPURL:       scepURL,
-							MDMURL:        mdmURL,
+							SCEPChallenge:  scepChallenge,
+							SCEPURL:        scepURL,
+							MDMURL:         mdmURL,
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
@@ -2776,9 +2775,10 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
 					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
-							SCEPChallenge: "scepcha/><llenge",
-							SCEPURL:       s.server.URL + "/mdm/apple/scep",
-							MDMURL:        s.server.URL + "/mdm/apple/mdm",
+							SCEPChallenge:  "scepcha/><llenge",
+							SCEPURL:        s.server.URL + "/mdm/apple/scep",
+							MDMURL:         s.server.URL + "/mdm/apple/mdm",
+							SCEPSubjectOUs: []string{apple_mdm.FleetEnrollmentSubjectOU},
 						}
 					}
 

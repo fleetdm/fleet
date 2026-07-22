@@ -492,6 +492,9 @@ Though not technically a part of GitHub itself, we feel like the security tools 
 | [OSSF Scorecard](https://github.com/ossf/scorecard) | Scan our GitHub repository for best practices and send problems to GitHub Security.                                                                  | [scorecard-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/scorecards-analysis.yml) |
 | [CodeQL](https://codeql.github.com/)                | Discover vulnerabilities across our codebase, both in the backend and frontend code.                                                                 | [codeql-analysis.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/codeql-analysis.yml)        |
 | [gosec](https://github.com/securego/gosec)          | Scan golang code for common security mistakes. We use gosec as one of the linters(static analysis tools used to identify problems in code) used by [golangci-lint](https://github.com/golangci/golangci-lint) | [golangci-lint.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/golangci-lint.yml)             |
+| [Trivy](https://github.com/aquasecurity/trivy)     | Scan Docker container images and build artifacts for vulnerabilities before each release.                                                            | Run as part of the release checklist                                                                           |
+
+In addition to CI-integrated scans, we run weekly AI-assisted security scans to identify vulnerability patterns that traditional SAST tools may miss.
 
 We are planning on adding [tfsec](https://github.com/aquasecurity/tfsec) to scan for configuration vulnerabilities in the Terraform code provided to deploy Fleet infrastructure in the cloud. 
 Once we have full coverage from a static analysis point of view, we will evaluate dynamic analysis
@@ -1764,6 +1767,117 @@ Fleet makes every effort to assure all third-party organizations are compliant a
 
 > Fleet is committed to being open and transparent in communications and expectations with its investors and keeping the best interests of all stakeholders in mind while protecting confidential business information, complying with applicable laws, and practicing good ethics, in accordance with [these guidelines](https://docs.google.com/document/d/1cFB3b3XD9O6FAOeSy_F4L9ajrteJBhbkdelMUEbUXCo/edit?usp=sharing).
 
+## Secure configuration baselines (Fleet Cloud infrastructure)
+
+This section covers the AWS organization, cloud infrastructure, servers and compute, network infrastructure, and databases operated by Fleet's infrastructure team. Employee laptops and their operating systems are managed with Fleet's own MDM and covered in [how we protect end-user devices](#how-we-protect-end-user-devices). Application-layer configuration is covered in [application security](#application-security).
+
+### Infrastructure as code is the baseline
+
+Fleet does not maintain secure configuration baselines as standalone prose checklists. Every in-scope system is provisioned and maintained through version-controlled Terraform in a private repository (`fleetdm/confidential`, under `infrastructure/`). The Terraform source is the documented baseline:
+
+- **Documented**: every configuration value is declared in code, reviewed via pull request, and retained in git history.
+- **Enforced**: environments are created from a canonical template, not hand-built. Drift is detectable via `terraform plan`, AWS Config recording, and AWS Security Hub checks.
+- **Uniform**: all customer environments instantiate the same pinned Terraform module version, so the baseline applies identically everywhere.
+- **Continuously monitored**: AWS Security Hub evaluates all accounts against the AWS Foundational Security Best Practices (FSBP) standard, whose controls are cross-mapped by AWS to the CIS AWS Foundations Benchmark and NIST 800-53. [Vanta](https://www.vanta.com/) independently monitors the same accounts through a dedicated read-only auditor role.
+
+This model satisfies the intent of NIST 800-53 CM-2 (baseline configuration), CM-3 (configuration change control), and CM-6 (configuration settings): the baseline is the committed code, changes go through review, and settings are machine-enforced rather than manually applied.
+
+### Industry-standard alignment
+
+| Mechanism | Standard alignment |
+| --------- | ------------------ |
+| AWS Security Hub with AWS Foundational Security Best Practices v1.0.0 enabled organization-wide through a central configuration policy, aggregated across all enabled regions | FSBP controls are published by AWS with mappings to the CIS AWS Foundations Benchmark and NIST 800-53. Security Hub evaluates every account continuously. |
+| AWS Config recording all supported resource types in all enabled regions, in every organization account, aggregated centrally | NIST 800-53 CM-8 (component inventory) and CM-6 (settings monitoring). Prerequisite for all Security Hub and CIS checks. |
+| Organization CloudTrail with log file validation, KMS encryption, and S3 data events | CIS AWS Foundations Benchmark section 3 (logging): multi-region trail, validation, customer-managed key encryption, and data events. |
+| Organization-wide service control policy denying all root user actions in member accounts | CIS AWS Foundations Benchmark section 1 (avoid root usage) and NIST 800-53 AC-6. |
+| IAM Access Analyzer organization analyzers for external access and unused access (90-day threshold) | NIST 800-53 AC-3 and AC-6 least privilege verification. |
+| Amazon Inspector (EC2 and ECR) enabled for workload accounts | NIST 800-53 RA-5 (vulnerability monitoring). |
+| Vanta continuous compliance monitoring via a read-only cross-account role (`SecurityAudit` plus explicit denies on data access actions) | Independent, continuous verification of the baselines below. |
+
+### Organization-level baseline (all AWS accounts)
+
+- **Root user disabled by policy.** A service control policy attached to the organization root denies all actions for root user principals in member accounts.
+- **Account structure.** Accounts are created and placed in organizational units through Terraform only. Account creation is a reviewed code change.
+- **Security Hub.** A delegated administrator security account manages central configuration. A baseline configuration policy enables Security Hub with FSBP v1.0.0 in every organization account and is associated at the organization root. Findings aggregate cross-region into the security account.
+- **AWS Config.** Recorders in every account and every enabled region record all supported resource types, delivering to a central, versioned, KMS-encrypted S3 bucket with a full public access block, TLS-only bucket policy, and delivery restricted to the organization. An organization aggregator provides central visibility.
+- **CloudTrail.** An organization-wide multi-region trail plus dedicated trails for management events and the TUF update repository. All trails have log file validation enabled, encryption with a customer-managed KMS key with rotation enabled, and S3 object-level read and write data events. Trail buckets have a full public access block and versioning.
+- **IAM Access Analyzer.** Organization external access analyzers in all governed regions and an organization unused access analyzer with a 90-day threshold.
+
+### Identity and access baseline
+
+- **Federated SSO is the standard access path.** Human access to AWS uses IAM Identity Center federated to Google Workspace (SAML), with group membership synced automatically every 15 minutes. There are no standing per-user IAM users in the baseline. CLI access uses short-lived SSO credentials.
+- **Permission sets are code.** Every account and role mapping is declared in Terraform and changes only via pull request. Scoped roles with least-privilege inline policies are used instead of blanket admin access.
+- **IAM password policy.** Minimum length 14 with upper case, lower case, number, and symbol required, meeting CIS AWS Foundations Benchmark section 1 password requirements.
+
+### Customer environment baseline
+
+Every customer environment is generated from a canonical template and instantiates the same pinned root module from [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform), so the baseline is identical everywhere. Deviating requires a visible, reviewable diff against the template.
+
+Encryption:
+
+- Per-customer customer-managed KMS key with rotation enabled and an explicitly scoped key policy with no wildcard principals.
+- Account-wide EBS default encryption enabled in every operating region.
+- All S3 buckets follow one pattern: KMS server-side encryption with rotating customer-managed keys, full public access block, versioning, and a TLS-only bucket policy.
+- Secrets (server private keys, TLS material, and MDM certificates) live in AWS Secrets Manager encrypted with the customer key. Any MDM secrets committed to the repository are KMS envelope-encrypted ciphertext only.
+- Terraform state is stored encrypted with a customer-managed KMS key and state locking.
+
+Network:
+
+- Per-environment VPC with public and private subnet separation across three availability zones and NAT egress for private workloads.
+- VPC flow logs enabled in every environment with 365-day retention.
+- Restrictive default network ACLs in every environment. SSH is limited to named administrator addresses, and IPv6 is explicitly denied.
+- Public TLS termination uses ACM certificates with DNS validation. Internal load balancer to container TLS uses a private CA issuing 90-day ECDSA certificates.
+- Security group ingress is referenced security group to security group rather than open CIDR ranges.
+
+Database (Aurora MySQL):
+
+- 30-day backup retention and a final snapshot on deletion, uniform across all standard environments.
+- TLS required at the database (`require_secure_transport` is on) plus client-side enforcement with the RDS certificate authority.
+- Read replica for availability, pinned engine version, and a defined maintenance window. Clusters are tagged for compliance scoping and backup selection.
+- AWS Backup provides KMS-encrypted vaults with cross-region copies.
+
+Compute and server operating systems:
+
+- The compute baseline is ECS Fargate: serverless containers with no customer-managed server OS to patch or harden. Host OS hardening and patching are inherited from AWS under the shared responsibility model.
+- Sidecar container images are pinned by immutable digest, and the Fleet server image is pinned by version tag. ECS Exec sessions are logged to CloudWatch.
+- The only EC2 usage is temporarily provisioned administrative jump hosts, the sole access path into tenant environments. The jump host is a version-controlled module: latest Amazon Linux 2023 AMI, encrypted root volume, SSH ingress restricted to employee public IP addresses, per-user SSH keys, and database and Redis ingress opened only by security group to security group rules. Jump host instantiations are deliberately never committed, and the deploy pipeline applies only committed code, so any provisioned jump host is automatically destroyed on the next deploy. Steady state for every tenant is zero EC2 instances.
+
+Logging and monitoring:
+
+- CloudWatch log retention is 365 days for every log group in the baseline (application, ECS cluster, Container Insights, and VPC flow logs).
+- Load balancer access logging to a dedicated S3 bucket is enabled in every environment.
+- A monitoring addon provides load balancer 5xx alarms, RDS CPU alarms, and log metric security alarms (invalid enroll secret, enrollment abuse, and request size), routed to shared alerting.
+- Amazon Inspector scans EC2 and ECR in the workload accounts.
+
+Provisioning and change management:
+
+- New environments are created by scripted provisioning from the template, not by hand.
+- Provider versions are floored and lock files are committed per environment for provider hash pinning.
+- Default resource tags are applied by every provider block, keeping compliance scoping consistent and automatic.
+- Drift and assurance scripts are committed alongside the code.
+
+### Corporate network access (VPN)
+
+- **Internal environments are VPN only, with no jump boxes.** Administrative access into Fleet's internal environments is via AWS Client VPN over a Transit Gateway only.
+- **Customer tenant environments are isolated, with ephemeral access only.** Tenant VPCs are deliberately not attached to the Transit Gateway and are not reachable from the VPN or from any other network. Each tenant is fully network-isolated. Administrative access to a tenant uses a temporarily provisioned jump host that is automatically destroyed on the tenant's next deploy.
+- VPN authentication is SAML-federated to Google SSO. Access is segmented by identity provider group with per-network authorization rules, implementing least-privilege network access.
+- Connection logging is enabled to CloudWatch with 60-day retention.
+- Hub-and-spoke Transit Gateway with automatic attachment acceptance disabled (attachments require explicit approval) and resource sharing restricted to an explicit account list.
+- Split-tunnel design limits the VPN to internal destination CIDR ranges.
+
+### Known deviations
+
+These are tracked openly for auditor review. None of them undermine the uniform baseline above.
+
+| Item | Detail | Disposition |
+| ---- | ------ | ----------- |
+| Standards enabled in Security Hub | The central policy currently enables AWS FSBP v1.0.0 only, not the CIS Benchmark standard subscription. FSBP controls carry AWS-published CIS and NIST mappings, which is how alignment is demonstrated. | Enabling the CIS AWS Foundations standard organization-wide is a candidate future enhancement. |
+| Root module internals | RDS storage encryption, ElastiCache encryption at rest and in transit, load balancer HTTPS redirect, and the default TLS policy are implemented inside the pinned public [fleetdm/fleet-terraform](https://github.com/fleetdm/fleet-terraform) module. The pin makes those settings deterministic and auditable at that tag. | Documented inheritance. The module version is pinned everywhere. |
+| Jump host IMDSv2 | The optional jump host module does not require IMDSv2 tokens. No jump host is currently enabled in tracked code. | Remediation candidate on the next module change. |
+| Load balancer deletion protection | Deletion protection is off uniformly, deliberately: environments are routinely provisioned and deprovisioned via Terraform, and the load balancer is fully reconstructable from code. | Accepted risk. State is the source of truth. |
+| WAF | WAF is an opt-in addon, not a uniform baseline. | Baseline protection is TLS, security groups, and network ACLs. WAF is applied per customer requirement. |
+
+
 ## Application security
 
 The Fleet community follows best practices when coding. Here are some of the ways we mitigate against the OWASP top 10 issues:
@@ -1903,6 +2017,8 @@ When using externally provided CVSSv4 scores, Fleet maps them like this:
 ### Disclosure
 
 Researchers who discover vulnerabilities in Fleet can disclose them through Fleet's [Vulnerability Disclosure Program on Bugbop](https://bugbop.com/programs/b5f2f20e-fe4d-466b-a474-6db65b4d2bb3) or by following the [Fleet repository security policy](https://github.com/fleetdm/fleet/security/policy). Coordinated, non-public disclosures can also be sent to security@ (fleetdm.com) (PGP key on the repository security policy).
+
+In addition to the public VDP, Fleet operates a private bug bounty program for invited security researchers.
 
 The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/rest-api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope.
 
