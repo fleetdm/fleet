@@ -38,7 +38,7 @@ var (
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: existing app name, incoming app name.
-	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	CantAddConflictingFMAMessage                 = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
 	SoftwarePackageHashConflictMessage           = "%s package is already added (same SHA-256 hash)."
 	SoftwarePackageTitleMismatchMessage          = "Couldn't add. %s doesn't match the software title. To add it, go to Software and add it as new software."
 	SoftwareAlreadyHasVPPAppMessage              = "%s already has an Apple App Store (VPP) on the %s fleet."
