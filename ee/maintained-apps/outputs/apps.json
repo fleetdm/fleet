@@ -3968,7 +3968,7 @@
       "slug": "heidisql/windows",
       "platform": "windows",
       "unique_identifier": "HeidiSQL",
-      "description": "Lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
+      "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
       "name": "Helium",
@@ -4066,7 +4066,7 @@
       "slug": "hp-prime-virtual-calculator/windows",
       "platform": "windows",
       "unique_identifier": "HP Prime Virtual Calculator",
-      "description": "Windows simulator of the HP Prime graphing calculator, driven by keyboard and mouse."
+      "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
     },
     {
       "name": "Hubstaff",
@@ -4087,7 +4087,7 @@
       "slug": "hwmonitor/windows",
       "platform": "windows",
       "unique_identifier": "CPUID HWMonitor",
-      "description": "Hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
+      "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",
