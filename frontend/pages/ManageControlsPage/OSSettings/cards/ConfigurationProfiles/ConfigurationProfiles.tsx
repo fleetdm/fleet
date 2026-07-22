@@ -22,12 +22,12 @@ import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import Pagination from "components/Pagination";
 
 import UploadList from "../../../../../components/UploadList";
 
-import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
@@ -206,7 +206,25 @@ const ConfigurationProfiles = ({
           </Card>
         );
       }
-      return <AddProfileCard setShowModal={setShowAddProfileModal} />;
+      return (
+        <EmptyState
+          variant="header-list"
+          header="No configuration profiles"
+          info="Add a configuration profile to enforce custom settings on your hosts."
+          primaryButton={
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  disabled={disableChildren}
+                  onClick={() => setShowAddProfileModal(true)}
+                >
+                  Add profile
+                </Button>
+              )}
+            />
+          }
+        />
+      );
     }
 
     return (
