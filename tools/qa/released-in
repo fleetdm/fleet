@@ -18,6 +18,7 @@ PATHSPEC=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --) shift; break ;;
     --ref|--pathspec)
       [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
       [[ "$1" == "--ref" ]] && REF="$2" || PATHSPEC="$2"
@@ -31,6 +32,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+# pick up needle after -- separator
+if [[ -z "${NEEDLE:-}" && $# -gt 0 ]]; then
+  NEEDLE="$1"; shift
+fi
 
 if [[ -z "${NEEDLE:-}" ]]; then
   echo "usage: released-in [--ref REF] [--pathspec PATH] <needle>" >&2
