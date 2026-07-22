@@ -561,7 +561,7 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 				svc.logger.ErrorContext(ctx, "Release AB devices failed with DEP auth error", "token_id", tokenID, "organization_name", token.OrganizationName, "error", depAuthErr)
 
 				for _, serial := range serials {
-					setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Couldn't release host from Apple Business. Apple rejected this request. Confirm that “Allow this MDM server to release devices” is enabled in Apple Business. Learn More: %s", "https://fleetdm.com/learn-more-about/release-devices"))
+					setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Couldn't release host from Apple Business. Apple rejected this request. Confirm that “Allow this service to release devices” is enabled in Apple Business. Learn More: %s", "https://fleetdm.com/learn-more-about/release-devices"))
 				}
 				continue
 			}
