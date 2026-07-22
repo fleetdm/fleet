@@ -127,8 +127,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	if p.CustomSCEPProxy != nil {
 		p.CustomSCEPProxy.Preprocess()
 
-		// New CA: the challenge is always being set, so validate its characters.
-		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, true, errPrefix); err != nil {
+		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, errPrefix); err != nil {
 			return nil, err
 		}
 
@@ -393,27 +392,7 @@ func (svc *Service) validateNDESSCEPProxy(ctx context.Context, ndesSCEP *fleet.N
 	return nil
 }
 
-// printableStringChallengeRegexp matches challenges containing only characters that are valid in an ASN.1 PrintableString, minus
-// the space. Windows encodes the SCEP challenge password as a PrintableString, so a challenge containing any other character
-// (most commonly "_") makes Windows certificate enrollment fail with "The string contains a non-printable character." The space
-// is a valid PrintableString character but is disallowed here because leading/trailing spaces are an invisible footgun. Keep in
-// sync with PRINTABLE_STRING_REGEX in the CustomSCEPForm frontend helpers.
-var printableStringChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9'()+,./:=?-]*$`)
-
-// scepChallengePrintableErrMsg is returned when a custom SCEP proxy challenge contains characters that Windows cannot use.
-const scepChallengePrintableErrMsg = `Custom SCEP Proxy challenge can only contain letters, numbers, and the characters ' ( ) + , - . / : = ?. Certificate enrollment rejects other characters, such as "_".`
-
-// challengeHasAllowedChars reports whether the challenge contains only the characters Fleet allows in a SCEP challenge: the ASN.1
-// PrintableString set minus the space (see printableStringChallengeRegexp).
-func challengeHasAllowedChars(challenge string) bool {
-	return printableStringChallengeRegexp.MatchString(challenge)
-}
-
-// validateCustomSCEPProxy validates a custom SCEP proxy CA payload. validateChallengeChars controls whether
-// the challenge is checked for Windows-incompatible (non-PrintableString) characters; callers should only
-// set it when the challenge is being created or changed, so that challenges stored before this validation
-// existed continue to work.
-func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, validateChallengeChars bool, errPrefix string) error {
+func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fleet.CustomSCEPProxyCA, errPrefix string) error {
 	if err := validateCAName(customSCEP.Name, errPrefix); err != nil {
 		return err
 	}
@@ -422,9 +401,6 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	}
 	if customSCEP.Challenge == "" || customSCEP.Challenge == fleet.MaskedPassword {
 		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix))
-	}
-	if validateChallengeChars && !challengeHasAllowedChars(customSCEP.Challenge) {
-		return fleet.NewInvalidArgumentError("challenge", fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg))
 	}
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
 		svc.logger.ErrorContext(ctx, "Failed to validate custom SCEP URL", "err", err)
@@ -814,11 +790,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	}
 
 	for name, incoming := range incomingByName {
-		// Only validate the challenge characters when the challenge is new or changed, so that challenges stored before this validation
-		// existed continue to work.
-		existing, exists := existingByName[name]
-		challengeChanged := !exists || existing == nil || incoming.Challenge != existing.Challenge
-		if err := svc.validateCustomSCEPProxy(ctx, incoming, challengeChanged, "certificate_authorities.custom_scep_proxy: "); err != nil {
+		if err := svc.validateCustomSCEPProxy(ctx, incoming, "certificate_authorities.custom_scep_proxy: "); err != nil {
 			return err
 		}
 		// create the payload to be added or updated
@@ -1505,12 +1477,6 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("%sCustom SCEP Proxy challenge cannot be empty", errPrefix),
 		}
-	}
-	// Only validate the challenge characters when a new challenge value is provided. A nil or masked challenge means it is unchanged,
-	// so challenges stored before this validation existed keep working.
-	if customSCEP.Challenge != nil && *customSCEP.Challenge != fleet.MaskedPassword &&
-		!challengeHasAllowedChars(*customSCEP.Challenge) {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("%s%s", errPrefix, scepChallengePrintableErrMsg)}
 	}
 
 	return nil

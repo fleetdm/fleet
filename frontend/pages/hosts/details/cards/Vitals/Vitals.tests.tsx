@@ -681,3 +681,60 @@ describe("Disk space field visibility", () => {
     expect(screen.queryByText("Disk space available")).not.toBeInTheDocument();
   });
 });
+
+describe("Custom host vitals", () => {
+  const customHostVitals = [
+    { custom_host_vital_id: 1, name: "Asset tag", value: "FLEET-001234" },
+    { custom_host_vital_id: 2, name: "Purchase date", value: "" },
+  ];
+
+  it("renders each custom host vital as a name/value row, falling back to the empty cell value when unset", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    render(
+      <Vitals vitalsData={mockHost} customHostVitals={customHostVitals} />
+    );
+
+    expect(screen.getByText("Asset tag")).toBeInTheDocument();
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+    expect(screen.getByText("Purchase date")).toBeInTheDocument();
+    // The vital with no value falls back to the default empty cell value.
+    expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
+  });
+
+  it("renders values as plain text (no edit affordance) when no edit handler is provided", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    render(
+      <Vitals vitalsData={mockHost} customHostVitals={customHostVitals} />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit Asset tag" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+  });
+
+  it("renders an edit pencil next to the label and calls the edit handler on click", async () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+    const onEditCustomHostVital = jest.fn();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <Vitals
+        vitalsData={mockHost}
+        customHostVitals={customHostVitals}
+        onEditCustomHostVital={onEditCustomHostVital}
+      />
+    );
+
+    expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "FLEET-001234" })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit Asset tag" }));
+
+    expect(onEditCustomHostVital).toHaveBeenCalledWith(customHostVitals[0]);
+  });
+});

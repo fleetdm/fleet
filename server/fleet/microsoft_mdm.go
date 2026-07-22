@@ -136,6 +136,44 @@ func (req *SoapRequest) isValidBody() error {
 	return nil
 }
 
+// enrollmentVersionAtLeast reports whether the dotted MS-MDE2 version string v (e.g. "9.0") is
+// greater than or equal to minVersion (e.g. "4.0"). Components are compared numerically so that
+// "10.0" is correctly ordered above "9.0". It returns an error if v is empty or contains a
+// non-numeric component.
+func enrollmentVersionAtLeast(v, minVersion string) (bool, error) {
+	if v == "" {
+		return false, errors.New("version is empty")
+	}
+
+	vParts := strings.Split(v, ".")
+	minParts := strings.Split(minVersion, ".")
+
+	for i := 0; i < len(vParts) || i < len(minParts); i++ {
+		var vNum, minNum int
+		if i < len(vParts) {
+			n, err := strconv.Atoi(vParts[i])
+			if err != nil {
+				return false, fmt.Errorf("invalid version component %q", vParts[i])
+			}
+			vNum = n
+		}
+		if i < len(minParts) {
+			// minVersion is expected to be well-formed, but validate it so we don't silently accept bad values.
+			n, err := strconv.Atoi(minParts[i])
+			if err != nil {
+				return false, fmt.Errorf("invalid minVersion component %q", minParts[i])
+			}
+			minNum = n
+		}
+		if vNum != minNum {
+			return vNum > minNum, nil
+		}
+	}
+
+	// All compared components are equal.
+	return true, nil
+}
+
 // IsValidDiscoveryMsg checks for required fields in the Discover message
 func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	if err := req.isValidHeader(); err != nil {
@@ -154,17 +192,17 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// Check if the request version is one of the defined enrollment versions
-	versionFound := false
-	for _, v := range syncml.SupportedEnrollmentVersions {
-		if req.Body.Discover.Request.RequestVersion == v {
-			versionFound = true
-			break
-		}
+	// Accept any RequestVersion >= the minimum supported version. The discovery response pins the
+	// protocol to EnrollmentVersionV4 and the client negotiates down, so newer Windows builds that
+	// advertise higher versions (e.g. "9.0") must not be rejected by an exact-match allow-list.
+	atLeastMin, err := enrollmentVersionAtLeast(req.Body.Discover.Request.RequestVersion, syncml.MinSupportedEnrollmentVersion)
+	if err != nil {
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is not a valid version: %w",
+			req.Body.Discover.Request.RequestVersion, err)
 	}
-	if !versionFound {
-		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
-			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
+	if !atLeastMin {
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is below the minimum supported version %q",
+			req.Body.Discover.Request.RequestVersion, syncml.MinSupportedEnrollmentVersion)
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
@@ -844,6 +882,20 @@ const (
 	// WindowsMDMAwaitingConfigurationActive means ESP commands have been enqueued and setup progress is being tracked.
 	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
 )
+
+// MDMWindowsESPReleaseAckStatus summarizes the delivery state of the ESP release command that completes the
+// Windows Autopilot "Account setup" phase (the user-scope ServerHasFinishedProvisioning Replace).
+type MDMWindowsESPReleaseAckStatus struct {
+	// Attempted is true when at least one release command targeting the URI has been queued for the enrollment.
+	Attempted bool
+	// Acked200 is true when any attempt has a recorded 200 result.
+	Acked200 bool
+	// HasUnacked is true when an attempt is still queued without any response (in flight).
+	HasUnacked bool
+	// LatestStatus is the status code of the most recently acked attempt ("405", "200", ...), empty when no
+	// attempt has a recorded result yet.
+	LatestStatus string
+}
 
 // MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config check-in for a connected Windows
 // host: the Autopilot ESP awaiting-configuration value and whether the host's most recent Windows MDM enrollment has queued, unacknowledged

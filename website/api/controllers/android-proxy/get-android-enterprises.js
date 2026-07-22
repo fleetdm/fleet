@@ -50,31 +50,21 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Get the Android enterprises list from Google
     try {
       let enterprisesList = await sails.helpers.flow.build(async ()=>{
         let { google } = require('googleapis');
-        let androidmanagement = google.androidmanagement('v1');
-
-        let googleAuth = new google.auth.GoogleAuth({
-          scopes: [
-            'https://www.googleapis.com/auth/androidmanagement'
-          ],
-          credentials: {
-            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-          },
-        });
-
-        // Acquire the google auth client, and bind it to all future calls
-        let authClient = await googleAuth.getClient();
-        google.options({auth: authClient});
+        let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
         // List all enterprises accessible to this service account
         let allEnterprises = [];
         let tokenForNextPageOfEnterprises;
         await sails.helpers.flow.until(async ()=>{
-          let listEnterprisesResponse = await androidmanagement.enterprises.list({
+          let listEnterprisesResponse = await androidManagementConnection.enterprises.list({
             projectId: sails.config.custom.androidEnterpriseProjectId,
             pageSize: 100,
             pageToken: tokenForNextPageOfEnterprises,

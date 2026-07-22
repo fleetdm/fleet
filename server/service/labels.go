@@ -80,6 +80,9 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		if err != nil {
 			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
 		}
+		if err := svc.validateCustomHostVitalCriteria(ctx, label.HostVitalsCriteria); err != nil {
+			return nil, nil, err
+		}
 	} else {
 		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
 			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
@@ -147,6 +150,33 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 		return svc.ds.UpdateLabelMembershipByHostIDs(ctx, *label, manualHostIDs, filter)
 	}
 	return label, nil, nil
+}
+
+// validateCustomHostVitalCriteria verifies that a custom_host_vital criterion
+// references a custom host vital that actually exists. Without this a label
+// could be created against a stale or made-up id, which would silently match
+// zero hosts (the membership join finds no rows) instead of erroring.
+func (svc *Service) validateCustomHostVitalCriteria(ctx context.Context, raw *json.RawMessage) error {
+	if raw == nil {
+		return nil
+	}
+	var criteria fleet.HostVitalCriteria
+	if err := json.Unmarshal(*raw, &criteria); err != nil {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+	}
+	if criteria.CustomHostVitalID == nil {
+		return nil
+	}
+	id := *criteria.CustomHostVitalID
+
+	existing, err := svc.ds.GetCustomHostVitals(ctx, []uint{id})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validate custom host vital criteria")
+	}
+	if len(existing) == 0 {
+		return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("custom host vital %d does not exist", id))
+	}
+	return nil
 }
 
 // authorizeWriteLabelOnHosts verifies that the caller is authorized to write
@@ -680,6 +710,18 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		// Validate mutually exclusive field combinations per label membership type
 		if err := fleet.ValidateLabelMembershipFields(spec); err != nil {
 			return err.WithStatus(http.StatusUnprocessableEntity)
+		}
+		// Validate host vitals criteria structurally (unknown vital, missing
+		// custom_host_vital_id, etc.) and that any referenced custom vital
+		// exists, mirroring the checks in NewLabel so a bad spec fails at apply
+		// rather than silently matching no hosts at cron evaluation time.
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals {
+			if _, _, err := (&fleet.Label{HostVitalsCriteria: spec.HostVitalsCriteria}).CalculateHostVitalsQuery(); err != nil {
+				return fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error())).WithStatus(http.StatusUnprocessableEntity)
+			}
+			if err := svc.validateCustomHostVitalCriteria(ctx, spec.HostVitalsCriteria); err != nil {
+				return err
+			}
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {
 			// We allow specs to contain built-in labels as long as they are not being modified.

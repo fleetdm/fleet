@@ -596,6 +596,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/recovery_lock_password/rotate", rotateRecoveryLockPasswordEndpoint, rotateRecoveryLockPasswordRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password", getHostManagedAccountPasswordEndpoint, getHostManagedAccountPasswordRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/managed_account_password/rotate", rotateManagedLocalAccountPasswordEndpoint, rotateManagedLocalAccountPasswordRequest{})
+	ue.POST("/api/_version_/fleet/hosts/release_ab", releaseABDevicesEndpoint, releaseABDevicesRequest{})
 
 	// Generative AI
 	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, fleet.AutofillPoliciesRequest{})
@@ -605,6 +606,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/custom_variables", createSecretVariableEndpoint, fleet.CreateSecretVariableRequest{})
 	ue.GET("/api/_version_/fleet/custom_variables", listSecretVariablesEndpoint, fleet.ListSecretVariablesRequest{})
 	ue.DELETE("/api/_version_/fleet/custom_variables/{id:[0-9]+}", deleteSecretVariableEndpoint, fleet.DeleteSecretVariableRequest{})
+
+	// Custom host vitals
+	ue.GET("/api/_version_/fleet/custom_host_vitals", listCustomHostVitalsEndpoint, fleet.ListCustomHostVitalsRequest{})
+	ue.POST("/api/_version_/fleet/custom_host_vitals", createCustomHostVitalEndpoint, fleet.CreateCustomHostVitalRequest{})
+	ue.PATCH("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", updateCustomHostVitalEndpoint, fleet.UpdateCustomHostVitalRequest{})
+	ue.DELETE("/api/_version_/fleet/custom_host_vitals/{id:[0-9]+}", deleteCustomHostVitalEndpoint, fleet.DeleteCustomHostVitalRequest{})
+	ue.PUT("/api/_version_/fleet/hosts/{host_id:[0-9]+}/custom_host_vitals/{id:[0-9]+}", setHostCustomHostVitalValueEndpoint, fleet.SetHostCustomHostVitalValueRequest{})
+	ue.PUT("/api/_version_/fleet/spec/custom_host_vitals", upsertCustomHostVitalsEndpoint, fleet.UpsertCustomHostVitalsRequest{})
 
 	// API end-points
 	ue.GET("/api/_version_/fleet/rest_api", listAPIEndpointsEndpoint, listAPIEndpointsRequest{})
@@ -837,6 +846,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /configuration_profiles endpoint.
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).PATCH("/api/_version_/fleet/configuration_profiles/{profile_uuid}", updateMDMConfigProfileEndpoint, updateMDMConfigProfileRequest{})
 	// Batch needs to allow being called without any MDM enabled, to support deleting profiles, but will fail later if trying to add
 	ue.WithRequestBodySizeLimit(fleet.MaxBatchProfileSize).POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 

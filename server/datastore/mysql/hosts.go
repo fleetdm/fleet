@@ -609,6 +609,7 @@ var hostRefs = []string{
 	"host_vpp_software_installs",
 	"host_last_known_locations",
 	"host_issues",
+	"host_custom_host_vitals",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -881,7 +882,8 @@ SELECT
   COALESCE(host_issues.total_issues_count, 0) AS total_issues_count,
   hoi.version AS orbit_version,
   hoi.desktop_version AS fleet_desktop_version,
-  hoi.scripts_enabled AS scripts_enabled
+  hoi.scripts_enabled AS scripts_enabled,
+  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
   ` + hostMDMSelect + `
 FROM
   hosts h

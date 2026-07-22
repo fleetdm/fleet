@@ -247,11 +247,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_serial",
     id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
+      // Personal (BYOD) devices don't report their serial numbers, so show
+      // "Not supported" for them. All other hosts, including managed Android
+      // devices, show the reported serial number.
       if (
-        isAndroid(cellProps.row.original.platform) ||
         isBYODAccountDrivenUserEnrollment(
-          cellProps.row.original.mdm.enrollment_status
+          cellProps.row.original.mdm?.enrollment_status ?? null
         )
       ) {
         return NotSupported;

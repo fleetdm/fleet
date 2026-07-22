@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"slices"
@@ -19,27 +20,64 @@ const maxHostNameTemplateLength = 255
 // text alone already exceeds it.
 const MaxResolvedHostNameBytes = 63
 
-// fleetVarsSupportedInHostNameTemplates is the allow-list of Fleet variables that
-// may be used in a host name template.
-var fleetVarsSupportedInHostNameTemplates = []FleetVarName{
+// hostIdentityVarsInNameTemplates are the built-in variables resolved purely from
+// the in-memory host struct.
+var hostIdentityVarsInNameTemplates = []FleetVarName{
 	FleetVarHostHardwareSerial,
 	FleetVarHostUUID,
 	FleetVarHostPlatform,
 }
 
-// nameTemplateVarRegexp matches every supported name-template variable in both
-// its $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms, in a single pattern. It is
-// derived from fleetVarsSupportedInHostNameTemplates so it stays in sync with the
-// allow-list. The unbraced form uses a trailing word boundary so that an
-// unsupported longer name (e.g. HOST_UUID_EXTRA) is not partially matched.
-var nameTemplateVarRegexp = func() *regexp.Regexp {
-	alts := make([]string, len(fleetVarsSupportedInHostNameTemplates))
-	for i, v := range fleetVarsSupportedInHostNameTemplates {
+// idpVarsInNameTemplates are the built-in IdP end-user variables.
+var idpVarsInNameTemplates = []FleetVarName{
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+}
+
+// fleetVarsSupportedInHostNameTemplates is the allow-list of built-in Fleet
+// variables that may be used in a host name template.
+var fleetVarsSupportedInHostNameTemplates = slices.Concat(hostIdentityVarsInNameTemplates, idpVarsInNameTemplates)
+
+// nameTemplateVarRegexp matches every supported built-in name-template variable
+// (identity + IdP) in both its $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms.
+var nameTemplateVarRegexp = varAlternationRegexp(fleetVarsSupportedInHostNameTemplates)
+
+// nameTemplateIdentityVarRegexp matches only the host-identity variables.
+// ResolveHostNameTemplate uses it so it substitutes identity variables and leaves
+// IdP tokens untouched for the service-layer resolver.
+var nameTemplateIdentityVarRegexp = varAlternationRegexp(hostIdentityVarsInNameTemplates)
+
+// IsHostNameTemplateIDPVar reports whether name (a built-in variable name without
+// the FLEET_VAR_ prefix, as returned by variables.Find) is an IdP end-user
+// variable supported in host name templates.
+func IsHostNameTemplateIDPVar(name string) bool {
+	return slices.Contains(idpVarsInNameTemplates, FleetVarName(name))
+}
+
+// varAlternationRegexp builds a regexp matching any of the given variables in both
+// the $FLEET_VAR_NAME and ${FLEET_VAR_NAME} forms.
+func varAlternationRegexp(vars []FleetVarName) *regexp.Regexp {
+	alts := make([]string, len(vars))
+	for i, v := range vars {
 		alts[i] = regexp.QuoteMeta(string(v))
 	}
 	alt := strings.Join(alts, "|")
 	return regexp.MustCompile(fmt.Sprintf(`\$FLEET_VAR_(%[1]s)\b|\$\{FLEET_VAR_(%[1]s)\}`, alt))
-}()
+}
+
+// nameTemplateSecretRegexp matches a $FLEET_SECRET_NAME / ${FLEET_SECRET_NAME}
+// custom (secret) variable token. Secret values are only known at resolve time
+// so this is used to strip secret tokens out of a template when computing its fixed-text byte floor.
+var nameTemplateSecretRegexp = regexp.MustCompile(`\$` + ServerSecretPrefix + `\w+|\$\{` + ServerSecretPrefix + `\w+\}`)
+
+// nameTemplateVitalRegexp matches a $FLEET_HOST_VITAL_<id> / ${FLEET_HOST_VITAL_<id>}
+// custom host vital token. Vital values, like secrets, are only known at
+// resolve time, so this is used to strip vital tokens out of a template when
+// computing its fixed-text byte floor.
+var nameTemplateVitalRegexp = regexp.MustCompile(`\$` + CustomHostVitalPrefix + `\w+|\$\{` + CustomHostVitalPrefix + `\w+\}`)
 
 // ValidateHostNameTemplate validates a host name template and returns the
 // normalized (trimmed) template that callers should persist.
@@ -63,12 +101,7 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 		}
 	}
 
-	// Secret variables ($FLEET_SECRET_*) are never allowed in name templates.
-	if len(ContainsPrefixVars(tmpl, ServerSecretPrefix)) > 0 {
-		return "", NewInvalidArgumentError("name_template", "Secret variables aren't supported in host name templates.")
-	}
-
-	// Every Fleet variable used must be in the allow-list.
+	// Every built-in Fleet variable used must be in the allow-list.
 	for _, v := range variables.Find(tmpl) {
 		if !slices.Contains(fleetVarsSupportedInHostNameTemplates, FleetVarName(v)) {
 			return "", NewInvalidArgumentError("name_template",
@@ -78,16 +111,57 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 
 	// The resolved name must fit Apple's device name limit. Stripping the
 	// variables yields the shortest a resolved name can be (a variable may
-	// resolve to an empty value), so if the fixed text alone exceeds the limit no
-	// host can ever get a valid name — reject it now rather than silently failing
-	// every host at resolve time. Per-host overflow from variable expansion is
+	// resolve to an empty value — including a secret, which can be set to an
+	// empty string), so if the fixed text alone exceeds the limit no host can
+	// ever get a valid name — reject it now rather than silently failing every
+	// host at resolve time. Per-host overflow from variable/secret expansion is
 	// still caught by the cron when it resolves against a host's actual values.
-	if literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, ""); len(literal) > MaxResolvedHostNameBytes {
+	literal := nameTemplateVarRegexp.ReplaceAllString(tmpl, "")
+	literal = nameTemplateSecretRegexp.ReplaceAllString(literal, "")
+	literal = nameTemplateVitalRegexp.ReplaceAllString(literal, "")
+	if len(literal) > MaxResolvedHostNameBytes {
 		return "", NewInvalidArgumentError("name_template",
 			fmt.Sprintf("Host name template's fixed text can't be longer than %d bytes (the device name limit).", MaxResolvedHostNameBytes))
 	}
 
 	return tmpl, nil
+}
+
+// ValidateHostNameTemplateWithSecrets validates a host name template
+// syntactically (see ValidateHostNameTemplate) and additionally verifies that
+// every custom (secret, $FLEET_SECRET_*) variable it references is defined in
+// the datastore, mirroring how scripts and profiles validate embedded secrets at
+// save time, and that every custom host vital ($FLEET_HOST_VITAL_<id>) it
+// references is a known vital ID. It returns the normalized template to
+// persist.
+func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl string) (string, error) {
+	validated, err := ValidateHostNameTemplate(tmpl)
+	if err != nil {
+		return "", err
+	}
+	if len(ContainsPrefixVars(validated, ServerSecretPrefix)) > 0 {
+		if err := ds.ValidateEmbeddedSecrets(ctx, []string{validated}); err != nil {
+			// A referenced-but-undefined secret is a user input error (422); surface
+			// the underlying message (which names the missing secret) as an
+			// invalid-argument error. Any other error (e.g. a DB failure) is an
+			// infrastructure problem and must propagate as-is (500), not be
+			// misreported as invalid input.
+			if IsMissingSecretsError(err) {
+				return "", NewInvalidArgumentError("name_template", err.Error())
+			}
+			return "", err
+		}
+	}
+	// Vital IDs are dynamic (not a fixed allow-list), so an unknown or malformed
+	// $FLEET_HOST_VITAL_<id> reference is only caught here, same as scripts and
+	// profiles validate their own embedded vital references.
+	if err := ds.ValidateReferencedCustomHostVitals(ctx, []string{validated}); err != nil {
+		if IsInvalidReferencedCustomHostVitalsError(err) {
+			return "", NewInvalidArgumentError("name_template", err.Error())
+		}
+		return "", err
+	}
+	return validated, nil
 }
 
 // hostNameTemplatePlatformDisplayNames maps a host's osquery platform to the
@@ -101,9 +175,10 @@ var hostNameTemplatePlatformDisplayNames = map[string]string{
 	"ipados": "iPadOS",
 }
 
-// ResolveHostNameTemplate resolves a host name template against a host by
-// substituting the supported host-identity Fleet variables with the host's
-// values.
+// ResolveHostNameTemplate substitutes the host-identity built-in variables
+// ($FLEET_VAR_HOST_HARDWARE_SERIAL, _HOST_UUID, _HOST_PLATFORM) with the host's
+// values. IdP end-user variables are left untouched — they require a datastore
+// lookup and are resolved separately in the service layer.
 func ResolveHostNameTemplate(tmpl string, host *Host) string {
 	if host == nil {
 		return tmpl
@@ -120,8 +195,8 @@ func ResolveHostNameTemplate(tmpl string, host *Host) string {
 		FleetVarHostPlatform:       platform,
 	}
 
-	return nameTemplateVarRegexp.ReplaceAllStringFunc(tmpl, func(match string) string {
-		groups := nameTemplateVarRegexp.FindStringSubmatch(match)
+	return nameTemplateIdentityVarRegexp.ReplaceAllStringFunc(tmpl, func(match string) string {
+		groups := nameTemplateIdentityVarRegexp.FindStringSubmatch(match)
 		// Exactly one of the two capture groups (unbraced/braced) is populated.
 		name := groups[1]
 		if name == "" {

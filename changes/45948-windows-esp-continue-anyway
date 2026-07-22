@@ -1,2 +1,0 @@
-- Added an error on the Windows enrollment status page (ESP) when setup experience software fails to install during automatic
-  enrollment (Autopilot and other OOBE flows) and "Cancel setup if software fails" is turned off.

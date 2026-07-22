@@ -344,7 +344,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
                 notify.error(
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
+                  "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );
               }
             }
@@ -951,7 +951,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingDupDetails ? (
-                    <Spinner includeContainer={false} centered={false} />
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}

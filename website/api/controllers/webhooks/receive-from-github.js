@@ -82,7 +82,6 @@ module.exports = {
       'alexmitchelliii',
       'sampfluger88',
       'ireedy',
-      'mostlikelee',
       'AnthonySnyder8',
       'getvictor',
       'pintomi1989',

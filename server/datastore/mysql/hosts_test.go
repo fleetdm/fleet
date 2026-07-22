@@ -9735,6 +9735,17 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
 	require.NoError(t, err)
 
+	// Insert into host_custom_host_vitals table (no host FK, cleaned up via hostRefs).
+	vitalRes, err := ds.writer(context.Background()).Exec(`INSERT INTO custom_host_vitals (name) VALUES (?)`, "delete-host-vital")
+	require.NoError(t, err)
+	vitalID, err := vitalRes.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(
+		`INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value) VALUES (?, ?, ?)`,
+		host.ID, vitalID, "engineering",
+	)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

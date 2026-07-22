@@ -20,6 +20,12 @@ func TestValidateHostNameTemplate(t *testing.T) {
 		{name: "hardware serial", tmpl: "$FLEET_VAR_HOST_HARDWARE_SERIAL", wantNorm: "$FLEET_VAR_HOST_HARDWARE_SERIAL"},
 		{name: "uuid braced", tmpl: "${FLEET_VAR_HOST_UUID}", wantNorm: "${FLEET_VAR_HOST_UUID}"},
 		{name: "platform", tmpl: "$FLEET_VAR_HOST_PLATFORM", wantNorm: "$FLEET_VAR_HOST_PLATFORM"},
+		// IdP end-user variables are supported.
+		{name: "idp username", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+		{name: "idp groups braced", tmpl: "${FLEET_VAR_HOST_END_USER_IDP_GROUPS}", wantNorm: "${FLEET_VAR_HOST_END_USER_IDP_GROUPS}"},
+		{name: "idp full name", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME"},
+		{name: "idp department", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"},
+		{name: "idp username local part", tmpl: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART", wantNorm: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"},
 		{
 			name:     "mixed",
 			tmpl:     "mac-$FLEET_VAR_HOST_HARDWARE_SERIAL-${FLEET_VAR_HOST_UUID}",
@@ -34,24 +40,64 @@ func TestValidateHostNameTemplate(t *testing.T) {
 		{name: "empty", tmpl: "", wantErr: "can't be empty"},
 		{name: "whitespace only", tmpl: "   ", wantErr: "can't be empty"},
 		{
-			name:    "unsupported var",
-			tmpl:    "$FLEET_VAR_HOST_END_USER_IDP_GROUPS",
-			wantErr: "Fleet variable $FLEET_VAR_HOST_END_USER_IDP_GROUPS is not supported in host name templates.",
+			name:    "unsupported CA variable",
+			tmpl:    "$FLEET_VAR_NDES_SCEP_CHALLENGE",
+			wantErr: "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in host name templates.",
+		},
+		{
+			name:    "unsupported DigiCert variable",
+			tmpl:    "$FLEET_VAR_DIGICERT_DATA_MYCA",
+			wantErr: "is not supported in host name templates.",
+		},
+		{
+			name:    "deprecated legacy idp email var is not supported",
+			tmpl:    "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
+			wantErr: "is not supported in host name templates.",
 		},
 		{
 			name:    "supported var with unsupported suffix",
 			tmpl:    "$FLEET_VAR_HOST_UUID_EXTRA",
 			wantErr: "Fleet variable $FLEET_VAR_HOST_UUID_EXTRA is not supported in host name templates.",
 		},
+		// Custom (secret) variables are allowed syntactically; their existence is
+		// checked separately (needs the datastore).
+		{name: "secret var", tmpl: "$FLEET_SECRET_FOO", wantNorm: "$FLEET_SECRET_FOO"},
+		{name: "secret var braced", tmpl: "${FLEET_SECRET_FOO}", wantNorm: "${FLEET_SECRET_FOO}"},
 		{
-			name:    "secret var",
-			tmpl:    "$FLEET_SECRET_FOO",
-			wantErr: "Secret variables aren't supported in host name templates.",
+			name:     "built-in and secret vars mixed",
+			tmpl:     "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE",
+			wantNorm: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE",
 		},
 		{
-			name:    "secret var braced",
-			tmpl:    "${FLEET_SECRET_FOO}",
-			wantErr: "Secret variables aren't supported in host name templates.",
+			// A long secret token doesn't count toward the fixed-text byte floor,
+			// since the secret can resolve to an empty value.
+			name:     "long secret token doesn't hit byte floor",
+			tmpl:     "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
+			wantNorm: "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
+		},
+		// Custom host vital references are allowed syntactically here too; their
+		// existence is checked separately (needs the datastore), same as secrets.
+		{name: "vital var", tmpl: "$FLEET_HOST_VITAL_5", wantNorm: "$FLEET_HOST_VITAL_5"},
+		{name: "vital var braced", tmpl: "${FLEET_HOST_VITAL_5}", wantNorm: "${FLEET_HOST_VITAL_5}"},
+		{
+			name:     "built-in, secret, and vital vars mixed",
+			tmpl:     "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE-$FLEET_HOST_VITAL_5",
+			wantNorm: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE-$FLEET_HOST_VITAL_5",
+		},
+		{
+			// A long vital token doesn't count toward the fixed-text byte floor
+			// either: the substituted value's length isn't known until resolve time.
+			name:     "long vital token doesn't hit byte floor",
+			tmpl:     "WS-${FLEET_HOST_VITAL_" + strings.Repeat("9", 80) + "}",
+			wantNorm: "WS-${FLEET_HOST_VITAL_" + strings.Repeat("9", 80) + "}",
+		},
+		{
+			// A malformed vital reference (non-numeric suffix) is allowed
+			// syntactically here; ValidateHostNameTemplateWithSecrets rejects it once
+			// the datastore is available to distinguish malformed from unknown IDs.
+			name:     "malformed vital ref allowed at the syntax layer",
+			tmpl:     "$FLEET_HOST_VITAL_asset_tag",
+			wantNorm: "$FLEET_HOST_VITAL_asset_tag",
 		},
 		{name: "tab control char", tmpl: "bad\tname", wantErr: "control characters"},
 		{name: "rtl override format char", tmpl: "bad\u202ename", wantErr: "control characters"},
@@ -121,6 +167,15 @@ func TestResolveHostNameTemplate(t *testing.T) {
 			tmpl: "$FLEET_VAR_HOST_PLATFORM-$FLEET_VAR_HOST_HARDWARE_SERIAL-${FLEET_VAR_HOST_HARDWARE_SERIAL}",
 			host: host,
 			want: "macOS-C02ABC123-C02ABC123",
+		},
+		{
+			// IdP variables need a datastore lookup, so ResolveHostNameTemplate must
+			// leave them untouched (they're resolved separately in the service layer)
+			// while still resolving the identity variables around them.
+			name: "idp tokens left untouched, identity resolved",
+			tmpl: "u=$FLEET_VAR_HOST_END_USER_IDP_USERNAME;lp=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART};s=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			host: host,
+			want: "u=$FLEET_VAR_HOST_END_USER_IDP_USERNAME;lp=${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART};s=C02ABC123",
 		},
 		{
 			// Non-Apple platforms fall back to the raw value (the feature only

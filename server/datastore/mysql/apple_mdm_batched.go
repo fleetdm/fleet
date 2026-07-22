@@ -46,6 +46,9 @@ func (ds *Datastore) listAppleMDMHostsForReconcileBatchTransaction(
 		WHERE
 			(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
 			AND h.uuid > ?
+			AND EXISTS (
+				SELECT 1 FROM host_mdm hmdm WHERE hmdm.enrolled = 1 AND hmdm.host_id = h.id
+			)
 		ORDER BY h.uuid, h.id DESC
 		LIMIT ?
 	`
@@ -652,6 +655,29 @@ func (ds *Datastore) listAppleDeclarationsForReconcileTransaction(ctx context.Co
 			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with fleet variables")
 		}
 		for _, u := range withVars {
+			if d, ok := byUUID[u]; ok {
+				d.HasFleetVariables = true
+			}
+		}
+
+		// Custom host vitals ($FLEET_HOST_VITAL_<id>) are a separate variable
+		// namespace that isn't recorded in mdm_configuration_profile_variables, so
+		// detect them by scanning the declaration body. Marking them
+		// HasFleetVariables makes the reconciler stamp variables_updated_at, which
+		// (a) lets handleDeclarationItems load raw_json and drop declarations it
+		// can't resolve for a host from the manifest, and (b) cache-busts the DDM
+		// token so a per-host value change is re-delivered. INSTR matches the
+		// prefix without the leading '$' so it catches both $FOO and ${FOO} forms.
+		const vitalsStmt = `SELECT declaration_uuid FROM mdm_apple_declarations WHERE declaration_uuid IN (?) AND INSTR(raw_json, ?) > 0`
+		q, args, err = sqlx.In(vitalsStmt, declUUIDs, fleet.CustomHostVitalPrefix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build apple declaration custom host vitals query")
+		}
+		var withVitals []string
+		if err := sqlx.SelectContext(ctx, tx, &withVitals, q, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple declarations with custom host vitals")
+		}
+		for _, u := range withVitals {
 			if d, ok := byUUID[u]; ok {
 				d.HasFleetVariables = true
 			}

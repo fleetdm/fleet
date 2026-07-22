@@ -141,6 +141,7 @@ import Boom3D from "./Boom3D";
 import Boop from "./Boop";
 import BoostNote from "./BoostNote";
 import Box from "./Box";
+import BoxTools from "./BoxTools";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
@@ -382,6 +383,8 @@ import Firealpaca from "./Firealpaca";
 import FireflyIotaDesktop from "./FireflyIotaDesktop";
 import FireflyShimmer from "./FireflyShimmer";
 import Firefox from "./Firefox";
+import FirefoxDeveloperEdition from "./FirefoxDeveloperEdition";
+import FirefoxNightly from "./FirefoxNightly";
 import Fission from "./Fission";
 import FleetDesktop from "./FleetDesktop";
 import Flexoptix from "./Flexoptix";
@@ -412,6 +415,10 @@ import Freefilesync from "./Freefilesync";
 import Front from "./Front";
 import Fsmonitor from "./Fsmonitor";
 import Funter from "./Funter";
+import GadwinPrintscreen from "./GadwinPrintscreen";
+import GadwinPrintscreenPro from "./GadwinPrintscreenPro";
+import GalaxyModeler from "./GalaxyModeler";
+import GarminBasecamp from "./GarminBasecamp";
 import GarminExpress from "./GarminExpress";
 import Gather from "./Gather";
 import Gdevelop from "./Gdevelop";
@@ -419,6 +426,7 @@ import Geany from "./Geany";
 import Geekbench from "./Geekbench";
 import Gemini2 from "./Gemini2";
 import GenesysCloud from "./GenesysCloud";
+import GeogebraClassic from "./GeogebraClassic";
 import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
@@ -430,22 +438,29 @@ import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
 import GitupApp from "./GitupApp";
 import Glyphs from "./Glyphs";
+import Go from "./Go";
 import Go2Shell from "./Go2Shell";
+import GoanywhereOpenpgpStudio from "./GoanywhereOpenpgpStudio";
 import Godot from "./Godot";
 import Godspeed from "./Godspeed";
 import GogGalaxy from "./GogGalaxy";
 import GoLand from "./GoLand";
+import GoldendictNg from "./GoldendictNg";
 import Goodsync from "./Goodsync";
+import GoogleAdsEditor from "./GoogleAdsEditor";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import GoogleDrive from "./GoogleDrive";
 import GoogleEarthPro from "./GoogleEarthPro";
 import GoogleGemini from "./GoogleGemini";
+import GoogleWebDesigner from "./GoogleWebDesigner";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
 import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Grandperspective from "./Grandperspective";
 import Granola from "./Granola";
+import Graphviz from "./Graphviz";
+import Grepwin from "./Grepwin";
 import Grids from "./Grids";
 import GrooveOmniDialer from "./GrooveOmniDialer";
 import Gyazo from "./Gyazo";
@@ -453,6 +468,7 @@ import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
 import Hazel from "./Hazel";
 import Hazeover from "./Hazeover";
+import Heidisql from "./Heidisql";
 import Helium from "./Helium";
 import HexFiend from "./HexFiend";
 import HeyDesktop from "./HeyDesktop";
@@ -466,8 +482,10 @@ import Homerow from "./Homerow";
 import Hot from "./Hot";
 import Houdahspot from "./Houdahspot";
 import HpEasyAdmin from "./HpEasyAdmin";
+import HpPrimeVirtualCalculator from "./HpPrimeVirtualCalculator";
 import Hubstaff from "./Hubstaff";
 import Huly from "./Huly";
+import Hwmonitor from "./Hwmonitor";
 import Hyper from "./Hyper";
 import Hyperkey from "./Hyperkey";
 import I1Profiler from "./I1Profiler";
@@ -876,6 +894,7 @@ import Slack from "./Slack";
 import Slicer from "./Slicer";
 import Slidepad from "./Slidepad";
 import Sloth from "./Sloth";
+import SmallstepAgent from "./SmallstepAgent";
 import Smartsheet from "./Smartsheet";
 import Smartsvn from "./Smartsvn";
 import Smoothscroll from "./Smoothscroll";
@@ -1250,6 +1269,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   boop: Boop,
   "boost note": BoostNote,
   box: Box,
+  "box tools": BoxTools,
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
@@ -1495,6 +1515,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   firefly: FireflyIotaDesktop,
   "firefly shimmer": FireflyShimmer,
   firefox: Firefox,
+  "firefox developer edition": FirefoxDeveloperEdition,
+  "firefox nightly": FirefoxNightly,
   fission: Fission,
   "fleet desktop": FleetDesktop,
   "flexoptix app": Flexoptix,
@@ -1518,6 +1540,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   front: Front,
   fsmonitor: Fsmonitor,
   funter: Funter,
+  "gadwin printscreen": GadwinPrintscreen,
+  "gadwin printscreen pro": GadwinPrintscreenPro,
+  "galaxy modeler": GalaxyModeler,
+  "garmin basecamp": GarminBasecamp,
   "garmin express": GarminExpress,
   "gather town": Gather,
   gdevelop: Gdevelop,
@@ -1526,6 +1552,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gemini: GoogleGemini,
   "gemini 2": Gemini2,
   "genesys cloud": GenesysCloud,
+  "geogebra classic": GeogebraClassic,
   gephi: Gephi,
   ghostty: Ghostty,
   gimp: Gimp,
@@ -1537,12 +1564,16 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gitkraken: GitKraken,
   gitup: GitupApp,
   glyphs: Glyphs,
+  go: Go,
   go2shell: Go2Shell,
+  "goanywhere openpgp studio": GoanywhereOpenpgpStudio,
   "godot engine": Godot,
   godspeed: Godspeed,
   "gog galaxy": GogGalaxy,
   goland: GoLand,
+  "goldendict-ng": GoldendictNg,
   goodsync: Goodsync,
+  "google ads editor": GoogleAdsEditor,
   "google antigravity": Antigravity,
   "google antigravity ide": AntigravityIde,
   "google chrome": ChromeApp,
@@ -1550,6 +1581,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "google drive": GoogleDrive,
   "google earth pro": GoogleEarthPro,
   "google gemini": GoogleGemini,
+  "google web designer": GoogleWebDesigner,
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
@@ -1558,12 +1590,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   grandperspective: Grandperspective,
   granola: Granola,
   "graphpad prism": Prism,
+  graphviz: Graphviz,
+  grepwin: Grepwin,
   grids: Grids,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
   hazel: Hazel,
   hazeover: Hazeover,
+  heidisql: Heidisql,
   helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
@@ -1577,8 +1612,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
+  "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
   huly: Huly,
+  hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
   i1profiler: I1Profiler,
@@ -1748,6 +1785,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   mos: Mos,
   "mountain duck": MountainDuck,
   "mozilla firefox": Firefox,
+  "mozilla firefox developer edition": FirefoxDeveloperEdition,
+  "mozilla firefox nightly": FirefoxNightly,
   "mozilla vpn": MozillaVpn,
   mqttx: Mqttx,
   "mullvad browser": MullvadBrowser,
@@ -1993,6 +2032,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   slack: Slack,
   slidepad: Slidepad,
   sloth: Sloth,
+  "smallstep agent": SmallstepAgent,
   smartsheet: Smartsheet,
   smartsvn: Smartsvn,
   smoothscroll: Smoothscroll,

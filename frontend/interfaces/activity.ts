@@ -160,7 +160,9 @@ export enum ActivityType {
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
+  UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
+  EditedCustomHostVitalValue = "edited_custom_host_vital_value",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
@@ -197,6 +199,9 @@ export enum ActivityType {
   RanAutomationTicket = "ran_automation_ticket",
   RanAutomationCalendarEvent = "ran_automation_calendar_event",
   RanAutomationConditionalAccess = "ran_automation_conditional_access",
+  CreatedCustomHostVital = "created_custom_host_vital",
+  EditedCustomHostVital = "edited_custom_host_vital",
+  DeletedCustomHostVital = "deleted_custom_host_vital",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -230,6 +235,7 @@ export type IHostPastActivityType =
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
   | ActivityType.RanCustomMdmCommand
+  | ActivityType.EditedCustomHostVitalValue
   | ActivityType.RanAutomationWebhook
   | ActivityType.RanAutomationTicket
   | ActivityType.RanAutomationCalendarEvent
@@ -362,6 +368,8 @@ export interface IActivityDetails {
   ticket_key?: string;
   ticket_id?: number;
   custom_variable_name?: string;
+  custom_host_vital_id?: number;
+  custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
@@ -465,19 +473,19 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
   edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
-  edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
+  edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
-  edited_macos_profile: "GitOps: edited configuration profiles: Apple",
+  edited_macos_profile: "Edited configuration profiles: Apple",
   edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
-  edited_windows_profile: "GitOps: edited configuration profiles: Windows",
+  edited_windows_profile: "Edited configuration profiles: Windows",
   edited_windows_updates: "OS updates: edited Windows",
   enabled_activity_automations: "Enabled activity automations",
   enabled_android_mdm: "Turned on Android MDM",
@@ -531,7 +539,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   created_custom_variable: "Created custom variable",
+  updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
+  [ActivityType.EditedCustomHostVitalValue]: "Edited custom host vital value",
   [ActivityType.HostDeleted]: "Host deleted",
   [ActivityType.AddedHydrant]: "Added certificate authority (CA): Hydrant",
   [ActivityType.DeletedHydrant]: "Deleted certificate authority (CA): Hydrant",
@@ -604,4 +614,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Policy automation: calendar event created",
   [ActivityType.RanAutomationConditionalAccess]:
     "Policy automation: single sign-on blocked",
+  [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
+  [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
+  [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
 };

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -311,6 +313,74 @@ func (ds *Datastore) ResendHostDeviceName(ctx context.Context, hostUUID string) 
 		ds.logger.DebugContext(ctx, "resend device name status not updated", "host_uuid", hostUUID)
 	}
 	return nil
+}
+
+// resendDeviceNamesForSecretChange re-queues host-name enforcement rows for the
+// scopes whose template references any of the given changed custom (secret)
+// variables, so the device-name cron re-resolves with the new secret value and
+// enqueues a fresh DeviceName command.
+func (ds *Datastore) resendDeviceNamesForSecretChange(ctx context.Context, changedSecretNames []string) error {
+	if len(changedSecretNames) == 0 {
+		return nil
+	}
+	pattern := "FLEET_SECRET_(" + strings.Join(changedSecretNames, "|") + `)\b`
+
+	// Teams whose template references a changed secret.
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs,
+		`SELECT id FROM teams WHERE COALESCE(config->>'$.mdm.name_template', '') REGEXP ?`, pattern); err != nil {
+		return ctxerr.Wrap(ctx, err, "select teams using changed secret in device name template")
+	}
+
+	// The "No team" (global) template.
+	var noTeamMatches bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &noTeamMatches,
+		`SELECT COALESCE(`+deviceNameNoTeamTemplateExpr+`, '') REGEXP ?`, pattern); err != nil {
+		return ctxerr.Wrap(ctx, err, "check no-team device name template for changed secret")
+	}
+
+	for _, teamID := range teamIDs {
+		if err := ds.BulkUpsertHostDeviceNameEnforcement(ctx, &teamID); err != nil {
+			return err
+		}
+	}
+	if noTeamMatches {
+		if err := ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resendDeviceNameForCustomHostVital re-queues the host's device-name
+// enforcement row if its applicable (team or No-team) name template
+// references $FLEET_HOST_VITAL_<vitalID>, so the cron re-resolves with the
+// host's newly-set value. Mirrors resendMDMProfilesForCustomHostVital's
+// content-match precision: a host whose template doesn't reference this vital
+// gets no needless resend. Must run in the same transaction as the value
+// write (see SetHostCustomHostVitalValue) so the reconciler never reads a
+// stale value.
+func resendDeviceNameForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
+	var tmpl string
+	err := sqlx.GetContext(ctx, tx, &tmpl, `
+		SELECT COALESCE(
+			CASE WHEN h.team_id IS NULL
+				THEN `+deviceNameNoTeamTemplateExpr+`
+				ELSE (SELECT t.config->>'$.mdm.name_template' FROM teams t WHERE t.id = h.team_id)
+			END, '')
+		FROM hosts h WHERE h.id = ?`, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get host name template for custom host vital resend")
+	}
+
+	if tmpl == "" || !fleet.ContainsVar(tmpl, fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)) {
+		return nil
+	}
+
+	return reconcileHostDeviceNamesForHostsDB(ctx, tx, []uint{hostID})
 }
 
 func (ds *Datastore) ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error {

@@ -94,11 +94,11 @@ func TestHostDetails(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
-	}
-	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
-		return nil, nil
 	}
 
 	opts := fleet.HostDetailOptions{
@@ -150,6 +150,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -453,6 +456,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
 	}
@@ -570,6 +576,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -749,6 +758,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
@@ -815,6 +827,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
@@ -910,6 +925,9 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) { return nil, nil }
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) { return nil, nil }
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) { return false, nil }
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
@@ -1010,6 +1028,22 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db exploded")
 	})
+}
+
+// checkHostWriteAuthErr asserts the result of a host-mutation authorization
+// check. A caller with no read visibility into the host at all must see a
+// NotFound (masking existence), not a Forbidden that would confirm the host
+// exists on some other team; a caller who CAN read the host (e.g. same-team,
+// wrong role) still gets the normal Forbidden, since no new information is
+// disclosed by it.
+func checkHostWriteAuthErr(t *testing.T, shouldFail, expectNotFound bool, err error) {
+	t.Helper()
+	if shouldFail && expectNotFound {
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+		return
+	}
+	checkAuthErr(t, shouldFail, err)
 }
 
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
@@ -1123,6 +1157,9 @@ func TestHostAuth(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
 		return map[uint][]string{}, nil
 	}
@@ -1231,6 +1268,19 @@ func TestHostAuth(t *testing.T) {
 				IncludePolicies:  false,
 			}
 
+			// A team-only role never has read visibility into a host outside
+			// its own team(s) (including the team_id-less "global" host used
+			// below): a write-authz failure in that case must surface as
+			// NotFound rather than Forbidden, so it doesn't confirm the
+			// host's existence to a caller with no view into it.
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			belongsToTeam1 := false
+			for _, ut := range tt.user.Teams {
+				if ut.Team.ID == 1 {
+					belongsToTeam1 = true
+				}
+			}
+
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
@@ -1256,16 +1306,16 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHost(ctx, 2)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.DeleteHosts(ctx, []uint{1}, nil)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHosts(ctx, []uint{2}, nil)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.AddHostsToTeam(ctx, new(uint(1)), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
@@ -1669,6 +1719,42 @@ func TestDeleteHost(t *testing.T) {
 		require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
 		require.ElementsMatch(t, []uint{hostA.ID, hostB.ID}, cleanedHostIDs)
 	})
+}
+
+func TestDeleteHostDoesNotLeakOutOfScopeExistence(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamHost := &fleet.Host{ID: 1, TeamID: new(uint(1))}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return teamHost, nil
+	}
+
+	// A team-scoped observer with no relationship to team 1 can neither read
+	// nor write host 1: the response must be indistinguishable from a
+	// nonexistent host (NotFound), not a Forbidden that would confirm the
+	// host exists on some other team.
+	outOfScopeUser := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}}
+	err := svc.DeleteHost(viewer.NewContext(ctx, viewer.Viewer{User: outOfScopeUser}), 1)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	err = svc.DeleteHosts(viewer.NewContext(ctx, viewer.Viewer{User: outOfScopeUser}), []uint{1}, nil)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A team-scoped observer who belongs to team 1 can read host 1, just not
+	// write it: this must remain a normal Forbidden error, since no new
+	// information about the host's existence is disclosed by it.
+	inScopeObserver := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}
+	err = svc.DeleteHost(viewer.NewContext(ctx, viewer.Viewer{User: inScopeObserver}), 1)
+	require.Error(t, err)
+	assert.False(t, fleet.IsNotFound(err))
+	assert.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
 func TestDeleteHostCreatesActivity(t *testing.T) {
@@ -3381,6 +3467,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -3529,6 +3618,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -4361,6 +4453,9 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 		return nil, nil
 	}
 	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {

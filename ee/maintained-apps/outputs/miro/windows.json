@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.11.157",
+      "version": "0.11.162",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Miro' AND publisher = 'Miro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Miro' AND publisher = 'Miro' AND version_compare(version, '0.11.157') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Miro' AND publisher = 'Miro' AND version_compare(version, '0.11.162') < 0);"
       },
       "installer_url": "https://desktop.miro.com/platforms/win32-nsis-pu/Miro-setup.exe",
       "install_script_ref": "c9d9747e",
       "uninstall_script_ref": "66f6a4de",
-      "sha256": "0af023a374ba1cf1cbdb55130a448e74e2e64d96f36782bad298c40f7c0b648a",
+      "sha256": "4171f42b7e96474da7074f4dbd4fd7f554a931af01d26a2fe67098890bb4a268",
       "default_categories": [
         "Productivity"
       ]

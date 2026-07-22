@@ -30,6 +30,8 @@ export default {
   CONTROLS_SCRIPTS_BATCH_DETAILS: (batchExecutionId: string) =>
     `${URL_PREFIX}/controls/scripts/progress/${batchExecutionId}`,
   CONTROLS_VARIABLES: `${URL_PREFIX}/controls/variables`,
+  CONTROLS_VARIABLES_GLOBAL_VARIABLES: `${URL_PREFIX}/controls/variables/global-variables`,
+  CONTROLS_VARIABLES_CUSTOM_HOST_VITALS: `${URL_PREFIX}/controls/variables/custom-host-vitals`,
 
   // Dashboard pages
   DASHBOARD: `${URL_PREFIX}/dashboard`,
