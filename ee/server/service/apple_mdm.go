@@ -402,6 +402,12 @@ func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fl
 		return nil, &fleet.BadRequestError{Message: "Too many host IDs provided. Maximum is 32,000."}
 	}
 
+	if len(hostIDs) == 0 {
+		svc.authz.SkipAuthorization(ctx)
+
+		return nil, &fleet.BadRequestError{Message: "No host IDs provided."}
+	}
+
 	// First look up all hosts teamID's and serials.
 	liteHosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
 	if err != nil {

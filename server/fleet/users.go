@@ -126,7 +126,7 @@ func (u *User) IsAdminForcedPasswordReset() bool {
 }
 
 // IsAnyAdmin checks if the user is either Global Admin or Admin on any team.
-func (u User) IsAnyAdmin() bool {
+func (u *User) IsAnyAdmin() bool {
 	if u.GlobalRole != nil && *u.GlobalRole == RoleAdmin {
 		return true
 	}
