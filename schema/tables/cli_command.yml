@@ -1,0 +1,21 @@
+name: cli_command
+platforms:
+  - macos
+description: TODO
+examples: |-
+  TODO
+
+  ```
+  TODO
+  ```
+columns:
+  - name: cli_command_input
+    type: text
+    required: false
+    description: The CLI command to execute on the device. If empty, no command is executed.
+  - name: cli_command_output
+    type: text
+    required: false
+    description: Value of the CLI command output.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table does not work on Windows Server
+evented: false
