@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# released-in — find the commit that introduced a string and the first stable
+# Fleet release that shipped it.
+#
+# Usage: released-in [--ref REF] [--pathspec PATH] <needle>
+#
+#   needle      string to search for in the git diff (passed to git log -S)
+#   --ref       git ref to search history from (default: origin/main)
+#   --pathspec  optional path filter (e.g. server/service/)
+#
+# Example:
+#   released-in "someSymbolOrString"
+#   released-in --pathspec server/service/ "someSymbolOrString"
+set -euo pipefail
+
+REF="origin/main"
+PATHSPEC=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ref)       REF="$2";      shift 2 ;;
+    --pathspec)  PATHSPEC="$2"; shift 2 ;;
+    -*)          echo "unknown flag: $1" >&2; exit 1 ;;
+    *)           NEEDLE="$1";   shift ;;
+  esac
+done
+
+if [[ -z "${NEEDLE:-}" ]]; then
+  echo "usage: released-in [--ref REF] [--pathspec PATH] <needle>" >&2
+  exit 1
+fi
+
+ARGS=("log" "$REF" "-S" "$NEEDLE" "-n" "1" "--format=%H")
+if [[ -n "$PATHSPEC" ]]; then
+  ARGS+=("--" "$PATHSPEC")
+fi
+
+COMMIT=$(git "${ARGS[@]}" 2>/dev/null)
+
+if [[ -z "$COMMIT" ]]; then
+  echo "No commit found introducing: $NEEDLE"
+  exit 0
+fi
+
+echo "Introducing commit: $COMMIT"
+
+# Find the first stable fleet-vX.Y.Z tag containing this commit.
+FIRST=$(git tag --contains "$COMMIT" --list "fleet-v*" --sort=v:refname 2>/dev/null \
+  | grep -E '^fleet-v[0-9]+\.[0-9]+\.[0-9]+$' \
+  | head -1)
+
+if [[ -n "$FIRST" ]]; then
+  echo "First release:      $FIRST"
+  echo "Status:             RELEASED — shipped to customers since $FIRST"
+else
+  echo "First release:      (none)"
+  echo "Status:             UNRELEASED — not in any stable fleet-v* tag"
+fi
