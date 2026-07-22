@@ -12997,7 +12997,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/device/:token/software/install/{software_title_id}`
+`POST /api/v1/fleet/device/:token/software/install/:software_title_id`
 
 #### Parameters
 
