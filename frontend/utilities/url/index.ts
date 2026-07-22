@@ -6,7 +6,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
@@ -52,7 +52,7 @@ interface IMutuallyExclusiveHostParams {
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export const parseQueryValueToNumberOrUndefined = (

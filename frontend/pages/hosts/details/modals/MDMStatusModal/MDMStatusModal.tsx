@@ -19,7 +19,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import hostAPI, {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   IDepAssignmentHostResponse,
 } from "services/entities/hosts";
 
@@ -52,7 +52,7 @@ interface IMDMStatusModal {
 type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
 
 type DepAssignProfileResponseErrors = Exclude<
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   "SUCCESS" | undefined
 >;
 
@@ -333,7 +333,7 @@ const MDMStatusModal = ({
     }
 
     const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-      Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
+      Exclude<DEPDeviceStatus, "SUCCESS" | undefined>,
       { label: JSX.Element | string; tooltip: JSX.Element | string }
     > = {
       THROTTLED: {

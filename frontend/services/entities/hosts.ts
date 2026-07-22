@@ -46,7 +46,7 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
-export type DepAssignProfileResponse =
+export type DEPDeviceStatus =
   | "SUCCESS"
   | "FAILED"
   | "THROTTLED"
@@ -68,10 +68,10 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
-    response_status: "SUCCESS" | "NOT_ACCESSIBLE" | "FAILED" | "THROTTLED";
+    response_status: DEPDeviceStatus;
   };
   host_dep_assignment: {
-    assign_profile_response: DepAssignProfileResponse;
+    assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
     response_updated_at: string;
     added_at: string;
@@ -140,7 +140,7 @@ export interface ILoadHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IExportHostsOptions {
@@ -178,7 +178,7 @@ export interface IExportHostsOptions {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IActionByFilter {
@@ -208,7 +208,7 @@ export interface IActionByFilter {
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
   depProfileError?: boolean;
-  depAssignProfileResponse?: DepAssignProfileResponse;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IGetHostSoftwareResponse {

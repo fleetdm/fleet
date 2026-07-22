@@ -103,7 +103,7 @@ const ReleaseFromABModal = ({
           <Checkbox
             className={`${baseClass}__confirm-checkbox`}
             value={isChecked}
-            onChange={() => setIsChecked(!isChecked)}
+            onChange={(value: boolean) => setIsChecked(value)}
           >
             I understand this action can&apos;t be undone for{" "}
             <b>{host.display_name}</b>.

@@ -2879,9 +2879,10 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isAnyTeamAdmin: true,
             isPremiumTier: true,
-            currentUser: createMockUser(),
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 2, role: "admin" })],
+            }),
             config: { mdm: { apple_bm_enabled_and_configured: true } },
           },
         },

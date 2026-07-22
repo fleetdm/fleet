@@ -1767,6 +1767,7 @@ const HostDetailsPage = ({
               onExit={() => setShowReleaseFromABModal(false)}
               onRelease={() => {
                 refetchHostDetails();
+                refetchPastActivities();
               }}
             />
           )}

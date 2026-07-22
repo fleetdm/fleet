@@ -992,12 +992,13 @@ export const isDateTimePast = (dt: string) => {
  * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
  */
 export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
-  if (errMsg.toLowerCase().includes(" learn more: https://")) {
+  const lowercasedErr = errMsg.toLowerCase();
+  if (lowercasedErr.includes(" learn more: https://")) {
     const message = errMsg.substring(
       0,
-      errMsg.toLowerCase().indexOf(" learn more: https://")
+      lowercasedErr.indexOf(" learn more: https://")
     );
-    const link = errMsg.substring(errMsg.indexOf("https://"));
+    const link = errMsg.substring(lowercasedErr.indexOf("https://"));
     return (
       <>
         {message}{" "}
