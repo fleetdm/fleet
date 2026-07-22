@@ -366,6 +366,13 @@
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
+      "name": "Airtable",
+      "slug": "airtable/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
