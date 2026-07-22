@@ -1,0 +1,1 @@
+- Fixed a 500 error during Apple MDM enrollment when a host had no DEP assignment yet (e.g. the enrollment request arrived before the host/DEP assignment row was created or replicated). The OS updates settings lookup now returns a not-found error so enrollment proceeds gracefully instead of failing.

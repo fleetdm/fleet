@@ -152,7 +152,8 @@ type customHostVitalRefEntity struct {
 }
 
 // customHostVitalUsedBy scans script_contents, Apple configuration profiles,
-// Apple declarations, and Windows configuration profiles for a
+// Apple declarations, Windows configuration profiles, software installer and
+// setup-experience scripts, and team/No-team host name templates for a
 // $FLEET_HOST_VITAL_<id> (or ${FLEET_HOST_VITAL_<id>}) reference to the given
 // vital id. It returns a *fleet.CustomHostVitalUsedInfo describing the first
 // referencing entity found, or nil if unreferenced. Mirrors the scan structure
@@ -216,6 +217,25 @@ func (ds *Datastore) customHostVitalUsedBy(ctx context.Context, tx sqlx.ExtConte
 				FROM setup_experience_scripts ses
 				JOIN script_contents sc ON sc.id = ses.script_content_id
 				LEFT JOIN teams t ON t.id = ses.team_id;`,
+		},
+		// Host name templates aren't scripts/profiles, but the token can appear in
+		// a team's (or "No team"'s) name_template, same as DeleteSecretVariable
+		// scans for $FLEET_SECRET_* there. A team's name_template is a plain
+		// string that always serializes into the config JSON (as "" when unset),
+		// and the No-team template is an optjson that serializes to null when
+		// unset, so filter both on a non-empty resolved value rather than
+		// IS NOT NULL (avoids scanning a NULL contents column).
+		{
+			desc: "get host name template contents",
+			stmt: `SELECT 'host_name_template' AS entity, 'Host name' AS name,
+				t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+				FROM teams t
+				WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+				UNION ALL
+				SELECT 'host_name_template' AS entity, 'Host name' AS name,
+				'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
+				FROM app_config_json
+				WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
 		},
 	}
 
@@ -296,6 +316,13 @@ func (ds *Datastore) SetHostCustomHostVitalValue(ctx context.Context, hostID uin
 		// as the value write so the reconciler never reads a stale value.
 		if err := resendMDMProfilesForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
 			return ctxerr.Wrap(ctx, err, "resend mdm profiles for custom host vital value change")
+		}
+
+		// Re-queue the host's device-name enforcement row (if its name template
+		// references the vital), so the cron re-resolves the name with the new
+		// value. Same transaction as the value write, for the same reason as above.
+		if err := resendDeviceNameForCustomHostVital(ctx, tx, hostID, vitalID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resend device name for custom host vital value change")
 		}
 		return nil
 	})

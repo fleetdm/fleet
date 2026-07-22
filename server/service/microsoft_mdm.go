@@ -1234,8 +1234,40 @@ func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSync
 	return resSyncMLmsg, nil
 }
 
+// allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
+// redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
+// this redirect_uri and Fleet only reflects it into a window.location assignment in the TOS page. We restrict it to the
+// two schemes that protocol uses:
+//   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
+//     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
+//     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
+//   - https: the browser-based federated flow.
+var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
+	"https":       {},
+	"ms-appx-web": {},
+}
+
+// windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page.
+func windowsTOSRedirectURIAllowed(redirectURI string) bool {
+	parsed, err := url.Parse(redirectURI)
+	if err != nil {
+		return false
+	}
+	_, ok := allowedWindowsTOSRedirectSchemes[strings.ToLower(parsed.Scheme)]
+	return ok
+}
+
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	// redirectUri is reflected into a window.location assignment in the TOS page template, so validate its scheme to
+	// prevent reflected XSS via javascript:/data:/vbscript: URLs.
+	if !windowsTOSRedirectURIAllowed(redirectUri) {
+		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
+	}
+
 	tmpl, err := server.GetTemplate("frontend/templates/windowsTOS.html", "windows-tos")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
@@ -1246,9 +1278,6 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
-
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
 
 	return htmlBuf.String(), nil
 }

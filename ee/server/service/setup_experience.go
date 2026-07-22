@@ -142,6 +142,9 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{script.ScriptContents}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
 	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
