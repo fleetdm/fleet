@@ -213,44 +213,27 @@ async function takeSnapshot() {
       });
     }
 
-    // For non-Claude shell sessions, capture command history in background
-    // so we have it if the terminal is killed accidentally
+    // For non-Claude shell sessions, save recent commands from ~/.zsh_history
+    // so we have them if the terminal is killed accidentally. This is shared
+    // history (not per-terminal) but it's completely silent.
     const state = loadState();
-    for (const sess of sessions) {
-      if (!sess.claude_session_id && (sess.process === '-zsh' || sess.process === 'bash' || sess.process === 'zsh')) {
-        try {
-          const histTmp = path.join(os.tmpdir(), `tt-snap-hist-${Date.now()}-${sess.iterm_uuid.slice(0,8)}.txt`);
-          await runOsascript(`
-tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        repeat with t from 1 to (count of tabs of (window w))
-            repeat with s from 1 to (count of sessions of tab t of (window w))
-                set theSess to session s of tab t of (window w)
-                if (unique ID of theSess) is "${sess.iterm_uuid}" then
-                    tell theSess
-                        write text " fc -l -30 > ${histTmp} 2>/dev/null"
-                    end tell
-                    return "done"
-                end if
-            end repeat
-        end repeat
-    end repeat
-end tell`);
-          await new Promise(r => setTimeout(r, 1000));
-          // Erase the fc command from the terminal display via direct TTY write
-          try { fs.writeFileSync(sess.tty, '\x1b[1A\x1b[2K\x1b[1A\x1b[2K'); } catch {}
-          try {
-            const histRaw = fs.readFileSync(histTmp, 'utf8');
-            const cmds = histRaw.split('\n')
-              .map(l => l.replace(/^\s*\d+\s+/, '').trim())
-              .filter(l => l && !l.startsWith('fc '));
-            if (cmds.length) {
-              state.notes[`hist:${sess.iterm_uuid}`] = cmds;
-            }
-            fs.unlinkSync(histTmp);
-          } catch {}
-        } catch {}
-      }
+    const hasNonClaude = sessions.some(s => !s.claude_session_id && (s.process === '-zsh' || s.process === 'bash' || s.process === 'zsh'));
+    if (hasNonClaude) {
+      try {
+        const histFile = path.join(os.homedir(), '.zsh_history');
+        const histRaw = fs.readFileSync(histFile, 'utf8');
+        const lines = histRaw.split('\n').filter(l => l.trim());
+        const cmds = lines.slice(-30).map(l => {
+          // zsh history format: ": timestamp:0;command" or just "command"
+          const match = l.match(/^:\s*\d+:\d+;(.+)/);
+          return match ? match[1] : l;
+        }).filter(l => l && !l.startsWith('fc '));
+        for (const sess of sessions) {
+          if (!sess.claude_session_id && (sess.process === '-zsh' || sess.process === 'bash' || sess.process === 'zsh')) {
+            state.notes[`hist:${sess.iterm_uuid}`] = cmds;
+          }
+        }
+      } catch {}
     }
 
     const snapshot = {
@@ -357,42 +340,17 @@ async function parkSession(itermUuid) {
   const session = state.snapshot.sessions.find(s => s.iterm_uuid === itermUuid);
   if (!session) return { ok: false, error: 'Session not found' };
 
-  // Capture command history via AppleScript write text (sends as keyboard input to shell)
+  // Capture recent commands from ~/.zsh_history (shared, but silent)
   let cmdHistory = [];
-  {
-    try {
-      const histTmp = path.join(os.tmpdir(), `tt-hist-${Date.now()}.txt`);
-      await runOsascript(`
-tell application "iTerm2"
-    repeat with w from 1 to (count of windows)
-        repeat with t from 1 to (count of tabs of (window w))
-            repeat with s from 1 to (count of sessions of tab t of (window w))
-                set sess to session s of tab t of (window w)
-                if (unique ID of sess) is "${itermUuid}" then
-                    tell sess
-                        write text "fc -l -30 > ${histTmp} 2>/dev/null"
-                    end tell
-                    return "done"
-                end if
-            end repeat
-        end repeat
-    end repeat
-end tell`);
-      await new Promise(r => setTimeout(r, 1500));
-      try {
-        const histRaw = fs.readFileSync(histTmp, 'utf8');
-        cmdHistory = histRaw.split('\n')
-          .map(l => l.replace(/^\s*\d+\s+/, '').trim())
-          .filter(l => l && !l.startsWith('fc '));
-        fs.unlinkSync(histTmp);
-        console.log(`[park] captured ${cmdHistory.length} commands`);
-      } catch (e) {
-        console.log(`[park] no history file: ${e.message}`);
-      }
-    } catch (e) {
-      console.log(`[park] history capture error: ${e.message}`);
-    }
-  }
+  try {
+    const histFile = path.join(os.homedir(), '.zsh_history');
+    const histRaw = fs.readFileSync(histFile, 'utf8');
+    const lines = histRaw.split('\n').filter(l => l.trim());
+    cmdHistory = lines.slice(-30).map(l => {
+      const match = l.match(/^:\s*\d+:\d+;(.+)/);
+      return match ? match[1] : l;
+    }).filter(l => l && !l.startsWith('fc '));
+  } catch {}
 
   // Add or update in history
   const key = session.claude_session_id || session.iterm_uuid;
