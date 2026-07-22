@@ -213,20 +213,66 @@ async function takeSnapshot() {
       });
     }
 
+    // For non-Claude shell sessions, capture command history in background
+    // so we have it if the terminal is killed accidentally
+    const state = loadState();
+    for (const sess of sessions) {
+      if (!sess.claude_session_id && (sess.process === '-zsh' || sess.process === 'bash' || sess.process === 'zsh')) {
+        try {
+          const histTmp = path.join(os.tmpdir(), `tt-snap-hist-${Date.now()}-${sess.iterm_uuid.slice(0,8)}.txt`);
+          await runOsascript(`
+tell application "iTerm2"
+    repeat with w from 1 to (count of windows)
+        repeat with t from 1 to (count of tabs of (window w))
+            repeat with s from 1 to (count of sessions of tab t of (window w))
+                set theSess to session s of tab t of (window w)
+                if (unique ID of theSess) is "${sess.iterm_uuid}" then
+                    tell theSess
+                        write text "fc -l -30 > ${histTmp} 2>/dev/null; printf '\\\\033[1A\\\\033[2K'"
+                    end tell
+                    return "done"
+                end if
+            end repeat
+        end repeat
+    end repeat
+end tell`);
+          await new Promise(r => setTimeout(r, 1000));
+          try {
+            const histRaw = fs.readFileSync(histTmp, 'utf8');
+            const cmds = histRaw.split('\n')
+              .map(l => l.replace(/^\s*\d+\s+/, '').trim())
+              .filter(l => l && !l.startsWith('fc '));
+            if (cmds.length) {
+              state.notes[`hist:${sess.iterm_uuid}`] = cmds;
+            }
+            fs.unlinkSync(histTmp);
+          } catch {}
+        } catch {}
+      }
+    }
+
     const snapshot = {
       timestamp: now(),
       session_count: sessions.length,
       sessions
     };
 
-    // Update state, preserving missing Claude sessions from previous snapshot
-    const state = loadState();
+    // Update state, preserving missing sessions from previous snapshot
     const liveUuids = new Set(sessions.map(s => s.iterm_uuid));
-    const parkedIds = new Set(state.history.map(h => h.claude_session_id));
+    const parkedIds = new Set(state.history.map(h => h.claude_session_id || h.iterm_uuid));
     if (state.snapshot && state.snapshot.sessions) {
       for (const prev of state.snapshot.sessions) {
-        // Keep sessions that: had a Claude session, aren't in the live snapshot, and aren't parked
-        if (prev.claude_session_id && !liveUuids.has(prev.iterm_uuid) && !parkedIds.has(prev.claude_session_id)) {
+        if (liveUuids.has(prev.iterm_uuid)) continue;
+        const key = prev.claude_session_id || prev.iterm_uuid;
+        if (parkedIds.has(key)) continue;
+        // Keep Claude sessions as missing
+        if (prev.claude_session_id) {
+          sessions.push(prev);
+        }
+        // Keep non-Claude sessions that have saved history (killed accidentally)
+        else if (state.notes[`hist:${prev.iterm_uuid}`]) {
+          prev.cmd_history = state.notes[`hist:${prev.iterm_uuid}`];
+          prev.process = 'killed';
           sessions.push(prev);
         }
       }
@@ -516,11 +562,15 @@ async function handleAPI(req, res) {
     const parkedIds = new Set(state.history.filter(h => h.claude_session_id).map(h => h.claude_session_id));
 
     const sessions = state.snapshot.sessions
-      .filter(s => !parkedIds.has(s.claude_session_id))
+      .filter(s => {
+        const key = s.claude_session_id || s.iterm_uuid;
+        return !parkedIds.has(key);
+      })
       .map(s => ({
         ...s,
         note: state.notes[s.claude_session_id] || state.notes[s.iterm_uuid] || '',
-        status: !s.claude_session_id ? 'no-claude'
+        status: s.process === 'killed' ? 'killed'
+          : !s.claude_session_id ? 'no-claude'
           : running.has(s.claude_session_id) ? 'running'
           : 'missing'
       }));
@@ -610,19 +660,24 @@ end tell`);
   if (req.method === 'POST' && pathParts[0] === 'api' && pathParts[1] === 'park-missing' && pathParts[2]) {
     const sid = decodeURIComponent(pathParts[2]);
     const state = loadState();
-    const session = state.snapshot.sessions.find(s => s.claude_session_id === sid);
+    const session = state.snapshot.sessions.find(s => s.claude_session_id === sid || s.iterm_uuid === sid);
     if (!session) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: 'Session not found' }));
       return;
     }
-    if (!state.history.some(h => h.claude_session_id === sid)) {
+    const key = session.claude_session_id || session.iterm_uuid;
+    if (!state.history.some(h => (h.claude_session_id || h.iterm_uuid) === key)) {
       state.history.push({
         ...session,
         parked_at: new Date().toISOString().replace('T', ' ').slice(0, 16)
       });
-      saveState(state);
     }
+    // Remove from active snapshot
+    state.snapshot.sessions = state.snapshot.sessions.filter(s =>
+      s.claude_session_id !== sid && s.iterm_uuid !== sid);
+    state.snapshot.session_count = state.snapshot.sessions.length;
+    saveState(state);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
     return;
@@ -855,10 +910,12 @@ function getDashboardHTML() {
   .dot-running { background: #859900; }
   .dot-missing { background: #dc322f; }
   .dot-parked { background: #6c71c4; }
+  .dot-killed { background: #cb4b16; }
   .dot-no-claude { background: #93a1a1; }
   .status-running { color: #859900; }
   .status-missing { color: #dc322f; }
   .status-parked { color: #6c71c4; }
+  .status-killed { color: #cb4b16; }
   .status-no-claude { color: #93a1a1; }
   .btn {
     border: none;
@@ -1090,7 +1147,7 @@ function escapeHtml(s) {
 }
 
 function statusDot(status) {
-  const labels = { running: 'running', missing: 'missing', parked: 'parked', 'no-claude': 'idle' };
+  const labels = { running: 'running', missing: 'missing', killed: 'killed', parked: 'parked', 'no-claude': 'idle' };
   return '<span class="status status-' + status + '"><span class="dot dot-' + status + '"></span>' + (labels[status] || status) + '</span>';
 }
 
@@ -1124,12 +1181,16 @@ function renderActive(data) {
   }
 
   el.innerHTML = sessions.map((s, i) => {
-    let action = '<button class="btn btn-focus" onclick="focusSession(\\'' + s.iterm_uuid + '\\')">Focus</button>';
+    let action = '';
     if (s.status === 'running' || s.status === 'no-claude') {
-      action += ' <button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
+      action = '<button class="btn btn-focus" onclick="focusSession(\\'' + s.iterm_uuid + '\\')">Focus</button>'
+        + ' <button class="btn btn-park" onclick="parkSession(\\'' + s.iterm_uuid + '\\')">Park</button>';
     } else if (s.status === 'missing') {
       action = '<button class="btn btn-restore" onclick="restoreSession(\\'' + s.claude_session_id + '\\')">Restore</button>'
         + ' <button class="btn btn-park" onclick="parkMissing(\\'' + s.claude_session_id + '\\')">Park</button>';
+    } else if (s.status === 'killed') {
+      action = '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + s.iterm_uuid + '\\')">Restore</button>'
+        + ' <button class="btn btn-park" onclick="parkMissing(\\'' + s.iterm_uuid + '\\')">Park</button>';
     }
     const noteKey = s.claude_session_id || s.iterm_uuid;
     const noteVal = escapeHtml(s.note);
