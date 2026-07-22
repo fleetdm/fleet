@@ -6,8 +6,7 @@ import { AppContext, initialState } from "context/app";
 
 import FleetsDropdown from ".";
 
-// Realistic fleet names lifted from the design (Figma node 8105-799 in the
-// Product design system file) so the stories match the visuals reviewers see.
+// Fleet names lifted from the Figma design so stories match reviewer visuals.
 const FLEETS_FEW = [
   { id: -1, name: "All fleets" },
   { id: 0, name: "Unassigned" },

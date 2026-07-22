@@ -2,9 +2,11 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
-// TODO: Replace renderWithAppContext with createCustomRenderer
+// TODO: Replace renderWithAppContext with createCustomRenderer (inherited
+// from pre-rename TeamsDropdown.tests.tsx).
 import { renderWithAppContext } from "test/test-utils";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import createMockConfig from "__mocks__/configMock";
 
 import FleetsDropdown from "./FleetsDropdown";
 
@@ -288,6 +290,33 @@ describe("FleetsDropdown - component", () => {
       expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");
     });
 
+    it("Enter on Add fleet navigates without also selecting a highlighted fleet", async () => {
+      // Regression guard for the addFleetKeyDown handler: without
+      // stopPropagation on Enter/Space, the keydown would bubble to
+      // SelectContainer, react-select would treat it as "select the
+      // highlighted option," and onChange would fire in parallel with the
+      // Add fleet navigation.
+      const onChange = jest.fn();
+      const user = userEvent.setup();
+      renderWithAppContext(
+        <FleetsDropdown
+          currentUserFleets={MANY_FLEETS}
+          selectedFleetId={1}
+          onChange={onChange}
+        />,
+        { contextValue: { isGlobalAdmin: true } }
+      );
+
+      await user.click(getTrigger(/Fleet 1/));
+      const addButton = screen.getByRole("button", { name: /add fleet/i });
+      fireEvent.keyDown(addButton, { key: "Enter" });
+
+      // Navigation fired.
+      expect(mockPush).toHaveBeenCalledWith("/settings/fleets?create_fleet=1");
+      // No parallel fleet selection.
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("hides the button for global admins when GitOps mode is enabled", async () => {
       const user = userEvent.setup();
       renderWithAppContext(
@@ -299,12 +328,13 @@ describe("FleetsDropdown - component", () => {
         {
           contextValue: {
             isGlobalAdmin: true,
-            config: {
+            config: createMockConfig({
               gitops: {
                 gitops_mode_enabled: true,
                 repository_url: "https://github.com/fleetdm/fleet",
+                exceptions: { labels: false, software: false, secrets: true },
               },
-            } as any,
+            }),
           },
         }
       );
@@ -344,9 +374,9 @@ describe("FleetsDropdown - component", () => {
         {
           contextValue: {
             isGlobalAdmin: true,
-            config: {
+            config: createMockConfig({
               partnerships: { enable_primo: true },
-            } as any,
+            }),
           },
         }
       );

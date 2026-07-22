@@ -77,36 +77,12 @@
   }
 
   &__search-input {
-    width: 100%;
-    height: 36px;
-    box-sizing: border-box;
-    padding: 9.5px 12px 9.5px 36px;
-    line-height: $line-height;
-    font-family: "Inter", sans-serif;
-    font-size: $x-small;
-    color: $core-fleet-black;
-    background-color: $core-fleet-white;
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: $border-radius;
-
-    &::placeholder {
-      color: $ui-fleet-black-50;
-    }
-
-    &:hover,
-    &:focus {
-      outline: none;
-      border-color: $ui-fleet-black-75;
-
-      + .icon svg path {
-        fill: $ui-fleet-black-75;
-      }
-    }
+    @include menu-search-input;
   }
 
-  // Belt-and-suspenders: even with tabIndex=-1 the MenuList can still receive
-  // programmatic focus (e.g. click-to-scroll). Suppress the browser's default
-  // focus outline so the scroll container never renders a stray blue ring.
+  // Even with tabIndex=-1 the MenuList can still receive programmatic focus
+  // (e.g. click-to-scroll). Suppress the browser's default focus outline so
+  // the scroll container never renders a stray blue ring.
   &__menu-list:focus,
   &__menu-list:focus-visible {
     outline: none;
@@ -157,11 +133,7 @@
   }
 
   &__add-fleet-footer {
-    // Sits at Menu level below the scrolling MenuList. Menu owns the outer
-    // pad-medium inset and the pad-medium gap to the MenuList above. The
-    // divider is a plain border-top now that the footer's full width already
-    // matches the design's inset content column. padding-top pushes the
-    // "Add fleet" button pad-medium (16px) below the divider line.
+    // padding-top pushes "Add fleet" pad-medium below the border-top divider.
     padding-top: $pad-medium;
     background-color: $core-fleet-white;
     display: flex;

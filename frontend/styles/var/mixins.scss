@@ -493,3 +493,36 @@ $max-width: 2560px;
   background-repeat: no-repeat;
   background-color: $core-fleet-white; // area below gradient — transitionable
 }
+
+// Shared styling for a search input rendered inside a dropdown menu (icon on
+// the left, 36px tall, Fleet-black-10 border). Used by FleetsDropdown,
+// CategoryFilter, and ActivityTypeDropdown.
+// TODO: extend Fleet's SearchField / InputFieldWithIcon to cover this
+// pattern — out of scope for the FleetsDropdown rework.
+@mixin menu-search-input {
+  width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 9.5px 12px 9.5px 36px;
+  line-height: $line-height;
+  font-family: "Inter", sans-serif;
+  font-size: $x-small;
+  color: $core-fleet-black;
+  background-color: $core-fleet-white;
+  border: solid 1px $ui-fleet-black-10;
+  border-radius: $border-radius;
+
+  &::placeholder {
+    color: $ui-fleet-black-50;
+  }
+
+  &:hover,
+  &:focus {
+    outline: none;
+    border-color: $ui-fleet-black-75;
+
+    + .icon svg path {
+      fill: $ui-fleet-black-75;
+    }
+  }
+}

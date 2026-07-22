@@ -138,11 +138,6 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   } = selectProps;
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Autofocus via native browser behavior. react-select unmounts / remounts
-  // <components.Menu> across every open/close cycle, so the input is a fresh
-  // DOM node on each open — autoFocus fires reliably each time without
-  // relying on effect deps semantics.
-
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
@@ -151,13 +146,9 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    // Always stop propagation. Nav keys (Arrow / Enter / Escape) are
-    // forwarded explicitly to react-select's hidden input via
-    // forwardNavKey; without stopPropagation, the original event ALSO
-    // bubbles up through Menu → SelectContainer and triggers react-select's
-    // delegated handler, which processes the key a second time (visible in
-    // jsdom as onChange firing twice on Enter, and as double option-index
-    // increments on Arrow keys).
+    // Stop propagation so the original event doesn't ALSO bubble to
+    // SelectContainer and get processed a second time (double-fire on
+    // Enter/Arrow). Nav keys are forwarded explicitly via forwardNavKey.
     event.stopPropagation();
     if (NAV_KEYS.has(event.key)) {
       event.preventDefault();
@@ -173,13 +164,9 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
   };
 
   const addFleetKeyDown = (event: React.KeyboardEvent) => {
-    // Enter (and Space) on the Add fleet button fires the Button's own
-    // onClick correctly, but the event ALSO bubbles up to
-    // SelectContainer's onKeyDown where react-select treats it as
-    // "select the currently highlighted option" and fires onChange for
-    // an unintended fleet. Stop propagation so only the button's own
-    // click path runs. Other keys (Escape, Tab, Arrow) still bubble
-    // through so react-select's menu-close / focus behaviors work.
+    // Stop Enter/Space from bubbling to SelectContainer, which would treat
+    // them as "select highlighted option" alongside the button's own click.
+    // Escape/Tab/Arrow still bubble so react-select's close/focus work.
     if (event.key === "Enter" || event.key === " ") {
       event.stopPropagation();
     }
@@ -259,9 +246,10 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
   // all. Keying on the child count avoids re-measuring on unrelated
   // renders (e.g. every keystroke inside the search input); the onScroll
   // handler covers user-driven position changes.
+  const childCount = React.Children.count(props.children);
   useLayoutEffect(() => {
     updateHasMoreBelow();
-  }, [React.Children.count(props.children)]);
+  }, [childCount]);
 
   // Chain react-select's own innerProps handlers before running our own —
   // otherwise our overrides silently drop whatever react-select (or a
@@ -294,14 +282,10 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
     >
       {props.children}
       {/*
-        Always render the anchor (unconditional) so toggling the fade's
-        visibility never changes MenuList.scrollHeight. The anchor is a
-        0-height sticky "spot" at the bottom edge; the visible 35px fade
-        is an absolutely-positioned ::before pseudo-element that opacity-
-        toggles via the --visible modifier. Rendering a 35px sticky div
-        conditionally would add/remove 35px of flow height, clamp
-        scrollTop, and cause a visible jump at the very bottom of the
-        options list.
+        Anchor is always rendered at 0 flow height so toggling the fade
+        doesn't shift scrollHeight (which would clamp scrollTop and jump
+        at the bottom). Gradient is a ::before pseudo, opacity-toggled
+        via --visible.
       */}
       <div
         className={classnames(`${baseClass}__scroll-fade`, {
@@ -326,13 +310,9 @@ const FleetsDropdown = ({
 }: IFleetsDropdownProps): JSX.Element => {
   const { isGlobalAdmin, config } = useContext(AppContext);
 
-  // Mirror the gate used by ManageFleetsPage's in-page "Add fleet" button:
-  // Primo mode and GitOps mode both disable fleet creation. Hide the
-  // affordance entirely rather than link to a page where the button is
-  // disabled — otherwise the deep link (?create_fleet=1) silently no-ops
-  // when it lands. Also hide when the dropdown is embedded in a form
-  // (asFormField) — clicking "Add fleet" navigates away and would
-  // abandon any in-progress form input.
+  // Mirrors ManageFleetsPage: Primo + GitOps disable fleet creation. Also
+  // hide when asFormField — clicking Add fleet would abandon in-progress
+  // form input.
   const isPrimoModeEnabled = !!config?.partnerships?.enable_primo;
   const isGitOpsModeEnabled = !!(
     config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url
@@ -344,12 +324,9 @@ const FleetsDropdown = ({
   const selectRef = useRef<SelectInstance<INumberDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // react-select-5's SelectInstance doesn't surface `inputRef` on its
-  // public typings, but the hidden control's input is exposed at
-  // runtime. Consolidate the type-hole to one place so the escape hatch
-  // is auditable — if react-select ever renames this field, both the
-  // hidden-input-focus effect and the forwardNavKey bridge break at the
-  // same site, not in two duplicated casts.
+  // react-select's SelectInstance doesn't type `inputRef` publicly.
+  // Centralize the cast — if react-select ever renames this field, both
+  // call sites (focus effect + forwardNavKey bridge) fail together.
   const getHiddenInput = () =>
     ((selectRef.current as unknown) as {
       inputRef?: HTMLInputElement | null;
@@ -382,12 +359,9 @@ const FleetsDropdown = ({
     fleetOptions.find((o) => o.value === selectedValue)?.label ??
     APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
 
-  // Close menu when clicking outside the wrapper. Only attach the listener
-  // while the menu is actually open — no need to run this handler on every
-  // document mousedown for the rest of the app's lifetime. Reset the
-  // search query at the origin: react-select's onMenuClose only fires on
-  // react-select-driven closes (Escape/blur), not on controlled-prop
-  // closes, so a controlled close needs to clear searchQuery itself.
+  // Close menu on click outside. Only attach the listener while the menu
+  // is open. Reset searchQuery at origin — react-select's onMenuClose
+  // doesn't fire for controlled-prop closes.
   useEffect(() => {
     if (!menuIsOpen) return undefined;
     const handleClickOutside = (event: MouseEvent) => {
@@ -415,16 +389,10 @@ const FleetsDropdown = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuIsOpen, showSearch]);
 
-  // Fire onClose exactly once whenever menuIsOpen transitions true -> false,
-  // regardless of which path triggered the close. react-select only fires
-  // its own onMenuClose on react-select-driven closes (Escape, option
-  // select, blur) — not on controlled prop flips (click-outside,
-  // toggleMenu, onClickAddFleet). Threading the notification through this
-  // effect gives consumers a single, reliable close event.
-  //
-  // `onClose` is stashed in a ref so an inline callback from a parent
-  // doesn't retrigger this effect on every parent render — the effect
-  // deps stay stable on `[menuIsOpen]` alone.
+  // Fire onClose once per true -> false transition. react-select's own
+  // onMenuClose only fires on its own closes; this effect catches all
+  // paths. onClose is stashed in a ref so an inline parent callback
+  // doesn't retrigger this effect.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -462,7 +430,6 @@ const FleetsDropdown = ({
   };
 
   const onChangeSearchQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
-    event.stopPropagation();
     setSearchQuery(event.target.value);
   };
 
