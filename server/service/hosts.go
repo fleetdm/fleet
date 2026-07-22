@@ -299,15 +299,36 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		titleID := *req.Opts.SoftwareTitleIDFilter
 
-		// Needed in order to grab display_name if it exists. If the title doesn't
-		// exist or is out of the caller's team scope, SoftwareTitleByID returns
-		// NotFound; leave softwareTitle unset rather than falling back to an
-		// unscoped lookup, which would leak the title's name across teams.
+		// 1. Try full title for this team.
+		// Needed in order to grab display_name if it exists.
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:
 			softwareTitle = st
+
 		case fleet.IsNotFound(err):
+			// SoftwareTitleByID depends on the software_titles_host_counts
+			// aggregate, populated only by the periodic
+			// SyncHostsSoftwareTitles job: a title just installed on an
+			// in-scope host can be NotFound here until the next sync run.
+			// Fall back to a live, team-scoped join (which independently
+			// confirms presence in req.Opts.TeamFilter, so it cannot
+			// leak an out-of-scope title's name) rather than leaving
+			// softwareTitle unset until the sync catches up.
+			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID, req.Opts.TeamFilter)
+			if errName != nil && !fleet.IsNotFound(errName) {
+				return listHostsResponse{Err: errName}, nil
+			}
+			if errName == nil {
+				softwareTitle = &fleet.SoftwareTitle{
+					ID: titleID,
+				}
+				if displayName != "" {
+					softwareTitle.DisplayName = displayName
+				} else {
+					softwareTitle.Name = name
+				}
+			}
 		default:
 			return listHostsResponse{Err: err}, nil
 		}

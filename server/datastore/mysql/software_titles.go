@@ -132,6 +132,62 @@ GROUP BY
 	return &title, nil
 }
 
+// SoftwareTitleNameForHostFilter returns the name and display_name of a
+// software title by ID, confirming its presence via a live host/software
+// join rather than the aggregated software_titles_host_counts table that
+// SoftwareTitleByID relies on. This closes the window (up to the periodic
+// sync interval) between a host reporting new software and the next
+// SyncHostsSoftwareTitles run, while remaining strictly team-scoped: it
+// returns NotFound (no title data at all) unless the given team currently
+// has a host with this title installed, so it cannot be used to enumerate
+// titles across teams.
+func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
+	hostTeamFilter := "h.team_id IS NULL"
+	var displayNameTeamID uint
+	args := []any{}
+	if teamID != nil {
+		hostTeamFilter = "h.team_id = ?"
+		displayNameTeamID = *teamID
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(`
+    SELECT
+	    st.name,
+		stdn.display_name
+	FROM software_titles st
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = st.id AND stdn.team_id = ?
+   	WHERE st.id = ?
+	AND EXISTS (
+		SELECT 1
+		FROM host_software hs
+		INNER JOIN software sw ON sw.id = hs.software_id
+		INNER JOIN hosts h ON h.id = hs.host_id
+		WHERE sw.title_id = st.id AND %s
+	)
+  `, hostTeamFilter)
+
+	allArgs := append([]any{displayNameTeamID, id}, args...)
+
+	var results struct {
+		Name        string  `db:"name"`
+		DisplayName *string `db:"display_name"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, allArgs...); err != nil {
+		if err == sql.ErrNoRows {
+			return "", "", notFound("SoftwareTitle").WithID(id)
+		}
+		return "", "", ctxerr.Wrap(ctx, err, "get software title name for host filter")
+	}
+
+	if displayName := ptr.ValOrZero(results.DisplayName); displayName != "" {
+		return "", displayName, nil
+	}
+
+	return results.Name, "", nil
+}
+
 func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE software_titles SET name = ? WHERE id = ? AND bundle_identifier != ''", name, titleID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software title name")

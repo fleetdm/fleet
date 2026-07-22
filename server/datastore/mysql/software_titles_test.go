@@ -47,6 +47,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2341,6 +2342,51 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), title.HostsCount)
 	require.Equal(t, uint(1), title.VersionsCount)
 	require.Equal(t, ptr.Uint(1), title.Versions[0].HostsCount)
+}
+
+// testSoftwareTitleNameForHostFilter verifies that
+// SoftwareTitleNameForHostFilter finds a title via a live host/software
+// join, closing the staleness window that SoftwareTitleByID's dependency
+// on the software_titles_host_counts sync introduces, while still
+// refusing to disclose a title's name for a team that has no host with
+// that title installed.
+func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	testSw := fleet.Software{Name: "UniqueDSTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.dstitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, host1, false))
+	require.Len(t, host1.Software, 1)
+	require.NotNil(t, host1.Software[0].TitleID)
+	titleID := *host1.Software[0].TitleID
+
+	// Deliberately do NOT call SyncHostsSoftwareTitles: this method must
+	// find the title via a live join, not the aggregated
+	// software_titles_host_counts table that sync populates.
+
+	// In-scope team: name is found immediately, pre-sync.
+	name, displayName, err := ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, testSw.Name, name)
+	assert.Empty(t, displayName)
+
+	// Out-of-scope team: NotFound, no data disclosed.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Nonexistent title ID: NotFound.
+	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {

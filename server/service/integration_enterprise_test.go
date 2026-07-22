@@ -5963,9 +5963,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTe
 	require.NotNil(t, h1.Software[0].TitleID)
 	titleID := *h1.Software[0].TitleID
 
-	// Sync title host counts so the team-scoped SoftwareTitleByID query (used
-	// to enrich the in-scope response below) can find the title for team1.
-	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	// Deliberately do NOT call SyncHostsSoftwareTitles here: the title's
+	// entry in software_titles_host_counts (which SoftwareTitleByID relies
+	// on) is only populated by that periodic sync, so skipping it
+	// reproduces the up-to-~1h window between a host reporting new
+	// software and the next sync run. The in-scope enrichment below must
+	// still succeed immediately via a live (non-aggregated) fallback.
 
 	// Filtering team1 (in-scope) by the software title returns the host and the title's name.
 	var resp listHostsResponse
