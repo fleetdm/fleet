@@ -81,7 +81,7 @@ Save the output for the next step.
 
 ## Send the command
 
-Submit the encoded command to Fleet. For complete endpoint details, see the [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command) API reference.
+Submit the encoded command to Fleet. For complete endpoint details, see the [Run MDM command](https://fleetdm.com/docs/api/rest-api#run-mdm-command) API reference.
 
 **Endpoint:** `POST /api/v1/fleet/commands/run`
 

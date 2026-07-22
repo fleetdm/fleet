@@ -19,7 +19,7 @@ By default, Fleet keeps fleetd up to date automatically.  For self-managed insta
 ## What options do I have for access control?  What about auditing admin activity?
 
 Fleet lets you define [role-based access](https://fleetdm.com/docs/using-fleet/manage-access#manage-access) controls, the ability to assign different admins for different groups of hosts, and rolling deployments. 
-Fleet has built-in [audit logging](https://fleetdm.com/docs/rest-api/rest-api#activities) (accessed through API or streamed to a data lake.) 
+Fleet has built-in [audit logging](https://fleetdm.com/docs/api/rest-api#activities) (accessed through API or streamed to a data lake.) 
 
 In addition, you can do GitOps because you can control your Fleet instance through a git repo, allowing you to use your standard CI/CD and approval process.  This also tracks the history of changes as commits.
 

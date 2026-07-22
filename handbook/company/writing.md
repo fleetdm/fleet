@@ -274,7 +274,7 @@ The docs are separated into four categories:
 
 4. Reference
 - [Configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration)
-- [REST API](https://fleetdm.com/docs/rest-api/rest-api)
+- [REST API](https://fleetdm.com/docs/api/rest-api)
 - [Data tables](https://fleetdm.com/tables/account_policy_data)
 - [Built-in queries](https://fleetdm.com/queries)
 
@@ -906,7 +906,7 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 | Left alignment | Right alignment | Center Alignment |
 
 > When using tables to document API endpoint parameters, we use the following conventions:
-> - Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) documentation for example formatting.
+> - Document nested objects in their own separate tables. See the [**Modify configuration**](https://fleetdm.com/docs/api/rest-api#modify-configuration) documentation for example formatting.
 > - In the **Type** column, use the terms "boolean" (not "bool"), and "array" (not "list").
 > - In the **Description** column for required parameters, begin the description with "**Required.**"
 

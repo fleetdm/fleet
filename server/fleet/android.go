@@ -39,7 +39,7 @@ type MDMAndroidConfigProfile struct {
 // AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles and
 // associated error messages when they are included
 var AndroidForbiddenJSONKeys = map[string]string{
-	"statusReportingSettings":       `Android configuration profile can't include "statusReportingSettings" setting. To get host vitals, use Get host endpoint: https://fleetdm.com/docs/rest-api/rest-api#get-host`,
+	"statusReportingSettings":       `Android configuration profile can't include "statusReportingSettings" setting. To get host vitals, use Get host endpoint: https://fleetdm.com/docs/api/rest-api#get-host`,
 	"applications":                  `Android configuration profile can't include "applications" setting. Software management is coming soon.`,
 	"appFunctions":                  `Android configuration profile can't include "appFunctions" setting. Software management is coming soon.`,
 	"playStoreMode":                 `Android configuration profile can't include "playStoreMode" setting. Software management is coming soon.`,

@@ -24,7 +24,7 @@ Fleet UI:
 
 4. To edit the OS setting, first remove the old configuration profile and then add the new one.
 
-Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
+Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/api/rest-api#create-configuration-profile) in the Fleet API.
 
 ### Removal behavior
 

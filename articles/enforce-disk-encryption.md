@@ -28,7 +28,7 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 #### Fleet API: 
 
-You can use the [Update disk encryption enforcement API endpoint](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement) to manage disk encryption settings via the API.
+You can use the [Update disk encryption enforcement API endpoint](https://fleetdm.com/docs/api/rest-api#update-disk-encryption-enforcement) to manage disk encryption settings via the API.
 
 ### Disk encryption status
 

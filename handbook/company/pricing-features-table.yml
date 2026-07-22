@@ -185,7 +185,7 @@
   demos:
     - description: See activities for enabling/disabling the activities webhook and editing the destination URL so that I can know when the activities webhook was modified and by who.
       moreInfoUrl: https://youtu.be/3Fndgrsk-Ss
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
+  documentationUrl: https://fleetdm.com/docs/api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Configuration]
   tier: Premium
@@ -343,7 +343,7 @@
 - industryName: Human-endpoint mapping
   friendlyName: See who logs in on every computer
   description: Identify who logs in to any system, including login history and current sessions.  Look up any host by the email address of the person using it.
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
+  documentationUrl: https://fleetdm.com/docs/api/rest-api#get-hosts-google-chrome-profiles
   screenshotSrc:
   tier: Free
   jamfProHasFeature: yes
@@ -867,7 +867,7 @@
 #  ╩═╝╩ ╩╚═╝╚═╝╩═╝╚═╝
 - industryName: Labels
   description: Create dynamic or manual groups of hosts using SQL queries or manual selection to filter and target devices across Fleet.
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
+  documentationUrl: https://fleetdm.com/docs/api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]
@@ -973,7 +973,7 @@
 #  ╩╚═╚═╝╩  ╚═╝╩╚═ ╩ ╩╝╚╝╚═╝                                                                                                                                                                                                               
 - industryName: Reporting
   description: Generate reports based on searchable device attributes
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
+  documentationUrl: https://fleetdm.com/docs/api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]
   usualDepartment: IT
@@ -1172,7 +1172,7 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
+  documentationUrl: https://fleetdm.com/docs/api/rest-api 
   screenshotSrc:
   tier: Free
   jamfProHasFeature: yes
@@ -1704,7 +1704,7 @@
 # #  ╠╩╗╠╦╝║ ║║║║╚═╗║╣   ║║║║╚═╗ ║ ╠═╣║  ║  ║╣  ║║  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ╠═╝╠═╣║  ╠╩╗╠═╣║ ╦║╣ ╚═╗
 # #  ╚═╝╩╚═╚═╝╚╩╝╚═╝╚═╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝═╩╝  ╚═╝╚═╝╚   ╩ ╚╩╝╩ ╩╩╚═╚═╝  ╩  ╩ ╩╚═╝╩ ╩╩ ╩╚═╝╚═╝╚═╝
 # - industryName: Browse installed software packages
-#   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#software
+#   documentationUrl: https://fleetdm.com/docs/api/rest-api#software
 #   productCategories: [Endpoint operations,Device management,Vulnerability management]
 #   pricingTableCategories: [Device management]
 #   tier: Free
@@ -1720,7 +1720,7 @@
 # #  ╠═╣║ ║╚═╗ ║ ║║║╠═╣║║║║╣    ║ ║║ ║║ ║║                                      
 # #  ╩ ╩╚═╝╚═╝ ╩ ╝╚╝╩ ╩╩ ╩╚═╝┘  ╚═╝╚═╝╩═╩╝                                      
 # - industryName: Search devices by IP, serial, hostname, UUID
-#   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#hosts
+#   documentationUrl: https://fleetdm.com/docs/api/rest-api#hosts
 #   productCategories: [Endpoint operations,Device management]
 #   pricingTableCategories: [Device management]
 #   tier: Free

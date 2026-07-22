@@ -103,7 +103,7 @@ Add setup experience software setup experience:
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
 4. Press **Save** to save your selection.
 
-Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/rest-api/rest-api#update-software-setup-experience).
+Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/api/rest-api#update-software-setup-experience).
 
 ## Recover a Windows host from the setup failure screen
 

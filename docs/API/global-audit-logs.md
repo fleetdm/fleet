@@ -3130,4 +3130,3 @@ This activity contains the following fields:
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">
-<meta name="navSection" value="Dig deeper">

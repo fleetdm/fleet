@@ -73,7 +73,7 @@ GitHub issue: [#39018](https://github.com/fleetdm/fleet/issues/39018)
 
 _Available in Fleet Premium_
 
-Fleet can now send lock, wipe, and clear passcode commands to Android hosts directly from the **Host details** page. For company-owned (fully managed) devices, all three commands are available. For personally-owned (BYOD) Android hosts, lock and clear passcode are available and scoped to the work profile. Each action is logged in Fleet's [audit logs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md). The [`fleetctl` CLI tool](https://fleetdm.com/guides/fleetctl) also supports these via `fleetctl mdm lock`, `fleetctl mdm wipe`, and `fleetctl mdm clear-passcode` commands.
+Fleet can now send lock, wipe, and clear passcode commands to Android hosts directly from the **Host details** page. For company-owned (fully managed) devices, all three commands are available. For personally-owned (BYOD) Android hosts, lock and clear passcode are available and scoped to the work profile. Each action is logged in Fleet's [audit logs](https://github.com/fleetdm/fleet/blob/main/docs/api/global-audit-logs.md). The [`fleetctl` CLI tool](https://fleetdm.com/guides/fleetctl) also supports these via `fleetctl mdm lock`, `fleetctl mdm wipe`, and `fleetctl mdm clear-passcode` commands.
 
 GitHub issue: [#41683](https://github.com/fleetdm/fleet/issues/41683)
 
