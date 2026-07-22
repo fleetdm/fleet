@@ -1270,6 +1270,13 @@
     },
     {
       "name": "Box Tools",
+      "slug": "box-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Box.Box-Edit",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
+      "name": "Box Tools",
       "slug": "box-tools/windows",
       "platform": "windows",
       "unique_identifier": "Box Tools",
