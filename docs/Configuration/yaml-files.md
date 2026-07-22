@@ -437,8 +437,6 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
-  windows_automatic_enrollment:
-    default_fleet: Windows Workstations
   apple_account_provisioning: # Available in Fleet Premium
     oauth_idp_token_url: https://fleet-example.okta.com/oauth2/v1/token
     oauth_idp_client_id: Ooa12345abcdeFGHI678
@@ -563,12 +561,6 @@ The `macos_migration` section lets you control the [end user migration workflow]
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
 Can only be configured for "All fleets" (`default.yml`).
-
-### windows_automatic_enrollment
-
-The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
-
-- `default_fleet` specifies the name of the fleet all Windows hosts go in (default: `""`).
 
 ## software
 
