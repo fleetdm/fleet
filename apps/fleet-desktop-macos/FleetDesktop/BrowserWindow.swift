@@ -20,9 +20,28 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// Used by `fleet://update_all` to click the in-page "Update all" button.
     private var pendingPostLoadJS: String?
 
-    /// Tracks whether an SSO/auth flow is in progress. When true, external IdP
-    /// redirects are kept in the WebView so the full redirect chain completes in-app.
-    private var ssoFlowActive = false
+    /// Host of the external IdP page an SSO/auth flow is currently on. Non-nil
+    /// while a flow is in progress; external redirects are kept in the WebView
+    /// so the full redirect chain completes in-app, but navigation is restricted
+    /// to this host (hops to a new host are only allowed via server redirects
+    /// or form submissions).
+    private var ssoHost: String?
+
+    /// When the current SSO flow started. Flows expire after `ssoFlowTimeout`
+    /// so the chrome-less WebView can't render external sites indefinitely.
+    private var ssoFlowStartedAt: Date?
+
+    /// Whether an SSO/auth flow is in progress.
+    private var ssoFlowActive: Bool { ssoHost != nil }
+
+    /// True when an SSO flow has been running longer than `ssoFlowTimeout`.
+    private var ssoFlowExpired: Bool {
+        guard let started = ssoFlowStartedAt else { return false }
+        return Date().timeIntervalSince(started) > Self.ssoFlowTimeout
+    }
+
+    /// How long an SSO flow may run before external navigation is cut off.
+    private static let ssoFlowTimeout: TimeInterval = 10 * 60
 
     /// The window title used throughout the app.
     static let windowTitle = "Fleet Desktop"
@@ -50,7 +69,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// or when the page content indicates an error (e.g., "Something went wrong").
     var onNavigationError: (() -> Void)?
 
-    /// Called when the window is closed (allows the owner to react to the UI closing).
+    /// Called when the window is closed (so the timer can be paused).
     var onWindowClose: (() -> Void)?
 
     /// Called when the window is shown (so the timer can be resumed).
@@ -59,7 +78,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// Preload the WebView and start loading the URL without showing a window.
     /// Call `show()` later to display the window.
     func preload(url: URL) {
-        fleetHost = url.host
+        fleetHost = url.host?.lowercased()
         homeURL = url
 
         // Configure WKWebView — non-persistent data store so no cookies/cache persist
@@ -160,7 +179,7 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
 
     /// Navigate the existing web view to a new URL (e.g., after token refresh).
     func reload(url: URL) {
-        fleetHost = url.host
+        fleetHost = url.host?.lowercased()
         homeURL = url
         webView?.load(URLRequest(url: url))
     }
@@ -235,7 +254,15 @@ final class BrowserWindow: NSObject, NSWindowDelegate {
     /// Resets SSO state. Called on window close, navigation errors, and
     /// when navigation returns to the Fleet host from an SSO flow.
     private func resetSSOFlow() {
-        ssoFlowActive = false
+        ssoHost = nil
+        ssoFlowStartedAt = nil
+    }
+
+    /// Returns the WebView to the Fleet device page. Used to recover from a
+    /// stranded state (expired/abandoned SSO flow on an external page).
+    private func navigateHome() {
+        guard let homeURL = homeURL else { return }
+        webView?.load(URLRequest(url: homeURL))
     }
 
     // MARK: - External URL Safety
@@ -290,7 +317,7 @@ extension BrowserWindow: WKNavigationDelegate {
 
         // If an SSO flow was active and we've finished loading a Fleet-host page,
         // the SSO callback is complete — reset the flow.
-        if ssoFlowActive, webView.url?.host == fleetHost {
+        if ssoFlowActive, webView.url?.host?.lowercased() == fleetHost {
             resetSSOFlow()
         }
 
@@ -301,7 +328,7 @@ extension BrowserWindow: WKNavigationDelegate {
         // Only run queued JS on Fleet-host pages — avoids injecting into IdP
         // pages during SSO redirects and avoids consuming the slot on an
         // intermediate redirect before the real target finishes loading.
-        if let js = pendingPostLoadJS, webView.url?.host == fleetHost {
+        if let js = pendingPostLoadJS, webView.url?.host?.lowercased() == fleetHost {
             pendingPostLoadJS = nil
             webView.evaluateJavaScript(js, completionHandler: nil)
         }
@@ -390,19 +417,37 @@ extension BrowserWindow: WKNavigationDelegate {
             return
         }
 
+        let requestHost = requestURL.host?.lowercased()
+
         // Always allow same-host and about: URLs
-        if requestURL.host == fleetHost || requestURL.scheme == "about" {
+        if requestHost == fleetHost || requestURL.scheme == "about" {
             decisionHandler(.allow)
             return
         }
 
-        // During an active SSO flow, allow external IdP redirects in the WebView
-        // but only over HTTPS to protect credentials in transit
+        // During an active SSO flow, keep external IdP redirects in the WebView
+        // so the chain completes in-app — but only over HTTPS, only while the
+        // flow is fresh, and only on the current IdP host. Hops to a *new*
+        // external host are allowed via server redirects or form submissions
+        // (multi-host IdP chains); link clicks to unrelated hosts open in the
+        // default browser so the chrome-less WebView can't be steered to
+        // arbitrary sites.
         if ssoFlowActive {
-            if requestURL.scheme?.lowercased() == "https" {
+            guard requestURL.scheme?.lowercased() == "https", !ssoFlowExpired else {
+                // Flow over (expired or degraded to non-HTTPS). Don't just cancel —
+                // that would strand the WebView on the IdP page; return home.
+                resetSSOFlow()
+                decisionHandler(.cancel)
+                navigateHome()
+                return
+            }
+            if requestHost == ssoHost {
+                decisionHandler(.allow)
+            } else if navigationAction.navigationType == .other || navigationAction.navigationType == .formSubmitted {
+                ssoHost = requestHost
                 decisionHandler(.allow)
             } else {
-                resetSSOFlow()
+                openExternalURL(requestURL)
                 decisionHandler(.cancel)
             }
             return
@@ -412,17 +457,25 @@ extension BrowserWindow: WKNavigationDelegate {
         // (server redirect or form submission from Fleet page), start SSO flow.
         // This covers all SSO scenarios: MDM enrollment, IdP login, etc.
         if navigationAction.navigationType == .other || navigationAction.navigationType == .formSubmitted {
-            if navigationAction.sourceFrame.request.url?.host == fleetHost,
+            if navigationAction.sourceFrame.request.url?.host?.lowercased() == fleetHost,
                requestURL.scheme?.lowercased() == "https" {
-                ssoFlowActive = true
+                ssoHost = requestHost
+                ssoFlowStartedAt = Date()
                 decisionHandler(.allow)
                 return
             }
         }
 
-        // External links — open in default browser (scheme-validated)
-        openExternalURL(requestURL)
+        // External links — open in default browser (scheme-validated). But if
+        // the WebView is stranded on an external page with no active flow (an
+        // expired or abandoned SSO), navigate home instead — otherwise every
+        // scripted retry on the stranded page would pop another browser tab.
         decisionHandler(.cancel)
+        if webView.url?.host?.lowercased() == fleetHost {
+            openExternalURL(requestURL)
+        } else {
+            navigateHome()
+        }
     }
 }
 
@@ -438,7 +491,8 @@ extension BrowserWindow: WKUIDelegate {
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         if let url = navigationAction.request.url {
-            if url.host == fleetHost || ssoFlowActive {
+            let host = url.host?.lowercased()
+            if host == fleetHost || (ssoFlowActive && host == ssoHost && !ssoFlowExpired) {
                 webView.load(URLRequest(url: url))
             } else {
                 openExternalURL(url)
@@ -458,7 +512,11 @@ extension BrowserWindow: WKDownloadDelegate {
         completionHandler: @escaping (URL?) -> Void
     ) {
         let downloadsDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        var destination = downloadsDir.appendingPathComponent(suggestedFilename)
+        // The suggested name is server-supplied — keep only the final path
+        // component so the file always lands directly in Downloads.
+        var safeFilename = (suggestedFilename as NSString).lastPathComponent
+        if safeFilename.isEmpty || safeFilename == "." || safeFilename == ".." { safeFilename = "download" }
+        var destination = downloadsDir.appendingPathComponent(safeFilename)
 
         // Avoid overwriting existing files — append a number if needed (max 999)
         var counter = 1
@@ -483,9 +541,7 @@ extension BrowserWindow: WKDownloadDelegate {
             NSWorkspace.shared.open(url)
 
             // Navigate back to the Fleet self-service homepage
-            if let homeURL = homeURL {
-                webView?.load(URLRequest(url: homeURL))
-            }
+            navigateHome()
         }
     }
 
