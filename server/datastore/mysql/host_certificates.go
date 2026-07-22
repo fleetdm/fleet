@@ -411,7 +411,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 		// Compute the precise source-row changes: delete only rows that are stale (by primary key) and insert only tuples that are missing.
 		staleSourceRowIDs := append([]uint(nil), sourceRowIDsToRetire...)
-		var sourceRowsToInsert []*fleet.HostCertificateRecord
+		var sourceRowsToInsert []hostCertSourceRow
 		if len(toSetSourcesBySHA1) > 0 {
 			// must reload the DB IDs to insert the host_certificate_sources rows
 			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, hostID, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
@@ -439,10 +439,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 					if _, ok := existingRowIDs[s]; ok {
 						continue
 					}
-					sourceRowsToInsert = append(sourceRowsToInsert, &fleet.HostCertificateRecord{
-						ID:       certID,
-						Source:   s.Source,
-						Username: s.Username,
+					sourceRowsToInsert = append(sourceRowsToInsert, hostCertSourceRow{
+						HostCertificateID: certID,
+						Source:            s.Source,
+						Username:          s.Username,
 					})
 				}
 			}
@@ -770,16 +770,23 @@ func deleteHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, ids []u
 	return nil
 }
 
+// hostCertSourceRow is one (host_certificate_id, source, username) tuple to insert into host_certificate_sources.
+type hostCertSourceRow struct {
+	HostCertificateID uint
+	Source            fleet.HostCertificateSource
+	Username          string
+}
+
 // insertHostCertSourceRowsDB inserts the given (host_certificate_id, source, username) tuples. The caller passes only
 // tuples it believes are missing; ON DUPLICATE KEY UPDATE is a no-op guard.
-func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []*fleet.HostCertificateRecord) error {
+func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []hostCertSourceRow) error {
 	if len(rows) == 0 {
 		return nil
 	}
 	// Sort by (host_certificate_id, source, username) for deterministic lock ordering across concurrent transactions.
-	slices.SortFunc(rows, func(a, b *fleet.HostCertificateRecord) int {
-		if a.ID != b.ID {
-			if a.ID < b.ID {
+	slices.SortFunc(rows, func(a, b hostCertSourceRow) int {
+		if a.HostCertificateID != b.HostCertificateID {
+			if a.HostCertificateID < b.HostCertificateID {
 				return -1
 			}
 			return 1
@@ -795,7 +802,7 @@ func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []
 	args := make([]any, 0, len(rows)*singleRowPlaceholderCount)
 	for _, row := range rows {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
-		args = append(args, row.ID, row.Source, row.Username)
+		args = append(args, row.HostCertificateID, row.Source, row.Username)
 	}
 	stmt := fmt.Sprintf(`
 	INSERT INTO host_certificate_sources (
