@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.3.1",
+      "version": "2.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.binance.BinanceDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binance.BinanceDesktop' AND version_compare(bundle_short_version, '2.3.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binance.BinanceDesktop' AND version_compare(bundle_short_version, '2.4.1') < 0);"
       },
-      "installer_url": "https://ftp.binance.com/electron-desktop/mac/production/binance-2.3.1-arm64.dmg",
+      "installer_url": "https://ftp.binance.com/electron-desktop/mac/production/binance-2.4.1-arm64.dmg",
       "install_script_ref": "ca033eac",
       "uninstall_script_ref": "6006366b",
-      "sha256": "3671790022117d6cd584fc70c3d55b15ea78759c4ff3819cf22ab7c05878981a",
+      "sha256": "19564f74e7d9d6cacd326d0ba2b64cef8aa24d47d78bdf3bd44bd513730919b8",
       "default_categories": [
         "Productivity"
       ]

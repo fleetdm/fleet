@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "223.0.0.0.0",
+      "version": "224.0.0.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio' AND version_compare(bundle_short_version, '223.0.0.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.facebook.Origami-Studio' AND version_compare(bundle_short_version, '224.0.0.0.0') < 0);"
       },
       "installer_url": "https://facebook.com/designtools/origami/",
       "install_script_ref": "9c7a031b",
