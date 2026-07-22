@@ -325,7 +325,6 @@ const MDMStatusModal = ({
       return (
         <div className={`${baseClass}__profile-assignment--not-accessible`}>
           <DataError
-            verticalPaddingSize="pad-none"
             singleCustomLine
             description="Fleet can't find this host in Apple Business. It may have been removed, released, or assigned to a different MDM server in AB."
           />

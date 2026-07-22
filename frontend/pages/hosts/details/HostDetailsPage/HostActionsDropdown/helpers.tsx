@@ -421,6 +421,7 @@ const canReleaseFromAB = (config: IHostActionConfigOptions) => {
     isAppleBusinessEnabledAndConfigured,
     isGlobalAdmin,
     isTeamAdmin,
+    hostPlatform,
   } = config;
 
   if (!isPremiumTier) {
@@ -428,6 +429,10 @@ const canReleaseFromAB = (config: IHostActionConfigOptions) => {
   }
 
   if (!isAppleBusinessEnabledAndConfigured) {
+    return false;
+  }
+
+  if (!isAppleDevice(hostPlatform)) {
     return false;
   }
 
