@@ -6359,7 +6359,7 @@ func testSetFleetMaintainedAppActiveInstallerPin(t *testing.T, ds *Datastore) {
 	// Have a host report a pass for the policy and aggregate stats; the next flip
 	// changes the query, so both must be cleared for hosts to re-evaluate.
 	host := test.NewHost(t, ds, "patchhost", "1", "patchhostkey", "patchhostuuid", time.Now())
-	_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{patchPolicy.ID: new(true)}, time.Now(), false, nil)
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{patchPolicy.ID: new(true)}, time.Now(), false, nil)
 	require.NoError(t, err)
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
