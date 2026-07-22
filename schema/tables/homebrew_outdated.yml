@@ -35,7 +35,7 @@ columns:
     description: Version the package is pinned to, if pinned. Empty when not pinned.
     type: text
     required: false
-notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). It is queried as the current console (logged-in) user, so hosts with no console user (headless, or sitting at the login window) return no rows even when Homebrew is installed. It reflects a single Homebrew installation — if both a system-wide install (`/opt/homebrew` or `/usr/local`) and a per-user install (`~/homebrew`) are present, the system-wide one is used. If the console user does not own the Homebrew installation, `current_version` may be out of date because Homebrew's update step can fail for a non-owner. `install_path` assumes Homebrew's default layout; non-default `HOMEBREW_CELLAR` or `HOMEBREW_CASKROOM` locations are not reflected.
 evented: false
 examples: |-
   Check the installed and latest available version of an outdated package. This
