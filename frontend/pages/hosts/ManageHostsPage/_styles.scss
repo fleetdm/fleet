@@ -248,6 +248,6 @@
 
 // The tooltip renders in a portal outside .manage-hosts, so this can't be
 // nested under that selector.
-.agent-header-tooltip {
+.host-table-header-tooltip {
   text-align: left;
 }

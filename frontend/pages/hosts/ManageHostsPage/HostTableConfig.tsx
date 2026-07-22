@@ -389,10 +389,12 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
         <TooltipWrapper
           tipContent={
             <>
-              Currently only supported for macOS, Windows, Linux, and ChromeOS.
+              Only supported on hosts that run Fleet&apos;s agent: macOS,
+              Windows, Linux, and ChromeOS.
             </>
           }
           className="status-header"
+          tooltipClass="host-table-header-tooltip"
           fixedPositionStrategy
         >
           Status
@@ -577,8 +579,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent="Currently only supported for macOS, Windows, Linux, and ChromeOS."
-          tooltipClass="agent-header-tooltip"
+          tipContent="Only supported on hosts that run Fleet's agent: macOS, Windows, Linux, and ChromeOS."
+          tooltipClass="host-table-header-tooltip"
           fixedPositionStrategy
         >
           Agent
@@ -685,7 +687,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent="Currently only supported for macOS, Windows, and Linux."
+          tipContent="Only supported on macOS, Windows, and Linux, where Fleet's agent can measure system uptime."
+          tooltipClass="host-table-header-tooltip"
           fixedPositionStrategy
         >
           Last restarted
