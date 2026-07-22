@@ -76,6 +76,29 @@ func TestExtractZipPayload(t *testing.T) {
 		require.True(t, os.IsNotExist(statErr))
 	})
 
+	t.Run("only the payload entry is extracted", func(t *testing.T) {
+		zipPath := writeTestZip(t, map[string]string{
+			"big-other-file.dat": "must not be written to disk",
+			"docs/readme.txt":    "must not be written to disk",
+			"Setup.MSI":          "msi bytes", // uppercase extension still matches
+		})
+		dest := t.TempDir()
+		payload, err := ExtractZipPayload(zipPath, dest, []string{".msi", ".exe"})
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join(dest, "Setup.MSI"), payload)
+		_, statErr := os.Stat(filepath.Join(dest, "big-other-file.dat"))
+		require.True(t, os.IsNotExist(statErr))
+		_, statErr = os.Stat(filepath.Join(dest, "docs"))
+		require.True(t, os.IsNotExist(statErr))
+	})
+
+	t.Run("payload deeper than one directory is not considered", func(t *testing.T) {
+		zipPath := writeTestZip(t, map[string]string{"a/b/c/installer.msi": "too deep"})
+		payload, err := ExtractZipPayload(zipPath, t.TempDir(), []string{".msi"})
+		require.NoError(t, err)
+		require.Empty(t, payload)
+	})
+
 	t.Run("entry size limit boundary", func(t *testing.T) {
 		zipPath := writeTestZip(t, map[string]string{"payload.msi": "1234567890"}) // 10 bytes
 		r, err := zip.OpenReader(zipPath)

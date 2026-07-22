@@ -160,7 +160,12 @@ The FMA pipeline independently verifies installers instead of trusting upstream 
   human has to update the pin in a reviewed PR. The validator re-checks the pin on a real
   macOS/Windows runner before the install script runs (`pkgutil`/`codesign`/`spctl` with
   notarization assessment on macOS; `Get-AuthenticodeSignature` with full chain and revocation on
-  Windows).
+  Windows). At ingest, Windows signatures are checked with `osslsigncode`, which verifies chains
+  against the host's TLS CA bundle — that bundle lacks many Windows-only roots (Microsoft's Azure
+  Trusted Signing roots among them), so an untrusted *chain* at ingest only warns and defers to
+  the validator's authoritative Windows check. The ingest-stage hard failures are the signals
+  that don't depend on the local trust store: a signed digest that doesn't match the file's
+  bytes, or an observed identity that contradicts the pin.
 - **Malware scanning (validator):** Windows installers get a Microsoft Defender on-demand scan
   before installation. On macOS, the enforced notarization assessment *is* the malware layer —
   notarization means Apple's automated malware analysis ran on those exact bytes, and `spctl`

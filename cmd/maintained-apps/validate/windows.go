@@ -53,13 +53,15 @@ func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installe
 			return fmt.Errorf("creating extraction directory: %w", err)
 		}
 		defer os.RemoveAll(dest)
-		payload, err := sigverify.ExtractZipPayload(installerPath, dest, []string{".msi", ".exe"})
+		payload, err := sigverify.ExtractZipPayload(installerPath, dest, []string{".msi", ".exe", ".msix", ".appx"})
 		if err != nil {
 			return fmt.Errorf("extracting zip to verify payload: %w", err)
 		}
 		if payload == "" {
-			logger.WarnContext(ctx, "No Authenticode payload (.msi/.exe) found in zip installer; skipping signature verification")
-			return nil
+			// A zip with no signable payload must fail verification
+			// (report-only warns; enforce mode fails): a skip here would let
+			// an unexpected archive layout bypass the signature check.
+			return errors.New("no Authenticode-signable payload (.msi/.exe/.msix/.appx) found in zip installer")
 		}
 		logger.InfoContext(ctx, fmt.Sprintf("Zip installer: verifying Authenticode signature of payload %q", filepath.Base(payload)))
 		checkPath = payload

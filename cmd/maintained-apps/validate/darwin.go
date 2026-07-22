@@ -56,8 +56,11 @@ func verifyInstalledApp(ctx context.Context, logger *slog.Logger, appPath, insta
 		return nil
 	}
 	if appPath == "" {
-		logger.WarnContext(ctx, "Cannot verify installed app signature: no app path detected")
-		return nil
+		// This check gates the Gatekeeper exception and quarantine stripping
+		// in postApplicationInstall, so an undetected app path must fail
+		// verification (report-only warns; enforce mode fails) rather than
+		// silently pass.
+		return errors.New("no installed .app bundle detected; cannot verify the app's signature for dmg/zip installers")
 	}
 
 	res, err := sigverify.VerifyAppBundle(ctx, appPath)

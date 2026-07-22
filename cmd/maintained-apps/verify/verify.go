@@ -196,36 +196,55 @@ func verifyWindowsSignature(ctx context.Context, av *appVerification, installerP
 		return
 	}
 
+	classifyAuthenticode(av, res, pin, detailPrefix)
+}
+
+// classifyAuthenticode maps an osslsigncode result onto the report. Hash-pass
+// plus digest-match means the bytes are what the publisher signed; whether
+// the publisher's chain is TRUSTED cannot be decided here — osslsigncode
+// verifies against the host's TLS CA bundle, which lacks many Windows-only
+// roots (Microsoft's Azure Trusted Signing roots among them), so genuine
+// installers routinely fail chain validation off-Windows. Chain-trust
+// failures therefore warn and defer to the validator's authoritative
+// Get-AuthenticodeSignature check; the ingest-stage hard failures are the
+// signals that don't depend on the local trust store: a digest that doesn't
+// match the file's bytes, or an observed identity that contradicts the pin.
+func classifyAuthenticode(av *appVerification, res *sigverify.AuthenticodeResult, pin *maintained_apps.FMASignature, detailPrefix string) {
 	av.SignatureObservable = true
 	av.ObservedSubjectCNs = res.SubjectCNs
 	av.ObservedUnsigned = res.NoSignature
+
+	const deferral = "; deferred to the validator's authoritative Windows check"
 
 	switch {
 	case pin != nil && pin.Unsigned:
 		switch {
 		case res.NoSignature:
 			av.Signature = checkResult{Status: statusPass, Detail: detailPrefix + "unsigned, as pinned (justification: " + pin.Justification + ")"}
-		case !res.Verified:
-			// A formerly-unsigned installer now carrying a broken or
-			// untrusted signature is a tamper indicator, not a vendor
-			// starting to sign.
-			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "pinned unsigned but installer now carries an invalid signature: " + res.Detail}
-			av.fail("pin says unsigned but installer now carries an invalid signature: %s", res.Detail)
-		default:
+		case res.DigestMismatch:
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "pinned unsigned but installer now carries a signature whose digest does not match the file: " + res.Detail}
+			av.fail("pin says unsigned but installer now carries a signature whose digest does not match the file's bytes: %s", res.Detail)
+		case res.Verified:
 			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + fmt.Sprintf("pinned unsigned but installer is validly signed by %v; update the pin", res.SubjectCNs)}
 			av.warn("installer is now validly signed by %v but the pin says unsigned; update the pin", res.SubjectCNs)
+		default:
+			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + fmt.Sprintf("pinned unsigned but installer now carries a signature by %v that could not be chain-validated on this host (%s)", res.SubjectCNs, res.Detail) + deferral}
+			av.warn("pin says unsigned but installer now carries a signature by %v (chain not validated on this host: %s); if the vendor started signing, update the pin", res.SubjectCNs, res.Detail)
 		}
 	case pin != nil:
 		switch {
 		case res.NoSignature:
 			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + fmt.Sprintf("installer has no Authenticode signature but pin expects %v", pin.SubjectCNs)}
 			av.fail("installer is unsigned but the pin expects signer %v", pin.SubjectCNs)
-		case !res.Verified:
-			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "Authenticode signature verification failed: " + res.Detail}
-			av.fail("Authenticode signature verification failed: %s", res.Detail)
+		case res.DigestMismatch:
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "signature digest does not match the file's bytes: " + res.Detail}
+			av.fail("Authenticode digest mismatch — the bytes are not what the publisher signed: %s", res.Detail)
 		case !anyCNMatches(pin, res.SubjectCNs):
 			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + fmt.Sprintf("signer %v does not match pinned %v", res.SubjectCNs, pin.SubjectCNs)}
 			av.fail("signer identity changed: observed %v, pinned %v", res.SubjectCNs, pin.SubjectCNs)
+		case !res.Verified:
+			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + fmt.Sprintf("signed by %v (matches pin) but the chain could not be validated against this host's trust store (%s)", res.SubjectCNs, res.Detail) + deferral}
+			av.warn("signer matches pin but the chain could not be validated on this host: %s", res.Detail)
 		default:
 			av.Signature = checkResult{Status: statusPass, Detail: detailPrefix + fmt.Sprintf("signed by %v (matches pin)", res.SubjectCNs)}
 		}
@@ -234,9 +253,12 @@ func verifyWindowsSignature(ctx context.Context, av *appVerification, installerP
 		case res.NoSignature:
 			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + `installer has no Authenticode signature and no "unsigned" pin`}
 			av.warn(`installer is unsigned and the app has no "unsigned" signature pin; with a no_check hash this app would have no integrity control`)
+		case res.DigestMismatch:
+			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "signature digest does not match the file's bytes: " + res.Detail}
+			av.fail("Authenticode digest mismatch — the bytes are not what the publisher signed: %s", res.Detail)
 		case !res.Verified:
-			av.Signature = checkResult{Status: statusFail, Detail: detailPrefix + "Authenticode signature verification failed: " + res.Detail}
-			av.fail("Authenticode signature verification failed: %s", res.Detail)
+			av.Signature = checkResult{Status: statusWarn, Detail: detailPrefix + fmt.Sprintf("signed by %v but the chain could not be validated against this host's trust store (%s)", res.SubjectCNs, res.Detail) + deferral}
+			av.warn("signature chain could not be validated on this host (identity %v recorded unconfirmed): %s", res.SubjectCNs, res.Detail)
 		default:
 			av.Signature = checkResult{Status: statusRecorded, Detail: detailPrefix + fmt.Sprintf("signed by %v (no pin yet)", res.SubjectCNs)}
 		}

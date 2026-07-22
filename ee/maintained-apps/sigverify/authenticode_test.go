@@ -1,6 +1,7 @@
 package sigverify
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -127,11 +128,108 @@ Number of verified signatures: 1
 Failed
 `
 
+// Modeled on real osslsigncode 2.13 output for an Azure Trusted Signing
+// installer verified against a CA bundle that lacks Microsoft's identity
+// roots: the message digests MATCH (the bytes are what the publisher signed)
+// but both the timestamp chain and the signing chain fail to validate.
+const osslsigncodeUntrustedChainOutput = `Signature Index: 0  (Primary Signature)
+
+Message digest algorithm  : SHA256
+Current message digest    : 64659DFDDE182753D4DA4610F58A00A338B81567F8FDA1A5A57647EFB707EF9D
+Calculated message digest : 64659DFDDE182753D4DA4610F58A00A338B81567F8FDA1A5A57647EFB707EF9D
+
+Signer's certificate:
+	------------------
+	Signer #0:
+		Subject: CN=Notion Labs\, Inc.,O=Notion Labs\, Inc.,L=San Francisco,ST=California,C=US
+		Issuer : CN=Microsoft ID Verified CS AOC CA 03,O=Microsoft Corporation,C=US
+
+CAfile: /etc/ssl/cert.pem
+TSA's certificates file: /etc/ssl/cert.pem
+
+Timestamp Server Signature verification: failed
+Signature verification: failed
+
+Number of verified signatures: 1
+Failed
+`
+
+// The countersignature's TSA chain validates ("Timestamp Server Signature
+// verification: ok") while the overall verdict is "failed" — a naive
+// substring match on "Signature verification: ok" is satisfied by the
+// timestamp line and would misreport this as verified.
+const osslsigncodeTimestampOKVerdictFailedOutput = `Signature Index: 0  (Primary Signature)
+
+Message digest algorithm  : SHA256
+Current message digest    : 7BF59CE89CD870B5810EA955E6A475D31259EE47F4D436983F714A33A6BD7958
+Calculated message digest : 7BF59CE89CD870B5810EA955E6A475D31259EE47F4D436983F714A33A6BD7958
+
+Signer's certificate:
+	------------------
+	Signer #0:
+		Subject: CN=Telegram FZ-LLC,O=Telegram FZ-LLC,L=Dubai,C=AE
+		Issuer : CN=GlobalSign GCC R45 EV CodeSigning CA 2020,O=GlobalSign nv-sa,C=BE
+
+Timestamp Server Signature verification: ok
+Signature verification time: Jul 21 13:45:47 2026 GMT
+Signature verification: failed
+
+Number of verified signatures: 1
+Failed
+`
+
+const osslsigncodeDigestMismatchOutput = `Signature Index: 0  (Primary Signature)
+
+Message digest algorithm  : SHA256
+Current message digest    : 1A2B3C4D
+Calculated message digest : DEADBEEF
+
+Signer's certificate:
+	Signer #0:
+		Subject: /C=US/O=Some Corp/CN=Some Corp
+
+Timestamp Server Signature verification: ok
+Signature verification: failed
+
+Number of verified signatures: 1
+Failed
+`
+
+// Dual-signed file where the first signature verifies but the second fails:
+// the file as a whole must not count as verified.
+const osslsigncodeSecondSignatureFailedOutput = `Signature Index: 0  (Primary Signature)
+
+Message digest algorithm  : SHA1
+Current message digest    : 1A2B3C4D
+Calculated message digest : 1A2B3C4D
+
+Signer's certificate:
+	Signer #0:
+		Subject: /C=US/O=Some Corp/CN=Some Corp
+
+Signature verification: ok
+
+Signature Index: 1
+Message digest algorithm  : SHA256
+Current message digest    : 5E6F7A8B
+Calculated message digest : 5E6F7A8B
+
+Signer's certificate:
+	Signer #0:
+		Subject: /C=US/O=Some Corp/CN=Some Corp
+
+Signature verification: failed
+
+Number of verified signatures: 2
+Failed
+`
+
 func TestParseOsslsigncodeOutput(t *testing.T) {
 	t.Run("verified signature", func(t *testing.T) {
 		res := ParseOsslsigncodeOutput(osslsigncodeOKOutput)
 		require.True(t, res.Verified)
 		require.False(t, res.NoSignature)
+		require.False(t, res.DigestMismatch)
 		// Only the signer's CN, not the chain CAs from "Number of certificates".
 		require.Equal(t, []string{"Simon Tatham"}, res.SubjectCNs)
 	})
@@ -163,6 +261,56 @@ func TestParseOsslsigncodeOutput(t *testing.T) {
 		require.False(t, res.NoSignature)
 		require.Equal(t, []string{"Evil Corp"}, res.SubjectCNs)
 		require.Contains(t, res.Detail, "Signature verification: failed")
+	})
+
+	t.Run("untrusted chain with matching digest", func(t *testing.T) {
+		res := ParseOsslsigncodeOutput(osslsigncodeUntrustedChainOutput)
+		require.False(t, res.Verified)
+		require.False(t, res.NoSignature)
+		require.False(t, res.DigestMismatch)
+		require.Equal(t, []string{"Notion Labs, Inc."}, res.SubjectCNs)
+	})
+
+	t.Run("timestamp ok does not satisfy the overall verdict", func(t *testing.T) {
+		res := ParseOsslsigncodeOutput(osslsigncodeTimestampOKVerdictFailedOutput)
+		require.False(t, res.Verified)
+		require.False(t, res.DigestMismatch)
+		require.Equal(t, []string{"Telegram FZ-LLC"}, res.SubjectCNs)
+		require.Contains(t, res.Detail, "failed")
+	})
+
+	t.Run("digest mismatch", func(t *testing.T) {
+		res := ParseOsslsigncodeOutput(osslsigncodeDigestMismatchOutput)
+		require.False(t, res.Verified)
+		require.True(t, res.DigestMismatch)
+	})
+
+	t.Run("MSI DigitalSignature digest mismatch", func(t *testing.T) {
+		// MSI files label the digest lines "Current/Calculated
+		// DigitalSignature" instead of "message digest".
+		out := strings.Replace(osslsigncode213Output,
+			"Calculated DigitalSignature      : 8A17866CD7B2DFA570677E222AAF65B6D9B041DF",
+			"Calculated DigitalSignature      : DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF", 1)
+		out = strings.Replace(out, "Signature verification: ok", "Signature verification: failed", 1)
+		res := ParseOsslsigncodeOutput(out)
+		require.False(t, res.Verified)
+		require.True(t, res.DigestMismatch)
+		// And the unmodified fixture's matching MSI digests are not a mismatch.
+		require.False(t, ParseOsslsigncodeOutput(osslsigncode213Output).DigestMismatch)
+	})
+
+	t.Run("empty output", func(t *testing.T) {
+		res := ParseOsslsigncodeOutput("")
+		require.False(t, res.Verified)
+		require.False(t, res.NoSignature)
+		require.False(t, res.DigestMismatch)
+		require.NotEmpty(t, res.Detail)
+	})
+
+	t.Run("one of two signatures failed", func(t *testing.T) {
+		res := ParseOsslsigncodeOutput(osslsigncodeSecondSignatureFailedOutput)
+		require.False(t, res.Verified)
+		require.False(t, res.DigestMismatch)
 	})
 }
 

@@ -23,10 +23,20 @@ import (
 type AuthenticodeResult struct {
 	// Available is false when osslsigncode is not installed.
 	Available bool
-	// Verified is true when osslsigncode reported "Signature verification: ok".
+	// Verified is true when osslsigncode's overall verdict was "Signature
+	// verification: ok" for every signature in the file.
 	Verified bool
 	// NoSignature is true when the file carries no Authenticode signature.
 	NoSignature bool
+	// DigestMismatch is true when the message digest calculated from the file
+	// does not match the digest inside the signature: the bytes are not what
+	// the publisher signed, regardless of whether the certificate chain is
+	// trusted on this host. This is the tamper signal an unverified chain is
+	// not — osslsigncode verifies chains against the host's TLS CA bundle,
+	// which lacks many Windows-only roots (e.g. Microsoft's Azure Trusted
+	// Signing roots), so Verified=false with DigestMismatch=false is expected
+	// for plenty of genuinely signed installers off-Windows.
+	DigestMismatch bool
 	// SubjectCNs are the leaf subject CommonNames of the signer(s).
 	SubjectCNs []string
 	// Detail carries a short failure description for reporting.
@@ -72,13 +82,35 @@ func ParseOsslsigncodeOutput(out string) *AuthenticodeResult {
 		return res
 	}
 
-	res.Verified = strings.Contains(out, "Signature verification: ok")
+	// The overall verdict must be matched as an exact line: a substring match
+	// would be satisfied by the countersignature's "Timestamp Server Signature
+	// verification: ok" line even when the verdict itself is "failed". Files
+	// can carry multiple signatures, each with its own verdict line — all of
+	// them must be ok.
+	sawOK, sawFailed := false, false
+	for line := range strings.Lines(out) {
+		switch strings.TrimSpace(line) {
+		case "Signature verification: ok":
+			sawOK = true
+		case "Signature verification: failed":
+			sawFailed = true
+		}
+	}
+	res.Verified = sawOK && !sawFailed
 	if !res.Verified {
-		res.Detail = firstLineContaining(out, "Signature verification")
+		// Prefer a failing verification line ("Timestamp Server Signature
+		// verification: failed" sorts first when present, which is the more
+		// specific cause) over e.g. a passing timestamp line.
+		res.Detail = firstLineContaining(out, "Signature verification: failed")
+		if res.Detail == "" {
+			res.Detail = firstLineContaining(out, "Signature verification")
+		}
 		if res.Detail == "" {
 			res.Detail = "osslsigncode did not report a successful verification"
 		}
 	}
+
+	res.DigestMismatch = digestMismatch(out)
 
 	// Only take Subject lines from the "Signer's certificate:" section: the
 	// sections that follow (chain listing, countersignatures, timestamp and
@@ -119,6 +151,61 @@ func ParseOsslsigncodeOutput(out string) *AuthenticodeResult {
 	}
 
 	return res
+}
+
+// digestLabelPairs are the "stored vs recomputed" line-label pairs
+// osslsigncode prints, which vary by file format: PE files report "message
+// digest" lines, MSI files report "DigitalSignature" (plus
+// "MsiDigitalSignatureEx" when that stream is present).
+var digestLabelPairs = [][2]string{
+	{"Current message digest", "Calculated message digest"},
+	{"Current DigitalSignature", "Calculated DigitalSignature"},
+	{"Current MsiDigitalSignatureEx", "Calculated MsiDigitalSignatureEx"},
+}
+
+// digestMismatch reports whether any signature's stored digest differs from
+// the digest osslsigncode recomputed from the file's bytes — the
+// trust-store-independent tamper signal. Each label pair is compared
+// positionally (the pairs are printed per signature, in order, and always
+// adjacent in every known osslsigncode output format). osslsigncode also
+// flags page-hash and digest mismatches with a "MISMATCH" marker in some
+// output paths; treat either signal as a mismatch.
+func digestMismatch(out string) bool {
+	for _, pair := range digestLabelPairs {
+		var current, calculated []string
+		for line := range strings.Lines(out) {
+			trimmed := strings.TrimSpace(line)
+			if value, ok := lineValue(trimmed, pair[0]); ok {
+				current = append(current, value)
+			} else if value, ok := lineValue(trimmed, pair[1]); ok {
+				calculated = append(calculated, value)
+			}
+		}
+		for i, c := range current {
+			if i >= len(calculated) {
+				break
+			}
+			if !strings.EqualFold(c, calculated[i]) {
+				return true
+			}
+		}
+	}
+	return strings.Contains(out, "MISMATCH")
+}
+
+// lineValue returns the value of a "key : value" line when the line starts
+// with the given key.
+func lineValue(line, key string) (string, bool) {
+	rest, ok := strings.CutPrefix(line, key)
+	if !ok {
+		return "", false
+	}
+	rest = strings.TrimSpace(rest)
+	value, ok := strings.CutPrefix(rest, ":")
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(value), true
 }
 
 // dnAttributePattern matches the start of a '/KEY=' attribute in an

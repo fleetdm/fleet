@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -13,10 +15,12 @@ import (
 // guard); comfortably above any real installer payload.
 const maxZipEntrySize = 10 << 30 // 10 GiB
 
-// ExtractZipPayload extracts zipPath into destDir and returns the path of the
-// first payload file whose extension matches one of exts (searched top-level
-// first, then one directory deep — the same lookup VerifyZipPayload uses for
-// .app bundles). It returns "" with no error when the archive contains no
+// ExtractZipPayload extracts the single payload file from zipPath whose
+// extension matches one of exts — preferring earlier extensions in exts, then
+// top-level entries over ones a directory deep (entries nested deeper are not
+// considered) — into destDir, and returns its path. Only that one entry is
+// extracted, so an archive stuffed with other large entries can't exhaust
+// disk on a runner. It returns "" with no error when the archive contains no
 // matching payload. Used for zip-wrapped Windows installers, whose
 // Authenticode signature lives on the .msi/.exe inside the archive, not on
 // the zip container.
@@ -27,35 +31,61 @@ func ExtractZipPayload(zipPath, destDir string, exts []string) (string, error) {
 	}
 	defer r.Close()
 
-	for _, f := range r.File {
-		target := filepath.Join(destDir, filepath.FromSlash(f.Name))
+	payload := selectPayloadEntry(r.File, destDir, exts)
+	if payload == nil {
+		return "", nil
+	}
+
+	target := filepath.Join(destDir, filepath.FromSlash(payload.Name))
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return "", fmt.Errorf("creating parent directory for %s: %w", payload.Name, err)
+	}
+	if err := extractZipEntry(payload, target, maxZipEntrySize); err != nil {
+		return "", err
+	}
+	return target, nil
+}
+
+// selectPayloadEntry ranks candidate payload entries by extension preference
+// (earlier in exts wins), then depth (top-level before one directory deep),
+// then name for determinism, and returns the best one. Directory entries,
+// entries nested more than one directory deep, and entries that would escape
+// destDir (zip-slip) are never candidates.
+func selectPayloadEntry(files []*zip.File, destDir string, exts []string) *zip.File {
+	var best *zip.File
+	bestExt, bestDepth := 0, 0
+	for _, f := range files {
+		if f.FileInfo().IsDir() {
+			continue
+		}
 		// Zip-slip guard: entries must stay inside destDir.
+		target := filepath.Join(destDir, filepath.FromSlash(f.Name))
 		rel, err := filepath.Rel(destDir, target)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
 
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return "", fmt.Errorf("creating directory %s: %w", f.Name, err)
-			}
+		name := path.Clean(f.Name) // zip entry names always use forward slashes
+		depth := strings.Count(name, "/")
+		if depth > 1 {
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return "", fmt.Errorf("creating parent directory for %s: %w", f.Name, err)
+		extIdx := slices.IndexFunc(exts, func(ext string) bool {
+			return strings.EqualFold(path.Ext(name), ext)
+		})
+		if extIdx < 0 {
+			continue
 		}
 
-		if err := extractZipEntry(f, target, maxZipEntrySize); err != nil {
-			return "", err
+		better := best == nil ||
+			extIdx < bestExt ||
+			(extIdx == bestExt && depth < bestDepth) ||
+			(extIdx == bestExt && depth == bestDepth && f.Name < best.Name)
+		if better {
+			best, bestExt, bestDepth = f, extIdx, depth
 		}
 	}
-
-	for _, ext := range exts {
-		if payload := findPayload(destDir, ext); payload != "" {
-			return payload, nil
-		}
-	}
-	return "", nil
+	return best
 }
 
 func extractZipEntry(f *zip.File, target string, limit int64) error {

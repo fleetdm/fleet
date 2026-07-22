@@ -84,11 +84,7 @@ func VerifyPkgSignature(ctx context.Context, pkgPath string) (*DarwinResult, err
 		}
 	}
 
-	spctlOut, _ := exec.CommandContext(ctx, "spctl", "--assess", "-vv", "--type", "install", pkgPath).CombinedOutput()
-	assess := ParseSpctlOutput(string(spctlOut))
-	res.NotarizationChecked = true
-	res.Notarized = assess.Accepted && strings.Contains(assess.Source, "Notarized")
-	res.NotarizationDetail = assess.Summary()
+	assessWithSpctl(ctx, res, "install", nil, pkgPath)
 
 	return res, nil
 }
@@ -104,11 +100,7 @@ func VerifyDmgSignature(ctx context.Context, dmgPath string) (*DarwinResult, err
 	// for these exact bytes.
 	container := VerifyCodeObject(ctx, dmgPath)
 	if !container.NoSignature {
-		spctlOut, _ := exec.CommandContext(ctx, "spctl", "--assess", "-vv", "--type", "open", "--context", "context:primary-signature", dmgPath).CombinedOutput()
-		assess := ParseSpctlOutput(string(spctlOut))
-		container.NotarizationChecked = true
-		container.Notarized = assess.Accepted && strings.Contains(assess.Source, "Notarized")
-		container.NotarizationDetail = assess.Summary()
+		assessWithSpctl(ctx, container, "open", []string{"--context", "context:primary-signature"}, dmgPath)
 		return container, nil
 	}
 
@@ -187,11 +179,7 @@ func VerifyAppBundle(ctx context.Context, appPath string) (*DarwinResult, error)
 
 	res := VerifyCodeObject(ctx, appPath)
 
-	spctlOut, _ := exec.CommandContext(ctx, "spctl", "--assess", "-vv", "--type", "execute", appPath).CombinedOutput()
-	assess := ParseSpctlOutput(string(spctlOut))
-	res.NotarizationChecked = true
-	res.Notarized = assess.Accepted && strings.Contains(assess.Source, "Notarized")
-	res.NotarizationDetail = assess.Summary()
+	assessWithSpctl(ctx, res, "execute", nil, appPath)
 
 	return res, nil
 }
@@ -317,6 +305,10 @@ func ParseCodesignInfo(out string) (identity, teamID string) {
 
 // SpctlAssessment is the parsed result of an `spctl --assess -vv` run.
 type SpctlAssessment struct {
+	// Assessed is true when spctl reached a verdict (accepted or rejected).
+	// False means spctl never ran the assessment — a rejection is a result,
+	// but no verdict at all must not be reported as one.
+	Assessed bool
 	Accepted bool
 	Source   string
 	Origin   string
@@ -346,6 +338,9 @@ func ParseSpctlOutput(out string) *SpctlAssessment {
 		switch {
 		case strings.HasSuffix(trimmed, ": accepted"):
 			assess.Accepted = true
+			assess.Assessed = true
+		case strings.Contains(trimmed, ": rejected"):
+			assess.Assessed = true
 		case strings.HasPrefix(trimmed, "source="):
 			assess.Source = strings.TrimPrefix(trimmed, "source=")
 		case strings.HasPrefix(trimmed, "origin="):
@@ -353,4 +348,24 @@ func ParseSpctlOutput(out string) *SpctlAssessment {
 		}
 	}
 	return assess
+}
+
+// assessWithSpctl runs `spctl --assess -vv --type <assessType>` on path and
+// applies the outcome to res. spctl exits non-zero for rejected assessments —
+// that's a verdict, not an error — but when it produces no verdict at all
+// (binary missing, timeout, crash) the assessment is marked as not run, so
+// callers report "could not assess" instead of a false "not notarized".
+func assessWithSpctl(ctx context.Context, res *DarwinResult, assessType string, extraArgs []string, path string) {
+	args := append([]string{"--assess", "-vv", "--type", assessType}, extraArgs...)
+	args = append(args, path)
+	out, err := exec.CommandContext(ctx, "spctl", args...).CombinedOutput()
+	assess := ParseSpctlOutput(string(out))
+	if !assess.Assessed {
+		res.NotarizationChecked = false
+		res.NotarizationDetail = fmt.Sprintf("spctl --assess produced no verdict (err: %v): %s", err, strings.TrimSpace(string(out)))
+		return
+	}
+	res.NotarizationChecked = true
+	res.Notarized = assess.Accepted && strings.Contains(assess.Source, "Notarized")
+	res.NotarizationDetail = assess.Summary()
 }
