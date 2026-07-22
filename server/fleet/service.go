@@ -930,7 +930,7 @@ type Service interface {
 	// Apple's live device details from ABM for the given host ID.
 	// Returns (nil, nil, nil) for non-DEP hosts.
 	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)

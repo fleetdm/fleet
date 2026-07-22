@@ -578,7 +578,7 @@ type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloa
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
-type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
+type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error)
 
@@ -4387,7 +4387,7 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	return s.GetHostDEPAssignmentFunc(ctx, host)
 }
 
-func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, error) {
 	s.mu.Lock()
 	s.GetHostDEPAssignmentDetailsFuncInvoked = true
 	s.mu.Unlock()
