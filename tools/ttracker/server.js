@@ -228,7 +228,7 @@ tell application "iTerm2"
                 set theSess to session s of tab t of (window w)
                 if (unique ID of theSess) is "${sess.iterm_uuid}" then
                     tell theSess
-                        write text "fc -l -30 > ${histTmp} 2>/dev/null; printf '\\\\033[1A\\\\033[2K'"
+                        write text " fc -l -30 > ${histTmp} 2>/dev/null"
                     end tell
                     return "done"
                 end if
@@ -237,6 +237,8 @@ tell application "iTerm2"
     end repeat
 end tell`);
           await new Promise(r => setTimeout(r, 1000));
+          // Erase the fc command from the terminal display via direct TTY write
+          try { fs.writeFileSync(sess.tty, '\x1b[1A\x1b[2K\x1b[1A\x1b[2K'); } catch {}
           try {
             const histRaw = fs.readFileSync(histTmp, 'utf8');
             const cmds = histRaw.split('\n')
