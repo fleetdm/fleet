@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "16.111",
+      "version": "16.111.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel' AND version_compare(bundle_short_version, '16.111') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel' AND version_compare(bundle_short_version, '16.111.1') < 0);"
       },
       "installer_url": "https://res.public.onecdn.static.microsoft/mro1cdnstorage/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.111.26071913_Installer.pkg",
       "install_script_ref": "a058ee4b",
