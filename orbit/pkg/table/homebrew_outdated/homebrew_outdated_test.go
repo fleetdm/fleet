@@ -160,7 +160,7 @@ func TestOutdatedPackagesFallbackAlsoFails(t *testing.T) {
 func TestFirstExistingFile(t *testing.T) {
 	dir := t.TempDir()
 	brew := filepath.Join(dir, "brew")
-	require.NoError(t, os.WriteFile(brew, []byte("x"), 0o755))
+	require.NoError(t, os.WriteFile(brew, []byte("x"), 0o600))
 
 	// Returns the first path that exists as a regular file.
 	require.Equal(t, brew, firstExistingFile([]string{filepath.Join(dir, "missing"), brew}))
@@ -172,9 +172,9 @@ func TestFirstExistingFile(t *testing.T) {
 
 func TestUniqueCaskNames(t *testing.T) {
 	pkgs := []outdatedPackage{
-		{name: "git", pkgType: typeFormula},              // formula: excluded
+		{name: "git", pkgType: typeFormula}, // formula: excluded
 		{name: "mitmproxy", pkgType: typeCask},
-		{name: "mitmproxy", pkgType: typeCask},           // duplicate: deduped
+		{name: "mitmproxy", pkgType: typeCask}, // duplicate: deduped
 		{name: "ngrok", pkgType: typeCask},
 	}
 	require.Equal(t, []string{"mitmproxy", "ngrok"}, uniqueCaskNames(pkgs))
