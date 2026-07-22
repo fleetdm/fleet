@@ -16,6 +16,7 @@ Type `/skill-name` in Claude Code to invoke any skill below.
 | `/fleet-gitops` | Help with Fleet GitOps YAML config (queries, profiles, software, DDM) |
 | `/fleet-guide-formatting` | Ensure guides under `articles/` follow Fleet's step-by-step guide structure |
 | `/lint` | Run linters on recently changed files (Go + JS/TS) |
+| `/new-endpoint` | Scaffold a new Fleet API endpoint (handler, service method, datastore method, types) |
 | `/new-fma` | Add a Fleet-maintained app (FMA) for macOS/Windows |
 | `/new-migration` | Scaffold a new Fleet database migration with timestamp, Up function, and test file |
 | `/openspec-apply-change` | Implement tasks from an OpenSpec change |

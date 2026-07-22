@@ -18,10 +18,17 @@ PATHSPEC=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --ref)       REF="$2";      shift 2 ;;
-    --pathspec)  PATHSPEC="$2"; shift 2 ;;
-    -*)          echo "unknown flag: $1" >&2; exit 1 ;;
-    *)           NEEDLE="$1";   shift ;;
+    --ref|--pathspec)
+      [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 2; }
+      [[ "$1" == "--ref" ]] && REF="$2" || PATHSPEC="$2"
+      shift 2
+      ;;
+    -*) echo "unknown flag: $1" >&2; exit 1 ;;
+    *)
+      [[ -z "${NEEDLE:-}" ]] || { echo "unexpected argument: $1" >&2; exit 2; }
+      NEEDLE="$1"
+      shift
+      ;;
   esac
 done
 
@@ -30,12 +37,12 @@ if [[ -z "${NEEDLE:-}" ]]; then
   exit 1
 fi
 
-ARGS=("log" "$REF" "-S" "$NEEDLE" "-n" "1" "--format=%H")
+ARGS=("log" "$REF" "--reverse" "-S" "$NEEDLE" "-n" "1" "--format=%H")
 if [[ -n "$PATHSPEC" ]]; then
   ARGS+=("--" "$PATHSPEC")
 fi
 
-COMMIT=$(git "${ARGS[@]}" 2>/dev/null)
+COMMIT=$(git "${ARGS[@]}")
 
 if [[ -z "$COMMIT" ]]; then
   echo "No commit found introducing: $NEEDLE"
@@ -45,9 +52,8 @@ fi
 echo "Introducing commit: $COMMIT"
 
 # Find the first stable fleet-vX.Y.Z tag containing this commit.
-FIRST=$(git tag --contains "$COMMIT" --list "fleet-v*" --sort=v:refname 2>/dev/null \
-  | grep -E '^fleet-v[0-9]+\.[0-9]+\.[0-9]+$' \
-  | head -1)
+ALL_TAGS=$(git tag --contains "$COMMIT" --list "fleet-v*" --sort=v:refname 2>/dev/null || true)
+FIRST=$(echo "$ALL_TAGS" | grep -E '^fleet-v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
 
 if [[ -n "$FIRST" ]]; then
   echo "First release:      $FIRST"
