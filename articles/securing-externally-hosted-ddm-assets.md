@@ -1,4 +1,4 @@
-# How to secure externally hosted DDM assets with the MDM-Signature header
+# How to secure externally hosted DDM assets
 
 Declarative device management (DDM) lets you define an asset once and reference it from many configurations. One such asset type is `com.apple.asset.data`.
 
@@ -19,7 +19,7 @@ When a device processes this asset, it downloads the data from `DataURL` itself.
 
 That raises a problem. If the asset holds something sensitive, like a certificate or a credential, an open URL is a liability. Anyone who learns the URL could fetch the file. Even worse, a device enrolled in a different organization's Fleet server should not be able to read your assets.
 
-Apple solves this with the same mechanism it uses for the MDM protocol itself: the `Mdm-Signature` header. This guide explains how that header works and how your asset host can verify it, so only enrolled devices can download the data.
+Apple solves this with the same mechanism it uses for the MDM protocol itself: the `Mdm-Signature` header. This guide explains how that header works and how your asset host can verify it, so only enrolled devices can download the data. It also covers mutual TLS (mTLS), an alternative that verifies the same identity certificate during the TLS handshake.
 
 ## How the device signs its request
 
@@ -117,7 +117,7 @@ Each Fleet server generates its own CA when MDM is turned on. A certificate issu
 
 ## Getting Fleet's CA certificate
 
-Your asset host needs Fleet's CA certificate to run step 2. Fleet exposes it over the standard SCEP endpoint. Fetch it once and cache it:
+Your asset host needs Fleet's CA certificate to run step 2, and to trust client certificates over mTLS. Fleet exposes it over the standard SCEP endpoint. Fetch it once and cache it:
 
 ```go
 import (
@@ -177,14 +177,56 @@ func handleAssetDownload(w http.ResponseWriter, r *http.Request, fleetCA *x509.C
 - A request with no signature, or a forged one, fails step 1.
 - A device whose certificate came from a different CA, including another Fleet server, fails step 2.
 
+## Alternative: verify with mutual TLS (mTLS)
+
+The device presents its Fleet identity certificate two ways on the same request. It signs the body for the `Mdm-Signature` header, and it also offers the certificate as a TLS client certificate during the handshake. If your asset host terminates TLS itself, you can verify that client certificate instead of reading the header, and let the TLS layer reject unauthorized clients before any request reaches your code.
+
+Point the server's client CA pool at Fleet's CA and require a verified client certificate:
+
+```go
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"net/http"
+)
+
+// newTLSServer completes the handshake only for clients that present a
+// certificate chaining to Fleet's CA.
+func newTLSServer(fleetCA *x509.Certificate) *http.Server {
+	pool := x509.NewCertPool()
+	pool.AddCert(fleetCA)
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The handshake already required a client certificate that chains to
+		// Fleet's CA, so any request that reaches here is from an enrolled
+		// device. The verified certificate is on r.TLS.PeerCertificates[0] if
+		// you want to log which device it was.
+		serveAsset(w, r)
+	})
+
+	return &http.Server{
+		Addr:    ":443",
+		Handler: handler,
+		TLSConfig: &tls.Config{
+			ClientAuth: tls.RequireAndVerifyClientCert,
+			ClientCAs:  pool,
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+}
+```
+
+`RequireAndVerifyClientCert` with `ClientCAs` set to Fleet's CA is the same trust check as step 2, moved into the handshake. Go verifies the chain and the certificate's validity window before your handler runs, so a client with no certificate, or one from another CA, is turned away at the connection.
+
+mTLS has two advantages over the header. It rejects unauthorized clients at the handshake, before any HTTP is processed, and because each connection is a fresh handshake, a captured request cannot be replayed. The condition is that your server must terminate TLS. If a proxy or CDN terminates TLS in front of your host, the client certificate never reaches your code, and the `Mdm-Signature` header is the option that still works. Some proxies can forward the certificate in a header, but that depends on the proxy.
 
 ## Conclusion
 
-Externally hosted assets let you serve DDM asset data from wherever suits your infrastructure without routing it through Fleet. The `Mdm-Signature` header keeps that data protected: verify the signature, then confirm the certificate chains to Fleet's CA. Those two checks prove a request came from one of your enrolled devices, so unauthorized requests and devices from other Fleet servers cannot reach what you host.
+Externally hosted assets let you serve DDM asset data from wherever suits your infrastructure without routing it through Fleet. The `Mdm-Signature` header keeps that data protected: verify the signature, then confirm the certificate chains to Fleet's CA. Those two checks prove a request came from one of your enrolled devices, so unauthorized requests and devices from other Fleet servers cannot reach what you host. When your host terminates TLS, mTLS verifies the same identity certificate at the handshake and gives you that protection one layer earlier.
 
-<meta name="articleTitle" value="How to secure externally hosted DDM assets with the MDM-Signature header">
+<meta name="articleTitle" value="How to secure externally hosted DDM assets">
 <meta name="authorFullName" value="Magnus Jensen">
 <meta name="authorGitHubUsername" value="MagnusHJensen">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-07-20">
-<meta name="description" value="A technical guide to securing externally hosted DDM assets by verifying the Apple MDM-Signature header against Fleet's certificate authority.">
+<meta name="description" value="A technical guide to securing externally hosted DDM assets by verifying the Apple MDM-Signature header, or mutual TLS (mTLS), against Fleet's certificate authority.">
