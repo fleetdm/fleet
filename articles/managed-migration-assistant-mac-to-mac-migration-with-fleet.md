@@ -6,7 +6,7 @@ Replacing a Mac means figuring out how to get the user's files to the new one wi
 
 Migration Assistant has always carried a hidden risk for managed Macs. When a user migrates the standard way and leaves the **Other Files & Folders** option checked, macOS copies the old Mac's MDM enrollment state onto the new one. The new Mac ends up carrying the old device's configuration profiles and a stale enrollment with no valid identity. fleetd still checks in and osquery keeps working, so the host looks fine, but MDM breaks: commands hang or land on the wrong device.
 
-Managed Migration Assistant closes that gap. The declaration tells macOS to migrate only the contents of the user's Home folder into the account created during Setup Assistant, so the new Mac keeps its own ADE enrollment and Fleet's MDM identity stays intact. Deploy the profile described below and your users can bring their data over without breaking fleetd or MDM, and without relying on anyone to remember to uncheck the right box.
+Managed Migration Assistant closes that gap. What transfers is scoped by the declaration you deploy — the user's data plus whatever settings you choose to include, covered in the "What transfers and what doesn't" section below — and it lands in the account created during Setup Assistant. The old Mac's management state stays behind: the new Mac keeps its own ADE enrollment, so Fleet's MDM identity stays intact. Deploy the profile described below and your users can bring their data over without breaking fleetd or MDM, and without relying on anyone to remember to uncheck the right box.
 
 ## Requirements
 
