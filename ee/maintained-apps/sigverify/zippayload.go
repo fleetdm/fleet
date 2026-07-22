@@ -45,7 +45,7 @@ func ExtractZipPayload(zipPath, destDir string, exts []string) (string, error) {
 			return "", fmt.Errorf("creating parent directory for %s: %w", f.Name, err)
 		}
 
-		if err := extractZipEntry(f, target); err != nil {
+		if err := extractZipEntry(f, target, maxZipEntrySize); err != nil {
 			return "", err
 		}
 	}
@@ -58,7 +58,7 @@ func ExtractZipPayload(zipPath, destDir string, exts []string) (string, error) {
 	return "", nil
 }
 
-func extractZipEntry(f *zip.File, target string) error {
+func extractZipEntry(f *zip.File, target string, limit int64) error {
 	rc, err := f.Open()
 	if err != nil {
 		return fmt.Errorf("opening zip entry %s: %w", f.Name, err)
@@ -70,19 +70,21 @@ func extractZipEntry(f *zip.File, target string) error {
 		return fmt.Errorf("creating %s: %w", target, err)
 	}
 
-	n, err := io.Copy(out, io.LimitReader(rc, maxZipEntrySize))
-	if err != nil {
-		out.Close()
-		return fmt.Errorf("extracting %s: %w", f.Name, err)
-	}
+	// Copy through a limit of max+1 so an entry exactly at the limit passes;
+	// only reading past it means the entry is oversized.
+	n, copyErr := io.Copy(out, io.LimitReader(rc, limit+1))
 	// An explicit Close catches flush errors a deferred close would swallow;
 	// the extracted payload is about to be signature-verified, so a silently
 	// truncated file must not pass as the real payload.
-	if err := out.Close(); err != nil {
-		return fmt.Errorf("closing %s: %w", target, err)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return fmt.Errorf("extracting %s: %w", f.Name, copyErr)
 	}
-	if n == maxZipEntrySize {
-		return fmt.Errorf("zip entry %s exceeds the %d byte extraction limit", f.Name, int64(maxZipEntrySize))
+	if closeErr != nil {
+		return fmt.Errorf("closing %s: %w", target, closeErr)
+	}
+	if n > limit {
+		return fmt.Errorf("zip entry %s exceeds the %d byte extraction limit", f.Name, limit)
 	}
 	return nil
 }

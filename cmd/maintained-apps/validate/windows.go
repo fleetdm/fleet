@@ -64,8 +64,12 @@ func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installe
 		logger.InfoContext(ctx, fmt.Sprintf("Zip installer: verifying Authenticode signature of payload %q", filepath.Base(payload)))
 		checkPath = payload
 	default:
-		logger.InfoContext(ctx, fmt.Sprintf("Signature verification is not supported for %s installers; skipping", ext))
-		return nil
+		// The download is saved under a whitelisted extension
+		// (sigverify.InstallerFilename), so reaching here means the remote
+		// filename didn't identify a known installer format. Fail rather than
+		// skip — a skip would let a server that renames the installer bypass
+		// signature verification entirely.
+		return fmt.Errorf("cannot verify Authenticode signature: unrecognized installer format %q", ext)
 	}
 
 	sig, err := getAuthenticodeSignature(ctx, checkPath)

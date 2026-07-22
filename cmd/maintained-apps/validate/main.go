@@ -21,6 +21,7 @@ import (
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/sigverify"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -461,11 +462,11 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 		return nil, "", fmt.Errorf("downloading installer: %w", err)
 	}
 
-	cleanFilename := filepath.Base(filename)
-	if cleanFilename == "." || cleanFilename == ".." {
-		cleanFilename = fmt.Sprintf("installer_%d", time.Now().UnixNano())
-	}
-	filePath := filepath.Join(cfg.tmpDir, cleanFilename)
+	// Save under a fixed local name with a whitelisted extension:
+	// verifyInstallerSignature dispatches on the extension, and the remote
+	// filename (Content-Disposition/URL) is attacker-influenced — a crafted
+	// name must not be able to steer verification or path construction.
+	filePath := filepath.Join(cfg.tmpDir, sigverify.InstallerFilename(filename))
 	out, err := os.Create(filePath)
 	if err != nil {
 		installerTFR.Close()

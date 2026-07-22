@@ -76,6 +76,25 @@ func TestExtractZipPayload(t *testing.T) {
 		require.True(t, os.IsNotExist(statErr))
 	})
 
+	t.Run("entry size limit boundary", func(t *testing.T) {
+		zipPath := writeTestZip(t, map[string]string{"payload.msi": "1234567890"}) // 10 bytes
+		r, err := zip.OpenReader(zipPath)
+		require.NoError(t, err)
+		defer r.Close()
+		entry := r.File[0]
+
+		// An entry exactly at the limit extracts intact.
+		target := filepath.Join(t.TempDir(), "at-limit.msi")
+		require.NoError(t, extractZipEntry(entry, target, 10))
+		content, err := os.ReadFile(target)
+		require.NoError(t, err)
+		require.Equal(t, "1234567890", string(content))
+
+		// One byte over the limit fails.
+		err = extractZipEntry(entry, filepath.Join(t.TempDir(), "over-limit.msi"), 9)
+		require.ErrorContains(t, err, "exceeds the 9 byte extraction limit")
+	})
+
 	t.Run("invalid zip", func(t *testing.T) {
 		notZip := filepath.Join(t.TempDir(), "notzip.zip")
 		require.NoError(t, os.WriteFile(notZip, []byte("not a zip"), 0o644))

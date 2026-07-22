@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/sigverify"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
@@ -68,7 +68,7 @@ func (d *downloader) download(ctx context.Context, url string) (string, string, 
 	if err != nil {
 		return "", "", fmt.Errorf("creating download directory: %w", err)
 	}
-	filePath := filepath.Join(dir, installerFilename(filename))
+	filePath := filepath.Join(dir, sigverify.InstallerFilename(filename))
 
 	out, err := os.Create(filePath)
 	if err != nil {
@@ -90,23 +90,6 @@ func (d *downloader) download(ctx context.Context, url string) (string, string, 
 	}
 
 	return filePath, hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// installerFilename returns the fixed local filename an installer is saved
-// under. Signature-verification tooling dispatches on the file extension
-// only, and the remote filename (Content-Disposition/URL) is
-// attacker-influenced and must never reach path construction — so the result
-// is "installer" plus the remote extension matched against known installer
-// formats, always a literal. Unknown extensions save as extensionless
-// "installer", which the verifier reports as skipped/deferred.
-func installerFilename(remoteFilename string) string {
-	ext := filepath.Ext(remoteFilename)
-	for _, known := range []string{".exe", ".msi", ".msix", ".appx", ".dll", ".cab", ".zip", ".pkg", ".mpkg", ".dmg"} {
-		if strings.EqualFold(ext, known) {
-			return "installer" + known
-		}
-	}
-	return "installer"
 }
 
 // evict drops a URL's cache entry and removes its downloaded file. Used by

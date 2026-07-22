@@ -1,4 +1,4 @@
-package main
+package sigverify
 
 import (
 	"testing"
@@ -28,7 +28,7 @@ func TestInstallerFilename(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, installerFilename(tc.remote))
+			require.Equal(t, tc.want, InstallerFilename(tc.remote))
 		})
 	}
 }
