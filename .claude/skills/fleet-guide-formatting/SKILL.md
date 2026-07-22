@@ -80,7 +80,7 @@ Fill it in like this:
 2. Load the `content-style` skill now, before drafting, so the prose is right the first time.
 3. Copy `references/template.md` as a starting skeleton and fill it in section by section, endmatter included.
 4. Write the opening last if it helps. It's easier to state the problem precisely once the steps are settled.
-5. Run the `content-style` review pass over the finished prose. Search for `—` and rewrite every hit.
+5. Run the `content-style` review pass over the finished prose. Search for `—` and rewrite every hit in prose (ignore code blocks and inline code).
 6. Self-check against the audit checklist below.
 
 ## Audit or retrofit an existing guide
