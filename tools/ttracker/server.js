@@ -645,7 +645,7 @@ async function handleAPI(req, res) {
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ results, phase: 'deep', done: true }));
+    res.end(JSON.stringify({ results, phase: 'deep', done: true, searched: allSessions.length }));
     return;
   }
 
@@ -1139,6 +1139,7 @@ function getDashboardHTML() {
   <input id="search-input" type="text" placeholder="Search all Claude sessions..." style="width:350px" onkeydown="if(event.key==='Enter')searchSessions()" />
   <button id="search-btn" class="btn-new" style="background:#6c71c4" onclick="searchSessions()">Search</button>
   <button id="search-cancel" class="btn-new" style="background:#dc322f;display:none" onclick="cancelSearch()">Cancel</button>
+  <button id="search-clear" class="btn-new" style="background:#93a1a1;display:none" onclick="clearSearch()">Clear</button>
   <span id="search-status" style="color:#93a1a1;font-size:12px;margin-left:8px"></span>
 </div>
 <div id="search-results" style="display:none;margin-bottom:24px">
@@ -1379,7 +1380,7 @@ async function searchSessions() {
     const res2 = await fetch(API + '/api/search?q=' + encodeURIComponent(query) + '&deep=1', { signal: searchAbort.signal });
     const data2 = await res2.json();
     renderSearchResults(data2.results, body, countEl);
-    status.textContent = data2.results.length + ' result(s) found.';
+    status.textContent = data2.results.length + ' result(s) found across ' + data2.searched + ' sessions.';
   } catch (e) {
     if (e.name === 'AbortError') {
       status.textContent = 'Search cancelled.';
@@ -1390,11 +1391,19 @@ async function searchSessions() {
 
   btn.disabled = false;
   cancel.style.display = 'none';
+  document.getElementById('search-clear').style.display = '';
   searchAbort = null;
 }
 
 function cancelSearch() {
   if (searchAbort) searchAbort.abort();
+}
+
+function clearSearch() {
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('search-status').textContent = '';
+  document.getElementById('search-clear').style.display = 'none';
+  document.getElementById('search-input').value = '';
 }
 
 function renderSearchResults(results, body, countEl) {
