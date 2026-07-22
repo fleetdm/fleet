@@ -53,6 +53,9 @@ type SoftwareInstallDetails struct {
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
 	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
 	MaxRetries uint `json:"max_retries,omitempty"`
+
+	AppOpenQuery    string `json:"-" db:"app_open_query"`
+	PatchWhenClosed bool   `json:"-" db:"patch_when_closed"`
 }
 
 type SoftwareInstallerURL struct {

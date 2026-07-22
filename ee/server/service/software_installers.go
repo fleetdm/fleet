@@ -968,9 +968,15 @@ func (svc *Service) reconcilePatchPolicy(ctx context.Context, payload *fleet.Upd
 	if payload.PatchWhenClosed != nil && *payload.PatchWhenClosed && !patchEnabled {
 		return &fleet.BadRequestError{Message: `"patch_when_closed" requires "patch" to be enabled.`}
 	}
-	patchWhenClosed := patchEnabled && existing != nil && existing.PatchWhenClosed
-	if payload.PatchWhenClosed != nil {
-		patchWhenClosed = patchEnabled && *payload.PatchWhenClosed
+	// Default patch_when_closed on for a new patch policy, otherwise keep the existing value.
+	patchWhenClosed := existing != nil && existing.PatchWhenClosed
+	switch {
+	case !patchEnabled:
+		patchWhenClosed = false
+	case payload.PatchWhenClosed != nil:
+		patchWhenClosed = *payload.PatchWhenClosed
+	case existing == nil:
+		patchWhenClosed = true
 	}
 
 	// While Fleet's managed query owns the pre-install condition, the user query can't be edited.

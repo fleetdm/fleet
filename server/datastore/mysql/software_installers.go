@@ -67,7 +67,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.execution_id AS execution_id,
     hsi.software_installer_id AS installer_id,
     hsi.self_service AS self_service,
-    COALESCE(CASE WHEN p.patch_when_closed = 1 THEN si.app_open_query ELSE si.pre_install_query END, '') AS pre_install_condition,
+    COALESCE(si.pre_install_query, '') AS pre_install_condition,
+    si.app_open_query AS app_open_query,
+    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -99,7 +101,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     ua.execution_id AS execution_id,
     siua.software_installer_id AS installer_id,
 		ua.payload->'$.self_service' AS self_service,
-    COALESCE(CASE WHEN p.patch_when_closed = 1 THEN si.app_open_query ELSE si.pre_install_query END, '') AS pre_install_condition,
+    COALESCE(si.pre_install_query, '') AS pre_install_condition,
+    si.app_open_query AS app_open_query,
+    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -134,6 +138,12 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
+	}
+
+	// A patch-when-closed policy install uses the Fleet-managed app-open query as its pre-install
+	// condition in place of the user's query.
+	if result.PatchWhenClosed {
+		result.PreInstallCondition = result.AppOpenQuery
 	}
 
 	// Install scripts run per-host, so custom host vitals resolve against the target host.
