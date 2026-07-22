@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -574,6 +575,87 @@ UPDATE host_mdm
 		return false, err
 	}
 	return rows > 0, nil
+}
+
+// GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
+// and AMAPI event timestamp recorded for the host, used by the AMAPI notification
+// handler to drop duplicate (same messageId) and stale (older timestamp)
+// deliveries. Both values are nil/empty when nothing has been recorded yet.
+func (ds *Datastore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error) {
+	var state struct {
+		MessageID *string    `db:"last_pubsub_message_id"`
+		EventTime *time.Time `db:"last_pubsub_event_time"`
+	}
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &state,
+		`SELECT last_pubsub_message_id, last_pubsub_event_time FROM android_devices WHERE host_id = ?`, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil, ctxerr.Wrap(ctx, notFound("AndroidDevice").WithID(hostID), "get android pubsub dedup state")
+	case err != nil:
+		return "", nil, ctxerr.Wrap(ctx, err, "get android pubsub dedup state")
+	}
+	return ptr.ValOrZero(state.MessageID), state.EventTime, nil
+}
+
+// SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
+// and AMAPI event timestamp for the host after a notification is handled
+// successfully. eventTime may be nil when the notification carried no usable
+// timestamp; the column is left NULL in that case.
+func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE android_devices SET last_pubsub_message_id = ?, last_pubsub_event_time = ? WHERE host_id = ?`,
+		messageID, eventTime, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set android pubsub dedup state")
+	}
+	return nil
+}
+
+// SetAndroidHostEnrolled flips host_mdm back to enrolled for an Android host that
+// is currently marked unenrolled. This recovers a host that was wrongly unenrolled
+// by an out-of-order DELETED delivery: a live device sending a STATUS_REPORT is by
+// definition still managed. It is a no-op (returns false) when the host is already
+// enrolled or has no host_mdm row, so it is safe to call on every STATUS_REPORT. It
+// intentionally does not re-run enrollment side effects (setup experience, cert
+// templates, team assignment) — those belong to the ENROLLMENT path.
+//
+// It preserves the existing is_personal_enrollment classification rather than
+// recomputing it: the triggering STATUS_REPORT payload may omit Ownership, which
+// would otherwise misclassify a COBO (company-owned) host as personal.
+func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set android host enrolled get app config")
+	}
+
+	var didEnroll bool
+	err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var current struct {
+			Enrolled             bool `db:"enrolled"`
+			IsPersonalEnrollment bool `db:"is_personal_enrollment"`
+		}
+		err := sqlx.GetContext(ctx, tx, &current,
+			`SELECT enrolled, is_personal_enrollment FROM host_mdm WHERE host_id = ?`, hostID)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			// No host_mdm row yet; leave enrollment to the ENROLLMENT path.
+			return nil
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "get android host_mdm enrolled state")
+		case current.Enrolled:
+			// Already enrolled: nothing to recover.
+			return nil
+		}
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, !current.IsPersonalEnrollment, true, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "re-enroll android host_mdm info")
+		}
+		didEnroll = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return didEnroll, nil
 }
 
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, companyOwned, enrolled bool, hostID uint) error {

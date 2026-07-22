@@ -1918,6 +1918,12 @@ type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type SetAndroidHostUnenrolledFunc func(ctx context.Context, hostID uint) (bool, error)
 
+type SetAndroidHostEnrolledFunc func(ctx context.Context, hostID uint) (bool, error)
+
+type GetAndroidPubSubDedupStateFunc func(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error)
+
+type SetAndroidPubSubDedupStateFunc func(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error
+
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error)
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
@@ -5079,6 +5085,15 @@ type DataStore struct {
 
 	SetAndroidHostUnenrolledFunc        SetAndroidHostUnenrolledFunc
 	SetAndroidHostUnenrolledFuncInvoked bool
+
+	SetAndroidHostEnrolledFunc        SetAndroidHostEnrolledFunc
+	SetAndroidHostEnrolledFuncInvoked bool
+
+	GetAndroidPubSubDedupStateFunc        GetAndroidPubSubDedupStateFunc
+	GetAndroidPubSubDedupStateFuncInvoked bool
+
+	SetAndroidPubSubDedupStateFunc        SetAndroidPubSubDedupStateFunc
+	SetAndroidPubSubDedupStateFuncInvoked bool
 
 	NewAndroidHostFunc        NewAndroidHostFunc
 	NewAndroidHostFuncInvoked bool
@@ -12190,6 +12205,27 @@ func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) (
 	s.SetAndroidHostUnenrolledFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAndroidHostUnenrolledFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	s.mu.Lock()
+	s.SetAndroidHostEnrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidHostEnrolledFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error) {
+	s.mu.Lock()
+	s.GetAndroidPubSubDedupStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidPubSubDedupStateFunc(ctx, hostID)
+}
+
+func (s *DataStore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
+	s.mu.Lock()
+	s.SetAndroidPubSubDedupStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidPubSubDedupStateFunc(ctx, hostID, messageID, eventTime)
 }
 
 func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
