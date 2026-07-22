@@ -183,7 +183,7 @@ CREATE TABLE `android_devices` (
   `applied_policy_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `applied_policy_version` int DEFAULT NULL,
   `team_id` int unsigned DEFAULT NULL,
-  `last_pubsub_message_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_pubsub_message_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `last_pubsub_event_time` timestamp(6) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_android_devices_host_id` (`host_id`),
