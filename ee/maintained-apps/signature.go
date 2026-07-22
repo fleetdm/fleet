@@ -46,6 +46,12 @@ var appleTeamIDPattern = regexp.MustCompile(`^[A-Z0-9]{10}$`)
 // Validate checks that the signature pin is internally consistent for an app
 // on the given platform ("darwin" or "windows").
 func (s *FMASignature) Validate(platform string) error {
+	switch platform {
+	case "darwin", "windows":
+	default:
+		return fmt.Errorf("unknown platform %q for signature pin", platform)
+	}
+
 	if s.Unsigned {
 		if s.Justification == "" {
 			return errors.New(`signature pin with "unsigned": true requires a justification`)
@@ -79,8 +85,6 @@ func (s *FMASignature) Validate(platform string) error {
 				return errors.New(`"subject_cns" entries cannot be empty`)
 			}
 		}
-	default:
-		return fmt.Errorf("unknown platform %q for signature pin", platform)
 	}
 
 	return nil

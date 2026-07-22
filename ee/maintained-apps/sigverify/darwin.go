@@ -203,6 +203,12 @@ func VerifyCodeObject(ctx context.Context, path string) *DarwinResult {
 			return res
 		}
 		res.Detail = strings.TrimSpace(string(verifyOut))
+		if res.Detail == "" {
+			// codesign failed without printing a reason (tool missing,
+			// timeout): keep the execution error so downstream failures
+			// aren't reported with an empty reason.
+			res.Detail = fmt.Sprintf("codesign --verify failed with no output: %v", verifyErr)
+		}
 	} else {
 		res.Verified = true
 	}

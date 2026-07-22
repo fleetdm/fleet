@@ -94,6 +94,12 @@ func TestFMASignatureValidate(t *testing.T) {
 			platform: "linux",
 			wantErr:  "unknown platform",
 		},
+		{
+			name:     "unknown platform with unsigned pin",
+			sig:      FMASignature{Unsigned: true, Justification: "x"},
+			platform: "linux",
+			wantErr:  "unknown platform",
+		},
 	}
 
 	for _, tc := range testCases {
