@@ -595,6 +595,9 @@ const FleetsDropdown = ({
         onChange={handleChange}
         isDisabled={isDisabled}
         isSearchable={false}
+        // Tabbing through the open menu shouldn't select an option;
+        // opt out of react-select's default "Tab selects focused option".
+        tabSelectsValue={false}
         menuIsOpen={menuIsOpen}
         onMenuOpen={() => setMenuIsOpen(true)}
         onMenuClose={() => setMenuIsOpen(false)}
