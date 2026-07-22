@@ -7385,10 +7385,11 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | Name                      | Type     | In   | Description                                                                                                   |
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | body | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
-| fleet_id                   | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
-| labels_include_all        | array     | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| fleet_id                  | string   | body | _Available in Fleet Premium_. The fleet ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified fleet. If not specified, the profile is applied to only hosts that are "Unassigned". |
+| labels_include_all        | array    | body | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array    | body | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any        | array    | body | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| activation                | string   | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON string. Only supported for declaration (DDM) profiles. |
 
 `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
@@ -7406,9 +7407,10 @@ assigned to a fleet. Note that in this example the form data specifies `fleet_id
 ##### Request body
 
 ```http
-profile="Foo.mobileconfig"
+profile="Passcode.json"
 fleet_id="1"
 labels_include_all="Label name 1"
+activation="{\"Type\":\"com.apple.activation.simple\",\"Identifier\":\"01234567-ABCD-EFGH-IJKL-0123456789AB\",\"Payload\":{\"StandardConfigurations\":[\"01234567-ABCD-EFGH-IJKL-0123456789YZ\"]}}"
 ```
 
 ##### Default response
@@ -7659,12 +7661,13 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 ##### Configuration profiles
 
 | Name                    | Type    | Description   |
-| -----------------------| ------- | ----------------------------------------------------------------------------------- |
-| profile                | string   | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
-| labels_include_all        | array     | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
-| labels_include_any      | array     | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array  | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
-| display_name                | string   | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+| ------------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile                 | string  | Base64 encoded configuration profile (.mobileconfig) or declaration (DDM) profile for Apple (macOS, iOS, iPadOS) hosts, JSON profile for Android hosts, or XML profile for Windows hosts. |
+| labels_include_all      | array   | _Available in Fleet Premium_. Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
+| labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
+| activation              | string  | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON string. Only supported for declaration (DDM) profiles. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
@@ -7682,6 +7685,11 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
       "labels_include_any": [
         "Apple Silicon macOS hosts"
       ],
+    },
+    {
+      "profile": "<base64-encoded DDM profile>",
+      "display_name": "Passcode Settings",
+      "activation": "{\"Type\":\"com.apple.activation.simple\",\"Identifier\":\"01234567-ABCD-EFGH-IJKL-0123456789AB\",\"Payload\":{\"StandardConfigurations\":[\"01234567-ABCD-EFGH-IJKL-0123456789YZ\"]}}"
     }
   ]
 }
