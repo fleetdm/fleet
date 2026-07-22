@@ -182,10 +182,12 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 
 ### How issues move
 
-- **Inbox → Drafting or Ready**: stories and bugs that need product design input move to **Drafting**. Bugs and priority issues (P2 or greater) are triaged at the daily standup and move to **Ready**; drafted stories are triaged at the weekly planning meeting.
-- **Drafting → Ready**: drafted stories move to **Ready** only during weekly planning, or during standup if they are a priority story (P2 or greater) or if there is nothing else for the group to work on. Bugs that needed product design input and are now ready to be worked on are moved to **Ready**.
+- **Inbox → Ready**: Engineering Manager (EM) moves bugs and reliability issues to **Ready** during standup.
+- **Inbox → Drafting**: Product Designer (PD) adds stories and moves them to **Drafting**. During standup, Engineering Manager moves bugs to **Drafting** that need product design input.
+- **Drafting → Ready**: When drafting is complete, the PD assigns the EM to the story. During weekly planning, the EM reviews the story with the team, moves it to **Ready**, and assigns an engineer up to the team's capacity for the following week. If there's no capacity, the issue stays assigned to the EM in the **Drafting** column.
 - **Ready → In progress → Ready for review → Awaiting QA**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 - **Awaiting QA → Ready for release**: the QA Engineer is responsible for moving the issue from **Awaiting QA** to **Ready for release** once they have verified the change.
+- **Ready for release → Confirm & celebrate → Done**: [learn more](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone).
 
 ### Working the board
 
