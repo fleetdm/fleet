@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.3",
+      "version": "5.4.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5' AND version_compare(bundle_short_version, '5.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.red-sweater.marsedit5' AND version_compare(bundle_short_version, '5.4.4') < 0);"
       },
-      "installer_url": "https://redsweater.com/marsedit/MarsEdit5.4.3.zip",
+      "installer_url": "https://redsweater.com/marsedit/MarsEdit5.4.4.zip",
       "install_script_ref": "63ae549f",
       "uninstall_script_ref": "ac62b6cb",
-      "sha256": "44b7d2f981f79ced56bc63fcdd79542a49fe8001b96b6086eaf340194f9b302c",
+      "sha256": "8b15ce1e0648e8b2ebdd3de33129597c572deb04bbba1d0598a51fba22e41540",
       "default_categories": [
         "Productivity"
       ]
