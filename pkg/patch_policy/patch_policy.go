@@ -151,14 +151,14 @@ func defaultWindowsQuery(softwareTitle string, version string) string {
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
-func GenerateOpenQuery(platform string, softwareTitle string, bundleIdentifier string) (string, error) {
+func GenerateOpenQuery(platform string, bundleIdentifier string, softwareTitle string) string {
 	switch platform {
 	case "darwin":
-		return defaultMacOSOpenQuery(bundleIdentifier), nil
+		return defaultMacOSOpenQuery(bundleIdentifier)
 	case "windows":
-		return defaultWindowsOpenQuery(softwareTitle), nil
+		return defaultWindowsOpenQuery(softwareTitle)
 	default:
-		return "", ErrWrongPlatform
+		return ""
 	}
 }
 
@@ -174,19 +174,74 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 }
 
 func defaultWindowsOpenQuery(softwareTitle string) string {
-	// processes.name is the executable. Use the title's last word + ".exe" as a best-effort
-	// exe name (e.g. "Google Chrome" -> "chrome.exe"); a real per-app exe name would be more accurate.
-	base := softwareTitle
-	fields := strings.Fields(softwareTitle)
-	if len(fields) > 0 {
-		base = fields[len(fields)-1]
+	if query, ok := windowsOpenQueryOverrides[softwareTitle]; ok {
+		windowsOpenQueryPrefix := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) %s);"
+		return fmt.Sprintf(windowsOpenQueryPrefix, query)
 	}
-	executable := strings.ToLower(base) + ".exe"
+
+	// Match a process named "<title>.exe"
+	// alternatives considered:
+	// - join programs.install_location with processes.path - install_location is unreliable (especially for MSI installers)
+	executable := strings.ToLower(softwareTitle) + ".exe"
 	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = '%s');"
 	return fmt.Sprintf(openTemplate, escapeSQLLiteral(executable))
 }
 
 func escapeSQLLiteral(s string) string {
-	// double single quotes so the value can't terminate or alter the surrounding literal
 	return strings.ReplaceAll(s, "'", "''")
+}
+
+// overrides based on uninstall scripts
+var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false positive: values are app process names, not credentials
+	"1Password":                    "LIKE '1password%'",
+	"7-zip":                        "IN ('7zfm.exe','7zg.exe')",
+	"Amazon Chime":                 "IN ('amazon chime.exe','chime.exe')",
+	"Android Studio":               "= 'studio64.exe'",
+	"Beyond Compare":               "= 'bcompare.exe'",
+	"CLion":                        "IN ('clion.exe','clion64.exe')",
+	"DataGrip":                     "IN ('datagrip.exe','datagrip64.exe')",
+	"DataSpell":                    "IN ('dataspell.exe','dataspell64.exe')",
+	"DAX Studio":                   "= 'daxstudio.exe'",
+	"DBeaverEE":                    "= 'dbeaver.exe'",
+	"DBeaverLite":                  "= 'dbeaver.exe'",
+	"DBeaverUltimate":              "= 'dbeaver.exe'",
+	"Dell Command Update":          "IN ('dellcommandupdate.exe','dcu-cli.exe')",
+	"GoLand":                       "IN ('goland.exe','goland64.exe')",
+	"Google Antigravity IDE":       "= 'antigravity.exe'",
+	"Google Chrome":                "= 'chrome.exe'",
+	"IntelliJ IDEA CE":             "IN ('idea.exe','idea64.exe')",
+	"IntelliJ IDEA Ultimate":       "IN ('idea.exe','idea64.exe')",
+	"JetBrains Toolbox":            "IN ('toolbox.exe','jetbrains-toolbox.exe')",
+	"KNIME Analytics Platform":     "= 'knime.exe'",
+	"Lenovo Dock Manager":          "= 'dockmgr.exe'",
+	"Microsoft Edge":               "= 'msedge.exe'",
+	"Microsoft Remote Help":        "= 'remotehelp.exe'",
+	"Microsoft Teams":              "IN ('teams.exe','ms-teams.exe')",
+	"Microsoft Visual Studio Code": "= 'code.exe'",
+	"Node.js":                      "= 'node.exe'",
+	"Notion Calendar":              "IN ('cron.exe','notion calendar.exe')",
+	"OBS":                          "IN ('obs32.exe','obs64.exe')",
+	"Okta Verify":                  "= 'oktaverify.exe'",
+	"Ollama":                       "IN ('ollama.exe','ollama app.exe')",
+	"OneDrive":                     "LIKE 'onedrive%'",
+	"Pale Moon":                    "= 'palemoon.exe'",
+	"pgAdmin 4":                    "= 'pgadmin4.exe'",
+	"PhpStorm":                     "IN ('phpstorm.exe','phpstorm64.exe')",
+	"Plantronics Hub":              "= 'plthub.exe'",
+	"Portfolio Performance":        "= 'portfolioperformance.exe'",
+	"Power Automate":               "= 'pad.console.host.exe'",
+	"PowerShell":                   "= 'pwsh.exe'",
+	"ProtonVPN":                    "IN ('proton vpn.exe','protonvpn.exe')",
+	"PyCharm Community Edition":    "IN ('pycharm.exe','pycharm64.exe')",
+	"PyCharm Professional":         "IN ('pycharm.exe','pycharm64.exe')",
+	"Rider":                        "IN ('rider.exe','rider64.exe')",
+	"RStudio":                      "IN ('rgui.exe','rsession.exe' 'rstudio.exe')",
+	"RubyMine":                     "IN ('rubymine.exe','rubymine64.exe')",
+	"RustRover":                    "IN ('rustrover.exe','rustrover64.exe')",
+	"Spotify":                      "IN ('spotify.exe','spotifywebhelper.exe')",
+	"Sublime Text":                 "= 'sublime_text.exe'",
+	"VirtualBox":                   "LIKE 'virtualbox%'",
+	"Wacom Tablet":                 "IN ('wacomdesktopcenter.exe','wacom_tablet.exe')",
+	"WebStorm":                     "IN ('webstorm.exe','webstorm64.exe')",
+	"Windows App":                  "= 'windowsapp.exe'",
 }

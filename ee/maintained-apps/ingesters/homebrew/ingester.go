@@ -278,10 +278,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		}
 	}
 
-	out.Queries.Open, err = patch_policy.GenerateOpenQuery("darwin", out.Name, out.UniqueIdentifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating app open query")
-	}
+	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
 
 	return out, nil
 }

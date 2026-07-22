@@ -478,10 +478,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 	}
 
-	out.Queries.Open, err = patch_policy.GenerateOpenQuery("windows", out.Name, out.UniqueIdentifier)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating app open query")
-	}
+	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)
 
 	return &out, nil
 }

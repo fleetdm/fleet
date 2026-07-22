@@ -73,30 +73,32 @@ func TestGenerateQueryForManifest(t *testing.T) {
 func TestGenerateOpenQuery(t *testing.T) {
 	// macOS resolves the app's install path from its bundle identifier and matches a process
 	// running from inside it.
-	got, err := patch_policy.GenerateOpenQuery("darwin", "Mozilla Firefox", "org.mozilla.firefox")
-	require.NoError(t, err)
+	got := patch_policy.GenerateOpenQuery("darwin", "org.mozilla.firefox", "")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'org.mozilla.firefox');", got)
 
-	// Windows uses the title's last word + ".exe" to match processes.name (the executable).
-	got, err = patch_policy.GenerateOpenQuery("windows", "Slack", "")
-	require.NoError(t, err)
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'slack.exe');", got)
-
-	got, err = patch_policy.GenerateOpenQuery("windows", "Google Chrome", "")
-	require.NoError(t, err)
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
-
 	// Apostrophes in the bundle identifier are escaped so they can't break the literal.
-	got, err = patch_policy.GenerateOpenQuery("darwin", "O'Reilly", "com.oreilly.o'reilly")
-	require.NoError(t, err)
+	got = patch_policy.GenerateOpenQuery("darwin", "com.oreilly.o'reilly", "")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.oreilly.o''reilly');", got)
 
-	// Apostrophes in the derived Windows executable are escaped too.
-	got, err = patch_policy.GenerateOpenQuery("windows", "O'Reilly", "")
-	require.NoError(t, err)
+	// Windows matches a process named "<title>.exe".
+	got = patch_policy.GenerateOpenQuery("windows", "", "Slack")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'slack.exe');", got)
+
+	// An apostrophe in the derived executable is escaped.
+	got = patch_policy.GenerateOpenQuery("windows", "", "O'Reilly")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');", got)
 
-	// Unknown platform is rejected.
-	_, err = patch_policy.GenerateOpenQuery("linux", "foo", "com.example.foo")
-	require.ErrorIs(t, err, patch_policy.ErrWrongPlatform)
+	// A per-app override (keyed by software title) supplies the process-name predicate, in any of
+	// its forms: LIKE, exact, or IN.
+	got = patch_policy.GenerateOpenQuery("windows", "", "OneDrive")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');", got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Google Chrome")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
+
+	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
+
+	// Unknown platform yields no query.
+	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
