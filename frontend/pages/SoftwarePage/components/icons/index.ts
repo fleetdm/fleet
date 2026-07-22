@@ -141,6 +141,7 @@ import Boom3D from "./Boom3D";
 import Boop from "./Boop";
 import BoostNote from "./BoostNote";
 import Box from "./Box";
+import BoxTools from "./BoxTools";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
@@ -1268,6 +1269,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   boop: Boop,
   "boost note": BoostNote,
   box: Box,
+  "box tools": BoxTools,
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
