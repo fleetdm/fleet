@@ -36,7 +36,7 @@ Fleet's roadmap flows in this order (from highest to lowest fidelity):
 
 The Head of Product Design is responsible for going through the inbox on the [drafting board](https://github.com/orgs/fleetdm/projects/67) and adding the correct [product group](https://fleetdm.com/handbook/company/product-groups#continuous-flow) label.
 
-Once labeled, each product group's Product Designer (PD) is responsible for reviewing the inbox and deciding whether each new request contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year. If yes, the PD adds the `~product-maturity` and `:product` labels so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request doesn't meet these criteria but meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the "Unpacked" checkbox in the feature request issue and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [fast draft or full draft](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft), or sets it aside and adds it to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
+Once labeled, each product group's Product Designer (PD) is responsible for reviewing the inbox and deciding whether each new request contributes to Fleet's [product maturity](https://fleetdm.com/handbook/company/product-maturity-assessment) goals for the current calendar year. If yes, the PD adds the `~product-maturity` label so the request is reviewed at the next [unpacking the why](#unpacking-the-why) call. If a request doesn't meet these criteria but meets a different [criteria for prioritization](https://fleetdm.com/handbook/company/product-groups#criteria-for-prioritization), the PD removes the "Unpacked" checkbox in the feature request issue and either prioritizes a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) to bring through [fast draft or full draft](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft), or sets it aside and adds it to the [feature fest](https://fleetdm.com/handbook/company/product-groups#feature-fest) board.
 
 
 ### Unpacking the why
@@ -120,15 +120,12 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Designer (PD) wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story on the drafting board wasn't estimated by the last estimation session in the current release cycle and cannot wait until the next release. This can also happen when we decide to bring a user story in mid-release cycle.
-
+- A user story on the drafting board hasn't been T-shirt sized and it cannot wait until the next weekly planning.
 
 What happens during expedited drafting?
 
 1. If we cut planned functionality, the PD notifies the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). Up to the PD to let the customer support DRI know if we're still planning on building the functionality in a later release and if so, when. The customer support DRI should confirm that the updated scope and/or timeline still meets the requester's needs.
-2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the relevant product group's Engineering Manager (EM) in the `#help-leadership` Slack channel.
-  - If the user story wasn't "Ready for spec" by the last estimation session, decision to allow the user story to make it into the next engineering release cycle is up to the release DRI.
-  - If the user story is in the current engineering release cycle and there are significant changes to the requirements, then the user story might be pushed to the next release. Decision is up to the release DRI.
+2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the relevant product group's Engineering Manager (EM) in the `#help-leadership` Slack channel. Decision is up to the release DRI.
 3. Drafts are updated, changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the user story is estimated or brought back into the current release cycle.
 
 
@@ -176,9 +173,9 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The Head of Product Design (HPD), Product Designers (PD), and the relevant Customer Solutions Architects (CSAs) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
+The relevant Product Designer (PD) the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the original request is a customer request, it's up to the relevant CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+If the original request is a customer request, it's up to the Manager of CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
 
 ### Notify stakeholders when a user story is pushed to the next release
 

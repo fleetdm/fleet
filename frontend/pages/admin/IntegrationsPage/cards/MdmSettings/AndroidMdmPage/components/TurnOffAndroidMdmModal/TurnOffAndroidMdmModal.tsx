@@ -9,6 +9,7 @@ import { IConfig } from "interfaces/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { notify } from "components/ToastNotification";
 
 const baseClass = "turn-off-android-mdm-modal";
@@ -65,14 +66,19 @@ const TurnOffAndroidMdmModal = ({
         their Android work partition.
       </p>
       <div className="modal-cta-wrap">
-        <Button
-          variant="alert"
-          isLoading={isDeleting}
-          disabled={isDeleting}
-          onClick={onClickConfirm}
-        >
-          Turn off
-        </Button>
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button
+              variant="alert"
+              isLoading={isDeleting}
+              disabled={isDeleting || disableChildren}
+              onClick={onClickConfirm}
+            >
+              Turn off
+            </Button>
+          )}
+        />
         <Button variant="secondary" disabled={isDeleting} onClick={onExit}>
           Cancel
         </Button>
