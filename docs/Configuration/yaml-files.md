@@ -390,6 +390,10 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
+      - paths: ../lib/macos/profiles/ddm.json
+        labels_include_any:
+          - Engineering
+        activation: ../lib/macos/activations/activation.json
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
@@ -451,6 +455,8 @@ Each entry can use either `path:` or `paths:`:
 - **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+> `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
 
 ### android_settings
 
