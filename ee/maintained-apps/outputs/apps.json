@@ -6467,7 +6467,14 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "PopChar X",
