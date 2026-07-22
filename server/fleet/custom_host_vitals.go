@@ -118,6 +118,7 @@ const (
 	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
 	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
 	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
+	CustomHostVitalEntityHostNameTemplate      CustomHostVitalEntity = "host_name_template"
 )
 
 // Describes an entity that references a custom host vital.
@@ -138,6 +139,14 @@ type CustomHostVitalUsedInfo struct {
 
 // Message returns the human-readable "X is used by Y" explanation.
 func (i CustomHostVitalUsedInfo) Message() string {
+	if i.Entity.Type == CustomHostVitalEntityHostNameTemplate {
+		// there's no separate entity name to report, just the fleet whose template references the vital.
+		return fmt.Sprintf(
+			"Custom host vital %q (used as $%s%d) is used by the host name template in the %q fleet. Please edit or clear the host name template and try again.",
+			i.CustomHostVitalName, CustomHostVitalPrefix, i.CustomHostVitalID, i.Entity.FleetName,
+		)
+	}
+
 	noun, action := "configuration profile", "Please delete the configuration profile and try again."
 	switch i.Entity.Type {
 	case CustomHostVitalEntityScript:

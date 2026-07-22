@@ -47,6 +47,22 @@ func TestMissingCustomHostVitalsError(t *testing.T) {
 	require.Contains(t, multi.Error(), `"$FLEET_HOST_VITAL_9"`)
 }
 
+func TestCustomHostVitalUsedInfoMessageHostNameTemplate(t *testing.T) {
+	info := CustomHostVitalUsedInfo{
+		CustomHostVitalID:   5,
+		CustomHostVitalName: "FUNCTION",
+		Entity: EntityUsingCustomHostVital{
+			Type:      CustomHostVitalEntityHostNameTemplate,
+			FleetName: "Workstations",
+		},
+	}
+	want := `Custom host vital "FUNCTION" (used as $FLEET_HOST_VITAL_5) is used by the host name template in the "Workstations" fleet. Please edit or clear the host name template and try again.`
+	require.Equal(t, want, info.Message())
+
+	err := (&CustomHostVitalUsedError{CustomHostVitalUsedInfo: info}).Error()
+	require.Equal(t, want, err)
+}
+
 func TestMissingCustomHostVitalValueError(t *testing.T) {
 	single := MissingCustomHostVitalValueError{MissingIDs: []uint{5}}
 	require.Contains(t, single.Error(), `"$FLEET_HOST_VITAL_5"`)

@@ -1059,6 +1059,9 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 
 	// Validate custom host vital references (top-level $FLEET_HOST_VITAL_<id>).
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, nil, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return nil, nil, "", fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
