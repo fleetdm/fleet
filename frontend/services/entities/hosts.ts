@@ -68,6 +68,7 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
+    response_status: "SUCCESS" | "NOT_ACCESSIBLE" | "FAILED" | "THROTTLED";
   };
   host_dep_assignment: {
     assign_profile_response: DepAssignProfileResponse;

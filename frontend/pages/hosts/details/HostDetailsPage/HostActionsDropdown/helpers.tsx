@@ -57,6 +57,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Release from Apple Business",
+    value: "releaseFromAB",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -103,7 +108,9 @@ interface IHostActionConfigOptions {
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isConnectedToFleetMdm?: boolean;
+  isDEPAssignedToFleet: boolean;
   isMacMdmEnabledAndConfigured: boolean;
+  isAppleBusinessEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   isAndroidMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
@@ -407,6 +414,43 @@ const canShowManagedAccount = (config: IHostActionConfigOptions) => {
   return true;
 };
 
+const canReleaseFromAB = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    hostMdmEnrollmentStatus,
+    isAppleBusinessEnabledAndConfigured,
+    isGlobalAdmin,
+    isTeamAdmin,
+  } = config;
+
+  if (!isPremiumTier) {
+    return false;
+  }
+
+  if (!isAppleBusinessEnabledAndConfigured) {
+    return false;
+  }
+
+  if (
+    !isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus) &&
+    hostMdmEnrollmentStatus !== "Pending"
+  ) {
+    return false;
+  }
+
+  if (!config.isDEPAssignedToFleet) {
+    return false;
+  }
+
+  const hasRequiredRole = isGlobalAdmin || isTeamAdmin;
+
+  if (!hasRequiredRole) {
+    return false;
+  }
+
+  return true;
+};
+
 const canClearPasscode = (config: IHostActionConfigOptions) => {
   if (!config.isPremiumTier) {
     return false;
@@ -512,6 +556,10 @@ const removeUnavailableOptions = (
 
   if (!canShowManagedAccount(config)) {
     options = options.filter((option) => option.value !== "managedAccount");
+  }
+
+  if (!canReleaseFromAB(config)) {
+    options = options.filter((option) => option.value !== "releaseFromAB");
   }
 
   if (!canClearPasscode(config)) {

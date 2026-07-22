@@ -321,6 +321,18 @@ const MDMStatusModal = ({
       );
     }
 
+    if (depAssignmentData.dep_device?.response_status === "NOT_ACCESSIBLE") {
+      return (
+        <div className={`${baseClass}__profile-assignment--not-accessible`}>
+          <DataError
+            verticalPaddingSize="pad-none"
+            singleCustomLine
+            description="Fleet can't find this host in Apple Business. It may have been removed, released, or assigned to a different MDM server in AB."
+          />
+        </div>
+      );
+    }
+
     const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
       Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
       { label: JSX.Element | string; tooltip: JSX.Element | string }

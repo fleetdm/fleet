@@ -2207,6 +2207,14 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  releasedDeviceFromAB: (activity: IActivity) => {
+    return (
+      <>
+        released <b>{activity.details?.host_display_name}</b> from Apple
+        Business.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -2705,6 +2713,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.FailedEnrollmentProfileRenewal: {
       return TAGGED_TEMPLATES.failedEnrollmentRenewalProfile(activity);
+    }
+    case ActivityType.ReleasedDeviceFromAB: {
+      return TAGGED_TEMPLATES.releasedDeviceFromAB(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

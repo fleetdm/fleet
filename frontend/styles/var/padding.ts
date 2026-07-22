@@ -2,6 +2,7 @@ import pxToRem from "./helpers";
 
 export const PADDING = {
   "pad-auto": "auto",
+  "pad-none": 0,
   "pad-xxsmall": pxToRem(2),
   "pad-xsmall": pxToRem(4),
   "pad-small": pxToRem(8),
