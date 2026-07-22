@@ -431,9 +431,26 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
-	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	p.MFAEnabled = new(invite.MFAEnabled)
 	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
 	p.InviteID = &invite.ID
+	p.SSOEnabled = new(invite.SSOEnabled)
+	p.SSOInvite = new(invite.SSOEnabled)
+	if invite.SSOEnabled {
+		// SSO invites must not create local password credentials. Reject the
+		// payload if it carries a password field at all, even an empty one.
+		if p.Password != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
+		}
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
+	}
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
