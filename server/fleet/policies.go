@@ -75,6 +75,9 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -128,6 +131,8 @@ type NewTeamPolicyPayload struct {
 	// ContinuousAutomationsEnabled indicates whether software/script automations
 	// should run on every failing policy result, not just on pass→fail transitions.
 	ContinuousAutomationsEnabled bool
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
 }
 
 var (
@@ -349,6 +354,8 @@ type ModifyPolicyPayload struct {
 
 	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
 	Type string `json:"-"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -450,6 +457,9 @@ type PolicyData struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
 
 	UpdateCreateTimestamps
 }
