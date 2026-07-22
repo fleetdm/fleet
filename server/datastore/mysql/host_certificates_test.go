@@ -1258,19 +1258,15 @@ func testUpdateHostCertificatesReingestAfterSoftDelete(t *testing.T, ds *Datasto
 	require.Empty(t, got)
 }
 
-// mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
-// from now, scoped to the given source and username.
-// testUpdateHostCertificatesSelfHealsDuplicates reproduces the poisoned state behind issue #49705: host_certificates
-// has no unique index on (host_id, sha1_sum), so concurrent re-ingestion of the same report (osquery resends results
-// after a timed-out write, or a stale replica read) can leave duplicate active rows per certificate. Before the fix,
-// the source-set diff never converged for such hosts and every identical report re-wrote host_certificate_sources,
-// causing a writer-wide lock storm at scale. The fix must soft-delete the duplicates on the next report (self-heal) and
-// produce zero source-row writes on subsequent identical reports (convergence).
+// testUpdateHostCertificatesSelfHealsDuplicates reproduces the bad host state behind issue: host_certificates has no unique index
+// on (host_id, sha1_sum), so concurrent re-ingestion of the same report (osquery resends results after a timed-out write, or a
+// stale replica read) can leave duplicate active rows per certificate. The fix must soft-delete the duplicates on the next report
+// (self-heal) and produce zero source-row writes on subsequent identical reports (convergence).
 func testUpdateHostCertificatesSelfHealsDuplicates(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const (
 		hostID   = uint(88)
-		hostUUID = "dup-poison-host-uuid"
+		hostUUID = "dup-rows-host-uuid"
 	)
 
 	certSys := mkTestCertRecord(t, hostID, "dup-sys.example.com", fleet.SystemHostCertificate, "")
@@ -1338,8 +1334,8 @@ func testUpdateHostCertificatesSelfHealsDuplicates(t *testing.T, ds *Datastore) 
 		return ids
 	}
 
-	require.Equal(t, 4, countActiveCerts(), "poisoned state: expected duplicated active cert rows")
-	require.Len(t, sourceRowIDs(), 6, "poisoned state: expected duplicated source rows")
+	require.Equal(t, 4, countActiveCerts(), "setup: expected duplicated active cert rows")
+	require.Len(t, sourceRowIDs(), 6, "setup: expected duplicated source rows")
 
 	// One identical report self-heals: duplicates soft-deleted, their source rows removed.
 	ingest()
@@ -1354,16 +1350,27 @@ func testUpdateHostCertificatesSelfHealsDuplicates(t *testing.T, ds *Datastore) 
 		require.Equal(t, 2, countActiveCerts())
 	}
 
-	// The API view is deduplicated again: one row per (cert, source).
+	// The API view is deduplicated again: exactly one row per (cert, source), with the right scopes surviving.
 	listed, _, err := ds.ListHostCertificates(ctx, hostID, fleet.ListOptions{OrderKey: "common_name", TestSecondaryOrderKey: "username"})
 	require.NoError(t, err)
-	require.Len(t, listed, 3)
+	type listedRow struct {
+		commonName string
+		source     fleet.HostCertificateSource
+		username   string
+	}
+	got := make([]listedRow, 0, len(listed))
+	for _, l := range listed {
+		got = append(got, listedRow{l.CommonName, l.Source, l.Username})
+	}
+	require.Equal(t, []listedRow{
+		{"dup-pair.example.com", fleet.SystemHostCertificate, ""},
+		{"dup-pair.example.com", fleet.UserHostCertificate, "alice"},
+		{"dup-sys.example.com", fleet.SystemHostCertificate, ""},
+	}, got)
 }
 
 // testUpdateHostCertificatesPreciseSourceWrites verifies that a source-set change touches only the rows that actually
-// changed: unchanged source rows must keep their primary key (no delete-and-reinsert). The previous implementation
-// deleted all of a certificate's source rows by host_certificate_id range and re-inserted the full set, whose
-// next-key/gap locks under REPEATABLE READ serialized concurrent hosts' inserts (#49705).
+// changed: unchanged source rows must keep their primary key (no delete-and-reinsert).
 func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const (
@@ -1421,6 +1428,8 @@ func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) 
 	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
 }
 
+// mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours
+// from now, scoped to the given source and username.
 func mkTestCertRecord(t *testing.T, hostID uint, commonName string, source fleet.HostCertificateSource, username string) *fleet.HostCertificateRecord {
 	tmpl := x509.Certificate{
 		Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},

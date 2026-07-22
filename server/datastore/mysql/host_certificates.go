@@ -140,7 +140,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	}
 	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingBySHA1))
 	existingSourceRowIDsBySHA1 := make(map[string]map[certSourceToSet]uint, len(existingBySHA1))
-	var certIDsToRetire []uint      // duplicate (and below, replaced) host_certificates rows, soft-deleted in the tx (self-heal)
+	var certIDsToRetire []uint      // duplicate host_certificates rows, soft-deleted in the tx (self-heal)
 	var sourceRowIDsToRetire []uint // their host_certificate_sources rows, deleted
 	seenRetiredCertIDs := make(map[uint]struct{})
 	for _, ec := range existingCerts {
@@ -403,17 +403,13 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
 
-		// Self-heal: retire duplicate and replaced cert rows (and their source rows) before resolving canonical ids,
-		// so a previously poisoned host converges back to one active row per certificate.
+		// Self-heal: retire duplicate cert rows (and their source rows) before resolving canonical ids,
+		// so a host that accumulated duplicate rows returns to one active row per certificate.
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, certIDsToRetire); err != nil {
 			return ctxerr.Wrap(ctx, err, "soft delete duplicate host certs")
 		}
 
-		// Compute the precise source-row changes: delete only rows that are stale (by primary key) and insert only
-		// tuples that are missing. The previous implementation deleted by host_certificate_id ranges and re-inserted
-		// the full set; under REPEATABLE READ such a range DELETE takes next-key/gap locks on the unique index
-		// (including the supremum record when the list contains a just-inserted cert id), which serialized concurrent
-		// hosts' inserts during ingestion waves (#49705).
+		// Compute the precise source-row changes: delete only rows that are stale (by primary key) and insert only tuples that are missing.
 		staleSourceRowIDs := append([]uint(nil), sourceRowIDsToRetire...)
 		var sourceRowsToInsert []*fleet.HostCertificateRecord
 		if len(toSetSourcesBySHA1) > 0 {
@@ -757,9 +753,7 @@ SELECT
 	return certs, metaData, nil
 }
 
-// deleteHostCertSourceRowsDB deletes host_certificate_sources rows by primary key. Primary-key deletes of known-existing
-// rows take record locks only, unlike deletes over host_certificate_id ranges, whose next-key/gap locks on the unique
-// index blocked concurrent hosts' inserts (#49705).
+// deleteHostCertSourceRowsDB deletes host_certificate_sources rows by primary key.
 func deleteHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, ids []uint) error {
 	if len(ids) == 0 {
 		return nil
@@ -777,9 +771,7 @@ func deleteHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, ids []u
 }
 
 // insertHostCertSourceRowsDB inserts the given (host_certificate_id, source, username) tuples. The caller passes only
-// tuples it believes are missing; ON DUPLICATE KEY UPDATE is a no-op guard for concurrent ingestions of the same report
-// for one host (osquery resends results when a write times out), where failing the whole transaction with a
-// duplicate-key error would 500 the endpoint and trigger yet another resend.
+// tuples it believes are missing; ON DUPLICATE KEY UPDATE is a no-op guard.
 func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []*fleet.HostCertificateRecord) error {
 	if len(rows) == 0 {
 		return nil
