@@ -4602,11 +4602,11 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 	return exists, nil
 }
 
-// checkConflictingFleetMaintainedAppExists reports whether the team already has an installer for a
-// DIFFERENT Fleet-maintained app on the same macOS title, returning that app's name. Two FMAs that
-// share a bundle identifier (e.g. Mozilla Firefox and Firefox ESR) resolve to one title but are the
-// same inventory app, so only one can be added; multiple versions of the same app don't conflict.
-// FleetMaintainedAppID must be non-nil: a NULL bound to the != comparison matches nothing.
+// checkConflictingFleetMaintainedAppExists reports whether the team has an installer for a different
+// FMA on the same macOS title (two FMAs sharing a bundle identifier, e.g. Firefox and Firefox ESR),
+// returning that app's name. Versions of the same app don't conflict. Unlike
+// checkFleetMaintainedAppExists (custom package vs. FMA), this compares FMA IDs. FleetMaintainedAppID
+// must be non-nil — a NULL in the != comparison matches nothing.
 func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (string, bool, error) {
 	if payload.FleetMaintainedAppID == nil || payload.BundleIdentifier == "" {
 		return "", false, nil

@@ -5016,8 +5016,7 @@ func testMatchOrCreateSoftwareInstallerConflictingFMA(t *testing.T, ds *Datastor
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
-	// Mozilla Firefox and Firefox ESR are distinct Fleet-maintained apps that share the macOS
-	// bundle identifier org.mozilla.firefox, so they resolve to the same software title.
+	// Firefox and Firefox ESR are distinct FMAs sharing bundle id org.mozilla.firefox, so one title.
 	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name: "Mozilla Firefox", Slug: "firefox", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
 	})

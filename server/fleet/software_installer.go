@@ -1300,8 +1300,8 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	// Two FMAs that share a bundle identifier (e.g. Mozilla Firefox and Firefox ESR) resolve to one
-	// title but are the same inventory app; only one can be added.
+	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
+	// inventory app, so only one can be added.
 	if len(fmaNames) > 1 {
 		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
 	}
