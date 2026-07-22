@@ -132,6 +132,24 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
+// AuthorizeOrNotFound authorizes writeAction on writeObject. If that fails,
+// it also checks fleet.ActionRead on readObject; if the caller can't even
+// read it, notFoundErr is returned instead of the write failure, so a
+// resource entirely outside the caller's visibility is indistinguishable
+// from one that doesn't exist. If the caller CAN read it, the original
+// write-authorization failure is returned unchanged, since no new
+// information is disclosed by it (the caller already knows the resource
+// exists).
+func (a *Authorizer) AuthorizeOrNotFound(ctx context.Context, writeObject, writeAction, readObject interface{}, notFoundErr error) error {
+	if err := a.Authorize(ctx, writeObject, writeAction); err != nil {
+		if readErr := a.Authorize(ctx, readObject, fleet.ActionRead); readErr != nil {
+			return notFoundErr
+		}
+		return err
+	}
+	return nil
+}
+
 // ExtraAuthzer is the interface to implement extra fields for the policy.
 type ExtraAuthzer interface {
 	// ExtraAuthz returns the extra key/value pairs for the type.

@@ -1030,6 +1030,22 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	})
 }
 
+// checkHostWriteAuthErr asserts the result of a host-mutation authorization
+// check. A caller with no read visibility into the host at all must see a
+// NotFound (masking existence), not a Forbidden that would confirm the host
+// exists on some other team; a caller who CAN read the host (e.g. same-team,
+// wrong role) still gets the normal Forbidden, since no new information is
+// disclosed by it.
+func checkHostWriteAuthErr(t *testing.T, shouldFail, expectNotFound bool, err error) {
+	t.Helper()
+	if shouldFail && expectNotFound {
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+		return
+	}
+	checkAuthErr(t, shouldFail, err)
+}
+
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -1264,15 +1280,6 @@ func TestHostAuth(t *testing.T) {
 					belongsToTeam1 = true
 				}
 			}
-			checkHostWriteAuthErr := func(shouldFail, expectNotFound bool, err error) {
-				t.Helper()
-				if shouldFail && expectNotFound {
-					require.Error(t, err)
-					assert.True(t, fleet.IsNotFound(err))
-					return
-				}
-				checkAuthErr(t, shouldFail, err)
-			}
 
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
@@ -1299,16 +1306,16 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
-			checkHostWriteAuthErr(tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHost(ctx, 2)
-			checkHostWriteAuthErr(tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.DeleteHosts(ctx, []uint{1}, nil)
-			checkHostWriteAuthErr(tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHosts(ctx, []uint{2}, nil)
-			checkHostWriteAuthErr(tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.AddHostsToTeam(ctx, new(uint(1)), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)

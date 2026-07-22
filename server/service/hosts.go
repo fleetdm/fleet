@@ -916,15 +916,8 @@ func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error 
 			return ctxerr.Wrap(ctx, err, "get host for delete")
 		}
 
-		// Authorize again now that the host (and its team_id) is loaded. If
-		// the caller can't even read this host, it's entirely outside their
-		// visibility: report the same not-found error as a missing host
-		// above, rather than a forbidden that would confirm the host exists
-		// on some other team.
-		if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-			if readErr := svc.authz.Authorize(ctx, host, fleet.ActionRead); readErr != nil {
-				return ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-			}
+		notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
+		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
 			return err
 		}
 	}
@@ -1126,10 +1119,8 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// visibility: report the same not-found error as a missing host above,
 	// rather than a forbidden that would confirm the host exists on some
 	// other team.
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
-		if readErr := svc.authz.Authorize(ctx, host, fleet.ActionRead); readErr != nil {
-			return ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
-		}
+	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
+	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionWrite, host, notFoundErr); err != nil {
 		return err
 	}
 
