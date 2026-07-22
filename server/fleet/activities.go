@@ -2388,3 +2388,17 @@ func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
 func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
 }
+
+type ActivityTypeReleasedDeviceFromAB struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostSerial      string `json:"host_serial"`
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
+	return "released_from_ab"
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
+	return []uint{a.HostID}
+}
