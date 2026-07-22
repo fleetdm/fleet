@@ -190,7 +190,7 @@ export const HostInstallerActionButton = ({
       <Button
         variant="secondary"
         type="button"
-        className={`${baseClass}__item-action-button row-hover-button`}
+        className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
         size="small"
@@ -368,7 +368,7 @@ export const HostInstallerActionCell = ({
       return (
         <div className={`${baseClass}__more-actions-wrapper`}>
           <ActionsDropdown
-            className={`${baseClass}__more-actions-dropdown row-hover-button`}
+            className={`${baseClass}__more-actions-dropdown`}
             onChange={onSelectOption}
             placeholder="More"
             options={getMoreActionsDropdownOptions(
