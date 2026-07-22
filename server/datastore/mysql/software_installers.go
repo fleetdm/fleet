@@ -1418,12 +1418,42 @@ WHERE
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	return ds.getSoftwareInstallerMetadata(ctx, teamID, titleID, nil, withScriptContents)
+}
+
+// GetSoftwareInstallerMetadataByTeamTitleAndInstallerID is like
+// GetSoftwareInstallerMetadataByTeamAndTitleID but returns the metadata for a
+// specific installer (rather than the active/first-matching one), so callers
+// that just flipped the active version can operate on that exact package.
+func (ds *Datastore) GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx context.Context, teamID *uint, titleID uint, installerID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+	return ds.getSoftwareInstallerMetadata(ctx, teamID, titleID, &installerID, withScriptContents)
+}
+
+func (ds *Datastore) getSoftwareInstallerMetadata(ctx context.Context, teamID *uint, titleID uint, installerID *uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 	var scriptContentsSelect, scriptContentsFrom string
 	if withScriptContents {
 		scriptContentsSelect = ` , inst.contents AS install_script, COALESCE(pinst.contents, '') AS post_install_script, uninst.contents AS uninstall_script `
 		scriptContentsFrom = ` LEFT OUTER JOIN script_contents inst ON inst.id = si.install_script_content_id
 		LEFT OUTER JOIN script_contents pinst ON pinst.id = si.post_install_script_content_id
 		LEFT OUTER JOIN script_contents uninst ON uninst.id = si.uninstall_script_content_id`
+	}
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	// A nil installerID selects the active package for the title (latest by
+	// upload order); a non-nil one selects that specific installer, which may
+	// not be the active one.
+	whereClause := `si.title_id = ? AND si.global_or_team_id = ?
+  AND si.is_active = 1
+ORDER BY si.uploaded_at DESC, si.id DESC
+LIMIT 1`
+	args := []any{titleID, tmID}
+	if installerID != nil {
+		whereClause = `si.id = ? AND si.title_id = ? AND si.global_or_team_id = ?`
+		args = []any{*installerID, titleID, tmID}
 	}
 
 	query := fmt.Sprintf(`
@@ -1456,19 +1486,11 @@ FROM
   LEFT JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
   %s
 WHERE
-  si.title_id = ? AND si.global_or_team_id = ?
-  AND si.is_active = 1
-ORDER BY si.uploaded_at DESC, si.id DESC
-LIMIT 1`,
-		scriptContentsSelect, scriptContentsFrom)
-
-	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
-	}
+  %s`,
+		scriptContentsSelect, scriptContentsFrom, whereClause)
 
 	var dest fleet.SoftwareInstaller
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, titleID, tmID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "get software installer metadata")
