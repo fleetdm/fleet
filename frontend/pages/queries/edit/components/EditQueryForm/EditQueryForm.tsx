@@ -44,10 +44,7 @@ import labelsAPI, {
 } from "services/entities/labels";
 
 import SQLEditor from "components/SQLEditor";
-import {
-  validateQuery,
-  EMPTY_QUERY_ERR,
-} from "components/forms/validators/validate_query";
+import { validateQuery, EMPTY_QUERY_ERR } from "components/forms/validators";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -104,7 +101,7 @@ interface IEditQueryFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: string } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     // queryError should be truthy at this point

@@ -12,7 +12,7 @@ import Icon from "components/Icon";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import { notify } from "components/ToastNotification";
@@ -196,7 +196,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
+      !isValidURL({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = "Organization support URL is not a valid URL";
     }

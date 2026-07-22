@@ -23,7 +23,7 @@ import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
-import validURL from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -83,7 +83,7 @@ const validateTeamSettingsFormData = (
 
   // validate host webhook fields
   if (curFormData.teamHostStatusWebhookEnabled) {
-    if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
+    if (!isValidURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
       const errorPrefix = curFormData.teamHostStatusWebhookDestinationUrl
         ? `${curFormData.teamHostStatusWebhookDestinationUrl} is not`
         : "Please enter";

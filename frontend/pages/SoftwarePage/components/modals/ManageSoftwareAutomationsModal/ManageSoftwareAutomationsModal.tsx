@@ -36,7 +36,7 @@ import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
@@ -73,7 +73,7 @@ const validateWebhookURL = (url: string) => {
 
   if (!url) {
     errors.url = "Please add a destination URL";
-  } else if (!validUrl({ url })) {
+  } else if (!isValidURL({ url })) {
     errors.url = "Destination URL is not a valid URL";
   } else {
     delete errors.url;

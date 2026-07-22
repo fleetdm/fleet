@@ -8,7 +8,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TabText from "components/TabText";
 import TabNav from "components/TabNav";
@@ -55,7 +55,7 @@ const validate = (formData: ISsoFormData) => {
   } = formData;
 
   if (enableSso) {
-    if (idpImageUrl && !validUrl({ url: idpImageUrl })) {
+    if (idpImageUrl && !isValidURL({ url: idpImageUrl })) {
       errors.idp_image_url = "IdP image URL is not a valid URL";
     }
 
@@ -66,7 +66,7 @@ const validate = (formData: ISsoFormData) => {
         errors.metadata =
           "Metadata is required (if metadata URL is not present)";
       } else if (
-        !validUrl({ url: metadataUrl, protocols: ["http", "https"] })
+        !isValidURL({ url: metadataUrl, protocols: ["http", "https"] })
       ) {
         errors.metadata_url = "Metadata URL is not a valid URL";
       }

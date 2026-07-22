@@ -14,8 +14,7 @@ import { ITeam } from "interfaces/team";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
+import { validateYaml } from "components/forms/validators";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -82,7 +81,9 @@ const AgentOptionsPage = ({
     const errors: any = {};
 
     if (agentOptions) {
-      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
+      const { error: yamlError, isValid: yamlValid } = validateYaml(
+        agentOptions
+      );
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }

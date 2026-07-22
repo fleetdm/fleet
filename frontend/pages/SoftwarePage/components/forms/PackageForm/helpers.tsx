@@ -1,6 +1,6 @@
 import React from "react";
 
-import { validateQuery } from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
