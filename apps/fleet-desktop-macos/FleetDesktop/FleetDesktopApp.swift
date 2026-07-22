@@ -133,13 +133,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleForwardedURL(_ notification: Notification) {
+        // Distributed notifications can be posted by any local process, so
+        // re-validate the scheme just like handleURLEvent does, and hop to the
+        // main thread rather than relying on the delivery thread.
         guard let urlString = notification.userInfo?["url"] as? String,
-              let url = URL(string: urlString) else { return }
-        fleetService.handleFleetURL(url)
+              let url = URL(string: urlString),
+              url.scheme?.lowercased() == "fleet" else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.fleetService.handleFleetURL(url)
+        }
     }
 
     @objc private func handleForwardedReopen(_ notification: Notification) {
-        fleetService.run()
+        DispatchQueue.main.async { [weak self] in
+            self?.fleetService.run()
+        }
     }
 
     // MARK: - Main Menu

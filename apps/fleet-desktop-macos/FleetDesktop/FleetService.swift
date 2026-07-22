@@ -6,8 +6,9 @@ import AppKit
 /// browser window. Only MDM-managed machines are supported.
 ///
 /// The WebView is kept alive when the window is closed, so reopening is instant.
-/// The token is checked every 60 seconds (timer paused when the window is closed)
-/// and on navigation errors, to handle hourly rotation.
+/// The token is checked every 60 seconds and on navigation errors, to handle
+/// hourly rotation. The timer runs even while the window is closed so the Dock
+/// badge stays current.
 final class FleetService {
     private var browserWindow: BrowserWindow?
 
@@ -324,7 +325,7 @@ final class FleetService {
         guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
               let value = items.first(where: { $0.name.lowercased() == "category_id" })?.value,
               !value.isEmpty,
-              value.allSatisfy({ $0.isNumber }) else {
+              value.allSatisfy({ $0.isASCII && $0.isNumber }) else {
             return nil
         }
         return value
@@ -690,14 +691,14 @@ final class FleetService {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    /// Characters allowed in a device token (alphanumerics plus - and _).
-    /// Rejecting anything else keeps path separators and other URL
-    /// metacharacters out of the device URLs built from the token.
-    private static let tokenAllowedCharacters: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: "-_")
-        return set
-    }()
+    /// Characters allowed in a device token (ASCII alphanumerics plus - and _).
+    /// Listed explicitly because CharacterSet.alphanumerics also matches
+    /// non-ASCII Unicode letters and digits. Rejecting anything else keeps path
+    /// separators and other URL metacharacters out of the device URLs built
+    /// from the token.
+    private static let tokenAllowedCharacters = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    )
 
     private func readToken() -> String? {
         guard let token = readFileTrimmed(path: tokenFile),

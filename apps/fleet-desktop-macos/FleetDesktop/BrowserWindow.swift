@@ -515,7 +515,7 @@ extension BrowserWindow: WKDownloadDelegate {
         // The suggested name is server-supplied — keep only the final path
         // component so the file always lands directly in Downloads.
         var safeFilename = (suggestedFilename as NSString).lastPathComponent
-        if safeFilename.isEmpty { safeFilename = "download" }
+        if safeFilename.isEmpty || safeFilename == "." || safeFilename == ".." { safeFilename = "download" }
         var destination = downloadsDir.appendingPathComponent(safeFilename)
 
         // Avoid overwriting existing files — append a number if needed (max 999)
