@@ -26,8 +26,8 @@ const renderItem = (profile: IMdmProfile) =>
       isPremium={false}
       profile={profile}
       onClickInfo={noop}
+      onClickEdit={noop}
       onClickDelete={noop}
-      setProfileLabelsModalData={noop as any}
     />
   );
 
