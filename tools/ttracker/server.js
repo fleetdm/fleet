@@ -562,6 +562,93 @@ async function handleAPI(req, res) {
     return;
   }
 
+  // GET /api/search?q=...&deep=1
+  if (req.method === 'GET' && url.pathname === '/api/search') {
+    const query = (url.searchParams.get('q') || '').toLowerCase();
+    const deep = url.searchParams.get('deep') === '1';
+    if (!query) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Missing q parameter' }));
+      return;
+    }
+
+    const state = loadState();
+    const results = [];
+    const projectDir = path.join(os.homedir(), '.claude', 'projects', '-Users-sharonkatz-repos-fleet');
+
+    // Build list of all sessions to search
+    const allSessions = [];
+    const running = getRunningSessionIds();
+    for (const s of state.snapshot.sessions) {
+      if (s.claude_session_id) {
+        allSessions.push({ ...s, location: 'Active Sessions', status: running.has(s.claude_session_id) ? 'running' : 'missing' });
+      }
+    }
+    for (let i = 0; i < state.history.length; i++) {
+      const h = state.history[i];
+      if (h.claude_session_id) {
+        allSessions.push({ ...h, location: 'Parked Sessions' });
+      }
+    }
+
+    // Phase 1: Surface search (badge, session_name, notes)
+    for (const s of allSessions) {
+      const badge = (s.badge || '').toLowerCase();
+      const name = (s.session_name || '').toLowerCase();
+      const note = (state.notes[s.claude_session_id] || '').toLowerCase();
+      if (badge.includes(query) || name.includes(query) || note.includes(query)) {
+        const matchField = badge.includes(query) ? 'badge' : name.includes(query) ? 'session name' : 'note';
+        results.push({ ...s, match: `Found in ${matchField}`, phase: 'surface' });
+      }
+    }
+
+    if (!deep) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ results, phase: 'surface', done: false }));
+      return;
+    }
+
+    // Phase 2: Deep search (first 5 user messages in JSONL)
+    for (const s of allSessions) {
+      // Skip if already found in surface
+      if (results.some(r => r.claude_session_id === s.claude_session_id)) continue;
+
+      const jsonlFile = path.join(projectDir, `${s.claude_session_id}.jsonl`);
+      try {
+        if (!fs.existsSync(jsonlFile)) continue;
+        const lines = fs.readFileSync(jsonlFile, 'utf8').split('\n');
+        let msgCount = 0;
+        let found = false;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const obj = JSON.parse(line);
+            if (obj.type === 'user') {
+              const content = obj.message?.content || '';
+              let text = '';
+              if (typeof content === 'string') text = content;
+              else if (Array.isArray(content)) {
+                text = content.filter(c => c.type === 'text').map(c => c.text).join(' ');
+              }
+              if (text.toLowerCase().includes(query)) {
+                const snippet = text.substring(Math.max(0, text.toLowerCase().indexOf(query) - 30), text.toLowerCase().indexOf(query) + query.length + 30).replace(/\n/g, ' ');
+                results.push({ ...s, match: `"...${snippet}..."`, phase: 'deep' });
+                found = true;
+                break;
+              }
+              msgCount++;
+              if (msgCount >= 20) break;
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ results, phase: 'deep', done: true }));
+    return;
+  }
+
   // POST /api/new-session
   if (req.method === 'POST' && url.pathname === '/api/new-session') {
     const body = await new Promise((resolve) => {
@@ -1048,6 +1135,28 @@ function getDashboardHTML() {
   <button id="new-btn" class="btn-new" onclick="newSession()">+ New Claude Session</button>
 </div>
 
+<div class="new-session">
+  <input id="search-input" type="text" placeholder="Search all Claude sessions..." style="width:350px" onkeydown="if(event.key==='Enter')searchSessions()" />
+  <button id="search-btn" class="btn-new" style="background:#6c71c4" onclick="searchSessions()">Search</button>
+  <button id="search-cancel" class="btn-new" style="background:#dc322f;display:none" onclick="cancelSearch()">Cancel</button>
+  <span id="search-status" style="color:#93a1a1;font-size:12px;margin-left:8px"></span>
+</div>
+<div id="search-results" style="display:none;margin-bottom:24px">
+  <h2 style="color:#6c71c4;border-left-color:#6c71c4">Search Results <span class="count" id="result-count"></span></h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Location</th>
+        <th>Badge</th>
+        <th>Session Name</th>
+        <th>Match</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="search-body"></tbody>
+  </table>
+</div>
+
 <h2>Active Sessions <span class="count" id="active-count"></span></h2>
 <table>
   <thead>
@@ -1232,6 +1341,81 @@ function confirmDelete(sessionId, badge) {
 
 function closeModal() {
   document.getElementById('delete-modal').classList.remove('active');
+}
+
+let searchAbort = null;
+
+async function searchSessions() {
+  const input = document.getElementById('search-input');
+  const query = input.value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('search-btn');
+  const cancel = document.getElementById('search-cancel');
+  const status = document.getElementById('search-status');
+  const resultsDiv = document.getElementById('search-results');
+  const body = document.getElementById('search-body');
+  const countEl = document.getElementById('result-count');
+
+  btn.disabled = true;
+  cancel.style.display = '';
+  searchAbort = new AbortController();
+
+  // Phase 1: Surface search
+  status.textContent = 'Searching badges, names, notes...';
+  try {
+    const res = await fetch(API + '/api/search?q=' + encodeURIComponent(query), { signal: searchAbort.signal });
+    const data = await res.json();
+    renderSearchResults(data.results, body, countEl);
+    resultsDiv.style.display = '';
+
+    if (data.results.length > 0) {
+      status.textContent = 'Found in surface search. Going deeper...';
+    } else {
+      status.textContent = 'Not in surface. Searching conversation messages...';
+    }
+
+    // Phase 2: Deep search
+    const res2 = await fetch(API + '/api/search?q=' + encodeURIComponent(query) + '&deep=1', { signal: searchAbort.signal });
+    const data2 = await res2.json();
+    renderSearchResults(data2.results, body, countEl);
+    status.textContent = data2.results.length + ' result(s) found.';
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      status.textContent = 'Search cancelled.';
+    } else {
+      status.textContent = 'Search error.';
+    }
+  }
+
+  btn.disabled = false;
+  cancel.style.display = 'none';
+  searchAbort = null;
+}
+
+function cancelSearch() {
+  if (searchAbort) searchAbort.abort();
+}
+
+function renderSearchResults(results, body, countEl) {
+  countEl.textContent = '(' + results.length + ')';
+  if (results.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-state">No matches found</td></tr>';
+    return;
+  }
+  body.innerHTML = results.map(r => {
+    const key = r.claude_session_id || r.iterm_uuid;
+    const action = r.location === 'Parked Sessions'
+      ? '<button class="btn btn-restore" onclick="restoreFromHistory(\\'' + key + '\\')">Restore</button>'
+      : '<button class="btn btn-focus" onclick="focusSession(\\'' + r.iterm_uuid + '\\')">Focus</button>';
+    return '<tr>'
+      + '<td><span style="color:' + (r.location === 'Active Sessions' ? '#859900' : '#6c71c4') + ';font-weight:600">' + escapeHtml(r.location) + '</span></td>'
+      + '<td class="badge-cell">' + escapeHtml(r.badge) + '</td>'
+      + '<td>' + escapeHtml(r.session_name).substring(0, 50) + '</td>'
+      + '<td style="font-size:12px;color:#586e75;max-width:300px;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(r.match) + '</td>'
+      + '<td class="actions">' + action + '</td>'
+      + '</tr>';
+  }).join('');
 }
 
 async function newSession() {
