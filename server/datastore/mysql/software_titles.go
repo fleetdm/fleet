@@ -142,10 +142,14 @@ GROUP BY
 // has a host with this title installed, so it cannot be used to enumerate
 // titles across teams.
 func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
+	// "No team" hosts are stored with hosts.team_id IS NULL, never a
+	// literal 0, so both a nil teamID and an explicit team_id=0 ("No team"
+	// in the UI) must use the IS NULL form rather than an equality that
+	// would never match any row.
 	hostTeamFilter := "h.team_id IS NULL"
 	var displayNameTeamID uint
 	args := []any{}
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		hostTeamFilter = "h.team_id = ?"
 		displayNameTeamID = *teamID
 		args = append(args, *teamID)

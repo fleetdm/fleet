@@ -2387,6 +2387,25 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID+999999, &team1.ID)
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// "No team" (team_id=0): a host with no team is stored with
+	// hosts.team_id IS NULL, never a literal 0, so the no-team scope must
+	// be queried that way rather than as a literal team_id = 0 equality
+	// (which would never match any row).
+	noTeamHost := test.NewHost(t, ds, "no-team-host", "", "no-team-hostkey", "no-team-hostuuid", time.Now())
+	noTeamSw := fleet.Software{Name: "UniqueNoTeamTitleApp", Version: "1.0", Source: "apps", BundleIdentifier: "com.unique.noteamtitleapp"}
+	_, err = ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{noTeamSw})
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(ctx, noTeamHost, false))
+	require.Len(t, noTeamHost.Software, 1)
+	require.NotNil(t, noTeamHost.Software[0].TitleID)
+	noTeamTitleID := *noTeamHost.Software[0].TitleID
+
+	zero := uint(0)
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, noTeamTitleID, &zero)
+	require.NoError(t, err)
+	assert.Equal(t, noTeamSw.Name, name)
+	assert.Empty(t, displayName)
 }
 
 func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
