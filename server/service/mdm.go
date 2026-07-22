@@ -2127,6 +2127,9 @@ func (svc *Service) parseAndValidateAndroidConfigProfile(ctx context.Context, te
 	}
 
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 

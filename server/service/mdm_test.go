@@ -3745,6 +3745,21 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.BatchSetMDMProfilesFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
 		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
 	})
 }
@@ -4034,6 +4049,19 @@ func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
 		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
 	})
 }
 

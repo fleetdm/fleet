@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -106,6 +108,30 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 		var invalidArgErr *fleet.InvalidArgumentError
 		require.ErrorAs(t, err, &invalidArgErr)
 		require.ErrorContains(t, err, "is not defined")
+	})
+
+	t.Run("Android app configuration: infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+			return nil, nil
+		}
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{
+				AppStoreID:       "com.example.app",
+				LabelsExcludeAny: []string{},
+				LabelsIncludeAny: []string{},
+				LabelsIncludeAll: []string{},
+				Categories:       []string{},
+				Platform:         fleet.AndroidPlatform,
+				Configuration:    json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_9"}}`),
+			},
+		}, true)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr2 *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr2, "an infrastructure failure must not be reported as invalid input (422)")
 	})
 
 	t.Run("Fails for Fleet Agent Android apps via GitOps", func(t *testing.T) {

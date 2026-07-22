@@ -382,6 +382,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 						return nil, nil, err
 					}
 					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+						if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+							return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+						}
 						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 					}
 				}
