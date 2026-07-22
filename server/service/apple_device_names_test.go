@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
@@ -68,5 +70,71 @@ func TestResolveHostNameIDPVars(t *testing.T) {
 		_, detail, err := resolveHostNameIDPVars(t.Context(), ds, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", 42)
 		require.NoError(t, err)
 		require.Contains(t, detail, "no IdP username for this host")
+	})
+}
+
+// TestReconcileHostDeviceNamesExpandsCustomHostVitals covers the per-host
+// $FLEET_HOST_VITAL_<id> expansion step: a host with no value set for a
+// referenced vital fails the row (mirroring the missing-secret path), and a
+// host with a value gets it substituted before resolution. Both scenarios
+// here settle on a name matching the host's current ComputerName, so the
+// cron never reaches the MDM commander (nil is safe to pass).
+func TestReconcileHostDeviceNamesExpandsCustomHostVitals(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+
+	const tmpl = "WS-$FLEET_HOST_VITAL_5"
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured: true,
+				HostNameTemplate:     optjson.SetString(tmpl),
+			},
+		}, nil
+	}
+	ds.DeactivateHostDeviceNameCommandsFunc = func(_ context.Context, _ []string) error { return nil }
+
+	type recordedStatus struct {
+		status fleet.MDMDeliveryStatus
+		detail string
+	}
+	statuses := map[string]recordedStatus{}
+	ds.SetHostDeviceNameStatusFunc = func(_ context.Context, hostUUID string, status fleet.MDMDeliveryStatus, _ *string, _, detail string) error {
+		statuses[hostUUID] = recordedStatus{status, detail}
+		return nil
+	}
+
+	t.Run("no value set for the host fails the row", func(t *testing.T) {
+		ds.ListHostsPendingDeviceNameCommandFunc = func(_ context.Context, _ int) ([]fleet.HostDeviceNamePending, error) {
+			return []fleet.HostDeviceNamePending{
+				{HostID: 1, HostUUID: "host-1", HardwareSerial: "SERIAL1", Platform: "darwin", ComputerName: "old-name"},
+			}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(_ context.Context, hostID uint, document string) (string, error) {
+			require.Equal(t, uint(1), hostID)
+			require.Equal(t, tmpl, document)
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{5}}
+		}
+
+		require.NoError(t, ReconcileHostDeviceNames(t.Context(), ds, nil, logger))
+		require.Equal(t, fleet.MDMDeliveryFailed, statuses["host-1"].status)
+		require.Contains(t, statuses["host-1"].detail, "no value set for this host")
+	})
+
+	t.Run("host's value is substituted and a matching name verifies without a command", func(t *testing.T) {
+		ds.ListHostsPendingDeviceNameCommandFunc = func(_ context.Context, _ int) ([]fleet.HostDeviceNamePending, error) {
+			return []fleet.HostDeviceNamePending{
+				{HostID: 2, HostUUID: "host-2", HardwareSerial: "SERIAL2", Platform: "darwin", ComputerName: "WS-engineering"},
+			}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(_ context.Context, hostID uint, document string) (string, error) {
+			require.Equal(t, uint(2), hostID)
+			require.Equal(t, tmpl, document)
+			return "WS-engineering", nil
+		}
+
+		require.NoError(t, ReconcileHostDeviceNames(t.Context(), ds, nil, logger))
+		require.Equal(t, fleet.MDMDeliveryVerified, statuses["host-2"].status)
+		require.Empty(t, statuses["host-2"].detail)
 	})
 }
