@@ -113,9 +113,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		//   h.Write(data)
 		//   sha1Sum := h.Sum(nil)
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-		// Dedupe (source, username) tuples per certificate: osquery can report the same certificate scope more than
-		// once. A duplicate tuple here would make the source-set comparison below fail on every report and would
-		// violate the unique key when inserting host_certificate_sources rows.
+		// Dedupe (source, username) tuples per certificate: osquery can report the same certificate scope more than once.
 		srcToSet := certSourceToSet{Source: cert.Source, Username: cert.Username}
 		if !slices.Contains(incomingSourcesBySHA1[normalizedSHA1], srcToSet) {
 			incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], srcToSet)
@@ -130,14 +128,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		return ctxerr.Wrap(ctx, err, "list host certificates for update")
 	}
 
-	// listHostCertsDB returns one row per (certificate row x source row). host_certificates has no unique index on
-	// (host_id, sha1_sum), so concurrent re-ingestion of the same report (osquery resends results after a timed-out
-	// write; the replica read above may also be stale) can leave duplicate active rows for the same certificate. Treat
-	// the newest row as canonical: diff sources against it alone, and soft-delete the duplicates in the transaction
-	// below. Newest wins so that a row re-inserted with fresher metadata (the validity-dates mismatch branch below)
-	// survives healing. Diffing against the union of duplicate rows made the source-set comparison fail on every
-	// report, which re-wrote every poisoned host's sources on every ingestion and caused a writer-wide lock storm at
-	// scale (#49705).
+	// listHostCertsDB returns one row per (certificate row x source row). host_certificates has no unique index on (host_id,
+	// sha1_sum), so treat the newest row as canonical: diff sources against it alone, and soft-delete the duplicates in the
+	// transaction below. Newest wins.
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
 	for _, ec := range existingCerts {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
@@ -148,11 +141,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingBySHA1))
 	existingSourceRowIDsBySHA1 := make(map[string]map[certSourceToSet]uint, len(existingBySHA1))
 	var certIDsToRetire []uint      // duplicate (and below, replaced) host_certificates rows, soft-deleted in the tx (self-heal)
-	var sourceRowIDsToRetire []uint // their host_certificate_sources rows, deleted so the unique index sheds the garbage
+	var sourceRowIDsToRetire []uint // their host_certificate_sources rows, deleted
 	seenRetiredCertIDs := make(map[uint]struct{})
-	// Winners that are mdm-origin while a discarded duplicate was osquery-origin: the duplicate proves osquery observed
-	// the certificate, so per the one-way downgrade policy below the surviving row must become osquery-origin.
-	crossOriginDowngradeIDs := make(map[uint]struct{})
 	for _, ec := range existingCerts {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
 		winner := existingBySHA1[normalizedSHA1]
@@ -162,9 +152,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 				certIDsToRetire = append(certIDsToRetire, ec.ID)
 			}
 			sourceRowIDsToRetire = append(sourceRowIDsToRetire, ec.SourceID)
-			if winner.Origin == fleet.HostCertificateOriginMDM && ec.Origin == fleet.HostCertificateOriginOsquery {
-				crossOriginDowngradeIDs[winner.ID] = struct{}{}
-			}
 			continue
 		}
 		srcToSet := certSourceToSet{Source: ec.Source, Username: ec.Username}
@@ -180,9 +167,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
 	// Existing mdm-origin rows that osquery is also reporting. One-way
 	// downgrade: osquery sees a strict superset of the keychain, so dual
-	// observation isn't evidence of MDM delivery. Seeded with winners of the
-	// duplicate healing above whose discarded duplicate was osquery-origin.
-	toDowngrade := slices.Collect(maps.Keys(crossOriginDowngradeIDs))
+	// observation isn't evidence of MDM delivery.
+	var toDowngrade []uint
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
@@ -217,22 +203,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		} else {
 			toInsert = append(toInsert, incoming)
 			toInsertBySHA1[sha1] = incoming
-			if hasExisting {
-				// The existing row is being replaced by a fresh insert (validity dates changed): retire it and move
-				// the full desired source set to the new row. Without this, a re-insert with an unchanged source set
-				// would leave the new row with no source rows at all, invisible to listHostCertsDB's INNER JOIN, and
-				// every subsequent report would insert yet another orphaned row.
-				if _, ok := seenRetiredCertIDs[existing.ID]; !ok {
-					seenRetiredCertIDs[existing.ID] = struct{}{}
-					certIDsToRetire = append(certIDsToRetire, existing.ID)
-				}
-				for _, rowID := range existingSourceRowIDsBySHA1[sha1] {
-					sourceRowIDsToRetire = append(sourceRowIDsToRetire, rowID)
-				}
-				// Every desired tuple is missing for the brand-new row.
-				delete(existingSourceRowIDsBySHA1, sha1)
-				toSetSourcesBySHA1[sha1] = newSources
-			}
 		}
 	}
 
