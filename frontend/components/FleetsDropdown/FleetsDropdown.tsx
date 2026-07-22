@@ -452,6 +452,7 @@ const FleetsDropdown = ({
   const onClickAddFleet = () => {
     setMenuIsOpen(false);
     setSearchQuery("");
+    // TODO: hoist navigation to an onAddFleet callback prop so consumers own it.
     browserHistory.push(
       getPathWithQueryParams(PATHS.ADMIN_FLEETS, { create_fleet: "1" })
     );
