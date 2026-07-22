@@ -1,1 +1,1 @@
-- Fixed a reflected XSS vulnerability in the unauthenticated Windows MDM Terms of Service endpoint (`/api/mdm/microsoft/tos`) by validating the `redirect_uri` scheme.
+- Improved input validation for the Windows MDM enrollment flow.
