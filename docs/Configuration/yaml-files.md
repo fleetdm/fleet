@@ -1252,6 +1252,21 @@ org_settings:
       byod_fleet: 📱 BYOD iPhones
 ```
 
+#### windows_automatic_enrollment
+
+The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
+
+- `default_fleet` specifies the name of the fleet all Windows hosts go in (default: `""`).
+
+#### Example
+
+```yaml
+org_settings:
+  mdm:
+    windows_automatic_enrollment: # Available in Fleet Premium
+    - default_fleet: Windows Workstations
+```
+
 #### volume_purchasing_program
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
