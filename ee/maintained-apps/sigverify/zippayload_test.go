@@ -2,6 +2,10 @@ package sigverify
 
 import (
 	"archive/zip"
+	"bytes"
+	"compress/flate"
+	"fmt"
+	"hash/crc32"
 	"os"
 	"path/filepath"
 	"testing"
@@ -113,9 +117,50 @@ func TestExtractZipPayload(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "1234567890", string(content))
 
-		// One byte over the limit fails.
-		err = extractZipEntry(entry, filepath.Join(t.TempDir(), "over-limit.msi"), 9)
-		require.ErrorContains(t, err, "exceeds the 9 byte extraction limit")
+		// One byte over the limit is rejected from the declared size, before
+		// anything is written to disk.
+		overTarget := filepath.Join(t.TempDir(), "over-limit.msi")
+		err = extractZipEntry(entry, overTarget, 9)
+		require.ErrorContains(t, err, "declares 10 bytes, exceeding the 9 byte extraction limit")
+		_, statErr := os.Stat(overTarget)
+		require.True(t, os.IsNotExist(statErr))
+	})
+
+	t.Run("lying declared size still fails extraction", func(t *testing.T) {
+		// A header that under-declares the uncompressed size passes the
+		// declared-size check, but extraction must still fail rather than
+		// yield a silently truncated payload: archive/zip errors when the
+		// stream exceeds the declared size, and the streaming limit in
+		// extractZipEntry remains as a further wall.
+		var deflated bytes.Buffer
+		fw, err := flate.NewWriter(&deflated, flate.DefaultCompression)
+		require.NoError(t, err)
+		_, err = fw.Write([]byte("1234567890"))
+		require.NoError(t, err)
+		require.NoError(t, fw.Close())
+
+		zipPath := filepath.Join(t.TempDir(), "lying.zip")
+		f, err := os.Create(zipPath)
+		require.NoError(t, err)
+		zw := zip.NewWriter(f)
+		w, err := zw.CreateRaw(&zip.FileHeader{
+			Name:               "lying.msi",
+			Method:             zip.Deflate,
+			CRC32:              crc32.ChecksumIEEE([]byte("1234567890")),
+			CompressedSize64:   uint64(deflated.Len()), // nolint:gosec // buffer length is never negative
+			UncompressedSize64: 5,                      // lies: the stream inflates to 10 bytes
+		})
+		require.NoError(t, err)
+		_, err = w.Write(deflated.Bytes())
+		require.NoError(t, err)
+		require.NoError(t, zw.Close())
+		require.NoError(t, f.Close())
+
+		r, err := zip.OpenReader(zipPath)
+		require.NoError(t, err)
+		defer r.Close()
+		err = extractZipEntry(r.File[0], filepath.Join(t.TempDir(), "out.msi"), 5)
+		require.ErrorContains(t, err, "extracting lying.msi")
 	})
 
 	t.Run("invalid zip", func(t *testing.T) {
@@ -123,5 +168,53 @@ func TestExtractZipPayload(t *testing.T) {
 		require.NoError(t, os.WriteFile(notZip, []byte("not a zip"), 0o644))
 		_, err := ExtractZipPayload(notZip, t.TempDir(), []string{".msi"})
 		require.ErrorContains(t, err, "opening zip")
+	})
+}
+
+// writeRawEntryZip writes a zip whose entries carry the given declared
+// uncompressed sizes without writing any actual data (CreateRaw trusts the
+// header), so tests can declare absurd sizes cheaply.
+func writeRawEntryZip(t *testing.T, declaredSizes []uint64) string {
+	t.Helper()
+	zipPath := filepath.Join(t.TempDir(), "declared.zip")
+	f, err := os.Create(zipPath)
+	require.NoError(t, err)
+	defer f.Close()
+
+	zw := zip.NewWriter(f)
+	for i, size := range declaredSizes {
+		_, err := zw.CreateRaw(&zip.FileHeader{
+			Name:               fmt.Sprintf("entry-%d.bin", i),
+			Method:             zip.Store,
+			CompressedSize64:   0,
+			UncompressedSize64: size,
+		})
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+	return zipPath
+}
+
+func TestPreflightZip(t *testing.T) {
+	t.Run("normal archive passes", func(t *testing.T) {
+		zipPath := writeTestZip(t, map[string]string{"App.app/Contents/MacOS/app": "binary", "readme.txt": "hi"})
+		require.NoError(t, PreflightZip(zipPath))
+	})
+
+	t.Run("oversized declared entry", func(t *testing.T) {
+		zipPath := writeRawEntryZip(t, []uint64{maxZipEntrySize + 1})
+		require.ErrorContains(t, PreflightZip(zipPath), "byte extraction limit")
+	})
+
+	t.Run("total declared size over limit", func(t *testing.T) {
+		nine := uint64(9 << 30)
+		zipPath := writeRawEntryZip(t, []uint64{nine, nine, nine, nine}) // 36 GiB total
+		require.ErrorContains(t, PreflightZip(zipPath), "total uncompressed bytes")
+	})
+
+	t.Run("invalid zip", func(t *testing.T) {
+		notZip := filepath.Join(t.TempDir(), "notzip.zip")
+		require.NoError(t, os.WriteFile(notZip, []byte("not a zip"), 0o644))
+		require.ErrorContains(t, PreflightZip(notZip), "opening zip")
 	})
 }

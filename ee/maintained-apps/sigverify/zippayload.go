@@ -15,6 +15,14 @@ import (
 // guard); comfortably above any real installer payload.
 const maxZipEntrySize = 10 << 30 // 10 GiB
 
+// maxZipTotalSize and maxZipEntries bound what a whole archive may declare
+// before it is extracted in full (see PreflightZip); comfortably above any
+// real installer.
+const (
+	maxZipTotalSize = uint64(30 << 30) // 30 GiB
+	maxZipEntries   = 200_000
+)
+
 // ExtractZipPayload extracts the single payload file from zipPath whose
 // extension matches one of exts — preferring earlier extensions in exts, then
 // top-level entries over ones a directory deep (entries nested deeper are not
@@ -88,7 +96,48 @@ func selectPayloadEntry(files []*zip.File, destDir string, exts []string) *zip.F
 	return best
 }
 
+// PreflightZip rejects an archive whose central directory declares more
+// entries, a bigger single entry, or more total uncompressed data than any
+// legitimate installer ships — before anything is extracted to disk. Used
+// ahead of whole-archive extraction (macOS zip payloads must be extracted
+// with ditto to preserve the metadata codesign verification depends on, so
+// they can't use the single-entry path). Declared sizes can lie, so this is
+// the cheap first wall against decompression bombs, not the only one: a
+// dishonest archive still can't make the job pass, it can only fail it
+// loudly by exhausting the runner.
+func PreflightZip(zipPath string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("opening zip: %w", err)
+	}
+	defer r.Close()
+
+	if len(r.File) > maxZipEntries {
+		return fmt.Errorf("zip declares %d entries, exceeding the %d entry limit", len(r.File), maxZipEntries)
+	}
+	var total uint64
+	for _, f := range r.File {
+		if f.UncompressedSize64 > maxZipEntrySize {
+			return fmt.Errorf("zip entry %s declares %d bytes, exceeding the %d byte extraction limit", f.Name, f.UncompressedSize64, maxZipEntrySize)
+		}
+		// total <= maxZipTotalSize here, so this subtraction can't underflow
+		// and the addition below can't overflow.
+		if f.UncompressedSize64 > maxZipTotalSize-total {
+			return fmt.Errorf("zip declares more than %d total uncompressed bytes, exceeding the extraction limit", maxZipTotalSize)
+		}
+		total += f.UncompressedSize64
+	}
+	return nil
+}
+
 func extractZipEntry(f *zip.File, target string, limit int64) error {
+	// Reject early on the declared size so an oversized entry costs no
+	// disk/IO at all. The streaming limit below stays as the real guard —
+	// the central directory can lie.
+	if limit >= 0 && f.UncompressedSize64 > uint64(limit) {
+		return fmt.Errorf("zip entry %s declares %d bytes, exceeding the %d byte extraction limit", f.Name, f.UncompressedSize64, limit)
+	}
+
 	rc, err := f.Open()
 	if err != nil {
 		return fmt.Errorf("opening zip entry %s: %w", f.Name, err)

@@ -133,6 +133,12 @@ func VerifyZipPayload(ctx context.Context, zipPath string) (*DarwinResult, error
 	ctx, cancel := context.WithTimeout(ctx, containerTimeout)
 	defer cancel()
 
+	// The whole archive is about to be extracted, so bound what its central
+	// directory declares first (decompression-bomb guard).
+	if err := PreflightZip(zipPath); err != nil {
+		return nil, err
+	}
+
 	dest, err := os.MkdirTemp(filepath.Dir(zipPath), "extract-")
 	if err != nil {
 		return nil, fmt.Errorf("creating extraction directory: %w", err)
