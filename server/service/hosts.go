@@ -2524,7 +2524,7 @@ type getHostDEPAssignmentRequest struct {
 type getHostDEPAssignmentResponse struct {
 	ID                uint                     `json:"id"`
 	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
-	DEPDevice         *godep.Device            `json:"dep_device"`
+	DEPDevice         *godep.DeviceDetails     `json:"dep_device"`
 	Err               error                    `json:"error,omitempty"`
 }
 
@@ -2544,7 +2544,7 @@ func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Se
 	}, nil
 }
 
-func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, error) {
 	// Load the host first so we can do a team-aware authorization check,
 	// mirroring what GET /hosts/:id does.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
