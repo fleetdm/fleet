@@ -8,9 +8,10 @@ The Fleet roadmap is set for summer 2026. Watch the video above for a walkthroug
 
 In the next 3 months, Fleet will ship...
 
+- 👁️‍🗨️ AI governance: See which AI tools are installed across your fleet ([#47619](https://github.com/fleetdm/fleet/issues/47619))
 - 🩹 Patch policies: Set a deadline, prompt end users before it hits, auto-install when the app is closed, and patch during maintenance windows ([#39176](https://github.com/fleetdm/fleet/issues/39176), [#39178](https://github.com/fleetdm/fleet/issues/39178), [#39962](https://github.com/fleetdm/fleet/issues/39962), [#48174](https://github.com/fleetdm/fleet/issues/48174))
 - 🪟 Windows: Create, force standard, and rotate local admin accounts ([#43488](https://github.com/fleetdm/fleet/issues/43488), [#43489](https://github.com/fleetdm/fleet/issues/43489), [#43490](https://github.com/fleetdm/fleet/issues/43490))
-- 📋 Configuration profiles: Upload ADMX and JSON (Windows) and any declaration (DDM) profiles, assets, and activations ([#48103](https://github.com/fleetdm/fleet/issues/48103), [#48222](https://github.com/fleetdm/fleet/issues/48222), [#48198](https://github.com/fleetdm/fleet/issues/48198), [#48046](https://github.com/fleetdm/fleet/issues/48046))
+- 📋 Configuration profiles: Deploy ADMX/JSON (Windows) and DDM (declarative) profiles, assets, and activations, with self-service install options ([#48103](https://github.com/fleetdm/fleet/issues/48103), [#48222](https://github.com/fleetdm/fleet/issues/48222), [#48198](https://github.com/fleetdm/fleet/issues/48198), [#48046](https://github.com/fleetdm/fleet/issues/48046), [#46834](https://github.com/fleetdm/fleet/issues/46834)) 
 - 📱 Create Android reports to send data to your log destination and labels to scope configuration profiles, software, and more ([#43922](https://github.com/fleetdm/fleet/issues/43922))
 - 🤖 Run any command available in the Android Management API as a custom MDM command ([#23232](https://github.com/fleetdm/fleet/issues/23232), [#33158](https://github.com/fleetdm/fleet/issues/33158))
 - 🍏 Enroll and manage tvOS ([#38791](https://github.com/fleetdm/fleet/issues/38791))
@@ -22,8 +23,6 @@ In the next 3 months, Fleet will ship...
 - 📢 Auto re-send configuration profiles ([#40637](https://github.com/fleetdm/fleet/issues/40637))
 - 📦 Software inventory: Go binaries, more VS Code extensions, Linux apps, and Adobe plugins ([#44775](https://github.com/fleetdm/fleet/issues/44775), [#47790](https://github.com/fleetdm/fleet/issues/47790), [#47789](https://github.com/fleetdm/fleet/issues/47789), [#45414](https://github.com/fleetdm/fleet/issues/45414))
 - ✨ Fleet's MCP server ([#44448](https://github.com/fleetdm/fleet/issues/44448))
-- TODO: @noahtalerman: Self-service config profiles
-- TODO: @noahtalerman: AI governance and AI tools. Bring this to the top
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
