@@ -263,14 +263,26 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
     updateHasMoreBelow();
   }, [React.Children.count(props.children)]);
 
+  // Chain react-select's own innerProps handlers before running our own —
+  // otherwise our overrides silently drop whatever react-select (or a
+  // future prop) provides.
+  const originalOnScroll = props.innerProps?.onScroll;
+  const originalOnMouseDown = props.innerProps?.onMouseDown;
+
   return (
     <components.MenuList
       {...props}
       innerRef={setMenuListRef}
       innerProps={{
         ...props.innerProps,
-        onScroll: updateHasMoreBelow,
-        onMouseDown: (event: React.MouseEvent) => event.stopPropagation(),
+        onScroll: (event: React.UIEvent<HTMLDivElement>) => {
+          originalOnScroll?.(event);
+          updateHasMoreBelow();
+        },
+        onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => {
+          originalOnMouseDown?.(event);
+          event.stopPropagation();
+        },
         // Chrome (and other browsers with `keyboard-focusable-scrollers`
         // enabled) auto-focuses scrollable containers to allow keyboard
         // scrolling — that steals Tab from the search input and lands on
@@ -281,9 +293,22 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
       }}
     >
       {props.children}
-      {hasMoreBelow && (
-        <div className={`${baseClass}__scroll-fade`} aria-hidden />
-      )}
+      {/*
+        Always render the anchor (unconditional) so toggling the fade's
+        visibility never changes MenuList.scrollHeight. The anchor is a
+        0-height sticky "spot" at the bottom edge; the visible 35px fade
+        is an absolutely-positioned ::before pseudo-element that opacity-
+        toggles via the --visible modifier. Rendering a 35px sticky div
+        conditionally would add/remove 35px of flow height, clamp
+        scrollTop, and cause a visible jump at the very bottom of the
+        options list.
+      */}
+      <div
+        className={classnames(`${baseClass}__scroll-fade`, {
+          [`${baseClass}__scroll-fade--visible`]: hasMoreBelow,
+        })}
+        aria-hidden
+      />
     </components.MenuList>
   );
 };
@@ -380,9 +405,10 @@ const FleetsDropdown = ({
 
   // When the menu opens with no search input, focus react-select's hidden
   // input directly so Arrow / Enter / Escape drive option highlighting
-  // natively — otherwise focus stays on the trigger and keydowns never reach
-  // react-select. When search is visible, CustomMenuList focuses the search
-  // input on mount and the forwardNavKey bridge takes it from there.
+  // natively — otherwise focus stays on the trigger and keydowns never
+  // reach react-select. When search IS visible, the search input's native
+  // `autoFocus` (in CustomMenu) handles focus, and the forwardNavKey
+  // bridge routes nav keys through to react-select's hidden input.
   useEffect(() => {
     if (!menuIsOpen || showSearch) return;
     getHiddenInput()?.focus();
@@ -415,14 +441,17 @@ const FleetsDropdown = ({
 
   const toggleMenu = () => {
     if (isDisabled) return;
-    // Fire onOpen here; clear searchQuery at the origin on close (react-
-    // select's onMenuClose doesn't fire for controlled-prop closes).
-    setMenuIsOpen((open) => {
-      const next = !open;
-      if (next) onOpen?.();
-      else setSearchQuery("");
-      return next;
-    });
+    // Keep side effects out of the state updater — Strict Mode runs
+    // updaters twice, which would double-fire onOpen and double-clear
+    // searchQuery. A single user click can't race with itself, so
+    // reading menuIsOpen directly is safe.
+    if (menuIsOpen) {
+      setMenuIsOpen(false);
+      setSearchQuery("");
+    } else {
+      setMenuIsOpen(true);
+      onOpen?.();
+    }
   };
 
   const handleChange = (newValue: INumberDropdownOption | null) => {

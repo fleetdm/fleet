@@ -112,27 +112,48 @@
     outline: none;
   }
 
-  // Sticky-bottom scroll-fade lives INSIDE the MenuList (the scroll container)
-  // so it pins to the visible bottom of the options area — and it's not
-  // rendered when the user has scrolled to the last option. Negative bottom
-  // pulls the fade past MenuList's pad-small paddingBottom so it sits flush
+  // Scroll-fade anchor sits at the bottom of the options area with
+  // zero flow height, so toggling the fade's visibility never changes
+  // MenuList.scrollHeight (which would clamp scrollTop and jump at the
+  // very bottom of the list). Negative bottom pulls the anchor past
+  // MenuList's pad-small paddingBottom so the gradient sits flush
   // against the outer edge of the scroll area rather than 8px above it.
+  //
+  // The visible gradient is a ::before pseudo-element sized 35px,
+  // toggled via opacity on the --visible modifier — that keeps the fade
+  // out of layout entirely regardless of visibility.
   &__scroll-fade {
     position: sticky;
     bottom: -$pad-small;
-    height: 35px;
-    // Fade from opaque Fleet-white at the bottom to transparent Fleet-white at
-    // the top. Uses the shared -transparent variant (same RGB as
-    // $core-fleet-white with alpha 0 in both light and dark themes) so
-    // dark-mode variable swaps carry through with no additional overrides —
-    // same pattern as the horizontal table shadows.
-    background: linear-gradient(
-      to top,
-      $core-fleet-white 0%,
-      $core-fleet-white-transparent 100%
-    );
+    height: 0;
     pointer-events: none;
     z-index: 9;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 35px;
+      // Fade from opaque Fleet-white at the bottom to transparent
+      // Fleet-white at the top. Uses the shared -transparent variant
+      // (same RGB as $core-fleet-white with alpha 0 in both light and
+      // dark themes) so dark-mode variable swaps carry through with no
+      // additional overrides — same pattern as the horizontal table
+      // shadows.
+      background: linear-gradient(
+        to top,
+        $core-fleet-white 0%,
+        $core-fleet-white-transparent 100%
+      );
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    &--visible::before {
+      opacity: 1;
+    }
   }
 
   &__add-fleet-footer {
