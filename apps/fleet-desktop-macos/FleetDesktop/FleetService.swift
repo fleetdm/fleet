@@ -507,8 +507,13 @@ final class FleetService {
 
         // Require HTTPS — the device token is sent to this URL, and a
         // misconfigured http:// value would put it on the wire in cleartext.
-        guard let parsed = URL(string: fleetURL), parsed.scheme?.lowercased() == "https" else {
-            showError("The configured Fleet URL must use HTTPS.\nCheck the FleetURL managed preference.")
+        // Require a host too: URL(string:) accepts host-less values like
+        // "https://", which would otherwise build a device URL whose host is
+        // the literal path segment "device".
+        guard let parsed = URL(string: fleetURL),
+              parsed.scheme?.lowercased() == "https",
+              let host = parsed.host, !host.isEmpty else {
+            showError("The configured Fleet URL must be a valid HTTPS URL.\nCheck the FleetURL managed preference.")
             return false
         }
 
