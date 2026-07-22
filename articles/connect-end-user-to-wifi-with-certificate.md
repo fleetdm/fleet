@@ -46,7 +46,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
 
 2. If you want your certificates to be unique to each host, update the `Subject`. For example, you can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. You can also use any of the [supported variables](https://fleetdm.com/guides/fleet-variables).
 
-3. In Fleet, head to **Controls >  > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
+3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
 When the profile is delivered to your hosts, Fleet replaces the variables. If something fails, errors appear on each host's **Host details > OS settings**.
 
