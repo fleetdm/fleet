@@ -49,8 +49,26 @@ func (c *Client) AccountDetail(ctx context.Context, name string) (*AccountRespon
 // IsTermsNotSigned returns true if err is a DEP "terms and conditions not
 // signed" error. Per Apple this indicates the Terms and Conditions must be
 // accepted by the user.
-// See https://developer.apple.com/documentation/devicemanagement/device_assignment/authenticating_with_a_device_enrollment_program_dep_server/interpreting_error_codes
+// See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsTermsNotSigned(err error) bool {
 	return httpErrorContains(err, http.StatusForbidden, "T_C_NOT_SIGNED") ||
 		authErrorContains(err, http.StatusForbidden, "T_C_NOT_SIGNED")
+}
+
+// IsTokenRejected returns true if err is a DEP "token rejected" error. Per
+// Apple this indicates the token itself was revoked or replaced in Apple
+// Business Manager without the new token being uploaded to Fleet.
+// See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
+func IsTokenRejected(err error) bool {
+	return httpErrorContains(err, http.StatusForbidden, "token_rejected") ||
+		authErrorContains(err, http.StatusForbidden, "token_rejected")
+}
+
+// IsSignatureInvalid returns true if err is a DEP "signature invalid" error.
+// Per Apple this indicates the token itself was revoked or replaced in Apple
+// Business Manager without the new token being uploaded to Fleet.
+// See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
+func IsSignatureInvalid(err error) bool {
+	return httpErrorContains(err, http.StatusForbidden, "signature_invalid") ||
+		authErrorContains(err, http.StatusForbidden, "signature_invalid")
 }

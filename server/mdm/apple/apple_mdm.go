@@ -1039,7 +1039,8 @@ func logCountsForResults(deviceResults map[string]string) (out []interface{}) {
 // NewDEPClient creates an Apple DEP API HTTP client based on the provided
 // storage that will flag the ABM token's terms expired field and the
 // AppConfig's AppleBMTermsExpired field whenever the status of the terms
-// changes.
+// changes, and flag the ABM token's token_invalid field whenever Apple
+// rejects the token or reports its signature as invalid.
 func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, logger *slog.Logger) *godep.Client {
 	return godep.NewClient(storage, fleethttp.NewClient(), godep.WithAfterHook(func(ctx context.Context, reqErr error) error {
 		// to check for ABM terms expired, we must have an ABM token organization
@@ -1050,6 +1051,19 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 		orgName := depclient.GetName(ctx)
 		if _, rawTokenPresent := ctxabm.FromContext(ctx); rawTokenPresent || orgName == "" {
 			return reqErr
+		}
+
+		// if the request failed due to the token being rejected or its
+		// signature being invalid, or if it succeeded, update the ABM token's
+		// token_invalid flag accordingly. If it failed for any other reason, do
+		// not update the flag. This must happen before the terms-expired
+		// handling below, as that block can return early from this after-hook
+		// once its own bookkeeping is done.
+		tokenInvalid := reqErr != nil && (godep.IsTokenRejected(reqErr) || godep.IsSignatureInvalid(reqErr))
+		if reqErr == nil || tokenInvalid {
+			if _, err := updater.SetABMTokenInvalidForOrgName(ctx, orgName, tokenInvalid); err != nil {
+				logger.ErrorContext(ctx, "Apple DEP client: failed to update token invalid status of ABM token", "err", err)
+			}
 		}
 
 		// if the request failed due to terms not signed, or if it succeeded,
@@ -1113,8 +1127,27 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}
+
 		return reqErr
 	}))
+}
+
+// ClassifyDEPDeviceError classifies an error returned by a DEP device-details
+// style call (e.g. godep.Client.GetDeviceDetails) into a DEPDeviceErrorType
+// for API consumers, or "" if err is nil.
+func ClassifyDEPDeviceError(err error) fleet.DEPDeviceErrorType {
+	switch {
+	case err == nil:
+		return ""
+	case godep.IsTokenRejected(err) || godep.IsSignatureInvalid(err):
+		return fleet.DEPDeviceErrorTokenInvalid
+	case godep.IsTermsNotSigned(err):
+		return fleet.DEPDeviceErrorTermsExpired
+	case godep.IsServerError(err):
+		return fleet.DEPDeviceErrorServerError
+	default:
+		return fleet.DEPDeviceErrorUnavailable
+	}
 }
 
 var funcMap = map[string]any{
