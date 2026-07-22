@@ -52,7 +52,7 @@ func (e MissingCustomHostVitalsError) Error() string {
 	if len(tokens) > 1 {
 		plural = "s"
 	}
-	return fmt.Sprintf("Couldn't add. Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
+	return fmt.Sprintf("Custom host vital%s %s is not defined", plural, strings.Join(tokens, ", "))
 }
 
 // InvalidCustomHostVitalRefError is returned on upload when a document contains a
@@ -73,7 +73,7 @@ func (e InvalidCustomHostVitalRefError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf(
-		"Couldn't add. Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
+		"Invalid custom host vital reference%s %s; the value after $%s must be a custom host vital ID",
 		plural, strings.Join(tokens, ", "), CustomHostVitalPrefix,
 	)
 }
