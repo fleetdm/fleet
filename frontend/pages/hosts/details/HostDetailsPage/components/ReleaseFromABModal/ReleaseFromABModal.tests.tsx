@@ -23,7 +23,7 @@ describe("Release from AB modal", () => {
     expect(releaseButton).toBeDisabled();
 
     const checkbox = screen.getByRole("checkbox", {
-      name: /I understand that this action cannot be undone/i,
+      name: /I understand this action can't be undone/i,
     });
     await user.click(checkbox);
 
