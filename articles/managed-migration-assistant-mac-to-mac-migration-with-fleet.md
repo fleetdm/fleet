@@ -2,6 +2,12 @@
 
 Replacing a Mac means figuring out how to get the user's files to the new one without relying on them to do it manually. Apple's Managed Migration Assistant, introduced in macOS 26.4, lets your MDM specify what transfers from a user's Home folder during ADE enrollment. Fleet supports the `await_device_configured` key required to deliver the configuration at the right point in Setup Assistant, and the declarative status channel provides visibility during and after the transfer.
 
+## Why managed migration keeps Fleet's MDM working
+
+Migration Assistant has always carried a hidden risk for managed Macs. When a user migrates the standard way and leaves the **Other Files & Folders** option checked, macOS copies the old Mac's MDM enrollment state onto the new one. The new Mac ends up carrying the old device's configuration profiles and a stale enrollment with no valid identity. fleetd still checks in and osquery keeps working, so the host looks fine, but MDM breaks: commands hang or land on the wrong device.
+
+Managed Migration Assistant closes that gap. The declaration tells macOS to migrate only the contents of the user's Home folder into the account created during Setup Assistant, so the new Mac keeps its own ADE enrollment and Fleet's MDM identity stays intact. Deploy the profile described below and your users can bring their data over without breaking fleetd or MDM, and without relying on anyone to remember to uncheck the right box.
+
 ## Requirements
 
 Check these before deploying:
@@ -59,6 +65,8 @@ The declaration type is `com.apple.configuration.migration-assistant.settings`. 
 }
 ```
 
+`ShouldDoManagedMigration` and `ShouldMigrateSecurityPrivacySettings` set to `true` are the baseline that makes migration safe for a managed Mac; the two must both be present. `RequiredPaths` and `ExcludedPaths` are optional and only shape which folders move. A profile with just the two boolean keys is a valid, complete configuration.
+
 A few things to know about paths before you customize:
 
 - Paths are relative to the user's Home folder. To require `~/Documents/Work/`, specify `Documents/Work/`.
@@ -71,17 +79,35 @@ After the user account is created, Managed Migration Assistant presents the user
 
 One constraint from Apple: the **Restore** pane in Setup Assistant cannot be hidden when this feature is active. The `Restore` skip key has no effect here.
 
+### Scope the profile to macOS 26.4 or later
+
+The `com.apple.configuration.migration-assistant.settings` declaration type only exists on macOS 26.4 and later. If Fleet delivers it to an older Mac, the profile fails and the host's OS settings show:
+
+```
+Error.UnknownDeclarationType: Unknown Declaration Type map[UnknownDeclarationType:com.apple.configuration.migration-assistant.settings]
+```
+
+Scope the profile to a dynamic label so only eligible hosts receive it. In Fleet, go to **Labels**, add a dynamic label named something like `macOS 26.4+`, and use this query:
+
+```sql
+SELECT 1 FROM os_version WHERE major > 26 OR (major = 26 AND minor >= 4);
+```
+
+Then target that label when you add the profile, as shown below.
+
 ### GitOps
 
 1. Save your declaration as a `.json` file in your repository.
 
-2. Reference it under `controls.macos_settings.custom_settings` in your team YAML:
+2. Reference it under `controls.macos_settings.custom_settings` in your team YAML, scoped to the label:
 
 ```yaml
 controls:
   macos_settings:
     custom_settings:
       - path: ./platforms/macos/declaration-profiles/migration-assistant.json
+        labels_include_any:
+          - macOS 26.4+
 ```
 
 3. Commit and push. Your CI/CD pipeline will run `fleetctl gitops` and apply the declaration.
@@ -96,7 +122,11 @@ controls:
 
 4. Select **Add profile** and upload your `.json` file.
 
-Fleet will deliver the declaration to all supervised macOS hosts in that fleet that are enrolled via ADE.
+5. Under **Target**, select **Include any** and choose the `macOS 26.4+` label.
+
+6. Select **Save**.
+
+Fleet will deliver the declaration to the supervised, ADE-enrolled macOS hosts in that fleet that match the label.
 
 For a full reference of the declaration schema, see the [Apple Platform Deployment guide](https://support.apple.com/guide/deployment/managed-migration-assistant-for-macos-dep4f861792f/web) and the [apple/device-management](https://github.com/apple/device-management/blob/release/declarative/declarations/configurations/migration-assistant.settings.yaml) GitHub repo.
 
