@@ -2713,6 +2713,18 @@ func TestReconcilePatchPolicy(t *testing.T) {
 		assert.True(t, base.NewTeamPolicyFuncInvoked)
 	})
 
+	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
+	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
+		svc, base := setup(t, nil)
+		var got bool
+		base.NewTeamPolicyFunc = func(ctx context.Context, tID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
+			got = p.PatchWhenClosed
+			return &fleet.Policy{}, nil
+		}
+		require.NoError(t, svc.reconcilePatchPolicy(ctx, payload(new(true), nil), fmaInstaller))
+		assert.True(t, got)
+	})
+
 	// patch:false deletes the existing patch policy.
 	t.Run("deletes when patch disabled", func(t *testing.T) {
 		svc, base := setup(t, &fleet.PatchPolicyData{ID: 9})
