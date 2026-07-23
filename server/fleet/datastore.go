@@ -2461,6 +2461,10 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// ReconcileWindowsProfilesStatus recomputes the per-host Windows profile status rollup and drops rollup rows for hosts with no
+	// profiles.
+	ReconcileWindowsProfilesStatus(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
