@@ -23,7 +23,10 @@ import {
   MAX_PACKAGES_PER_TITLE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+} from "interfaces/team";
 import {
   canDownloadSoftwareInstaller,
   canWriteSoftware,
@@ -665,7 +668,11 @@ const SoftwareTitleDetailsPage = ({
     if (isSoftwareTitleError) {
       return (
         <DetailsNoHosts
-          header="Software not found in this fleet"
+          header={
+            currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+              ? "Software not found"
+              : "Software not found in this fleet"
+          }
           details="Expecting to see software? Check back later."
         />
       );
