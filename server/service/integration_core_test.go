@@ -6603,8 +6603,42 @@ func (s *integrationTestSuite) TestUsers() {
 		return err
 	})
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: "foo"}, http.StatusUnauthorized, &loginResp)
-	// MFA unsupported client
-	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
+
+	loginErrMessage := func(rawBody []byte) string {
+		var body struct {
+			Message string `json:"message"`
+			Errors  []struct {
+				Name   string `json:"name"`
+				Reason string `json:"reason"`
+			} `json:"errors"`
+		}
+		require.NoError(t, json.Unmarshal(rawBody, &body))
+		return fmt.Sprintf("%s %+v", body.Message, body.Errors)
+	}
+
+	mfaUnsupportedResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	mfaUnsupportedBody, err := io.ReadAll(mfaUnsupportedResp.Body)
+	require.NoError(t, err)
+	mfaUnsupportedResp.Body.Close()
+
+	wrongPwdResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: "wrong-" + userRawPwd}),
+		http.StatusUnauthorized)
+	wrongPwdBody, err := io.ReadAll(wrongPwdResp.Body)
+	require.NoError(t, err)
+	wrongPwdResp.Body.Close()
+
+	nonexistentResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "does-not-exist@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	nonexistentBody, err := io.ReadAll(nonexistentResp.Body)
+	require.NoError(t, err)
+	nonexistentResp.Body.Close()
+
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(mfaUnsupportedBody))
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(nonexistentBody))
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)

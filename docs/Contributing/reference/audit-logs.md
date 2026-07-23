@@ -447,6 +447,23 @@ This activity contains the following fields:
 }
 ```
 
+## user_mfa_requested
+
+Generated when a user with multi-factor authentication (MFA) enabled submits valid credentials and Fleet sends a verification email.
+
+This activity contains the following fields:
+- "email": The email used in the login request.
+- "public_ip": Public IP of the login request.
+
+#### Example
+
+```json
+{
+	"email": "foo@example.com",
+	"public_ip": "168.226.215.82"
+}
+```
+
 ## created_user
 
 Generated when a user is created.
