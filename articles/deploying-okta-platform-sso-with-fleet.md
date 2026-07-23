@@ -40,7 +40,7 @@ First, you'll need to set up the Platform Single Sign-on app in your Okta Admin 
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_SCEP_RENEWAL_ID` is included in the OU field of your certificate profile. 
+Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is included in the OU field of your certificate profile. 
 
 Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
 
@@ -95,14 +95,14 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - **Subject:** `CN=managementAttestation %HardwareUUID%`
-- **Subject Alt Names:** Add an OU field with value `$FLEET_VAR_SCEP_RENEWAL_ID`
+- **Subject Alt Names:** Add an OU field with value `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 30 days before expiration
 
-**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_SCEP_RENEWAL_ID`. In raw XML, the Subject array should look like this:
+**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. In raw XML, the Subject array should look like this:
 
 ```xml
 <key>Subject</key>
@@ -114,15 +114,15 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
         </array>
         <array>
             <string>OU</string>
-            <string>$FLEET_VAR_SCEP_RENEWAL_ID</string>
+            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
         </array>
     </array>
 </array>
 ```
 
-Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_SCEP_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
+Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
-> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_SCEP_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
 -- Returns 1 if all Okta certs are valid for >30 days (PASSING)
@@ -178,7 +178,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
-> **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_SCEP_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+> **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
 
 ```sql
 SELECT 1
@@ -500,6 +500,6 @@ For Device Access SCEP certificate configuration details, see [Use Okta as a CA 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="tux234">
 <meta name="authorFullName" value="Mitch Francese">
-<meta name="publishedOn" value="2026-03-08">
+<meta name="publishedOn" value="2026-07-17">
 <meta name="articleTitle" value="Deploying Platform SSO with Okta Device Access">
 <meta name="description" value="Learn how to use Fleet to deploy the Okta Platform SSO Extension">
