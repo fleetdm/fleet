@@ -209,15 +209,10 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           onMouseDown={addFleetMouseDown}
           onKeyDown={addFleetKeyDown}
         >
-          <Button
-            variant="brand-inverse-icon"
-            onClick={onClickAddFleet}
-            iconStroke
-            size="small"
-          >
+          <Button variant="subdued" onClick={onClickAddFleet} size="small">
             <>
               Add fleet
-              <Icon name="plus" color="core-fleet-green" />
+              <Icon name="plus" />
             </>
           </Button>
         </div>
