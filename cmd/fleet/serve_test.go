@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -1412,6 +1413,18 @@ func TestArgsToString(t *testing.T) {
 			assert.Equal(t, tc.want, argsToString(tc.args))
 		})
 	}
+}
+
+func TestSkipS3TestBuckets(t *testing.T) {
+	t.Run("skip flag set", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "1", t)
+		assert.True(t, skipS3TestBuckets())
+	})
+
+	t.Run("skip flag unset", func(t *testing.T) {
+		dev_mode.SetOverride("FLEET_DEV_SKIP_S3_CONFIG", "0", t)
+		assert.False(t, skipS3TestBuckets())
+	})
 }
 
 func TestGetTLSConfig(t *testing.T) {
