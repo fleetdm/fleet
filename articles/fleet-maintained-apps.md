@@ -97,6 +97,9 @@ If a new version introduces a bug, and you want to rollback to the older version
 2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, delete the policy.
 3. Create a new policy that checks if the host has a version with a bug and enable software automation. Use the query below for this policy.
 
+> Installing an older version over a newer one might cause issues for some apps. Please test it on a smaller scope first.
+
+
 ```sql
 SELECT 1 WHERE NOT EXISTS (
     SELECT 1 FROM programs WHERE name = 'Zoom' AND version = '<version_with_bug>'
