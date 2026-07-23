@@ -5,6 +5,7 @@ import { hasLicenseExpired } from "utilities/helpers";
 import { AppContext } from "context/app";
 
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
+import AppleBMTokenInvalidMessage from "components/MDM/AppleBMTokenInvalidMessage";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
@@ -43,6 +44,8 @@ const MainContent = ({
     isAppleBmExpired,
     isVppExpired,
     needsAbmTermsRenewal,
+    hasAbmTokenInvalid,
+    invalidAbmTokenOrgNames,
     willAppleBmExpire,
     willApplePnsExpire,
     willVppExpire,
@@ -68,6 +71,10 @@ const MainContent = ({
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
         banner = <AppleBMTermsMessage />;
+      } else if (hasAbmTokenInvalid) {
+        banner = (
+          <AppleBMTokenInvalidMessage orgNames={invalidAbmTokenOrgNames} />
+        );
       } else if (isVppExpired || willVppExpire) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
       } else if (isFleetLicenseExpired) {

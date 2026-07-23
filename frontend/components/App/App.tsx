@@ -137,6 +137,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
             needsAbmTermsRenewal: ab_tokens.some(
               (token) => token.terms_expired
             ),
+            hasAbmTokenInvalid: ab_tokens.some((token) => token.token_invalid),
+            invalidAbmTokenOrgNames: ab_tokens
+              .filter((token) => token.token_invalid)
+              .map((token) => token.org_name),
           });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
@@ -146,6 +150,8 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
           setABMExpiry({
             earliestExpiry: GUARANTEED_PAST_DATE,
             needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
+            hasAbmTokenInvalid: false,
+            invalidAbmTokenOrgNames: [],
           });
         }
       },

@@ -72,11 +72,20 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         // we need to call setABMExpiry here to update the expiry info so the terms banner
         // displays correctly
         if (data.length === 0) {
-          setABMExpiry({ earliestExpiry: "", needsAbmTermsRenewal: false });
+          setABMExpiry({
+            earliestExpiry: "",
+            needsAbmTermsRenewal: false,
+            hasAbmTokenInvalid: false,
+            invalidAbmTokenOrgNames: [],
+          });
         } else {
           setABMExpiry({
             earliestExpiry: getEarliestExpiry(data),
             needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+            hasAbmTokenInvalid: data.some((token) => token.token_invalid),
+            invalidAbmTokenOrgNames: data
+              .filter((token) => token.token_invalid)
+              .map((token) => token.org_name),
           });
         }
       },
