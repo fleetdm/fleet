@@ -537,9 +537,12 @@ type AppleDeclarationForReconcile struct {
 	IncludeMode           AppleProfileIncludeMode
 	IncludeLabels         []AppleProfileLabelRef
 	ExcludeLabels         []AppleProfileLabelRef
-	// HasFleetVariables is true if the declaration references any $FLEET_VAR_*.
-	// The reconciler sets VariablesUpdatedAt on the host declaration row so the
-	// host knows to re-deliver when variable values change.
+	// HasFleetVariables is true if the declaration references any per-host Fleet
+	// variable that is expanded at delivery time: a $FLEET_VAR_* or a custom host
+	// vital ($FLEET_HOST_VITAL_*). Both behave identically here — the reconciler
+	// sets VariablesUpdatedAt on the host declaration row so the host knows to
+	// re-deliver when a variable value changes — so they share this flag even
+	// though custom host vitals are a separate variable namespace.
 	//
 	// This does not cover $FLEET_SECRET_* variables and SecretsUpdatedAt as that is handled at upload time
 	// where we extract the secrets and their last update time.
@@ -725,6 +728,8 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
+	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
+	HardwareSerial string `db:"hardware_serial" json:"-"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -1376,10 +1381,15 @@ const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
 // MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
 // required software update.
 //
+// Apple's schema also defines an optional BuildVersion key, but we deliberately omit it:
+// GDMF often publishes multiple concurrent builds of the same OS version that all list the
+// same device, and pinning a build the device's software update client won't resolve makes
+// the mandatory update fail during Setup Assistant. Sending only OSVersion lets the device
+// pick the right build.
+//
 // [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
 type MDMAppleSoftwareUpdateRequiredDetails struct {
-	OSVersion    string `json:"OSVersion"`
-	BuildVersion string `json:"BuildVersion"`
+	OSVersion string `json:"OSVersion"`
 }
 
 // MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
@@ -1391,16 +1401,11 @@ type MDMAppleSoftwareUpdateRequired struct {
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
-func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
+func NewMDMAppleSoftwareUpdateRequired(osVersion string) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: osVersion},
 	}
-}
-
-type MDMAppleSoftwareUpdateAsset struct {
-	ProductVersion string `json:"ProductVersion"`
-	Build          string `json:"Build"`
 }
 
 type MDMManagedCertificate struct {
@@ -1624,4 +1629,26 @@ type DDMAssetAuthz struct {
 // AuthzType implements authz.AuthzTyper.
 func (d DDMAssetAuthz) AuthzType() string {
 	return "ddm_asset"
+}
+
+type ABReleaseDeviceStatus string
+
+const (
+	ABReleaseDeviceStatusSuccess ABReleaseDeviceStatus = "success"
+	ABReleaseDeviceStatusError   ABReleaseDeviceStatus = "failed"
+)
+
+type ABReleaseDeviceResponse struct {
+	HostID uint   `json:"host_id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+// ABReleaseDeviceAuthz is used to check user authorization to release a device from AB.
+type ABReleaseDeviceAuthz struct {
+	TeamID *uint `json:"team_id,omitempty,omitzero"` // nolint:apiparamcheck // used for rego policy, and we only support team_id there.
+}
+
+func (a ABReleaseDeviceAuthz) AuthzType() string {
+	return "mdm_ab_release"
 }

@@ -43,6 +43,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsBulkInsertCommands", testMDMWindowsBulkInsertCommands},
 		{"TestMDMWindowsInsertCommandAndUpsertHostProfilesForHosts", testMDMWindowsInsertCommandAndUpsertHostProfilesForHosts},
 		{"TestMDMWindowsGetPendingCommands", testMDMWindowsGetPendingCommands},
+		{"TestMDMWindowsGetESPReleaseAckStatus", testMDMWindowsGetESPReleaseAckStatus},
 		{"TestMDMWindowsCommandResults", testMDMWindowsCommandResults},
 		{"TestMDMWindowsCommandResultsWithPendingResult", testMDMWindowsCommandResultsWithPendingResult},
 		{"TestMDMWindowsProfileManagement", testMDMWindowsProfileManagement},
@@ -59,6 +60,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"NewMDMWindowsConfigProfileSoftwareUpdateTracking", testNewMDMWindowsConfigProfileSoftwareUpdateTracking},
+		{"TestUpdateMDMWindowsConfigProfile", testUpdateMDMWindowsConfigProfile},
 		{"TestMDMWindowsProfileLabelsCombined", testMDMWindowsProfileLabelsCombined},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
 		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
@@ -2180,6 +2182,93 @@ func testMDMWindowsGetHostConfigState(t *testing.T, ds *Datastore) {
 	require.True(t, state.HasPendingCommands, "a non-poll pending command must still count")
 }
 
+func testMDMWindowsGetESPReleaseAckStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	dev := createEnrolledDevice(t, ds)
+
+	const releaseURI = "./User/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ServerHasFinishedProvisioning"
+	const attemptPrefix = "esp-release-"
+
+	// insertCmd enqueues a command through the production insert path.
+	insertCmd := func(t *testing.T, cmdUUID, uri string) {
+		t.Helper()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{dev.MDMDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Replace/>"),
+			TargetLocURI: uri,
+		}))
+	}
+	insertAttempt := func(t *testing.T, uri string) string {
+		t.Helper()
+		cmdUUID := attemptPrefix + uuid.NewString()
+		insertCmd(t, cmdUUID, uri)
+		return cmdUUID
+	}
+	// ackAttempt mirrors MDMWindowsSaveResponse's ack transaction (result row insert + acked_at stamp) with
+	// direct inserts: the only datastore method that records results is SaveResponse itself, which needs a full
+	// SyncML envelope. Same convention as testMDMWindowsCommandResults.
+	ackAttempt := func(t *testing.T, cmdUUID, statusCode string) {
+		t.Helper()
+		compressed, err := compressWindowsMDMResponse([]byte("resp"))
+		require.NoError(t, err)
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, dev.ID, compressed)
+		require.NoError(t, err)
+		responseID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, '', ?, ?)`,
+			dev.ID, cmdUUID, responseID, statusCode)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE windows_mdm_command_queue SET acked_at = NOW(6) WHERE enrollment_id = ? AND command_uuid = ?`,
+			dev.ID, cmdUUID)
+		require.NoError(t, err)
+	}
+	requireAck := func(t *testing.T, enrollmentID uint, want fleet.MDMWindowsESPReleaseAckStatus) {
+		t.Helper()
+		ack, err := ds.MDMWindowsGetESPReleaseAckStatus(ctx, enrollmentID, releaseURI, attemptPrefix)
+		require.NoError(t, err)
+		require.Equal(t, &want, ack)
+	}
+
+	// No attempts queued at all.
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
+
+	// Commands targeting other URIs don't count as attempts.
+	otherURIUUID := insertAttempt(t, "./Device/Vendor/MSFT/DMClient/Provider/Fleet/FirstSyncStatus/ServerHasFinishedProvisioning")
+	ackAttempt(t, otherURIUUID, "200")
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
+
+	// A command targeting the release URI WITHOUT the Fleet attempt prefix (e.g. an admin-enqueued raw
+	// command) doesn't count either: it must neither trigger the resend phase nor complete the ESP.
+	rawCmdUUID := uuid.NewString()
+	insertCmd(t, rawCmdUUID, releaseURI)
+	ackAttempt(t, rawCmdUUID, "200")
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
+
+	// One queued attempt, no response yet: in flight.
+	firstAttempt := insertAttempt(t, releaseURI)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true})
+
+	// The device rejects it with 405 (user MDM context not initialized yet).
+	ackAttempt(t, firstAttempt, "405")
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, LatestStatus: "405"})
+
+	// A retry is queued: back in flight, latest acked status still the 405.
+	retryAttempt := insertAttempt(t, releaseURI)
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, HasUnacked: true, LatestStatus: "405"})
+
+	// The retry acks 200: release confirmed, and the latest status reflects the newest ack.
+	ackAttempt(t, retryAttempt, "200")
+	requireAck(t, dev.ID, fleet.MDMWindowsESPReleaseAckStatus{Attempted: true, Acked200: true, LatestStatus: "200"})
+
+	// Another enrollment's attempts are invisible.
+	otherDev := createEnrolledDevice(t, ds)
+	requireAck(t, otherDev.ID, fleet.MDMWindowsESPReleaseAckStatus{})
+}
+
 func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2439,6 +2528,408 @@ func testNewMDMWindowsConfigProfileSoftwareUpdateTracking(t *testing.T, ds *Data
 		SyncML: []byte("<Replace></Replace>"),
 	}, nil)
 	require.NoError(t, err)
+}
+
+func testUpdateMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// profile content update happens in place: the ProfileUUID is preserved
+	// (not a delete+recreate), and the new content is actually persisted --
+	// confirmed below by re-fetching from the DB, not just trusting the
+	// value UpdateMDMWindowsConfigProfile returns.
+	initial, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Update Test Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Original</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	newSyncML := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Updated</LocURI></Target></Item></Replace>")
+	updated, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		SyncML:      newSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, updated.ProfileUUID)
+	require.Equal(t, newSyncML, updated.SyncML)
+
+	// confirms values actually stored in the DB match what was returned from the update call
+	stored, err := ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, newSyncML, stored.SyncML)
+
+	// mismatched name is rejected -- Windows profiles have no separate identifier
+	// field, so name is the only identity a profile has. This is the only layer
+	// this can be tested at: the service layer never exposes a way for a client
+	// to submit a different name on an edit.
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "A Different Name",
+		SyncML:      newSyncML,
+	}, nil)
+	require.ErrorContains(t, err, "must match the existing profile's name")
+
+	// updating a nonexistent profile returns a not-found error
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "w" + uuid.NewString(),
+		Name:        "Does Not Exist",
+		SyncML:      newSyncML,
+	}, nil)
+	require.True(t, fleet.IsNotFound(err))
+
+	// labels replace the previous set entirely rather than merging with it
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-label-2", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label1.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label2.Name, stored.LabelsIncludeAll[0].LabelName, "the previous label must be replaced, not merged with")
+
+	// labels can be cleared entirely, not just replaced with a different set --
+	// exercises the profsWithoutLabel branch, a distinct code path from "has
+	// labels".
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAll)
+	require.Empty(t, stored.LabelsIncludeAny)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	// LabelsIncludeAny and LabelsExcludeAny replace the same way LabelsIncludeAll
+	// does above -- each is a separate label list on the profile.
+	anyExcludeProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Any Exclude Labels Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/AnyExclude</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	includeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-include-any", Query: "select 1"})
+	require.NoError(t, err)
+	excludeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-exclude-any", Query: "select 1"})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: includeAnyLabel.Name, LabelID: includeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAny, 1)
+	require.Equal(t, includeAnyLabel.Name, stored.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: excludeAnyLabel.Name, LabelID: excludeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAny, "the previous IncludeAny label must be replaced, not kept alongside ExcludeAny")
+	require.Len(t, stored.LabelsExcludeAny, 1)
+	require.Equal(t, excludeAnyLabel.Name, stored.LabelsExcludeAny[0].LabelName)
+
+	// Fleet variables used in the new content are persisted, and are cleared
+	// entirely when a later edit's content no longer uses any -- proves the
+	// unconditional batchSetProfileVariableAssociationsDB call actually clears
+	// stale associations against a real database, not just against mocks.
+	withVar, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Update Fleet Vars Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+
+	varNamesStmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.windows_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	var varNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, withVar.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames)
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: withVar.ProfileUUID,
+		Name:        withVar.Name,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVarsAnymore</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, withVar.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "the last Fleet variable must be cleared, not left stale, when an edit removes it")
+
+	// a labels-only edit (no new content) must NOT touch variable associations:
+	// the content didn't change, so its variables didn't either, and wiping
+	// them would break variable-driven redelivery (e.g. IdP email changes).
+	labelsOnlyVarProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Labels-Only Fleet Vars Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+	labelsOnlyVarLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: labelsOnlyVarProfile.ProfileUUID,
+		Name:        labelsOnlyVarProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: labelsOnlyVarLabel.Name, LabelID: labelsOnlyVarLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, labelsOnlyVarProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
+	// content, labels, and Fleet variables updated together in a single call
+	// -- proves the three transactional steps compose correctly, not just
+	// each dimension on its own.
+	combined, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Combined Update Profile",
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/CombinedOriginal</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	combinedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-combined-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	combinedSyncML := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>")
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: combined.ProfileUUID,
+		Name:        combined.Name,
+		SyncML:      combinedSyncML,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: combinedLabel.Name, LabelID: combinedLabel.ID},
+		},
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+
+	stored, err = ds.GetMDMWindowsConfigProfile(ctx, combined.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, combinedSyncML, stored.SyncML)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, combinedLabel.Name, stored.LabelsIncludeAll[0].LabelName)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, combined.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}, varNames)
+
+	// OS-update tracking is reconciled on edit: editing INTO OS-update
+	// content tracks the profile, editing AWAY untracks it, so the team's OS
+	// updates setting isn't permanently blocked by a stale tracking row.
+	osUpdateSyncML := fmt.Appendf(nil,
+		`<Replace><Item><Target><LocURI>./Device%s/Install</LocURI></Target></Item></Replace>`,
+		syncml.FleetOSUpdateTargetLocURI)
+	trackedTeamID := uint(42)
+	tracked, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Tracking Profile",
+		TeamID: &trackedTeamID,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NotOSUpdate</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	configured, err := ds.HasWindowsUpdateConfigProfileConfigured(ctx, trackedTeamID)
+	require.NoError(t, err)
+	require.False(t, configured, "a non OS-update profile must not be tracked")
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: tracked.ProfileUUID,
+		Name:        tracked.Name,
+		TeamID:      &trackedTeamID,
+		SyncML:      osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+	configured, err = ds.HasWindowsUpdateConfigProfileConfigured(ctx, trackedTeamID)
+	require.NoError(t, err)
+	require.True(t, configured, "editing content into OS-update targeting must track it")
+
+	// edit the same profile again, this time dropping the OS-update LocURI
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: tracked.ProfileUUID,
+		Name:        tracked.Name,
+		TeamID:      &trackedTeamID,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/BackToNormal</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	configured, err = ds.HasWindowsUpdateConfigProfileConfigured(ctx, trackedTeamID)
+	require.NoError(t, err)
+	require.False(t, configured, "editing content away from OS-update targeting must untrack it")
+
+	// a team can have more than one OS-update-tracked profile at once (already
+	// proven on create by testNewMDMWindowsConfigProfileSoftwareUpdateTracking);
+	// editing one of them away from OS-update content must remove only that
+	// profile's tracking row, leaving the other profile's row untouched.
+	isTracked := func(profileUUID string) bool {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM mdm_configuration_profile_update_settings WHERE windows_profile_uuid = ?`, profileUUID)
+		})
+		return count > 0
+	}
+
+	multiTrackTeamID := uint(43)
+	trackedA, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Tracking Profile A",
+		TeamID: &multiTrackTeamID,
+		SyncML: osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+	trackedB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Tracking Profile B",
+		TeamID: &multiTrackTeamID,
+		SyncML: osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, isTracked(trackedA.ProfileUUID))
+	require.True(t, isTracked(trackedB.ProfileUUID))
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: trackedA.ProfileUUID,
+		Name:        trackedA.Name,
+		TeamID:      &multiTrackTeamID,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoLongerOSUpdate</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.False(t, isTracked(trackedA.ProfileUUID), "profile A's tracking row must be removed")
+	require.True(t, isTracked(trackedB.ProfileUUID), "profile B's tracking row must remain untouched")
+
+	// a labels-only edit (no SyncML) on an OS-update-tracked profile must not
+	// touch its tracking row -- the track/untrack logic only runs inside the
+	// len(cp.SyncML) > 0 branch, so this proves that boundary holds in
+	// practice, not just by inspection.
+	labelsOnlyTeamID := uint(44)
+	labelsOnlyTracked, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Labels Only OS Update Profile",
+		TeamID: &labelsOnlyTeamID,
+		SyncML: osUpdateSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, isTracked(labelsOnlyTracked.ProfileUUID))
+
+	labelsOnlyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-labels-only", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: labelsOnlyTracked.ProfileUUID,
+		Name:        labelsOnlyTracked.Name,
+		TeamID:      &labelsOnlyTeamID,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: labelsOnlyLabel.Name, LabelID: labelsOnlyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	require.True(t, isTracked(labelsOnlyTracked.ProfileUUID), "a labels-only edit must not untrack an OS-update profile")
+
+	// A content-changing edit must retain the outgoing version so the
+	// profile-manager cron can build <Delete> commands for LocURIs the new
+	// content drops (same guarantee as the GitOps edit path). Labels-only and
+	// identical-content edits retain nothing.
+	priorContents := func(profileUUID string) [][]byte {
+		var rows [][]byte
+		err := ds.writer(ctx).SelectContext(ctx, &rows,
+			`SELECT syncml FROM mdm_windows_configuration_profiles_prior_content WHERE profile_uuid = ?`, profileUUID)
+		require.NoError(t, err)
+		return rows
+	}
+	retainOriginal := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/RetainOriginal</LocURI></Target></Item></Replace>")
+	retainProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Prior Content Retention Profile",
+		SyncML: retainOriginal,
+	}, nil)
+	require.NoError(t, err)
+
+	retainLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "win-update-retention-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: retainLabel.Name, LabelID: retainLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	require.Empty(t, priorContents(retainProfile.ProfileUUID), "a labels-only edit must not retain prior content")
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		SyncML:      retainOriginal,
+	}, nil)
+	require.NoError(t, err)
+	require.Empty(t, priorContents(retainProfile.ProfileUUID), "re-uploading identical content must not retain prior content")
+
+	_, err = ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: retainProfile.ProfileUUID,
+		Name:        retainProfile.Name,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/RetainChanged</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	retained := priorContents(retainProfile.ProfileUUID)
+	require.Len(t, retained, 1, "a content-changing edit must retain the outgoing version")
+	require.Equal(t, retainOriginal, retained[0])
+
+	// uploaded_at is preserved on a no-op edit (identical content) and bumped
+	// on a real content change, matching the upsert's convention
+	uploadedAtSyncML := []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/UploadedAt</LocURI></Target></Item></Replace>")
+	uploadedAtProfile, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "Uploaded At Profile",
+		SyncML: uploadedAtSyncML,
+	}, nil)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_windows_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+
+	noOp, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		SyncML:      uploadedAtSyncML,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2020, noOp.UploadedAt.Year(), "a no-op edit must not bump uploaded_at")
+
+	contentChangedProf, err := ds.UpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		SyncML:      []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/UploadedAtChanged</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 // identified by its (unique) name.
@@ -6885,11 +7376,12 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 		// silently leave this test passing.
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-script-" + uuid.NewString()})
 		require.NoError(t, err)
-		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
 			TeamID:         &team.ID,
 			Name:           "setup.sh",
 			ScriptContents: "echo setup",
-		}))
+		})
+		require.NoError(t, err)
 
 		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 		require.NoError(t, err)

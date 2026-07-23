@@ -1137,6 +1137,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+		// Clear a premium-only host name template so a value set while premium isn't
+		// retained (and enforced by the cron, which gates on MDM.EnabledAndConfigured
+		// rather than the license) on Free. Only touch it when non-empty so a no-op
+		// Free-tier save doesn't flip the field's optjson state (unset null → empty).
+		if appConfig.MDM.HostNameTemplate.Value != "" {
+			appConfig.MDM.HostNameTemplate = optjson.SetString("")
+		}
 	}
 
 	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
@@ -1487,6 +1494,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
+		}
+	}
+
+	// Only reconcile enforcement rows on Premium: EnterpriseOverrides is wired up
+	// only for Premium builds, so calling it here would panic on Free. The value
+	// can change on Free without a Premium re-save in two ways — the downgrade
+	// reset above, and clearing a previously-set template ("" skips the license
+	// check) — both of which just clear the stored value; the leftover rows are
+	// inert because the enforcement cron skips an empty template.
+	if lic.IsPremium() && oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
+		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
 		}
 	}
 
@@ -1878,6 +1897,23 @@ func (svc *Service) validateMDM(
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
 	}
 
+	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
+		if !lic.IsPremium() {
+			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+			// A validation or missing-secret error is invalid user input (422); any
+			// other error (e.g. a datastore failure while checking secrets) must
+			// propagate as a server error rather than be misreported as invalid input.
+			var argErr *fleet.InvalidArgumentError
+			if !errors.As(err, &argErr) {
+				return ctxerr.Wrap(ctx, err, "validating host name template")
+			}
+			invalid.Append("mdm.name_template", err.Error())
+		} else {
+			mdm.HostNameTemplate = optjson.SetString(validated)
+		}
+	}
+
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
@@ -2025,7 +2061,7 @@ func (svc *Service) validateMDM(
 		// TODO: look into blocking the case of a user-created API call that clears required EUA
 		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -2342,7 +2378,13 @@ func (svc *Service) validateVPPAssignments(
 // If this is a GitOps run (overwrite=true), all required fields must be present.
 // Otherwise we're doing a patch, so it's ok for fields to be missing as long
 // as we have persisted values for them.
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+func validateSSOProviderSettings(incoming *fleet.SSOProviderSettings, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+	// trim whitespace from the incoming values so that we don't persist them with leading/trailing whitespace
+	incoming.Metadata = strings.TrimSpace(incoming.Metadata)
+	incoming.MetadataURL = strings.TrimSpace(incoming.MetadataURL)
+	incoming.EntityID = strings.TrimSpace(incoming.EntityID)
+	incoming.IDPName = strings.TrimSpace(incoming.IDPName)
+
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
@@ -2375,7 +2417,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
+		validateSSOProviderSettings(&p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
@@ -2464,8 +2506,8 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	}
 
 	for _, s := range spec.Secrets {
-		if s.Secret == "" {
-			return ctxerr.New(ctx, "enroll secret must not be empty")
+		if s == nil || strings.TrimSpace(s.Secret) == "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"))
 		}
 	}
 

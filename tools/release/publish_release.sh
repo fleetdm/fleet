@@ -390,7 +390,8 @@ create_qa_issue() {
                 --assignee "AndreyKizimenko"  --label "#g-apple-at-work" --label ":release" \
                 --label "#g-auto-patching" \
                 --assignee "xpkoala" --label "#g-orchestration" \
-                --label "#g-security-compliance"
+                --label "#g-supply-chain" \
+                --label "#g-byod"
             rm -f temp_qa_issue_file
         fi
     else

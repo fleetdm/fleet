@@ -4,7 +4,6 @@ import {
   flatMap,
   omit,
   pick,
-  memoize,
   reduce,
   trim,
   trimEnd,
@@ -43,7 +42,6 @@ import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
 import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -827,18 +825,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
   });
 };
 
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
-
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
@@ -1002,6 +988,32 @@ export const isDateTimePast = (dt: string) => {
   return new Date(dt) < new Date();
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
+export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
+  const lowercasedErr = errMsg.toLowerCase();
+  if (lowercasedErr.includes(" learn more: https://")) {
+    const message = errMsg.substring(
+      0,
+      lowercasedErr.indexOf(" learn more: https://")
+    );
+    const link = errMsg.substring(lowercasedErr.indexOf("https://"));
+    return (
+      <>
+        {message}{" "}
+        <CustomLink
+          url={link}
+          text="Learn more"
+          variant="flash-message-link"
+          newTab
+        />
+      </>
+    );
+  }
+  return errMsg;
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
@@ -1049,4 +1061,5 @@ export default {
   wait,
   wrapFleetHelper,
   isDateTimePast,
+  generateGenericLearnMoreErrMsg,
 };

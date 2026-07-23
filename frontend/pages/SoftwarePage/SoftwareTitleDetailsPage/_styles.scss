@@ -1,7 +1,7 @@
 .software-title-details-page {
   @include vertical-page-layout;
 
-  .team-dropdown-wrapper {
+  .fleet-dropdown-wrapper {
     @include normalize-team-header;
   }
 
@@ -13,6 +13,13 @@
   &__section {
     display: flex;
     flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__library-description-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: $pad-medium;
   }
 }

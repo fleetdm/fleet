@@ -6,12 +6,13 @@ import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TruncatedTextList from "components/TruncatedTextList";
-import { IconNames } from "components/icons";
 import { ILabelSoftwareTitle } from "interfaces/label";
-import { InstallerType } from "interfaces/software";
+import { InstallerType, SoftwareSource } from "interfaces/software";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 
 const baseClass = "library-item-accordion";
@@ -48,6 +49,9 @@ export interface ILibraryItemAccordionProps {
   isLatestFmaVersion?: boolean;
   /** Hide the version entirely (script-only packages). */
   isScriptPackage?: boolean;
+  /** Software source, threaded to the installer widget to pick the file icon
+   * (e.g. `file-py` for `py_packages`). */
+  source?: SoftwareSource;
   isTarballPackage?: boolean;
   /** Apple App Store app whose platform is iOS or iPadOS. Drops the
    * "policy automation" leg from the info-icon tooltip — `automatic_install`
@@ -106,6 +110,30 @@ export interface ILibraryItemAccordionProps {
   onLabelsClick?: () => void;
   onDownloadClick?: () => void;
   onTrashClick?: () => void;
+
+  /** Single page-level flag mirroring `SoftwareTitleDetailsPage`'s
+   * `canActivateMultiplePackages` — true for titles that can hold multiple
+   * custom packages. Drives the row's self-service / auto-install icons
+   * (and the absence of the Latest badge, which is FMA-only by gate). */
+  canActivateMultiplePackages?: boolean;
+  /** Drives the self-service icon's tooltip variant and visibility on the
+   * custom-package row. Mirrors `software_package.self_service`. */
+  isSelfService?: boolean;
+  /** Drives the auto-install icon's visibility on the custom-package row.
+   * Truthy when the package has ≥1 linked auto-install policy. Custom
+   * packages don't support patch policies, so this is auto-install only. */
+  hasAutoInstallPolicy?: boolean;
+  /** Self-service tooltip copy varies for Android Play Store apps. Wired
+   * through for completeness even though the current call sites only enable
+   * the custom-package path for desktop titles. */
+  isAndroidPlayStoreApp?: boolean;
+  /** Click handler for the self-service icon — opens the per-package Edit
+   * software modal (same target as the labels-count badge). */
+  onSelfServiceClick?: () => void;
+  /** Click handler for the auto-install icon — the page resolves whether to
+   * navigate straight to the single linked policy or open the PoliciesModal,
+   * scoped to THIS package's policies. */
+  onAutoInstallClick?: () => void;
 }
 
 const ALL_HOSTS_LABEL = "All hosts";
@@ -119,6 +147,7 @@ const LibraryItemAccordion = ({
   isFma = false,
   isLatestFmaVersion,
   isScriptPackage = false,
+  source,
   isTarballPackage = false,
   isIosOrIpadosApp = false,
   isActive,
@@ -139,6 +168,12 @@ const LibraryItemAccordion = ({
   onLabelsClick,
   onDownloadClick,
   onTrashClick,
+  canActivateMultiplePackages = false,
+  isSelfService = false,
+  hasAutoInstallPolicy = false,
+  isAndroidPlayStoreApp = false,
+  onSelfServiceClick,
+  onAutoInstallClick,
 }: ILibraryItemAccordionProps) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -193,12 +228,12 @@ const LibraryItemAccordion = ({
     if (onBadgeClick) {
       return (
         <Button
-          variant="inverse"
+          variant="subdued"
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
         >
-          <Icon name={iconName} color="ui-fleet-black-75" />
+          <Icon name={iconName} />
           <span>{label}</span>
         </Button>
       );
@@ -207,18 +242,101 @@ const LibraryItemAccordion = ({
       <span
         className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
       >
-        <Icon name={iconName} color="ui-fleet-black-75" />
+        <Icon name={iconName} />
         <span>{label}</span>
       </span>
     );
   };
+
+  // Per-row indicator icon — tooltipped, optionally wrapped in a Button when
+  // a click handler is provided AND the caller's gate (e.g. permission) is
+  // open. Falls back to a static Icon otherwise. Used for the self-service
+  // and auto-install indicators on multi-package custom rows.
+  const renderRowActionIcon = ({
+    iconName,
+    tooltipContent,
+    ariaLabel,
+    onClick,
+    canClick = true,
+  }: {
+    iconName: IconNames;
+    tooltipContent: React.ReactNode;
+    ariaLabel: string;
+    onClick?: () => void;
+    /** When false, the icon stays static even if `onClick` is provided —
+     * used to gate clickability on permission (e.g. self-service). */
+    canClick?: boolean;
+  }) => (
+    <TooltipWrapper
+      tipContent={tooltipContent}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={8}
+    >
+      {onClick && canClick ? (
+        <Button
+          variant="subdued"
+          onClick={handleBadgeClick(onClick)}
+          className={`${baseClass}__icon-button`}
+          ariaLabel={ariaLabel}
+        >
+          <Icon name={iconName} />
+        </Button>
+      ) : (
+        <Icon name={iconName} />
+      )}
+    </TooltipWrapper>
+  );
+
+  // Self-service tooltip mirrors the SoftwareSummaryCard chip's copy so the
+  // per-row indicator says the same thing the title-level chip would.
+  const renderSelfServiceIcon = () =>
+    renderRowActionIcon({
+      iconName: "user",
+      tooltipContent: getSelfServiceTooltip(
+        !!isIosOrIpadosApp,
+        !!isAndroidPlayStoreApp
+      ),
+      // Same modal opens regardless of which icon is clicked; the icon glyph
+      // carries the contextual signal ("self-service is on for this package").
+      ariaLabel: "Edit package",
+      onClick: onSelfServiceClick,
+      canClick: canEditSoftware,
+    });
+
+  // Auto-install icon navigates rather than edits — its label is verb-forward
+  // ("View") so it doesn't read as a state toggle. Custom packages only
+  // support auto-install policies (no patch policies), so there's no patch
+  // variant here.
+  const renderAutoInstallIcon = () =>
+    renderRowActionIcon({
+      iconName: "refresh",
+      tooltipContent: <>Policy triggers install.</>,
+      ariaLabel: "View auto-install policies",
+      onClick: onAutoInstallClick,
+    });
 
   const renderHeaderBadges = () => {
     if (!isActive) return null;
 
     return (
       <div className={`${baseClass}__badges`}>
-        {badgeState === "latest" && renderStatusBadge("refresh", "Latest")}
+        {/* The "Latest" badge is FMA-specific — only Fleet-maintained apps
+            have a meaningful "latest available cached version" concept that
+            drives the badge state. VPP / App Store / Play Store / iOS
+            in-house and custom packages do not render this badge.
+            Pinned / Major version variants below also stay FMA-only by
+            construction (only FMA exposes version pinning). */}
+        {isFma &&
+          badgeState === "latest" &&
+          renderStatusBadge("refresh", "Latest")}
+        {canActivateMultiplePackages &&
+          isSelfService &&
+          renderSelfServiceIcon()}
+        {canActivateMultiplePackages &&
+          hasAutoInstallPolicy &&
+          renderAutoInstallIcon()}
         {badgeState === "pinned" && renderStatusBadge("pin", "Pinned")}
         {badgeState === "majorVersion" &&
           renderStatusBadge("pin", "Major version")}
@@ -232,19 +350,19 @@ const LibraryItemAccordion = ({
           >
             {canEditSoftware ? (
               <Button
-                variant="inverse"
+                variant="subdued"
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
               <span
                 className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
               >
-                <Icon name="tag" color="ui-fleet-black-75" />
+                <Icon name="tag" />
                 <span>{labelCount}</span>
               </span>
             )}
@@ -253,19 +371,19 @@ const LibraryItemAccordion = ({
         {showAllHostsBadge &&
           (canEditSoftware ? (
             <Button
-              variant="inverse"
+              variant="subdued"
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (
             <span
               className={`${baseClass}__badge-button ${baseClass}__badge-button--static`}
             >
-              <Icon name="tag" color="ui-fleet-black-75" />
+              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </span>
           ))}
@@ -446,6 +564,7 @@ const LibraryItemAccordion = ({
           />
           <CopyButton
             copyText={hashSha256}
+            variant="subdued"
             ariaLabel="Copy hash to clipboard"
           />
         </div>
@@ -455,7 +574,7 @@ const LibraryItemAccordion = ({
 
   const renderTrashButtonBody = (disabled: boolean) => (
     <Button
-      variant="icon"
+      variant="subdued"
       disabled={disabled}
       onClick={onTrashClick}
       ariaLabel="Delete this version"
@@ -465,11 +584,17 @@ const LibraryItemAccordion = ({
     </Button>
   );
 
-  // Only FMA and App Store / Play Store rows are GitOps-locked (those
-  // installer types can't be managed via YAML); custom packages stay
-  // deletable. The `software` entity exception is honored via the wrapper.
+  // GitOps-lock the trash button for installer types whose mutations should
+  // flow through YAML rather than the UI:
+  //   - FMA and App Store / Play Store: can't be managed via YAML in the
+  //     ordinary sense, so UI mutations would just be reverted on next run.
+  //   - Custom multi-package titles: the Edit modal is already visible-but-
+  //     disabled for these in GitOps mode; delete follows the same lock so
+  //     the row's mutation affordances stay consistent.
+  // Single-package custom titles keep the shipped behavior — deletable via
+  // UI with a GitOps banner in the delete modal.
   const isAppStore = installerType === "app-store";
-  const lockedByGitOpsMode = isFma || isAppStore;
+  const lockedByGitOpsMode = isFma || isAppStore || canActivateMultiplePackages;
 
   const renderTrashButton = () =>
     lockedByGitOpsMode ? (
@@ -523,6 +648,7 @@ const LibraryItemAccordion = ({
         isFma={isFma}
         isLatestFmaVersion={isLatestFmaVersion}
         isScriptPackage={isScriptPackage}
+        source={source}
         androidPlayStoreId={androidPlayStoreId}
         hideInstallerType
         // Inactive rows surface a single hover tooltip (the rollback hint);
@@ -603,7 +729,7 @@ const LibraryItemAccordion = ({
           <div className={`${baseClass}__actions-column`}>
             {canDownload && (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onDownloadClick}
                 ariaLabel="Download installer"
                 className={`${baseClass}__download-button`}

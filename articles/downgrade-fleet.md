@@ -10,9 +10,9 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 2. Head to the **Settings > Users** page in the Fleet UI.
 3. For each user that has any fleet listed under the **Fleets** column, select **Actions > Edit**, then select **Global user**, and then **Save**. Delete any users that shouldn't have global access.
 
-## Move all fleet-level queries to the global level
+## Move all fleet-level reports to the global level
 
-1. Head to the **Queries** page in the Fleet UI and select a fleet from the fleets dropdown at the top of the page. 
+1. Head to the **Reports** page in the Fleet UI and select a fleet from the fleets dropdown at the top of the page. 
 2. For each report that belongs to a fleet, select the report and select **Edit report** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
 3. On the **Reports** page select **All fleets** in the top dropdown, select **Add report**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
 4. **Optional:** Delete each report that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
@@ -25,7 +25,7 @@ Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
 ## Back up your fleets
 
-1. Run the `fleetctl get teams > fleets.yml` command. Save the `fleets.yml` file so you can restore your fleets if you upgrade again later.
+1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so you can restore your fleets if you upgrade again later.
 2. Head to the **Settings > Fleets** page in the Fleet UI.
 3. Delete all fleets. This will move all hosts to the global level.
 

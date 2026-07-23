@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -247,8 +249,8 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 		return nil
 	}
 
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 
 	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -310,6 +312,49 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 			require.NoError(t, err)
 		}
 	})
+}
+
+func TestSetupExperienceScriptRejectsUnknownCustomHostVital(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{99}}
+	}
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return true, nil }
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
+
+	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_HOST_VITAL_99")))
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Custom host vital")
+	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
+func TestSetupExperienceScriptCustomHostVitalInfraErrorPropagates(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ds := new(mock.Store)
+	svc, _ := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+	}
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return false, nil }
+
+	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_HOST_VITAL_99")))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "connection refused")
+	var invalidArgErr *fleet.InvalidArgumentError
+	require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
 }
 
 // TestSetupExperienceNextStepPolicyGated covers the policy-gated (Windows/Linux) branch of SetupExperienceNextStep: the policy is

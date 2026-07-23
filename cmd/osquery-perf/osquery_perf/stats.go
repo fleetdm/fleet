@@ -62,6 +62,11 @@ type Stats struct {
 	scriptExecErrs                 int
 	softwareInstalls               int
 	softwareInstallErrs            int
+	androidEnrollments             int
+	androidStatusReports           int
+	androidCommandAcks             int
+	androidCertVerifications       int
+	androidErrors                  int
 	pssoRegistrations              int
 	pssoLogins                     int
 	pssoKeyRequests                int
@@ -400,6 +405,36 @@ func (s *Stats) IncrementSoftwareInstallErrs() {
 	s.softwareInstallErrs++
 }
 
+func (s *Stats) IncrementAndroidEnrollments() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidEnrollments++
+}
+
+func (s *Stats) IncrementAndroidStatusReports() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidStatusReports++
+}
+
+func (s *Stats) IncrementAndroidCommandAcks() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidCommandAcks++
+}
+
+func (s *Stats) IncrementAndroidCertVerifications() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidCertVerifications++
+}
+
+func (s *Stats) IncrementAndroidErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.androidErrors++
+}
+
 func (s *Stats) IncrementPSSORegistrations() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -434,10 +469,15 @@ func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
 
+	var errorRate float64
+	if s.osqueryEnrollments > 0 {
+		errorRate = float64(s.errors) / float64(s.osqueryEnrollments)
+	}
+
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), psso registrations: %d, psso logins: %d, psso key requests: %d, psso key exchanges: %d, psso errors: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, mdm user enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm user sessions initiated: %d, mdm on-demand syncs: %d, mdm commands received: %d, mdm user commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, mdm user errors: %d, mdm scep requests: %d, mdm scep success: %d, mdm scep errors: %d, ddm tokens success: %d, ddm user tokens success: %d, ddm tokens errors: %d, ddm user tokens errors: %d, ddm declaration items success: %d, ddm user declaration items success: %d, ddm declaration items errors: %d, ddm user declaration items errors: %d, ddm activation success: %d, ddm user activation success: %d, ddm activation errors: %d, ddm user activation errors: %d, ddm configuration success: %d, ddm user configuration success: %d, ddm configuration errors: %d, ddm user configuration errors: %d, ddm asset success: %d, ddm user asset success: %d, ddm asset errors: %d, ddm user asset errors: %d, ddm status success: %d, ddm user status success: %d, ddm status errors: %d, ddm user status errors: %d, buffered logs: %d, script execs (errs): %d (%d), software installs (errs): %d (%d), android enrolls: %d, android status reports: %d, android command acks: %d, android cert verifications: %d, android errors: %d, psso registrations: %d, psso logins: %d, psso key requests: %d, psso key exchanges: %d, psso errors: %d",
 		time.Since(s.StartTime).Round(time.Second),
-		float64(s.errors)/float64(s.osqueryEnrollments),
+		errorRate,
 		s.osqueryEnrollments,
 		s.orbitEnrollments,
 		s.mdmEnrollments,
@@ -491,6 +531,11 @@ func (s *Stats) Log() {
 		s.scriptExecErrs,
 		s.softwareInstalls,
 		s.softwareInstallErrs,
+		s.androidEnrollments,
+		s.androidStatusReports,
+		s.androidCommandAcks,
+		s.androidCertVerifications,
+		s.androidErrors,
 		s.pssoRegistrations,
 		s.pssoLogins,
 		s.pssoKeyRequests,

@@ -233,7 +233,7 @@ const AddCertModal = ({
           <Button isLoading={isUpdating} disabled={isUpdating} type="submit">
             Add
           </Button>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Cancel
           </Button>
         </div>

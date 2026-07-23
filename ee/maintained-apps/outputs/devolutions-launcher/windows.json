@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2.13.0",
+      "version": "2026.2.16.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Devolutions Launcher' AND publisher = 'Devolutions inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Launcher' AND publisher = 'Devolutions inc.' AND version_compare(version, '2026.2.13.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Devolutions Launcher' AND publisher = 'Devolutions inc.' AND version_compare(version, '2026.2.16.0') < 0);"
       },
-      "installer_url": "https://cdn.devolutions.net/download/Setup.Devolutions.Launcher.2026.2.13.0.msi",
+      "installer_url": "https://cdn.devolutions.net/download/Setup.Devolutions.Launcher.2026.2.16.0.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "532bd615",
-      "sha256": "ab7e5eba45c784c055f69406ca9f9efd1e3b9228ff52cff4c108eeb99a81da3a",
+      "sha256": "dcc93186906171c38212fbf9540c685a831274c6085d8fd22904eb361d4d1f72",
       "default_categories": [
         "Productivity"
       ],

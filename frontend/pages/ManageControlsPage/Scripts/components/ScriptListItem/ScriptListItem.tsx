@@ -99,14 +99,17 @@ const ScriptListItem = ({
   };
 
   const actions = (
-    <div onClick={(evt) => evt.stopPropagation()}>
+    <div
+      className={`${baseClass}__actions`}
+      onClick={(evt) => evt.stopPropagation()}
+    >
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             ariaLabel={`Edit ${script.name}`}
           >
             <Icon name="pencil" />
@@ -115,7 +118,7 @@ const ScriptListItem = ({
       />
       <Button
         className={`${baseClass}__action-button`}
-        variant="icon"
+        variant="secondary"
         onClick={onClickDownload}
         ariaLabel={`Download ${script.name}`}
       >
@@ -127,7 +130,7 @@ const ScriptListItem = ({
             disabled={disableChildren}
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             ariaLabel={`Delete ${script.name}`}
           >
             <Icon name="trash" />

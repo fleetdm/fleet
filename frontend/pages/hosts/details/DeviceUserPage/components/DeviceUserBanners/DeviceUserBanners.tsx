@@ -128,7 +128,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="inverse"
+                variant="secondary"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >

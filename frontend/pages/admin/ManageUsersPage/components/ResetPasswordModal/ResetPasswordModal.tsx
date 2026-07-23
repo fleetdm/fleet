@@ -30,7 +30,7 @@ const ResetPasswordModal = ({
           <Button type="button" onClick={onResetConfirm}>
             Confirm
           </Button>
-          <Button onClick={onResetCancel} variant="inverse">
+          <Button onClick={onResetCancel} variant="secondary">
             Cancel
           </Button>
         </div>

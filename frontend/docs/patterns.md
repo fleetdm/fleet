@@ -456,7 +456,7 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 #### What it affects
 
 - **"Create fleet" button**: disabled on ManageFleetsPage
-- **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
+- **Fleet switcher**: hidden (both the page `FleetsDropdown` header and the command palette fleet picker)
 - **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
 - **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
 - **User form**: fleets dropdown disabled
@@ -553,6 +553,7 @@ Custom hook names should be camel-cased and use the `use` prefix, and should liv
 
 Current custom hooks include:
 
+- [`useBlockNavigation`](../hooks/useBlockNavigation.ts) — Attaches a `beforeunload` handler while its `block` argument is true, prompting the user before tab close / hard navigation.
 - [`useCheckTruncatedElement`](../hooks/useCheckTruncatedElement.ts) — Returns whether a referenced element's content is overflowing/truncated, updating on resize.
 - [`useCheckboxListStateManagement`](../hooks/useCheckboxListStateManagement.tsx) — Manages checked/unchecked state for a list of policies with a toggle updater.
 - [`useDeepEffect`](../hooks/useDeepEffect.ts) — `useEffect` variant that does a deep (lodash `isEqual`) comparison of dependencies.

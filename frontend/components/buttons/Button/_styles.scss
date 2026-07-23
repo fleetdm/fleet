@@ -191,7 +191,10 @@ $base-class: "button";
   // Looks exactly like a CustomLink but is a <button>
   &--link {
     @include link;
-    @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+    font-weight: $regular;
+    text-decoration: underline;
+    text-decoration-color: $ui-fleet-black-75;
+    text-underline-offset: 3px;
     background: transparent;
     border: 0;
     box-shadow: none;
@@ -204,6 +207,10 @@ $base-class: "button";
     align-items: center;
     gap: $pad-xsmall;
     white-space: normal;
+
+    &:hover {
+      text-decoration-color: $core-fleet-black;
+    }
 
     &:focus {
       outline: none;
@@ -219,181 +226,38 @@ $base-class: "button";
     }
   }
 
-  // &--icon is used for svg icon buttons without text
-  &--text-icon,
-  &--icon {
-    @include button-variant(
-      $core-fleet-white,
-      $core-fleet-green-over,
-      $core-fleet-green-down,
-      $inverse: true
-    );
-    background-color: transparent;
-    padding: 0;
-    border: 0;
-    box-shadow: none;
+  // Bordered secondary button (off-white fill + gray border). The new preferred
+  // secondary — see #35329. Options: default, icon before/after, icon only.
+  &--secondary {
+    @include button-variant($ui-off-white, null, null, $inverse: true);
+    @include button-pad-8px-16px; // full-size padding (override the $inverse 8/8)
     color: $ui-fleet-black-75;
-    font-size: $x-small;
-    font-weight: $bold;
-    cursor: pointer;
-
-    img {
-      transform: scale(0.5);
-    }
-
-    &:focus {
-      outline: none;
-    }
-
-    &:focus-visible {
-      @include button-focus-outline();
-    }
-
-    &:hover,
-    &:focus {
-      color: $ui-fleet-black-75-over;
-      background-color: $ui-fleet-black-5;
-
-      svg {
-        path {
-          fill: $ui-fleet-black-75-over;
-        }
-      }
-
-      &:active {
-        color: $ui-fleet-black-75-down;
-        background-color: $ui-fleet-black-5-down;
-
-        svg {
-          path {
-            fill: $ui-fleet-black-75-down;
-          }
-        }
-      }
-
-      // If .button--icon-stroke is present, use stroke instead of fill
-      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
-      // so we need to modify that property instead. Adding a custom `fill`
-      // could make these icons render incorrectly.
-      &.button--icon-stroke {
-        &:hover,
-        &:focus {
-          svg {
-            path {
-              fill: none; // Prevent fill from interfering
-              stroke: $ui-fleet-black-75-over;
-            }
-          }
-          &:active {
-            svg {
-              path {
-                stroke: $ui-fleet-black-75-down;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // globally styled gap between text and icon
-    .children-wrapper {
-      gap: $pad-small;
-    }
-  }
-
-  // Used for primary buttons with green icon and green text, no underline on hover
-  &--brand-inverse-icon {
-    @include button-variant(transparent);
-    @include button-pad-8px-8px;
-    border: 0;
-    box-shadow: none;
-    color: $core-fleet-green;
-    font-size: $x-small;
-    font-weight: $bold;
-    cursor: pointer;
+    border: 1px solid $ui-fleet-black-25;
+    box-sizing: border-box;
 
     &__small {
       @include button-pad-4px-8px;
     }
 
-    img {
-      transform: scale(0.5);
-    }
-
-    &:focus {
-      outline: none;
-    }
-
-    &:focus-visible {
-      @include button-focus-outline();
-    }
-
-    &:hover,
-    &:focus {
-      background-color: $core-fleet-black-overlay-05;
-      color: $core-fleet-green-over;
-
-      svg {
-        path {
-          fill: $core-fleet-green-over;
-        }
-      }
+    &:hover:not(.button--disabled) {
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        color: $core-fleet-green-down;
-
-        svg {
-          path {
-            fill: $core-fleet-green-down;
-          }
-        }
-      }
-    }
-    // If .button--icon-stroke is present, use stroke instead of fill
-    // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
-    // so we need to modify that property instead. Adding a custom `fill`
-    // could make these icons render incorrectly.
-    &.button--icon-stroke {
-      &:hover,
-      &:focus {
-        svg {
-          path {
-            fill: none; // Prevent fill from interfering
-            stroke: $core-fleet-green-over;
-          }
-        }
-        &:active {
-          svg {
-            path {
-              stroke: $core-fleet-green-over;
-            }
-          }
-        }
+        background-color: $ui-fleet-black-10;
       }
     }
 
-    // globally styled gap between text and icon
+    // Spacing between an icon and the label (icon before/after)
     .children-wrapper {
       gap: $pad-small;
     }
   }
 
-  &--icon {
-    @include button-variant(
-      $core-fleet-white,
-      $core-fleet-green-over,
-      $core-fleet-green-down,
-      $inverse: true
-    );
-    background-color: transparent;
-    width: 36px; // Matches Figma design for icon-only buttons
-
-    &__small {
-      width: 28px; // Matches Figma design for small icon-only buttons
-    }
-  }
-
-  &--inverse {
+  // Low-emphasis borderless text + icon button. Not to be confused with a link.
+  // Options: icon before/after, icon only. Transparent fill, light-gray hover,
+  // and deliberately does NOT recolor the SVG on hover, so it works with both
+  // fill- and stroke-based icons (e.g. chevrons) without artifacts — see #35329.
+  &--subdued {
     @include button-variant(
       $core-fleet-white,
       $core-fleet-green-over,
@@ -404,20 +268,23 @@ $base-class: "button";
     color: $ui-fleet-black-75;
     box-sizing: border-box;
 
+    // Spacing between an icon and the label (icon before/after)
     .children-wrapper {
-      gap: $pad-small; // For icons next to text like Pagination buttons
+      gap: $pad-small;
     }
   }
 
-  &--inverse-alert {
-    @include button-variant(
-      $core-fleet-white,
-      $core-vibrant-red-over,
-      $core-vibrant-red-down,
-      $inverse: true
-    );
-    color: $core-vibrant-red;
-    box-sizing: border-box;
+  // Icon-only secondary/subdued buttons render as a square so a lone icon is
+  // centered (mirrors &--icon). The isIconOnly flag in Button.tsx adds this class.
+  &--secondary.button--icon-only,
+  &--subdued.button--icon-only {
+    width: 36px;
+    padding: 0;
+  }
+
+  &--secondary__small.button--icon-only,
+  &--subdued__small.button--icon-only {
+    width: 28px;
   }
 
   &--disabled {

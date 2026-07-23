@@ -27,14 +27,17 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
+import CopyButton from "components/buttons/CopyButton";
 import IconStatusMessage from "components/IconStatusMessage";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
+import DataSet from "components/DataSet";
 import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -214,7 +217,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -321,6 +324,7 @@ export const SoftwareInstallDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleInstallDetails}
+            variant="secondary"
           />
         )}
         {showInstallDetails &&
@@ -451,6 +455,31 @@ export const SoftwareInstallDetailsModal = ({
           contactUrl={contactUrl}
           canOverrideFailureWithInstalled={canOverrideFailureWithInstalled}
         />
+
+        {/* Package SHA-256 hash — backend hydrates `hash_sha256` on the
+            install result. Guarded so the row stays out of the DOM for
+            older results and VPP/App-Store paths whose payload doesn't
+            carry a package hash. */}
+        {swInstallResult?.hash_sha256 && (
+          <div className={`${baseClass}__hash-row`}>
+            <DataSet
+              title="Package SHA-256 hash:"
+              value={
+                <>
+                  <TooltipTruncatedText
+                    className={`${baseClass}__hash`}
+                    value={swInstallResult.hash_sha256}
+                  />
+                  <CopyButton
+                    copyText={swInstallResult.hash_sha256}
+                    variant="subdued"
+                    ariaLabel="Copy hash to clipboard"
+                  />
+                </>
+              }
+            />
+          </div>
+        )}
 
         {shouldShowInventoryVersions && renderInventoryVersionsSection()}
         {isInstalledByFleet &&

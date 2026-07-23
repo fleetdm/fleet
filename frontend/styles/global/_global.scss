@@ -22,6 +22,13 @@ body {
   font-size: $medium;
   height: 100%;
   line-height: $line-height;
+
+  // Applied while a Modal is mounted to prevent the page behind it from
+  // scrolling. The modal's own background overlay stays overflow: auto so
+  // its content can still scroll.
+  &.modal-open {
+    overflow: hidden;
+  }
 }
 
 // Applied briefly by theme.ts during toggle to fade all colors smoothly.
@@ -142,7 +149,7 @@ form,
   }
 
   // Override button width to auto unless icon-only or wide buttons which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small):not(.button__wide) {
+  .button:not(.button--icon):not(.button--icon__small):not(.button__wide):not(.button--icon-only) {
     width: auto;
   }
 
@@ -195,8 +202,6 @@ form,
       &__no-wrap {
         // adjust for multi-line custom links
         .icon {
-          padding-left: 4px;
-          position: relative;
           top: 2px;
         }
       }
@@ -236,6 +241,11 @@ button {
     -webkit-box-shadow: 0 0 0 1000px #fff inset;
     -webkit-text-fill-color: $core-fleet-black !important; //sass-lint:disable-line no-important
   }
+}
+
+input,
+textarea {
+  font-variant-ligatures: no-contextual;
 }
 
 input {
@@ -315,7 +325,9 @@ body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
 body.dark-mode .card .button--inverse:hover,
 body.dark-mode .card .button--inverse-alert:hover,
 body.dark-mode .card .button--text-icon:hover,
-body.dark-mode .card .button--icon:hover {
+body.dark-mode .card .button--icon:hover,
+body.dark-mode .card .button--secondary:hover,
+body.dark-mode .card .button--subdued:hover {
   background-color: $core-fleet-white;
 }
 
@@ -324,7 +336,9 @@ body.dark-mode .card .button--icon:hover {
 body.dark-mode .modal__modal_container .button--inverse:hover,
 body.dark-mode .modal__modal_container .button--inverse-alert:hover,
 body.dark-mode .modal__modal_container .button--text-icon:hover,
-body.dark-mode .modal__modal_container .button--icon:hover {
+body.dark-mode .modal__modal_container .button--icon:hover,
+body.dark-mode .modal__modal_container .button--secondary:hover,
+body.dark-mode .modal__modal_container .button--subdued:hover {
   background-color: $ui-fleet-black-5;
 }
 

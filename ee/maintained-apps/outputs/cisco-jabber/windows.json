@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "15.2.3.61008",
+      "version": "15.3.0.61167",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '15.2.3.61008') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cisco Jabber' AND publisher = 'Cisco Systems, Inc' AND version_compare(version, '15.3.0.61167') < 0);"
       },
-      "installer_url": "https://binaries.webex.com/jabberclientwindows/20260527035625/CiscoJabberSetup.msi",
+      "installer_url": "https://binaries.webex.com/jabberclientwindows/20260721091017/CiscoJabberSetup.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "45ec9a61",
-      "sha256": "1390c7ce325ab92ae52d194ace1b84e7667d80a0d290ab7a22f089579ba1e4ce",
+      "sha256": "0a6f8305cd3c01e63ae1eb468e5b8d17376f167ed7d801ec6c7b8127fa75b46e",
       "default_categories": [
         "Communication"
       ],

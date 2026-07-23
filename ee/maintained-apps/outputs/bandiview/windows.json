@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "7.27",
+      "version": "7.28",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'BandiView' AND publisher = 'Bandisoft.com';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BandiView' AND publisher = 'Bandisoft.com' AND version_compare(version, '7.27') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BandiView' AND publisher = 'Bandisoft.com' AND version_compare(version, '7.28') < 0);"
       },
       "installer_url": "https://bandisoft.app/bandiview/BANDIVIEW-SETUP-X64.EXE",
       "install_script_ref": "207f864e",

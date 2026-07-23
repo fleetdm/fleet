@@ -5,6 +5,7 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import createMockTeam from "__mocks__/teamMock";
+import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
 
 import HostActionsDropdown from "./HostActionsDropdown";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
@@ -2758,6 +2759,273 @@ describe("Host Actions Dropdown", () => {
             )
           ).toBeInTheDocument();
         });
+      }
+    );
+  });
+
+  describe("Release from Apple Business action", () => {
+    const globalAdminRender = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          isPremiumTier: true,
+          currentUser: createMockUser(),
+          config: { mdm: { apple_bm_enabled_and_configured: true } },
+        },
+      },
+    });
+    it("clicking it opens confirmation modal", async () => {
+      const selectHandler = jest.fn();
+      const { user } = globalAdminRender(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={selectHandler}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+
+      await user.click(screen.getByText("Release from Apple Business"));
+
+      expect(selectHandler).toHaveBeenCalledWith("releaseFromAB");
+    });
+
+    it("renders to global admin", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+    });
+    it("renders to team admin", async () => {
+      const teamID = 1;
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: teamID, role: "admin" })],
+            }),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={teamID}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.getByText("Release from Apple Business")
+        ).toBeInTheDocument()
+      );
+    });
+    it("does not render to an any team admin", async () => {
+      const teamID = 1;
+
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 2, role: "admin" })],
+            }),
+            config: { mdm: { apple_bm_enabled_and_configured: true } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={teamID}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    it("does not render when apple business is disabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+            config: { mdm: { apple_bm_enabled_and_configured: false } },
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isDEPAssignedToFleet
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    it("does not render when host is not DEP assigned to Fleet", async () => {
+      const { user } = globalAdminRender(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostPlatform="darwin"
+          hostMdmEnrollmentStatus="On (company-owned)"
+          isConnectedToFleetMdm={false}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Release from Apple Business")
+        ).not.toBeInTheDocument()
+      );
+    });
+
+    const inABValues: MdmEnrollmentStatus[] = [
+      "On (company-owned)",
+      "On (automatic)",
+      "Pending",
+    ];
+
+    it.each(inABValues)(
+      "does render for %s device state indicating it's in Apple Business",
+      async (deviceState: MdmEnrollmentStatus) => {
+        const { user } = globalAdminRender(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus={deviceState}
+            isConnectedToFleetMdm
+            isDEPAssignedToFleet
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        await waitFor(() =>
+          expect(
+            screen.getByText("Release from Apple Business")
+          ).toBeInTheDocument()
+        );
+      }
+    );
+
+    it.each(MDM_ENROLLMENT_STATUSES.filter((s) => !inABValues.includes(s)))(
+      "does not render for %s device state indicating it's not in Apple Business",
+      async (deviceState: MdmEnrollmentStatus) => {
+        const { user } = globalAdminRender(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="darwin"
+            hostMdmEnrollmentStatus={deviceState}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+            isDEPAssignedToFleet
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        await waitFor(() =>
+          expect(
+            screen.queryByText("Release from Apple Business")
+          ).not.toBeInTheDocument()
+        );
       }
     );
   });

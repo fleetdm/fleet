@@ -109,20 +109,22 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="inverse"
+          variant="secondary"
+          size="small"
         >
           <>
-            Show query <Icon name="eye" />
+            Show query <Icon name="eye" size="small" />
           </>
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
         >
           <>
             Export results
-            <Icon name="download" />
+            <Icon name="download" size="small" />
           </>
         </Button>
       </div>

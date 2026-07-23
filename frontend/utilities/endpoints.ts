@@ -94,6 +94,8 @@ export default {
   HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  HOST_CUSTOM_HOST_VITAL: (hostId: number, vitalId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/custom_host_vitals/${vitalId}`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
@@ -103,6 +105,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
+  HOST_RESEND_NAME_TEMPLATE: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/name_template/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -189,6 +193,7 @@ export default {
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
+  HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (
     token: string,
@@ -363,6 +368,9 @@ export default {
   CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
     return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
   },
-  // custom variables endpoints
-  VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // global variables endpoints
+  GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
+  // custom host vitals endpoints
+  CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
+  RELEASE_AB_HOSTS: `/${API_VERSION}/fleet/hosts/release_ab`,
 };

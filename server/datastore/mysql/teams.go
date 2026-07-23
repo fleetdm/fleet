@@ -216,6 +216,41 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			}
 		}
 
+		// Reconcile host-name enforcement for this team's hosts. Deleting the team
+		// reassigns them to "No team" via ON DELETE SET NULL (hosts are not
+		// deleted) and never routes through AddHostsToTeam, so the transfer
+		// reconcile can't act on them. Since "No team" can now carry its own host
+		// name template, these hosts must be enforced under it after the
+		// reassignment. This is done set-based (scoped by the team_id the hosts
+		// still carry) rather than by materializing host IDs, so deleting a large
+		// team can't overflow the statement's placeholder limit.
+		//
+		// First drop the team's existing rows...
+		if _, err = tx.ExecContext(ctx, `
+			DELETE hmadn
+			FROM host_mdm_apple_device_names hmadn
+			JOIN hosts h ON h.uuid = hmadn.host_uuid
+			WHERE h.team_id = ?`, tid); err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting host device name enforcement for team %d", tid)
+		}
+		// ...then, when "No team" enforces a template, queue the team's eligible
+		// hosts under it. The hosts still carry team_id = tid here; the rows are
+		// host-keyed so they survive the reassignment below, and the cron resolves
+		// the No-team template per host on its next run.
+		var noTeamTemplate string
+		if err = sqlx.GetContext(ctx, tx, &noTeamTemplate, `SELECT `+deviceNameNoTeamTemplateExpr); err != nil {
+			return ctxerr.Wrapf(ctx, err, "resolving no-team name template for team %d deletion", tid)
+		}
+		if noTeamTemplate != "" {
+			if _, err = tx.ExecContext(ctx, `
+				INSERT INTO host_mdm_apple_device_names (host_uuid, status)
+				SELECT h.uuid, NULL`+deviceNameEligibleHostsJoins+`
+				WHERE `+deviceNameEligibleHostsWhere+`
+					AND h.team_id = ?`, tid); err != nil {
+				return ctxerr.Wrapf(ctx, err, "queuing host device name enforcement under no team for team %d deletion", tid)
+			}
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM teams WHERE id = ?`, tid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)

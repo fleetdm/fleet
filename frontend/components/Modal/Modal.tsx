@@ -115,6 +115,17 @@ const Modal = ({
     };
   }, []);
 
+  useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => {
+      // By cleanup time this modal's own background node is already
+      // detached, so only unlock scroll once none remain.
+      if (document.querySelectorAll(`.${baseClass}__background`).length === 0) {
+        document.body.classList.remove("modal-open");
+      }
+    };
+  }, []);
+
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
     [`${baseClass}__closing`]: isClosing,
@@ -195,9 +206,8 @@ const Modal = ({
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={handleClose}
-                iconStroke
                 autofocus={isContentDisabled}
               >
                 <Icon name="close" color="core-fleet-black" size="medium" />

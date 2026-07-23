@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.6.1",
+      "version": "8.1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient' AND version_compare(bundle_short_version, '7.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient' AND version_compare(bundle_short_version, '8.1.3') < 0);"
       },
-      "installer_url": "https://downloads.druva.com/downloads/inSync/MAC/7.6.1/inSync-7.6.1-r110931.dmg",
+      "installer_url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.3/inSync-8.1.3-r110967.dmg",
       "install_script_ref": "35cb82c8",
       "uninstall_script_ref": "b27fc088",
-      "sha256": "a67784b4d6789e9a671e2d77789c408116b10c89c6c8893c3f08ed6212684bf2",
+      "sha256": "316d9e7dc7f23f8307008de9c67504c46f38e648458b75db1ef015879106f85f",
       "default_categories": [
         "Productivity"
       ]

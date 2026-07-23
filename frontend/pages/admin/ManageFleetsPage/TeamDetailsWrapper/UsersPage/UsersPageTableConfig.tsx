@@ -181,7 +181,7 @@ const generateColumnConfigs = (
             options={cellProps.cell.value}
             onChange={(value: string) => actionSelectHandler(value, rowUser)}
             placeholder="Actions"
-            variant="small-button"
+            variant="secondary"
             disabled={!canManageUser}
           />
         );
