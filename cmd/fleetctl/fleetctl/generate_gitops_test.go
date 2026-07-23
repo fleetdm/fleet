@@ -440,6 +440,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Platform:                 "linux,windows",
 				ConditionalAccessEnabled: true,
 				Type:                     fleet.PolicyTypePatch,
+				PatchWhenClosed:          true,
 			},
 			PatchSoftware: &fleet.PolicySoftwareTitle{
 				SoftwareTitleID: 8,

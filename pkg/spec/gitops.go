@@ -222,8 +222,11 @@ type Policy struct {
 
 type GitOpsPolicySpec struct {
 	fleet.PolicySpec
-	RunScript       *PolicyRunScript                       `json:"run_script"`
-	InstallSoftware optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
+	// Shadows PolicySpec.ContinuousAutomationsEnabled to tell whether the key was set
+	// explicitly vs. omitted, which patch_when_closed validation needs.
+	ContinuousAutomations optjson.Bool                           `json:"continuous_automations_enabled"`
+	RunScript             *PolicyRunScript                       `json:"run_script"`
+	InstallSoftware       optjson.BoolOr[*PolicyInstallSoftware] `json:"install_software"`
 	// InstallSoftwareURL is populated after parsing the software installer yaml
 	// referenced by InstallSoftware.PackagePath.
 	InstallSoftwareURL string `json:"-"`
@@ -1879,9 +1882,9 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	}
 
 	// make an index of all FMAs by slug
-	fmasBySlug := make(map[string]struct{}, len(result.Software.FleetMaintainedApps))
+	fmasBySlug := make(map[string]*fleet.MaintainedAppSpec, len(result.Software.FleetMaintainedApps))
 	for _, s := range result.Software.FleetMaintainedApps {
-		fmasBySlug[s.Slug] = struct{}{}
+		fmasBySlug[s.Slug] = s
 	}
 	var errs []error
 	if policies, errs = expandBaseItems(policies, baseDir, "policy", GlobExpandOptions{
@@ -1953,6 +1956,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			item.Name = norm.NFC.String(item.Name)
 		}
+		// Reconcile the shadow value into the embedded field the apply path reads.
+		if item.ContinuousAutomations.Valid {
+			item.ContinuousAutomationsEnabled = item.ContinuousAutomations.Value
+		}
 		if item.Type == "" {
 			item.Type = fleet.PolicyTypeDynamic
 		}
@@ -1972,6 +1979,22 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			if item.FleetMaintainedAppSlug != "" {
 				patchSlugs = append(patchSlugs, item.FleetMaintainedAppSlug)
+			}
+			if item.PatchWhenClosed {
+				// Declarative: reject an explicit false instead of letting the datastore silently
+				// force it on; auto-set when omitted.
+				if item.ContinuousAutomations.Valid && !item.ContinuousAutomations.Value {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "continuous_automations_enabled" must be true when "patch_when_closed" is true.`, item.Name))
+				} else {
+					item.ContinuousAutomationsEnabled = true
+				}
+				// Fleet manages the app-open query, so a user pre_install_query on the FMA is rejected.
+				if fma, ok := fmasBySlug[item.FleetMaintainedAppSlug]; ok && fma.PreInstallQuery.Path != "" {
+					multiError = multierror.Append(multiError, fmt.Errorf(
+						`Couldn't apply policy %q: "pre_install_query" can't be set on Fleet-maintained app %q when "patch_when_closed" is true; Fleet manages this query.`,
+						item.Name, item.FleetMaintainedAppSlug))
+				}
 			}
 		} else if item.FleetMaintainedAppSlug != "" {
 			multiError = multierror.Append(multiError, errors.New("fleet_maintained_app_slug is only supported for patch policies"))
@@ -2038,7 +2061,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 	return nil
 }
 
-func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]struct{}) []error {
+func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy, packages []*fleet.SoftwarePackageSpec, appStoreApps []*fleet.TeamSpecAppStoreApp, fmasBySlug map[string]*fleet.MaintainedAppSpec) []error {
 	installSoftwareObj := policy.InstallSoftware.Other
 	if installSoftwareObj == nil {
 		policy.SoftwareTitleID = ptr.Uint(0) // unset the installer

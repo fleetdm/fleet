@@ -4995,7 +4995,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "zoom/darwin", policy.InstallSoftware.Other.FleetMaintainedAppSlug)
@@ -5013,7 +5013,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), `fleet_maintained_app_slug "notreal/darwin" not found`)
@@ -5072,7 +5072,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "zoom/darwin", policy.FleetMaintainedAppSlug)
@@ -5095,7 +5095,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 				InstallSoftware: installSoftware,
 			},
 		}
-		fmasBySlug := map[string]struct{}{"zoom/darwin": {}, "1password/darwin": {}}
+		fmasBySlug := map[string]*fleet.MaintainedAppSpec{"zoom/darwin": {Slug: "zoom/darwin"}, "1password/darwin": {Slug: "1password/darwin"}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, fmasBySlug)
 		require.Nil(t, errs)
 		assert.Equal(t, "1password/darwin", policy.FleetMaintainedAppSlug)
@@ -5495,6 +5495,122 @@ policies:
 			require.Error(t, err)
 			for _, want := range tc.wantErrs {
 				assert.ErrorContains(t, err, want)
+			}
+		})
+	}
+}
+
+func TestGitOpsPatchWhenClosed(t *testing.T) {
+	t.Parallel()
+
+	const fmaSoftware = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+`
+	// An FMA that carries a user-authored pre_install_query, which patch-when-closed rejects.
+	const fmaSoftwareWithPreInstall = `
+software:
+  fleet_maintained_apps:
+    - slug: google-chrome/darwin
+      pre_install_query:
+        path: ./preinstall.yml
+`
+
+	tests := []struct {
+		name     string
+		software string
+		policies string
+		// wantErrs empty means the config must apply cleanly.
+		wantErrs []string
+		// wantCA, when set, asserts the resulting ContinuousAutomationsEnabled on the single policy.
+		wantCA *bool
+	}{
+		{
+			name:     "patch_when_closed with continuous_automations omitted auto-sets it true",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "patch_when_closed with continuous_automations explicitly true applies",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: true
+    patch_when_closed: true
+`,
+			wantCA: new(true),
+		},
+		{
+			name:     "patch_when_closed with explicit continuous_automations false is rejected",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    continuous_automations_enabled: false
+    patch_when_closed: true
+`,
+			wantErrs: []string{`"continuous_automations_enabled" must be true when "patch_when_closed" is true`},
+		},
+		{
+			name:     "patch_when_closed rejects a pre_install_query on the referenced FMA",
+			software: fmaSoftwareWithPreInstall,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+    patch_when_closed: true
+`,
+			wantErrs: []string{`"pre_install_query" can't be set on Fleet-maintained app "google-chrome/darwin"`},
+		},
+		{
+			// Backward compat: without the key, continuous automations stay off.
+			name:     "patch policy without patch_when_closed leaves continuous_automations off",
+			software: fmaSoftware,
+			policies: `
+policies:
+  - name: Chrome up to date
+    type: patch
+    platform: darwin
+    fleet_maintained_app_slug: google-chrome/darwin
+`,
+			wantCA: new(false),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			config := getTeamConfig([]string{"policies"}) + tc.software + tc.policies
+			path, basePath := createTempFile(t, "", config)
+			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
+			if len(tc.wantErrs) > 0 {
+				for _, want := range tc.wantErrs {
+					require.ErrorContains(t, err, want)
+				}
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, g.Policies, 1)
+			if tc.wantCA != nil {
+				assert.Equal(t, *tc.wantCA, g.Policies[0].ContinuousAutomationsEnabled)
 			}
 		})
 	}

@@ -204,6 +204,117 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 	require.ErrorContains(t, err, "is associated to an iOS or iPadOS VPP app")
 }
 
+func TestTeamPolicyPatchWhenClosed(t *testing.T) {
+	const (
+		teamID               = uint(1)
+		policyID             = uint(42)
+		patchSoftwareTitleID = uint(401)
+	)
+	patchType := fleet.PolicyTypePatch
+
+	freshPatchPolicy := func() *fleet.Policy {
+		tID := teamID
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:                   policyID,
+				TeamID:               &tID,
+				Name:                 "macOS - App up to date",
+				Type:                 fleet.PolicyTypePatch,
+				PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			},
+		}
+	}
+
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	setupDS := func() *mock.Store {
+		ds := new(mock.Store)
+		ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+			return freshPatchPolicy(), nil
+		}
+		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+			return &fleet.SoftwareInstaller{TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App", DisplayName: "App"}, nil
+		}
+		return ds
+	}
+
+	// Creating a patch-when-closed policy forces continuous automations on, even when the
+	// request left the field at its default false.
+	t.Run("create auto-sets continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		var captured fleet.PolicyPayload
+		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+			captured = args
+			return freshPatchPolicy(), nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Type:                 &patchType,
+			PatchSoftwareTitleID: new(patchSoftwareTitleID),
+			PatchWhenClosed:      true,
+		})
+		require.NoError(t, err)
+		assert.True(t, captured.PatchWhenClosed)
+		assert.True(t, captured.ContinuousAutomationsEnabled, "patch_when_closed should force continuous automations on")
+	})
+
+	// patch_when_closed only applies to patch policies.
+	t.Run("create rejects patch_when_closed on non-patch policy", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Name:            "dynamic policy",
+			Query:           "SELECT 1;",
+			PatchWhenClosed: true,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "patch_when_closed")
+	})
+
+	// Continuous automations can't be turned off in the same request that keeps
+	// patch_when_closed on.
+	t.Run("modify rejects disabling continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed:              new(true),
+			ContinuousAutomationsEnabled: new(false),
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "continuous_automations_enabled")
+	})
+
+	// Enabling patch_when_closed on modify forces continuous automations on.
+	t.Run("modify auto-sets continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		var saved *fleet.Policy
+		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
+			saved = p
+			return nil
+		}
+		opts := &TestServerOpts{}
+		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			return nil
+		}
+
+		_, err := svc.ModifyTeamPolicy(adminCtx(baseCtx), teamID, policyID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed: new(true),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, saved)
+		assert.True(t, saved.PatchWhenClosed)
+		assert.True(t, saved.ContinuousAutomationsEnabled)
+	})
+}
+
 // TestTeamPolicyAutomationsPopulated verifies that every endpoint that
 // returns a team policy populates the install_software, run_script, and
 // patch_software automation fields by exercising the
