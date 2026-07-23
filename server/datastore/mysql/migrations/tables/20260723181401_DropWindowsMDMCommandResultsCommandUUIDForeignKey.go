@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260704213830, Down_20260704213830)
+	MigrationClient.AddMigration(Up_20260723181401, Down_20260723181401)
 }
 
-func Up_20260704213830(tx *sql.Tx) error {
+func Up_20260723181401(tx *sql.Tx) error {
 	// windows_mdm_command_results is written on every Windows MDM check-in (MDMWindowsSaveResponse). During an active
 	// profile installation, tens of thousands of hosts insert result rows that all reference the same small set of shared
 	// command rows in windows_mdm_commands (one command per non-variable profile, fanned out to every host). The
@@ -45,6 +45,6 @@ func Up_20260704213830(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260704213830(_ *sql.Tx) error {
+func Down_20260723181401(_ *sql.Tx) error {
 	return nil
 }

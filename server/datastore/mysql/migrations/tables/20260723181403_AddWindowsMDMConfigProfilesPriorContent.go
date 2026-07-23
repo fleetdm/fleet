@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260707071142, Down_20260707071142)
+	MigrationClient.AddMigration(Up_20260723181403, Down_20260723181403)
 }
 
-func Up_20260707071142(tx *sql.Tx) error {
+func Up_20260723181403(tx *sql.Tx) error {
 	// The profile-manager cron builds Windows <Delete> commands from the content of a profile version a host still has, but that
 	// content is gone from the live table once the profile is deleted (it was removed) or edited (it was overwritten).
 	//
@@ -57,6 +57,6 @@ func Up_20260707071142(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260707071142(tx *sql.Tx) error {
+func Down_20260723181403(tx *sql.Tx) error {
 	return nil
 }
