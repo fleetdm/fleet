@@ -1437,21 +1437,94 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			hasEnrollmentProfile := enrollmentProfile != nil
 
-			// If the team has any of these configured, we need to generate the macos_setup section.
+			// If the team has any of these configured, generate the setup_experience section.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
 				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
 					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
 					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
-				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
-				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
-				})
+				setupExperience, err := cmd.generateSetupExperience(teamName, teamMdm, bootstrapPackage, setupScript, enrollmentProfile)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating setup experience for %s: %s\n", teamName, err)
+					return nil, err
+				}
+				result[jsonFieldName(mdmT, "MacOSSetup")] = setupExperience
 			}
 		}
 	}
 
 	return result, nil
+}
+
+// generateSetupExperience builds the controls.setup_experience (macOS setup) section.
+// It writes the Setup Assistant (automatic enrollment) profile and the setup script to
+// files and references them by path. The bootstrap package can't be fully generated:
+// Fleet downloads it from a URL at apply time, and a package uploaded through the UI has
+// no external URL, so we emit a TODO placeholder plus a note.
+func (cmd *GenerateGitopsCommand) generateSetupExperience(
+	teamName string,
+	teamMdm *fleet.TeamMDM,
+	bootstrapPackage *fleet.MDMAppleBootstrapPackage,
+	setupScript *fleet.Script,
+	enrollmentProfile *fleet.MDMAppleSetupAssistant,
+) (map[string]interface{}, error) {
+	msT := reflect.TypeOf(fleet.MacOSSetup{})
+	setupExperience := map[string]interface{}{}
+
+	// macOS setup toggles.
+	if teamMdm != nil {
+		ms := teamMdm.MacOSSetup
+		setupExperience[jsonFieldName(msT, "EnableEndUserAuthentication")] = ms.EnableEndUserAuthentication
+		if ms.EnableReleaseDeviceManually.Valid {
+			setupExperience[jsonFieldName(msT, "EnableReleaseDeviceManually")] = ms.EnableReleaseDeviceManually.Value
+		}
+		if ms.ManualAgentInstall.Valid {
+			setupExperience[jsonFieldName(msT, "ManualAgentInstall")] = ms.ManualAgentInstall.Value
+		}
+		if ms.EnableManagedLocalAccount.Valid {
+			setupExperience[jsonFieldName(msT, "EnableManagedLocalAccount")] = ms.EnableManagedLocalAccount.Value
+		}
+		if ms.EndUserLocalAccountType.Valid && ms.EndUserLocalAccountType.Value != "" {
+			setupExperience[jsonFieldName(msT, "EndUserLocalAccountType")] = ms.EndUserLocalAccountType.Value
+		}
+	}
+
+	// Setup Assistant (automatic enrollment) profile: write the JSON to a file and reference it.
+	if enrollmentProfile != nil {
+		fileName := fmt.Sprintf("lib/%s/setup-experience/setup-assistant.json", teamName)
+		var pretty bytes.Buffer
+		if err := json.Indent(&pretty, enrollmentProfile.Profile, "", "  "); err == nil {
+			cmd.FilesToWrite[fileName] = pretty.String()
+		} else {
+			cmd.FilesToWrite[fileName] = string(enrollmentProfile.Profile)
+		}
+		setupExperience[jsonFieldName(msT, "MacOSSetupAssistant")] = fmt.Sprintf("../%s", fileName)
+	}
+
+	// Setup script: write the contents to a file and reference it.
+	if setupScript != nil {
+		contents, err := cmd.Client.GetScriptContents(setupScript.ID)
+		if err != nil {
+			return nil, fmt.Errorf("getting setup experience script contents: %w", err)
+		}
+		fileName := fmt.Sprintf("lib/%s/setup-experience/setup-script.sh", teamName)
+		cmd.FilesToWrite[fileName] = string(contents)
+		setupExperience[jsonFieldName(msT, "Script")] = fmt.Sprintf("../%s", fileName)
+	}
+
+	// Bootstrap package: Fleet downloads this from a URL at apply time. A package uploaded through
+	// the UI has no external URL to export, so leave a TODO and a note pointing to the docs.
+	if bootstrapPackage != nil {
+		setupExperience[jsonFieldName(msT, "BootstrapPackage")] = fmt.Sprintf(
+			"TODO: host %q at a URL Fleet can download, then set macos_bootstrap_package to that URL", bootstrapPackage.Name)
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+			Filename: teamName,
+			Note: fmt.Sprintf(
+				"The bootstrap package %q was uploaded through the UI and has no URL to export. Host it where Fleet can download it and set setup_experience.macos_bootstrap_package to that URL. See https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+				bootstrapPackage.Name),
+		})
+	}
+
+	return setupExperience, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string) (map[string]interface{}, error) {
