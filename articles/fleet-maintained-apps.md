@@ -94,7 +94,7 @@ You can also pin via the REST API using the `version` parameter on the [`PATCH /
 If a new version introduces a bug, and you want to rollback to the older version, follow the steps below:
 
 1. Pin the app to the previous version. [Learn how](#pin-a-version).
-2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, disable software install automation for this policy.
+2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, delete the policy.
 3. Create a new policy that checks if the host has a version with a bug and enable software automation. Use the query below for this policy.
 
 ```sql
