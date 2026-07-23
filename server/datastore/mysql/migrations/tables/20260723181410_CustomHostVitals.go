@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260715144547, Down_20260715144547)
+	MigrationClient.AddMigration(Up_20260723181410, Down_20260723181410)
 }
 
-func Up_20260715144547(tx *sql.Tx) error {
+func Up_20260723181410(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE custom_host_vitals (
 			id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -48,6 +48,6 @@ func Up_20260715144547(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260715144547(tx *sql.Tx) error {
+func Down_20260723181410(tx *sql.Tx) error {
 	return nil
 }

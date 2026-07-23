@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260707071142(t *testing.T) {
+func TestUp_20260723181403(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed an in-flight deletion in the old pending-delete table; it must carry over to the new table.
