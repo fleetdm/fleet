@@ -366,6 +366,13 @@
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
+      "name": "Airtable",
+      "slug": "airtable/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
@@ -1267,6 +1274,20 @@
       "platform": "windows",
       "unique_identifier": "Box",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Box.Box-Edit",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Tools",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
     },
     {
       "name": "Brave",
@@ -3278,6 +3299,20 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox Developer Edition",
+      "slug": "firefox@developer-edition/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefoxdeveloperedition",
+      "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
+      "name": "Mozilla Firefox Developer Edition",
+      "slug": "firefox@developer-edition/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Developer Edition (x64 en-US)",
+      "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
       "name": "Mozilla Firefox ESR",
       "slug": "firefox@esr/darwin",
       "platform": "darwin",
@@ -3290,6 +3325,20 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox Nightly",
+      "slug": "firefox@nightly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.nightly",
+      "description": "Mozilla Firefox Nightly is the daily development build of the Firefox web browser, with the newest features before they reach beta and release."
+    },
+    {
+      "name": "Mozilla Firefox Nightly",
+      "slug": "firefox@nightly/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Nightly",
+      "description": "Mozilla Firefox Nightly is the daily development build of the Firefox web browser, with the newest features before they reach beta and release."
     },
     {
       "name": "Fission",
@@ -3964,6 +4013,13 @@
       "description": "HazeOver is a windows manager and desktop organiser."
     },
     {
+      "name": "HeidiSQL",
+      "slug": "heidisql/windows",
+      "platform": "windows",
+      "unique_identifier": "HeidiSQL",
+      "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
+    },
+    {
       "name": "Helium",
       "slug": "helium/darwin",
       "platform": "darwin",
@@ -4055,6 +4111,13 @@
       "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
     },
     {
+      "name": "HP Prime Virtual Calculator",
+      "slug": "hp-prime-virtual-calculator/windows",
+      "platform": "windows",
+      "unique_identifier": "HP Prime Virtual Calculator",
+      "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
+    },
+    {
       "name": "Hubstaff",
       "slug": "hubstaff/darwin",
       "platform": "darwin",
@@ -4067,6 +4130,13 @@
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
+      "name": "HWMonitor",
+      "slug": "hwmonitor/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID HWMonitor",
+      "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",
@@ -6404,7 +6474,14 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "PopChar X",
@@ -6573,6 +6650,13 @@
       "platform": "darwin",
       "unique_identifier": "com.GraphPad.Prism.autocomplete",
       "description": "GraphPad Prism is a statistical analysis and graphing software."
+    },
+    {
+      "name": "Prisma Browser",
+      "slug": "prisma-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.talon-sec.Work",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
     },
     {
       "name": "Prisma Browser",
@@ -7518,6 +7602,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sveinbjorn.Sloth",
       "description": "Sloth is a displays all open files and sockets in use by all running processes."
+    },
+    {
+      "name": "Smallstep Agent",
+      "slug": "smallstepagent/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smallstep.Agent",
+      "description": "Smallstep Agent is a device identity agent that manages certificates for secure access to Wi-Fi, VPNs, and other resources."
     },
     {
       "name": "Smartsheet",

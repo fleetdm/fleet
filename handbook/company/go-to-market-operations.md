@@ -29,7 +29,7 @@ The goal of the 🤝Enterprise group is to provide the best possible customer ex
 | Revenue DRI                       | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
 | Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_ <br> [Manny Mendoza](https://www.linkedin.com/in/mannymendoza1/) _([@mmendm](https://github.com/mmendm))_ 
-| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_
+| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_ <br> [James Sorrenti](https://www.linkedin.com/in/jsorrenti/) _([@jamessorrenti](https://github.com/jamessorrenti))_
 | Pipeline DRI                      | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala/) _([@akuthiala](https://github.com/akuthiala))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ 
@@ -205,7 +205,7 @@ There are many times in which community members, customers, and contributors are
 
 #### Video
 
-Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
+Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Release demos!").  
 
 
 ## Processing intent signals
@@ -469,6 +469,7 @@ The goal of a slide deck is not necessarily to walk every customer through it.  
 
 Even if you never show these decks on a screenshare, use them to keep the conversation on track, or to send as a teaser.
 
+- [Leave behind deck (PDF)](https://fleetdm.com/pdfs/fleet-leave-behind-deck.pdf)
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
@@ -480,9 +481,11 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 -->
 
 
-## Go-To-Market architecture and automation
+## Go-To-Market runbook
 
-### Capture Eventbrite attendees in Salesforce campaigns
+### Automation
+
+#### Capture Eventbrite attendees in Salesforce campaigns
 
 > ***TL;DR: It's not working, Who should I call and what can I check?***
 > 
@@ -533,7 +536,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
     ```
 
 
-### LinkedIn comments from tracked posts
+#### LinkedIn comments from tracked posts
 
 We track certian social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
 - LinkedIn post URL provided to Clay.
@@ -550,12 +553,26 @@ We track certian social posts from the [LinkedIn company page](https://www.linke
 
 ## Salesforce
 
+### Making changes
+
+#### Quotes
+
+##### Change which fields are visable when editing selected quote line items
+
+<img width="1698" height="391" alt="image" src="https://github.com/user-attachments/assets/71f540b8-c1b7-408e-b7cc-640237db7930" />
+
+
+1. Click `Setup` => `Object manager` => `Quote line item` => `Page layouts` => `Quote Line Item Layout` => `Edit Multi-Line Layout`
+2. Once here, arrange the available fields in the "Selected fields" column in the order you would like them to appear in SFDC and save.
+
+
+
 ### SFDC access
 
 Fleet uses Okta SSO for Salesforce authentication. All Fleet employees (`@fleetdm.com`) authenticate through Okta — Salesforce credential login is disabled for SSO-enabled profiles. All Fleet employees must login at our custom domain [fleetdm.my.salesforce.com](https://fleetdm.my.salesforce.com) or by clicking the Salesforce app tile in Okta. For users and accounts that cannot use SSO (e.g., integration users, external collaborators), Fleet has created custom cloned profiles with SSO disabled that must login at [login.salesforce.com](login.salesforce.com).
 
 
-#### Profiles and when to use them
+#### Profiles
 
 | Profile | SSO | Who gets this | When to assign |
 |:---|:---|:---|:---|
@@ -1310,7 +1327,7 @@ ActiveCampaign automations manage lifecycle progression, nurture enrollment, and
 | 3+ opens or clicks in 30 days | Add `engaged: hot` |
 
 
-## 🐰 Video hosting
+## Video hosting
 
 ### Why do we host videos on a service other than YouTube?
 

@@ -193,7 +193,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 
 ### Shared calendars
 
-Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
+Team calendars are the primary source for release rituals; they facilitate the execution of each release cycle. 
 Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/people#contact-us) and the appropriate DRI will reply with feedback.
 
 ### 1:1 meetings 
@@ -260,7 +260,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 - To save everyone time, please [don't ask to ask: just ask](https://dontasktoask.com/).
 
-> **Need an app that you don't see in Fleet Slack?** [Create a IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** [Create an IT issue](https://fleetdm.com/handbook/it#contact-us) to request an app be added to the Fleet Slack workspace.
 
 
 ### Key Slack channels
@@ -504,7 +504,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during sprint demo recording (they're added later if needed).
+- Don't enable closed captions during release demo recording (they're added later if needed).
 
 
 ## Feedback

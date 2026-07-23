@@ -62,24 +62,17 @@ module.exports = {
     enterprise.pubsubTopic = fullPubSubTopicName;
     let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
 
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Complete the setup of the new Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let newEnterprise = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/androidmanagement',
-          'https://www.googleapis.com/auth/pubsub'
-        ],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      let pubsub = google.pubsub({version: 'v1', auth: authClient});
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
+      let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -88,7 +81,6 @@ module.exports = {
         requestBody: {
           messageRetentionDuration: '86400s'// 24 hours
         },
-        auth: authClient,
       });
 
       // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
@@ -100,7 +92,6 @@ module.exports = {
       const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
         const policy =  await pubsub.projects.topics.getIamPolicy({
           resource: fullPubSubTopicName,
-          auth: authClient,
         });
 
         return policy.data;
@@ -124,7 +115,6 @@ module.exports = {
           requestBody: {
             policy: newPubSubTopicIamPolicy
           },
-          auth: authClient,
         });
       }).retry(undefined, [1000, 1500, 2000]);
 
@@ -141,18 +131,16 @@ module.exports = {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
         },
-        auth: authClient,
       });
 
       // Now create the new enterprise for this Fleet server.
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
-      let createEnterpriseResponse = await androidmanagement.enterprises.create({
+      let createEnterpriseResponse = await androidManagementConnection.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,
         projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
-        auth: authClient,
       });
       return createEnterpriseResponse.data;
     }).intercept({status: 400}, (err)=>{

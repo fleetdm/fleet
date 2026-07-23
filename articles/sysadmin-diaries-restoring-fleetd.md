@@ -46,7 +46,7 @@ Here is the XML command for macOS:
     <key>Command</key>
     <dict>
       <key>ManifestURL</key>
-      <string>https://download.fleetdm.com/fleetd-base-manifest.plist</string>
+      <string>https://download.fleetdm.com/stable/fleetd-base-manifest.plist</string>
       <key>RequestType</key>
       <string>InstallEnterpriseApplication</string>
     </dict>
@@ -89,7 +89,7 @@ Then, execute the command using `fleetctl`:
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+						<ContentURL>https://download.fleetdm.com/stable/fleetd-base.msi</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>

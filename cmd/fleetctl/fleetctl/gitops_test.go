@@ -2489,8 +2489,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
@@ -7441,7 +7441,9 @@ software:
 		t.Setenv("FLEET_SECRET_FOO", "someValue")
 		// The base mock provides ValidateEmbeddedSecretsFunc (used by scripts/batch),
 		// so leave it alone; only the secret-upload func needs a stub here.
-		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secretVariables []fleet.SecretVariable) error { return nil }
+		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
+			return nil, nil, nil
+		}
 		ds.UpsertSecretVariablesFuncInvoked = false
 
 		yml := writeYAML(t, teamYAML(`  name_template: "iPad $FLEET_SECRET_FOO"`))

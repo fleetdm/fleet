@@ -204,7 +204,7 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button
-          variant="inverse"
+          variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
         >

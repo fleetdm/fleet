@@ -1,12 +1,12 @@
 {
   "versions": [
     {
-      "version": "1.129.0",
+      "version": "1.129.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode' AND version_compare(bundle_short_version, '1.129.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode' AND version_compare(bundle_short_version, '1.129.1') < 0);"
       },
-      "installer_url": "https://update.code.visualstudio.com/1.129.0/darwin-universal/stable",
+      "installer_url": "https://update.code.visualstudio.com/1.129.1/darwin-universal/stable",
       "install_script_ref": "e6d54100",
       "uninstall_script_ref": "38d65803",
       "sha256": "no_check",

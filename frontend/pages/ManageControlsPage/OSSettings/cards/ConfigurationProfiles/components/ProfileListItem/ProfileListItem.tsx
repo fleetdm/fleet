@@ -27,7 +27,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
-    <Icon name="filter" color="ui-fleet-black-75" />
+    <Icon name="tag" color="ui-fleet-black-75" />
     {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
@@ -94,10 +94,8 @@ interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
   onClickInfo: (profile: IMdmProfile) => void;
+  onClickEdit: (profile: IMdmProfile) => void;
   onClickDelete: (profile: IMdmProfile) => void;
-  setProfileLabelsModalData: React.Dispatch<
-    React.SetStateAction<IMdmProfile | null>
-  >;
   isTechnician?: boolean;
 }
 
@@ -105,8 +103,8 @@ const ProfileListItem = ({
   isPremium,
   profile,
   onClickInfo,
+  onClickEdit,
   onClickDelete,
-  setProfileLabelsModalData,
   isTechnician,
 }: IProfileListItemProps) => {
   const {
@@ -193,23 +191,26 @@ const ProfileListItem = ({
         <div className={`${subClass}__actions`}>
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={() => onClickInfo(profile)}
           >
             <Icon name="info" size="medium" />
           </Button>
-          {isPremium && labels.length > 0 && (
+          {!isTechnician && (
+            // stays enabled in GitOps mode -- the modal is the only place to
+            // see a profile's label targeting; it blocks saving instead
             <Button
               className={`${subClass}__action-button`}
-              variant="icon"
-              onClick={() => setProfileLabelsModalData({ ...profile })}
+              variant="secondary"
+              onClick={() => onClickEdit(profile)}
+              ariaLabel={`Edit ${profile.name}`}
             >
-              <Icon name="filter" />
+              <Icon name="pencil" />
             </Button>
           )}
           <Button
             className={`${subClass}__action-button`}
-            variant="icon"
+            variant="secondary"
             onClick={onClickDownload}
           >
             <Icon name="download" />
@@ -220,7 +221,7 @@ const ProfileListItem = ({
                 <Button
                   disabled={disableChildren}
                   className={`${subClass}__action-button`}
-                  variant="icon"
+                  variant="secondary"
                   onClick={() => onClickDelete(profile)}
                 >
                   <Icon name="trash" />

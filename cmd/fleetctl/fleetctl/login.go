@@ -99,6 +99,7 @@ https://fleetdm.com/guides/fleetctl#users-with-single-sign-on-sso-or-email-two-f
 				case service.NotSetupErr:
 					return err
 				}
+				fmt.Fprintf(os.Stderr, "\n%s\n", mfaAuthInstructions)
 				return fmt.Errorf("Login failed: %w", err)
 			}
 

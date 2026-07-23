@@ -152,6 +152,7 @@ import LocationModal from "../modals/LocationModal";
 import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
+import ReleaseFromABModal from "./components/ReleaseFromABModal";
 
 const baseClass = "host-details";
 
@@ -258,6 +259,7 @@ const HostDetailsPage = ({
   }, [location.query.show_mdm_status]);
 
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+  const [showReleaseFromABModal, setShowReleaseFromABModal] = useState(false);
 
   const [
     editingCustomHostVital,
@@ -468,7 +470,9 @@ const HostDetailsPage = ({
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              notify.error(`Vitals are taking longer than expected to load.`);
+              notify.error(
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+              );
               resetHostRefetchStates();
             }
           }
@@ -1029,6 +1033,9 @@ const HostDetailsPage = ({
       case "managedAccount":
         setShowManagedAccountModal(true);
         break;
+      case "releaseFromAB":
+        setShowReleaseFromABModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -1081,6 +1088,7 @@ const HostDetailsPage = ({
           !!host.mdm.encryption_key_archived
         }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
+        isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
           mdmConfig?.enable_recovery_lock_password ?? false
@@ -1751,6 +1759,16 @@ const HostDetailsPage = ({
             <PolicyDetailsModal
               onCancel={onCancelPolicyDetailsModal}
               policy={selectedPolicy}
+            />
+          )}
+          {!!host && showReleaseFromABModal && (
+            <ReleaseFromABModal
+              host={{ display_name: host.display_name, id: host.id }}
+              onExit={() => setShowReleaseFromABModal(false)}
+              onRelease={() => {
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showOSSettingsModal && (

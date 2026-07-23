@@ -142,7 +142,7 @@ const DeleteConditionalAccessModal = ({
         </Button>
         <Button
           onClick={toggleDeleteConditionalAccessModal}
-          variant="inverse-alert"
+          variant="secondary"
           disabled={isDeleting}
         >
           Cancel
@@ -248,9 +248,6 @@ const ConditionalAccess = () => {
   } = config?.conditional_access || {};
 
   const oktaConfigured = isOktaConditionalAccessConfigured(config);
-
-  // Check if this is a managed cloud deployment (Microsoft Entra requires proxy infrastructure)
-  const isManagedCloud = config?.license?.managed_cloud || false;
 
   // Check Entra configuration state
   // Note: entraPhase is intentionally included in the dependency array to allow
@@ -372,7 +369,7 @@ const ConditionalAccess = () => {
         iconName={oktaConfigured ? "success" : undefined}
         cta={
           oktaConfigured ? (
-            <Button variant="text-icon" onClick={handleOktaDelete}>
+            <Button variant="subdued" onClick={handleOktaDelete}>
               Delete
               <Icon name="trash" color="ui-fleet-black-75" />
             </Button>
@@ -439,7 +436,7 @@ const ConditionalAccess = () => {
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
       entraCta = (
-        <Button variant="text-icon" onClick={handleEntraDelete}>
+        <Button variant="subdued" onClick={handleEntraDelete}>
           Delete
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
@@ -490,7 +487,7 @@ const ConditionalAccess = () => {
     return (
       <div className={`${baseClass}__cards`}>
         {renderOktaContent()}
-        {isManagedCloud && renderEntraContent()}
+        {renderEntraContent()}
       </div>
     );
   };

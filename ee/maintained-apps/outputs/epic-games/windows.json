@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.3.189.0",
+      "version": "1.3.193.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.' AND version_compare(version, '1.3.189.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Epic Games Launcher' AND publisher = 'Epic Games, Inc.' AND version_compare(version, '1.3.193.0') < 0);"
       },
-      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Windows/EpicInstaller-20.1.0.msi?launcherfilename=EpicInstaller-20.1.0.msi",
+      "installer_url": "https://epicgames-download1.akamaized.net/Builds/UnrealEngineLauncher/Installers/Windows/EpicInstaller-20.1.4.msi?launcherfilename=EpicInstaller-20.1.4.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "f3ea6878",
-      "sha256": "632dfd8f07279dfdaf862d0a1e1118143c94a795adaf7c85eeed026e11ff069b",
+      "sha256": "1513d6cc2afda0367c8375b6f25f490c162da5607ce4b4adbb41906a2d742236",
       "default_categories": [
         "Productivity"
       ],

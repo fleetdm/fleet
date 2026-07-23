@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -78,6 +79,63 @@ func testMFA(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.Nil(t, mfaUser)
 	require.Nil(t, session)
+
+	// concurrent redemptions of the same token must only ever mint one session
+	sessionsBefore, err := ds.ListSessionsForUser(context.Background(), user.ID)
+	require.NoError(t, err)
+
+	token, err = ds.NewMFAToken(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, token)
+
+	const concurrentRedemptions = 8
+	var (
+		wg         sync.WaitGroup
+		mu         sync.Mutex
+		successes  int
+		lastErr    error
+		successKey string
+	)
+	wg.Add(concurrentRedemptions)
+	for range concurrentRedemptions {
+		go func() {
+			defer wg.Done()
+			s, _, err := ds.SessionByMFAToken(context.Background(), token, 8)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				lastErr = err
+				return
+			}
+			successes++
+			if s != nil {
+				successKey = s.Key
+			}
+		}()
+	}
+	wg.Wait()
+
+	require.Equal(t, 1, successes, "exactly one concurrent redemption should succeed")
+	require.Error(t, lastErr, "losing redemptions should return an error")
+
+	// the token must be consumed and exactly one new session created for the user
+	sessionsAfter, err := ds.ListSessionsForUser(context.Background(), user.ID)
+	require.NoError(t, err)
+	require.Len(t, sessionsAfter, len(sessionsBefore)+1)
+	require.Contains(t, sessionKeys(sessionsAfter), successKey)
+
+	session, mfaUser, err = ds.SessionByMFAToken(context.Background(), token, 8)
+	require.Error(t, err)
+	require.Nil(t, mfaUser)
+	require.Nil(t, session)
+}
+
+func sessionKeys(sessions []*fleet.Session) []string {
+	keys := make([]string, 0, len(sessions))
+	for _, s := range sessions {
+		keys = append(keys, s.Key)
+	}
+	return keys
 }
 
 func testSessionsGetters(t *testing.T, ds *Datastore) {

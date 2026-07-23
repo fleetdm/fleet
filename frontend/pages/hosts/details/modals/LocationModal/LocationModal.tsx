@@ -171,7 +171,7 @@ const LocationModal = ({
         <ModalFooter
           primaryButtons={
             <>
-              <Button type="button" onClick={onExit} variant="inverse">
+              <Button type="button" onClick={onExit} variant="secondary">
                 Cancel
               </Button>
               <Button type="button" onClick={onClickLock}>

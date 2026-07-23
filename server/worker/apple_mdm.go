@@ -568,7 +568,7 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
 	}
-	a.Log.InfoContext(ctx, "sent command to install fleetd", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install fleetd", "host_uuid", hostUUID, "command_uuid", cmdUUID)
 	return cmdUUID, nil
 }
 
@@ -725,7 +725,7 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	if err != nil {
 		return "", err
 	}
-	a.Log.InfoContext(ctx, "sent command to install bootstrap package", "host_uuid", hostUUID)
+	a.Log.InfoContext(ctx, "sent command to install bootstrap package", "host_uuid", hostUUID, "command_uuid", cmdUUID)
 	return cmdUUID, nil
 }
 

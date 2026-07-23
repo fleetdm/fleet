@@ -643,7 +643,7 @@ const Vitals = ({
         <span className={`${baseClass}__custom-vital-title`}>
           {vital.name}
           <Button
-            variant="icon"
+            variant="subdued"
             size="small"
             onClick={() => onEditCustomHostVital(vital)}
             ariaLabel={`Edit ${vital.name}`}

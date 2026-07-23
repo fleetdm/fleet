@@ -75,6 +75,30 @@ func TestValidateHostNameTemplate(t *testing.T) {
 			tmpl:     "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
 			wantNorm: "WS-${FLEET_SECRET_" + strings.Repeat("A", 80) + "}",
 		},
+		// Custom host vital references are allowed syntactically here too; their
+		// existence is checked separately (needs the datastore), same as secrets.
+		{name: "vital var", tmpl: "$FLEET_HOST_VITAL_5", wantNorm: "$FLEET_HOST_VITAL_5"},
+		{name: "vital var braced", tmpl: "${FLEET_HOST_VITAL_5}", wantNorm: "${FLEET_HOST_VITAL_5}"},
+		{
+			name:     "built-in, secret, and vital vars mixed",
+			tmpl:     "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE-$FLEET_HOST_VITAL_5",
+			wantNorm: "WS-$FLEET_VAR_HOST_HARDWARE_SERIAL-$FLEET_SECRET_SITE-$FLEET_HOST_VITAL_5",
+		},
+		{
+			// A long vital token doesn't count toward the fixed-text byte floor
+			// either: the substituted value's length isn't known until resolve time.
+			name:     "long vital token doesn't hit byte floor",
+			tmpl:     "WS-${FLEET_HOST_VITAL_" + strings.Repeat("9", 80) + "}",
+			wantNorm: "WS-${FLEET_HOST_VITAL_" + strings.Repeat("9", 80) + "}",
+		},
+		{
+			// A malformed vital reference (non-numeric suffix) is allowed
+			// syntactically here; ValidateHostNameTemplateWithSecrets rejects it once
+			// the datastore is available to distinguish malformed from unknown IDs.
+			name:     "malformed vital ref allowed at the syntax layer",
+			tmpl:     "$FLEET_HOST_VITAL_asset_tag",
+			wantNorm: "$FLEET_HOST_VITAL_asset_tag",
+		},
 		{name: "tab control char", tmpl: "bad\tname", wantErr: "control characters"},
 		{name: "rtl override format char", tmpl: "bad\u202ename", wantErr: "control characters"},
 		{name: "zero-width joiner format char", tmpl: "bad\u200dname", wantErr: "control characters"},
