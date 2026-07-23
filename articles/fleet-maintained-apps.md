@@ -99,7 +99,6 @@ If a new version introduces a bug, and you want to rollback to the older version
 
 > Installing an older version over a newer one might cause issues for some apps. Please test it on a smaller scope first.
 
-
 ```sql
 SELECT 1 WHERE NOT EXISTS (
     SELECT 1 FROM programs WHERE name = 'Zoom' AND version = '<version_with_bug>'
