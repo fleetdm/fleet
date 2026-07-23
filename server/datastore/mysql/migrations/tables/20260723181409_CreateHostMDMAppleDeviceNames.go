@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260713115453, Down_20260713115453)
+	MigrationClient.AddMigration(Up_20260723181409, Down_20260723181409)
 }
 
-func Up_20260713115453(tx *sql.Tx) error {
+func Up_20260723181409(tx *sql.Tx) error {
 	// host_mdm_apple_device_names tracks the enforcement state of the host-name
 	// template for Apple hosts (macOS, iOS, iPadOS). A NULL status means the row
 	// is queued for the cron to pick up and send a Settings/DeviceName command.
@@ -36,6 +36,6 @@ CREATE TABLE host_mdm_apple_device_names (
 	return nil
 }
 
-func Down_20260713115453(tx *sql.Tx) error {
+func Down_20260723181409(tx *sql.Tx) error {
 	return nil
 }
