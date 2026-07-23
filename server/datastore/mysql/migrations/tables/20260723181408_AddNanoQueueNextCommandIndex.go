@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260708192536, Down_20260708192536)
+	MigrationClient.AddMigration(Up_20260723181408, Down_20260723181408)
 }
 
-func Up_20260708192536(tx *sql.Tx) error {
+func Up_20260723181408(tx *sql.Tx) error {
 	// Supports RetrieveNextCommand, which filters a single enrollment's queue by
 	// (id, active) and orders by (priority DESC, created_at). Without an
 	// id-leading index the optimizer picks the global (priority DESC, created_at)
@@ -25,6 +25,6 @@ func Up_20260708192536(tx *sql.Tx) error {
 	}, tx)
 }
 
-func Down_20260708192536(tx *sql.Tx) error {
+func Down_20260723181408(tx *sql.Tx) error {
 	return nil
 }

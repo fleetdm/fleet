@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260707140752, Down_20260707140752)
+	MigrationClient.AddMigration(Up_20260723181404, Down_20260723181404)
 }
 
-func Up_20260707140752(tx *sql.Tx) error {
+func Up_20260723181404(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE mdm_apple_declaration_assets (
 			asset_uuid varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -59,6 +59,6 @@ func Up_20260707140752(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260707140752(tx *sql.Tx) error {
+func Down_20260723181404(tx *sql.Tx) error {
 	return nil
 }
