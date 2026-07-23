@@ -8,6 +8,8 @@
   &__element {
     white-space: nowrap;
     line-height: inherit; // Same line height as parent
+    cursor: default;
+    user-select: none;
   }
 
   // text-decoration dashed cannot be used as it's not firefox compatible so must use border-bottom
@@ -16,6 +18,9 @@
     width: fit-content;
     border-bottom: 1px dashed $ui-fleet-black-50;
     margin-bottom: -1px;
+    // Underline variant wraps prose-style anchors — restore browser defaults so users can select text.
+    cursor: auto;
+    user-select: auto;
   }
 
   &__tip-text {
