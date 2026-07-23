@@ -234,23 +234,23 @@ func TestGetHostScriptFleetVariables(t *testing.T) {
 
 		// the failure was recorded through the normal result-saving path
 		require.NotNil(t, savedResult)
-		require.Equal(t, fleet.ScriptFleetVarResolutionFailedExitCode, savedResult.ExitCode)
+		require.Equal(t, fleet.ExitCodeFleetVarResolutionFailed, savedResult.ExitCode)
 		require.Contains(t, savedResult.Output, "There is no IdP username for this host.")
 		require.Equal(t, host.ID, savedResult.HostID)
 
 		// the returned script carries the exit code so fleetd skips it and
 		// keeps processing its queue
 		require.NotNil(t, script.ExitCode)
-		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *script.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *script.ExitCode)
 	})
 
 	t.Run("already-completed execution is not re-recorded", func(t *testing.T) {
 		svc, ctx, ds := newSvcAndCtx(t, host, "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME",
-			new(int64(fleet.ScriptFleetVarResolutionFailedExitCode)))
+			new(int64(fleet.ExitCodeFleetVarResolutionFailed)))
 
 		script, err := svc.GetHostScript(ctx, "exec-1")
 		require.NoError(t, err)
-		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *script.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *script.ExitCode)
 		require.False(t, ds.SetHostScriptExecutionResultFuncInvoked)
 	})
 

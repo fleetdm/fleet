@@ -359,57 +359,44 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 	}
 
 	switch *hsr.ExitCode {
-	case ScriptTimeoutExitCode:
+	case ExitCodeScriptTimeout:
 		return HostScriptTimeoutMessage(hostTimeoutValue)
-	case ScriptsDisabledExitCode:
+	case ExitCodeScriptsDisabled:
 		return RunScriptDisabledErrMsg
-	case ScriptFleetVarResolutionFailedExitCode:
+	case ExitCodeFleetVarResolutionFailed:
 		return RunScriptFleetVarsFailedErrMsg
 	default:
 		return ""
 	}
 }
 
-// Sentinel exit codes for script results (host_script_results.exit_code),
-// assigned by fleetd or the Fleet server, never by the script itself. A real
+// Sentinel exit codes for script results (host_script_results.exit_code) and
+// software install results (host_software_installs.install_script_exit_code).
+// They are assigned by fleetd or the Fleet server, never by the script
+// itself, and share a single namespace so a value can't mean different things
+// on the two surfaces; each comment notes where the code applies. A real
 // process can exit with a status that collides with these values; that
-// ambiguity is accepted. When adding a new sentinel, pick a value that is
-// unused in BOTH this list and the software install list below so the two
-// result surfaces stay consistent.
+// ambiguity is accepted.
 const (
-	// ScriptTimeoutExitCode is reported when the script did not terminate
+	// ExitCodeScriptTimeout is reported when a script did not terminate
 	// normally, e.g. fleetd killed it at the execution timeout (Go reports -1
-	// for a process that did not exit cleanly).
-	ScriptTimeoutExitCode = -1
-	// ScriptsDisabledExitCode is reported by fleetd when the script can't run
-	// because scripts are disabled on the host.
-	ScriptsDisabledExitCode = -2
-	// ScriptFleetVarResolutionFailedExitCode is recorded by the server when it
-	// can't resolve one or more Fleet variables in the script for the target
-	// host; the result's output holds the reasons.
-	ScriptFleetVarResolutionFailedExitCode = -5
-)
-
-// Sentinel exit codes for software install results
-// (host_software_installs.install_script_exit_code), reported as the install
-// script exit code in HostSoftwareInstallResultPayload. This is a separate
-// namespace from the script sentinels above, so values may repeat; a sentinel
-// that exists in both keeps one constant per namespace.
-const (
-	// ExitCodeScriptsDisabled is reported by fleetd when the install was
-	// attempted on a host with scripts disabled.
+	// for a process that did not exit cleanly). Script results only.
+	ExitCodeScriptTimeout = -1
+	// ExitCodeScriptsDisabled is reported by fleetd when a script or software
+	// install can't run because scripts are disabled on the host.
 	ExitCodeScriptsDisabled = -2
 	// ExitCodeInstallerDownloadFailed is reported by fleetd when it failed to
-	// download the installer.
+	// download the installer. Software install results only.
 	ExitCodeInstallerDownloadFailed = -3
 	// ExitCodeInstallerNotFound is reported by fleetd when it has been unable
 	// to fetch installer details from the server for longer than the retry
 	// window (e.g. because the installer was deleted/replaced while a
-	// setup-experience install was in flight).
+	// setup-experience install was in flight). Software install results only.
 	ExitCodeInstallerNotFound = -4
-	// ExitCodeFleetVarResolutionFailed is recorded by the server when it can't
-	// resolve one or more Fleet variables in the installer's scripts for the
-	// target host; the install script output holds the reasons.
+	// ExitCodeFleetVarResolutionFailed is recorded by the server when it
+	// can't resolve one or more Fleet variables in a script or in a software
+	// installer's scripts for the target host; the result's output holds the
+	// reasons.
 	ExitCodeFleetVarResolutionFailed = -5
 )
 

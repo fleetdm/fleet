@@ -1141,11 +1141,11 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 			if err := svc.SaveHostScriptResult(ctx, &fleet.HostScriptResultPayload{
 				ExecutionID: script.ExecutionID,
 				Output:      failureMessage,
-				ExitCode:    fleet.ScriptFleetVarResolutionFailedExitCode,
+				ExitCode:    fleet.ExitCodeFleetVarResolutionFailed,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure")
 			}
-			script.ExitCode = new(int64(fleet.ScriptFleetVarResolutionFailedExitCode))
+			script.ExitCode = new(int64(fleet.ExitCodeFleetVarResolutionFailed))
 			script.Output = failureMessage
 			return script, nil
 		}

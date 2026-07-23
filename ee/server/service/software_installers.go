@@ -628,8 +628,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			dirty["Package"] = true
 
 			// For script packages the uploaded file's contents are the install
-			// script, so replacing the file must update install_script too.
+			// script, so replacing the file must update install_script too. The
+			// file's contents were not among the payload fields validated above,
+			// so validate them here.
 			if fleet.IsScriptPackage(existingInstaller.Extension) {
+				if err := validateFleetVariablesOnInstallerScripts(ctx, &payloadForNewInstallerFile.InstallScript, nil, nil); err != nil {
+					return nil, err
+				}
 				payload.InstallScript = &payloadForNewInstallerFile.InstallScript
 				if payloadForNewInstallerFile.InstallScript != existingInstaller.InstallScript {
 					dirty["InstallScript"] = true

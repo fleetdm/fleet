@@ -71,10 +71,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
 	}
 
-	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
-		return 0, err
-	}
-
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
@@ -137,6 +133,12 @@ func (svc *Service) AddFleetMaintainedApp(
 				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
 			}
 		}
+	}
+
+	// validate the effective scripts, after empty inputs were defaulted from
+	// the maintained-app manifest above
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
+		return 0, err
 	}
 
 	maintainedAppID := &app.ID

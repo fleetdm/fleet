@@ -34628,13 +34628,13 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 		// fetching the first script records the failure and returns it marked
 		fetched := orbitFetchScript(t, host, failResp.ExecutionID)
 		require.NotNil(t, fetched.ExitCode)
-		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *fetched.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *fetched.ExitCode)
 
 		// the failed result is stored with the reason as output
 		stored, err := s.ds.GetHostScriptExecutionResult(ctx, failResp.ExecutionID)
 		require.NoError(t, err)
 		require.NotNil(t, stored.ExitCode)
-		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *stored.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *stored.ExitCode)
 		require.Contains(t, stored.Output, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
 
 		// a ran_script activity was created for the failed execution
@@ -34642,7 +34642,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "script_name": "", "async": true, "batch_execution_id": null, "policy_id": null, "policy_name": null, "from_setup_experience": false}`,
 				host.ID, host.DisplayName(), failResp.ExecutionID), 0)
 
-		// the results endpoint returns the -3 user message
+		// the results endpoint returns the variable-resolution-failure user message
 		var scriptResultResp fleet.GetScriptResultResponse
 		s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+failResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
 		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, scriptResultResp.Message)
@@ -34703,9 +34703,10 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 		}()
 
 		require.Eventually(t, func() bool {
+			// no require inside the condition: it runs on a separate goroutine,
+			// where FailNow is not supported
 			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
-			require.NoError(t, err)
-			if len(pending) == 0 {
+			if err != nil || len(pending) == 0 {
 				return false
 			}
 			orbitFetchScript(t, host, pending[0].ExecutionID)
@@ -34714,7 +34715,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 
 		<-done
 		require.NotNil(t, syncResp.ExitCode)
-		require.EqualValues(t, fleet.ScriptFleetVarResolutionFailedExitCode, *syncResp.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *syncResp.ExitCode)
 		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, syncResp.Message)
 		require.Contains(t, syncResp.Output, "There is no IdP username for this host.")
 	})
@@ -34742,4 +34743,73 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFleetVari
 	scriptOnly[0].InstallScript = "echo $FLEET_VAR_HOST_UUID"
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
 		http.StatusAccepted, "team_name", tm.Name, "dry_run", "true")
+}
+
+func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	writeScript := func(name, contents string) string {
+		path := filepath.Join(tmpDir, name)
+		require.NoError(t, os.WriteFile(path, []byte(contents), 0o644))
+		return path
+	}
+
+	const unsupportedVarErrMsg = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+
+	// a script package's install script is the uploaded file itself, so an
+	// unsupported variable in the file is rejected at upload
+	badFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-bad.sh", "#!/bin/sh\necho $FLEET_VAR_NONEXISTENT\n"))
+	require.NoError(t, err)
+	defer badFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "vars-pkg.sh",
+		InstallerFile: badFile,
+	}, http.StatusUnprocessableEntity, unsupportedVarErrMsg)
+
+	// supported variables in the file are accepted
+	goodFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-good.sh", "#!/bin/sh\necho $FLEET_VAR_HOST_UUID\n"))
+	require.NoError(t, err)
+	defer goodFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "vars-pkg.sh",
+		InstallerFile: goodFile,
+	}, http.StatusOK, "")
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+	var titleID uint
+	for _, sw := range listResp.SoftwareTitles {
+		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "vars-pkg.sh" {
+			titleID = sw.ID
+		}
+	}
+	require.NotZero(t, titleID)
+
+	// replacing the package file is rejected too: the new file's contents
+	// become the install script
+	badUpdateFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-update-bad.sh", "#!/bin/sh\necho hi\necho $FLEET_VAR_NONEXISTENT\n"))
+	require.NoError(t, err)
+	defer badUpdateFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		Filename:      "vars-pkg.sh",
+		InstallerFile: badUpdateFile,
+	}, http.StatusUnprocessableEntity, unsupportedVarErrMsg)
+
+	// a replacement file with a supported variable is accepted and stored unexpanded
+	const updatedContents = "#!/bin/sh\necho $FLEET_VAR_HOST_HARDWARE_SERIAL\n"
+	goodUpdateFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-update-good.sh", updatedContents))
+	require.NoError(t, err)
+	defer goodUpdateFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		Filename:      "vars-pkg.sh",
+		InstallerFile: goodUpdateFile,
+	}, http.StatusOK, "")
+
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, updatedContents, meta.InstallScript)
 }

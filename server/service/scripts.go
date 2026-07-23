@@ -765,7 +765,9 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		}
 
 		// unlike the embedded secrets validation below, this is a static check,
-		// so it runs before the dryRun return to surface errors on gitops dry runs
+		// so it runs before the post-loop dryRun return to surface errors on
+		// gitops dry runs (like the rest of this loop, it is skipped when a dry
+		// run targets a team that doesn't exist yet)
 		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
 		}
