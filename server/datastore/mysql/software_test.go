@@ -4131,6 +4131,77 @@ func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
 	require.False(t, matched, "program with unknown upgrade_code should not match any title")
 }
 
+func TestSoftwarePackageFamilyNameIngestion(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	const copilotPFN = "Microsoft.Copilot_8wekyb3d8bbwe"
+
+	// A packaged Windows app store app (package_family_name set) and a classic program that shares
+	// its name and version (no package_family_name) must be stored as distinct software rows,
+	// because the non-empty package_family_name is part of the checksum.
+	dupHost := test.NewHost(t, ds, "win-dup", "", "windupkey", "windupuuid", time.Now(), test.WithPlatform("windows"))
+	_, err := ds.UpdateHostSoftware(ctx, dupHost.ID, []fleet.Software{
+		{Name: "Copilot", Version: "1.0", Source: "programs", PackageFamilyName: new(copilotPFN)},
+		{Name: "Copilot", Version: "1.0", Source: "programs"}, // classic program: no package family name
+	})
+	require.NoError(t, err)
+
+	var rows []struct {
+		Name              string  `db:"name"`
+		PackageFamilyName *string `db:"package_family_name"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT name, package_family_name FROM software WHERE source='programs' ORDER BY package_family_name`)
+	})
+	require.Len(t, rows, 2)
+	// ORDER BY package_family_name puts the NULL (classic program) first, the packaged app second.
+	require.Nil(t, rows[0].PackageFamilyName)
+	require.NotNil(t, rows[1].PackageFamilyName)
+	require.Equal(t, copilotPFN, *rows[1].PackageFamilyName)
+
+	// package_family_name is surfaced per installed version on the host software list: the packaged
+	// app's version carries its family name; the classic program's version has none (nil).
+	host := test.NewHost(t, ds, "win1", "", "win1key", "win1uuid", time.Now(), test.WithPlatform("windows"))
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Copilot", Version: "1.0", Source: "programs", PackageFamilyName: new(copilotPFN)},
+		{Name: "7-Zip", Version: "24.08", Source: "programs"}, // classic program: no package family name
+	})
+	require.NoError(t, err)
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{PerPage: 20, OrderKey: "name"},
+	})
+	require.NoError(t, err)
+
+	byName := make(map[string]*fleet.HostSoftwareWithInstaller, len(sw))
+	for _, s := range sw {
+		byName[s.Name] = s
+	}
+	require.Contains(t, byName, "Copilot")
+	require.Len(t, byName["Copilot"].InstalledVersions, 1)
+	require.NotNil(t, byName["Copilot"].InstalledVersions[0].PackageFamilyName)
+	require.Equal(t, copilotPFN, *byName["Copilot"].InstalledVersions[0].PackageFamilyName)
+	require.Contains(t, byName, "7-Zip")
+	require.Len(t, byName["7-Zip"].InstalledVersions, 1)
+	require.Nil(t, byName["7-Zip"].InstalledVersions[0].PackageFamilyName)
+
+	// The version-level `fleet.Software` read path (SoftwareByID) also carries package_family_name.
+	copilotSoftwareID := byName["Copilot"].InstalledVersions[0].SoftwareID
+	require.NotZero(t, copilotSoftwareID)
+	copilotSoftware, err := ds.SoftwareByID(ctx, copilotSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.NotNil(t, copilotSoftware.PackageFamilyName)
+	require.Equal(t, copilotPFN, *copilotSoftware.PackageFamilyName)
+
+	sevenZipSoftwareID := byName["7-Zip"].InstalledVersions[0].SoftwareID
+	require.NotZero(t, sevenZipSoftwareID)
+	sevenZipSoftware, err := ds.SoftwareByID(ctx, sevenZipSoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	require.Nil(t, sevenZipSoftware.PackageFamilyName)
+}
+
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -10431,9 +10502,9 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
-	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "")
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
-	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "")
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})

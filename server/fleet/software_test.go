@@ -1085,3 +1085,96 @@ func TestSoftwareCategoryReferenceMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareFromOsqueryRowPackageFamilyName(t *testing.T) {
+	const copilotPFN = "Microsoft.Copilot_8wekyb3d8bbwe"
+
+	t.Run("programs source with a package family name", func(t *testing.T) {
+		sw, err := SoftwareFromOsqueryRow("Copilot", "1.0", "programs", "Microsoft", "", "", "", "", "", "", "", "", copilotPFN)
+		require.NoError(t, err)
+		require.NotNil(t, sw.PackageFamilyName)
+		require.Equal(t, copilotPFN, *sw.PackageFamilyName)
+	})
+
+	t.Run("programs source with empty package family name is nil", func(t *testing.T) {
+		// A classic program reports no package family name; the informational column stays nil
+		// (populated only for packaged apps), so no backfill is needed.
+		sw, err := SoftwareFromOsqueryRow("7-Zip", "24.08", "programs", "Igor Pavlov", "", "", "", "", "", "", "", "", "")
+		require.NoError(t, err)
+		require.Nil(t, sw.PackageFamilyName)
+	})
+
+	t.Run("non-programs source leaves package family name nil", func(t *testing.T) {
+		sw, err := SoftwareFromOsqueryRow("somepkg", "1.0", "chocolatey_packages", "", "", "", "", "", "", "", "", "", "")
+		require.NoError(t, err)
+		require.Nil(t, sw.PackageFamilyName)
+	})
+
+	t.Run("non-programs source with a package family name stays nil", func(t *testing.T) {
+		// Guard: package_family_name only applies to the "programs" source. Even if a non-programs
+		// row somehow reports a value, it must not be stored.
+		sw, err := SoftwareFromOsqueryRow("somepkg", "1.0", "chocolatey_packages", "", "", "", "", "", "", "", "", "", copilotPFN)
+		require.NoError(t, err)
+		require.Nil(t, sw.PackageFamilyName)
+	})
+
+	t.Run("package family name is truncated to the column width", func(t *testing.T) {
+		long := strings.Repeat("a", SoftwarePackageFamilyNameMaxLength+10)
+		sw, err := SoftwareFromOsqueryRow("pkg", "1.0", "programs", "", "", "", "", "", "", "", "", "", long)
+		require.NoError(t, err)
+		require.NotNil(t, sw.PackageFamilyName)
+		require.Len(t, []rune(*sw.PackageFamilyName), SoftwarePackageFamilyNameMaxLength)
+	})
+}
+
+func TestSoftwareChecksumDistinguishesPackageFamilyName(t *testing.T) {
+	// A packaged Windows app and a classic program can share a name and version. A non-empty
+	// package_family_name must keep them as distinct software rows.
+	classic := Software{Name: "Copilot", Version: "1.0", Source: "programs", PackageFamilyName: new("")}
+	packaged := Software{Name: "Copilot", Version: "1.0", Source: "programs", PackageFamilyName: new("Microsoft.Copilot_8wekyb3d8bbwe")}
+
+	require.NotEqual(t, classic.ToUniqueStr(), packaged.ToUniqueStr())
+
+	classicSum, err := classic.ComputeRawChecksum()
+	require.NoError(t, err)
+	packagedSum, err := packaged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.NotEqual(t, classicSum, packagedSum)
+
+	// An empty package_family_name adds no signal: the checksum matches software with a nil value.
+	nilPFN := Software{Name: "Copilot", Version: "1.0", Source: "programs"}
+	nilSum, err := nilPFN.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, nilSum, classicSum)
+	require.Equal(t, nilPFN.ToUniqueStr(), classic.ToUniqueStr())
+}
+
+func TestSoftwarePackageFamilyNameJSON(t *testing.T) {
+	t.Run("present when set", func(t *testing.T) {
+		b, err := json.Marshal(&Software{Name: "Copilot", Source: "programs", PackageFamilyName: new("Microsoft.Copilot_8wekyb3d8bbwe")})
+		require.NoError(t, err)
+		require.Contains(t, string(b), `"package_family_name":"Microsoft.Copilot_8wekyb3d8bbwe"`)
+
+		var got Software
+		require.NoError(t, json.Unmarshal(b, &got))
+		require.NotNil(t, got.PackageFamilyName)
+		require.Equal(t, "Microsoft.Copilot_8wekyb3d8bbwe", *got.PackageFamilyName)
+	})
+
+	t.Run("present on an installed version when set", func(t *testing.T) {
+		b, err := json.Marshal(&HostSoftwareInstalledVersion{Version: "1.0", PackageFamilyName: new("Microsoft.Copilot_8wekyb3d8bbwe")})
+		require.NoError(t, err)
+		require.Contains(t, string(b), `"package_family_name":"Microsoft.Copilot_8wekyb3d8bbwe"`)
+	})
+
+	t.Run("omitted when nil", func(t *testing.T) {
+		for _, v := range []any{
+			&Software{Name: "vim", Source: "deb_packages"},
+			&HostSoftwareInstalledVersion{Version: "1.0"},
+		} {
+			b, err := json.Marshal(v)
+			require.NoError(t, err)
+			require.NotContains(t, string(b), "package_family_name")
+		}
+	})
+}

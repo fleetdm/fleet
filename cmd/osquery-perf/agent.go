@@ -2644,6 +2644,17 @@ var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
 }
 
+// windowsPackageFamilyName deterministically assigns a synthetic MSIX/AppX package family name to
+// a fraction (~1/5) of Windows programs, so osquery-perf load environments contain some packaged
+// Windows app store apps. Keying off the software name keeps it stable across reports so the
+// software checksum does not churn.
+func windowsPackageFamilyName(name string) string {
+	if name == "" || name[0]%5 != 0 {
+		return ""
+	}
+	return fmt.Sprintf("%s_8wekyb3d8bbwe", strings.ReplaceAll(name, " ", "."))
+}
+
 // genLastOpenedAt returns a cached last_opened_at timestamp for the given software.
 // On first call for a piece of software, it decides whether to assign a timestamp
 // (up to withLastOpened items total). On subsequent calls, it returns the cached
@@ -3234,12 +3245,20 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			}
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"software_windows":
+	case name == hostDetailQueryPrefix+"software_windows" ||
+		name == hostDetailQueryPrefix+"software_windows_with_package_family_name":
+		// Fleet sends two discovery-gated Windows software query variants (with and without
+		// package_family_name). osquery-perf does not evaluate discovery, so it would otherwise
+		// answer the unrecognized variant with the junk defaultQueryResult and wipe the host's
+		// software. Handle both names identically here; both ingest the same software set.
 		ss := fleet.StatusOK
 		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
 			ss = fleet.OsqueryStatus(1)
 		}
-		if ss == fleet.StatusOK {
+		// Both discovery-gated Windows software variants share one snapshot per reporting cycle: the
+		// first to run computes and caches it, the second reuses it. This ensures MaybeMutateSoftware
+		// runs exactly once and both query names return the identical inventory set.
+		if ss == fleet.StatusOK && cachedResults.software == nil {
 			// Use database software 80% of the time if available, otherwise use embedded data
 			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
 				// Initialize cached indices on first call, then mutate on subsequent calls
@@ -3270,11 +3289,25 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					results = append(results, m)
 				}
 			}
+			// Simulate packaged Windows app store apps: assign a synthetic package_family_name to a
+			// deterministic fraction (~1/5) of programs (a packaged app also has no upgrade_code).
+			// Keying off the software name keeps it stable across reports so the checksum does not churn.
+			for _, m := range results {
+				if m["source"] == "programs" {
+					if pfn := windowsPackageFamilyName(m["name"]); pfn != "" {
+						m["package_family_name"] = pfn
+						m["upgrade_code"] = ""
+					}
+				}
+			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
 				return true
 			})
 			cachedResults.software = results
+		}
+		if ss == fleet.StatusOK {
+			results = cachedResults.software
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows_program_files_scan":
