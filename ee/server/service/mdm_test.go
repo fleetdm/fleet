@@ -579,4 +579,28 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Empty(t, appCfgToken.IOSTeam)
 		assert.Empty(t, appCfgToken.IpadOSTeam)
 	})
+
+	t.Run("updates app config with new entry if not present", func(t *testing.T) {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		require.NoError(t, err)
+
+		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
+		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		assert.Equal(t, validTeamName, appCfgToken.BYODTeam)
+		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+	})
 }
