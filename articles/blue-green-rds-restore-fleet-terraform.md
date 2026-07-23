@@ -40,10 +40,6 @@ module "main" {
       name           = local.rds_cluster_name
       instance_class = "db.t4g.medium"
       replicas       = 1
-      cluster_tags = {
-        VantaContainsUserData = "true"
-        backup                = "true"
-      }
 +   }
   }
 + active_rds_config_name = "current"
@@ -77,10 +73,6 @@ Use `restore_to_point_in_time` **or** `snapshot_identifier` depending on your re
 +     name           = "${local.rds_cluster_name}-next"
 +     instance_class = "db.t4g.medium"
 +     replicas       = 1
-+     cluster_tags = {
-+       VantaContainsUserData = "true"
-+       backup                = "true"
-+     }
 +     monitoring_interval = 0
 +     observability = {
 +       performance_insights_enabled = false
@@ -113,10 +105,6 @@ Use `restore_to_point_in_time` **or** `snapshot_identifier` depending on your re
 +     name           = "${local.rds_cluster_name}-next"
 +     instance_class = "db.t4g.medium"
 +     replicas       = 1
-+     cluster_tags = {
-+       VantaContainsUserData = "true"
-+       backup                = "true"
-+     }
 +     monitoring_interval = 0
 +     observability = {
 +       performance_insights_enabled = false
