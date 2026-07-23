@@ -151,7 +151,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "link" ||
       variant === "secondary" ||
       variant === "subdued" ||
-      variant === "pill" ||
+      variant === "pill";
 
     return (
       <button
