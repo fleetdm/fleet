@@ -1920,33 +1920,33 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  name: CIS - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
   cis_id: "2.10.1"
   platforms: macOS
   platform: darwin
-  description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 20 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 20 minutes is the default for new accounts.
+  description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 15 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 15 minutes is the default for new accounts.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
+    Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver to be Enabled.
     Graphical method:
-      Perform the following steps to ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled:
+      Perform the following steps to ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
-        3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
+        3. Verify that Start Screen Saver when inactive is set for 15 minutes or less (≤900 seconds)
   query: |
     SELECT 1 WHERE 
       EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            CAST(value AS INT) <= 1200 AND
+            CAST(value AS INT) <= 900 AND
             username = ''
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE
             domain='com.apple.screensaver' AND
             name='idleTime' AND
-            CAST(value AS INT) > 1200
+            CAST(value AS INT) > 900
         );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
