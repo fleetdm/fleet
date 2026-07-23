@@ -68,6 +68,8 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     hsi.software_installer_id AS installer_id,
     hsi.self_service AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
+    si.app_open_query AS app_open_query,
+    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -76,6 +78,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON hsi.software_installer_id = si.id
+  LEFT OUTER JOIN
+    policies p
+    ON p.id = hsi.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -97,6 +102,8 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     siua.software_installer_id AS installer_id,
 		ua.payload->'$.self_service' AS self_service,
     COALESCE(si.pre_install_query, '') AS pre_install_condition,
+    si.app_open_query AS app_open_query,
+    COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
     inst.contents AS install_script,
     uninst.contents AS uninstall_script,
     COALESCE(pisnt.contents, '') AS post_install_script
@@ -108,6 +115,9 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
   INNER JOIN
     software_installers si
     ON siua.software_installer_id = si.id
+  LEFT OUTER JOIN
+    policies p
+    ON p.id = siua.policy_id
   LEFT OUTER JOIN
     script_contents inst
     ON inst.id = si.install_script_content_id
@@ -128,6 +138,11 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 			return nil, ctxerr.Wrap(ctx, notFound("SoftwareInstallerDetails").WithName(executionId), "get software installer details")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
+	}
+
+	// A patch-when-closed policy install uses the installer's app open query as its pre-install condition.
+	if result.PatchWhenClosed {
+		result.PreInstallCondition = result.AppOpenQuery
 	}
 
 	// Install scripts run per-host, so custom host vitals resolve against the target host.
