@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -56,10 +62,44 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
+
+  // Latest-value ref for document-level handlers to consult isHidden without
+  // re-running their mount effects. isHidden signals a sibling modal is
+  // stacked on top of this one; that modal owns focus and keyboard input.
+  const isHiddenRef = useRef(isHidden);
+  useLayoutEffect(() => {
+    isHiddenRef.current = isHidden;
+  }, [isHidden]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    // Skip if a stacked modal is on top or if a child already claimed focus
+    // (e.g. an autoFocused InputField). Restore on unmount only when we took
+    // focus and are not hidden at close time, so a stacked-then-unmount flow
+    // doesn't yank focus away from the top modal.
+    const tookFocus =
+      !isHiddenRef.current && !container.contains(document.activeElement);
+    if (tookFocus) container.focus();
+
+    return () => {
+      if (
+        tookFocus &&
+        !isHiddenRef.current &&
+        previouslyFocused &&
+        document.body.contains(previouslyFocused)
+      ) {
+        previouslyFocused.focus();
+      }
+    };
+  }, []);
 
   const handleClose = useCallback(() => {
     if (isClosingRef.current) return;
@@ -72,6 +112,7 @@ const Modal = ({
 
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
+      if (isHiddenRef.current) return;
       if (e.key === "Escape") {
         handleClose();
       }
@@ -91,6 +132,11 @@ const Modal = ({
   useEffect(() => {
     if (onEnter) {
       const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
+        // Ignore Enter while a stacked modal is on top of this one.
+        if (isHiddenRef.current) return;
+        // Skip autorepeated keys: the trigger button's Enter may still be
+        // held when the modal mounts and this listener attaches.
+        if (event.repeat) return;
         if (event.code === "Enter" || event.code === "NumpadEnter") {
           event.preventDefault();
           onEnter();
@@ -194,8 +240,9 @@ const Modal = ({
       onMouseUp={handleBackgroundMouseUp}
     >
       <div
+        ref={containerRef}
         className={modalContainerClasses}
-        tabIndex={-1} // Make focusable
+        tabIndex={-1}
         onMouseDown={handleContainerMouseDown}
         onMouseUp={handleContainerMouseUp}
         onInput={handleContainerInput}
@@ -205,12 +252,7 @@ const Modal = ({
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button
-                variant="icon"
-                onClick={handleClose}
-                iconStroke
-                autofocus={isContentDisabled}
-              >
+              <Button variant="icon" onClick={handleClose} iconStroke>
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>
