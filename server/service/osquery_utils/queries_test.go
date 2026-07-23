@@ -536,6 +536,27 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 	assert.ElementsMatch(t, keys, expectedKeys)
 }
 
+func TestWindowsSoftwareQueryPackageFamilyNameVariants(t *testing.T) {
+	// Both variants target Windows and ingest via directIngestSoftware.
+	for _, q := range []DetailQuery{softwareWindows, softwareWindowsWithPackageFamilyName} {
+		require.Equal(t, []string{"windows"}, q.Platforms)
+		require.NotNil(t, q.DirectIngestFunc)
+		require.NotEmpty(t, q.Discovery)
+	}
+
+	// Only the "with" variant selects the real programs.package_family_name column; the fallback
+	// selects a constant '' so it works on osquery versions whose programs table lacks the column.
+	require.Contains(t, softwareWindowsWithPackageFamilyName.Query, "package_family_name AS package_family_name")
+	require.NotContains(t, softwareWindows.Query, "package_family_name AS package_family_name")
+	require.Contains(t, softwareWindows.Query, "'' AS package_family_name")
+
+	// The discovery queries must be mutually exclusive so exactly one variant runs per host
+	// (otherwise packaged apps would be ingested twice with different checksums).
+	require.Equal(t, programsHasPackageFamilyName, softwareWindowsWithPackageFamilyName.Discovery)
+	require.Contains(t, softwareWindows.Discovery, "NOT EXISTS")
+	require.Contains(t, softwareWindows.Discovery, programsHasPackageFamilyName)
+}
+
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
 
@@ -582,7 +603,7 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_windows_with_package_family_name", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)

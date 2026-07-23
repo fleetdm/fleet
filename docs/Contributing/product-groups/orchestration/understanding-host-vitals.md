@@ -1161,6 +1161,11 @@ FROM cached_users CROSS JOIN vscode_extensions USING (uid)
 
 - Platforms: windows
 
+- Discovery query:
+```sql
+SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM pragma_table_info('programs') WHERE name = 'package_family_name')
+```
+
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
@@ -1175,7 +1180,8 @@ SELECT
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path,
-  upgrade_code AS upgrade_code
+  upgrade_code AS upgrade_code,
+  '' AS package_family_name
 FROM programs
 UNION
 SELECT
@@ -1186,7 +1192,8 @@ SELECT
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM ie_extensions
 UNION
 SELECT
@@ -1197,7 +1204,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1208,7 +1216,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1219,7 +1228,8 @@ SELECT
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM chocolatey_packages
 ```
 
@@ -1269,6 +1279,82 @@ WHERE (
     OR path LIKE 'C:\Program Files\%\%\%.exe'
   )
   AND path NOT LIKE 'C:\Program Files\WindowsApps\%'
+```
+
+## software_windows_with_package_family_name
+
+- Platforms: windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('programs') WHERE name = 'package_family_name'
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, uuid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '_fleetadmin') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'programs' AS source,
+  publisher AS vendor,
+  install_location AS installed_path,
+  upgrade_code AS upgrade_code,
+  package_family_name AS package_family_name
+FROM programs
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'ie_extensions' AS source,
+  '' AS vendor,
+  path AS installed_path,
+  '' as upgrade_code,
+  '' as package_family_name
+FROM ie_extensions
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  identifier AS extension_id,
+  browser_type AS extension_for,
+  'chrome_extensions' AS source,
+  '' AS vendor,
+  path AS installed_path,
+  '' as upgrade_code,
+  '' as package_family_name
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  identifier AS extension_id,
+  'firefox' AS extension_for,
+  'firefox_addons' AS source,
+  '' AS vendor,
+  path AS installed_path,
+  '' as upgrade_code,
+  '' as package_family_name
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'chocolatey_packages' AS source,
+  '' AS vendor,
+  path AS installed_path,
+  '' as upgrade_code,
+  '' as package_family_name
+FROM chocolatey_packages
 ```
 
 ## system_info

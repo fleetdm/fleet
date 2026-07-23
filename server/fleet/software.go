@@ -43,6 +43,10 @@ const (
 	// == 1rune –> 38chars
 	UpgradeCodeExpectedLength = 38
 
+	// SoftwarePackageFamilyNameMaxLength matches the width of the package_family_name DB column and
+	// the osquery programs.package_family_name value.
+	SoftwarePackageFamilyNameMaxLength = 255
+
 	// softwareLastOpenedAtNeverEpoch is a sentinel Unix epoch (in seconds) that
 	// some macOS apps report for software that was never opened. It corresponds
 	// to 1980-01-01 00:00:00 UTC (the DOS/FAT epoch). Together with non-positive
@@ -151,6 +155,9 @@ type Software struct {
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// PackageFamilyName is the MSIX/AppX package family for a packaged Windows app.
+	// Empty for classic Win32 programs, nil for non-"programs" sources.
+	PackageFamilyName *string `json:"package_family_name,omitempty" db:"package_family_name"`
 
 	DisplayName string `json:"display_name"`
 }
@@ -224,6 +231,11 @@ func (s Software) ToUniqueStr() string {
 	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
 		ss = append(ss, *s.UpgradeCode)
 	}
+	// A packaged Windows app and a classic program can share a name/version; a non-empty
+	// package_family_name keeps them as distinct software (same reasoning as upgrade_code).
+	if s.PackageFamilyName != nil && *s.PackageFamilyName != "" {
+		ss = append(ss, *s.PackageFamilyName)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -241,6 +253,12 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	// additional signal of uniqueness, so omit
 	if s.UpgradeCode != nil && *s.UpgradeCode != "" {
 		cols = append(cols, *s.UpgradeCode)
+	}
+
+	// A non-empty package_family_name distinguishes a packaged Windows app from a classic program
+	// that shares its name/version. Empty values add no signal, so they are omitted (as with upgrade_code).
+	if s.PackageFamilyName != nil && *s.PackageFamilyName != "" {
+		cols = append(cols, *s.PackageFamilyName)
 	}
 
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
@@ -794,7 +812,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode, packageFamilyName string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -834,6 +852,16 @@ func SoftwareFromOsqueryRow(
 
 	}
 
+	// package_family_name is informational inventory data identifying a packaged Windows app store
+	// app. Only packaged apps report a non-empty value (osquery leaves it empty for classic MSI/EXE
+	// programs, and only the Windows programs query selects it at all). Store the value (truncated to
+	// the column width) when present and leave it nil otherwise, so the column is populated only for
+	// packaged apps and no backfill is required.
+	var packageFamilyNameForFleetSW *string
+	if packageFamilyName != "" {
+		packageFamilyNameForFleetSW = new(truncateString(packageFamilyName, SoftwarePackageFamilyNameMaxLength))
+	}
+
 	software := Software{
 		Name:             truncateString(name, SoftwareNameMaxLength),
 		Version:          truncateString(version, SoftwareVersionMaxLength),
@@ -842,10 +870,11 @@ func SoftwareFromOsqueryRow(
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
 		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
 
-		Release:     truncateString(release, SoftwareReleaseMaxLength),
-		Vendor:      vendor,
-		Arch:        truncateString(arch, SoftwareArchMaxLength),
-		UpgradeCode: upgradeCodeForFleetSW,
+		Release:           truncateString(release, SoftwareReleaseMaxLength),
+		Vendor:            vendor,
+		Arch:              truncateString(arch, SoftwareArchMaxLength),
+		UpgradeCode:       upgradeCodeForFleetSW,
+		PackageFamilyName: packageFamilyNameForFleetSW,
 	}
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime

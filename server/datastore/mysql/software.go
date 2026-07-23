@@ -409,6 +409,7 @@ SELECT
     s.arch,
     s.extension_id,
     s.upgrade_code,
+    s.package_family_name,
     hs.last_opened_at
 FROM
     software s
@@ -1242,9 +1243,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Insert software entries
-			const numberOfArgsPerSoftware = 13
+			const numberOfArgsPerSoftware = 14
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
@@ -1260,7 +1261,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					title_id,
 					checksum,
 					application_id,
-					upgrade_code
+					upgrade_code,
+					package_family_name
 				) VALUES %s`,
 				values,
 			)
@@ -1307,6 +1309,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				args = append(
 					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
+					sw.PackageFamilyName,
 				)
 			}
 
@@ -1900,6 +1903,7 @@ func buildOptimizedListSoftwareSQL(opts fleet.SoftwareListOptions) (string, []in
 			s.application_id,
 			s.title_id,
 			s.upgrade_code,
+			s.package_family_name,
 			COALESCE(scp.cpe, '') AS generated_cpe,
 			scv.cve,
 			scv.created_at
@@ -1997,6 +2001,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.application_id",
 			"s.title_id",
 			"s.upgrade_code",
+			"s.package_family_name",
 			goqu.I("scp.cpe").As("generated_cpe"),
 		).
 		// Include this in the sub-query in case we want to sort by 'generated_cpe'
@@ -2200,6 +2205,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.application_id",
 			"s.title_id",
 			"s.upgrade_code",
+			"s.package_family_name",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
 			"scv.created_at",
@@ -2657,6 +2663,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.extension_for",
 			"s.bundle_identifier",
 			"s.upgrade_code",
+			"s.package_family_name",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -3549,6 +3556,7 @@ type hostSoftware struct {
 	Version               *string    `db:"version"`
 	SoftwareID            *uint      `db:"software_id"`
 	SoftwareSource        *string    `db:"software_source"`
+	PackageFamilyName     *string    `db:"package_family_name"`
 	SoftwareExtensionFor  *string    `db:"software_extension_for"`
 	InstallerID           *uint      `db:"installer_id"`
 	PackageSelfService    *bool      `db:"package_self_service"`
@@ -3595,7 +3603,8 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software.extension_for AS software_extension_for,
 			software.version AS version,
 			software.bundle_identifier AS bundle_identifier,
-			software_titles.upgrade_code AS upgrade_code
+			software_titles.upgrade_code AS upgrade_code,
+			software.package_family_name AS package_family_name
 		FROM
 			host_software
 		INNER JOIN
@@ -4924,6 +4933,7 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 					version.BundleIdentifier = softwareBundleIdentifierList[index]
 					version.Source = softwareSourceList[index]
 					version.LastOpenedAt = software.LastOpenedAt
+					version.PackageFamilyName = software.PackageFamilyName
 					version.SoftwareID = softwareId
 					version.SoftwareTitleID = softwareTitleRecord.ID
 

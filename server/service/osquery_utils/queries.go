@@ -1310,8 +1310,13 @@ FROM cached_users CROSS JOIN firefox_addons USING (uid);
 	DirectIngestFunc: directIngestSoftware,
 }
 
-var softwareWindows = DetailQuery{
-	Query: withCachedUsers(`WITH cached_users AS (%s)
+// windowsSoftwareQuery builds the Windows software query. programsPackageFamilyName is the SQL
+// expression selected AS package_family_name from the programs table: the real column on osquery
+// versions that expose it, or the constant ” on older versions whose programs table lacks it.
+// Only the programs branch varies by osquery version; every other UNION branch selects a constant
+// ” regardless, so the column list always lines up.
+func windowsSoftwareQuery(programsPackageFamilyName string) string {
+	return withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -1320,7 +1325,8 @@ SELECT
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path,
-  upgrade_code AS upgrade_code
+  upgrade_code AS upgrade_code,
+  ` + programsPackageFamilyName + ` AS package_family_name
 FROM programs
 UNION
 SELECT
@@ -1331,7 +1337,8 @@ SELECT
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM ie_extensions
 UNION
 SELECT
@@ -1342,7 +1349,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -1353,7 +1361,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -1364,10 +1373,35 @@ SELECT
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path,
-  '' as upgrade_code
+  '' as upgrade_code,
+  '' as package_family_name
 FROM chocolatey_packages
-`),
+`)
+}
+
+// programsHasPackageFamilyName returns a row only when the host's osquery programs table exposes
+// the package_family_name column. Used to gate the two
+// Windows software query variants so Fleet stays backwards compatible with older osquery.
+const programsHasPackageFamilyName = `SELECT 1 FROM pragma_table_info('programs') WHERE name = 'package_family_name'`
+
+// softwareWindows is the fallback for osquery versions whose programs table lacks
+// package_family_name. It selects a constant ” for that column so ingestion works unchanged;
+// packaged apps are indistinguishable from classic programs on these hosts until osquery is
+// upgraded, at which point softwareWindowsWithPackageFamilyName takes over.
+var softwareWindows = DetailQuery{
+	Query:            windowsSoftwareQuery("''"),
 	Platforms:        []string{"windows"},
+	Discovery:        `SELECT 1 WHERE NOT EXISTS (` + programsHasPackageFamilyName + `)`,
+	DirectIngestFunc: directIngestSoftware,
+}
+
+// softwareWindowsWithPackageFamilyName runs on osquery versions whose programs table exposes
+// package_family_name, letting Fleet distinguish packaged Windows app store apps. It is mutually
+// exclusive with softwareWindows via their discovery queries.
+var softwareWindowsWithPackageFamilyName = DetailQuery{
+	Query:            windowsSoftwareQuery("package_family_name"),
+	Platforms:        []string{"windows"},
+	Discovery:        programsHasPackageFamilyName,
 	DirectIngestFunc: directIngestSoftware,
 }
 
@@ -2256,6 +2290,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			row["extension_for"],
 			row["last_opened_at"],
 			row["upgrade_code"],
+			row["package_family_name"],
 		)
 		if err != nil {
 			logger.DebugContext(ctx, "failed to parse software row",
@@ -3460,6 +3495,7 @@ func GetDetailQueries(
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
+		generatedMap["software_windows_with_package_family_name"] = softwareWindowsWithPackageFamilyName
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
