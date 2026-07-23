@@ -202,6 +202,7 @@ export enum ActivityType {
   CreatedCustomHostVital = "created_custom_host_vital",
   EditedCustomHostVital = "edited_custom_host_vital",
   DeletedCustomHostVital = "deleted_custom_host_vital",
+  ReleasedDeviceFromAB = "released_from_ab",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -243,7 +244,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationWebhook
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
-  | ActivityType.FailedAutomationConditionalAccess;
+  | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.ReleasedDeviceFromAB;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -617,4 +619,5 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
   [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
   [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
+  [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
 };

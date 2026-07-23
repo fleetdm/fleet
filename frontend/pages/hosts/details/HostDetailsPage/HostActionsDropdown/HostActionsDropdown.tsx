@@ -21,6 +21,7 @@ interface IHostActionsDropdownProps {
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   hostCpuType?: string;
+  isDEPAssignedToFleet?: boolean;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
   isRecoveryLockPasswordEnabled?: boolean;
@@ -46,6 +47,7 @@ const HostActionsDropdown = ({
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
   isConnectedToFleetMdm,
+  isDEPAssignedToFleet = false,
   hostPlatform = "",
   hostCpuType = "",
   hostScriptsEnabled = false,
@@ -101,13 +103,17 @@ const HostActionsDropdown = ({
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
+    isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
+    isAppleBusinessEnabledAndConfigured:
+      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
-    scriptsGloballyDisabled: globalConfig?.server_settings.scripts_disabled,
+    scriptsGloballyDisabled:
+      globalConfig?.server_settings?.scripts_disabled ?? false,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
     isRecoveryLockPasswordEnabled,

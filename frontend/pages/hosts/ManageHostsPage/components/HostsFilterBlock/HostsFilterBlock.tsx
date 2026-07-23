@@ -26,7 +26,7 @@ import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
 } from "services/entities/hosts";
 import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
@@ -99,7 +99,7 @@ interface IHostsFilterBlockProps {
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
     depProfileError: string; // string "true" as we don't handle booleans
-    depAssignProfileResponse?: DepAssignProfileResponse;
+    depAssignProfileResponse?: DEPDeviceStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
