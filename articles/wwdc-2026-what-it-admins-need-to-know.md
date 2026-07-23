@@ -27,7 +27,7 @@ Apple is raising the transport security floor for system processes involved in d
 
 New requirement: TLS 1.2 minimum with ATS-compliant cipher suites and certificates. If your MDM or management infrastructure falls short, things break in ways that aren't always obvious. Enrollment failures, profiles not installing, update commands silently failing.
 
-Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. Run it against your MDM and any internal management endpoints now, not in September. If you're using Fleet, you no action needed. Fleet meets the new requirements.
+Apple published [support article 126655 ("Prepare your network environment for stricter security requirements")](https://support.apple.com/en-us/126655) to help you audit. If you're using Fleet on managed cloud, no action needed. Fleet meets the new requirements. If you're self-hosting Fleet follow [Apple's instructions](https://support.apple.com/en-us/126655) and test macOS 27 before it's released this fall. Looking for help? You can find us [where we hang out](https://fleetdm.com/support).
 
 ## New and migrated declarative configurations
 
