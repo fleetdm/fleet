@@ -1579,8 +1579,6 @@ None.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_disk_encryption": true,
-    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "macos_updates": {
@@ -1614,7 +1612,9 @@ None.
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+    "enable_disk_encryption": true,
+    "enable_escrow_disk_encryption_key": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -1629,6 +1629,10 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
+    "enable_disk_encryption": true
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1930,8 +1934,6 @@ Modifies the Fleet's configuration with the supplied information.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_disk_encryption": true,
-    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
@@ -1982,7 +1984,9 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
-      ]
+      ],
+      "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -1996,7 +2000,11 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_disk_encryption": true
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2559,19 +2567,18 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
-| enable_escrow_disk_encryption_key_only  | boolean | _Available in Fleet Premium._ Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
-| macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
-| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
-| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
-| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
-| macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
+| macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
+| ios_updates              | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
+| ipados_updates           | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| windows_updates          | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
+| macos_migration          | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
-| macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| macos_settings           | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| linux_settings           | object  | See [`mdm.linux_settings`](#mdm-linux-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
@@ -2670,6 +2677,8 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -2680,6 +2689,17 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
+| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+
+<br/>
+
+##### mdm.linux_settings
+
+`mdm.linux_settings` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -2703,8 +2723,6 @@ _Available in Fleet Premium._
   "mdm": {
     "windows_enabled_and_configured": false,
     "enable_turn_on_windows_mdm_manually": false,
-    "enable_disk_encryption": true,
-    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": false,
     "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
@@ -2727,7 +2745,9 @@ _Available in Fleet Premium._
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key": true,
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -2735,7 +2755,11 @@ _Available in Fleet Premium._
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_disk_encryption": true,
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true,
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -6966,7 +6990,7 @@ _Available in Fleet Premium_
 | --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
 | enable_disk_encryption                  | boolean | body  | Whether disk encryption should be enforced on devices that belong to the fleet (or "Unassigned"). |
-| enable_escrow_disk_encryption_key_only  | boolean | body | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
+| enable_escrow_disk_encryption_key       | boolean | body  | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 | windows_require_bitlocker_pin           | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 #### Example
@@ -13519,8 +13543,6 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key_only": true,
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
@@ -13545,7 +13567,9 @@ _Available in Fleet Premium_
             "path": "path/to/profile1.mobileconfig",
             "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "enable_disk_encryption": true,
+        "enable_escrow_disk_encryption_key": true,
       },
       "windows_settings": {
         "custom_settings": [
@@ -13559,7 +13583,11 @@ _Available in Fleet Premium_
             "path": "path/to/profile2.xml",
             "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "enable_disk_encryption": true,
+      },
+      "linux_settings": {
+        "enable_escrow_disk_encryption_key": true,
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -13916,8 +13944,6 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-| enable_escrow_disk_encryption_key_only  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. `enable_disk_encryption` must be set to true. |
 | windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
@@ -13925,6 +13951,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
+| linux_settings           | object  | See [`mdm.linux_settings`](#mdm-linux-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
 <br/>
@@ -13983,8 +14010,20 @@ Returned when the requested name only differs from another fleet's name by lette
 `mdm.macos_settings` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
+
+<br/>
+
+##### mdm.apple_settings
+
+`mdm.macos_settings` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
+| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -13995,9 +14034,20 @@ Returned when the requested name only differs from another fleet's name by lette
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-
+| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 
 <br/>
+
+##### mdm.linux_settings
+
+`mdm.linux_settings` is an object with the following structure:
+
+| Name                               | Type    | Description   |
+| ---------------------              | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+
+<br/>
+
 
 ##### mdm.setup_experience
 
@@ -14018,8 +14068,6 @@ Returned when the requested name only differs from another fleet's name by lette
 ```json
 {
   "mdm": {
-    "enable_disk_encryption": true,
-    "enable_escrow_disk_encryption_key_only": true,
     "windows_require_bitlocker_pin": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -14044,7 +14092,9 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile2.json",
           "labels": ["Label 3", "Label 4"]
         },
-      ]
+      ],
+      "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -14058,7 +14108,11 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]
+      ],
+      "enable_disk_encryption": true
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true
     },
     "setup_experience": {
       "enable_end_user_authentication": false
@@ -14165,8 +14219,6 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key_only": true,
       "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
@@ -14191,7 +14243,9 @@ _Available in Fleet Premium_
            "path": "path/to/profile1.mobileconfig",
            "labels": ["Label 1", "Label 2"]
           }
-        ]
+        ],
+        "enable_disk_encryption": true,
+        "enable_escrow_disk_encryption_key": true
       },
       "windows_settings": {
         "custom_settings": [
@@ -14205,7 +14259,11 @@ _Available in Fleet Premium_
            "path": "path/to/profile2.xml",
            "labels": ["Label 3", "Label 4"]
           }
-        ]
+        ],
+        "enable_disk_encryption": true
+      },
+      "linux_settings": {
+        "enable_escrow_disk_encryption_key": true
       },
       "macos_setup": {
         "bootstrap_package": "",
