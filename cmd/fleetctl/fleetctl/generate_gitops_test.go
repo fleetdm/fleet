@@ -2991,8 +2991,9 @@ func TestGenerateControlsManagedLocalAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	// no TODO placeholder: the managed local account settings alone must not trigger it
-	_, ok := controlsRaw["macos_setup"]
-	require.False(t, ok, "expected no macos_setup TODO placeholder")
+	// (generateControls emits the placeholder under the renamed setup_experience key)
+	_, ok := controlsRaw["setup_experience"]
+	require.False(t, ok, "expected no setup_experience TODO placeholder")
 
 	macosSettings, ok := controlsRaw["apple_settings"].(map[string]any)
 	require.True(t, ok, "expected a macos_settings section")

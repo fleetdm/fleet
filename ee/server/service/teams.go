@@ -718,7 +718,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if macOSManagedLocalAccountUpdated {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable managed local account")
 		}
 	}
@@ -727,7 +727,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if windowsManagedLocalAccountUpdated &&
 		!(macOSManagedLocalAccountUpdated &&
 			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value == team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
@@ -2278,7 +2278,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateEnableManagedLocalAccount {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(
+		if err := svc.logEnableManagedLocalAccountActivity(
 			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name,
 		); err != nil {
 			return err
@@ -2290,7 +2290,7 @@ func (svc *Service) editTeamFromSpec(
 	if didUpdateWindowsManagedLocalAccount &&
 		!(didUpdateEnableManagedLocalAccount &&
 			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value == team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
-		if err := svc.updateMacOSSetupEnableManagedLocalAccount(
+		if err := svc.logEnableManagedLocalAccountActivity(
 			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, &team.ID, &team.Name,
 		); err != nil {
 			return err
@@ -2668,7 +2668,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &tm.ID, &tm.Name); err != nil {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}
