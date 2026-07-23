@@ -29,12 +29,20 @@ func TestIsTokenRejected(t *testing.T) {
 		},
 		{
 			"AuthError with matching status and body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"token_rejected"`)},
 			true,
 		},
 		{
 			"AuthError with matching status but different body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"signature_invalid"`)},
+			false,
+		},
+		{
+			// do() only ever constructs AuthError with StatusCode 401, so a
+			// 403 AuthError shouldn't occur in practice, but confirms the
+			// status check is doing real work rather than always matching.
+			"AuthError with matching body but wrong status",
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
 			false,
 		},
 	}

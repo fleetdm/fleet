@@ -57,11 +57,14 @@ func IsTermsNotSigned(err error) bool {
 
 // IsTokenRejected returns true if err is a DEP "token rejected" error. Per
 // Apple this indicates the token itself was revoked or replaced in Apple
-// Business Manager without the new token being uploaded to Fleet.
+// Business Manager without the new token being uploaded to Fleet. Apple has
+// been observed reporting this both as a 403 (HTTPError) and a 401
+// (AuthError, which do() always constructs with StatusCode 401), so both are
+// checked here.
 // See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsTokenRejected(err error) bool {
 	return httpErrorContains(err, http.StatusForbidden, "token_rejected") ||
-		authErrorContains(err, http.StatusForbidden, "token_rejected")
+		authErrorContains(err, http.StatusUnauthorized, "token_rejected")
 }
 
 // IsSignatureInvalid returns true if err is a DEP "signature invalid" error.

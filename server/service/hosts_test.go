@@ -5596,12 +5596,12 @@ func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
 		switch r.URL.Path {
 		case "/session":
 			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/devices":
 			var req struct {
 				Devices []string `json:"devices"`
 			}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			serial := req.Devices[0]
 
 			devices := map[string]any{}
@@ -5629,7 +5629,7 @@ func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
 				}
 				// MISSING123 is intentionally left out of the response entirely.
 			}
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": devices}))
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": devices}))
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
