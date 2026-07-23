@@ -10,7 +10,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./OSUpdates/components/CurrentVersionSection/CurrentVersionSection";
 
 interface IControlsSubNavItem {
@@ -217,12 +217,12 @@ const ManageControlsPage = ({
     if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
-          <TeamsDropdown
-            currentUserTeams={userTeams}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         );
       }
