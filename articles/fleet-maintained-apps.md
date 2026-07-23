@@ -91,13 +91,13 @@ You can also pin via the REST API using the `version` parameter on the [`PATCH /
 
 ## Rollback to a previous version
 
-If a new version introduces a bug, and you want to rollback to the older version, follow the steps below:
+> Installing an older version of an app on top of a newer version might cause issues for some apps. The best practice is to test this on a test device first.
 
-1. Pin the app to the previous version. [Learn how](#pin-a-version).
+Sometimes, end users report that the latest version of an app introcduces buggy behavior that prevents them from getting their work done. If this happens, you can rollback the app to the older version:
+
+1. Pin the app to the older version. [Learn how](#pin-a-version).
 2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, delete the policy.
-3. Create a new policy that checks if the host has a version with a bug and enable software automation. Use the query below for this policy.
-
-> Installing an older version over a newer one might cause issues for some apps. Please test it on a smaller scope first.
+3. Create a new, custom policy (Zoom example below) that fails if a host has the version with the buggy behavior and add a software automation to install the older version.
 
 ```sql
 SELECT 1 WHERE NOT EXISTS (
