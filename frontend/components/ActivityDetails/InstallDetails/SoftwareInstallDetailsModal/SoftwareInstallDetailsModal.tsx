@@ -217,7 +217,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -324,6 +324,7 @@ export const SoftwareInstallDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleInstallDetails}
+            variant="secondary"
           />
         )}
         {showInstallDetails &&
@@ -471,6 +472,7 @@ export const SoftwareInstallDetailsModal = ({
                   />
                   <CopyButton
                     copyText={swInstallResult.hash_sha256}
+                    variant="subdued"
                     ariaLabel="Copy hash to clipboard"
                   />
                 </>

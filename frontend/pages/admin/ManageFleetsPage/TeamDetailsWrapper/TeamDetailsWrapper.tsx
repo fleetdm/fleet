@@ -427,7 +427,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Manage enroll secrets",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "eye",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
@@ -435,7 +435,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Rename fleet",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "pencil",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
@@ -443,7 +443,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Delete fleet",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,

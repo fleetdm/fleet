@@ -34,9 +34,8 @@ const TeamHostExpiryToggle = ({
               setTeamExpiryEnabled(true);
             }}
             className={`${baseClass}__add-custom-window`}
-            variant="text-icon"
+            variant="subdued"
             size="small"
-            iconStroke
           >
             <>
               Add custom expiry window

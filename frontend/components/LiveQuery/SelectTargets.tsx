@@ -469,6 +469,7 @@ const SelectTargets = ({
               showText="Show more"
               hideText="Show less"
               isShowing={isListExpanded}
+              variant="secondary"
             />
           </div>
         )}
@@ -639,7 +640,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           onClick={handleClickCancel}
-          variant="inverse"
+          variant="secondary"
         >
           Cancel
         </Button>

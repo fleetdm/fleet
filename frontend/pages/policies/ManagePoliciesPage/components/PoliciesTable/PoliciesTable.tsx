@@ -240,7 +240,7 @@ const PoliciesTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePoliciesClick,
         }}
         emptyComponent={() => (

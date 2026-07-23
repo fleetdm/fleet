@@ -108,7 +108,7 @@
     }
   }
 
-  // Override react-select container positioning so the brand-button
+  // Override react-select container positioning so the primary-variant
   // dropdown menu anchors to the wrapper instead of the collapsed control.
   // The .add-user-dropdown className is applied to the react-select container
   // element inside .actions-dropdown__wrapper.
@@ -124,7 +124,7 @@
 
   .add-user-dropdown {
     .actions-dropdown-select__menu {
-      margin-top: 4px !important; // Override inline 20px from brand-button variant
+      margin-top: 4px !important; // Override inline 20px from primary variant
     }
 
     .actions-dropdown__option {
