@@ -21,12 +21,6 @@
     font-size: $xx-small;
   }
 
-  .list-item__actions {
-    .button--icon {
-      @include bordered-icon-button;
-    }
-  }
-
   .list-item__actions-wrap {
     display: flex;
     flex-shrink: 0;

@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +23,7 @@ func TestPasswordReset(t *testing.T) {
 		{"Requests", testPasswordResetRequests},
 		{"TokenExpiration", testPasswordResetTokenExpiration},
 		{"CleanupExpiredPasswordResetRequests", testCleanupExpiredPasswordResetRequests},
+		{"ResetIsAtomic", testResetPasswordIsAtomic},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -110,6 +113,85 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 			assert.WithinDuration(t, req.ExpiresAt.Truncate(time.Minute), found.ExpiresAt.Truncate(time.Minute), time.Minute)
 		}
 	}
+}
+
+func testResetPasswordIsAtomic(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	users := createTestUsers(t, ds)
+	require.NotEmpty(t, users)
+	user := users[0]
+
+	// userWithPassword returns a fresh copy of the user with the given (hashed) password,
+	// mirroring what the service passes in after hashing.
+	userWithPassword := func(pw string) *fleet.User {
+		u := *user
+		require.NoError(t, u.SetPassword(pw, 10, 10))
+		return &u
+	}
+
+	// An unknown token returns a not-found error and changes nothing.
+	require.True(t, fleet.IsNotFound(ds.ResetPassword(ctx, "does-not-exist", userWithPassword("Unknown!Pass123"))))
+
+	// An expired token returns a not-found error.
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO password_reset_requests (user_id, token, expires_at) VALUES (?, ?, ?)`,
+		user.ID, "expired-token", time.Now().UTC().Add(-time.Hour))
+	require.NoError(t, err)
+	require.True(t, fleet.IsNotFound(ds.ResetPassword(ctx, "expired-token", userWithPassword("Expired!Pass123"))))
+
+	// A valid token is consumed, the new password is persisted, and the user's active
+	// sessions are destroyed.
+	const okToken = "valid-token"
+	_, err = ds.NewPasswordResetRequest(ctx, &fleet.PasswordResetRequest{UserID: user.ID, Token: okToken})
+	require.NoError(t, err)
+	_, err = ds.NewSession(ctx, user.ID, 32)
+	require.NoError(t, err)
+	require.NoError(t, ds.ResetPassword(ctx, okToken, userWithPassword("Valid!Pass1234")))
+
+	saved, err := ds.UserByID(ctx, user.ID)
+	require.NoError(t, err)
+	require.NoError(t, saved.ValidatePassword("Valid!Pass1234"), "new password should be persisted")
+	_, err = ds.FindPasswordResetByToken(ctx, okToken)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	sessions, err := ds.ListSessionsForUser(ctx, user.ID)
+	require.NoError(t, err)
+	require.Empty(t, sessions, "resetting the password should destroy the user's sessions")
+
+	// A single valid token consumed concurrently must be claimed by exactly one caller;
+	// every other caller must get a not-found error.
+	const raceToken = "single-use-token"
+	_, err = ds.NewPasswordResetRequest(ctx, &fleet.PasswordResetRequest{UserID: user.ID, Token: raceToken})
+	require.NoError(t, err)
+
+	const n = 10
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			u := userWithPassword(fmt.Sprintf("Race!Pass%d1234", i))
+			<-start
+			errs[i] = ds.ResetPassword(ctx, raceToken, u)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var claimed int
+	for i := range errs {
+		if errs[i] == nil {
+			claimed++
+		} else {
+			require.True(t, fleet.IsNotFound(errs[i]), "losers should report not found, got: %v", errs[i])
+		}
+	}
+	require.Equal(t, 1, claimed, "exactly one concurrent caller should consume a single-use token")
+
+	// The token is gone after being consumed.
+	_, err = ds.FindPasswordResetByToken(ctx, raceToken)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {

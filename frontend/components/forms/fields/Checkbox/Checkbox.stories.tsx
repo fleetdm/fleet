@@ -1,11 +1,21 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import { action } from "@storybook/addon-actions";
 
 import Checkbox from ".";
 
 const meta: Meta<typeof Checkbox> = {
   component: Checkbox,
   title: "Components/FormFields/Checkbox",
+  argTypes: {
+    value: {
+      control: "boolean",
+    },
+    variant: {
+      control: "select",
+      options: ["default", "danger"],
+    },
+  },
 };
 
 export default meta;
@@ -13,12 +23,8 @@ export default meta;
 type Story = StoryObj<typeof Checkbox>;
 
 export const Basic: Story = {
-  parameters: {
-    design: {
-      type: "figma",
-      url:
-        "https://www.figma.com/file/qbjRu8jf01BzEfdcge1dgu/Fleet-style-guide-2022-(WIP)?node-id=117-16951",
-    },
+  args: {
+    onChange: action("onChange"),
   },
 };
 

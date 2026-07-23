@@ -4370,6 +4370,34 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 	return fleet.ErrMissingLicense
 }
 
+type releaseABDevicesRequest struct {
+	HostIDs []uint `json:"ids"`
+}
+
+type releaseABDevicesResponse struct {
+	Results []*fleet.ABReleaseDeviceResponse `json:"results"`
+	Err     error                            `json:"error,omitempty"`
+}
+
+func (r releaseABDevicesResponse) Error() error { return r.Err }
+
+func releaseABDevicesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*releaseABDevicesRequest)
+	results, err := svc.ReleaseABDevices(ctx, req.HostIDs)
+	if err != nil {
+		return releaseABDevicesResponse{Results: nil, Err: err}, nil
+	}
+	return releaseABDevicesResponse{Results: results}, nil
+}
+
+func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////

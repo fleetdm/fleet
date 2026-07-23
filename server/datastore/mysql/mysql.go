@@ -83,6 +83,11 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests, set to override the default page size of ReconcileWindowsProfilesStatus.
+	testWindowsProfilesStatusReconcileBatchSize int
+	// for tests, run dispatchWindowsProfilesStatusRollupRefresh synchronously so tests can assert
+	// rollup state immediately after bulk operations.
+	testSynchronousWindowsRollupDispatch bool
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next

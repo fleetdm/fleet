@@ -285,7 +285,7 @@ const SQLEditor = ({
         <div className={`${baseClass}__label-actions`}>
           {labelActionComponent}
           {enableCopy && (
-            <CopyButton copyText={value || ""} variant="inverse" size="small">
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
               Copy <Icon name="copy" />
             </CopyButton>
           )}

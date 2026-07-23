@@ -41,7 +41,7 @@ const PolicyErrorsTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
         }}
         emptyComponent={() => <EmptyState header="No hosts are online" />}
         onQueryChange={noop}

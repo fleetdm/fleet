@@ -278,7 +278,7 @@ const EditProfileModal = ({
             />
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper

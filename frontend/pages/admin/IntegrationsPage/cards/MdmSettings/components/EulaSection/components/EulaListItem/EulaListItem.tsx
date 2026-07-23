@@ -42,7 +42,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
       >
         <Button
           className={`${baseClass}__list-item-button`}
-          variant="icon"
+          variant="subdued"
           onClick={onOpenEula}
         >
           <Icon
@@ -55,7 +55,7 @@ const EulaListItem = ({ eulaData, onDelete }: IEulaListItemProps) => {
           renderChildren={(disableChildren) => (
             <Button
               className={`${baseClass}__list-item-button`}
-              variant="icon"
+              variant="subdued"
               onClick={() => onDelete()}
               disabled={disableChildren}
             >

@@ -413,14 +413,14 @@ const PolicyDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={() => setShowQueryModal(true)}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
                 {canRunPolicy && (
                   <Button
                     className={`${baseClass}__run`}
-                    variant="inverse"
+                    variant="secondary"
                     onClick={() => {
                       policyId &&
                         router.push(

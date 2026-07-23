@@ -149,7 +149,7 @@ form,
   }
 
   // Override button width to auto unless icon-only or wide buttons which has fixed widths
-  .button:not(.button--icon):not(.button--icon__small):not(.button__wide) {
+  .button:not(.button--icon):not(.button--icon__small):not(.button__wide):not(.button--icon-only) {
     width: auto;
   }
 
@@ -325,7 +325,9 @@ body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
 body.dark-mode .card .button--inverse:hover,
 body.dark-mode .card .button--inverse-alert:hover,
 body.dark-mode .card .button--text-icon:hover,
-body.dark-mode .card .button--icon:hover {
+body.dark-mode .card .button--icon:hover,
+body.dark-mode .card .button--secondary:hover,
+body.dark-mode .card .button--subdued:hover {
   background-color: $core-fleet-white;
 }
 
@@ -334,7 +336,9 @@ body.dark-mode .card .button--icon:hover {
 body.dark-mode .modal__modal_container .button--inverse:hover,
 body.dark-mode .modal__modal_container .button--inverse-alert:hover,
 body.dark-mode .modal__modal_container .button--text-icon:hover,
-body.dark-mode .modal__modal_container .button--icon:hover {
+body.dark-mode .modal__modal_container .button--icon:hover,
+body.dark-mode .modal__modal_container .button--secondary:hover,
+body.dark-mode .modal__modal_container .button--subdued:hover {
   background-color: $ui-fleet-black-5;
 }
 

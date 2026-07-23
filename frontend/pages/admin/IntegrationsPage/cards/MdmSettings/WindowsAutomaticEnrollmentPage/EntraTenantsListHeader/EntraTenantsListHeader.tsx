@@ -22,10 +22,9 @@ const EntraTenantsListHeader = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="inverse"
+              variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddTenant}
-              iconStroke
             >
               <>
                 <Icon name="plus" />

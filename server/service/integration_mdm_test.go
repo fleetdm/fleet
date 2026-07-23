@@ -8876,6 +8876,36 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
 }
 
+func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
+	t := s.T()
+
+	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
+	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
+	unsafeRedirectURIs := map[string]string{
+		"javascript": "javascript:console.log(424281957)//",
+		"data":       "data:text/html,<script>alert(1)</script>",
+		"vbscript":   "vbscript:msgbox(1)",
+	}
+
+	for name, redirectURI := range unsafeRedirectURIs {
+		t.Run(name, func(t *testing.T) {
+			resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri="+url.QueryEscape(redirectURI)+
+				"&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			resContent := string(resBytes)
+
+			// The response must be a SOAP fault rather than the rendered TOS page, and must not reflect the payload.
+			require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+			require.True(t, s.isXMLTagPresent("s:fault", resContent))
+			require.NotContains(t, resContent, redirectURI)
+			require.NotContains(t, resContent, "Agree and continue")
+			require.NotContains(t, resContent, "IsAccepted=true")
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	t := s.T()
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -11298,6 +11328,11 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
+	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
+	// reading.
+	require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
