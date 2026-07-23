@@ -113,7 +113,7 @@ const ReleaseFromABModal = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse-alert" onClick={onModalExit}>
+            <Button variant="secondary" onClick={onModalExit}>
               Cancel
             </Button>
             <Button

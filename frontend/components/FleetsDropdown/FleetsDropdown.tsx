@@ -210,7 +210,7 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           onKeyDown={addFleetKeyDown}
         >
           <Button
-            variant="brand-inverse-icon"
+            variant="subdued"
             onClick={onClickAddFleet}
             iconStroke
             size="small"
