@@ -1,0 +1,1 @@
+- Renamed the "Program (Windows)" software type to "Application (Windows)" so the category reflects that apps installed through the Windows app store (packaged MSIX/AppX apps) are included alongside classic Windows programs. All Windows programs share this single type; store apps are not broken out separately.
