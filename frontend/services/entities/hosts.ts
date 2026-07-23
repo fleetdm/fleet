@@ -52,6 +52,13 @@ export type DepAssignProfileResponse =
   | "THROTTLED"
   | "NOT_ACCESSIBLE";
 
+export type DepDeviceError =
+  | "TOKEN_INVALID"
+  | "TERMS_EXPIRED"
+  | "NOT_FOUND"
+  | "SERVER_ERROR"
+  | "UNAVAILABLE";
+
 export interface IDepAssignmentHostResponse {
   id: number;
   dep_device: {
@@ -68,7 +75,8 @@ export interface IDepAssignmentHostResponse {
     profile_uuid: string;
     mdm_migration_deadline: string | null;
     serial_number: string;
-  };
+  } | null;
+  dep_error: DepDeviceError | null;
   host_dep_assignment: {
     assign_profile_response: DepAssignProfileResponse;
     profile_uuid: string;
