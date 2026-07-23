@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -394,4 +395,65 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.True(t, clone.Features.EnableHostUsers)
 		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
 	})
+}
+
+func TestTeamMDMCopyManagedLocalAccountSettings(t *testing.T) {
+	tm := &TeamMDM{
+		MacOSSettings: MacOSSettings{
+			ManagedLocalAccountSettings: ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			EndUserLocalAccountType:     optjson.SetString("standard"),
+		},
+		MacOSSetup: MacOSSetup{
+			EnableManagedLocalAccount: optjson.SetBool(true),
+			EndUserLocalAccountType:   optjson.SetString("standard"),
+		},
+		WindowsSettings: WindowsSettings{
+			ManagedLocalAccountSettings: ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+		},
+	}
+	clone := tm.Copy()
+	require.NotSame(t, tm, clone)
+	require.Equal(t, tm, clone)
+
+	// mutating the copy must not affect the original (plain value fields)
+	clone.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	require.True(t, tm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+}
+
+func TestTeamMarshalSyncsManagedLocalAccountAliases(t *testing.T) {
+	team := Team{
+		ID:   1,
+		Name: "t1",
+		Config: TeamConfig{
+			MDM: TeamMDM{
+				MacOSSetup: MacOSSetup{
+					EnableManagedLocalAccount: optjson.SetBool(true),
+					EndUserLocalAccountType:   optjson.SetString("standard"),
+				},
+				WindowsSettings: WindowsSettings{
+					ManagedLocalAccountSettings: ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+				},
+			},
+		},
+	}
+
+	b, err := json.Marshal(team)
+	require.NoError(t, err)
+	var out map[string]any
+	require.NoError(t, json.Unmarshal(b, &out))
+	mdm := out["mdm"].(map[string]any)
+	macOSSettings := mdm["macos_settings"].(map[string]any)
+	require.Equal(t, map[string]any{"enabled": true}, macOSSettings["managed_local_account_settings"])
+	require.Equal(t, "standard", macOSSettings["end_user_local_account_type"])
+	windowsSettings := mdm["windows_settings"].(map[string]any)
+	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+
+	// the DB save path (TeamConfig.Value) must produce the same consistent view
+	v, err := team.Config.Value()
+	require.NoError(t, err)
+	var stored map[string]any
+	require.NoError(t, json.Unmarshal(v.([]byte), &stored))
+	storedMDM := stored["mdm"].(map[string]any)
+	storedMacOSSettings := storedMDM["macos_settings"].(map[string]any)
+	require.Equal(t, map[string]any{"enabled": true}, storedMacOSSettings["managed_local_account_settings"])
 }

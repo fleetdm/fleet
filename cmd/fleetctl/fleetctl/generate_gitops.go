@@ -500,6 +500,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
+			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
 		}
 
 		// Collect failing policy IDs from webhook settings so we can output
@@ -1348,6 +1349,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		macosSettingsT := reflect.TypeFor[fleet.MacOSSettings]()
 		windowsSettingsT := reflect.TypeFor[fleet.WindowsSettings]()
 		androidSettingsT := reflect.TypeFor[fleet.AndroidSettings]()
+		managedLocalAccountT := reflect.TypeFor[fleet.ManagedLocalAccountSettings]()
 
 		if cmd.AppConfig.MDM.EnabledAndConfigured {
 			macosSettings := map[string]any{}
@@ -1364,15 +1366,38 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			if len(assets) > 0 {
 				macosSettings[jsonFieldName(macosSettingsT, "Assets")] = assets
 			}
+			// The managed local account fields under apple_settings alias the deprecated
+			// setup_experience fields; emit them here (only when set to non-default values) so the
+			// generated YAML uses the new spelling. The account type is emitted independently of
+			// the enabled flag so a stored non-admin type is never silently dropped.
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil {
+				if teamMdm.MacOSSetup.EnableManagedLocalAccount.Value {
+					macosSettings[jsonFieldName(macosSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
+						jsonFieldName(managedLocalAccountT, "Enabled"): true,
+					}
+				}
+				if accountType := teamMdm.MacOSSetup.EndUserLocalAccountType.Value; accountType != "" && accountType != "admin" {
+					macosSettings[jsonFieldName(macosSettingsT, "EndUserLocalAccountType")] = accountType
+				}
+			}
 			if len(macosSettings) > 0 {
 				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			windowsSettings := map[string]any{}
+			if profiles != nil {
+				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
+					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
+			}
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
+					jsonFieldName(managedLocalAccountT, "Enabled"): true,
+				}
+			}
+			if len(windowsSettings) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
@@ -1505,10 +1530,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
+			// The managed local account fields are not part of this placeholder: they are emitted
+			// under apple_settings.managed_local_account_settings above.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
-				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
-					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
-					(teamMdm.MacOSSetup.EndUserLocalAccountType.Valid && teamMdm.MacOSSetup.EndUserLocalAccountType.Value != "admin"))) {
+				(teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,

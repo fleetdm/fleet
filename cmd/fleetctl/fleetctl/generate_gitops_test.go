@@ -2959,3 +2959,85 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
 }
+
+// TestGenerateControlsManagedLocalAccount verifies that the managed local account settings are
+// emitted under the per-platform settings sections (new apple_settings spelling) instead of the
+// shared setup_experience TODO placeholder (#48720).
+func TestGenerateControlsManagedLocalAccount(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+
+	mdmConfig := fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableManagedLocalAccount: optjson.SetBool(true),
+			EndUserLocalAccountType:   optjson.SetString("standard"),
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+		},
+	}
+
+	controlsRaw, err := cmd.generateControls(new(uint), "no_team", &mdmConfig)
+	require.NoError(t, err)
+
+	// no TODO placeholder: the managed local account settings alone must not trigger it
+	_, ok := controlsRaw["macos_setup"]
+	require.False(t, ok, "expected no macos_setup TODO placeholder")
+
+	macosSettings, ok := controlsRaw["apple_settings"].(map[string]any)
+	require.True(t, ok, "expected a macos_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, macosSettings["managed_local_account_settings"])
+	require.Equal(t, "standard", macosSettings["end_user_local_account_type"])
+
+	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
+	require.True(t, ok, "expected a windows_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+
+	// default account type is omitted, and disabled platforms emit nothing
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableManagedLocalAccount: optjson.SetBool(true),
+			EndUserLocalAccountType:   optjson.SetString("admin"),
+		},
+	}
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	macosSettings, ok = controlsRaw["apple_settings"].(map[string]any)
+	require.True(t, ok, "expected a macos_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, macosSettings["managed_local_account_settings"])
+	require.NotContains(t, macosSettings, "end_user_local_account_type")
+	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
+		require.NotContains(t, windowsSection, "managed_local_account_settings")
+	}
+
+	// feature fully disabled: no managed local account keys at all
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &fleet.TeamMDM{})
+	require.NoError(t, err)
+	if macosSection, ok := controlsRaw["apple_settings"].(map[string]any); ok {
+		require.NotContains(t, macosSection, "managed_local_account_settings")
+	}
+
+	// a stored non-admin account type is emitted even when the feature is disabled, so it is
+	// never silently dropped from generated output
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EndUserLocalAccountType: optjson.SetString("standard"),
+		},
+	}
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	macosSettings, ok = controlsRaw["apple_settings"].(map[string]any)
+	require.True(t, ok, "expected an apple_settings section")
+	require.Equal(t, "standard", macosSettings["end_user_local_account_type"])
+	require.NotContains(t, macosSettings, "managed_local_account_settings")
+}

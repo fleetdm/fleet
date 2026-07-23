@@ -490,6 +490,12 @@ func (w WindowsUpdates) Validate() error {
 	return nil
 }
 
+// ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.
+// Future fields (username, password policy) land here.
+type ManagedLocalAccountSettings struct {
+	Enabled optjson.Bool `json:"enabled"`
+}
+
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
 	// CustomSettings is a slice of configuration profile file paths.
@@ -506,6 +512,14 @@ type MacOSSettings struct {
 	// omitted from ToMap/FromMap.
 	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
+	// ManagedLocalAccountSettings and EndUserLocalAccountType are aliases of the deprecated
+	// MacOSSetup.EnableManagedLocalAccount and MacOSSetup.EndUserLocalAccountType fields, which
+	// remain the stored source of truth. Writes on either surface converge onto MacOSSetup, and
+	// these fields are (re)populated from MacOSSetup when marshaling, so both surfaces always
+	// return consistent values (see SyncManagedLocalAccountAliases).
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+	EndUserLocalAccountType     optjson.String              `json:"end_user_local_account_type"`
+
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
@@ -515,8 +529,10 @@ func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
-		"custom_settings":        s.CustomSettings,
-		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"custom_settings":                s.CustomSettings,
+		"enable_disk_encryption":         s.DeprecatedEnableDiskEncryption,
+		"managed_local_account_settings": s.ManagedLocalAccountSettings,
+		"end_user_local_account_type":    s.EndUserLocalAccountType,
 	}
 }
 
@@ -593,6 +609,46 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 			}
 		}
 		s.DeprecatedEnableDiskEncryption = ptr.Bool(b)
+	}
+
+	if v, ok := m["managed_local_account_settings"]; ok {
+		set["managed_local_account_settings"] = true
+		if v != nil {
+			mlas, ok := v.(map[string]any)
+			if !ok {
+				return nil, &json.UnmarshalTypeError{
+					Value: fmt.Sprintf("%T", v),
+					Type:  reflect.TypeFor[ManagedLocalAccountSettings](),
+					Field: "macos_settings.managed_local_account_settings",
+				}
+			}
+			if ev, ok := mlas["enabled"]; ok && ev != nil {
+				b, ok := ev.(bool)
+				if !ok {
+					return nil, &json.UnmarshalTypeError{
+						Value: fmt.Sprintf("%T", ev),
+						Type:  reflect.TypeFor[bool](),
+						Field: "macos_settings.managed_local_account_settings.enabled",
+					}
+				}
+				s.ManagedLocalAccountSettings.Enabled = optjson.SetBool(b)
+			}
+		}
+	}
+
+	if v, ok := m["end_user_local_account_type"]; ok {
+		set["end_user_local_account_type"] = true
+		if v != nil {
+			str, ok := v.(string)
+			if !ok {
+				return nil, &json.UnmarshalTypeError{
+					Value: fmt.Sprintf("%T", v),
+					Type:  reflect.TypeFor[string](),
+					Field: "macos_settings.end_user_local_account_type",
+				}
+			}
+			s.EndUserLocalAccountType = optjson.SetString(str)
+		}
 	}
 
 	return set, nil
@@ -1279,9 +1335,85 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	SyncManagedLocalAccountAliases(&c.MDM.MacOSSettings, c.MDM.MacOSSetup, &c.MDM.WindowsSettings)
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
+}
+
+// ResolveManagedLocalAccountAliasBool resolves a managed local account boolean written through
+// its deprecated surface (setup_experience) and/or its new alias surface (apple_settings) in one
+// payload. When both are provided with different values, the surface that changed relative to
+// the stored value wins: a GET-modify-PATCH round trip echoes the unchanged surface back with
+// the stored value, and rejecting that echo would break editing either field in an exported
+// config. The returned value is unset when neither surface provided one.
+func ResolveManagedLocalAccountAliasBool(deprecated, alias, stored optjson.Bool) optjson.Bool {
+	switch {
+	case !alias.Valid:
+		return deprecated
+	case !deprecated.Valid:
+		return alias
+	case deprecated.Value == alias.Value:
+		return deprecated
+	case deprecated.Value == stored.Value:
+		// the deprecated surface is an unchanged echo of the stored value
+		return alias
+	default:
+		// the alias surface echoes the stored value (with two boolean values, one side always
+		// matches the stored value when the two surfaces differ)
+		return deprecated
+	}
+}
+
+// ResolveManagedLocalAccountAliasAccountType is the string equivalent of
+// ResolveManagedLocalAccountAliasBool for end_user_local_account_type. Unlike the boolean, both
+// surfaces can differ from the stored value at once, which is a genuine conflict and returns an
+// error. An empty stored value means the "admin" default.
+func ResolveManagedLocalAccountAliasAccountType(deprecated, alias, stored optjson.String) (optjson.String, error) {
+	storedValue := stored.Value
+	if storedValue == "" {
+		storedValue = "admin"
+	}
+	switch {
+	case !alias.Valid:
+		return deprecated, nil
+	case !deprecated.Valid:
+		return alias, nil
+	case deprecated.Value == alias.Value:
+		return deprecated, nil
+	case deprecated.Value == storedValue:
+		// the deprecated surface is an unchanged echo of the stored value
+		return alias, nil
+	case alias.Value == storedValue:
+		// the alias surface is an unchanged echo of the stored value
+		return deprecated, nil
+	default:
+		return optjson.String{}, NewInvalidArgumentError("apple_settings.end_user_local_account_type",
+			"Conflicting values: `setup_experience.end_user_local_account_type` (deprecated) and `apple_settings.end_user_local_account_type` cannot be set to different values in the same request.")
+	}
+}
+
+// SyncManagedLocalAccountAliases populates the managed_local_account_settings alias fields under
+// macos_settings (a.k.a. apple_settings) from the canonical MacOSSetup values, and defaults the
+// Windows enabled flag, so marshaled output (API responses and stored JSON) always returns
+// consistent values on both surfaces. Called from AppConfig.MarshalJSON, Team.MarshalJSON, and
+// TeamConfig.Value.
+func SyncManagedLocalAccountAliases(macOSSettings *MacOSSettings, macOSSetup MacOSSetup, windowsSettings *WindowsSettings) {
+	enabled := macOSSetup.EnableManagedLocalAccount
+	if !enabled.Valid {
+		enabled = optjson.SetBool(false)
+	}
+	macOSSettings.ManagedLocalAccountSettings.Enabled = enabled
+
+	accountType := macOSSetup.EndUserLocalAccountType
+	if !accountType.Valid {
+		accountType = optjson.SetString("admin")
+	}
+	macOSSettings.EndUserLocalAccountType = accountType
+
+	if !windowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		windowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 }
 
 func (c *AppConfig) assignDeprecatedFields() {
@@ -2118,6 +2250,11 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+
+	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment. Unlike the macOS equivalent under
+	// MacOSSettings, this is the stored source of truth (there is no deprecated alias).
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {

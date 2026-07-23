@@ -2667,6 +2667,33 @@ func (c *Client) DoGitOps(
 		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
 		iPadOSUpdates["update_new_hosts"] = nil
 
+		// The apple_settings managed local account fields alias the deprecated setup_experience
+		// fields. Converge them onto macos_setup before the defaults below inject
+		// enable_managed_local_account: false, which would fight the new-surface value on the
+		// server. The gitops parser normalizes controls.macos_settings/windows_settings to their
+		// fleet struct types (see pkg/spec/gitops.go), so that is the shape asserted here.
+		if aliasSettings, ok := mdmAppConfig["macos_settings"].(fleet.MacOSSettings); ok {
+			if aliasSettings.ManagedLocalAccountSettings.Enabled.Valid || aliasSettings.EndUserLocalAccountType.Valid {
+				if incoming.Controls.MacOSSetup == nil {
+					incoming.Controls.MacOSSetup = &fleet.MacOSSetup{}
+				}
+				if enabled := aliasSettings.ManagedLocalAccountSettings.Enabled; enabled.Valid {
+					if incoming.Controls.MacOSSetup.EnableManagedLocalAccount.Valid &&
+						incoming.Controls.MacOSSetup.EnableManagedLocalAccount.Value != enabled.Value {
+						return nil, errors.New("Conflicting values: `controls.setup_experience.enable_create_local_admin_account` (deprecated) and `controls.apple_settings.managed_local_account_settings.enabled` cannot be set to different values in the same request.")
+					}
+					incoming.Controls.MacOSSetup.EnableManagedLocalAccount = enabled
+				}
+				if accountType := aliasSettings.EndUserLocalAccountType; accountType.Valid {
+					if incoming.Controls.MacOSSetup.EndUserLocalAccountType.Valid &&
+						incoming.Controls.MacOSSetup.EndUserLocalAccountType.Value != accountType.Value {
+						return nil, errors.New("Conflicting values: `controls.setup_experience.end_user_local_account_type` (deprecated) and `controls.apple_settings.end_user_local_account_type` cannot be set to different values in the same request.")
+					}
+					incoming.Controls.MacOSSetup.EndUserLocalAccountType = accountType
+				}
+			}
+		}
+
 		// Put in default values for macos_setup
 		if incoming.Controls.MacOSSetup != nil {
 			incoming.Controls.MacOSSetup.SetDefaultsIfNeeded()
@@ -2674,12 +2701,19 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["macos_setup"] = fleet.NewMacOSSetupWithDefaults()
 		}
-		// Put in default values for windows_settings
+		// Put in default values for windows_settings. gitops is declarative: default the Windows
+		// managed local account toggle to disabled when the key is absent, so removing it from
+		// the YAML turns the feature off (mirrors the macos_setup defaults above).
 		if incoming.Controls.WindowsSettings != nil {
+			if ws, ok := incoming.Controls.WindowsSettings.(fleet.WindowsSettings); ok && !ws.ManagedLocalAccountSettings.Enabled.Valid {
+				ws.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+				incoming.Controls.WindowsSettings = ws
+			}
 			mdmAppConfig["windows_settings"] = incoming.Controls.WindowsSettings
 		} else {
 			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			}
 		}
 		// Put in default values for android_settings
