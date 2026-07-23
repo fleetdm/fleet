@@ -1,1 +1,0 @@
-- Fixed Citrix Workspace LTSR detection on Windows to include cumulative updates (e.g. 2203 LTSR CU4), so their vulnerabilities report the correct LTSR `resolved_in_version` (e.g. `2402` for CVE-2024-6286) instead of the Current Release version.

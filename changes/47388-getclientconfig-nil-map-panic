@@ -1,1 +1,0 @@
-- Fixed a server panic ("assignment to entry in nil map") when a host checked in for its osquery config while its agent options had a null `config`.

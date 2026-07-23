@@ -1,1 +1,0 @@
-- Added custom host vitals: admins can define custom host fields, set their values per host manually or via the API, and reference them as `$FLEET_HOST_VITAL_<id>` variables in scripts and configuration profiles.
