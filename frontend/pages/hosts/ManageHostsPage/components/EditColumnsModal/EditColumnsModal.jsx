@@ -81,7 +81,7 @@ const EditColumnsModal = ({
           <Button onClick={() => onSaveColumns(getHiddenColumns(columnItems))}>
             Save
           </Button>
-          <Button onClick={onCancelColumns} variant="inverse">
+          <Button onClick={onCancelColumns} variant="secondary">
             Cancel
           </Button>
         </div>

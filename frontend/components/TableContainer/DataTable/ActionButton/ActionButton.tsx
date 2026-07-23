@@ -20,7 +20,6 @@ export interface IActionButtonProps {
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
-  iconStroke?: boolean;
   iconColor?: Colors;
   iconPosition?: string;
   isDisabled?: boolean;
@@ -47,7 +46,6 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     variant = "default",
     hideButton,
     iconSvg,
-    iconStroke = false,
     iconColor,
     iconPosition,
     isDisabled,
@@ -83,16 +81,15 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
       <Button
         onClick={() => onButtonClick(targetIds)}
         variant={variant}
-        iconStroke={iconStroke}
         size="small"
       >
         <>
           {iconPosition === "left" && iconSvg && (
-            <Icon name={iconSvg} color={iconColor} />
+            <Icon name={iconSvg} color={iconColor} size="small" />
           )}
           {resolvedButtonText}
           {iconPosition !== "left" && iconSvg && (
-            <Icon name={iconSvg} color={iconColor} />
+            <Icon name={iconSvg} color={iconColor} size="small" />
           )}
         </>
       </Button>

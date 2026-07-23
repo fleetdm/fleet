@@ -35,7 +35,7 @@ const Pagination = ({
   return (
     <div className={classNames}>
       <Button
-        variant="inverse"
+        variant="subdued"
         disabled={disablePrev}
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
@@ -43,7 +43,7 @@ const Pagination = ({
         <Icon name="chevron-left" color="ui-fleet-black-75" /> Previous
       </Button>
       <Button
-        variant="inverse"
+        variant="subdued"
         disabled={disableNext}
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}

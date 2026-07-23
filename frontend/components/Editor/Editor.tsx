@@ -91,7 +91,7 @@ const Editor = ({
   const renderCopyButton = () => {
     return (
       <div className={`${baseClass}__copy-wrapper`}>
-        <CopyButton copyText={value ?? ""} />
+        <CopyButton copyText={value ?? ""} variant="subdued" />
       </div>
     );
   };

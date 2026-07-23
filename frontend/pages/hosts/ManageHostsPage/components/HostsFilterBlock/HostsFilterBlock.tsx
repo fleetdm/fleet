@@ -230,7 +230,8 @@ const HostsFilterBlock = ({
                         <Button
                           className={`${baseClass}__action-btn`}
                           onClick={onClickEditLabel}
-                          variant="icon"
+                          variant="secondary"
+                          size="small"
                           disabled={disableChildren}
                         >
                           <Icon name="pencil" size="small" />
@@ -240,7 +241,8 @@ const HostsFilterBlock = ({
                     <Button
                       className={`${baseClass}__action-btn`}
                       onClick={onClickDeleteLabel}
-                      variant="icon"
+                      variant="secondary"
+                      size="small"
                       disabled={disableChildren}
                     >
                       <Icon name="trash" size="small" />
