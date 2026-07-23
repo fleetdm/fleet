@@ -69,16 +69,20 @@ func authErrorContains(err error, status int, s string) bool {
 	return false
 }
 
-// IsServerError returns true if err is a DEP HTTPError with a 5xx status
-// code, indicating a problem on Apple's end rather than with the request
-// itself. do's only special-cased status is 401, which it wraps as
-// AuthError; every other non-200 response, including all 5xx and other
-// auth-related failures like 403, comes back as HTTPError. Since AuthError
-// can therefore never carry a 5xx status, checking HTTPError alone is
-// sufficient here.
+// IsServerError returns true if err is a DEP HTTPError or AuthError with a
+// 5xx status code, indicating a problem on Apple's end rather than with the
+// request itself. do() only ever constructs AuthError with StatusCode 401,
+// but DoAuth's /session handshake (client/auth.go) constructs AuthError with
+// whatever status Apple actually returns, which can be a genuine 5xx if
+// Apple's auth endpoint itself is down -- so both error types are checked
+// here.
 func IsServerError(err error) bool {
 	var httpErr *HTTPError
 	if errors.As(err, &httpErr) && httpErr.StatusCode >= http.StatusInternalServerError {
+		return true
+	}
+	var authErr *depclient.AuthError
+	if errors.As(err, &authErr) && authErr.StatusCode >= http.StatusInternalServerError {
 		return true
 	}
 	return false
