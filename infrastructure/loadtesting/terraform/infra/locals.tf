@@ -44,6 +44,9 @@ locals {
       # replica reboot/failover, and proactively drop bad idles.
       FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"
       FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "1800"
+      # 30% of the 1h detail interval = 18 minutes. The default 6-minute (10%) is too short for the
+      # bunching that can occur with aggressive enrollment ramps we do in load testing.
+      FLEET_OSQUERY_MAX_JITTER_PERCENT               = "30"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
       FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
       FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
