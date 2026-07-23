@@ -201,31 +201,38 @@ describe("Host Summary section", () => {
   });
 
   describe("Empty card", () => {
-    it("does not render the summary card for a Free-tier Android host with no OS settings", () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: false,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+    it.each([
+      ["Android", "android", "Android 14"],
+      ["iOS", "ios", "iOS 17.4"],
+      ["iPadOS", "ipados", "iPadOS 17.4"],
+    ])(
+      "does not render the summary card for a Free-tier %s host with no OS settings",
+      (_label, platform, os_version) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
-      });
-      const summaryData = createMockHostSummary({
-        platform: "android",
-        os_version: "Android 14",
-      });
+        });
+        const summaryData = createMockHostSummary({
+          platform: platform as "android" | "ios" | "ipados",
+          os_version,
+        });
 
-      const { container } = render(
-        <HostSummary
-          summaryData={summaryData}
-          isPremiumTier={false}
-          hostSettings={[]}
-        />
-      );
+        const { container } = render(
+          <HostSummary
+            summaryData={summaryData}
+            isPremiumTier={false}
+            hostSettings={[]}
+          />
+        );
 
-      expect(container).toBeEmptyDOMElement();
-    });
+        expect(container).toBeEmptyDOMElement();
+      }
+    );
   });
 
   describe("Bootstrap package data", () => {

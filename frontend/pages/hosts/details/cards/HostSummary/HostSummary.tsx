@@ -24,7 +24,10 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -95,7 +98,7 @@ const HostSummary = ({
     <DataSet
       title="Fleet"
       value={
-        summaryData.team_name !== "---" ? (
+        summaryData.team_name !== DEFAULT_EMPTY_CELL_VALUE ? (
           `${summaryData.team_name}`
         ) : (
           <span className="no-team">Unassigned</span>
@@ -218,11 +221,11 @@ const HostSummary = ({
     !!isPremiumTier &&
     // TODO - refactor normalizeEmptyValues pattern
     !!summaryData.maintenance_window &&
-    summaryData.maintenance_window !== "---";
+    summaryData.maintenance_window !== DEFAULT_EMPTY_CELL_VALUE;
 
   // Hide the card entirely when nothing inside it would render (e.g. Free tier
   // Android host with no OS settings) — otherwise an empty card sits above the
-  // Vitals section (#49441).
+  // Vitals section.
   if (
     !showStatus &&
     !showTeam &&
