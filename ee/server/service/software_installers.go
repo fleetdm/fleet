@@ -488,7 +488,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// The patch controls only apply to Fleet-maintained apps.
 	if (payload.Patch != nil || payload.PatchWhenClosed != nil) && existingInstaller.FleetMaintainedAppID == nil {
-		return nil, &fleet.BadRequestError{Message: `"patch" and "patch_when_closed" are only supported for Fleet-maintained apps.`}
+		return nil, &fleet.BadRequestError{Message: `"patch" and "patch_when_closed" are only available for Fleet-maintained apps.`}
 	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
@@ -979,9 +979,9 @@ func (svc *Service) reconcilePatchPolicy(ctx context.Context, payload *fleet.Upd
 		patchWhenClosed = true
 	}
 
-	// While Fleet's managed query owns the pre-install condition, the user query can't be edited.
-	if patchWhenClosed && payload.PreInstallQuery != nil && *payload.PreInstallQuery != installer.PreInstallQuery {
-		return &fleet.BadRequestError{Message: `Couldn't edit. The pre-install query is managed by Fleet while "patch_when_closed" is enabled and can't be edited.`}
+	// The pre-install query is read-only while patch_when_closed is enabled.
+	if patchWhenClosed && payload.PreInstallQuery != nil {
+		return &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
 	}
 
 	teamID := ptr.ValOrZero(payload.TeamID)

@@ -2752,8 +2752,9 @@ func TestReconcilePatchPolicy(t *testing.T) {
 		assert.True(t, *modified)
 	})
 
-	// An unmanaged FMA title with no patch changes touches no policy.
-	t.Run("unmanaged with no patch change is a noop", func(t *testing.T) {
+	// A pre-install edit is allowed and touches no policy when the title's patch policy has
+	// patch_when_closed off.
+	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
 		svc, base := setup(t, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")

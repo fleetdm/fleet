@@ -140,8 +140,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 		return nil, ctxerr.Wrap(ctx, err, "get software install details")
 	}
 
-	// A patch-when-closed policy install uses the Fleet-managed app-open query as its pre-install
-	// condition in place of the user's query.
+	// A patch-when-closed policy install uses the installer's app open query as its pre-install condition.
 	if result.PatchWhenClosed {
 		result.PreInstallCondition = result.AppOpenQuery
 	}
