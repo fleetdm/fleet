@@ -25,6 +25,9 @@
     background-color: $core-fleet-white;
     border-radius: $border-radius;
     height: 36px;
+    // react-select-5 bakes in a 38px minHeight via its own emotion styles,
+    // which otherwise wins over the height above
+    min-height: 36px !important;
 
     body.dark-mode & {
       background-color: $ui-fleet-black-5;
@@ -113,7 +116,7 @@
 
   .label-filter-select__menu-list {
     max-height: 574px;
-    padding: $pad-small $pad-medium;
+    padding: $pad-medium;
   }
 
   .label-filter-select__option {

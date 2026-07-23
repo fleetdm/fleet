@@ -432,7 +432,7 @@ const SoftwareTitleDetailsPage = ({
     const atPackageLimit = packages.length >= MAX_PACKAGES_PER_TITLE;
     const addPackageButton = showAddPackageAction && (
       <Button
-        variant="inverse"
+        variant="secondary"
         onClick={() => setShowAddPackageModal(true)}
         disabled={atPackageLimit}
       >

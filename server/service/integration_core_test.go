@@ -5712,6 +5712,47 @@ func (s *integrationTestSuite) TestLabels() {
 			// attempt to delete by id
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
 		}
+
+		// A modify that changes membership but fails metadata validation (a
+		// duplicate name) must roll back as a unit: the membership change must not
+		// be committed on its own, and no edited_label activity must be recorded
+		// for the failed request.
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "atomic_conflict_label"}, http.StatusOK, &createResp)
+		conflictName := createResp.Label.Name
+
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels",
+			&fleet.LabelPayload{Name: "atomic_target_label", HostIDs: []uint{manualHosts[0].ID, manualHosts[1].ID}}, http.StatusOK, &createResp)
+		atomicLbl := createResp.Label.Label
+		require.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, createResp.Label.HostIDs)
+
+		// watermark: id of the most recent activity before the failed request
+		lastActID := s.lastActivityMatches("", "", 0)
+
+		// rename to the conflicting name while also changing membership: the
+		// duplicate name must fail the whole request with 409
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: &conflictName, HostIDs: []uint{manualHosts[2].ID}}, http.StatusConflict, &modResp)
+
+		// name and membership must be unchanged (no partial commit)
+		getResp = fleet.GetLabelResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, atomicLbl.Name, getResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, getResp.Label.HostIDs)
+
+		// no new activity must have been recorded for the failed request
+		assert.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
+
+		// a valid rename that also changes membership must commit both and record
+		// the edited_label activity
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: new("atomic_target_renamed"), HostIDs: []uint{manualHosts[2].ID}}, http.StatusOK, &modResp)
+		assert.Equal(t, "atomic_target_renamed", modResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[2].ID}, modResp.Label.HostIDs)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedLabel{}.ActivityName(), "", 0), lastActID)
 	})
 
 	t.Run("IdP Labels", func(t *testing.T) {
@@ -6562,8 +6603,42 @@ func (s *integrationTestSuite) TestUsers() {
 		return err
 	})
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: "foo"}, http.StatusUnauthorized, &loginResp)
-	// MFA unsupported client
-	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
+
+	loginErrMessage := func(rawBody []byte) string {
+		var body struct {
+			Message string `json:"message"`
+			Errors  []struct {
+				Name   string `json:"name"`
+				Reason string `json:"reason"`
+			} `json:"errors"`
+		}
+		require.NoError(t, json.Unmarshal(rawBody, &body))
+		return fmt.Sprintf("%s %+v", body.Message, body.Errors)
+	}
+
+	mfaUnsupportedResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	mfaUnsupportedBody, err := io.ReadAll(mfaUnsupportedResp.Body)
+	require.NoError(t, err)
+	mfaUnsupportedResp.Body.Close()
+
+	wrongPwdResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: "wrong-" + userRawPwd}),
+		http.StatusUnauthorized)
+	wrongPwdBody, err := io.ReadAll(wrongPwdResp.Body)
+	require.NoError(t, err)
+	wrongPwdResp.Body.Close()
+
+	nonexistentResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "does-not-exist@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	nonexistentBody, err := io.ReadAll(nonexistentResp.Body)
+	require.NoError(t, err)
+	nonexistentResp.Body.Close()
+
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(mfaUnsupportedBody))
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(nonexistentBody))
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)

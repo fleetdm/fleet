@@ -435,7 +435,7 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
         <>
           Schema
           <Icon name="info" size="small" />
@@ -539,6 +539,7 @@ const EditQueryForm = ({
           hideText="Hide SQL"
           showText="Show SQL"
           onClick={() => setShowQueryEditor(!showQueryEditor)}
+          variant="secondary"
         />
       )}
       {showQueryEditor && (
@@ -782,6 +783,7 @@ const EditQueryForm = ({
                 showText="Advanced options"
                 caretPosition="after"
                 onClick={toggleAdvancedOptions}
+                variant="secondary"
               />
               {showAdvancedOptions && (
                 <>
@@ -821,7 +823,7 @@ const EditQueryForm = ({
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
-                        variant="inverse"
+                        variant="secondary"
                         onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
@@ -862,7 +864,7 @@ const EditQueryForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="inverse"
+                variant="secondary"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting

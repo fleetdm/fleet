@@ -188,7 +188,7 @@ export const HostInstallerActionButton = ({
       position="top"
     >
       <Button
-        variant="inverse"
+        variant="secondary"
         type="button"
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
@@ -378,7 +378,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="small-button"
+            variant="secondary"
             disabled={moreDisabled}
           />
         </div>

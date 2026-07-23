@@ -1,0 +1,1 @@
+* Made MFA login token redemption atomic so a single one-time token can no longer be used to create more than one session under concurrent requests.

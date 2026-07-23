@@ -107,7 +107,7 @@ const WipeModal = ({
         >
           Wipe
         </Button>
-        <Button onClick={onClose} variant="inverse-alert">
+        <Button onClick={onClose} variant="secondary">
           Cancel
         </Button>
       </div>

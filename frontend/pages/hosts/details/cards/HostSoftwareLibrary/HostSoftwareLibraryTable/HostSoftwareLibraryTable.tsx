@@ -18,6 +18,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
@@ -193,22 +194,34 @@ const HostSoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="host-library-filter"
-          value={selfService ? "selfService" : "available"}
-          className={`${baseClass}__host-library-filter`}
-          options={DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as IHostSWLibraryDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-          isDisabled={isTrulyEmpty}
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__filter-controls`}>
+          <DropdownWrapper
+            name="host-library-filter"
+            value={selfService ? "selfService" : "available"}
+            className={`${baseClass}__host-library-filter`}
+            options={DROPDOWN_OPTIONS}
+            onChange={(newValue: SingleValue<CustomOptionType>) =>
+              newValue &&
+              handleCustomFilterDropdownChange(
+                newValue.value as IHostSWLibraryDropdownFilterVal
+              )
+            }
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+        {canAddSoftware && !isTrulyEmpty && (
+          <Button
+            className={`${baseClass}__add-software-button`}
+            variant="secondary"
+            onClick={onAddSoftware}
+          >
+            <Icon name="plus" />
+            <span>Add software</span>
+          </Button>
+        )}
+      </>
     );
   };
 

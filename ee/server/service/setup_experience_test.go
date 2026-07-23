@@ -250,8 +250,8 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 		return nil
 	}
 
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 
 	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -327,7 +327,7 @@ func TestSetupExperienceScriptRejectsUnknownCustomHostVital(t *testing.T) {
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{99}}
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error { return nil }
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return true, nil }
 	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
 
 	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_HOST_VITAL_99")))
@@ -371,7 +371,7 @@ func TestSetupExperienceScriptCustomHostVitalInfraErrorPropagates(t *testing.T) 
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
 		return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error { return nil }
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return false, nil }
 
 	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_HOST_VITAL_99")))
 	require.Error(t, err)

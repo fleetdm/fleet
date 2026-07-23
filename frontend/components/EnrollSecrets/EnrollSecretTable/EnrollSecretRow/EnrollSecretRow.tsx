@@ -50,8 +50,7 @@ const EnrollSecretRow = ({
             disabled={disableChildren}
             onClick={onEditSecretClick}
             className={`${baseClass}__edit-secret-icon`}
-            variant="icon"
-            size="small"
+            variant="secondary"
           >
             <Icon name="pencil" />
           </Button>
@@ -59,8 +58,7 @@ const EnrollSecretRow = ({
             onClick={onDeleteSecretClick}
             disabled={disableChildren}
             className={`${baseClass}__delete-secret-icon`}
-            variant="icon"
-            size="small"
+            variant="secondary"
           >
             <Icon name="trash" />
           </Button>
