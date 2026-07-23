@@ -3797,6 +3797,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		forbiddenType := "com.apple.configuration.watch.enrollment"
 		require.Contains(t, fleet.ForbiddenDeclTypes, forbiddenType) // guard: type is genuinely forbidden on upload
 
+		// The delete-time validation this fix removed only ran under strict
+		// validation (AllowAllDeclarations == false), so this test only guards
+		// against its reintroduction when the suite runs strict. Assert that
+		// precondition explicitly so the test can't silently become a no-op if
+		// the suite default ever changes.
+		require.False(t, s.fleetCfg.MDM.AllowAllDeclarations)
+
 		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		rawJSON := fmt.Sprintf(`{"Type":%q,"Identifier":"com.fleet.forbidden-type","Payload":{}}`, forbiddenType)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
