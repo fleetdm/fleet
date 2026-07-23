@@ -237,6 +237,9 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
 			return &fleet.SoftwareInstaller{TitleID: new(patchSoftwareTitleID), SoftwareTitle: "App", DisplayName: "App"}, nil
 		}
+		ds.ClearPreInstallQueryForTitleFunc = func(ctx context.Context, teamID uint, titleID uint) error {
+			return nil
+		}
 		return ds
 	}
 
@@ -247,7 +250,9 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		var captured fleet.PolicyPayload
 		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 			captured = args
-			return freshPatchPolicy(), nil
+			created := freshPatchPolicy()
+			created.PatchWhenClosed = true
+			return created, nil
 		}
 		opts := &TestServerOpts{}
 		svc, baseCtx := newTestService(t, ds, nil, nil, opts)
@@ -263,6 +268,8 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, captured.PatchWhenClosed)
 		assert.True(t, captured.ContinuousAutomationsEnabled, "patch_when_closed should force continuous automations on")
+		// enabling patch_when_closed cancels the title's pending installs so they re-evaluate
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
 	})
 
 	// patch_when_closed only applies to patch policies.
@@ -312,6 +319,8 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		require.NotNil(t, saved)
 		assert.True(t, saved.PatchWhenClosed)
 		assert.True(t, saved.ContinuousAutomationsEnabled)
+		// enabling patch_when_closed cancels the title's pending installs so they re-evaluate
+		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
 	})
 }
 

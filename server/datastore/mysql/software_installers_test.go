@@ -7226,6 +7226,10 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		require.Equal(t, patchWhenClosed, p.PatchWhenClosed)
+		if patchWhenClosed {
+			// The service does this after writing the policy; call it here to exercise the same effect.
+			require.NoError(t, ds.ClearPreInstallQueryForTitle(ctx, team.ID, titleID))
+		}
 		return p
 	}
 
@@ -7246,12 +7250,13 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, managedQuery, activatedDetails.PreInstallCondition)
 
-	// Same installer, but a manual (non-policy) install falls back to the user query.
+	// Same installer via a manual (non-policy) install: no pre-install condition, because enabling
+	// patch_when_closed cleared the installer's user query.
 	manualExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
 	require.NoError(t, err)
-	require.Equal(t, userQuery, manualDetails.PreInstallCondition)
+	require.Empty(t, manualDetails.PreInstallCondition)
 
 	// A patch policy without patch_when_closed keeps the user query on the policy path.
 	forceInstaller, forceTitle := newInstaller(t, "pwc-force")

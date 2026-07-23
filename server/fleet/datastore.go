@@ -2931,6 +2931,11 @@ type Datastore interface {
 	// to how the virtual column works).
 	ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error
 
+	// ClearPreInstallQueryForTitle blanks the pre-install query on a title's active Fleet-maintained
+	// installer and cancels its pending installs. It's a no-op when the query is already empty, so
+	// callers can invoke it freely.
+	ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error
+
 	// SaveInstallerUpdates persists new values to an existing installer. See comments in the payload struct
 	// for which fields must be set.
 	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error

@@ -104,6 +104,12 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, teamID, *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
+	}
+
 	if teamID == 0 {
 		noTeamID := int64(0)
 		if err := svc.NewActivity(
@@ -795,6 +801,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
 	}
 
 	if teamID == nil {
