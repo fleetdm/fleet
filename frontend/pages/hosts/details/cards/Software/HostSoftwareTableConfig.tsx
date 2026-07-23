@@ -127,9 +127,9 @@ export const generateSoftwareTableHeaders = ({
           <TooltipWrapper
             tipContent={
               <>
-                Currently only supported for macOS, Windows, and Linux native
-                apps and packages. Not supported for browser extensions, other
-                package managers, or mobile apps.
+                Only supported for macOS, Windows, and Linux native apps and
+                packages. Browser extensions, other package managers, and mobile
+                apps don&apos;t report this information.
               </>
             }
           >
