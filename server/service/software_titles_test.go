@@ -310,11 +310,9 @@ func TestSoftwareTitleByIDTeamIDZero(t *testing.T) {
 
 func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
 	ds := new(mock.Store)
+	var filtersUsed []fleet.TeamFilter
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
-		if tmFilter.User != nil && tmFilter.User.GlobalRole != nil && *tmFilter.User.GlobalRole == fleet.RoleAdmin {
-			// Simulates the title existing on a team outside the caller's own visibility.
-			return &fleet.SoftwareTitle{ID: id}, nil
-		}
+		filtersUsed = append(filtersUsed, tmFilter)
 		return nil, newNotFoundError()
 	}
 
@@ -330,4 +328,9 @@ func TestSoftwareTitleByIDNilTeamIDExistsElsewhere(t *testing.T) {
 	// A title's existence on a team the caller can't see must not be
 	// distinguishable (via status code) from it not existing at all.
 	require.True(t, fleet.IsNotFound(err), "expected NotFound, got: %v", err)
+
+	// Guard against reintroducing a secondary lookup: exactly one call, and
+	// never with a global-role filter standing in for the real caller.
+	require.Len(t, filtersUsed, 1)
+	require.Equal(t, teamUser, filtersUsed[0].User)
 }
