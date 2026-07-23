@@ -304,6 +304,15 @@ func TestClassifyDEPDeviceError(t *testing.T) {
 			fleet.DEPDeviceErrorServerError,
 		},
 		{
+			// DoAuth's /session handshake (client/auth.go) constructs
+			// AuthError with whatever status Apple actually returns, so a
+			// genuine outage there surfaces as a 5xx AuthError rather than
+			// an HTTPError.
+			"server error from /session auth failure",
+			&client.AuthError{StatusCode: http.StatusServiceUnavailable, Body: []byte(`"SERVICE_UNAVAILABLE"`)},
+			fleet.DEPDeviceErrorServerError,
+		},
+		{
 			"unrelated 4xx",
 			&godep.HTTPError{StatusCode: http.StatusBadRequest, Body: []byte(`"INVALID_CURSOR"`)},
 			fleet.DEPDeviceErrorUnavailable,
