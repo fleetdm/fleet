@@ -71,8 +71,11 @@ func authErrorContains(err error, status int, s string) bool {
 
 // IsServerError returns true if err is a DEP HTTPError with a 5xx status
 // code, indicating a problem on Apple's end rather than with the request
-// itself. Auth failures are always reported as AuthError (see client.go's
-// do method), so this only needs to check HTTPError.
+// itself. do's only special-cased status is 401, which it wraps as
+// AuthError; every other non-200 response, including all 5xx and other
+// auth-related failures like 403, comes back as HTTPError. Since AuthError
+// can therefore never carry a 5xx status, checking HTTPError alone is
+// sufficient here.
 func IsServerError(err error) bool {
 	var httpErr *HTTPError
 	if errors.As(err, &httpErr) && httpErr.StatusCode >= http.StatusInternalServerError {
