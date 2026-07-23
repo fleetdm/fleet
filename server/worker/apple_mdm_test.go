@@ -413,7 +413,7 @@ func TestAppleMDM(t *testing.T) {
 		}
 		var commands []enqueuedCommand
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type, command FROM nano_commands ORDER BY created_at")
+			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type, command FROM nano_enrollment_queue neq INNER JOIN nano_commands nc ON neq.command_uuid = nc.command_uuid WHERE neq.id = ? ORDER BY neq.created_at", h.UUID)
 		})
 
 		fleetdIdx, bootstrapIdx := -1, -1
