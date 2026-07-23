@@ -49,7 +49,6 @@ export const getCriterionHelpText = (vital: LabelHostVitalsCriterion) => {
 export interface INewLabelFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
-  description?: { isValid: boolean; message?: string };
   labelQuery?: { isValid: boolean; message?: string };
   criteria?: { isValid: boolean; message?: string };
 }

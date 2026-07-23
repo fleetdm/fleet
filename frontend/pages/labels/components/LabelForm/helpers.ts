@@ -3,12 +3,11 @@ import { ILabelFormData } from "./LabelForm";
 export interface ILabelFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
-  description?: { isValid: boolean; message?: string };
 }
 
 type IMessageFunc = (formData: ILabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = Extract<keyof ILabelFormData, "name">;
+type IFormValidationKey = "name";
 
 interface IValidation {
   name: string;

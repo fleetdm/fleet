@@ -90,7 +90,6 @@ const LabelForm = ({
 
       // start from previous errors
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
 
       // ONLY CLEAR existing error on this field if it is now valid.
       // Do NOT set a new error if there wasn't one before.
@@ -98,15 +97,10 @@ const LabelForm = ({
         if (prev.name && fullValidation.name?.isValid) {
           next.name = undefined; // clear existing name error
         }
-      } else if (fieldName === "description") {
-        if (prev.description && fullValidation.description?.isValid) {
-          next.description = undefined; // clear existing description error
-        }
       }
 
       // recompute isValid from remaining errors
-      const fields = [next.name, next.description];
-      next.isValid = fields.every((f) => !f || f.isValid);
+      next.isValid = !next.name || next.name.isValid;
 
       return next;
     });
@@ -155,7 +149,6 @@ const LabelForm = ({
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
-        error={formValidation.description?.message}
         parseTarget
         name="description"
         onChange={onFormChange}

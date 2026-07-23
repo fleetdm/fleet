@@ -302,7 +302,6 @@ const NewLabelPage = ({
 
       // start from previous errors
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria) next.criteria = prev.criteria;
 
@@ -311,22 +310,13 @@ const NewLabelPage = ({
         if (prev.name && fullValidation.name?.isValid) {
           next.name = undefined;
         }
-      } else if (fieldName === "description") {
-        if (prev.description && fullValidation.description?.isValid) {
-          next.description = undefined;
-        }
       } else if (fieldName === "vitalValue") {
         if (prev.criteria && fullValidation.criteria?.isValid) {
           next.criteria = undefined;
         }
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -354,7 +344,6 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria && fullValidation.criteria?.isValid) {
         next.criteria = undefined;
@@ -362,12 +351,7 @@ const NewLabelPage = ({
         next.criteria = prev.criteria;
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -398,19 +382,12 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = fullValidation.name ?? prev.name;
-      if (prev.description)
-        next.description = fullValidation.description ?? prev.description;
       if (prev.labelQuery)
         next.labelQuery = fullValidation.labelQuery ?? prev.labelQuery;
       if (prev.criteria)
         next.criteria = fullValidation.criteria ?? prev.criteria;
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -467,7 +444,6 @@ const NewLabelPage = ({
       const next: INewLabelFormValidation = { ...prev, isValid: true };
 
       if (prev.name) next.name = prev.name;
-      if (prev.description) next.description = prev.description;
       if (prev.labelQuery) next.labelQuery = prev.labelQuery;
       if (prev.criteria) next.criteria = prev.criteria;
 
@@ -475,12 +451,7 @@ const NewLabelPage = ({
         next.labelQuery = undefined;
       }
 
-      const fields = [
-        next.name,
-        next.description,
-        next.labelQuery,
-        next.criteria,
-      ];
+      const fields = [next.name, next.labelQuery, next.criteria];
       next.isValid = fields.every((f) => !f || f.isValid);
 
       return next;
@@ -652,7 +623,6 @@ const NewLabelPage = ({
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
-        error={formErrors.description?.message}
         name="description"
         onChange={onInputChange}
         onBlur={onInputBlur}
