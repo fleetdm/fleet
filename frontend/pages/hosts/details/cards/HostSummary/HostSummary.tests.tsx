@@ -6,6 +6,7 @@ import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
 
 import { BootstrapPackageStatus } from "interfaces/mdm";
+import { HostPlatform } from "interfaces/platform";
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -201,7 +202,7 @@ describe("Host Summary section", () => {
   });
 
   describe("Empty card", () => {
-    it.each([
+    it.each<[string, HostPlatform, string]>([
       ["Android", "android", "Android 14"],
       ["iOS", "ios", "iOS 17.4"],
       ["iPadOS", "ipados", "iPadOS 17.4"],
@@ -218,7 +219,7 @@ describe("Host Summary section", () => {
           },
         });
         const summaryData = createMockHostSummary({
-          platform: platform as "android" | "ios" | "ipados",
+          platform,
           os_version,
         });
 

@@ -66,7 +66,7 @@ const HostSummary = ({
   hostSettings,
   osSettings,
   className,
-}: IHostSummaryProps): JSX.Element => {
+}: IHostSummaryProps): JSX.Element | null => {
   const classNames = classnames(baseClass, className);
 
   const { status, platform, os_version, mdm } = summaryData;
@@ -234,7 +234,7 @@ const HostSummary = ({
     !showBootstrapPackage &&
     !showMaintenanceWindow
   ) {
-    return <></>;
+    return null;
   }
 
   return (
