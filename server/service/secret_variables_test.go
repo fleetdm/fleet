@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -90,15 +91,14 @@ func TestCreateSecretVariables(t *testing.T) {
 	})
 
 	t.Run("failure test", func(t *testing.T) {
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)}})
-		testSetEmptyPrivateKey = true
-		t.Cleanup(func() {
-			testSetEmptyPrivateKey = false
-		})
-		err := svc.CreateSecretVariables(ctx, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, true)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = ""
+		svcNoKey, ctxNoKey := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		ctxNoKey = viewer.NewContext(ctxNoKey, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
+		err := svcNoKey.CreateSecretVariables(ctxNoKey, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, true)
 		require.ErrorContains(t, err, "Couldn't save secret variables. Missing required private key")
-		testSetEmptyPrivateKey = false
 
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
 		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
 			return nil, nil, errors.New("test error")
 		}
