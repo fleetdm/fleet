@@ -167,8 +167,18 @@ func TestMFA(t *testing.T) {
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
+	var failedLoginActivity bool
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if activity.ActivityName() == (fleet.ActivityTypeUserFailedLogin{}).ActivityName() {
+			failedLoginActivity = true
+		}
+		return nil
+	}
 	_, _, err := svc.Login(ctx, "foo@example.com", test.GoodPassword, false)
-	require.Equal(t, err, mfaNotSupportedForClient)
+	var authErr *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authErr)
+	require.Equal(t, "Authentication failed", err.Error())
+	require.True(t, failedLoginActivity)
 
 	var sentMail fleet.Email
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error {
@@ -182,15 +192,26 @@ func TestMFA(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	svcForMailing := validationMiddleware{&Service{
+	innerSvc := &Service{
 		ds:          ds,
 		config:      config.TestConfig(),
 		mailService: mailer,
-	}, ds, nil}
+	}
+	var mfaRequestedActivity bool
+	innerSvc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			if activity.ActivityName() == (fleet.ActivityTypeUserMFARequested{}).ActivityName() {
+				mfaRequestedActivity = true
+			}
+			return nil
+		},
+	})
+	svcForMailing := validationMiddleware{innerSvc, ds, nil}
 	_, _, err = svcForMailing.Login(ctx, "foo@example.com", test.GoodPassword, true)
 	require.Equal(t, err, sendingMFAEmail)
 	require.Equal(t, "foo@example.com", sentMail.To[0])
 	require.Equal(t, "Log in to Fleet", sentMail.Subject)
+	require.True(t, mfaRequestedActivity)
 
 	var session *fleet.Session
 	var mfaUser *fleet.User

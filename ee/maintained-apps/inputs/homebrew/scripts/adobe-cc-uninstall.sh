@@ -3,7 +3,8 @@
 quit_app() {
   b="$1"
   # try a friendly quit if a GUI user is active
-  if osascript -e "application id \"$b\" is running" >/dev/null 2>&1; then
+  app_running=$(osascript -e "application id \"$b\" is running" 2>/dev/null)
+  if [ "$app_running" = "true" ]; then
     cu="$(stat -f "%Su" /dev/console 2>/dev/null || true)"
     if [ "$(id -u)" -ne 0 ] || [ "$cu" != "root" ]; then
       i=0

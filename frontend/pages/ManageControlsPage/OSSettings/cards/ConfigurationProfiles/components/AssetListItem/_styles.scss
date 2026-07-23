@@ -1,0 +1,23 @@
+.asset-list-item {
+  .list-item__main-content {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .list-item__info {
+    min-width: 0;
+  }
+
+  &__details {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    color: $ui-fleet-black-75;
+  }
+
+  &__identifier {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

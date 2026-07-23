@@ -87,10 +87,13 @@ const AddCertModal = ({
   );
   const caPartials = cAResp ?? [];
 
-  const caDropdownOptions = caPartials.map((cAP) => ({
-    value: cAP.id.toString(),
-    label: cAP.name,
-  }));
+  // Only custom SCEP CAs are supported for Android certificate profiles.
+  const caDropdownOptions = caPartials
+    .filter((cAP) => cAP.type === "custom_scep_proxy")
+    .map((cAP) => ({
+      value: cAP.id.toString(),
+      label: cAP.name,
+    }));
 
   const onInputChange = (update: { name: string; value: string }) => {
     const updatedFormData = { ...formData, [update.name]: update.value };
@@ -170,17 +173,6 @@ const AddCertModal = ({
     }
     return (
       <form className={baseClass} onSubmit={onSubmitForm}>
-        <InputField
-          name="name"
-          label="Name"
-          value={formData.name}
-          onChange={onInputChange}
-          error={serverErrors.name ?? formValidation.name?.message}
-          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
-          parseTarget
-          placeholder="VPN certificate"
-          autofocus
-        />
         <DropdownWrapper
           label="Certificate authority (CA)"
           name="certificateAuthority"
@@ -201,6 +193,16 @@ const AddCertModal = ({
             </>
           }
           error={formValidation.certAuthorityId?.message}
+        />
+        <InputField
+          name="name"
+          label="Name"
+          value={formData.name}
+          onChange={onInputChange}
+          error={serverErrors.name ?? formValidation.name?.message}
+          helpText="Letters, numbers, spaces, dashes, and underscores only. Name can be used as certificate alias to reference in configuration profiles."
+          parseTarget
+          placeholder="VPN certificate"
         />
         <InputField
           name="subjectName"
@@ -231,7 +233,7 @@ const AddCertModal = ({
           <Button isLoading={isUpdating} disabled={isUpdating} type="submit">
             Add
           </Button>
-          <Button variant="inverse" onClick={onExit}>
+          <Button variant="secondary" onClick={onExit}>
             Cancel
           </Button>
         </div>

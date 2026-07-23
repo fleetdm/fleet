@@ -266,6 +266,7 @@ const QueriesTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        iconName="filter-alt"
         isDisabled={isTrulyEmpty}
       />
     );
@@ -297,7 +298,7 @@ const QueriesTable = ({
             name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
-            variant: "inverse",
+            variant: "secondary",
             onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => <EmptyState {...emptyParams} />}

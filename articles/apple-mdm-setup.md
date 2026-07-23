@@ -39,6 +39,19 @@ How to connect Fleet to APNs:
 
 Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
+
 How to connect Fleet to AB:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
@@ -206,8 +219,6 @@ Entity A's VPP token will be assigned to the above fleets.
 
 ### International organizations
 
-> Support for Apple App Store (VPP) apps from non-US stores is [coming soon](https://github.com/fleetdm/fleet/issues/43846).
-
 For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
 
 The default fleets for each country's AB token will look like this:
@@ -249,10 +260,11 @@ When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet 
   - Clears completed commands, scripts, and software from the previous enrollment
   - Resets host labels
 
-This means you **do not need to delete** an AB host from Fleet before 
-re-enrolling it. Fleet handles clearing stale state automatically.
+This means you **do not need to delete** an AB host from Fleet before re-enrolling it. Fleet handles clearing stale state automatically.
 
 > This automatic state clearing does not apply to hosts undergoing AB MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

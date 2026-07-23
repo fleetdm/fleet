@@ -39,7 +39,7 @@ describe("CalendarEventsModal - component", () => {
     render(<CalendarEventsModal configured={false} enabled={false} url="" />);
 
     expect(
-      screen.getByRole("link", { name: /Settings.*Integrations.*Calendars/i })
+      screen.getByRole("link", { name: /Connect Fleet to Google Workspace/i })
     ).toBeInTheDocument();
   });
 
@@ -56,7 +56,7 @@ describe("CalendarEventsModal - component", () => {
 
     expect(
       screen.queryByRole("link", {
-        name: /Settings.*Integrations.*Calendars/i,
+        name: /Connect Fleet to Google Workspace/i,
       })
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Settings/i)).toBeInTheDocument();

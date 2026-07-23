@@ -120,7 +120,7 @@ const AddEntraClientIdModal = ({ onExit }: IAddEntraClientIdModalProps) => {
         >
           Add
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

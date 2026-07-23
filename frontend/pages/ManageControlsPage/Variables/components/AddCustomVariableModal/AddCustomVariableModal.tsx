@@ -136,7 +136,7 @@ const AddCustomVariableModal = ({
           >
             Save
           </Button>
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

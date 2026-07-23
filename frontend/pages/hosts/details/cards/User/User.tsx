@@ -14,9 +14,7 @@ import UserValue from "./components/UserValue";
 import {
   generateChromeProfilesValues,
   generateUsernameValues,
-  generateFullNameTipContent,
   generateFullNameValues,
-  generateGroupsTipContent,
   generateGroupsValues,
   generateOtherEmailsValues,
 } from "./helpers";
@@ -28,8 +26,6 @@ interface IUserProps {
   endUsers: IHostEndUser[];
   canWriteEndUser?: boolean;
   canViewMyDeviceLink?: boolean;
-  disableFullNameTooltip?: boolean;
-  disableGroupsTooltip?: boolean;
   className?: string;
   onClickUpdateUser?: (
     e:
@@ -47,8 +43,6 @@ const User = ({
   endUsers,
   canWriteEndUser = false,
   canViewMyDeviceLink = false,
-  disableFullNameTooltip = false,
-  disableGroupsTooltip = false,
   className,
   onClickUpdateUser,
   onClickMyDevice,
@@ -71,7 +65,6 @@ const User = ({
   if (endUser?.idp_department) {
     userDepartment.push(endUser.idp_department);
   }
-  const groupsTipContent = generateGroupsTipContent(endUsers);
 
   return (
     <Card
@@ -83,7 +76,7 @@ const User = ({
         <CardHeader header="User" />
         <div className={`${baseClass}__header-actions`}>
           {canViewMyDeviceLink && (
-            <Button variant="inverse" onClick={onClickMyDevice} size="small">
+            <Button variant="secondary" onClick={onClickMyDevice} size="small">
               My device
               <Icon name="external-link" />
             </Button>
@@ -91,12 +84,12 @@ const User = ({
           {canWriteEndUser && (
             <Button
               className={`${baseClass}__add-user-btn`}
-              variant="inverse"
+              variant="secondary"
               onClick={onClickUpdateUser}
               size="small"
             >
+              <Icon name={writeButtonIcon} size="small" />
               {writeButtonText}
-              <Icon name={writeButtonIcon} />
             </Button>
           )}
         </div>
@@ -110,31 +103,23 @@ const User = ({
 
         <DataSet
           title={
-            disableFullNameTooltip ? (
-              "Full name (IdP)"
-            ) : (
-              <TooltipWrapper tipContent={generateFullNameTipContent(endUsers)}>
-                Full name (IdP)
-              </TooltipWrapper>
-            )
+            <TooltipWrapper
+              tipContent={`This is the "givenName + familyName" from your IdP.`}
+            >
+              Full name (IdP)
+            </TooltipWrapper>
           }
           value={<UserValue values={generateFullNameValues(endUsers)} />}
         />
         <DataSet
-          title={
-            disableGroupsTooltip || !groupsTipContent ? (
-              "Groups (IdP)"
-            ) : (
-              <TooltipWrapper tipContent={groupsTipContent}>
-                <>Groups (IdP)</>
-              </TooltipWrapper>
-            )
-          }
+          title="Groups (IdP)"
           value={<UserValue values={generateGroupsValues(endUsers)} />}
         />
         <DataSet
           title={
-            <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+            <TooltipWrapper
+              tipContent={`This is the "department" collected from your IdP.`}
+            >
               Department (IdP)
             </TooltipWrapper>
           }

@@ -284,7 +284,7 @@ const SaveNewPolicyModal = ({
         >
           <div className="autofill-tooltip-wrapper">
             <Button
-              variant="inverse"
+              variant="subdued"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
@@ -392,7 +392,7 @@ const SaveNewPolicyModal = ({
         ) : (
           <div className={`${baseClass}__add-automations`}>
             <Button
-              variant="text-icon"
+              variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
             >
@@ -455,7 +455,7 @@ const SaveNewPolicyModal = ({
             className={`${baseClass}__button--modal-cancel`}
             type="button"
             onClick={() => setIsSaveNewPolicyModalOpen(false)}
-            variant="inverse"
+            variant="secondary"
           >
             Cancel
           </Button>

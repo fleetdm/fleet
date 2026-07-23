@@ -58,7 +58,7 @@ const DeleteCertificateAuthorityModal = ({
         >
           Delete
         </Button>
-        <Button variant="inverse-alert" onClick={onExit}>
+        <Button variant="secondary" onClick={onExit}>
           Cancel
         </Button>
       </div>

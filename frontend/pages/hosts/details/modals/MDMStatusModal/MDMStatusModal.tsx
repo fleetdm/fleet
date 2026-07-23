@@ -19,7 +19,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import hostAPI, {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   IDepAssignmentHostResponse,
 } from "services/entities/hosts";
 
@@ -52,7 +52,7 @@ interface IMDMStatusModal {
 type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
 
 type DepAssignProfileResponseErrors = Exclude<
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   "SUCCESS" | undefined
 >;
 
@@ -76,7 +76,7 @@ const PROFILE_STATUS_UI_MAP: Record<
     label: "Assigned",
     tooltip: (
       <>
-        Profile is assigned in ABM, and ABM <br />
+        Profile is assigned in AB, and AB <br />
         is preparing to push it to the host.
       </>
     ),
@@ -321,8 +321,19 @@ const MDMStatusModal = ({
       );
     }
 
+    if (depAssignmentData.dep_device?.response_status === "NOT_ACCESSIBLE") {
+      return (
+        <div className={`${baseClass}__profile-assignment--not-accessible`}>
+          <DataError
+            singleCustomLine
+            description="Fleet can't find this host in Apple Business. It may have been removed, released, or assigned to a different MDM server in AB."
+          />
+        </div>
+      );
+    }
+
     const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-      Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
+      Exclude<DEPDeviceStatus, "SUCCESS" | undefined>,
       { label: JSX.Element | string; tooltip: JSX.Element | string }
     > = {
       THROTTLED: {

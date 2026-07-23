@@ -24,6 +24,7 @@ var testCatalogEndpoints = []fleet.APIEndpoint{
 	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts"),
 	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts/:id"),
 	fleet.NewAPIEndpointFromTpl("POST", "/api/v1/fleet/scripts/run"),
+	fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/charts/:metric"),
 }
 
 // testIsInCatalog builds a fingerprint set from testCatalogEndpoints and
@@ -281,6 +282,26 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 		// POST /fleet/hosts is not in the catalog (only GET is), so the catalog check rejects it.
 		next, called := newNext()
 		ctx := ctxWithMethod("POST", muxTemplate("fleet/hosts"))
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			APIOnly: true,
+			APIEndpoints: []fleet.APIEndpointRef{
+				{Method: "GET", Path: "/api/v1/fleet/hosts"},
+			},
+		}})
+
+		_, err := newEndpoint(next)(ctx, nil)
+		require.Error(t, err)
+		require.False(t, *called)
+		var permErr *fleet.PermissionError
+		require.ErrorAs(t, err, &permErr)
+	})
+
+	t.Run("api-only user with restrictions, chart endpoint not in allow-list is rejected", func(t *testing.T) {
+		// Chart endpoint is in the catalog (testCatalogEndpoints), so the
+		// catalog check passes. The user's allow-list does not include charts,
+		// so the allow-list check rejects the request.
+		next, called := newNext()
+		ctx := ctxWithMethod("GET", muxTemplate("fleet/charts/{metric}"))
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 			APIOnly: true,
 			APIEndpoints: []fleet.APIEndpointRef{

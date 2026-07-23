@@ -102,7 +102,7 @@ const generateTableHeaders = (
       Cell: (cellProps: IActionsDropdownProps) => (
         <Button
           className="row-hover-button integrations-management__delete-button"
-          variant="icon"
+          variant="subdued"
           size="small"
           onClick={() =>
             actionSelectHandler(

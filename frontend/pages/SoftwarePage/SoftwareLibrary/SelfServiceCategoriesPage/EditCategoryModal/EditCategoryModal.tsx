@@ -81,7 +81,7 @@ const EditCategoryModal = ({
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>
             Save
           </Button>
-          <Button variant="inverse" onClick={onExit} disabled={isSubmitting}>
+          <Button variant="secondary" onClick={onExit} disabled={isSubmitting}>
             Cancel
           </Button>
         </div>

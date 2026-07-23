@@ -95,7 +95,6 @@ const CustomSCEPForm = ({
         label="Challenge"
         name="challenge"
         value={challenge}
-        error={formValidation.challenge?.message}
         onChange={onInputChange}
         parseTarget
         helpText="Password to authenticate with a SCEP server."
@@ -116,7 +115,7 @@ const CustomSCEPForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        <Button variant="inverse" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>
