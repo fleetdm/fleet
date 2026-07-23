@@ -94,11 +94,11 @@ func TestCreateSecretVariables(t *testing.T) {
 		cfg := config.TestConfig()
 		cfg.Server.PrivateKey = ""
 		svcNoKey, ctxNoKey := newTestServiceWithConfig(t, ds, cfg, nil, nil)
-		ctxNoKey = viewer.NewContext(ctxNoKey, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)}})
+		ctxNoKey = viewer.NewContext(ctxNoKey, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
 		err := svcNoKey.CreateSecretVariables(ctxNoKey, []fleet.SecretVariable{{Name: "foo", Value: "bar"}}, true)
 		require.ErrorContains(t, err, "Couldn't save secret variables. Missing required private key")
 
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleGitOps)}})
 		ds.UpsertSecretVariablesFunc = func(ctx context.Context, secrets []fleet.SecretVariable) (created []string, updated []string, err error) {
 			return nil, nil, errors.New("test error")
 		}
