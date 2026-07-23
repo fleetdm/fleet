@@ -1230,6 +1230,182 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
 
+// TestSaveHostSoftwareInstallResultAppOpenSkip verifies that an app-open result on a patch-when-closed
+// policy install is a skip (attempt_number=0, no retry, activity flagged), while an ordinary empty
+// pre_install_query on a non-managed policy still fails, counts, and retries.
+func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+	defer ds.Close()
+
+	opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	// The test service mocks the activity service, so capture emitted activities by install UUID.
+	installedActivities := make(map[string]fleet.ActivityTypeInstalledSoftware)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if a, ok := activity.(fleet.ActivityTypeInstalledSoftware); ok {
+			installedActivities[a.InstallUUID] = a
+		}
+		return nil
+	}
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: new(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	installerPayload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		Filename:        "test_installer.pkg",
+		StorageID:       uuid.New().String(),
+		Title:           "Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		UserID:          user.ID,
+		TeamID:          nil,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installerPayload)
+	require.NoError(t, err)
+
+	var titleID uint
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID,
+			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+	})
+
+	// createFailingPolicy makes a global policy (optionally patch-when-closed) and marks it failing
+	// for the host so a retry would be eligible.
+	createFailingPolicy := func(t *testing.T, host *fleet.Host, patchWhenClosed bool) uint {
+		policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+			Name:  "policy-" + uuid.NewString(),
+			Query: "SELECT 1;",
+		})
+		require.NoError(t, err)
+		if patchWhenClosed {
+			mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE policies SET patch_when_closed = 1 WHERE id = ?`, policy.ID)
+				return err
+			})
+		}
+		_, err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+		require.NoError(t, err)
+		return policy.ID
+	}
+
+	// insertPendingInstall queues a pending policy-automation install, returning its execution id.
+	insertPendingInstall := func(t *testing.T, host *fleet.Host, policyID uint) string {
+		installUUID := uuid.New().String()
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs (
+					execution_id, host_id, software_installer_id, policy_id,
+					installer_filename, version, software_title_id, software_title_name
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, installUUID, host.ID, installerID, policyID,
+				installerPayload.Filename, installerPayload.Version, titleID, installerPayload.Title)
+			return err
+		})
+		return installUUID
+	}
+
+	getAttemptNumber := func(t *testing.T, installUUID string) *int {
+		var attempt *int
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &attempt,
+				`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`, installUUID)
+		})
+		return attempt
+	}
+
+	countPendingRetries := func(t *testing.T, hostID uint) int {
+		var n int
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE activity_type = 'software_install' AND host_id = ?`, hostID)
+		})
+		return n
+	}
+
+	t.Run("app open -> skip, no attempt consumed, no retry, activity flagged", func(t *testing.T) {
+		host := test.NewHost(t, ds, "skip-host", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now())
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, true))
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""), // app open
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		attempt := getAttemptNumber(t, installUUID)
+		require.NotNil(t, attempt)
+		require.Equal(t, 0, *attempt, "skip must not consume a retry attempt")
+
+		require.Equal(t, 0, countPendingRetries(t, host.ID), "skip must not queue an immediate retry")
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		require.True(t, act.InstallSkippedWhenAppOpen, "activity should be flagged as an app-open skip")
+	})
+
+	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
+		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
+		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, false))
+
+		result := &fleet.HostSoftwareInstallResultPayload{
+			HostID:                    host.ID,
+			InstallUUID:               installUUID,
+			PreInstallConditionOutput: new(""),
+		}
+		hctx := hostctx.NewContext(ctx, host)
+		require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, result))
+
+		attempt := getAttemptNumber(t, installUUID)
+		require.NotNil(t, attempt)
+		require.Equal(t, 1, *attempt, "ordinary pre-install failure must count toward the retry limit")
+
+		require.Equal(t, 1, countPendingRetries(t, host.ID), "ordinary failure should queue a retry")
+
+		act, ok := installedActivities[installUUID]
+		require.True(t, ok, "an installed_software activity should have been emitted")
+		require.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		require.False(t, act.InstallSkippedWhenAppOpen, "non-managed failure must not be flagged as a skip")
+	})
+
+	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
+		host := test.NewHost(t, ds, "many-runs-host", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now())
+		policyID := createFailingPolicy(t, host, true)
+
+		// More consecutive runs than the retry cap; each is a fresh install the app-open query skips.
+		for range fleet.MaxPolicyAutomationRetries + 2 {
+			installUUID := insertPendingInstall(t, host, policyID)
+			hctx := hostctx.NewContext(ctx, host)
+			require.NoError(t, svc.SaveHostSoftwareInstallResult(hctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                    host.ID,
+				InstallUUID:               installUUID,
+				PreInstallConditionOutput: new(""),
+			}))
+			attempt := getAttemptNumber(t, installUUID)
+			require.NotNil(t, attempt)
+			require.Equal(t, 0, *attempt, "every consecutive skip must store attempt_number=0")
+		}
+
+		// The count stays 0, so the cap is never reached and no retries queue.
+		count, err := ds.CountHostSoftwareInstallAttempts(ctx, host.ID, installerID, policyID)
+		require.NoError(t, err)
+		require.Equal(t, 0, count, "skips never accumulate toward the retry cap")
+		require.Equal(t, 0, countPendingRetries(t, host.ID), "skips never queue retries")
+	})
+}
+
 // TestGetOrbitConfigWindowsSetupExperience verifies that GetOrbitConfig sets
 // notifs.RunSetupExperience=true for Windows hosts whose MDM enrollment is
 // in awaiting_configuration Pending or Active, and false otherwise (None,

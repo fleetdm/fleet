@@ -1186,6 +1186,8 @@ type ActivityTypeInstalledSoftware struct {
 	FromSetupExperience bool    `json:"from_setup_experience"`
 	CommandUUID         string  `json:"command_uuid,omitempty"`
 	FailureReason       string  `json:"failure_reason,omitempty"`
+	// InstallSkippedWhenAppOpen is set only on a patch-when-closed skip; Status is then "failed_install".
+	InstallSkippedWhenAppOpen bool `json:"install_skipped_when_app_open,omitempty"`
 }
 
 func (a ActivityTypeInstalledSoftware) ActivityName() string {

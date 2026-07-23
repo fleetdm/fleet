@@ -490,10 +490,14 @@ type HostSoftwareInstallerResult struct {
 	// nil = not triggered by a policy
 	// 1,2,3 attempt, 3 being max retries
 	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
+	// PatchWhenClosed is set from the triggering policy; it distinguishes an empty pre-install result
+	// caused by the app being open from an ordinary pre-install-query failure.
+	PatchWhenClosed bool `json:"-" db:"patch_when_closed"`
 }
 
 const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
+	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -516,7 +520,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 
 	if h.PreInstallQueryOutput != nil {
 		if *h.PreInstallQueryOutput == "" {
-			*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			// For patch-when-closed, an empty result means the app was open, not a query failure.
+			if h.PatchWhenClosed {
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenCopy
+			} else {
+				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			}
 			return
 		}
 		*h.PreInstallQueryOutput = SoftwareInstallerQuerySuccessCopy
