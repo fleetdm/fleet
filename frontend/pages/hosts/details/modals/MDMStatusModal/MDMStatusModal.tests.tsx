@@ -196,7 +196,57 @@ describe("MDMStatusModal - component", () => {
 
     expect(
       await screen.findByText(
-        "We can't retrieve data from Apple right now. Please try again later."
+        "Fleet can't retrieve data from Apple right now. Please try again later."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows a dep_error-specific message when Apple returns no dep_device", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      dep_device: null,
+      dep_error: "TOKEN_INVALID",
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByText(
+        "Fleet can't connect to Apple Business. An admin needs to renew the AB token."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the generic message when dep_device is missing and dep_error is unset", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      ...mockDepAssignmentResponse,
+      dep_device: null,
+      dep_error: null,
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByText(
+        "Fleet can't retrieve data from Apple right now. Please try again later."
       )
     ).toBeInTheDocument();
   });

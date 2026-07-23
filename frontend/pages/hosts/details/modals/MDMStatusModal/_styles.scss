@@ -47,4 +47,19 @@
       }
     }
   }
+
+  &__dep-error {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    padding: 0 $pad-medium;
+
+    .data-error__header {
+      align-items: flex-start;
+
+      .icon {
+        align-self: flex-start;
+        margin-top: 3px;
+      }
+    }
+  }
 }
