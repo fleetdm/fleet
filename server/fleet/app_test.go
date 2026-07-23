@@ -912,3 +912,40 @@ func TestMacOSSetupValidate(t *testing.T) {
 		}
 	})
 }
+
+func TestWindowsManagedLocalAccountSettingsMarshal(t *testing.T) {
+	t.Run("defaults to enabled false in marshaled output", func(t *testing.T) {
+		var ac AppConfig
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		windowsSettings := out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": false}, windowsSettings["managed_local_account_settings"])
+	})
+
+	t.Run("preserves an enabled value", func(t *testing.T) {
+		var ac AppConfig
+		ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		windowsSettings := out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+	})
+}
+
+func TestAppConfigCloneManagedLocalAccountSettings(t *testing.T) {
+	var ac AppConfig
+	ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+
+	cloned, err := ac.Clone()
+	require.NoError(t, err)
+	clonedAC := cloned.(*AppConfig)
+	require.Equal(t, ac.MDM.WindowsSettings, clonedAC.MDM.WindowsSettings)
+
+	// mutating the clone must not affect the original (plain value field)
+	clonedAC.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	require.True(t, ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+}

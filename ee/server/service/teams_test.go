@@ -1412,3 +1412,169 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 	require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
 	require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 }
+
+// TestModifyTeamWindowsManagedLocalAccount covers the new
+// windows_settings.managed_local_account_settings surface on the team PATCH endpoint (#48720).
+func TestModifyTeamWindowsManagedLocalAccount(t *testing.T) {
+	setup := func(t *testing.T, windowsMDMConfigured bool) (*Service, *mock.Store, *[]string, context.Context) {
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		ctx := test.UserContext(context.Background(),
+			&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: windowsMDMConfigured,
+			}}, nil
+		}
+		ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "team-1"}, nil
+		}
+		ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+			return team, nil
+		}
+
+		activities := &[]string{}
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+			switch act.(type) {
+			case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+				*activities = append(*activities, act.ActivityName())
+			}
+			return nil
+		}
+
+		svc := &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+			authz:   authorizer,
+			logger:  slog.New(slog.DiscardHandler),
+		}
+		return svc, ds, activities, ctx
+	}
+
+	t.Run("toggle persists and fires activity", func(t *testing.T) {
+		svc, ds, activities, ctx := setup(t, true)
+		team, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			},
+		}})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.True(t, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+		require.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+		require.Equal(t, []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()}, *activities)
+	})
+
+	t.Run("enable requires windows MDM", func(t *testing.T) {
+		svc, ds, _, ctx := setup(t, false)
+		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			WindowsSettings: &fleet.TeamPayloadWindowsSettings{
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+			},
+		}})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "windows_settings.managed_local_account_settings")
+		require.False(t, ds.SaveTeamFuncInvoked)
+	})
+}
+
+// TestApplyTeamSpecsWindowsManagedLocalAccount covers the GitOps team apply path for the new
+// windows_settings.managed_local_account_settings key, including the regression where
+// editTeamFromSpec copies WindowsSettings selectively and would otherwise drop the toggle.
+func TestApplyTeamSpecsWindowsManagedLocalAccount(t *testing.T) {
+	setup := func(t *testing.T, existing *fleet.Team) (*Service, *mock.Store, **fleet.Team, context.Context) {
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+		ctx := test.UserContext(context.Background(),
+			&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			}}, nil
+		}
+		ds.TeamByFilenameFunc = func(context.Context, string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByNameFunc = func(_ context.Context, name string) (*fleet.Team, error) {
+			if existing == nil {
+				return nil, &notFoundError{}
+			}
+			return existing, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+		saved := new(*fleet.Team)
+		ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+			*saved = team
+			return team, nil
+		}
+		ds.NewTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+			team.ID = 42
+			*saved = team
+			return team, nil
+		}
+		ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "TestTeam"}, nil
+		}
+
+		mockSvc := &svcmock.Service{}
+		mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+			return nil
+		}
+
+		svc := &Service{
+			Service: mockSvc,
+			ds:      ds,
+			config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+			authz:   authorizer,
+			logger:  slog.New(slog.DiscardHandler),
+		}
+		return svc, ds, saved, ctx
+	}
+
+	windowsSpec := func(enabled bool) *fleet.TeamSpec {
+		return &fleet.TeamSpec{
+			Name: "TestTeam",
+			MDM: fleet.TeamSpecMDM{
+				WindowsSettings: fleet.WindowsSettings{
+					ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(enabled)},
+				},
+			},
+		}
+	}
+
+	t.Run("create persists the toggle", func(t *testing.T) {
+		svc, _, saved, ctx := setup(t, nil)
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{windowsSpec(true)}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, *saved)
+		require.True(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	})
+
+	t.Run("edit persists the toggle", func(t *testing.T) {
+		svc, _, saved, ctx := setup(t, &fleet.Team{ID: 42, Name: "TestTeam"})
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{windowsSpec(true)}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, *saved)
+		require.True(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	})
+
+	t.Run("edit disables the toggle", func(t *testing.T) {
+		existing := &fleet.Team{ID: 42, Name: "TestTeam"}
+		existing.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+		svc, _, saved, ctx := setup(t, existing)
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{windowsSpec(false)}, fleet.ApplyTeamSpecOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, *saved)
+		require.False(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	})
+}

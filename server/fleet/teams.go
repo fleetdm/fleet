@@ -98,6 +98,16 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+
+	// WindowsSettings exposes only the managed local account surface on the team PATCH endpoint;
+	// configuration profiles are managed through their own endpoints.
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH
+// endpoint.
+type TeamPayloadWindowsSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -160,6 +170,9 @@ func (t Team) MarshalJSON() ([]byte, error) {
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.
 	// Also need to implement json.Marshaler/Unmarshaler on each type that embeds Team so because it will be promoted
 	// to the parent struct.
+	if !t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 	x := struct {
 		ID          uint            `json:"id"`
 		CreatedAt   time.Time       `json:"created_at"`
@@ -460,6 +473,9 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !t.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		t.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -755,6 +771,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
+	if !t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 

@@ -3130,3 +3130,133 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		})
 	}
 }
+
+// TestModifyAppConfigWindowsManagedLocalAccount covers the new
+// windows_settings.managed_local_account_settings surface (#48720): persistence, activities,
+// premium gating, the Windows-MDM precondition, and null semantics.
+func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name           string
+		freeTier       bool
+		windowsMDMOff  bool
+		startEnabled   bool
+		startMacOS     bool
+		patch          string
+		wantErr        string
+		wantActivities []string
+		wantEnabled    bool
+	}{
+		{
+			name:           "enable persists and fires activity",
+			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantActivities: []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()},
+			wantEnabled:    true,
+		},
+		{
+			name:           "disable persists and fires activity",
+			startEnabled:   true,
+			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			wantActivities: []string{fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName()},
+		},
+		{
+			name:         "null enabled means not provided",
+			startEnabled: true,
+			patch:        `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": null}}}}`,
+			wantEnabled:  true,
+		},
+		{
+			name:  "no-op change fires no activity",
+			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+		},
+		{
+			name:           "enabling both platforms in one payload fires one activity",
+			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantActivities: []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()},
+			wantEnabled:    true,
+		},
+		{
+			name:     "enable requires premium",
+			freeTier: true,
+			patch:    `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantErr:  "missing or invalid license",
+		},
+		{
+			name:          "enable requires windows MDM",
+			windowsMDMOff: true,
+			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
+			wantErr:       "windows_settings.managed_local_account_settings",
+		},
+		{
+			name:    "account type under windows_settings rejected",
+			patch:   `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}, "end_user_local_account_type": "admin"}}}`,
+			wantErr: "end_user_local_account_type",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			tier := fleet.TierPremium
+			if tt.freeTier {
+				tier = fleet.TierFree
+			}
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+			// keeping Windows MDM enabled across the PATCH requires a configured WSTEP cert/key pair
+			cfg := config.TestConfig()
+			cfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
+			cfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			dsAppConfig.MDM.EnabledAndConfigured = true
+			dsAppConfig.MDM.WindowsEnabledAndConfigured = !tt.windowsMDMOff
+			dsAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(tt.startMacOS)
+			dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(tt.startEnabled)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			var gotActivities []string
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, act.ActivityName())
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+				require.Empty(t, gotActivities)
+				require.False(t, ds.SaveAppConfigFuncInvoked, "config should not have been saved")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantActivities, gotActivities)
+			require.Equal(t, tt.wantEnabled, dsAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+			// the marshaled config (API responses, stored JSON) always carries the resolved flag
+			b, err := json.Marshal(dsAppConfig)
+			require.NoError(t, err)
+			var out map[string]any
+			require.NoError(t, json.Unmarshal(b, &out))
+			windowsSettings := out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
+			require.Equal(t, map[string]any{"enabled": tt.wantEnabled}, windowsSettings["managed_local_account_settings"])
+		})
+	}
+}

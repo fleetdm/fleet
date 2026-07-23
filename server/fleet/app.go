@@ -1279,6 +1279,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	if !c.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		c.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -2114,10 +2117,20 @@ func (v *Version) AuthzType() string {
 	return "version"
 }
 
+// ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.
+// Future fields (username, password policy) land here.
+type ManagedLocalAccountSettings struct {
+	Enabled optjson.Bool `json:"enabled"`
+}
+
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+
+	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment (#43488).
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {

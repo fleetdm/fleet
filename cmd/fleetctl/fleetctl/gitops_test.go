@@ -8792,3 +8792,57 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 		})
 	}
 }
+
+// TestGitOpsWindowsManagedLocalAccount covers the new
+// windows_settings.managed_local_account_settings key end to end through the real gitops client
+// and server (#48720): the toggle persists, repeated applies are stable, and removing the key
+// from the YAML declaratively disables the feature.
+func TestGitOpsWindowsManagedLocalAccount(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	const fleetServerURL = "https://fleet.example.com"
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	writeConfig := func(controls string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
+controls:
+%s
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Windows Managed Local Account Test
+  secrets:
+    - secret: globalSecret
+software:
+`, controls, fleetServerURL))
+		require.NoError(t, err)
+		return f.Name()
+	}
+
+	enabledFile := writeConfig(`  windows_enabled_and_configured: true
+  windows_settings:
+    managed_local_account_settings:
+      enabled: true`)
+	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// a second apply of the same file must be stable
+	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// removing the key from the YAML declaratively disables the feature
+	disabledFile := writeConfig(`  windows_enabled_and_configured: true`)
+	_ = runAppForTest(t, []string{"gitops", "-f", disabledFile})
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+}

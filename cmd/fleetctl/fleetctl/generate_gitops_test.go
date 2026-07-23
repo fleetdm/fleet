@@ -2959,3 +2959,39 @@ func TestGeneratePoliciesPatchPolicyOrphanedFromFleetMaintainedApp(t *testing.T)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Team patch policy")
 }
+
+// TestGenerateControlsWindowsManagedLocalAccount verifies the
+// windows_settings.managed_local_account_settings emission (#48720): present only when enabled,
+// since gitops treats an absent key as disabled.
+func TestGenerateControlsWindowsManagedLocalAccount(t *testing.T) {
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+
+	mdmConfig := fleet.TeamMDM{
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
+		},
+	}
+	controlsRaw, err := cmd.generateControls(new(uint), "no_team", &mdmConfig)
+	require.NoError(t, err)
+	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
+	require.True(t, ok, "expected a windows_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+
+	// disabled: no managed local account key at all
+	controlsRaw, err = cmd.generateControls(new(uint), "no_team", &fleet.TeamMDM{})
+	require.NoError(t, err)
+	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
+		require.NotContains(t, windowsSection, "managed_local_account_settings")
+	}
+}
