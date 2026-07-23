@@ -21,11 +21,11 @@ var FleetVarsSupportedInScripts = []FleetVarName{
 	FleetVarHostPlatform,
 }
 
-// FindUnsupportedScriptFleetVar returns the name of the first $FLEET_VAR_*
-// reference in contents that is not supported in scripts, or "" if all are
-// supported.
-func FindUnsupportedScriptFleetVar(contents string) string {
-	for _, v := range variables.Find(contents) {
+// FindUnsupportedScriptFleetVar returns the name of a $FLEET_VAR_* reference,
+// from the names returned by variables.Find, that is not supported in
+// scripts, or "" if all are supported.
+func FindUnsupportedScriptFleetVar(fleetVars []string) string {
+	for _, v := range fleetVars {
 		if !slices.Contains(FleetVarsSupportedInScripts, FleetVarName(v)) {
 			return v
 		}
@@ -44,7 +44,7 @@ func ValidateFleetVariablesInScript(contents string, isPremium bool) error {
 	if !isPremium {
 		return ErrMissingLicense
 	}
-	if v := FindUnsupportedScriptFleetVar(contents); v != "" {
+	if v := FindUnsupportedScriptFleetVar(fleetVars); v != "" {
 		return NewInvalidArgumentError("script",
 			fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v))
 	}

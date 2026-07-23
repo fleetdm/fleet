@@ -1346,10 +1346,12 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 			badPayload := []fleet.ScriptPayload{{Name: "test.sh", ScriptContents: []byte(unsupportedVarContents)}}
 			goodPayload := []fleet.ScriptPayload{{Name: "test.sh", ScriptContents: []byte(supportedVarContents)}}
 
-			// unsupported variables are rejected on dry run too
+			// unsupported variables are rejected on dry run too, keyed on the
+			// indexed field so callers can tell which script failed
 			for _, dryRun := range []bool{true, false} {
 				_, err := svc.BatchSetScripts(ctx, nil, nil, badPayload, dryRun)
 				require.ErrorContains(t, err, unsupportedVarErrMsg, "dryRun=%v", dryRun)
+				require.ErrorContains(t, err, "scripts[0]", "dryRun=%v", dryRun)
 			}
 
 			ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {

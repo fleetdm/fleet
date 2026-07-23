@@ -769,6 +769,13 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		// gitops dry runs (like the rest of this loop, it is skipped when a dry
 		// run targets a team that doesn't exist yet)
 		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+			// re-key validation errors on the indexed field, matching the rest
+			// of this loop, so callers can tell which script failed
+			var argErr *fleet.InvalidArgumentError
+			if errors.As(err, &argErr) && len(argErr.Invalid()) > 0 {
+				return nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), argErr.Invalid()[0]["reason"]))
+			}
 			return nil, ctxerr.Wrap(ctx, err, "validate fleet variables in script")
 		}
 

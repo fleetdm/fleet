@@ -18,7 +18,13 @@ import (
 // non-empty failureMessage when a variable exists but can't be resolved for
 // this host (one line per failing variable). Unsupported variable names are
 // left untouched: validation rejects them in new content, and content saved
-// before validation shipped must keep working unchanged.
+// before validation shipped must keep working unchanged. Known limit of
+// variables.Replace, accepted because validation rejects unsupported names
+// going forward: in pre-validation content, an unsupported name that extends
+// a supported one (e.g. $FLEET_VAR_HOST_UUID_SUFFIX) has its prefix replaced
+// along with the supported variable. Supported names that extend each other
+// (e.g. ..._IDP_USERNAME and ..._IDP_USERNAME_LOCAL_PART) are safe because
+// variables.Find returns names longest-first and each is replaced in turn.
 func (svc *Service) maybeExpandScriptFleetVariables(ctx context.Context, host *fleet.Host, contents string) (expanded string, failureMessage string, err error) {
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {

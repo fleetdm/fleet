@@ -347,7 +347,7 @@ func TestSetupExperienceScriptFleetVariables(t *testing.T) {
 	}
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
 	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error { return nil }
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return true, nil }
 	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
 
 	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_VAR_NONEXISTENT")))

@@ -984,13 +984,17 @@ func validateFleetVariablesOnInstallerScripts(ctx context.Context, installScript
 		{"post-install script", postInstallScript},
 		{"uninstall script", uninstallScript},
 	} {
-		if s.contents == nil || len(variables.Find(*s.contents)) == 0 {
+		if s.contents == nil {
+			continue
+		}
+		fleetVars := variables.Find(*s.contents)
+		if len(fleetVars) == 0 {
 			continue
 		}
 		if !isPremium {
 			return fleet.ErrMissingLicense
 		}
-		if v := fleet.FindUnsupportedScriptFleetVar(*s.contents); v != "" {
+		if v := fleet.FindUnsupportedScriptFleetVar(fleetVars); v != "" {
 			msg := fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v)
 			if argErr != nil {
 				argErr.Append(s.name, msg)
