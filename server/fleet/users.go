@@ -125,6 +125,19 @@ func (u *User) IsAdminForcedPasswordReset() bool {
 	return u.AdminForcedPasswordReset
 }
 
+// IsAnyAdmin checks if the user is either Global Admin or Admin on any team.
+func (u *User) IsAnyAdmin() bool {
+	if u.GlobalRole != nil && *u.GlobalRole == RoleAdmin {
+		return true
+	}
+	for _, t := range u.Teams {
+		if t.IsAdmin() {
+			return true
+		}
+	}
+	return false
+}
+
 func (u *User) AuthzType() string {
 	return "user"
 }
@@ -134,6 +147,10 @@ type UserTeam struct {
 	Team
 	// Role is the role the user has for the team.
 	Role string `json:"role" db:"role"`
+}
+
+func (u UserTeam) IsAdmin() bool {
+	return u.Role == RoleAdmin
 }
 
 func (u UserTeam) MarshalJSON() ([]byte, error) {

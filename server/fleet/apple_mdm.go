@@ -728,6 +728,8 @@ type HostDEPAssignment struct {
 	AssignProfileResponse *DEPAssignProfileResponseStatus `db:"assign_profile_response" json:"assign_profile_response,omitempty"`
 	// ResponseUpdatedAt is the timestamp when AssignProfileResponse was last updated.
 	ResponseUpdatedAt *time.Time `db:"response_updated_at" json:"response_updated_at,omitempty"`
+	// HardwareSerial is omitted from JSON to avoid overpopulating old responses.
+	HardwareSerial string `db:"hardware_serial" json:"-"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -1650,4 +1652,26 @@ type DDMAssetAuthz struct {
 // AuthzType implements authz.AuthzTyper.
 func (d DDMAssetAuthz) AuthzType() string {
 	return "ddm_asset"
+}
+
+type ABReleaseDeviceStatus string
+
+const (
+	ABReleaseDeviceStatusSuccess ABReleaseDeviceStatus = "success"
+	ABReleaseDeviceStatusError   ABReleaseDeviceStatus = "failed"
+)
+
+type ABReleaseDeviceResponse struct {
+	HostID uint   `json:"host_id"`
+	Status string `json:"status"`
+	Error  string `json:"error,omitempty"`
+}
+
+// ABReleaseDeviceAuthz is used to check user authorization to release a device from AB.
+type ABReleaseDeviceAuthz struct {
+	TeamID *uint `json:"team_id,omitempty,omitzero"` // nolint:apiparamcheck // used for rego policy, and we only support team_id there.
+}
+
+func (a ABReleaseDeviceAuthz) AuthzType() string {
+	return "mdm_ab_release"
 }

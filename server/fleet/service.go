@@ -931,7 +931,7 @@ type Service interface {
 	// Returns (nil, nil, "", nil) for non-DEP hosts.
 	// If ABM returns an error, dep_device is nil, depError classifies why, and
 	// the original error is logged rather than returned to the caller.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, DEPDeviceErrorType, error)
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
@@ -1613,6 +1613,9 @@ type Service interface {
 	// for a team (used by GitOps). It upserts the given assets and deletes any
 	// existing assets not in the set.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+	// ReleaseABDevices releases the specified Apple Business devices.
+	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
 }
 
 type KeyValueStore interface {

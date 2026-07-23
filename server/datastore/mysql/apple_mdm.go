@@ -6768,6 +6768,13 @@ LIMIT 1`
 		Platform string `db:"platform"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// The host may not have a DEP assignment yet (e.g. the enrollment
+			// request arrived before the host/DEP assignment row was created or
+			// replicated). Return a not-found error so callers can skip the OS
+			// updates check and allow enrollment to proceed.
+			return "", nil, ctxerr.Wrap(ctx, notFound("Host").WithName(serial), "getting team id for host")
+		}
 		return "", nil, ctxerr.Wrap(ctx, err, "getting team id for host")
 	}
 
@@ -8453,4 +8460,23 @@ func (ds *Datastore) GetAppleDDMAssetForDelivery(ctx context.Context, identifier
 		return nil, ctxerr.Wrap(ctx, err, "getting apple ddm asset by identifier")
 	}
 	return &asset, nil
+}
+
+func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs []uint) ([]*fleet.HostDEPAssignment, error) {
+	if len(hostIDs) == 0 {
+		return []*fleet.HostDEPAssignment{}, nil
+	}
+
+	var res []*fleet.HostDEPAssignment
+	query, args, err := sqlx.In(`SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed, hardware_serial
+		FROM host_dep_assignments hdep
+		WHERE hdep.host_id IN (?) AND hdep.deleted_at IS NULL`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for host dep assignments by host IDs")
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "getting host dep assignments by host IDs")
+	}
+	return res, nil
 }

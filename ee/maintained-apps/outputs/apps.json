@@ -366,6 +366,13 @@
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
+      "name": "Airtable",
+      "slug": "airtable/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
@@ -1267,6 +1274,20 @@
       "platform": "windows",
       "unique_identifier": "Box",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Box.Box-Edit",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Tools",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
     },
     {
       "name": "Brave",
@@ -3992,6 +4013,13 @@
       "description": "HazeOver is a windows manager and desktop organiser."
     },
     {
+      "name": "HeidiSQL",
+      "slug": "heidisql/windows",
+      "platform": "windows",
+      "unique_identifier": "HeidiSQL",
+      "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
+    },
+    {
       "name": "Helium",
       "slug": "helium/darwin",
       "platform": "darwin",
@@ -4083,6 +4111,13 @@
       "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
     },
     {
+      "name": "HP Prime Virtual Calculator",
+      "slug": "hp-prime-virtual-calculator/windows",
+      "platform": "windows",
+      "unique_identifier": "HP Prime Virtual Calculator",
+      "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
+    },
+    {
       "name": "Hubstaff",
       "slug": "hubstaff/darwin",
       "platform": "darwin",
@@ -4095,6 +4130,13 @@
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
+      "name": "HWMonitor",
+      "slug": "hwmonitor/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID HWMonitor",
+      "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",
@@ -6432,7 +6474,14 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "PopChar X",

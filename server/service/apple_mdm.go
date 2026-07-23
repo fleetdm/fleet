@@ -471,6 +471,9 @@ func (svc *Service) parseAndValidateAppleConfigProfile(ctx context.Context, team
 	}
 
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, nil, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return nil, nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
@@ -1056,6 +1059,9 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 
 	// Validate custom host vital references (top-level $FLEET_HOST_VITAL_<id>).
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(data)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, nil, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		return nil, nil, "", fleet.NewInvalidArgumentError("profile", err.Error())
 	}
 
@@ -3306,6 +3312,9 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				"missing fleet secrets")
 		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(prof)}); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
 		mdmProf, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), tmID)
@@ -4359,6 +4368,34 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+type releaseABDevicesRequest struct {
+	HostIDs []uint `json:"ids"`
+}
+
+type releaseABDevicesResponse struct {
+	Results []*fleet.ABReleaseDeviceResponse `json:"results"`
+	Err     error                            `json:"error,omitempty"`
+}
+
+func (r releaseABDevicesResponse) Error() error { return r.Err }
+
+func releaseABDevicesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*releaseABDevicesRequest)
+	results, err := svc.ReleaseABDevices(ctx, req.HostIDs)
+	if err != nil {
+		return releaseABDevicesResponse{Results: nil, Err: err}, nil
+	}
+	return releaseABDevicesResponse{Results: results}, nil
+}
+
+func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

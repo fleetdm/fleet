@@ -202,6 +202,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{ID: tid}, nil
 	}
+	// GitOps clears the setup experience script on every non-dry-run team apply, which now reads
+	// the existing script first. Default to "none set" so the delete is a clean no-op; tests that
+	// care about setup experience scripts override this.
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, &notFoundError{}
+	}
 	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
@@ -594,11 +600,14 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, &notFoundError{}
+	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil

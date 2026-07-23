@@ -7376,11 +7376,12 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 		// silently leave this test passing.
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "esp-script-" + uuid.NewString()})
 		require.NoError(t, err)
-		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
 			TeamID:         &team.ID,
 			Name:           "setup.sh",
 			ScriptContents: "echo setup",
-		}))
+		})
+		require.NoError(t, err)
 
 		hasItems, err := ds.HasWindowsSetupExperienceItemsForTeam(ctx, team.ID)
 		require.NoError(t, err)

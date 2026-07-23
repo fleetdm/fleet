@@ -244,8 +244,9 @@ type Datastore interface {
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
-	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	// members of this label, or an error. When hostIDs is non-nil, the label's
+	// manual membership is replaced with exactly those hosts.
+	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
 	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
@@ -550,6 +551,11 @@ type Datastore interface {
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
 	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	// ResetPassword consumes the password reset request matching the given token and
+	// applies the new (already-hashed) password to the user, invalidating the user's
+	// other outstanding reset requests and all active sessions. A not-found error is
+	// returned when the token is unknown, expired, or already consumed.
+	ResetPassword(ctx context.Context, token string, user *User) error
 	// CleanupExpiredPasswordResetRequests deletes any password reset requests that have expired.
 	CleanupExpiredPasswordResetRequests(ctx context.Context) error
 
@@ -1612,6 +1618,10 @@ type Datastore interface {
 
 	// GetHostDEPAssignmentsBySerial returns the DEP assignment for the host with the specified serial number.
 	GetHostDEPAssignmentsBySerial(ctx context.Context, serial string) ([]*HostDEPAssignment, error)
+
+	// GetHostDEPAssignmentsByHostIDs returns the DEP assignments for the hosts with the specified host IDs,
+	// and deleted_at IS NULL.
+	GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs []uint) ([]*HostDEPAssignment, error)
 
 	// ReconcileDuplicateDEPHostOnDelete handles the DEP assignment of a host
 	// being deleted when one or more duplicate hosts (same serial and platform,
@@ -3187,8 +3197,9 @@ type Datastore interface {
 	// GetSetupExperienceScriptByID gets the setup experience script by its ID.
 	GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*Script, error)
 
-	// SetSetupExperienceScript sets the setup experience script to the given script.
-	SetSetupExperienceScript(ctx context.Context, script *Script) error
+	// SetSetupExperienceScript sets the setup experience script to the given script. It reports
+	// whether the stored script actually changed (false when the same content is re-submitted).
+	SetSetupExperienceScript(ctx context.Context, script *Script) (changed bool, err error)
 
 	// DeleteSetupExperienceScript deletes the setup experience script for the given team.
 	DeleteSetupExperienceScript(ctx context.Context, teamID *uint) error

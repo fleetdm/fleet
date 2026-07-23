@@ -337,6 +337,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeRanScriptBatch{},
 		fleet.ActivityTypeBatchScriptScheduled{},
 		fleet.ActivityTypeBatchScriptCanceled{},
+		fleet.ActivityCreatedSetupExperienceScript{},
+		fleet.ActivityDeletedSetupExperienceScript{},
 	},
 	CategorySoftware: {
 		fleet.ActivityTypeInstalledSoftware{},
