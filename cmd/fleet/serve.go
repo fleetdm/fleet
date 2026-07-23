@@ -149,6 +149,21 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// networkBlockingModeFor decides the outbound network-blocking mode for
+// integration HTTP requests. BypassNetworkBlocking is an infra-level escape
+// hatch, only settable via server startup config, never a runtime admin
+// operation.
+func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerConfig) fleethttp.NetworkBlockingMode {
+	switch {
+	case devModeEnabled, serverConfig.BypassNetworkBlocking:
+		return fleethttp.BlockingBypassAll
+	case serverConfig.AllowPrivateNetworkIntegrations:
+		return fleethttp.BlockingPrivateAllowed
+	default:
+		return fleethttp.BlockingFull
+	}
+}
+
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
 	config := configManager.LoadConfig()
@@ -158,14 +173,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Set network blocking mode for outbound integration requests.
-	switch {
-	case dev_mode.IsEnabled:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
-	case config.Server.AllowPrivateNetworkIntegrations:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
-	default:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
-	}
+	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {
@@ -1109,8 +1117,10 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
 	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
+	// Makes sure that api_only users are subject to endpoint
+	// restrictions on chart routes.
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
-		return auth.AuthenticatedUser(svc, next)
+		return auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(next))
 	}
 	chartRoutes := chartRoutesFn(chartAuthMiddleware)
 	return chartSvc, chartRoutes

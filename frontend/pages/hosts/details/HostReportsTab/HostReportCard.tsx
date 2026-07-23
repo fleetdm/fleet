@@ -152,7 +152,7 @@ const HostReportCard = ({
         >
           <Button
             className={`${baseClass}__view-full-report`}
-            variant="inverse"
+            variant="subdued"
             size="small"
             onClick={() => onShowDetails(report)}
           >
@@ -192,7 +192,7 @@ const HostReportCard = ({
             options={actionOptions}
             placeholder="Actions"
             onChange={onActionChange}
-            variant="button"
+            variant="secondary"
             menuAlign="right"
           />
         </div>

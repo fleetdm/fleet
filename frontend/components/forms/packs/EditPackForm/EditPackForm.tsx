@@ -138,7 +138,7 @@ const EditPackForm = ({
         isLoadingPackQueries={isLoadingPackQueries}
       />
       <div className={`${baseClass}__pack-buttons`}>
-        <Button onClick={onCancelEditPack} type="button" variant="inverse">
+        <Button onClick={onCancelEditPack} type="button" variant="secondary">
           Cancel
         </Button>
         <Button

@@ -4,6 +4,8 @@ Custom host vitals let you define your own host fields, set a value for each hos
 
 Unlike [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`), which hold a single value shared across all hosts, a custom host vital can hold a **different value per host**. For example, an "Asset tag" vital can resolve to a different asset tag on every device. Custom host vital values are **not** hidden in the UI or API — don't use them for secrets.
 
+Support for custom host vitals in [Android configuration profiles](https://github.com/fleetdm/fleet/issues/49421) and [host name templates](https://github.com/fleetdm/fleet/issues/49489) is coming in Fleet 4.91.
+
 ## Prerequisites
 
 - A global admin or maintainer role to add, edit, or delete custom host vitals.
@@ -83,10 +85,6 @@ For example, a configuration profile that writes the host's asset tag (defined a
 When a host's value changes, Fleet automatically resends the Apple (macOS, iOS, iPadOS) and Windows configuration profiles that reference the vital, so each device receives its updated value.
 
 ## Known limitations and issues
-
-> Support for custom host vitals in host name templates is [coming soon](https://github.com/fleetdm/fleet/issues/49489).
-
-> Support for custom host vitals in Android configuration profiles is [coming soon](https://github.com/fleetdm/fleet/issues/49421).
 
 - Custom host vital values are **not** masked in the Fleet UI, API, or script results. Use [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) for secrets.
 - A custom host vital **can't be deleted while it's referenced** by a script or configuration profile. Edit or delete the referencing script/profile first, then delete the vital.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.2.1",
+      "version": "8.3.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software' AND version_compare(version, '8.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NAPS2' AND publisher = 'NAPS2 Software' AND version_compare(version, '8.3.2') < 0);"
       },
-      "installer_url": "https://github.com/cyanfish/naps2/releases/download/v8.2.1/naps2-8.2.1-win-x64.msi",
+      "installer_url": "https://github.com/cyanfish/naps2/releases/download/v8.3.2/naps2-8.3.2-win-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "6e7bd63d",
-      "sha256": "84fdf4747f7c0dd0bdfd081073684c6dc1924ec08283939b3ffa7893c2131aec",
+      "sha256": "9254e3faf303ef3135584572b61b75b4ad4623aa61efd75189e8fd7e72c077bd",
       "default_categories": [
         "Productivity"
       ],

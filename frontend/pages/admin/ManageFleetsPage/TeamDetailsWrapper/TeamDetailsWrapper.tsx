@@ -26,7 +26,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import BackButton from "components/BackButton";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import MainContent from "components/MainContent";
 import { notify } from "components/ToastNotification";
 import DeleteFleetModal from "../components/DeleteFleetModal";
@@ -402,11 +402,11 @@ const TeamDetailsWrapper = ({
             {userTeams?.length === 1 ? (
               <h1>{currentTeamDetails.name}</h1>
             ) : (
-              <TeamsDropdown
-                selectedTeamId={currentTeamId}
-                currentUserTeams={userTeams || []}
+              <FleetsDropdown
+                selectedFleetId={currentTeamId}
+                currentUserFleets={userTeams || []}
                 isDisabled={isLoadingTeams}
-                includeAllTeams={false}
+                includeAllFleets={false}
                 onChange={handleTeamChange}
               />
             )}
@@ -427,7 +427,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Manage enroll secrets",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "eye",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
@@ -435,7 +435,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Rename fleet",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "pencil",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
@@ -443,7 +443,7 @@ const TeamDetailsWrapper = ({
               {
                 type: "secondary",
                 label: "Delete fleet",
-                buttonVariant: "inverse",
+                buttonVariant: "secondary",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.20.0",
+      "version": "7.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify' AND version_compare(bundle_short_version, '6.20.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.gitify' AND version_compare(bundle_short_version, '7.0.1') < 0);"
       },
-      "installer_url": "https://github.com/gitify-app/gitify/releases/download/v6.20.0/Gitify-6.20.0-universal-mac.zip",
+      "installer_url": "https://github.com/gitify-app/gitify/releases/download/v7.0.1/Gitify-7.0.1-universal-mac.zip",
       "install_script_ref": "4dfde5cf",
       "uninstall_script_ref": "65bf9482",
-      "sha256": "8fc383a66b7190e33b488bdd208178e35e4cbc9d22eb8bd3d3931ab9f3e77a1b",
+      "sha256": "f7623606264eb0a25d85a0ec52595d99124d36767eb494db59bd353ca041735c",
       "default_categories": [
         "Utilities"
       ]

@@ -91,6 +91,7 @@ func TestLabels(t *testing.T) {
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
@@ -766,7 +767,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label.Name = "changed name"
 	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
 	saved.Name = label.Name
-	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, filter)
+	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, nil, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved2.Name)
 	assert.Equal(t, label.Description, saved2.Description)
@@ -1191,7 +1192,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	_, _, err = db.SaveLabel(context.Background(), label, filter)
+	_, _, err = db.SaveLabel(context.Background(), label, nil, filter)
 	require.NoError(t, err)
 	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.NoError(t, err)
@@ -1261,6 +1262,44 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.Nil(t, err)
 
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
+}
+
+func testRecordLabelQueryExecutionsQueryErrorKeepsMembership(t *testing.T, db *Datastore) {
+	ctx := t.Context()
+	h1, err := db.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("1"),
+		NodeKey:         new("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	require.NoError(t, db.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{l1}))
+
+	// Host matches the label.
+	require.NoError(t, db.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{l1.ID: new(true)}, time.Now(), false))
+
+	labels, err := db.ListLabelsForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	// The label query errors out on a later run (e.g. "extension socket not
+	// available"), reported as a nil result rather than an explicit non-match.
+	// This must not remove the host's existing label membership.
+	require.NoError(t, db.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{l1.ID: nil}, time.Now(), false))
+
+	labels, err = db.ListLabelsForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1, "label membership should be unchanged when the label query errors")
 }
 
 func testDeleteLabel(t *testing.T, db *Datastore) {

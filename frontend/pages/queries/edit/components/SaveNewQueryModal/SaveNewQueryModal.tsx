@@ -340,6 +340,7 @@ const SaveNewQueryModal = ({
           showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
+          variant="secondary"
         />
         {showAdvancedOptions && (
           <>
@@ -381,7 +382,7 @@ const SaveNewQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={toggleSaveNewQueryModal} variant="inverse">
+          <Button onClick={toggleSaveNewQueryModal} variant="secondary">
             Cancel
           </Button>
         </div>

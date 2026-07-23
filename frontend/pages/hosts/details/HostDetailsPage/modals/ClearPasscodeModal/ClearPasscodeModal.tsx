@@ -103,7 +103,7 @@ const ClearPasscodeModal = ({
         >
           Clear passcode
         </Button>
-        <Button onClick={onExit} variant="inverse-alert">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>

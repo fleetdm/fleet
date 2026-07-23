@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.12.3.2605",
+      "version": "6.12.5.2659",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.' AND version_compare(version, '6.12.3.2605') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Enpass' AND publisher = 'Enpass Technologies Inc.' AND version_compare(version, '6.12.5.2659') < 0);"
       },
-      "installer_url": "https://dl.enpass.io/stable/windows/setup/x64/6.12.3.2605/Enpass-setup.exe",
+      "installer_url": "https://dl.enpass.io/stable/windows/setup/x64/6.12.5.2659/Enpass-setup.exe",
       "install_script_ref": "e75b1371",
       "uninstall_script_ref": "e6219b05",
-      "sha256": "2dbe2f1be28d927ae55ab34e083bfecb44fbe34fda6971558da725c27ec7e161",
+      "sha256": "5dbff62ef35262e31814f1f30d290b1abc8fbc957f9fb837d7068344abc96030",
       "default_categories": [
         "Productivity"
       ]

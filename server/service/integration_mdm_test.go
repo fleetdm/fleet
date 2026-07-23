@@ -8876,6 +8876,36 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resTOCcontent, "OpaqueBlob=")
 }
 
+func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
+	t := s.T()
+
+	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
+	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
+	unsafeRedirectURIs := map[string]string{
+		"javascript": "javascript:console.log(424281957)//",
+		"data":       "data:text/html,<script>alert(1)</script>",
+		"vbscript":   "vbscript:msgbox(1)",
+	}
+
+	for name, redirectURI := range unsafeRedirectURIs {
+		t.Run(name, func(t *testing.T) {
+			resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri="+url.QueryEscape(redirectURI)+
+				"&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+
+			resBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			resContent := string(resBytes)
+
+			// The response must be a SOAP fault rather than the rendered TOS page, and must not reflect the payload.
+			require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
+			require.True(t, s.isXMLTagPresent("s:fault", resContent))
+			require.NotContains(t, resContent, redirectURI)
+			require.NotContains(t, resContent, "Agree and continue")
+			require.NotContains(t, resContent, "IsAccepted=true")
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	t := s.T()
 	orbitHost, d := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -9351,82 +9381,136 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Set up enroll secret and Entra tenant
+	// Shared setup: enroll secret, Entra tenant, and a team with no profiles or setup-experience items, so every release
+	// gate passes at the first Active checkin. The scenarios verify the state transitions (Pending -> Active -> None)
+	// without needing profile delivery.
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 	tenantID := uuid.New().String()
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`), http.StatusOK, &acResp)
-
-	// Enroll device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending)
-	azureMail := "esp-test@example.com"
-	d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
-	require.NoError(t, d.Enroll())
-
-	// First checkin: receive fleetd install commands (and possibly ESP hold
-	// commands), ack all of them.
-	cmds, err := d.StartManagementSession()
-	require.NoError(t, err)
-	msgID, err := d.GetCurrentMsgID()
-	require.NoError(t, err)
-	for _, c := range cmds {
-		if c.Verb == "Status" {
-			continue
-		}
-		d.AppendResponse(fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdStatus},
-			MsgRef:  &msgID, CmdRef: &c.Cmd.CmdID.Value,
-			Cmd: &c.Verb, Data: ptr.String("200"),
-			CmdID: fleet.CmdID{Value: uuid.NewString()},
-		})
-	}
-	_, err = d.SendResponse()
-	require.NoError(t, err)
-
-	// Create a team first, then simulate fleetd installed on that team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 
-	host := createOrbitEnrolledHost(t, "windows", "esp-h1", s.ds)
-	// Transfer host to the team via the API
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
-		TeamID:  &tm.ID,
-		HostIDs: []uint{host.ID},
-	}, http.StatusOK, &addHostsToTeamResponse{})
-
-	updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
-	require.NoError(t, err)
-	require.True(t, updated)
-	err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
-	require.NoError(t, err)
-
-	// No profiles added to the team -- the test verifies state transitions
-	// (Pending → Active → None) without needing profile delivery.
-
-	// First management checkin after orbit links: device transitions to Active.
-	_, err = d.StartManagementSession()
-	require.NoError(t, err)
-
-	enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-	require.NoError(t, err)
-	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, enrolledDevice.AwaitingConfiguration)
-
-	// Second checkin: all profiles delivered, device should be released.
-	cmds, err = d.StartManagementSession()
-	require.NoError(t, err)
-
-	var foundRelease bool
-	for _, c := range cmds {
-		if c.Verb == fleet.CmdReplace && strings.Contains(c.Cmd.GetTargetURI(), "ServerHasFinishedProvisioning") {
-			foundRelease = true
-			break
+	// findUserRelease returns the user-scope ServerHasFinishedProvisioning Replace from a command batch, nil when absent.
+	findUserRelease := func(cmds map[string]fleet.ProtoCmdOperation) *fleet.ProtoCmdOperation {
+		for _, c := range cmds {
+			uri := c.Cmd.GetTargetURI()
+			if c.Verb == fleet.CmdReplace && strings.Contains(uri, "./User/") && strings.Contains(uri, "ServerHasFinishedProvisioning") {
+				return &c
+			}
 		}
+		return nil
 	}
-	require.True(t, foundRelease, "should release device with ServerHasFinishedProvisioning")
+	// ackAll acks every non-Status command in the batch with 200, except the command with statusOverrideUUID
+	// which is acked with the given status. Returns the server's response to the ack message.
+	ackAll := func(t *testing.T, d *mdmtest.TestWindowsMDMClient, cmds map[string]fleet.ProtoCmdOperation, statusOverrideUUID, overrideStatus string) map[string]fleet.ProtoCmdOperation {
+		ackMsgID, err := d.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == "Status" {
+				continue
+			}
+			status := "200"
+			if c.Cmd.CmdID.Value == statusOverrideUUID {
+				status = overrideStatus
+			}
+			d.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &ackMsgID, CmdRef: &c.Cmd.CmdID.Value,
+				Cmd: &c.Verb, Data: &status,
+				CmdID: fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		resp, err := d.SendResponse()
+		require.NoError(t, err)
+		return resp
+	}
+	// awaiting returns the device's current awaiting_configuration state.
+	awaiting := func(t *testing.T, d *mdmtest.TestWindowsMDMClient) fleet.WindowsMDMAwaitingConfiguration {
+		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+		require.NoError(t, err)
+		return enrolledDevice.AwaitingConfiguration
+	}
+	// enrollToActive enrolls a device via Autopilot (Automatic + InOOBE -> awaiting_configuration=Pending), acks the
+	// first checkin (fleetd install and ESP hold commands), simulates fleetd on the team (orbit host + host_uuid link),
+	// and advances the enrollment to Active. Returns a client ready to receive the release.
+	enrollToActive := func(t *testing.T, azureMail, hostName string) *mdmtest.TestWindowsMDMClient {
+		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, azureMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+		require.NoError(t, d.Enroll())
 
-	enrolledDevice, err = s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-	require.NoError(t, err)
-	assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, enrolledDevice.AwaitingConfiguration)
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		ackAll(t, d, cmds, "", "")
+
+		host := createOrbitEnrolledHost(t, "windows", hostName, s.ds)
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+			TeamID:  &tm.ID,
+			HostIDs: []uint{host.ID},
+		}, http.StatusOK, &addHostsToTeamResponse{})
+		updated, err := s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, d.DeviceID)
+		require.NoError(t, err)
+		require.True(t, updated)
+		err = s.ds.SetOrUpdateHostOrbitInfo(ctx, host.ID, "1.23", sql.NullString{}, sql.NullBool{})
+		require.NoError(t, err)
+
+		// First management checkin after orbit links: device transitions to Active.
+		_, err = d.StartManagementSession()
+		require.NoError(t, err)
+		require.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+		return d
+	}
+
+	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
+		d := enrollToActive(t, "esp-retry@example.com", "esp-h1")
+
+		// All release gates pass: the release commands are sent, including the user-scope ServerHasFinishedProvisioning Replace.
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		userRelease := findUserRelease(cmds)
+		require.NotNil(t, userRelease, "should release device with the user-scope ServerHasFinishedProvisioning")
+
+		// Sending the release must NOT complete the ESP on Fleet's side: during OOBE the device rejects
+		// user-scope writes with SyncML 405 until its user MDM context initializes.
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"enrollment must stay Active until the user-scope release is acked 200")
+
+		// The device 405s the user-scope Replace (user MDM context not ready) and acks everything else 200.
+		afterNack := ackAll(t, d, cmds, userRelease.Cmd.CmdID.Value, "405")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"a 405 on the user-scope release must NOT complete the ESP")
+
+		// The server re-sends the user-scope Replace in its response to the ack: the test client enrolls without
+		// an auth-challenge round-trip, so its ack message carries MsgID 2, which is within the session-start
+		// retry gate (espRetryAllowedForMessage). Real devices observed live ack on MsgID 3+ and get the retry at
+		// the next session instead; that shape is covered by the "acked 405 mid-session" unit subtest.
+		retry := findUserRelease(afterNack)
+		require.NotNil(t, retry, "the user-scope release must be re-sent after a 405")
+
+		// The user MDM context is now up: the device accepts the retried Replace. The 200 ack completes the ESP
+		// within the same message exchange (results are recorded before the ESP handler runs).
+		ackAll(t, d, map[string]fleet.ProtoCmdOperation{retry.Cmd.CmdID.Value: *retry}, "", "")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, awaiting(t, d),
+			"the 200 ack of the user-scope release completes the ESP")
+	})
+
+	t.Run("user-scope release acked immediately", func(t *testing.T) {
+		// The zero-retry happy path: the device accepts the release on the first send.
+		d := enrollToActive(t, "esp-happy@example.com", "esp-h2")
+
+		cmds, err := d.StartManagementSession()
+		require.NoError(t, err)
+		require.NotNil(t, findUserRelease(cmds), "should release device with the user-scope ServerHasFinishedProvisioning")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d),
+			"enrollment must stay Active until the user-scope release is acked 200")
+
+		// The device acks everything 200. Completion commits within the same message exchange, and the server
+		// must not send another release attempt in its reply.
+		afterAck := ackAll(t, d, cmds, "", "")
+		assert.Nil(t, findUserRelease(afterAck), "no retry may follow a successful ack")
+		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationNone, awaiting(t, d),
+			"the 200 ack of the user-scope release completes the ESP")
+	})
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
@@ -11244,6 +11328,11 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
+	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
+	// reading.
+	require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))

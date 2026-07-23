@@ -3844,7 +3844,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 			SELECT 1
 			FROM software_installers
 			WHERE self_service = 1
-			  AND (platform = ? OR (extension = 'sh' AND platform = 'linux' AND ? = 'darwin'))
+			  AND (platform = ? OR (extension IN ('sh', 'py') AND platform = 'linux' AND ? = 'darwin'))
 			  AND global_or_team_id = ?
 		) OR EXISTS (
 			SELECT 1
@@ -4487,6 +4487,18 @@ func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, pay
 		if exists {
 			return conflict(fleet.SoftwareAlreadyHasVPPAppMessage)
 		}
+
+		if payload.FleetMaintainedAppID != nil {
+			existingName, conflicts, err := ds.checkConflictingFleetMaintainedAppExists(ctx, payload)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check for conflicting fleet-maintained app")
+			}
+			if conflicts {
+				return ctxerr.Wrap(ctx, fleet.ConflictError{
+					Message: fmt.Sprintf(fleet.CantAddConflictingFMAMessage, existingName, payload.Title),
+				}, "different fleet-maintained app already exists on the title")
+			}
+		}
 	}
 
 	// custom packages and Fleet-maintained apps can't share a title
@@ -4588,6 +4600,38 @@ func (ds *Datastore) checkFleetMaintainedAppExists(ctx context.Context, payload 
 		return false, ctxerr.Wrap(ctx, err, "check fleet-maintained app exists")
 	}
 	return exists, nil
+}
+
+// checkConflictingFleetMaintainedAppExists reports whether the team has an installer for a different
+// FMA on the same macOS title (two FMAs sharing a bundle identifier, e.g. Firefox and Firefox ESR),
+// returning that app's name. Versions of the same app don't conflict. Unlike
+// checkFleetMaintainedAppExists (custom package vs. FMA), this compares FMA IDs. FleetMaintainedAppID
+// must be non-nil — a NULL in the != comparison matches nothing.
+func (ds *Datastore) checkConflictingFleetMaintainedAppExists(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (string, bool, error) {
+	if payload.FleetMaintainedAppID == nil || payload.BundleIdentifier == "" {
+		return "", false, nil
+	}
+
+	const stmt = `
+		SELECT fma.name
+		FROM software_installers si
+		JOIN software_titles st ON st.id = si.title_id
+		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		WHERE si.global_or_team_id = ? AND st.source = ? AND st.bundle_identifier = ?
+			AND si.fleet_maintained_app_id != ?
+		LIMIT 1`
+
+	var name string
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt,
+		ptr.ValOrZero(payload.TeamID), payload.Source, payload.BundleIdentifier, *payload.FleetMaintainedAppID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", false, nil
+	case err != nil:
+		return "", false, ctxerr.Wrap(ctx, err, "check conflicting fleet-maintained app exists")
+	default:
+		return name, true, nil
+	}
 }
 
 func (ds *Datastore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint) ([]*fleet.HostSoftwareWithInstaller, *string, error) {

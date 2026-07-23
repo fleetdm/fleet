@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.2.18",
+      "version": "1.2.23",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.18') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hive.app' AND version_compare(bundle_short_version, '1.2.23') < 0);"
       },
-      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.18/Hive-1.2.18-arm64.dmg",
+      "installer_url": "https://github.com/morapelker/hive/releases/download/v1.2.23/Hive-1.2.23-arm64.dmg",
       "install_script_ref": "6b39e7ad",
       "uninstall_script_ref": "78bb4e43",
-      "sha256": "919cfa556304c976234b5312b4bfd0981852896e7cd415debd6a40b7da8a4b72",
+      "sha256": "815662cd7f404e8b68f8f429f0abbb35cc2cfc952c7de86b453fe8c0f04700c4",
       "default_categories": [
         "Productivity"
       ]

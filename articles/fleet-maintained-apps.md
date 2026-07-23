@@ -89,11 +89,21 @@ Use a caret (`^`) constraint to pin to a major version (for example, `"^147"`). 
 
 You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:id/package`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
 
-## Roll back to a previous version
+## Rollback to a previous version
 
-If a new version introduces a bug, roll back by pinning the app to the previous version using the same **Actions > Versions** workflow (or the GitOps `version` key or REST API above).
+> Installing an older version of an app on top of a newer version might cause issues for some apps. The best practice is to test this on a test device first.
 
-> Hosts already running the newer version will downgrade to the pinned version the next time the app is installed.
+Sometimes, end users report that the latest version of an app introcduces buggy behavior that prevents them from getting their work done. If this happens, you can rollback the app to the older version:
+
+1. Pin the app to the older version. [Learn how](#pin-a-version).
+2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, delete the policy.
+3. Create a new, custom policy (Zoom example below) that fails if a host has the version with the buggy behavior and add a software automation to install the older version.
+
+```sql
+SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM programs WHERE name = 'Zoom' AND version = '<version_with_bug>'
+);
+```
 
 ## Keep apps up to date with patch policies
 
@@ -122,6 +132,8 @@ Fleet:
 - fetches the [full maintained apps list](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json) from GitHub hourly (or when you run `fleetctl trigger --name=maintained_apps`; interval was daily prior to Fleet 4.71.0)
 - fetches an individual app's manifest when the **Add** button is pressed from the maintained apps list in the UI, and when an individual app is [retrieved](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-maintained-app) or [added](https://fleetdm.com/docs/rest-api/rest-api#add-fleet-maintained-app) via the REST API
 - DOES NOT directly pull data from WinGet or Homebrew to end-user devices
+
+For a deeper look at the whole pipeline, including validation on real hosts, how broken updates are frozen, and the security model, see [how Fleet keeps Fleet-maintained apps safe and up to date](https://fleetdm.com/articles/inside-fleet-maintained-apps).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">

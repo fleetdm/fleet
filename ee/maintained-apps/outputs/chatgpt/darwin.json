@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.715.31925",
+      "version": "26.715.72359",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' AND version_compare(bundle_short_version, '26.715.31925') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' AND version_compare(bundle_short_version, '26.715.72359') < 0);"
       },
-      "installer_url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.715.31925.zip",
+      "installer_url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.715.72359.zip",
       "install_script_ref": "6872008e",
       "uninstall_script_ref": "678e6cf0",
-      "sha256": "a0cded116975c71c723dc8601c07402533b5ff23881d15e52cfb6dc71413e45b",
+      "sha256": "bb599bc22331bebb6ca85e8e9493433a495d44f461efcede3e7054f326b047ef",
       "default_categories": [
         "Productivity"
       ]

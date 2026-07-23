@@ -13,6 +13,7 @@
 // to support a web view
 
 import Foundation
+import os
 import Security
 
 extension AuthenticationViewController {
@@ -23,35 +24,59 @@ extension AuthenticationViewController {
     // assertion. Fleet always publishes an encryption key, so the caller treats
     // nil as fatal rather than proceeding with password encryption disabled.
     func loginRequestEncryptionKey(jwksURL: URL) async -> SecKey? {
-        guard let (data, resp) = try? await URLSession.shared.data(from: jwksURL),
-              let http = resp as? HTTPURLResponse,
-              (200...299).contains(http.statusCode),
-              let jwks = try? JSONDecoder().decode(JWKSet.self, from: data)
-        else { return nil }
+        let data: Data
+        do {
+            let (body, resp) = try await URLSession.shared.data(from: jwksURL)
+            guard let http = resp as? HTTPURLResponse,
+                  (200...299).contains(http.statusCode) else {
+                let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+                logger.error("loginRequestEncryptionKey: JWKS fetch returned HTTP \(status, privacy: .public)")
+                return nil
+            }
+            data = body
+        } catch {
+            logger.error("loginRequestEncryptionKey: JWKS fetch failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+        guard let jwks = try? JSONDecoder().decode(JWKSet.self, from: data) else {
+            logger.error("loginRequestEncryptionKey: JWKS decode failed")
+            return nil
+        }
 
         for jwk in jwks.keys where jwk.use == "enc" {
             if let key = jwk.ecPublicSecKey() {
                 return key
             }
         }
+        logger.error("loginRequestEncryptionKey: no usable enc key in JWKS")
         return nil
     }
 
     // postDeviceRegistration POSTs the registration payload to Fleet and
     // returns true on a 2xx response.
     func postDeviceRegistration(payload: [String: String]) async -> Bool {
-        guard let endpoint = registrationEndpointURL else { return false }
+        guard let endpoint = registrationEndpointURL else {
+            logger.error("postDeviceRegistration: no registration endpoint URL")
+            return false
+        }
         var req = URLRequest(url: endpoint)
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded",
                      forHTTPHeaderField: "Content-Type")
         let items = payload.map { URLQueryItem(name: $0.key, value: $0.value) }
         req.httpBody = formURLEncodedBody(items)
-        guard let (_, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse else {
+        do {
+            let (_, resp) = try await URLSession.shared.data(for: req)
+            guard let http = resp as? HTTPURLResponse else {
+                logger.error("postDeviceRegistration: non-HTTP response")
+                return false
+            }
+            logger.log("postDeviceRegistration: HTTP \(http.statusCode, privacy: .public)")
+            return (200...299).contains(http.statusCode)
+        } catch {
+            logger.error("postDeviceRegistration: request failed: \(String(describing: error), privacy: .public)")
             return false
         }
-        return (200...299).contains(http.statusCode)
     }
 
     // formURLEncodedBody serializes query items as an x-www-form-urlencoded

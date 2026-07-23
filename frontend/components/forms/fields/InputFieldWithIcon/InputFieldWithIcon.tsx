@@ -157,7 +157,7 @@ const InputFieldWithIcon = ({
         {clearButton && !!value && (
           <Button
             onClick={() => handleClear()}
-            variant="icon"
+            variant="subdued"
             className={`${baseClass}__clear-button`}
           >
             <Icon name="close-filled" color="core-fleet-black" />

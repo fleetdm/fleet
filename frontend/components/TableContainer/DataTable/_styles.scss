@@ -25,7 +25,11 @@ $shadow-transition-width: 16px;
           $core-fleet-white,
           $core-fleet-white-transparent
         ),
-        linear-gradient(to left, $core-fleet-white, $core-fleet-white-transparent),
+        linear-gradient(
+          to left,
+          $core-fleet-white,
+          $core-fleet-white-transparent
+        ),
         /* Shadow covers */
           linear-gradient(
             to right,

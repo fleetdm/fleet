@@ -101,6 +101,12 @@
         display: flex;
         align-items: center;
 
+        .manage-hosts__table-actions {
+          display: flex;
+          align-items: center;
+          gap: $pad-medium; // grouping secondary buttons
+        }
+
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
