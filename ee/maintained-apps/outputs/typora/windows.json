@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "1.14.1",
+      "version": "1.14.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io' AND version_compare(version, '1.14.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io' AND version_compare(version, '1.14.7') < 0);"
       },
       "installer_url": "https://downloads.typora.io/windows/typora-setup-x64-1.14.7.exe",
       "install_script_ref": "cf428c2f",
