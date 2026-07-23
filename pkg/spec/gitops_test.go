@@ -5602,9 +5602,8 @@ policies:
 			path, basePath := createTempFile(t, "", config)
 			g, err := GitOpsFromFile(path, basePath, premiumAppConfig(), nopLogf)
 			if len(tc.wantErrs) > 0 {
-				require.Error(t, err)
 				for _, want := range tc.wantErrs {
-					assert.ErrorContains(t, err, want)
+					require.ErrorContains(t, err, want)
 				}
 				return
 			}
