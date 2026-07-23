@@ -501,7 +501,7 @@ This activity contains the following fields:
 ```json
 {
 	"host_id": 42,
-	"host_display_name": "USER-",
+	"host_display_name": "USER-WINDOWS",
 	"host_serial": "ABC123",
 	"triggered_by": "expiration",
 	"host_expiry_window": 30
