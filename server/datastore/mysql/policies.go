@@ -1806,8 +1806,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					patchSoftwareTitleIDArg = fmaTitleID
 				}
 
-				// A patch-when-closed policy only runs its managed pre-install query on
-				// continuous automation runs, so continuous automations are required.
+				// Continuous automations must be enabled so the patch policy keeps retrying the
+				// install until the app is closed.
 				if spec.PatchWhenClosed {
 					spec.ContinuousAutomationsEnabled = true
 				}
