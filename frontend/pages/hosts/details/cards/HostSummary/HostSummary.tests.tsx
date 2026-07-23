@@ -200,6 +200,34 @@ describe("Host Summary section", () => {
     });
   });
 
+  describe("Empty card", () => {
+    it("does not render the summary card for a Free-tier Android host with no OS settings", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({
+        platform: "android",
+        os_version: "Android 14",
+      });
+
+      const { container } = render(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier={false}
+          hostSettings={[]}
+        />
+      );
+
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
+
   describe("Bootstrap package data", () => {
     it("renders Bootstrap package indicator when status is present", () => {
       const toggleBootstrapPackageModal = jest.fn();

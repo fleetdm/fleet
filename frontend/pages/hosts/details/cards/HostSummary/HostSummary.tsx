@@ -202,13 +202,45 @@ const HostSummary = ({
       : [hostNameSetting];
   }
 
+  const showStatus = !isIosOrIpadosHost && !isAndroidHost;
+  const showTeam = !!isPremiumTier;
+  const showOsSettings =
+    isOsSettingsDisplayPlatform(platform, os_version) &&
+    !!derivedHostSettings &&
+    derivedHostSettings.length > 0;
+  const showIssues =
+    summaryData.issues?.total_issues_count > 0 &&
+    !isIosOrIpadosHost &&
+    !isAndroidHost;
+  const showBootstrapPackage =
+    !!bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost;
+  const showMaintenanceWindow =
+    !!isPremiumTier &&
+    // TODO - refactor normalizeEmptyValues pattern
+    !!summaryData.maintenance_window &&
+    summaryData.maintenance_window !== "---";
+
+  // Hide the card entirely when nothing inside it would render (e.g. Free tier
+  // Android host with no OS settings) — otherwise an empty card sits above the
+  // Vitals section (#49441).
+  if (
+    !showStatus &&
+    !showTeam &&
+    !showOsSettings &&
+    !showIssues &&
+    !showBootstrapPackage &&
+    !showMaintenanceWindow
+  ) {
+    return <></>;
+  }
+
   return (
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       className={classNames}
     >
-      {!isIosOrIpadosHost && !isAndroidHost && (
+      {showStatus && (
         <DataSet
           title="Status"
           value={
@@ -224,26 +256,21 @@ const HostSummary = ({
           }
         />
       )}
-      {isPremiumTier && renderHostTeam()}
-      {isOsSettingsDisplayPlatform(platform, os_version) &&
-        derivedHostSettings &&
-        derivedHostSettings.length > 0 && (
-          <DataSet
-            className={`${baseClass}__os-settings`}
-            title="OS settings"
-            value={
-              <OSSettingsIndicator
-                profiles={derivedHostSettings}
-                onClick={toggleOSSettingsModal}
-              />
-            }
-          />
-        )}
-      {summaryData.issues?.total_issues_count > 0 &&
-        !isIosOrIpadosHost &&
-        !isAndroidHost &&
-        renderIssues()}
-      {bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost && (
+      {showTeam && renderHostTeam()}
+      {showOsSettings && derivedHostSettings && (
+        <DataSet
+          className={`${baseClass}__os-settings`}
+          title="OS settings"
+          value={
+            <OSSettingsIndicator
+              profiles={derivedHostSettings}
+              onClick={toggleOSSettingsModal}
+            />
+          }
+        />
+      )}
+      {showIssues && renderIssues()}
+      {showBootstrapPackage && bootstrapPackageData?.status && (
         <DataSet
           title="Bootstrap package"
           value={
@@ -254,10 +281,7 @@ const HostSummary = ({
           }
         />
       )}
-      {isPremiumTier &&
-        // TODO - refactor normalizeEmptyValues pattern
-        !!summaryData.maintenance_window &&
-        summaryData.maintenance_window !== "---" &&
+      {showMaintenanceWindow &&
         renderMaintenanceWindow(summaryData.maintenance_window)}
     </Card>
   );
