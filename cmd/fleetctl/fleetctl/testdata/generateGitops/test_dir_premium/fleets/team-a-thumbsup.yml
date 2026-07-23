@@ -70,6 +70,7 @@ policies:
   description: This is a team patch policy
   fleet_maintained_app_slug: foo/darwin
   name: Team patch policy
+  patch_when_closed: true
   platform: linux,windows
   resolution: Do a team thing
   type: patch
