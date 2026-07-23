@@ -1,7 +1,7 @@
 # Roadmap preview, July 2026
 
 <div purpose="embedded-content">
-   <iframe src="TODO" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/vvxu2mO_eQs?si=tM0MIZADAFGIYxi2" allowfullscreen></iframe>
 </div>
 
 The Fleet roadmap is set for summer 2026. Watch the video above for a walkthrough, or continue reading for the highlights.
