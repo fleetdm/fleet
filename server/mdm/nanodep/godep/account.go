@@ -57,21 +57,28 @@ func IsTermsNotSigned(err error) bool {
 
 // IsTokenRejected returns true if err is a DEP "token rejected" error. Per
 // Apple this indicates the token itself was revoked or replaced in Apple
-// Business Manager without the new token being uploaded to Fleet. Apple has
-// been observed reporting this both as a 403 (HTTPError) and a 401
-// (AuthError, which do() always constructs with StatusCode 401), so both are
-// checked here.
+// Business Manager without the new token being uploaded to Fleet. This can
+// arrive as an HTTPError (403, from do()) or an AuthError -- do() only ever
+// constructs AuthError with StatusCode 401, but DoAuth's /session handshake
+// (client/auth.go) constructs AuthError with whatever status Apple actually
+// returns, often 403 -- so both AuthError statuses are checked here.
 // See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsTokenRejected(err error) bool {
 	return httpErrorContains(err, http.StatusForbidden, "token_rejected") ||
-		authErrorContains(err, http.StatusUnauthorized, "token_rejected")
+		authErrorContains(err, http.StatusUnauthorized, "token_rejected") ||
+		authErrorContains(err, http.StatusForbidden, "token_rejected")
 }
 
 // IsSignatureInvalid returns true if err is a DEP "signature invalid" error.
 // Per Apple this indicates the token itself was revoked or replaced in Apple
-// Business Manager without the new token being uploaded to Fleet.
+// Business Manager without the new token being uploaded to Fleet. This can
+// arrive as an HTTPError (403, from do()) or an AuthError -- do() only ever
+// constructs AuthError with StatusCode 401, but DoAuth's /session handshake
+// (client/auth.go) constructs AuthError with whatever status Apple actually
+// returns, often 403 -- so both AuthError statuses are checked here.
 // See https://developer.apple.com/documentation/devicemanagement/interpreting-automated-device-enrollment-error-codes
 func IsSignatureInvalid(err error) bool {
 	return httpErrorContains(err, http.StatusForbidden, "signature_invalid") ||
+		authErrorContains(err, http.StatusUnauthorized, "signature_invalid") ||
 		authErrorContains(err, http.StatusForbidden, "signature_invalid")
 }
