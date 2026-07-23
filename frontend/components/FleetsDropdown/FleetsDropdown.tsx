@@ -212,7 +212,6 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           <Button
             variant="subdued"
             onClick={onClickAddFleet}
-            iconStroke
             size="small"
           >
             <>
