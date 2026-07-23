@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.10.0",
+      "version": "0.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone' AND version_compare(bundle_short_version, '0.10.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'press.freedom.dangerzone' AND version_compare(bundle_short_version, '0.11.0') < 0);"
       },
-      "installer_url": "https://github.com/freedomofpress/dangerzone/releases/download/v0.10.0/Dangerzone-0.10.0-arm64.dmg",
+      "installer_url": "https://github.com/freedomofpress/dangerzone/releases/download/v0.11.0/Dangerzone-0.11.0-arm64.dmg",
       "install_script_ref": "8137ce83",
       "uninstall_script_ref": "0a2d2e93",
-      "sha256": "20b0b32d30b46c53907b7d8543091c7d31cf02dc8bd1ee1ae67f7469ac001821",
+      "sha256": "406c3e87cd7c01fbc2b5911eb67937213ac721b0d928297c445bd2045654f0e6",
       "default_categories": [
         "Productivity"
       ]

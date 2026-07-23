@@ -11,6 +11,16 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+
+    .component__tooltip-wrapper {
+      align-items: center;
+      line-height: 1;
+
+      &__element {
+        display: flex;
+        align-items: center;
+      }
+    }
   }
 
   &__description-tooltip {
@@ -116,7 +126,7 @@
   }
 
   &__settings-btn {
-    // Button variant="inverse" applies a 36px height that would make the
+    // Button variant="subdued" applies a 36px height that would make the
     // chart-card header taller than HostsEnrolledCard's bare h2 next door.
     // Shrink to content height so headers match.
     display: flex;

@@ -25,7 +25,7 @@ import {
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 
 const baseClass = "save-as-new-query-modal";
@@ -201,10 +201,10 @@ const SaveAsNewQueryModal = ({
         {isPremiumTier && (userTeams?.length || 0) > 1 && (
           <div className="form-field">
             <div className="form-field__label">Fleet</div>
-            <TeamsDropdown
+            <FleetsDropdown
               asFormField
-              currentUserTeams={userTeams || []}
-              selectedTeamId={formData.team.id}
+              currentUserFleets={userTeams || []}
+              selectedFleetId={formData.team.id}
               onChange={onTeamChange}
             />
           </div>
@@ -219,7 +219,7 @@ const SaveAsNewQueryModal = ({
           >
             Save
           </Button>
-          <Button onClick={onExit} variant="inverse">
+          <Button onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

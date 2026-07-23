@@ -55,14 +55,14 @@ const SetupExperienceScriptCard = ({
       <div className={`${baseClass}__actions`}>
         <Button
           className={`${baseClass}__download-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDownload}
         >
           <Icon name="download" />
         </Button>
         <Button
           className={`${baseClass}__delete-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDelete}
         >
           <Icon name="trash" color="ui-fleet-black-75" />

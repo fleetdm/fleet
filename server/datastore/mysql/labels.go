@@ -412,56 +412,7 @@ func batchHostnames(hostnames []string) [][]string {
 
 func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, label fleet.Label, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// delete all label membership
-		sql := `
-	DELETE FROM label_membership WHERE label_id = ?
-	`
-		_, err := tx.ExecContext(ctx, sql, label.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "clear membership for ID")
-		}
-
-		if len(hostIds) == 0 {
-			return nil
-		}
-
-		// Split hostIds into batches to avoid parameter limit in MySQL.
-		for _, hostIDsBatch := range batchHostIds(hostIds) {
-			if label.TeamID != nil {
-				// Team labels can only be applied to hosts on that team.
-				if err := checkHostIdentifiersInTeam(ctx, tx,
-					*label.TeamID,
-					`id IN (?)`,
-					[]any{hostIDsBatch},
-				); err != nil {
-					return ctxerr.Wrap(ctx, err, "check host IDs in team")
-				}
-			}
-
-			// Use ignore because duplicate host IDs could appear in
-			// different batches and would result in duplicate key errors.
-			var values []any
-			var placeholders []string
-
-			for _, hostID := range hostIDsBatch {
-				values = append(values, label.ID, hostID)
-				placeholders = append(placeholders, "(?, ?)")
-			}
-
-			// Build the final SQL query with the dynamically generated placeholders
-			sql := `
-INSERT IGNORE INTO label_membership (label_id, host_id)
-VALUES ` + strings.Join(placeholders, ", ")
-			sql, args, err := sqlx.In(sql, values...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build membership IN statement")
-			}
-			_, err = tx.ExecContext(ctx, sql, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "execute membership INSERT")
-			}
-		}
-		return nil
+		return replaceLabelMembershipTx(ctx, tx, label, hostIds)
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
@@ -473,6 +424,56 @@ VALUES ` + strings.Join(placeholders, ", ")
 	}
 
 	return updatedLabel.GetLabel(), hostIDs, err
+}
+
+// replaceLabelMembershipTx replaces the manual membership of the given label
+// with exactly hostIDs.
+func replaceLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, label fleet.Label, hostIDs []uint) error {
+	// delete all label membership
+	if _, err := tx.ExecContext(ctx, `DELETE FROM label_membership WHERE label_id = ?`, label.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear membership for ID")
+	}
+
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	// Split hostIDs into batches to avoid parameter limit in MySQL.
+	for _, hostIDsBatch := range batchHostIds(hostIDs) {
+		if label.TeamID != nil {
+			// Team labels can only be applied to hosts on that team.
+			if err := checkHostIdentifiersInTeam(ctx, tx,
+				*label.TeamID,
+				`id IN (?)`,
+				[]any{hostIDsBatch},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "check host IDs in team")
+			}
+		}
+
+		// Use ignore because duplicate host IDs could appear in
+		// different batches and would result in duplicate key errors.
+		var values []any
+		var placeholders []string
+
+		for _, hostID := range hostIDsBatch {
+			values = append(values, label.ID, hostID)
+			placeholders = append(placeholders, "(?, ?)")
+		}
+
+		// Build the final SQL query with the dynamically generated placeholders
+		sql := `
+INSERT IGNORE INTO label_membership (label_id, host_id)
+VALUES ` + strings.Join(placeholders, ", ")
+		sql, args, err := sqlx.In(sql, values...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build membership IN statement")
+		}
+		if _, err := tx.ExecContext(ctx, sql, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+		}
+	}
+	return nil
 }
 
 // Update label membership for a host vitals label.
@@ -665,21 +666,40 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 	return label, nil
 }
 
-func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
-	query := `UPDATE labels SET name = ?, description = ? WHERE id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, query, label.Name, label.Description, label.ID)
+func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+	var (
+		saved        *fleet.LabelWithTeamName
+		savedHostIDs []uint
+	)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `UPDATE labels SET name = ?, description = ? WHERE id = ?`, label.Name, label.Description, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving label")
+		}
+
+		// Update the label name in mdm_configuration_profile_labels
+		if _, err := tx.ExecContext(ctx, `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`, label.Name, label.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+		}
+
+		// A nil hostIDs means the caller did not request a membership change.
+		if hostIDs != nil {
+			if err := replaceLabelMembershipTx(ctx, tx, *label, hostIDs); err != nil {
+				return err
+			}
+		}
+
+		var err error
+		saved, savedHostIDs, err = ds.labelDB(ctx, label.ID, teamFilter, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get label after save")
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
+		return nil, nil, err
 	}
 
-	// Update the label name in mdm_configuration_profile_labels
-	query = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
-	_, err = ds.writer(ctx).ExecContext(ctx, query, label.Name, label.ID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
-	}
-
-	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
+	return saved, savedHostIDs, nil
 }
 
 // DeleteLabel deletes a fleet.Label
@@ -970,11 +990,16 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
 		matches := results[labelID]
-		if matches != nil && *matches {
+		switch {
+		case matches == nil:
+			// The query errored (e.g. extension socket unavailable), rather than
+			// returning a definitive 0 rows. Leave existing membership untouched.
+			continue
+		case *matches:
 			// Add/update row
 			bindvars = append(bindvars, "(?,?,?)")
 			vals = append(vals, updated, labelID, host.ID)
-		} else {
+		default:
 			// Delete row
 			removes = append(removes, labelID)
 		}
@@ -1346,6 +1371,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
 		query += sqlJoinRecoveryLockStatus()
+		query += sqlJoinDeviceNameStatus()
 	}
 
 	if opt.OSSettingsFilter.IsValid() {
@@ -1715,32 +1741,38 @@ func (ds *Datastore) LabelsSummary(ctx context.Context, filter fleet.TeamFilter)
 	return labelsSummary, nil
 }
 
-// HostMemberOfAllLabels returns whether the given host is a member of all the provided labels.
-// If the labels do not exist, then the host is considered not a member of the provided labels.
-// A host will always be a member of an empty label set, so this method returns (true, nil)
-// if labelNames is empty.
-func (ds *Datastore) HostMemberOfAllLabels(ctx context.Context, hostID uint, labelNames []string) (bool, error) {
-	if len(labelNames) == 0 {
-		return true, nil
-	}
-
+// HostMembershipForLabels returns the set of label names (from the provided list) that the host is a member of.
+// Labels that do not exist are not included in the result. The returned map is keyed by the
+// requested label names (preserving the caller's casing), not the DB-stored names.
+func (ds *Datastore) HostMembershipForLabels(ctx context.Context, hostID uint, labelNames []string) (map[string]struct{}, error) {
 	sqlStatement := `
-		SELECT COUNT(*) = ? FROM labels l
-		LEFT JOIN (SELECT label_id FROM label_membership WHERE host_id = ?) lm
-		ON l.id = lm.label_id
-		WHERE l.name IN (?) AND lm.label_id IS NOT NULL;
+		SELECT l.name FROM labels l
+		JOIN label_membership lm ON l.id = lm.label_id
+		WHERE lm.host_id = ? AND l.name IN (?)
 	`
-	sql, args, err := sqlx.In(sqlStatement, len(labelNames), hostID, labelNames)
+	sql, args, err := sqlx.In(sqlStatement, hostID, labelNames)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query for host label membership")
 	}
 
-	var ok bool
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &ok, sql, args...); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get label IDs")
+	var dbNames []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dbNames, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host label membership")
 	}
 
-	return ok, nil
+	// The DB may return names with different casing than requested (utf8mb4_unicode_ci),
+	// so map DB names back to the caller's requested names for case-sensitive Go map lookups.
+	dbNameSet := make(map[string]struct{}, len(dbNames))
+	for _, n := range dbNames {
+		dbNameSet[strings.ToLower(n)] = struct{}{}
+	}
+	result := make(map[string]struct{}, len(dbNames))
+	for _, req := range labelNames {
+		if _, ok := dbNameSet[strings.ToLower(req)]; ok {
+			result[req] = struct{}{}
+		}
+	}
+	return result, nil
 }
 
 // AddLabelsToHost skips auth as it's only used in tests, and where label teams have already been validated.

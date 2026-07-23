@@ -15,29 +15,44 @@
 
   &__field {
     position: relative;
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    margin-bottom: $pad-medium;
 
-    .icon {
+    // Scoped to a direct child so this doesn't also catch the plus icon
+    // nested inside the "Add label" button below, which needs to stay
+    // centered in its own flex layout instead of being pulled out via
+    // absolute positioning.
+    > .icon {
       position: absolute;
       left: 12px;
-      top: 12px;
+      top: 0;
+      height: 36px;
+      width: 16px;
+      display: flex;
+      align-items: center;
     }
   }
 
+  &__add-label-button {
+    flex-shrink: 0;
+  }
+
   &__input {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     line-height: $line-height;
     background-color: $core-fleet-white;
     border: solid 1px $ui-fleet-black-10;
     border-radius: $border-radius;
     font-size: $small;
     padding: 9.5px 12px 9.5px 36px;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-family: "Inter", sans-serif;
     font-size: $x-small;
     box-sizing: border-box;
     height: 36px;
-
-    margin-bottom: $pad-medium;
 
     &::placeholder {
       color: $ui-fleet-black-50;

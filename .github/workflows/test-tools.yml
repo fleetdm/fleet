@@ -1,0 +1,87 @@
+name: Test tools
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/dibble/**'
+      - 'tools/upgrade/**'
+      # dibble and upgrade pin the parent module via `replace github.com/fleetdm/fleet/v4 => ../..`, so a
+      # change to the root module's dependency graph can leave their go.mod and go.sum out of sync. Trigger on
+      # the root go.mod/go.sum too, so the same change that bumps a root dependency is forced to re-tidy them.
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/test-tools.yml'
+  pull_request:
+    paths:
+      - 'tools/dibble/**'
+      - 'tools/upgrade/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/test-tools.yml'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test ${{ matrix.tool }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # run_tests is false for tools whose tests need external infra (e.g. upgrade needs docker-compose and
+          # version inputs); for those we still verify the module is tidy and builds.
+          - tool: dibble
+            dir: tools/dibble
+            run_tests: true
+          - tool: upgrade
+            dir: tools/upgrade
+            run_tests: false
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: '${{ matrix.dir }}/go.mod'
+
+      - name: Verify go.mod and go.sum are tidy
+        working-directory: ${{ matrix.dir }}
+        run: |
+          go mod tidy
+          if ! git diff --exit-code -- go.mod go.sum; then
+            echo "::error::${{ matrix.dir }}/go.mod or go.sum is out of sync with the root module. Run 'make tidy-tool-modules' (or 'cd ${{ matrix.dir }} && go mod tidy') and commit the result."
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: ${{ matrix.dir }}
+        run: go build ./...
+
+      - name: Run tests
+        if: matrix.run_tests
+        working-directory: ${{ matrix.dir }}
+        run: go test -race -count=1 ./...

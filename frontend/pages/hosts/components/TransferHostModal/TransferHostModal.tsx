@@ -111,7 +111,7 @@ const TransferHostModal = ({
             <CustomLink
               url={PATHS.ADMIN_FLEETS}
               className={`${baseClass}__team-link`}
-              text="Create a fleet"
+              text="Add a fleet"
             />
           </p>
         ) : null}
@@ -125,7 +125,7 @@ const TransferHostModal = ({
           >
             Transfer
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

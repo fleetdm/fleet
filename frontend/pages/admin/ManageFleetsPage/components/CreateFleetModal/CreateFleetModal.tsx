@@ -50,7 +50,7 @@ const CreateFleetModal = ({
   );
 
   return (
-    <Modal title="Create fleet" onExit={onCancel} className={baseClass}>
+    <Modal title="Add fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -77,7 +77,7 @@ const CreateFleetModal = ({
           >
             Create
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

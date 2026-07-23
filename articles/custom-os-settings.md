@@ -97,7 +97,7 @@ Hosts that applied all OS settings.
 
 For macOS configuration profiles, Fleet verified by running an osquery query. It can take up to 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-detail-update-interval)) for these profiles to move from "Verifying" to "Verified".
 
-macOS declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
+macOS declarations (DDM) profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport).
 
 All Windows profiles are "Verified" after Fleet gets a [200 response](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes) from the Windows MDM protocol.
 
@@ -148,7 +148,7 @@ Also, some settings from the profile might be overridden by another configuratio
 
 The error message will provide the reason from the Android Management API (AMAPI) for why certain settings are not applied. Possible reasons are listed in the [AMAPI docs](https://developers.google.com/android/management/reference/rest/v1/NonComplianceReason).
 
-Note that the "Resend" button is only available for certificates. Fleet pushes certificates via Fleet's Android app. Other configuration profiles don't have the "Resend" button because othey are sent via a different mechanism: the host checks in for these profiles periodically similarly to Apple declaration (DDM) profiles, rather than Fleet pushing them. 
+Note that the "Resend" button is only available for certificates. Fleet pushes certificates via Fleet's Android app. Other configuration profiles don't have the "Resend" button because they are sent via a different mechanism: the host checks in for these profiles periodically similarly to Apple declaration (DDM) profiles, rather than Fleet pushing them. 
 
 ## Broken profiles
 

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.7.36.0",
+      "version": "2.7.38.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jamovi.jamovi';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jamovi.jamovi' AND version_compare(bundle_short_version, '2.7.36.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jamovi.jamovi' AND version_compare(bundle_short_version, '2.7.38.0') < 0);"
       },
-      "installer_url": "https://www.jamovi.org/downloads/jamovi-2.7.36.0-macos-arm64.dmg",
+      "installer_url": "https://www.jamovi.org/downloads/jamovi-2.7.38.0-macos-arm64.dmg",
       "install_script_ref": "1df03dad",
       "uninstall_script_ref": "f35082d0",
-      "sha256": "d281b893f74686ed2e951a0cee5c96c5d81cbf4f52cb65f20eaf39c2b2c3d276",
+      "sha256": "b694ec11eba6693586304b697d5a7ecfe7ae1e7295b6e84002f9da837a5d85fc",
       "default_categories": [
         "Productivity"
       ]

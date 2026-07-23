@@ -2,8 +2,8 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-orchestration,#g-software,#g-security-compliance,:release'
-assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
+labels: '#g-orchestration,#g-apple-at-work,#g-power-to-pc,#g-auto-patching,#g-supply-chain,#g-byod,:release'
+assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,marcusallen97,thisisjoegrant'
 
 ---
 
@@ -11,7 +11,7 @@ assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20'
 
 Easy-to-follow test steps for checking a release manually.
 
-> **How to check off:** Tick the checkbox in each **Progress** list as a test passes. GitHub tracks completion ("X of Y tasks") at the top of the issue. The tables below each list hold the step instructions and expected results for reference. For a **failure**, leave the box unchecked and record the details under [Notes](#notes).
+> **How to check off:** Tick the checkbox in each **Progress** list as a test passes. GitHub tracks completion ("X of Y tasks") at the top of the issue. The tables below each list hold the step instructions and expected results for reference. For a **failure**, leave the box unchecked and record the details under the **Notes** section at the bottom of this issue.
 
 # Important reference data
 
@@ -44,7 +44,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 - [ ] IdP Provisioning (SCIM)
 - [ ] GitOps and generate-gitops
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -156,34 +155,20 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
-### MDM
+### Apple at Work
 
 **Progress**
 - [ ] MDM enrollment flow
 - [ ] MDM migration flow
 - [ ] OS settings
+- [ ] Disk encryption
+- [ ] OS updates
 - [ ] Setup experience
 - [ ] iOS/iPadOS
 - [ ] Token & Certificate Renewals
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -218,6 +203,28 @@ Perform a quick visual scan of the UI and confirm:
 
 1. Verify Profiles upload/download/delete.
 2. Verify Profiles are delivered to host and applied.
+
+</td>
+</tr>
+
+<tr>
+<td>Disk encryption</td>
+<td>Verify disk encryption functionality (macOS).</td>
+<td>
+
+1. Verify able to configure Disk encryption (macOS).
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+
+</td>
+</tr>
+
+<tr>
+<td>OS updates</td>
+<td>Verify OS updates flow (macOS).</td>
+<td>
+
+1. Configure OS updates (macOS).
+2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
 
 </td>
 </tr>
@@ -275,29 +282,16 @@ Run basic checks for the product group area while using a Fleet Free license.
 
 - Features documented as Free work normally:
    - Host enrollment
-   - Apple and Android MDM
+   - Apple MDM
    - Configuration profile delivery
    - APNs Certificate renewal
 - Premium features are correctly restricted or hidden:
+   - Disk encryption
+   - OS updates
    - Setup experience
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
-
-</td>
-</tr>
-
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
 
 </td>
 </tr>
@@ -310,9 +304,11 @@ Perform a quick visual scan of the UI and confirm:
 - [ ] MDM enrollment flow
 - [ ] MDM migration flow
 - [ ] OS settings
+- [ ] Disk encryption
+- [ ] OS updates
 - [ ] Setup Experience
+- [ ] Android
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -351,12 +347,47 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
+<td>Disk encryption</td>
+<td>Verify disk encryption functionality (Windows).</td>
+<td>
+
+1. Verify able to configure Disk encryption (Windows).
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+
+</td>
+</tr>
+
+<tr>
+<td>OS updates</td>
+<td>Verify OS updates flow (Windows).</td>
+<td>
+
+1. Configure OS updates (Windows).
+
+</td>
+</tr>
+
+<tr>
 <td>Setup Experience</td>
 <td>Verify Windows Setup experience.</td>
 <td>
 
 1. Configure End user authentication.
 2. Add software (FMA, Custom pkg).
+
+</td>
+</tr>
+
+<tr>
+<td>Android</td>
+<td>Verify enrollment, profiles, & software installs.</td>
+<td>
+
+1. Verify BYOD enrollment.
+2. Verify Profiles are delivered to host and applied.
+3. Verify apps install.
+4. Verify certificate delivery.
+5. Verify `Unenroll`.
 
 </td>
 </tr>
@@ -371,9 +402,12 @@ Run basic checks for the product group area while using a Fleet Free license.
 - Features documented as Free work normally:
    - Host enrollment
    - Windows MDM
+   - Android MDM
    - Configuration profile delivery
 - Premium features are correctly restricted or hidden:
    - Automatic MDM migration
+   - Disk encryption
+   - OS updates
 - No UI, API, or workflow errors occur when using Free-only functionality.
 
 Reference: https://fleetdm.com/pricing
@@ -381,24 +415,9 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
-### Software
+### Auto Patching
 
 **Progress**
 - [ ] Report flow
@@ -407,7 +426,6 @@ Perform a quick visual scan of the UI and confirm:
 - [ ] Scripts
 - [ ] Software
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
@@ -501,44 +519,26 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
 ### Security & Compliance
 
 **Progress**
-- [ ] Disk encryption
+- [ ] Disk encryption (Linux)
 - [ ] Vulnerabilities
 - [ ] Certificate Authorities
-- [ ] Android
-- [ ] OS updates
 - [ ] Lock & Wipe
 - [ ] Fleet Free
-- [ ] UI / UX
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>Disk encryption</td>
-<td>Verify disk encryption functionality.</td>
+<td>Disk encryption (Linux)</td>
+<td>Verify disk encryption functionality (Linux).</td>
 <td>
 
-1. Verify able to configure Disk encryption (macOS, Windows, & Linux).
+1. Verify able to configure Disk encryption (Linux).
 2. Verify host enrolled with Disk encryption enforced successfully encrypts.
 
 </td>
@@ -570,31 +570,6 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
-<td>Android</td>
-<td>Verify enrollment, profiles, & software installs.</td>
-<td>
-
-1. Verify BYOD enrollment.
-2. Verify Profiles are delivered to host and applied.
-3. Verify apps install.
-4. Verify certificate delivery.
-5. Verify `Unenroll`.
-
-</td>
-</tr>
-
-<tr>
-<td>OS updates</td>
-<td>Verify OS updates flow.</td>
-<td>
-
-1. Configure OS updates (macOS & Windows).
-2. Verify enforce minimumOS occurs during enrollment (macOS 14+).
-
-</td>
-</tr>
-
-<tr>
 <td>Lock & Wipe</td>
 <td>Verify hosts can be locked & wiped.</td>
 <td>
@@ -618,8 +593,7 @@ Run basic checks for the product group area while using a Fleet Free license.
    - Vulnerability detection
    - Individual CVE page
 - Premium features are correctly restricted or hidden:
-   - Disk encryption
-   - OS Updates
+   - Disk encryption (Linux)
    - Lock / Wipe
    - Certificate authorities
 - No UI, API, or workflow errors occur when using Free-only functionality.
@@ -629,27 +603,12 @@ Reference: https://fleetdm.com/pricing
 </td>
 </tr>
 
-<tr>
-<td>UI / UX</td>
-<td>Verify visual consistency and layout integrity across product group areas.</td>
-<td>
-
-Perform a quick visual scan of the UI and confirm:
-
-- No layout or alignment issues (misaligned, overlapping, or clipped elements).
-- Fonts, colors, and icons render correctly and match the design system.
-- UI components render correctly (buttons, inputs, tables).
-- No obvious visual regressions or broken UI states.
-
-</td>
-</tr>
-
 </table>
 
 ### All product groups
 
 **Progress**
-- [ ] Release blockers
+- [ ] Release-critical issues (Ready for release)
 - [ ] Baseline loadtest (minor releases only)
 - [ ] Migration loadtest (minor releases only)
 - [ ] Helm chart
@@ -661,12 +620,12 @@ Perform a quick visual scan of the UI and confirm:
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th></tr>
 
 <tr>
-<td>Release blockers</td>
-<td>Verify there are no outstanding release blocking tickets.</td>
+<td>Release-critical issues (Ready for release)</td>
+<td>Verify no open <code>~unreleased bug</code> or <code>~release blocker</code> issue is still in the works — all should be "Ready for release".</td>
 <td>
 
-1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
-2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`) channels.
+1. Check the [`~unreleased bug`](https://github.com/fleetdm/fleet/labels/~unreleased%20bug) and [`~release blocker`](https://github.com/fleetdm/fleet/labels/~release%20blocker) filters and confirm every open issue is "Ready for release" on its product group board.
+2. If any is not, raise an alarm in the `#help-engineering` and the relevant product group channel.
 
 </td>
 </tr>

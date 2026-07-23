@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { Location } from "history";
@@ -69,6 +69,7 @@ const EditQueryPage = ({
   });
 
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -262,6 +263,7 @@ const EditQueryPage = ({
     setIsQuerySaving(true);
     try {
       const { query } = await queryAPI.create(formData);
+      queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
       notify.success("Report created.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(query.id), {
@@ -313,6 +315,7 @@ const EditQueryPage = ({
 
     try {
       await queryAPI.update(queryId, updatedQuery);
+      queryClient.invalidateQueries({ queryKey: [{ scope: "queries" }] });
       notify.success("Report updated.");
       router.push(
         getPathWithQueryParams(PATHS.REPORT_DETAILS(queryId), {

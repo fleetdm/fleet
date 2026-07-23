@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.12.0",
+      "version": "5.12.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.slicer.slicer' AND version_compare(bundle_short_version, '5.12.2') < 0);"
       },
-      "installer_url": "https://slicer-packages.kitware.com/api/v1/item/6a3ba6f43e1fb85a5847129b/download",
+      "installer_url": "https://slicer-packages.kitware.com/api/v1/item/6a580cd8ca34ceb380ead1b5/download",
       "install_script_ref": "e09e7211",
       "uninstall_script_ref": "9e7199d3",
-      "sha256": "61faddfe47d04f0b3bd57e96218c9bc4dbc8033ba9d42b2b599678721551a0f0",
+      "sha256": "1243398c1630944d3ea35fd894ba782a1f1ac3dbfd1eff40cd50c8b5ce42a37c",
       "default_categories": [
         "Productivity"
       ]

@@ -42,7 +42,6 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 		cached       []fleet.FleetMaintainedVersion
 		wantFlip     bool
 		wantActiveID uint // installer ID bound active (when wantFlip)
-		wantOldID    uint // installer ID whose side effects are processed
 	}{
 		{
 			name:         "Latest advances to newest cached",
@@ -51,7 +50,6 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			cached:       versions,
 			wantFlip:     true,
 			wantActiveID: 12,
-			wantOldID:    9,
 		},
 		{
 			name:     "Latest already on newest is a no-op",
@@ -67,7 +65,6 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			cached:       versions,
 			wantFlip:     true,
 			wantActiveID: 11, // 147.0.9, newest within major 147
-			wantOldID:    8,
 		},
 		{
 			name:     "caret never crosses major when no in-major version is cached",
@@ -102,16 +99,12 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 				return tc.cached, nil
 			}
 
-			var gotActiveID, gotOldID uint
+			var gotActiveID uint
 			ds.SetFleetMaintainedAppActiveInstallerFunc = func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload, activeInstallerID uint) error {
 				gotActiveID = activeInstallerID
 				// The cron must never write pin state, or it could clobber a
 				// concurrent admin pin change.
 				require.Nil(t, payload.PinnedVersion, "cron must not write the pin row")
-				return nil
-			}
-			ds.ProcessInstallerUpdateSideEffectsFunc = func(ctx context.Context, installerID uint, wasMetadataUpdated, wasPackageUpdated bool) error {
-				gotOldID = installerID
 				return nil
 			}
 
@@ -121,10 +114,8 @@ func TestAutoUpdateFleetMaintainedApps(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, tc.wantFlip, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
-			require.Equal(t, tc.wantFlip, ds.ProcessInstallerUpdateSideEffectsFuncInvoked)
 			if tc.wantFlip {
 				require.Equal(t, tc.wantActiveID, gotActiveID)
-				require.Equal(t, tc.wantOldID, gotOldID)
 			}
 			// A literal pin short-circuits before querying cached versions.
 			if tc.pin != nil && *tc.pin != "" && (*tc.pin)[0] != '^' {

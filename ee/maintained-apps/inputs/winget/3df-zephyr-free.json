@@ -1,0 +1,13 @@
+{
+  "name": "3DF Zephyr Free",
+  "slug": "3df-zephyr-free/windows",
+  "package_identifier": "3Dflow.3DFZephyr.Free",
+  "unique_identifier": "3DF Zephyr Free",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/3df-zephyr-free_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/3df-zephyr-free_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

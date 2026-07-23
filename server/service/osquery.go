@@ -395,43 +395,58 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 	return config, nil
 }
 
-func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
-	// skipauth: Authorization is currently for user endpoints only.
-	svc.authz.SkipAuthorization(ctx)
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, newOsqueryError("internal error: missing host from request context")
+// packConfigCacheKey returns a cache key for the pack config cache
+// keyed by (teamID, queryReportsDisabled).
+func packConfigCacheKey(teamID *uint, queryReportsDisabled bool) string {
+	tid := "global"
+	if teamID != nil {
+		tid = fmt.Sprintf("%d", *teamID)
 	}
+	qrd := "0"
+	if queryReportsDisabled {
+		qrd = "1"
+	}
+	return "pack_config:" + tid + ":" + qrd
+}
 
-	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
+// getPackConfig returns the marshaled pack config JSON for the host.
+// It uses a cache for hosts without legacy packs, keyed by (teamID, queryReportsDisabled).
+func (svc *Service) getPackConfig(ctx context.Context, host *fleet.Host) (json.RawMessage, error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, newOsqueryError("internal error: fetch base config: " + err.Error())
+		return nil, ctxerr.Wrap(ctx, err, "fetch app config")
 	}
+	queryReportsDisabled := appConfig.ServerSettings.QueryReportsDisabled
 
-	config := make(map[string]interface{})
-	if baseConfig != nil {
-		err = json.Unmarshal(baseConfig, &config)
-		if err != nil {
-			return nil, newOsqueryError("internal error: parse base configuration: " + err.Error())
-		}
-	}
-
-	packConfig := fleet.Packs{}
-
+	// Check for legacy packs assigned to this specific host. Legacy packs are per-host, thus not cached.
 	packs, err := svc.ds.ListPacksForHost(ctx, host.ID)
 	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
+		return nil, ctxerr.Wrap(ctx, err, "list packs for host")
 	}
+
+	// Fast path: if no legacy packs, try the cached pack config.
+	// The scheduled queries pack config is identical for all hosts in the
+	// same team, so we cache the marshaled JSON keyed by (teamID, queryReportsDisabled).
+	useLegacyPacks := len(packs) > 0
+	if !useLegacyPacks && svc.packConfigCache != nil {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		if cached, found := svc.packConfigCache.Get(cacheKey); found {
+			// cached may be nil (negative cache: no queries for this team)
+			// or a json.RawMessage with the marshaled pack config.
+			raw, _ := cached.(json.RawMessage)
+			return raw, nil
+		}
+	}
+
+	// Cache miss or legacy packs present: build pack config from DB.
+	packConfig := fleet.Packs{}
+
 	for _, pack := range packs {
-		// first, we must figure out what queries are in this pack
 		queries, err := svc.ds.ListScheduledQueriesInPack(ctx, pack.ID)
 		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
+			return nil, ctxerr.Wrap(ctx, err, "list scheduled queries in pack")
 		}
 
-		// the serializable osquery config struct expects content in a
-		// particular format, so we do the conversion here
 		configQueries := fleet.Queries{}
 		for _, query := range queries {
 			queryContent := fleet.QueryContent{
@@ -455,8 +470,6 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 			configQueries[query.Name] = queryContent
 		}
 
-		// finally, we add the pack to the client config struct with all of
-		// the pack's queries
 		packConfig[pack.Name] = fleet.PackContent{
 			Platform: pack.Platform,
 			Queries:  configQueries,
@@ -465,7 +478,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 
 	globalQueries, err := svc.getScheduledQueries(ctx, nil)
 	if err != nil {
-		return nil, newOsqueryError("database error: " + err.Error())
+		return nil, ctxerr.Wrap(ctx, err, "get global scheduled queries")
 	}
 	if len(globalQueries) > 0 {
 		packConfig["Global"] = fleet.PackContent{
@@ -476,7 +489,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 	if host.TeamID != nil {
 		teamQueries, err := svc.getScheduledQueries(ctx, host.TeamID)
 		if err != nil {
-			return nil, newOsqueryError("database error: " + err.Error())
+			return nil, ctxerr.Wrap(ctx, err, "get team scheduled queries")
 		}
 		if len(teamQueries) > 0 {
 			packName := fmt.Sprintf("team-%d", *host.TeamID)
@@ -486,12 +499,59 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		}
 	}
 
+	var raw json.RawMessage
 	if len(packConfig) > 0 {
 		packJSON, err := json.Marshal(packConfig)
 		if err != nil {
-			return nil, newOsqueryError("internal error: marshal pack JSON: " + err.Error())
+			return nil, ctxerr.Wrap(ctx, err, "marshal pack config")
 		}
-		config["packs"] = json.RawMessage(packJSON)
+		raw = json.RawMessage(packJSON)
+	}
+
+	// Cache the result (including empty) for future requests (only if no legacy packs).
+	if !useLegacyPacks && svc.packConfigCache != nil {
+		cacheKey := packConfigCacheKey(host.TeamID, queryReportsDisabled)
+		svc.packConfigCache.SetDefault(cacheKey, raw)
+	}
+
+	return raw, nil
+}
+
+func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
+	// skipauth: Authorization is currently for user endpoints only.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, newOsqueryError("internal error: missing host from request context")
+	}
+
+	baseConfig, err := svc.AgentOptionsForHost(ctx, host.TeamID, host.Platform)
+	if err != nil {
+		return nil, newOsqueryError("internal error: fetch base config: " + err.Error())
+	}
+
+	config := make(map[string]any)
+	if baseConfig != nil {
+		err = json.Unmarshal(baseConfig, &config)
+		if err != nil {
+			return nil, newOsqueryError("internal error: parse base configuration: " + err.Error())
+		}
+		if config == nil {
+			// Unmarshaling the JSON literal `null` (e.g. agent options with
+			// "config": null) sets the map to nil rather than leaving it empty.
+			// Re-initialize so later assignments (e.g. config["packs"]) don't
+			// panic with "assignment to entry in nil map".
+			config = make(map[string]any)
+		}
+	}
+
+	packJSON, err := svc.getPackConfig(ctx, host)
+	if err != nil {
+		return nil, newOsqueryError("pack config error: " + err.Error())
+	}
+	if packJSON != nil {
+		config["packs"] = packJSON
 	}
 
 	// Save interval values if they have been updated.
@@ -910,6 +970,46 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 	return false, nil
 }
 
+// cleanupOutOfScopePolicyMembership deletes the host's policy_membership rows
+// for the given stale policies: policies with a stored row but no result in the
+// host's incoming distributed write (as returned by RecordPolicyQueryExecutions).
+// Fleet sends all in-scope policy queries together at the policy update interval
+// and osquery reports a result (or an error) for each, so a stale policy is no
+// longer in scope for the host (e.g. it changed teams, or fell out of the
+// policy's platform or label scope). Such rows otherwise linger forever,
+// inflating the failing policies counts computed from raw policy_membership
+// (Fleet Desktop badge, host issues) even though the host's policy listing
+// filters those policies out.
+//
+// The deletion is skipped for hosts in setup experience: they are sent a
+// filtered subset of policy queries (see policyQueriesForHost), so their stale
+// set is not meaningful. Under async policy processing this is a no-op, since
+// the task layer buffers results in Redis and always reports no stale policies.
+// Errors are logged and swallowed: this cleanup is best-effort and self-heals
+// on the host's next policy reporting cycle.
+func (svc *Service) cleanupOutOfScopePolicyMembership(ctx context.Context, host *fleet.Host, stalePolicyIDs []uint) {
+	if len(stalePolicyIDs) == 0 {
+		return
+	}
+	inSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
+	if err != nil {
+		logging.WithErr(ctx, err)
+		return
+	}
+	if inSetupExperience {
+		return
+	}
+	if err := svc.ds.ClearHostPolicyMembershipForPolicies(ctx, host.ID, stalePolicyIDs); err != nil {
+		logging.WithErr(ctx, err)
+		return
+	}
+	// Refresh the failing policies count now that stale rows are gone;
+	// RecordPolicyQueryExecutions already updated it, but before the deletion.
+	if err := svc.ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID); err != nil {
+		logging.WithErr(ctx, err)
+	}
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
@@ -1307,14 +1407,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// maybe we should impose restrictions between async collection interval
 		// and policy update interval?
 
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing); err != nil {
+		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, newPassing)
+		if err != nil {
 			logging.WithErr(ctx, err)
 		}
+		svc.cleanupOutOfScopePolicyMembership(ctx, host, stalePolicyIDs)
 	} else if hostWithoutPolicies {
 		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{}); err != nil {
+		// The host was sent the "no policies" wildcard query, so no policies are in scope
+		// for it and all of its stored policy_membership rows are stale.
+		stalePolicyIDs, err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost, []uint{})
+		if err != nil {
 			logging.WithErr(ctx, err)
 		}
+		svc.cleanupOutOfScopePolicyMembership(ctx, host, stalePolicyIDs)
 	}
 
 	if additionalUpdated {
@@ -1349,6 +1455,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 			if err := svc.ds.UpdateHost(ctx, host); err != nil {
 				logging.WithErr(ctx, err)
 			}
+		}
+	}
+
+	if detailUpdated && ac.MDM.EnabledAndConfigured && host.Platform == "darwin" && host.ComputerName != "" {
+		if err := svc.ds.UpdateHostDeviceNameStatusFromReport(ctx, host.UUID, host.ComputerName); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -2510,8 +2622,10 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 }
 
 func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
-	// Check if the needed server configuration for Conditional Access is set.
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+	// Conditional access is a Fleet Premium feature. Gate on the current license
+	// tier so that an integration left over from a previous Premium license
+	// (e.g. after a downgrade or expiry) doesn't keep the feature active.
+	if !license.IsPremium(ctx) {
 		return false, false, nil
 	}
 

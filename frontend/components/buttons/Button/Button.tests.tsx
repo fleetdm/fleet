@@ -1,5 +1,6 @@
 import React from "react";
 import { render, fireEvent, screen } from "@testing-library/react";
+import Icon from "components/Icon";
 import Button from "./Button";
 
 describe("Button component", () => {
@@ -49,5 +50,39 @@ describe("Button component", () => {
   it("renders with correct title attribute", () => {
     render(<Button title="Button title">Titled button</Button>);
     expect(screen.getByTitle("Button title")).toBeInTheDocument();
+  });
+  it("applies the bordered secondary variant class", () => {
+    const { container } = render(
+      <Button variant="secondary">Secondary</Button>
+    );
+    expect(container.firstChild).toHaveClass("button button--secondary");
+  });
+  it("applies the subdued variant class", () => {
+    const { container } = render(<Button variant="subdued">Subdued</Button>);
+    expect(container.firstChild).toHaveClass("button button--subdued");
+  });
+  it("applies the small modifier for a small secondary button", () => {
+    const { container } = render(
+      <Button variant="secondary" size="small">
+        Secondary
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--secondary__small");
+  });
+  it("adds the icon-only class when a secondary button has only an icon", () => {
+    const { container } = render(
+      <Button variant="secondary">
+        <Icon name="trash" />
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--icon-only");
+  });
+  it("does not add the icon-only class when a secondary button has a text label", () => {
+    const { container } = render(
+      <Button variant="secondary">
+        Delete <Icon name="trash" />
+      </Button>
+    );
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
   });
 });

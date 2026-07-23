@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.12.22",
+      "version": "1.12.24",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'im.riot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'im.riot.app' AND version_compare(bundle_short_version, '1.12.22') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'im.riot.app' AND version_compare(bundle_short_version, '1.12.24') < 0);"
       },
-      "installer_url": "https://packages.element.io/desktop/update/macos/Element-1.12.22-universal-mac.zip",
+      "installer_url": "https://packages.element.io/desktop/update/macos/Element-1.12.24-universal-mac.zip",
       "install_script_ref": "30bd4fb0",
       "uninstall_script_ref": "6e6ffb57",
-      "sha256": "fd87ce878ace296cc26a17a787fef9faa22153ab28bbecc83a0088c9d261ccfe",
+      "sha256": "1c9d596d418f356a68f1aaa414ae0e22d4809588ed7b320988405f5341d464df",
       "default_categories": [
         "Communication"
       ]

@@ -474,6 +474,57 @@ func applyAndValidateConditionalAccessOktaFields(
 	return nil
 }
 
+// persistAppleAccountProvisioningSecret stores, preserves, or soft-deletes the
+// Apple account provisioning IdP client secret in mdm_config_assets so it
+// matches the (already-validated) incoming config. It reports whether the
+// stored secret actually changed, so re-applying a GitOps config that resends an
+// identical secret is a no-op and emits no activity.
+//   - configured + a new secret provided: store it (replacing any existing
+//     value), reporting changed only when the value actually differs.
+//   - configured + no new secret: preserve the existing secret (unchanged).
+//   - feature cleared (was configured, now isn't): soft-delete the secret.
+func (svc *Service) persistAppleAccountProvisioningSecret(ctx context.Context, configured, wasConfigured, newSecretProvided bool, secret string) (changed bool, err error) {
+	switch {
+	case configured && newSecretProvided:
+		current, err := svc.appleAccountProvisioningSecret(ctx)
+		if err != nil {
+			return false, err
+		}
+		if current == secret {
+			return false, nil
+		}
+		if err := svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+			Name:  fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+			Value: []byte(secret),
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "store apple account provisioning idp client secret")
+		}
+		return true, nil
+	case !configured && wasConfigured:
+		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetAppleAccountProvisioningIdPClientSecret,
+		}); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "delete apple account provisioning idp client secret")
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// appleAccountProvisioningSecret returns the stored Apple account provisioning
+// IdP client secret, or "" if none is stored.
+func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx,
+		[]fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, nil)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return "", nil
+		}
+		return "", ctxerr.Wrap(ctx, err, "get apple account provisioning idp client secret")
+	}
+	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -719,6 +770,61 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
+	// Apple account provisioning (Platform SSO): the IdP client secret is never
+	// persisted in the AppConfig JSON — it's stored encrypted in
+	// mdm_config_assets. Capture the caller-supplied secret here, validate, then
+	// strip it from the config that gets saved.
+	oldAAP := oldAppConfig.MDM.AppleAccountProvisioning
+	incomingAAP := newAppConfig.MDM.AppleAccountProvisioning
+
+	if applyOpts.Overwrite {
+		appConfig.MDM.AppleAccountProvisioning = incomingAAP
+	}
+
+	incomingSecret := incomingAAP.OAuthIdPClientSecret
+	newAAPSecretProvided := incomingSecret.Valid && incomingSecret.Value != "" && incomingSecret.Value != fleet.MaskedPassword
+	newAAPSecret := incomingSecret.Value
+
+	mergedAAP := appConfig.MDM.AppleAccountProvisioning
+	appConfig.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.String{}
+
+	// Apple account provisioning is all-or-nothing: the token URL, client ID, and
+	// client secret are only meaningful together, so the config must have all three
+	// set or all three empty — never a partial state that reports as "configured"
+	// but can't run the sign-in flow.
+	tokenURLSet := mergedAAP.OAuthIdPTokenURL.Value != ""
+	clientIDSet := mergedAAP.OAuthIdPClientID.Value != ""
+	switch {
+	case mergedAAP.Configured(): // both public fields set
+		aapProvided := incomingAAP.OAuthIdPTokenURL.Set || incomingAAP.OAuthIdPClientID.Set || incomingAAP.OAuthIdPClientSecret.Set
+		if aapProvided && !lic.IsPremium() {
+			invalid.Append("mdm.apple_account_provisioning", ErrMissingLicense.Error())
+		}
+		if newAAPSecretProvided && svc.config.Server.PrivateKey == "" {
+			invalid.Append("mdm.apple_account_provisioning",
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+		if u, err := url.Parse(mergedAAP.OAuthIdPTokenURL.Value); err != nil || u.Host == "" || u.Scheme != "https" {
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_token_url", "must be a valid https URL")
+		}
+		switch {
+		case !newAAPSecretProvided && (applyOpts.Overwrite || !oldAAP.Configured()):
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be set together with oauth_idp_token_url and oauth_idp_client_id")
+		case !newAAPSecretProvided && mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value:
+			// Reusing a stored secret while repointing the IdP token endpoint would
+			// leak it to the new (possibly hostile) URL, so require it be provided.
+			// Similar to CAs and their secrets.
+			invalid.Append("mdm.apple_account_provisioning.oauth_idp_client_secret",
+				"oauth_idp_client_secret must be provided when changing oauth_idp_token_url")
+		}
+	case tokenURLSet || clientIDSet || newAAPSecretProvided:
+		// Not fully configured, but a field was supplied (one public field without
+		// the other, or a secret on its own) — a partial config.
+		invalid.Append("mdm.apple_account_provisioning",
+			"oauth_idp_token_url, oauth_idp_client_id, and oauth_idp_client_secret must all be set together, or all be empty")
 	}
 
 	// this is to handle the case where `apple_enable_release_device_manually: null` is
@@ -1031,10 +1137,43 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// reset fleet desktop settings to empty values for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
 		appConfig.FleetDesktop.AlternativeBrowserHost = ""
+		// Clear a premium-only host name template so a value set while premium isn't
+		// retained (and enforced by the cron, which gates on MDM.EnabledAndConfigured
+		// rather than the license) on Free. Only touch it when non-empty so a no-op
+		// Free-tier save doesn't flip the field's optjson state (unset null → empty).
+		if appConfig.MDM.HostNameTemplate.Value != "" {
+			appConfig.MDM.HostNameTemplate = optjson.SetString("")
+		}
+	}
+
+	aapSecretChanged, err := svc.persistAppleAccountProvisioningSecret(ctx, mergedAAP.Configured(), oldAAP.Configured(), newAAPSecretProvided, newAAPSecret)
+	if err != nil {
+		return nil, err
+	}
+	// The IdP client secret never reaches the AppConfig JSON, so a secret-only
+	// change isn't visible in the saved config diff — track it separately.
+	aapChanged := aapSecretChanged ||
+		mergedAAP.OAuthIdPTokenURL.Value != oldAAP.OAuthIdPTokenURL.Value ||
+		mergedAAP.OAuthIdPClientID.Value != oldAAP.OAuthIdPClientID.Value
+
+	// Mint the PSSO signing key and CA the first time the feature is configured.
+	// Idempotent: existing assets are preserved (never recreated on reconfigure),
+	// and they are deliberately kept when the feature is disabled so a later
+	// re-enable reuses the same JWKS key and unlock-key CA.
+	if mergedAAP.Configured() {
+		if err := bootstrapPSSOAssets(ctx, svc.ds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
+		}
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	if aapChanged {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeEditedAccountProvisioning{}); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", fleet.ActivityTypeEditedAccountProvisioning{}.ActivityName())
+		}
 	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
@@ -1355,6 +1494,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos disk encryption")
 			}
+		}
+	}
+
+	// Only reconcile enforcement rows on Premium: EnterpriseOverrides is wired up
+	// only for Premium builds, so calling it here would panic on Free. The value
+	// can change on Free without a Premium re-save in two ways — the downgrade
+	// reset above, and clearing a previously-set template ("" skips the license
+	// check) — both of which just clear the stored value; the leftover rows are
+	// inert because the enforcement cron skips an empty template.
+	if lic.IsPremium() && oldAppConfig.MDM.HostNameTemplate.Value != appConfig.MDM.HostNameTemplate.Value {
+		if err := svc.EnterpriseOverrides.ApplyHostNameTemplateChange(ctx, nil, appConfig.MDM.HostNameTemplate.Value); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile no-team host name template")
 		}
 	}
 
@@ -1746,6 +1897,23 @@ func (svc *Service) validateMDM(
 		invalid.Append("apple_require_hardware_attestation", ErrMissingLicense.Error())
 	}
 
+	if mdm.HostNameTemplate.Value != "" && oldMdm.HostNameTemplate.Value != mdm.HostNameTemplate.Value {
+		if !lic.IsPremium() {
+			invalid.Append("mdm.name_template", ErrMissingLicense.Error())
+		} else if validated, err := fleet.ValidateHostNameTemplateWithSecrets(ctx, svc.ds, mdm.HostNameTemplate.Value); err != nil {
+			// A validation or missing-secret error is invalid user input (422); any
+			// other error (e.g. a datastore failure while checking secrets) must
+			// propagate as a server error rather than be misreported as invalid input.
+			var argErr *fleet.InvalidArgumentError
+			if !errors.As(err, &argErr) {
+				return ctxerr.Wrap(ctx, err, "validating host name template")
+			}
+			invalid.Append("mdm.name_template", err.Error())
+		} else {
+			mdm.HostNameTemplate = optjson.SetString(validated)
+		}
+	}
+
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
@@ -1893,7 +2061,7 @@ func (svc *Service) validateMDM(
 		// TODO: look into blocking the case of a user-created API call that clears required EUA
 		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -2210,7 +2378,13 @@ func (svc *Service) validateVPPAssignments(
 // If this is a GitOps run (overwrite=true), all required fields must be present.
 // Otherwise we're doing a patch, so it's ok for fields to be missing as long
 // as we have persisted values for them.
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+func validateSSOProviderSettings(incoming *fleet.SSOProviderSettings, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+	// trim whitespace from the incoming values so that we don't persist them with leading/trailing whitespace
+	incoming.Metadata = strings.TrimSpace(incoming.Metadata)
+	incoming.MetadataURL = strings.TrimSpace(incoming.MetadataURL)
+	incoming.EntityID = strings.TrimSpace(incoming.EntityID)
+	incoming.IDPName = strings.TrimSpace(incoming.IDPName)
+
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
@@ -2243,7 +2417,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
+		validateSSOProviderSettings(&p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
@@ -2332,8 +2506,8 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 	}
 
 	for _, s := range spec.Secrets {
-		if s.Secret == "" {
-			return ctxerr.New(ctx, "enroll secret must not be empty")
+		if s == nil || strings.TrimSpace(s.Secret) == "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"))
 		}
 	}
 

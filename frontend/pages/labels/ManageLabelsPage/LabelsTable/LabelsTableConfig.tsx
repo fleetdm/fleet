@@ -180,7 +180,7 @@ const generateTableHeaders = (
             onChange={(value: string) => onClickAction(value, label)}
             placeholder="Actions"
             menuAlign="right"
-            variant="small-button"
+            variant="secondary"
           />
         );
       },

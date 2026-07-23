@@ -237,6 +237,7 @@ const DiskEncryption = ({
             hideText="Advanced options"
             caretPosition="after"
             onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+            variant="secondary"
           />
           {showAdvancedOptions && (
             <Checkbox
@@ -248,15 +249,15 @@ const DiskEncryption = ({
               <TooltipWrapper
                 tipContent={
                   <div>
-                    <p>
+                    <>
                       If enabled, end users on Windows hosts will be required to
                       set a BitLocker PIN.
-                    </p>
+                    </>
                     <br />
-                    <p>
+                    <>
                       When the PIN is set, it&rsquo;s required to unlock Windows
                       hosts during startup.
-                    </p>
+                    </>
                   </div>
                 }
               >

@@ -204,7 +204,7 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button
-          variant="inverse"
+          variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
         >
@@ -217,9 +217,7 @@ const HostSoftwareTable = ({
 
   // The /Applications filter is only relevant for macOS hosts.
   const showApplicationsFilter =
-    !isMyDevicePage &&
-    isMacOS(platform) &&
-    macosApplicationsFilter !== undefined;
+    isMacOS(platform) && macosApplicationsFilter !== undefined;
 
   const applicationsFilterOptions: CustomOptionType[] = [
     { label: "Full inventory", value: "false" },

@@ -19,7 +19,10 @@ import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  DOCUMENT_TITLE_SUFFIX,
+} from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -33,6 +36,7 @@ import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TruncatedTextList from "components/TruncatedTextList";
 import Avatar from "components/Avatar";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import { getTicketOrWebhookInfo } from "pages/policies/helpers";
@@ -276,17 +280,15 @@ const PolicyDetailsPage = ({
     const allLabels = [...(includeLabels ?? []), ...(excludeLabels ?? [])];
     if (!allLabels.length) return null;
 
-    const firstLabel = allLabels[0];
-    const moreLabels = allLabels.length - 1;
     return (
       <DataSet
         className={`${baseClass}__labels`}
         title="Labels"
         value={
-          <Button variant="link" onClick={openLabelModal}>
-            {firstLabel.name}
-            {moreLabels > 0 && ` + ${moreLabels} more`}
-          </Button>
+          <TruncatedTextList
+            items={allLabels.map((l) => l.name)}
+            onClick={openLabelModal}
+          />
         }
       />
     );
@@ -322,7 +324,7 @@ const PolicyDetailsPage = ({
       <DataSet
         className={`${baseClass}__automations`}
         title="Automations"
-        value="---"
+        value={DEFAULT_EMPTY_CELL_VALUE}
       />
     );
 
@@ -336,13 +338,14 @@ const PolicyDetailsPage = ({
     if (!automations.length) return emptyState;
 
     const firstAutomation = automations[0];
-    const moreCount = automations.length - 1;
     return (
       <DataSet
-        className={`${baseClass}__automations`}
+        className={`${baseClass}__automations${
+          automations.length > 1 ? ` ${baseClass}__automations--multi` : ""
+        }`}
         title="Automations"
         value={
-          <Button variant="link" onClick={openAutomationsModal}>
+          <>
             {firstAutomation.isSoftware ? (
               <SoftwareIcon
                 name={firstAutomation.iconName ?? firstAutomation.name}
@@ -362,9 +365,11 @@ const PolicyDetailsPage = ({
                 />
               )
             )}
-            {firstAutomation.name}
-            {moreCount > 0 && ` + ${moreCount} more`}
-          </Button>
+            <TruncatedTextList
+              items={automations.map((a) => a.name)}
+              onClick={openAutomationsModal}
+            />
+          </>
         }
       />
     );
@@ -408,14 +413,14 @@ const PolicyDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={() => setShowQueryModal(true)}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
                 {canRunPolicy && (
                   <Button
                     className={`${baseClass}__run`}
-                    variant="inverse"
+                    variant="secondary"
                     onClick={() => {
                       policyId &&
                         router.push(
@@ -489,11 +494,7 @@ const PolicyDetailsPage = ({
           includeScopeLabel={labelModalData.includeScopeLabel}
           excludeLabels={labelModalData.excludeLabels}
           excludeScopeLabel={labelModalData.excludeScopeLabel}
-          onLabelClick={
-            canEditLabels
-              ? (labelId) => router.push(PATHS.LABEL_EDIT(labelId))
-              : undefined
-          }
+          getLabelPath={canEditLabels ? PATHS.LABEL_EDIT : undefined}
           onClose={() => setShowLabelModal(false)}
         />
       )}

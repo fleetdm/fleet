@@ -17,6 +17,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
@@ -75,6 +76,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null

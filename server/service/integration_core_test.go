@@ -1532,8 +1532,8 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -2153,7 +2153,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	resp = listHostsResponse{}
@@ -2417,7 +2417,7 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	for _, host := range hosts {
 		// All hosts pass the globalPolicy1
-		err := s.ds.RecordPolicyQueryExecutions(
+		_, err := s.ds.RecordPolicyQueryExecutions(
 			context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil,
 		)
 		require.NoError(t, err)
@@ -3023,6 +3023,123 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 	}
 }
 
+func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
+	t := s.T()
+	ctx := context.Background()
+
+	createInvite := func(email string, ssoEnabled bool) *fleet.Invite {
+		createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+			Email:      new(email),
+			Name:       new("SSO Invitee"),
+			GlobalRole: null.StringFrom(fleet.RoleObserver),
+			SSOEnabled: new(ssoEnabled),
+		}}
+		createInviteResp := createInviteResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+		t.Cleanup(func() {
+			// Ignore the error: an accepted invite is consumed (deleted) by the
+			// acceptance flow, so it may no longer exist at cleanup time.
+			_ = s.ds.DeleteInvite(ctx, createInviteResp.Invite.ID)
+		})
+		// the token is not returned via the response's json, must get it from the db
+		invite, err := s.ds.Invite(ctx, createInviteResp.Invite.ID)
+		require.NoError(t, err)
+		return invite
+	}
+
+	// An SSO-only invite must not be acceptable through the password flow.
+	t.Run("sso invite rejects password payload", func(t *testing.T) {
+		email := "sso-password-attack@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    &test.GoodPassword,
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		// no user should have been created
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// An empty password field on an SSO invite must also be rejected: the
+	// presence of the field at all is not allowed.
+	t.Run("sso invite rejects empty password field", func(t *testing.T) {
+		email := "sso-empty-password@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    new(""),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// The legitimate SSO acceptance flow must create an SSO-enabled user.
+	t.Run("sso invite accepted via sso flow", func(t *testing.T) {
+		email := "sso-legit@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("SSO User"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusOK, &resp)
+		require.NotNil(t, resp.User)
+		require.True(t, resp.User.SSOEnabled)
+		t.Cleanup(func() { require.NoError(t, s.ds.DeleteUser(ctx, resp.User.ID)) })
+	})
+
+	// A non-SSO invite accepted with SSO flags but no password must be rejected
+	// (and must not panic on a nil password).
+	t.Run("password invite rejects sso payload without password", func(t *testing.T) {
+		email := "password-as-sso@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("No Password"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// A non-SSO invite accepted with SSOInvite falsely set must still enforce
+	// password complexity: setting the SSO flag must not let a weak password
+	// slip past validation.
+	t.Run("password invite rejects sso payload with weak password", func(t *testing.T) {
+		email := "password-as-sso-weak@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Weak Password"),
+			Email:       new(email),
+			Password:    new("weak"), // too short, no number or symbol
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()
@@ -3263,8 +3380,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?policy_id=%d&policy_response=passing", policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3313,14 +3430,14 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 
 	// Record query executions
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil,
-		),
+		)),
 	)
 	require.NoError(
-		t, s.ds.RecordPolicyQueryExecutions(
+		t, errOnly(s.ds.RecordPolicyQueryExecutions(
 			context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil,
-		),
+		)),
 	)
 	// Update policy stats
 	require.NoError(t, s.ds.UpdateHostPolicyCounts(context.Background()))
@@ -3505,8 +3622,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	s.DoJSON("GET", listHostsURL, nil, http.StatusOK, &listHostsResp)
 	require.Len(t, listHostsResp.Hosts, 0)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h1.Host, map[uint]*bool{policiesResponse.Policies[0].ID: new(true)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), h2.Host, map[uint]*bool{policiesResponse.Policies[0].ID: nil}, time.Now(), false, nil)))
 
 	listHostsURL = fmt.Sprintf("/api/latest/fleet/hosts?team_id=%d&policy_id=%d&policy_response=passing", team1.ID, policiesResponse.Policies[0].ID)
 	listHostsResp = listHostsResponse{}
@@ -3714,7 +3831,7 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NotNil(t, tpResp.Policy)
 	require.NotEmpty(t, tpResp.Policy.ID)
 
-	err = s.ds.RecordPolicyQueryExecutions(
+	_, err = s.ds.RecordPolicyQueryExecutions(
 		context.Background(),
 		host1,
 		map[uint]*bool{gpResp.Policy.ID: ptr.Bool(true)},
@@ -5595,6 +5712,47 @@ func (s *integrationTestSuite) TestLabels() {
 			// attempt to delete by id
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
 		}
+
+		// A modify that changes membership but fails metadata validation (a
+		// duplicate name) must roll back as a unit: the membership change must not
+		// be committed on its own, and no edited_label activity must be recorded
+		// for the failed request.
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "atomic_conflict_label"}, http.StatusOK, &createResp)
+		conflictName := createResp.Label.Name
+
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels",
+			&fleet.LabelPayload{Name: "atomic_target_label", HostIDs: []uint{manualHosts[0].ID, manualHosts[1].ID}}, http.StatusOK, &createResp)
+		atomicLbl := createResp.Label.Label
+		require.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, createResp.Label.HostIDs)
+
+		// watermark: id of the most recent activity before the failed request
+		lastActID := s.lastActivityMatches("", "", 0)
+
+		// rename to the conflicting name while also changing membership: the
+		// duplicate name must fail the whole request with 409
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: &conflictName, HostIDs: []uint{manualHosts[2].ID}}, http.StatusConflict, &modResp)
+
+		// name and membership must be unchanged (no partial commit)
+		getResp = fleet.GetLabelResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, atomicLbl.Name, getResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, getResp.Label.HostIDs)
+
+		// no new activity must have been recorded for the failed request
+		assert.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
+
+		// a valid rename that also changes membership must commit both and record
+		// the edited_label activity
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: new("atomic_target_renamed"), HostIDs: []uint{manualHosts[2].ID}}, http.StatusOK, &modResp)
+		assert.Equal(t, "atomic_target_renamed", modResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[2].ID}, modResp.Label.HostIDs)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedLabel{}.ActivityName(), "", 0), lastActID)
 	})
 
 	t.Run("IdP Labels", func(t *testing.T) {
@@ -6138,7 +6296,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NotNil(t, gpResp.Policy)
 	require.NoError(
 		t,
-		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil),
+		errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: new(false)}, time.Now(), false, nil)),
 	)
 
 	// Add MDM info
@@ -6445,8 +6603,42 @@ func (s *integrationTestSuite) TestUsers() {
 		return err
 	})
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: "foo"}, http.StatusUnauthorized, &loginResp)
-	// MFA unsupported client
-	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
+
+	loginErrMessage := func(rawBody []byte) string {
+		var body struct {
+			Message string `json:"message"`
+			Errors  []struct {
+				Name   string `json:"name"`
+				Reason string `json:"reason"`
+			} `json:"errors"`
+		}
+		require.NoError(t, json.Unmarshal(rawBody, &body))
+		return fmt.Sprintf("%s %+v", body.Message, body.Errors)
+	}
+
+	mfaUnsupportedResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	mfaUnsupportedBody, err := io.ReadAll(mfaUnsupportedResp.Body)
+	require.NoError(t, err)
+	mfaUnsupportedResp.Body.Close()
+
+	wrongPwdResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: "wrong-" + userRawPwd}),
+		http.StatusUnauthorized)
+	wrongPwdBody, err := io.ReadAll(wrongPwdResp.Body)
+	require.NoError(t, err)
+	wrongPwdResp.Body.Close()
+
+	nonexistentResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "does-not-exist@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	nonexistentBody, err := io.ReadAll(nonexistentResp.Body)
+	require.NoError(t, err)
+	nonexistentResp.Body.Close()
+
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(mfaUnsupportedBody))
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(nonexistentBody))
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
@@ -8248,6 +8440,9 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// update MDM host name template
+	_ = s.Do("POST", "/api/latest/fleet/host_name_template", updateHostNameTemplateRequest{}, http.StatusPaymentRequired)
+
 	// Turn on MDM.
 	ctx := t.Context()
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -8850,6 +9045,14 @@ func (s *integrationTestSuite) TestAppConfig() {
 		Spec: &fleet.EnrollSecretSpec{
 			Secrets: createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1),
 		},
+	}, http.StatusUnprocessableEntity, &applyResp)
+
+	// apply spec, empty and whitespace-only secrets are rejected
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+	}, http.StatusUnprocessableEntity, &applyResp)
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "   "}}},
 	}, http.StatusUnprocessableEntity, &applyResp)
 
 	// error conditions should create new activities
@@ -9793,7 +9996,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	// create a policy and make the host fail it
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", Platform: host.FleetPlatform()})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, &fleet.Host{ID: host.ID}, map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// refetch the host details
@@ -10539,7 +10742,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
 	require.NoError(t, err)
-	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
+	_, err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: new(false)}, time.Now(), false, nil)
 	require.NoError(t, err)
 
 	// create some device mappings for host[2]
@@ -12961,20 +13164,20 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 
 	for i, host := range hosts {
 		// All hosts pass the globalPolicy0
-		err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
+		_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy0.ID: new(true)}, time.Now(), false, nil)
 		require.NoError(t, err)
 
 		if i%2 == 0 {
 			// Half of the hosts pass the globalPolicy1 and fail the globalPolicy2
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		} else {
 			// Half of the hosts pass the globalPolicy2 and fail the globalPolicy1
-			err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
+			_, err := s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy1.ID: new(false)}, time.Now(), false, nil)
 			require.NoError(t, err)
-			err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
+			_, err = s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{globalPolicy2.ID: new(true)}, time.Now(), false, nil)
 			require.NoError(t, err)
 		}
 	}
@@ -14080,8 +14283,8 @@ func (s *integrationTestSuite) TestHostHealth() {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: new(false)}, time.Now(), false, nil)))
+	require.NoError(t, errOnly(s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: new(true)}, time.Now(), false, nil)))
 
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), host.ID, true, nil))
 
@@ -15114,19 +15317,45 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	}
 	// Do dry run
 	req.DryRun = true
+	idBeforeDryRun := s.lastActivityMatches("", "", 0)
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	secrets, err := s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Empty(t, secrets)
+	// A dry run persists nothing, so it must not emit any activity.
+	require.Equal(t, idBeforeDryRun, s.lastActivityMatches("", "", 0))
 
-	// Do real run
+	// Do real run: creating the variable emits a created_custom_variable activity.
 	req.DryRun = false
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityCreatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_id":0,"custom_variable_name":%q}`, validName),
+		0,
+	)
+
+	// Re-applying the same spec is a no-op and must not emit any activity.
+	idAfterCreate := s.lastActivityMatches("", "", 0)
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	require.Equal(t, idAfterCreate, s.lastActivityMatches("", "", 0))
+
+	// Changing the value via the spec endpoint emits an updated_custom_variable activity.
+	req.SecretVariables[0].Value = "new-value"
+	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
+	secrets, err = s.ds.GetSecretVariables(ctx, []string{validName})
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assert.Equal(t, "new-value", secrets[0].Value)
+	s.lastActivityMatches(
+		fleet.ActivityUpdatedCustomVariable{}.ActivityName(),
+		fmt.Sprintf(`{"custom_variable_name":%q}`, validName),
+		0,
+	)
 }
 
 func (s *integrationTestSuite) TestSecretVariables() {
@@ -15676,7 +15905,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, fleet.HostCertificateOriginOsquery, nil))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}
@@ -15846,24 +16075,19 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 	}
 }
 
-func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
-	t := s.T()
-
-	var resp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
-	require.False(t, resp.License.ManagedCloud)
-
-	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
+	// Microsoft compliance partner APIs should fail on Fleet Free (this suite
+	// runs without a premium license).
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
 		MicrosoftTenantID: "foobar",
-	}, http.StatusBadRequest, &r)
+	}, http.StatusPaymentRequired, &r)
 	var c conditionalAccessMicrosoftConfirmResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &c)
+		http.StatusPaymentRequired, &c)
 	var d conditionalAccessMicrosoftDeleteResponse
-	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
-		http.StatusBadRequest, &d)
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
+		http.StatusPaymentRequired, &d)
 }
 
 func (s *integrationTestSuite) TestUpdateHostCertificateTemplate() {

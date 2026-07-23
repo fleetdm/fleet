@@ -115,7 +115,7 @@ const ManagedAccountModal = ({
               <Button onClick={onCancel}>Close</Button>
               {canRotatePassword && (
                 <Button
-                  variant="inverse"
+                  variant="secondary"
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
