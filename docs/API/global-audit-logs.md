@@ -1,8 +1,6 @@
-# Audit logs
+# Audit log activities
 
-Fleet logs activities.
-
-To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
+Fleet logs audit activities. Send activities to a webhook URL or log destination to automate Fleet. [Learn how](https://fleetdm.com/guides/automations#activity-automations).
 
 This page includes a list of activities.
 
@@ -3127,6 +3125,6 @@ This activity contains the following fields:
 ```
 
 
-<meta name="title" value="Audit logs">
+<meta name="title" value="Audit log activities">
 <meta name="pageOrderInSection" value="1400">
 <meta name="description" value="Learn how Fleet logs administrative actions in JSON format.">

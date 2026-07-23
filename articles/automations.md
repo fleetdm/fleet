@@ -10,6 +10,8 @@ Activity automations are triggered when an activity happens in Fleet (queries, s
 
 You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
+Send activities to a webhook URL by heading to the Fleet dashboard and selecting **Automations** in the **Activity** card. The URL can also be configured via [GitOps](https://fleetdm.com/docs/configuration/yaml-files#activities-webhook) or [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#webhook-settings-activities-webhook).
+
 ## Policy automations
 
 Policy automations are triggered if a policy fails on a host. 
