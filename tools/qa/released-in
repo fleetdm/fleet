@@ -42,7 +42,7 @@ if [[ -z "${NEEDLE:-}" ]]; then
   exit 1
 fi
 
-ARGS=("log" "$REF" "--reverse" "-S" "$NEEDLE" "-n" "1" "--format=%H")
+ARGS=("log" "--reverse" "-S" "$NEEDLE" "-n" "1" "--format=%H" "$REF")
 if [[ -n "$PATHSPEC" ]]; then
   ARGS+=("--" "$PATHSPEC")
 fi
@@ -58,7 +58,7 @@ echo "Introducing commit: $COMMIT"
 
 # Find the first stable fleet-vX.Y.Z tag containing this commit.
 # Warn early if no fleet-v* tags exist at all — likely missing a git fetch --tags.
-if ! git tag --list "fleet-v*" | grep -q .; then
+if [[ -z "$(git tag --list "fleet-v*")" ]]; then
   echo "Warning: no fleet-v* tags found locally. Run 'git fetch --tags' for accurate results." >&2
 fi
 ALL_TAGS=$(git tag --contains "$COMMIT" --list "fleet-v*" --sort=v:refname 2>/dev/null || true)
