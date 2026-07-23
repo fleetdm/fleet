@@ -1,6 +1,6 @@
 #!/bin/bash
-# CIS 3.4 - Ensure Security Auditing Retention Is Enabled
-# Sets expire-after to a value below threshold so the query fails.
+# CIS 3.4 - Ensure Security Auditing Logs Are Retained for 30 Days
+# Sets expire-after to a value below 30 days so the query fails.
 if [ ! -f /etc/security/audit_control ]; then
   /usr/bin/sudo /bin/cp /etc/security/audit_control.example /etc/security/audit_control
 fi
