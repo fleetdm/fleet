@@ -58,6 +58,8 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
 		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
+		{"SetAndroidHostEnrolled", testSetAndroidHostEnrolled},
+		{"AndroidPubSubDedupState", testAndroidPubSubDedupState},
 		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
 		{"InsertAndGetAndroidAppConfiguration", testInsertAndGetAndroidAppConfiguration},
 		{"UpdateAndroidAppConfiguration", testUpdateAndroidAppConfiguration},
@@ -3139,6 +3141,111 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 }
 
 // NEW TEST: verify single-host unenroll updates host_mdm correctly
+func testSetAndroidHostEnrolled(t *testing.T, ds *Datastore) {
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create a BYO Android host (companyOwned=false) -> enrolled host_mdm row.
+	esid := "enterprise-" + uuid.NewString()
+	res, err := ds.NewAndroidHost(testCtx(), createAndroidHost(esid), false)
+	require.NoError(t, err)
+
+	// Already enrolled: no-op, returns false.
+	didEnroll, err := ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didEnroll, "SetAndroidHostEnrolled must be a no-op when the host is already enrolled")
+
+	// Unenroll, then recover.
+	unenrolled, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didEnroll, "SetAndroidHostEnrolled must restore enrollment for an unenrolled host")
+
+	hostMDM, err := ds.GetHostMDM(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, hostMDM.Enrolled, "host_mdm.enrolled must be restored to 1")
+	require.Equal(t, "https://mdm.example.com", hostMDM.ServerURL, "server_url must be restored")
+	require.True(t, hostMDM.IsPersonalEnrollment, "BYO recovery must preserve is_personal_enrollment")
+
+	// Calling again is a no-op.
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didEnroll)
+
+	// Unknown host has no host_mdm row: no-op, no error.
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), 999999)
+	require.NoError(t, err)
+	require.False(t, didEnroll)
+
+	// COBO recovery must preserve is_personal_enrollment=0 even though the recovery does
+	// not know the ownership (it is derived from the existing row, not the status payload).
+	coboESID := "enterprise-cobo-" + uuid.NewString()
+	cobo, err := ds.NewAndroidHost(testCtx(), createAndroidHost(coboESID), true /* companyOwned */)
+	require.NoError(t, err)
+	coboMDM, err := ds.GetHostMDM(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.False(t, coboMDM.IsPersonalEnrollment, "fresh COBO enrollment is not a personal enrollment")
+
+	unenrolled, err = ds.SetAndroidHostUnenrolled(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didEnroll)
+	coboMDM, err = ds.GetHostMDM(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, coboMDM.Enrolled)
+	require.False(t, coboMDM.IsPersonalEnrollment, "COBO recovery must not reclassify the host as personal")
+}
+
+func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
+	esid := "enterprise-" + uuid.NewString()
+	res, err := ds.NewAndroidHost(testCtx(), createAndroidHost(esid), false)
+	require.NoError(t, err)
+	hostID := res.Host.ID
+
+	// Fresh host: no recorded state.
+	messageID, eventTime, err := ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Empty(t, messageID)
+	require.Nil(t, eventTime)
+
+	// Record a messageId + event time.
+	t1 := time.Now().UTC().Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-1", &t1))
+
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-1", messageID)
+	require.NotNil(t, eventTime)
+	require.WithinDuration(t, t1, *eventTime, time.Millisecond)
+
+	// Overwrite with a newer message.
+	t2 := t1.Add(time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-2", &t2))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-2", messageID)
+	require.WithinDuration(t, t2, *eventTime, time.Millisecond)
+
+	// A nil event time is allowed (column left NULL).
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", nil))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-3", messageID)
+	require.Nil(t, eventTime)
+
+	// Unknown host -> NotFound.
+	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound for unknown host, got %v", err)
+}
+
 func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	// Set a non-empty server URL so initial enrolled row has data to clear
 	appCfg, err := ds.AppConfig(testCtx())

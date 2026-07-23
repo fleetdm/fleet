@@ -1,0 +1,1 @@
+- Added deduplication and out-of-order protection to the Android MDM Pub/Sub notification handler. Duplicate deliveries from Google Pub/Sub no longer re-run the setup experience or emit duplicate activities, and a stale device-deleted notification arriving after a re-enrollment no longer leaves the host stuck showing unenrolled.
