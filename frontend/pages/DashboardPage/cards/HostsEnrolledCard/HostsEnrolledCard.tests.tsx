@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { InjectedRouter } from "react-router";
+import { ILabelSummary } from "interfaces/label";
 
 import HostsEnrolledCard, { formatPercent } from "./HostsEnrolledCard";
 
@@ -42,6 +43,18 @@ class MockResizeObserver {
 }
 
 const noopRouter = ({ push: () => undefined } as unknown) as InjectedRouter;
+
+// Built-in labels keyed to PLATFORM_NAME_TO_LABEL_NAME so the card can resolve a
+// hosts-list link for each platform.
+const builtInLabels: ILabelSummary[] = [
+  { id: 10, name: "macOS", label_type: "builtin" },
+  { id: 11, name: "MS Windows", label_type: "builtin" },
+  { id: 12, name: "All Linux", label_type: "builtin" },
+  { id: 13, name: "chrome", label_type: "builtin" },
+  { id: 14, name: "iOS", label_type: "builtin" },
+  { id: 15, name: "iPadOS", label_type: "builtin" },
+  { id: 16, name: "Android", label_type: "builtin" },
+];
 
 const counts = {
   darwin: 21925,
@@ -115,6 +128,73 @@ describe("HostsEnrolledCard", () => {
       "Android",
     ].forEach((label) => {
       expect(screen.getByText(label)).toBeInTheDocument();
+    });
+  });
+
+  // Regression: the per-platform labels must be keyboard-operable, not just
+  // mouse-clickable SVG text. See #48214.
+  describe("keyboard accessibility", () => {
+    it("exposes platforms with hosts as focusable, accessibly named buttons", () => {
+      render(
+        <HostsEnrolledCard
+          counts={counts}
+          totalHostCount={22070}
+          builtInLabels={builtInLabels}
+          router={noopRouter}
+        />
+      );
+
+      const macButton = screen.getByRole("button", { name: "macOS hosts" });
+      expect(macButton).toBeInTheDocument();
+      // Reachable via Tab (tabindex 0).
+      expect(macButton).toHaveAttribute("tabindex", "0");
+
+      // A platform whose display label ("ChromeOS") differs from its built-in
+      // label name ("chrome") still resolves and becomes operable.
+      expect(
+        screen.getByRole("button", { name: "ChromeOS hosts" })
+      ).toBeInTheDocument();
+    });
+
+    it("does not turn platforms with zero hosts into buttons", () => {
+      render(
+        <HostsEnrolledCard
+          counts={counts}
+          totalHostCount={22070}
+          builtInLabels={builtInLabels}
+          router={noopRouter}
+        />
+      );
+
+      // iOS/iPadOS/Android have a count of 0, so they should stay plain text.
+      expect(
+        screen.queryByRole("button", { name: "iOS hosts" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("navigates to the platform's hosts list on Enter and Space", () => {
+      const push = jest.fn();
+      const router = ({ push } as unknown) as InjectedRouter;
+
+      render(
+        <HostsEnrolledCard
+          counts={counts}
+          totalHostCount={22070}
+          builtInLabels={builtInLabels}
+          currentTeamId={3}
+          router={router}
+        />
+      );
+
+      const macButton = screen.getByRole("button", { name: "macOS hosts" });
+
+      fireEvent.keyDown(macButton, { key: "Enter" });
+      fireEvent.keyDown(macButton, { key: " " });
+
+      expect(push).toHaveBeenCalledTimes(2);
+      // Links to the macOS built-in label (id 10) while preserving the fleet.
+      expect(push).toHaveBeenCalledWith(expect.stringContaining("/labels/10"));
+      expect(push).toHaveBeenCalledWith(expect.stringContaining("fleet_id=3"));
     });
   });
 });
