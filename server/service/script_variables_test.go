@@ -350,7 +350,7 @@ func TestGetSoftwareInstallDetailsFleetVariables(t *testing.T) {
 		// the identical failure reported once even though two scripts hit it
 		require.NotNil(t, savedResult)
 		require.NotNil(t, savedResult.InstallScriptExitCode)
-		require.Equal(t, fleet.ScriptFleetVarResolutionFailedExitCode, *savedResult.InstallScriptExitCode)
+		require.Equal(t, fleet.ExitCodeFleetVarResolutionFailed, *savedResult.InstallScriptExitCode)
 		require.NotNil(t, savedResult.InstallScriptOutput)
 		require.Equal(t, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.", *savedResult.InstallScriptOutput)
 	})

@@ -536,7 +536,7 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 	case ExitCodeInstallerNotFound:
 		*h.Output = SoftwareInstallerNotFoundCopy
 		return
-	case ScriptFleetVarResolutionFailedExitCode:
+	case ExitCodeFleetVarResolutionFailed:
 		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
 		return
 	default:
@@ -1168,21 +1168,6 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallPending
 	}
 }
-
-const (
-	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
-	// disabled.
-	ExitCodeScriptsDisabled = -2
-	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
-	ExitCodeInstallerDownloadFailed = -3
-	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
-	// details from the server for longer than the retry window (e.g. because the
-	// installer was deleted/replaced while a setup-experience install was in flight).
-	ExitCodeInstallerNotFound = -4
-)
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {

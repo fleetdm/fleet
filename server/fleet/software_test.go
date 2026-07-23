@@ -173,7 +173,7 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			name: "non-pending status with fleet variable resolution failed exit code",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,
-				InstallScriptExitCode: new(ScriptFleetVarResolutionFailedExitCode),
+				InstallScriptExitCode: new(ExitCodeFleetVarResolutionFailed),
 				Output:                new("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME."),
 			},
 			expectedPreInstallQueryOutput: nil,

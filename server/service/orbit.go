@@ -1617,7 +1617,7 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 			failureMessage := strings.Join(failures, "\n")
 			if err := svc.SaveHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 				InstallUUID:           installUUID,
-				InstallScriptExitCode: new(int(fleet.ScriptFleetVarResolutionFailedExitCode)),
+				InstallScriptExitCode: new(int(fleet.ExitCodeFleetVarResolutionFailed)),
 				InstallScriptOutput:   &failureMessage,
 			}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure for software install")
