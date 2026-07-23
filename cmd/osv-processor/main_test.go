@@ -633,6 +633,74 @@ func TestRun(t *testing.T) {
 	require.Equal(t, "CVE-2024-1234", artifact.Vulnerabilities["test-package"][0].CVE)
 }
 
+func TestRunExpandsUbuntuBinaryPackages(t *testing.T) {
+	inputDir := t.TempDir()
+	outputDir := t.TempDir()
+
+	testOSVData := `{
+		"schema_version": "1.0",
+		"id": "UBUNTU-CVE-2025-15661",
+		"published": "2025-01-01T00:00:00Z",
+		"modified": "2025-01-02T00:00:00Z",
+		"affected": [{
+			"package": {
+				"ecosystem": "Ubuntu:26.04:LTS",
+				"name": "libssh2"
+			},
+			"ranges": [{
+				"type": "ECOSYSTEM",
+				"events": [
+					{"introduced": "0"},
+					{"fixed": "1.11.1-1ubuntu0.26.04.2"}
+				]
+			}],
+			"versions": [
+				"1.11.1-1build1",
+				"1.11.1-1build2",
+				"1.11.1-1ubuntu0.26.04.1"
+			],
+			"ecosystem_specific": {
+				"binaries": [{
+					"binary_name": "libssh2-1t64",
+					"binary_version": "1.11.1-1ubuntu0.26.04.2"
+				}]
+			}
+		}],
+		"upstream": ["CVE-2025-15661"]
+	}`
+
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "UBUNTU-CVE-2025-15661.json"), []byte(testOSVData), 0o644))
+
+	cfg := Config{
+		InputDir:              inputDir,
+		OutputDir:             outputDir,
+		Versions:              "26.04",
+		ExcludeVersions:       "",
+		ChangedFilesToday:     "",
+		ChangedFilesYesterday: "",
+		DateStr:               "2025-01-03",
+		YesterdayStr:          "2025-01-02",
+		GeneratedTimestamp:    "2025-01-03T00:00:00Z",
+		RunTime:               time.Date(2025, 1, 3, 0, 0, 0, 0, time.UTC),
+	}
+
+	require.NoError(t, run(cfg))
+
+	artifact, err := readArtifact(filepath.Join(outputDir, "osv-ubuntu-2604-2025-01-03.json.gz"))
+	require.NoError(t, err)
+	require.Equal(t, 1, artifact.TotalCVEs)
+	require.Equal(t, 2, artifact.TotalPackages)
+	require.Contains(t, artifact.Vulnerabilities, "libssh2")
+	require.Contains(t, artifact.Vulnerabilities, "libssh2-1t64")
+
+	binaryVulns := artifact.Vulnerabilities["libssh2-1t64"]
+	require.Len(t, binaryVulns, 1)
+	require.Equal(t, "CVE-2025-15661", binaryVulns[0].CVE)
+	require.Equal(t, "0", binaryVulns[0].Introduced)
+	require.Equal(t, "1.11.1-1ubuntu0.26.04.2", binaryVulns[0].Fixed)
+	require.Contains(t, binaryVulns[0].Versions, "1.11.1-1ubuntu0.26.04.1")
+}
+
 func TestRunWithDeltaGeneration(t *testing.T) {
 	// Create temporary directories
 	inputDir := t.TempDir()

@@ -36,7 +36,16 @@ type Affected struct {
 }
 
 type EcosystemSpecific struct {
+	// Used by Android OSV records.
 	Severity string `json:"severity,omitempty"`
+
+	// Used by Ubuntu OSV records.
+	Binaries []UbuntuBinary `json:"binaries,omitempty"`
+}
+
+type UbuntuBinary struct {
+	BinaryName    string `json:"binary_name"`
+	BinaryVersion string `json:"binary_version"`
 }
 
 type Package struct {
@@ -284,6 +293,9 @@ func run(cfg Config) error {
 			if packages == nil {
 				continue
 			}
+
+			packages = appendUbuntuBinaryPackages(packages, affected)
+
 			// Use modified vulnerability if provided, otherwise use original
 			vulnToUse := &vuln
 			if modifiedVuln != nil {
