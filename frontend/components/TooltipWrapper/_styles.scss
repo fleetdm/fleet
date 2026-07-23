@@ -9,7 +9,6 @@
     white-space: nowrap;
     line-height: inherit; // Same line height as parent
     cursor: default;
-    user-select: none;
   }
 
   // text-decoration dashed cannot be used as it's not firefox compatible so must use border-bottom
