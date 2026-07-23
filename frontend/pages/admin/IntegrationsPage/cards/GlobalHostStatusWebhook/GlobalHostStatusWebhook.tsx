@@ -167,7 +167,7 @@ const GlobalHostStatusWebhook = ({
             </p>
             <Button
               type="button"
-              variant="inverse"
+              variant="secondary"
               onClick={toggleHostStatusWebhookPreviewModal}
             >
               Preview request

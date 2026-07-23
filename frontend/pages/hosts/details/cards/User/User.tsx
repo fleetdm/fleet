@@ -76,7 +76,7 @@ const User = ({
         <CardHeader header="User" />
         <div className={`${baseClass}__header-actions`}>
           {canViewMyDeviceLink && (
-            <Button variant="inverse" onClick={onClickMyDevice} size="small">
+            <Button variant="secondary" onClick={onClickMyDevice} size="small">
               My device
               <Icon name="external-link" />
             </Button>
@@ -84,12 +84,12 @@ const User = ({
           {canWriteEndUser && (
             <Button
               className={`${baseClass}__add-user-btn`}
-              variant="inverse"
+              variant="secondary"
               onClick={onClickUpdateUser}
               size="small"
             >
+              <Icon name={writeButtonIcon} size="small" />
               {writeButtonText}
-              <Icon name={writeButtonIcon} />
             </Button>
           )}
         </div>

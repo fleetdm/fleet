@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.1.16",
+      "version": "4.1.17",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical' AND version_compare(bundle_short_version, '4.1.16') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flexibits.fantastical' AND version_compare(bundle_short_version, '4.1.17') < 0);"
       },
-      "installer_url": "https://cdn.flexibits.com/Fantastical_4.1.16.zip",
+      "installer_url": "https://cdn.flexibits.com/Fantastical_4.1.17.zip",
       "install_script_ref": "0da19afb",
       "uninstall_script_ref": "6e9e990a",
-      "sha256": "1960ad78d1bb2b774d970f40259f36e5e0f3c36c698a9f8d11c82fde1eb2c85f",
+      "sha256": "8bc0c880c22bda64f7150a8019236e5f5ae0642eee26ae907d46d5ee7292c03e",
       "default_categories": [
         "Productivity"
       ]

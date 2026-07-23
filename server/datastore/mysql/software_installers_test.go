@@ -224,7 +224,8 @@ func testGetSoftwareInstallDetailsCustomHostVitals(t *testing.T, ds *Datastore) 
 	_, err = ds.GetSoftwareInstallDetails(ctx, execID2)
 	var missing *fleet.MissingCustomHostVitalValueError
 	require.ErrorAs(t, err, &missing)
-	require.Equal(t, []uint{dept.ID}, missing.MissingIDs) //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.Equal(t, []uint{dept.ID}, missing.MissingIDs)          //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.Equal(t, []string{"Department"}, missing.MissingNames) //nolint:nilaway // cannot be nil due to require.ErrorAs above
 }
 
 func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
@@ -2801,6 +2802,46 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "windows", &teamSh.ID)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService, "windows host should NOT see .sh packages")
+
+	// Create a new team for .py testing
+	teamPy, err := ds.NewTeam(ctx, &fleet.Team{Name: "team py darwin test"})
+	require.NoError(t, err)
+
+	// Initially, darwin should not see any self-service installers in this team
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamPy.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "darwin should not see self-service before .py is created")
+
+	// Create a self-service .py installer (stored as platform='linux', extension='py')
+	// This should be visible to darwin hosts due to the unix-like script exception
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "py script for darwin",
+		Source:          "py_packages",
+		InstallScript:   "python3 installer.py",
+		TeamID:          &teamPy.ID,
+		Filename:        "script.py",
+		Platform:        "linux", // .py files are stored as linux
+		Extension:       "py",
+		SelfService:     true,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Darwin host should now see self-service .py package
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &teamPy.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "darwin host should see self-service .py packages")
+
+	// Linux host should also see it
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "linux", &teamPy.ID)
+	require.NoError(t, err)
+	assert.True(t, hasSelfService, "linux host should see self-service .py packages")
+
+	// Windows host shouldn't see .py packages
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "windows", &teamPy.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService, "windows host should NOT see .py packages")
 
 	// Create a self-service VPP for team/darwin
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)

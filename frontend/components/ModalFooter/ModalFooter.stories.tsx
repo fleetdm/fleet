@@ -36,10 +36,10 @@ export const Default: Story = {
     ),
     secondaryButtons: (
       <>
-        <Button variant="icon" onClick={() => alert("Download clicked")}>
+        <Button variant="secondary" onClick={() => alert("Download clicked")}>
           <Icon name="download" />
         </Button>
-        <Button variant="icon" onClick={() => alert("Delete clicked")}>
+        <Button variant="secondary" onClick={() => alert("Delete clicked")}>
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
       </>

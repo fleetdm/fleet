@@ -265,7 +265,7 @@ const QueryDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
@@ -283,7 +283,7 @@ const QueryDetailsPage = ({
                       <div>
                         <Button
                           className={`${baseClass}__run`}
-                          variant="inverse"
+                          variant="secondary"
                           onClick={() => {
                             queryId &&
                               router.push(

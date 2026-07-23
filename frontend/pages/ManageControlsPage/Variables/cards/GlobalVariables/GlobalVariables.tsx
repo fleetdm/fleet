@@ -189,7 +189,7 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Button
-                  variant="inverse"
+                  variant="secondary"
                   size="small"
                   onClick={onClickAddVariable}
                   disabled={disableChildren}

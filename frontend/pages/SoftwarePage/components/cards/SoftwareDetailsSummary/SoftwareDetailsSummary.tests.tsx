@@ -34,7 +34,7 @@ describe("buildActionOptions", () => {
       {
         label: "Edit appearance",
         value: ACTION_EDIT_APPEARANCE,
-        isDisabled: false,
+        disabled: false,
         tooltipContent: undefined,
       },
     ]);
@@ -61,7 +61,7 @@ describe("buildActionOptions", () => {
     expect(editSoftware).toEqual({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: false,
+      disabled: false,
       tooltipContent: undefined,
     });
   });
@@ -87,7 +87,7 @@ describe("buildActionOptions", () => {
     expect(editConfig).toEqual({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      isDisabled: false,
+      disabled: false,
       tooltipContent: undefined,
     });
   });
@@ -116,18 +116,18 @@ describe("buildActionOptions", () => {
     );
 
     expect(editAppearance).toMatchObject({
-      isDisabled: true,
+      disabled: true,
       tooltipContent: expect.anything(),
     });
 
     expect(editConfig).toMatchObject({
-      isDisabled: true,
+      disabled: true,
       tooltipContent: expect.anything(),
     });
 
     // For Apple VPP, Edit software also gets the gitops tooltip if present.
     expect(editSoftware).toMatchObject({
-      isDisabled: true,
+      disabled: true,
       tooltipContent: expect.anything(),
     });
   });
@@ -149,7 +149,7 @@ describe("buildActionOptions", () => {
     expect(patch).toEqual({
       label: "Patch",
       value: ACTION_PATCH,
-      isDisabled: false,
+      disabled: false,
       tooltipContent: undefined,
     });
   });
@@ -171,7 +171,7 @@ describe("buildActionOptions", () => {
     expect(patch).toEqual({
       label: "Patch",
       value: ACTION_PATCH,
-      isDisabled: true,
+      disabled: true,
       tooltipContent: "Patch policy is already added.",
     });
   });

@@ -54,7 +54,7 @@ interface IFileUploaderProps {
    * a link.
    * @default "button"
    */
-  buttonType?: "button" | "brand-inverse-icon";
+  buttonType?: "button" | "secondary";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
@@ -119,8 +119,7 @@ export const FileUploader = ({
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
   });
-  const buttonVariant =
-    buttonType === "button" ? "default" : "brand-inverse-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -168,9 +167,7 @@ export const FileUploader = ({
     let buttonMarkup = (
       <>
         {buttonMessage}
-        {buttonType === "brand-inverse-icon" && (
-          <Icon color="core-fleet-green" name="upload" />
-        )}
+        {buttonType === "secondary" && <Icon name="upload" />}
       </>
     );
     // If we want to actual do file uploading, wrap in a label that

@@ -36,7 +36,7 @@ const ConfirmSaveChangesModal = ({
           >
             Save
           </Button>
-          <Button onClick={onClose} variant="inverse">
+          <Button onClick={onClose} variant="secondary">
             Cancel
           </Button>
         </div>

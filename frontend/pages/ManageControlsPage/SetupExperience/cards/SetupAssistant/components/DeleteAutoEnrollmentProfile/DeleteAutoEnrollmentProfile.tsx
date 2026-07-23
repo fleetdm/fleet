@@ -44,7 +44,7 @@ const DeleteAutoEnrollProfile = ({
         <Button type="button" onClick={handleDelete} variant="alert">
           Delete
         </Button>
-        <Button onClick={onCancel} variant="inverse-alert">
+        <Button onClick={onCancel} variant="secondary">
           Cancel
         </Button>
       </div>

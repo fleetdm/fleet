@@ -471,7 +471,7 @@ const PackageForm = ({
           message={restrictedFileTypeLabel ?? renderFileTypeMessage()}
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           className={`${baseClass}__file-uploader`}
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
@@ -555,7 +555,7 @@ const PackageForm = ({
             );
           })()}
 
-          <Button variant="inverse" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

@@ -1,10 +1,14 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -12,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 )
 
@@ -377,4 +382,247 @@ func (svc *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, te
 	}
 
 	return nil
+}
+
+func (svc *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	user := authz.UserFromContext(ctx)
+	if user == nil {
+		// skipauth: Without a user in context we cannot perform a Rego authorization check
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewAuthRequiredError("user not found in context")
+	}
+
+	if !user.IsAnyAdmin() {
+		// skipauth: Authorization is enforced via the role check in this branch
+		svc.authz.SkipAuthorization(ctx)
+		return nil, authz.ForbiddenWithInternal("release AB devices requires an admin role", user, nil, fleet.ActionWrite)
+	}
+
+	if len(hostIDs) > 32_000 {
+		// skipauth: For a bad request we don't need a rego check
+		svc.authz.SkipAuthorization(ctx)
+		// Arbitrary limit, Apple does not document what a fair limit is.
+		// Mainly to avoid querying more than 65k if that should ever happen in one MySQL statement, and break with too many statements.
+		return nil, &fleet.BadRequestError{Message: "Too many host IDs provided. Maximum is 32,000."}
+	}
+
+	if len(hostIDs) == 0 {
+		// skipauth: For a bad request we don't need a rego check
+		svc.authz.SkipAuthorization(ctx)
+
+		return nil, &fleet.BadRequestError{Message: "No host IDs provided."}
+	}
+
+	// First look up all hosts teamID's and serials.
+	liteHosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "listing hosts by ids")
+	}
+
+	// This is only really used for logging the display name in the activity
+	hostIDToLiteHost := make(map[uint]*fleet.Host, len(liteHosts))
+
+	// hostID -> response map
+	response := make(map[uint]*fleet.ABReleaseDeviceResponse, len(hostIDs))
+
+	setSuccessResponse := func(hostID uint) {
+		if response[hostID] != nil {
+			return // no-op, to avoid overwriting previous status, shouldn't really happen though.
+		}
+		response[hostID] = &fleet.ABReleaseDeviceResponse{
+			HostID: hostID,
+			Status: string(fleet.ABReleaseDeviceStatusSuccess),
+		}
+	}
+
+	setErrorResponse := func(hostID uint, status fleet.ABReleaseDeviceStatus, errMsg string) {
+		if response[hostID] != nil {
+			return // no-op, to avoid overwriting previous status, shouldn't really happen though.
+		}
+		response[hostID] = &fleet.ABReleaseDeviceResponse{
+			HostID: hostID,
+			Status: string(status),
+			Error:  errMsg,
+		}
+	}
+
+	// We iterate over all hosts, to build a serial lookup map, and a deduped teamID list for authorization.
+	unseenHostIDs := make(map[uint]struct{}, len(hostIDs))
+	for _, id := range hostIDs {
+		unseenHostIDs[id] = struct{}{}
+	}
+
+	serialToHostID := make(map[string]uint, len(liteHosts))
+	teamIDs := make(map[uint]struct{}, len(liteHosts))
+	for _, h := range liteHosts {
+		hostIDToLiteHost[h.ID] = h
+		delete(unseenHostIDs, h.ID)
+
+		if h.TeamID != nil {
+			teamIDs[*h.TeamID] = struct{}{}
+		} else {
+			teamIDs[0] = struct{}{}
+		}
+
+		if !fleet.IsApplePlatform(h.FleetPlatform()) {
+			setErrorResponse(h.ID, fleet.ABReleaseDeviceStatusError, "This is not an eligible Apple host.")
+			continue
+		}
+
+		if h.HardwareSerial == "" {
+			setErrorResponse(h.ID, fleet.ABReleaseDeviceStatusError, "Host has no hardware serial.")
+			continue
+		}
+
+		serialToHostID[h.HardwareSerial] = h.ID
+	}
+
+	for hostID := range unseenHostIDs {
+		setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "Host not found.")
+	}
+
+	if len(teamIDs) == 0 {
+		// Only queried non-existent hosts, only global admin can see not founds.
+		if err := svc.authz.Authorize(ctx, &fleet.ABReleaseDeviceAuthz{}, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+	}
+
+	// authz check on all teams from gathered hostID's
+	for teamID := range teamIDs {
+		tid := teamID
+		if err := svc.authz.Authorize(ctx, &fleet.ABReleaseDeviceAuthz{TeamID: &tid}, fleet.ActionWrite); err != nil {
+			return nil, err
+		}
+	}
+
+	if len(serialToHostID) == 0 {
+		sliceResponse := slices.Collect(maps.Values(response))
+		slices.SortFunc(sliceResponse, func(a, b *fleet.ABReleaseDeviceResponse) int {
+			return cmp.Compare(a.HostID, b.HostID)
+		})
+		return sliceResponse, nil
+	}
+
+	validHostIDs := slices.Collect(maps.Values(serialToHostID))
+	depAssignments, err := svc.ds.GetHostDEPAssignmentsByHostIDs(ctx, validHostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host DEP assignments by host IDs")
+	}
+
+	// build another unseen map, to report which devices aren't in AB.
+	unseenHostIDs = make(map[uint]struct{}, len(validHostIDs))
+	for _, id := range validHostIDs {
+		unseenHostIDs[id] = struct{}{}
+	}
+
+	// overwrite serialToHostID so we only have valid DEP assigned hosts in the serial list.
+	serialToHostID = make(map[string]uint, len(depAssignments))
+	// get a list of deduped token ID's
+	dedupedTokenIDs := make(map[uint][]string, len(depAssignments))
+	for _, assignment := range depAssignments {
+		delete(unseenHostIDs, assignment.HostID)
+		if assignment.HardwareSerial == "" {
+			// Should not happen, but if query diverts then we safeguard.
+			setErrorResponse(assignment.HostID, fleet.ABReleaseDeviceStatusError, "Host has no hardware serial.")
+			continue
+		}
+		if assignment.ABMTokenID != nil {
+			dedupedTokenIDs[*assignment.ABMTokenID] = append(dedupedTokenIDs[*assignment.ABMTokenID], assignment.HardwareSerial)
+			serialToHostID[assignment.HardwareSerial] = assignment.HostID
+		} else {
+			// Should not happen, but if query diverts then we safeguard.
+			setErrorResponse(assignment.HostID, fleet.ABReleaseDeviceStatusError, "Host has no associated ABM token.")
+		}
+	}
+
+	for hostID := range unseenHostIDs {
+		setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "This host was not found in Apple Business.")
+	}
+
+	// We list all here and filter by deduped list, the returned list is so small anyways.
+	tokens, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+
+	depClient := apple_mdm.NewDEPClient(svc.depStorage, svc.ds, svc.logger)
+
+	// Iterate over deduped token ID's and call the disown devices, for all serials associated with that token.
+	for tokenID, serials := range dedupedTokenIDs {
+		var token *fleet.ABMToken
+		for _, t := range tokens {
+			if t.ID == tokenID {
+				token = t
+				break
+			}
+		}
+		if token == nil {
+			for _, serial := range serials {
+				setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, "ABM token not found.")
+			}
+			continue
+		}
+
+		svc.logger.DebugContext(ctx, "Releasing AB devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serials", serials)
+		disownResp, err := depClient.DisownDevices(ctx, token.OrganizationName, serials...)
+		if err != nil {
+			if depAuthErr, ok := errors.AsType[*client.AuthError](err); ok {
+				svc.logger.ErrorContext(ctx, "Release AB devices failed with DEP auth error", "token_id", tokenID, "organization_name", token.OrganizationName, "error", depAuthErr)
+
+				for _, serial := range serials {
+					setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Couldn't release host from Apple Business. Apple rejected this request. Confirm that “Allow this service to release devices” is enabled in Apple Business. Learn More: %s", "https://fleetdm.com/learn-more-about/release-devices"))
+				}
+				continue
+			}
+
+			// Other generic HTTP/network/JSON errors.
+			svc.logger.ErrorContext(ctx, "Failed to release AB devices", "token_id", tokenID, "organization_name", token.OrganizationName, "error", err)
+			for _, serial := range serials {
+				setErrorResponse(serialToHostID[serial], fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
+			}
+			continue
+		}
+
+		releasedSerials := make([]string, 0, len(disownResp.Devices))
+		for _, serial := range serials {
+			hostID := serialToHostID[serial]
+
+			status, ok := disownResp.Devices[serial]
+			if !ok {
+				svc.logger.ErrorContext(ctx, "No status returned for serial from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial)
+				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, "Couldn't release host from Apple Business.")
+				continue
+			}
+
+			if strings.EqualFold(string(status), string(fleet.ABReleaseDeviceStatusSuccess)) {
+				setSuccessResponse(hostID)
+				if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeReleasedDeviceFromAB{
+					HostID:          hostID,
+					HostSerial:      serial,
+					HostDisplayName: hostIDToLiteHost[hostID].DisplayName(),
+				}); err != nil {
+					svc.logger.ErrorContext(ctx, "Failed to log activity for released device from AB", "host_id", hostID, "serial", serial, "error", err)
+				}
+				releasedSerials = append(releasedSerials, serial)
+			} else {
+				svc.logger.ErrorContext(ctx, "Got non success status from DEP disown devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serial", serial, "status", status)
+				setErrorResponse(hostID, fleet.ABReleaseDeviceStatusError, fmt.Sprintf("Error releasing device: %s", status))
+			}
+
+		}
+
+		if err := svc.ds.DeleteHostDEPAssignments(ctx, token.ID, releasedSerials); err != nil {
+			// We only log the error, but continue to try the remaining tokens.
+			svc.logger.ErrorContext(ctx, "Failed to delete host DEP assignments after releasing devices", "token_id", tokenID, "organization_name", token.OrganizationName, "serials", releasedSerials, "error", err)
+		}
+	}
+
+	sliceResponse := slices.Collect(maps.Values(response))
+	slices.SortFunc(sliceResponse, func(a, b *fleet.ABReleaseDeviceResponse) int {
+		return cmp.Compare(a.HostID, b.HostID)
+	})
+
+	return sliceResponse, nil
 }

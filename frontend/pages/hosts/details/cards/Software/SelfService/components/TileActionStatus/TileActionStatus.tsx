@@ -113,7 +113,7 @@ const TileActionStatus = ({
         )}
         {actionLabel && (
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={handleClick}
             disabled={disableAction}
           >

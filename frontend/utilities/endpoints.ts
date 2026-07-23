@@ -372,4 +372,5 @@ export default {
   GLOBAL_VARIABLES: `/${API_VERSION}/fleet/custom_variables`,
   // custom host vitals endpoints
   CUSTOM_HOST_VITALS: `/${API_VERSION}/fleet/custom_host_vitals`,
+  RELEASE_AB_HOSTS: `/${API_VERSION}/fleet/hosts/release_ab`,
 };

@@ -802,7 +802,7 @@ WHERE
 		{{end}}
 		{{if and (hasTeamID $) $.Platform}}
 		  {{if and $.ForSetupExperience (isDarwinOnly $.Platform)}}
-		    {{$postfix := printf " AND (si.platform IN (%s) OR (si.extension = 'sh' AND si.platform = 'linux') OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
+		    {{$postfix := printf " AND (si.platform IN (%s) OR (si.extension IN ('sh', 'py') AND si.platform = 'linux') OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}
 		    {{$additionalWhere = printf "%s %s" $additionalWhere $postfix}}
 		  {{else}}
 		    {{$postfix := printf " AND (si.platform IN (%s) OR vap.platform IN (%[1]s) OR iha.platform IN (%[1]s))" (placeholders $.Platform)}}

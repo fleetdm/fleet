@@ -37,6 +37,7 @@ func TestAndroid(t *testing.T) {
 		{"AndroidHostStorageData", testAndroidHostStorageData},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
+		{"UpdateMDMAndroidConfigProfile", testUpdateMDMAndroidConfigProfile},
 		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
@@ -939,6 +940,237 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 	require.Equal(t, "testAndroid2", profile2.Name)
+}
+
+func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+
+	// profile content update happens in place: the ProfileUUID is preserved
+	// (not a delete+recreate), and the new content is actually persisted --
+	// confirmed below by re-fetching from the DB, not just trusting the
+	// value UpdateMDMAndroidConfigProfile returns.
+	initial, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Update Test Profile",
+		RawJSON: []byte(`{"original": true}`),
+	}, nil)
+	require.NoError(t, err)
+
+	newRawJSON := []byte(`{"updated": true}`)
+	updated, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, updated.ProfileUUID)
+	require.JSONEq(t, string(newRawJSON), string(updated.RawJSON))
+
+	// confirms values actually stored in the DB match what was returned from the update call
+	stored, err := ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(newRawJSON), string(stored.RawJSON))
+
+	// mismatched name is rejected -- Android profiles have no separate
+	// identifier field, so name is the only identity a profile has. This is
+	// the only layer this can be tested at: the service layer never exposes
+	// a way for a client to submit a different name on an edit.
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "A Different Name",
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.ErrorContains(t, err, "must match the existing profile's name")
+
+	// updating a nonexistent profile returns a not-found error
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: "g" + uuid.NewString(),
+		Name:        "Does Not Exist",
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.True(t, fleet.IsNotFound(err))
+
+	// labels replace the previous set entirely rather than merging with it
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-label-2", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label1.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label2.Name, stored.LabelsIncludeAll[0].LabelName, "the previous label must be replaced, not merged with")
+
+	// labels can be cleared entirely, not just replaced with a different set --
+	// exercises the profsWithoutLabel branch, a distinct code path from "has
+	// labels".
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAll)
+	require.Empty(t, stored.LabelsIncludeAny)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	// LabelsIncludeAny and LabelsExcludeAny replace the same way LabelsIncludeAll
+	// does above -- each is a separate label list on the profile.
+	anyExcludeProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Any Exclude Labels Profile",
+		RawJSON: []byte(`{"anyExclude": true}`),
+	}, nil)
+	require.NoError(t, err)
+	includeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-include-any", Query: "select 1"})
+	require.NoError(t, err)
+	excludeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-exclude-any", Query: "select 1"})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: includeAnyLabel.Name, LabelID: includeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAny, 1)
+	require.Equal(t, includeAnyLabel.Name, stored.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: excludeAnyLabel.Name, LabelID: excludeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAny, "the previous IncludeAny label must be replaced, not kept alongside ExcludeAny")
+	require.Len(t, stored.LabelsExcludeAny, 1)
+	require.Equal(t, excludeAnyLabel.Name, stored.LabelsExcludeAny[0].LabelName)
+
+	// content and labels updated together in a single call -- proves the two
+	// transactional steps (content UPDATE, label rebuild) compose correctly,
+	// not just each dimension on its own.
+	combined, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Combined Update Profile",
+		RawJSON: []byte(`{"combinedOriginal": true}`),
+	}, nil)
+	require.NoError(t, err)
+	combinedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-combined-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	combinedRawJSON := []byte(`{"combinedUpdated": true}`)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: combined.ProfileUUID,
+		Name:        combined.Name,
+		RawJSON:     combinedRawJSON,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: combinedLabel.Name, LabelID: combinedLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, combined.ProfileUUID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(combinedRawJSON), string(stored.RawJSON))
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, combinedLabel.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	// Fleet variables used in the new content are persisted, a labels-only
+	// edit (no new content) leaves them untouched, and a content edit that
+	// drops the last variable clears the stale association.
+	varNamesStmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.android_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	varProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Android Fleet Vars Profile",
+		RawJSON: []byte(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostPlatform})
+	require.NoError(t, err)
+	varLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: varLabel.Name, LabelID: varLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	var varNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostPlatform)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		RawJSON:     []byte(`{"managedConfiguration": {"platform": "static"}}`),
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "a content edit that drops the last Fleet variable must clear the stale association")
+
+	// uploaded_at is preserved on a no-op edit (identical content) and bumped
+	// on a real content change, matching the batch upsert's convention
+	uploadedAtRawJSON := []byte(`{"uploadedAt": true}`)
+	uploadedAtProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Uploaded At Profile",
+		RawJSON: uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_android_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+
+	noOp, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2020, noOp.UploadedAt.Year(), "a no-op edit must not bump uploaded_at")
+
+	contentChangedProf, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     []byte(`{"uploadedAt": false}`),
+	}, nil)
+	require.NoError(t, err)
+	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {

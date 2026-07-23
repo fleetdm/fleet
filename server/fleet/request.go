@@ -12,10 +12,13 @@ const (
 	MaxBatchScriptSize       int64 = 25 * units.MiB
 	MaxProfileSize           int64 = 1.5 * units.MiB // 1.5 to allow for roughly 1MB content, and B64 encoding
 	MaxBatchProfileSize      int64 = 25 * units.MiB
-	MaxMDMAssetSize          int64 = 1.5 * units.MiB // 1.5 to allow for roughly 1MB content, and B64 encoding
-	MaxEULASize              int64 = 25 * units.MiB
-	MaxSoftwareBatchSize     int64 = 25 * units.MiB // Takes multiple installers, with scripts and queries
-	MaxMDMCommandSize        int64 = 2 * units.MiB
+	// MaxProfileSizeErrMsg reports the ~1MB content limit that MaxProfileSize
+	// enforces (the extra 0.5 MiB is base64 headroom, not usable content).
+	MaxProfileSizeErrMsg       = "maximum configuration profile file size is 1 MB"
+	MaxMDMAssetSize      int64 = 1.5 * units.MiB // 1.5 to allow for roughly 1MB content, and B64 encoding
+	MaxEULASize          int64 = 25 * units.MiB
+	MaxSoftwareBatchSize int64 = 25 * units.MiB // Takes multiple installers, with scripts and queries
+	MaxMDMCommandSize    int64 = 2 * units.MiB
 	// MaxMultiScriptQuerySize, sets a max size for payloads that take multiple scripts and SQL queries.
 	MaxMultiScriptQuerySize int64 = 5 * units.MiB
 	MaxMicrosoftMDMSize     int64 = 2 * units.MiB

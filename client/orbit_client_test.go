@@ -37,6 +37,32 @@ func TestGetConfig(t *testing.T) {
 	)
 }
 
+func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
+	newClient := func(bypassEndUserAuth bool) *OrbitClient {
+		oc, err := NewOrbitClient(
+			t.TempDir(),
+			"https://fleet.example.com",
+			"",
+			true,
+			"secret",
+			nil,
+			fleet.OrbitHostInfo{HardwareUUID: "uuid", Hostname: "host"},
+			nil,
+			nil,
+			"",
+			bypassEndUserAuth,
+		)
+		require.NoError(t, err)
+		return oc
+	}
+
+	// With bypass enabled, orbit must not advertise the end-user auth capability.
+	require.NotContains(t, newClient(true).ClientCapabilities, fleet.CapabilityEndUserAuth)
+
+	// Without bypass, capabilities are unchanged from the default set.
+	require.Equal(t, fleet.GetOrbitClientCapabilities(), newClient(false).ClientCapabilities)
+}
+
 func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	ctx, cancel := context.WithCancel(context.Background())
 	oc := &OrbitClient{

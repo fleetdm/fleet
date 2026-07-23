@@ -206,7 +206,7 @@ const SoftwareLibraryTable = ({
   const renderCustomControls = () => {
     return (
       <div className={`${baseClass}__controls`}>
-        <Button variant="inverse" onClick={onClickCategories}>
+        <Button variant="secondary" onClick={onClickCategories}>
           <Icon name="settings" /> Categories
         </Button>
         <Slider

@@ -910,6 +910,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
 		{"POST", "/api/latest/fleet/hosts/1/name_template/resend", false, true},
+		{"GET", "/api/latest/fleet/assets", false, true},
+		{"GET", "/api/latest/fleet/assets/1", false, true},
+		// TODO: multipart/form data parsing issue, see comment above
+		// {"POST", "/api/latest/fleet/assets", false, true},
+		{"DELETE", "/api/latest/fleet/assets/1", false, true},
+		{"POST", "/api/latest/fleet/assets/batch", false, true},
 	}
 }
 
