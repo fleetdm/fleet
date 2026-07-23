@@ -771,10 +771,12 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
-	if !t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	// default on a local copy: mutating the caller's Team here would be a surprising side effect
+	windowsSettings := t.Config.MDM.WindowsSettings
+	if !windowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		windowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
 	}
-	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+	mdmSpec.WindowsSettings = windowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 
 	var webhookSettings TeamSpecWebhookSettings

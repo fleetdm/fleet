@@ -412,7 +412,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			newEnabled := payload.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
 			windowsManagedLocalAccountUpdated = team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != newEnabled.Value
 			if windowsManagedLocalAccountUpdated && newEnabled.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("mdm.windows_settings.managed_local_account_settings.enabled",
+				return nil, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
 					"Couldn't update windows_settings.managed_local_account_settings because Windows MDM isn't turned on in Fleet.")
 			}
 			team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newEnabled
