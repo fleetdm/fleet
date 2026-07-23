@@ -42,6 +42,11 @@ if [[ -z "${NEEDLE:-}" ]]; then
   exit 1
 fi
 
+if [[ $# -gt 0 ]]; then
+  echo "unexpected argument: $1" >&2
+  exit 2
+fi
+
 ARGS=("log" "--reverse" "-S" "$NEEDLE" "-n" "1" "--format=%H" "$REF")
 if [[ -n "$PATHSPEC" ]]; then
   ARGS+=("--" "$PATHSPEC")
