@@ -186,7 +186,7 @@ type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet
 
 type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFilter) error
 
@@ -6140,11 +6140,11 @@ func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLabelFunc(ctx, label, teamFilter)
+	return s.SaveLabelFunc(ctx, label, hostIDs, teamFilter)
 }
 
 func (s *DataStore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {

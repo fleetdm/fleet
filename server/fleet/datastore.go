@@ -244,8 +244,9 @@ type Datastore interface {
 
 	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
-	// members of this label, or an error.
-	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	// members of this label, or an error. When hostIDs is non-nil, the label's
+	// manual membership is replaced with exactly those hosts.
+	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
 	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.

@@ -1,0 +1,1 @@
+- Fixed a bug where modifying a label could silently persist a membership change without recording an audit activity when the label's metadata update failed (e.g. renaming to a name that already exists). Label metadata and membership are now saved in a single transaction, so a failed update rolls back both.
