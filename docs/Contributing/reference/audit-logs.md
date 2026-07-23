@@ -501,7 +501,7 @@ This activity contains the following fields:
 ```json
 {
 	"host_id": 42,
-	"host_display_name": "USER-WINDOWS",
+	"host_display_name": "USER-",
 	"host_serial": "ABC123",
 	"triggered_by": "expiration",
 	"host_expiry_window": 30
@@ -3050,13 +3050,13 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_escrow_disk_encryption_key_only
+## edited_disk_encryption_settings_apple
 
-Generated when a user turns on escrow only for a fleet (or unassigned hosts).
+Generated when a user edits disk encryption settings for Apple hosts on a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that escrow only applies to, `null` if it applies to hosts that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that escrow applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
@@ -3067,13 +3067,30 @@ This activity contains the following fields:
 }
 ```
 
-## disabled_escrow_disk_encryption_key_only
+## edited_disk_encryption_settings_windows
 
-Generated when a user turns off escrow only for a fleet (or unassigned hosts).
+Generated when a user edits disk encryption settings for Windows hosts on a fleet (or unassigned hosts).
 
 This activity contains the following fields:
-- "fleet_id": The ID of the fleet that escrow only applies to, `null` if it applies to hosts that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that escrow applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## edited_disk_encryption_settings_linux
+
+Generated when a user edits disk encryption settings for Linux hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
 
 #### Example
 
