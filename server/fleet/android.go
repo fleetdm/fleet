@@ -130,7 +130,7 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	// depend on callers always pairing it with that check to catch a malformed
 	// reference — mirrors the same rejection in ValidateAndroidAppConfiguration.
 	if malformed := ContainsMalformedCustomHostVitalRefs(contents); len(malformed) > 0 {
-		return fmt.Errorf("Couldn't edit profile. %s", (&InvalidCustomHostVitalRefError{Refs: malformed}).Error())
+		return errors.New((&InvalidCustomHostVitalRefError{Refs: malformed}).Error())
 	}
 
 	// Custom host vitals ($FLEET_HOST_VITAL_<id>) are validated for existence
@@ -171,10 +171,10 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 		for _, id := range vitalIDs {
 			token := fmt.Sprintf("%s%d", CustomHostVitalPrefix, id)
 			if _, inKey := vitalKeyVars[token]; inKey {
-				return fmt.Errorf("Couldn't edit profile. Custom host vital $%s must be inside a JSON string value.", token)
+				return fmt.Errorf("Custom host vital $%s must be inside a JSON string value.", token)
 			}
 			if _, inStr := vitalStringVars[token]; !inStr {
-				return fmt.Errorf("Couldn't edit profile. Custom host vital $%s must be inside a JSON string value.", token)
+				return fmt.Errorf("Custom host vital $%s must be inside a JSON string value.", token)
 			}
 		}
 	}
