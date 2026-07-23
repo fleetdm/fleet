@@ -2380,6 +2380,15 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, testSw.Name, name)
 	assert.Empty(t, displayName)
 
+	// A team's display_name override takes precedence over the title name.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return updateSoftwareTitleDisplayName(ctx, q, &team1.ID, titleID, "Team1 Custom Name")
+	})
+	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team1.ID, team1Filter)
+	require.NoError(t, err)
+	assert.Empty(t, name)
+	assert.Equal(t, "Team1 Custom Name", displayName)
+
 	// Out-of-scope team: NotFound, no data disclosed.
 	_, _, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, &team2.ID, team1Filter)
 	require.Error(t, err)
@@ -2406,7 +2415,8 @@ func testSoftwareTitleNameForHostFilter(t *testing.T, ds *Datastore) {
 	assert.Equal(t, noTeamSw.Name, name)
 	assert.Empty(t, displayName)
 
-	// nil teamID: scoped to every team the caller can access.
+	// nil teamID: scoped to every team the caller can access, and ignores
+	// team1's display_name override (set above) since no single team is in scope.
 	name, displayName, err = ds.SoftwareTitleNameForHostFilter(ctx, titleID, nil, team1Filter)
 	require.NoError(t, err)
 	assert.Equal(t, testSw.Name, name)

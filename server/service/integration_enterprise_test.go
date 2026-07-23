@@ -11627,9 +11627,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareVersionsResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
 
-				// Get a global software title
+				// Get a global software title (only on the "no team" host, which
+				// no team-scoped user can see): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
@@ -11691,9 +11693,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareTitlesResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
 
-				// Get a team software title
+				// Get a team software title (on team1 and "no team", neither
+				// visible to this team-2 user): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse

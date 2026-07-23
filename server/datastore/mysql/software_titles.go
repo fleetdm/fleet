@@ -134,11 +134,13 @@ GROUP BY
 
 // SoftwareTitleNameForHostFilter confirms a software title's presence via a
 // live host/software join, instead of the software_titles_host_counts
-// aggregate SoftwareTitleByID relies on, and returns its name/display_name.
-// A nil teamID is scoped to every team tmFilter's user can access (the same
-// boundary whereFilterHostsByTeams applies elsewhere), never to any team at
-// all, so it can't disclose a title outside that boundary; both branches
-// return NotFound rather than revealing which team(s) hold the title.
+// aggregate SoftwareTitleByID relies on. It returns either the team's
+// display_name override or the title's name -- never both, the unused
+// return is always "". A nil teamID is scoped to every team tmFilter's
+// user can access (the same boundary whereFilterHostsByTeams applies
+// elsewhere), never to any team at all, so it can't disclose a title
+// outside that boundary; both branches return NotFound instead of
+// revealing which team(s) hold the title.
 func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name, displayName string, err error) {
 	// "No team" hosts have hosts.team_id IS NULL, never a literal 0.
 	hostTeamFilter := "h.team_id IS NULL"
