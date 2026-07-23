@@ -156,6 +156,35 @@ describe("MDMStatusModal - component", () => {
     expect(screen.queryByText("Assigned")).not.toBeInTheDocument();
   });
 
+  it("does not render profile assignment section for a non-DEP host (host_dep_assignment is null)", async () => {
+    (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+      id: 3,
+      dep_device: null,
+      dep_error: null,
+      host_dep_assignment: null,
+    });
+
+    render(
+      <MDMStatusModal
+        hostId={3}
+        enrollmentStatus="On (manual)"
+        router={mockRouter}
+        isPremiumTier
+        isAppleDevice
+        onExit={jest.fn()}
+      />
+    );
+
+    // Wait for the query to settle (the section stays visible with a spinner
+    // while loading, since a DEP host wouldn't be distinguishable from a
+    // non-DEP host until the response comes back).
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
+  });
+
   it("shows spinner while DEP assignment is loading", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockReturnValue(
       new Promise(() => {
@@ -225,6 +254,51 @@ describe("MDMStatusModal - component", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it.each([
+    {
+      depError: "TERMS_EXPIRED",
+      expectedMessage:
+        "Apple Business terms/conditions have changed. An admin must accept them.",
+    },
+    {
+      depError: "NOT_FOUND",
+      expectedMessage:
+        "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server.",
+    },
+    {
+      depError: "SERVER_ERROR",
+      expectedMessage:
+        "Apple's servers are temporarily unavailable. Please try again later.",
+    },
+    {
+      depError: "UNAVAILABLE",
+      expectedMessage:
+        "Fleet can't retrieve data from Apple right now. Please try again later.",
+    },
+  ])(
+    "shows the $depError-specific message when Apple returns no dep_device",
+    async ({ depError, expectedMessage }) => {
+      (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
+        ...mockDepAssignmentResponse,
+        dep_device: null,
+        dep_error: depError,
+      });
+
+      render(
+        <MDMStatusModal
+          hostId={3}
+          enrollmentStatus="On (manual)"
+          router={mockRouter}
+          isPremiumTier
+          isAppleDevice
+          onExit={jest.fn()}
+        />
+      );
+
+      expect(await screen.findByText(expectedMessage)).toBeInTheDocument();
+    }
+  );
 
   it("falls back to the generic message when dep_device is missing and dep_error is unset", async () => {
     (hostAPI.getDepAssignment as jest.Mock).mockResolvedValue({
