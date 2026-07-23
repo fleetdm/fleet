@@ -1110,6 +1110,14 @@ func TestSoftwareFromOsqueryRowPackageFamilyName(t *testing.T) {
 		require.Nil(t, sw.PackageFamilyName)
 	})
 
+	t.Run("non-programs source with a package family name stays nil", func(t *testing.T) {
+		// Guard: package_family_name only applies to the "programs" source. Even if a non-programs
+		// row somehow reports a value, it must not be stored.
+		sw, err := SoftwareFromOsqueryRow("somepkg", "1.0", "chocolatey_packages", "", "", "", "", "", "", "", "", "", copilotPFN)
+		require.NoError(t, err)
+		require.Nil(t, sw.PackageFamilyName)
+	})
+
 	t.Run("package family name is truncated to the column width", func(t *testing.T) {
 		long := strings.Repeat("a", SoftwarePackageFamilyNameMaxLength+10)
 		sw, err := SoftwareFromOsqueryRow("pkg", "1.0", "programs", "", "", "", "", "", "", "", "", "", long)

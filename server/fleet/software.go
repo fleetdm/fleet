@@ -853,12 +853,12 @@ func SoftwareFromOsqueryRow(
 	}
 
 	// package_family_name is informational inventory data identifying a packaged Windows app store
-	// app. Only packaged apps report a non-empty value (osquery leaves it empty for classic MSI/EXE
-	// programs, and only the Windows programs query selects it at all). Store the value (truncated to
-	// the column width) when present and leave it nil otherwise, so the column is populated only for
-	// packaged apps and no backfill is required.
+	// app. It only applies to the "programs" source, so store the value (truncated to the column
+	// width) only for a non-empty value on a "programs" row and leave it nil for every other source.
+	// This keeps the column populated exclusively for packaged apps (no backfill required) and guards
+	// against a non-"programs" source ever carrying a package family name.
 	var packageFamilyNameForFleetSW *string
-	if packageFamilyName != "" {
+	if truncatedSource == "programs" && packageFamilyName != "" {
 		packageFamilyNameForFleetSW = new(truncateString(packageFamilyName, SoftwarePackageFamilyNameMaxLength))
 	}
 

@@ -3256,52 +3256,59 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			// Use database software 80% of the time if available, otherwise use embedded data
-			if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
-				// Initialize cached indices on first call, then mutate on subsequent calls
-				if a.cachedSoftwareIndices == nil {
-					// Select a random count between min-max, then pick that many random indices
-					count := softwaredb.RandomSoftwareCount("windows")
-					perm := rand.Perm(len(softwareDB.Windows))
-					a.cachedSoftwareIndices = make([]uint32, count)
-					for i := 0; i < count; i++ {
-						a.cachedSoftwareIndices[i] = uint32(perm[i])
-					}
-				} else {
-					a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
-				}
-				results = softwareDB.WindowsToMaps(a.cachedSoftwareIndices)
+			if cachedResults.software != nil {
+				// A sibling Windows software query variant already produced this reporting cycle's
+				// snapshot (Fleet sends both, and they sort adjacently). Reuse it so MaybeMutateSoftware
+				// runs exactly once and both variants return the identical inventory set.
+				results = cachedResults.software
 			} else {
-				results = make([]map[string]string, 0, len(windowsSoftware))
-				for _, s := range windowsSoftware {
-					// Use consistent version based on software name's first character
-					baseVersion := s["version"]
-					alternateVersion := baseVersion + ".1"
-					m := map[string]string{
-						"name":         s["name"],
-						"source":       s["source"],
-						"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
-						"upgrade_code": s["upgrade_code"],
+				// Use database software 80% of the time if available, otherwise use embedded data
+				if softwareDB != nil && len(softwareDB.Windows) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
+					// Initialize cached indices on first call, then mutate on subsequent calls
+					if a.cachedSoftwareIndices == nil {
+						// Select a random count between min-max, then pick that many random indices
+						count := softwaredb.RandomSoftwareCount("windows")
+						perm := rand.Perm(len(softwareDB.Windows))
+						a.cachedSoftwareIndices = make([]uint32, count)
+						for i := 0; i < count; i++ {
+							a.cachedSoftwareIndices[i] = uint32(perm[i])
+						}
+					} else {
+						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(softwareDB.Windows))
 					}
-					results = append(results, m)
-				}
-			}
-			// Simulate packaged Windows app store apps: assign a synthetic package_family_name to a
-			// deterministic fraction (~1/5) of programs (a packaged app also has no upgrade_code).
-			// Keying off the software name keeps it stable across reports so the checksum does not churn.
-			for _, m := range results {
-				if m["source"] == "programs" {
-					if pfn := windowsPackageFamilyName(m["name"]); pfn != "" {
-						m["package_family_name"] = pfn
-						m["upgrade_code"] = ""
+					results = softwareDB.WindowsToMaps(a.cachedSoftwareIndices)
+				} else {
+					results = make([]map[string]string, 0, len(windowsSoftware))
+					for _, s := range windowsSoftware {
+						// Use consistent version based on software name's first character
+						baseVersion := s["version"]
+						alternateVersion := baseVersion + ".1"
+						m := map[string]string{
+							"name":         s["name"],
+							"source":       s["source"],
+							"version":      a.selectSoftwareVersion(s["name"], baseVersion, alternateVersion),
+							"upgrade_code": s["upgrade_code"],
+						}
+						results = append(results, m)
 					}
 				}
+				// Simulate packaged Windows app store apps: assign a synthetic package_family_name to a
+				// deterministic fraction (~1/5) of programs (a packaged app also has no upgrade_code).
+				// Keying off the software name keeps it stable across reports so the checksum does not churn.
+				for _, m := range results {
+					if m["source"] == "programs" {
+						if pfn := windowsPackageFamilyName(m["name"]); pfn != "" {
+							m["package_family_name"] = pfn
+							m["upgrade_code"] = ""
+						}
+					}
+				}
+				a.installedSoftware.Range(func(key, value interface{}) bool {
+					results = append(results, value.(map[string]string))
+					return true
+				})
+				cachedResults.software = results
 			}
-			a.installedSoftware.Range(func(key, value interface{}) bool {
-				results = append(results, value.(map[string]string))
-				return true
-			})
-			cachedResults.software = results
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows_program_files_scan":
