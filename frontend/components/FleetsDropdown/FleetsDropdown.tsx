@@ -216,7 +216,7 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           >
             <>
               Add fleet
-              <Icon name="plus" color="ui-fleet-black-75" />
+              <Icon name="plus" />
             </>
           </Button>
         </div>
