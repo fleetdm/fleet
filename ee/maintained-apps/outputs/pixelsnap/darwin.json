@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.6.3",
+      "version": "2.6.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.pixelsnap2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.pixelsnap2' AND version_compare(bundle_short_version, '2.6.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'pl.maketheweb.pixelsnap2' AND version_compare(bundle_short_version, '2.6.4') < 0);"
       },
-      "installer_url": "https://updates.getpixelsnap.com/v2/PixelSnap-2-2.6.3.dmg",
+      "installer_url": "https://updates.getpixelsnap.com/v2/PixelSnap-2-2.6.4.dmg",
       "install_script_ref": "70d96835",
       "uninstall_script_ref": "a3b26b2e",
-      "sha256": "6c113c1c50df61ead1763472c209a900e3cdd898fa5fc65bc547032fe536514e",
+      "sha256": "0a3b1f964891900a2f7f7e6bd319651a1ed379275e7532bc32109a649fb6312d",
       "default_categories": [
         "Productivity"
       ]
