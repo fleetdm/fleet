@@ -2237,6 +2237,38 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/Bears/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
   });
+  it("renders a createdSetupExperienceScript type activity for a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: "Bears",
+        fleet_id: 1,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/added setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/Bears/i)).toBeInTheDocument();
+  });
+  it("renders a deletedSetupExperienceScript type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedSetupExperienceScript,
+      details: {
+        script_name: "set-timezones.sh",
+        fleet_name: null,
+        fleet_id: null,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText(/deleted setup experience script/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/set-timezones.sh/i)).toBeInTheDocument();
+    expect(screen.getByText(/unassigned/i)).toBeInTheDocument();
+  });
   it("renders an enabledMacosUpdateNewHosts activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.EnabledMacosUpdateNewHosts,
