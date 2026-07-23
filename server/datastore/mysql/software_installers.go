@@ -2184,11 +2184,13 @@ SELECT
 	hsi.created_at as created_at,
 	hsi.updated_at as updated_at,
 	st.source,
-	hsi.attempt_number
+	hsi.attempt_number,
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN policies p ON hsi.policy_id = p.id
 WHERE
 	hsi.execution_id = :execution_id AND
 	hsi.uninstall = 0 AND
@@ -2217,7 +2219,8 @@ SELECT
 	ua.created_at as created_at,
 	ua.updated_at as updated_at,
 	st.source,
-	NULL AS attempt_number
+	NULL AS attempt_number,
+	COALESCE(p.patch_when_closed, 0) AS patch_when_closed
 FROM
 	upcoming_activities ua
 	INNER JOIN software_install_upcoming_activities siua
@@ -2226,6 +2229,8 @@ FROM
 		ON siua.software_title_id = st.id
 	LEFT JOIN software_installers si
 		ON siua.software_installer_id = si.id
+	LEFT JOIN policies p
+		ON siua.policy_id = p.id
 WHERE
 	ua.execution_id = :execution_id AND
 	ua.activity_type = 'software_install' AND
