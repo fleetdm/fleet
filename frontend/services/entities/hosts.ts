@@ -86,7 +86,7 @@ export interface IDepAssignmentHostResponse {
     abm_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
-  };
+  } | null;
 }
 
 export type IUnlockHostResponse =

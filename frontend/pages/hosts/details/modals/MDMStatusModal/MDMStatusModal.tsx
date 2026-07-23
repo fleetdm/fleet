@@ -203,7 +203,7 @@ const MDMStatusModal = ({
     }
 
     const raw = (depAssignmentData?.host_dep_assignment
-      .assign_profile_response || "") as DepAssignProfileResponseErrors;
+      ?.assign_profile_response || "") as DepAssignProfileResponseErrors;
 
     let responseParam: string | undefined;
 
@@ -287,7 +287,7 @@ const MDMStatusModal = ({
             queryParams={{
               dep_assign_profile_response: (
                 depAssignmentData?.host_dep_assignment
-                  .assign_profile_response || ""
+                  ?.assign_profile_response || ""
               ).toLowerCase(),
             }}
             rowHover
@@ -366,7 +366,7 @@ const MDMStatusModal = ({
             API rate limit when preparing the macOS Setup Assistant for this
             host. Fleet will try again{" "}
             {getThrottleCopy(
-              depAssignmentData.host_dep_assignment.response_updated_at
+              depAssignmentData.host_dep_assignment?.response_updated_at
             )}
           </>
         ),
@@ -445,7 +445,7 @@ const MDMStatusModal = ({
     if (depProfileError && depAssignmentData) {
       const assignmentError = getProfileAssignmentError(
         depAssignmentData.host_dep_assignment
-          .assign_profile_response as DepAssignProfileResponseErrors
+          ?.assign_profile_response as DepAssignProfileResponseErrors
       );
 
       if (assignmentError) {
