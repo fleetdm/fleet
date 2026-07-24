@@ -7183,7 +7183,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
 	const userQuery = "SELECT 1 FROM user_configured_query;"
-	const managedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON LEFT(p.path, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.example.pwc');"
+	const managedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.example.pwc');"
 
 	// A Fleet-maintained-app-backed installer carries both the user pre-install query and the
 	// Fleet-managed app_open_query.
@@ -7304,7 +7304,7 @@ func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {
 	}
 
 	// The managed "is app open" query round-trips through create -> metadata read.
-	const managed = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON LEFT(p.path, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.example.app');"
+	const managed = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.example.app');"
 	titleID := newInstaller(t, "app-open-1", managed)
 	meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, false)
 	require.NoError(t, err)
