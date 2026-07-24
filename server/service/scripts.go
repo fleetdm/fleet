@@ -190,15 +190,23 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			}
 			return nil, err
 		}
-		var scriptTmID, hostTmID uint
-		if script.TeamID != nil {
-			scriptTmID = *script.TeamID
-		}
-		if host.TeamID != nil {
-			hostTmID = *host.TeamID
-		}
-		if scriptTmID != hostTmID {
-			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same fleet (or "Unassigned") as the host.`)
+		// The script/host fleet (team) match is only meaningful on Premium, where
+		// fleets are a feature. On Free, a host may retain a stale team_id from a
+		// prior Premium license — a license change is a feature gate, not a data
+		// migration — so enforcing this here would wrongly block scripts on those
+		// hosts. See https://github.com/fleetdm/fleet/issues/49291.
+		lic, _ := license.FromContext(ctx)
+		if lic.IsPremium() {
+			var scriptTmID, hostTmID uint
+			if script.TeamID != nil {
+				scriptTmID = *script.TeamID
+			}
+			if host.TeamID != nil {
+				hostTmID = *host.TeamID
+			}
+			if scriptTmID != hostTmID {
+				return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same fleet (or "Unassigned") as the host.`)
+			}
 		}
 
 		isQueued, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
@@ -1164,9 +1172,16 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
 	}
 
+	// The script/host fleet (team) match is only enforced on Premium; on Free,
+	// hosts may carry a stale team_id from a prior Premium license, which must
+	// not block execution. Same rationale as RunHostScript. See #49291.
+	lic, _ := license.FromContext(ctx)
 	hostIDsToExecute := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDsToExecute = append(hostIDsToExecute, host.ID)
+		if !lic.IsPremium() {
+			continue
+		}
 		if host.TeamID == nil && script.TeamID == nil {
 			continue
 		}
