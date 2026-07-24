@@ -1433,7 +1433,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if len(examples) < 3 {
 						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 					}
-					// Evict from the in-process cache so the next attempt re-inserts the title.
+					// Evict from the in-process cache so the next ingestion cycle re-inserts the title.
 					if title, ok := newTitlesNeeded[checksum]; ok {
 						bundleID := ""
 						if title.BundleIdentifier != nil {
@@ -1443,8 +1443,16 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						ds.deleteKnownSoftwareTitleKey(cacheKey)
 					}
 				}
-				return ctxerr.Errorf(ctx, "missing title_id for %d software entries (e.g. %s); titles may have been concurrently deleted",
-					len(missingChecksums), strings.Join(examples, "; "))
+				// Log rather than return a hard error: the title INSERT is outside the
+				// transaction, so withRetryTxx cannot re-insert the title on retry.
+				// The software row proceeds with NULL title_id and the evicted cache
+				// entry ensures the title is re-created on the next ingestion cycle.
+				if ds.logger != nil {
+					ds.logger.ErrorContext(ctx, "inserting software without title_id",
+						"count", len(missingChecksums),
+						"examples", strings.Join(examples, "; "),
+					)
+				}
 			}
 
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
