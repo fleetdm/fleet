@@ -35,6 +35,11 @@ module.exports = {
     },
     expectJson: { type: 'boolean', defaultsTo: false },
     systemPrompt: { type: 'string', example: 'Here is data about each computer, as JSON: ```[ … ]```' },
+    effort: {
+      type: 'string',
+      description: 'Optional effort level for adaptive thinking (controls thinking depth vs. token/latency cost).  Only supported on Anthropic models with output_config.effort support (e.g. Claude Sonnet 5, Claude Opus 4.6+).  Ignored for models that don\'t support it (e.g. Claude Haiku 4.5, OpenAI models).',
+      example: 'low'
+    },
   },
 
 
@@ -54,7 +59,7 @@ module.exports = {
   },
 
 
-  fn: async function ({prompt, baseModel, expectJson, systemPrompt}) {
+  fn: async function ({prompt, baseModel, expectJson, systemPrompt, effort}) {
 
     // TODO: Write a comprehensive test suite that prompts hundreds of times in parallel to see which combo
     //       of JSON prompt suffix + base model works the best, through actual experimentation.  Then document
@@ -79,13 +84,18 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
 
       let requestData = {
         model: baseModel,
-        max_tokens: 4096,// eslint-disable-line camelcase
+        // Bumped from 4096 so that models with adaptive thinking on by default (e.g. Claude Sonnet 5)
+        // have enough headroom for thinking tokens without truncating the actual response.
+        max_tokens: 8192,// eslint-disable-line camelcase
         messages: [
           { role: 'user', content: prompt+(expectJson? JSON_PROMPT_SUFFIX : '') }
         ]
       };
       if (systemPrompt) {
         requestData.system = systemPrompt;
+      }
+      if (effort) {
+        requestData.output_config = { effort };// eslint-disable-line camelcase
       }
 
       let anthropicResponse = await sails.helpers.http.post('https://api.anthropic.com/v1/messages', requestData, {
