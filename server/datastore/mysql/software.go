@@ -347,10 +347,7 @@ func deleteHostSoftwareInstalledPaths(
 
 	const batchSize = 500
 	for i := 0; i < len(toDelete); i += batchSize {
-		end := i + batchSize
-		if end > len(toDelete) {
-			end = len(toDelete)
-		}
+		end := min(i+batchSize, len(toDelete))
 		batch := toDelete[i:end]
 
 		stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
@@ -1110,7 +1107,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					IsKernel:     sw.IsKernel,
 				}
 				if sw.BundleIdentifier != "" {
-					newTitle.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+					newTitle.BundleIdentifier = new(sw.BundleIdentifier)
 				}
 				if sw.ApplicationID != nil && *sw.ApplicationID != "" {
 					newTitle.ApplicationID = sw.ApplicationID
@@ -1159,7 +1156,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				}
 				// Capture loop variables for the closure.
 				titleCopy := title
-				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (interface{}, error) {
+				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (any, error) {
 					// Double-check cache after winning the singleflight race.
 					if ds.hasKnownSoftwareTitleKey(cacheKey) {
 						return nil, nil
@@ -1212,7 +1209,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
 				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
 				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitles)), ",")
-				queryArgs := make([]interface{}, 0, len(uniqueTitles)*4)
+				queryArgs := make([]any, 0, len(uniqueTitles)*4)
 				var upgradeCodes []string
 				for tk := range uniqueTitles {
 					title := uniqueTitles[tk]

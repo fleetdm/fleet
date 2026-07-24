@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -37,10 +36,10 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 
 	// Create hosts
 	hosts := make([]*fleet.Host, hostCount)
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		h, err := ds.NewHost(ctx, &fleet.Host{
-			OsqueryHostID:   ptr.String(fmt.Sprintf("convoy-host-%d", i)),
-			NodeKey:         ptr.String(fmt.Sprintf("convoy-key-%d", i)),
+			OsqueryHostID:   new(fmt.Sprintf("convoy-host-%d", i)),
+			NodeKey:         new(fmt.Sprintf("convoy-key-%d", i)),
 			Platform:        "windows",
 			Hostname:        fmt.Sprintf("convoy-host-%d", i),
 			DetailUpdatedAt: time.Now(),
@@ -56,7 +55,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	// This is the key condition for the lock convoy: every host tries to INSERT IGNORE
 	// the same software_titles rows.
 	sharedSoftware := make([]fleet.Software, softwareCount)
-	for i := 0; i < softwareCount; i++ {
+	for i := range softwareCount {
 		sharedSoftware[i] = fleet.Software{
 			Name:    fmt.Sprintf("ConvoyApp %d", i),
 			Version: "1.0.0",
@@ -75,7 +74,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 		ready      = make(chan struct{}) // barrier to synchronize start
 	)
 
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		hostID := hosts[i].ID
 		// Copy the slice to avoid data races (UpdateHostSoftware may mutate it in-place).
 		sw := slices.Clone(sharedSoftware)
@@ -126,7 +125,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	ready2 := make(chan struct{})
 
 	var g2 errgroup.Group
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		hostID := hosts[i].ID
 		sw := slices.Clone(sharedSoftware)
 		g2.Go(func() error {
@@ -180,7 +179,7 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	// Insert a large number of software items, each with an installed path
 	const softwareCount = 500 // a more modest number than 30k for local testing
 	software := make([]fleet.Software, softwareCount)
-	for i := 0; i < softwareCount; i++ {
+	for i := range softwareCount {
 		software[i] = fleet.Software{
 			Name:    fmt.Sprintf("DeleteTestApp %d", i),
 			Version: "1.0.0",
@@ -228,7 +227,7 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	// Now simulate a "full replacement" by reporting all-new software with no overlap.
 	// This causes ALL existing paths to be deleted in one shot.
 	newSoftware := make([]fleet.Software, softwareCount)
-	for i := 0; i < softwareCount; i++ {
+	for i := range softwareCount {
 		newSoftware[i] = fleet.Software{
 			Name:    fmt.Sprintf("ReplacementApp %d", i),
 			Version: "2.0.0",
@@ -237,9 +236,9 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	}
 
 	// This should trigger a massive DELETE of all old installed paths
-	start := time.Now()
+	startDel := time.Now()
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, newSoftware)
-	elapsed := time.Since(start)
+	elapsed := time.Since(startDel)
 	require.NoError(t, err)
 	t.Logf("Full software replacement took: %s", elapsed)
 
@@ -249,46 +248,38 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(concurrentHosts)
 
-	// Create hosts synchronously to avoid require.* panics from goroutines.
+	// Create hosts and insert paths synchronously to avoid require.*/ExecAdhocSQL panics from goroutines.
 	concurrentTestHosts := make([]*fleet.Host, concurrentHosts)
-	for i := 0; i < concurrentHosts; i++ {
+	for i := range concurrentHosts {
 		concurrentTestHosts[i] = test.NewHost(t, ds, fmt.Sprintf("concurrent-del-%d", i), "", fmt.Sprintf("cd-key-%d", i), fmt.Sprintf("cd-uuid-%d", i), time.Now())
+
+		swCopy := slices.Clone(software)
+		_, err := ds.UpdateHostSoftware(ctx, concurrentTestHosts[i].ID, swCopy)
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			for _, sw := range swIDs {
+				_, err := q.ExecContext(ctx,
+					`INSERT IGNORE INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`,
+					concurrentTestHosts[i].ID, sw.ID, fmt.Sprintf("/Applications/%s.app", sw.Name))
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 	}
 
-	for i := 0; i < concurrentHosts; i++ {
+	for i := range concurrentHosts {
 		go func(idx int) {
 			defer wg.Done()
 			h := concurrentTestHosts[idx]
-
-			// Copy slices to avoid data races (UpdateHostSoftware may mutate in-place).
-			swCopy := slices.Clone(software)
 			newSwCopy := slices.Clone(newSoftware)
 
-			// First, ingest software with paths
-			_, err := ds.UpdateHostSoftware(ctx, h.ID, swCopy)
-			if err != nil {
-				t.Logf("Host %d initial ingest error: %v", idx, err)
-				return
-			}
-
-			// Insert paths
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				for _, sw := range swIDs {
-					_, err := q.ExecContext(ctx,
-						`INSERT IGNORE INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`,
-						h.ID, sw.ID, fmt.Sprintf("/Applications/%s.app", sw.Name))
-					if err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-
-			// Now replace everything
-			start := time.Now()
-			_, err = ds.UpdateHostSoftware(ctx, h.ID, newSwCopy)
-			elapsed := time.Since(start)
-			t.Logf("  Host %d replacement took: %s", idx, elapsed)
+			startReplace := time.Now()
+			_, err := ds.UpdateHostSoftware(ctx, h.ID, newSwCopy)
+			elapsedReplace := time.Since(startReplace)
+			t.Logf("  Host %d replacement took: %s", idx, elapsedReplace)
 			if err != nil {
 				t.Logf("  Host %d replacement error: %v", idx, err)
 			}
