@@ -270,7 +270,6 @@ const CustomMenuList = (props: MenuListProps<INumberDropdownOption, false>) => {
         },
         onMouseDown: (event: React.MouseEvent<HTMLDivElement>) => {
           originalOnMouseDown?.(event);
-          event.stopPropagation();
         },
         // Chrome (and other browsers with `keyboard-focusable-scrollers`
         // enabled) auto-focuses scrollable containers to allow keyboard
