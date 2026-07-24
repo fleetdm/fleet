@@ -2875,7 +2875,7 @@ This activity contains the following fields:
 {
   "fleet_id": 123,
   "fleet_name": "Workstations",
-  "platform": "Windows"
+  "platform": "windows"
 }
 ```
 
@@ -2894,7 +2894,7 @@ This activity contains the following fields:
 {
   "fleet_id": 123,
   "fleet_name": "Workstations",
-  "platform": "Windows"
+  "platform": "windows"
 }
 ```
 
