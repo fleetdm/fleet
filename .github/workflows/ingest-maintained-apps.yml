@@ -55,6 +55,52 @@ jobs:
           go mod download
           go run cmd/maintained-apps/main.go
 
+      - name: Install osslsigncode
+        # Used by the verify step below to check Windows Authenticode
+        # signatures at ingest, before the update PR opens.
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends osslsigncode
+
+      - name: Verify changed installers
+        # Downloads each changed installer, recomputes its SHA256 against the
+        # manifest's claimed hash, and checks signing identities against the
+        # pins in the input JSONs. Report-only (rollout Phase 0): failures are
+        # surfaced in the PR body and job summary for the reviewer, and the
+        # required verify-fma-installers PR check re-runs the same
+        # verification on the PR itself. continue-on-error so a verifier bug
+        # can't stall catalog updates.
+        continue-on-error: true
+        run: |
+          # Reports are written OUTSIDE the fleet checkout so
+          # create-pull-request doesn't commit them into the update PR.
+          cd fleet
+          go run ./cmd/maintained-apps/verify \
+            -changed-from HEAD \
+            -report "$GITHUB_WORKSPACE/verify-report.json" \
+            -report-md "$GITHUB_WORKSPACE/verify-report.md"
+
+      - name: Build PR body
+        run: |
+          {
+            echo "Automated ingestion of latest Fleet-maintained app data."
+            echo ""
+            if [ -f verify-report.md ]; then
+              cat verify-report.md
+            else
+              echo "> Installer verification did not produce a report for this run; see the workflow logs."
+            fi
+          } > pr-body.md
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: fma-verify-report
+          path: verify-report.json
+          if-no-files-found: ignore
+
       - name: Search for Existing PRs
         id: search_pr
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
@@ -86,7 +132,7 @@ jobs:
             Update Fleet-maintained apps.
 
             Generated automatically with cmd/maintained-apps.
-          body: Automated ingestion of latest Fleet-maintained app data.
+          body-path: pr-body.md
           reviewers: allenhouchins
 
       - name: Close Existing PRs

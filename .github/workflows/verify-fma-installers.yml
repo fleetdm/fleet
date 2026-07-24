@@ -1,0 +1,75 @@
+# Independently verifies changed Fleet-maintained app installers on PRs that
+# touch the published manifests: downloads each changed installer, recomputes
+# its SHA256 against the manifest's claimed hash, and checks the publisher's
+# signing identity against the pin in the app's input JSON (Authenticode via
+# osslsigncode; macOS signature checks run in the validator, which has real
+# macOS runners). See
+# docs/Contributing/research/software/fma-supply-chain-integrity.md.
+#
+# This check also covers hand-edited outputs (e.g. frozen apps) that never
+# pass through the ingest workflow. It currently runs in report-only mode
+# (rollout Phase 0); Phase 1 adds --enforce and marks the check required in
+# branch protection, which is what gates the merge — and therefore the R2
+# publish sync.
+name: Verify Fleet-maintained app installers
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ee/maintained-apps/outputs/**
+      - ee/maintained-apps/sigverify/**
+      - ee/maintained-apps/signature.go
+      - cmd/maintained-apps/verify/**
+      - .github/workflows/verify-fma-installers.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # Need history to diff outputs against the base branch
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Install osslsigncode
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends osslsigncode
+          osslsigncode --version
+
+      - name: Verify changed installers
+        env:
+          GITHUB_BASE_REF_NAME: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
+        run: |
+          # fetch-depth 0 normally brings in the base branch already; fetch it
+          # explicitly as a fallback so origin/$GITHUB_BASE_REF_NAME exists.
+          git fetch origin "$GITHUB_BASE_REF_NAME" || true
+          go run ./cmd/maintained-apps/verify \
+            -changed-from "origin/$GITHUB_BASE_REF_NAME" \
+            -report verify-report.json
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: fma-verify-report
+          path: verify-report.json
+          if-no-files-found: ignore

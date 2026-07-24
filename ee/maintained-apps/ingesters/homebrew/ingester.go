@@ -76,6 +76,12 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter
 			return nil, ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"fileName": f.Name()})
 		}
 
+		if input.Signature != nil {
+			if err := input.Signature.Validate("darwin"); err != nil {
+				return nil, ctxerr.WrapWithData(ctx, err, "invalid signature pin for app", map[string]any{"fileName": f.Name()})
+			}
+		}
+
 		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
 			continue
 		}
@@ -579,6 +585,10 @@ type inputApp struct {
 	// inputs/homebrew/custom-tap/). When empty, the ingester fetches from
 	// formulae.brew.sh.
 	CaskPath string `json:"cask_path"`
+	// Signature pins the expected Developer ID signing identity and
+	// notarization expectation for the app's installer; verified at ingest
+	// and in the validator.
+	Signature *maintained_apps.FMASignature `json:"signature"`
 }
 
 type brewCask struct {

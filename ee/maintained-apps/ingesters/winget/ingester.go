@@ -84,6 +84,12 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 			return nil, ctxerr.NewWithData(ctx, "missing package identifier for app", map[string]any{"file_name": f.Name()})
 		}
 
+		if input.Signature != nil {
+			if err := input.Signature.Validate("windows"); err != nil {
+				return nil, ctxerr.WrapWithData(ctx, err, "invalid signature pin for app", map[string]any{"file_name": f.Name()})
+			}
+		}
+
 		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
 			continue
 		}
@@ -614,6 +620,9 @@ type inputApp struct {
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
+	// Signature pins the expected Authenticode signing identity for the app's
+	// installer; verified at ingest and in the validator.
+	Signature *maintained_apps.FMASignature `json:"signature"`
 }
 
 type installerManifest struct {

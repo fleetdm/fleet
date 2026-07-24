@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/ee/maintained-apps/sigverify"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -21,6 +24,115 @@ import (
 
 var preInstalled = []string{
 	"firefox/darwin",
+}
+
+// verifyInstallerSignature runs before the install script. pkg installers
+// carry their own signature and are verified (and Gatekeeper-assessed for
+// notarization) directly; for dmg and zip installers the signature lives on
+// the .app inside, which verifyInstalledApp checks after installation.
+func verifyInstallerSignature(ctx context.Context, logger *slog.Logger, installerPath string, pin *maintained_apps.FMASignature) error {
+	switch strings.ToLower(filepath.Ext(installerPath)) {
+	case ".pkg", ".mpkg":
+	default:
+		logger.InfoContext(ctx, "Installer signature is verified on the installed app after installation for this format")
+		return nil
+	}
+
+	res, err := sigverify.VerifyPkgSignature(ctx, installerPath)
+	if err != nil {
+		return fmt.Errorf("verifying pkg signature: %w", err)
+	}
+	return evaluateDarwinSignature(ctx, logger, res, pin)
+}
+
+// verifyInstalledApp verifies the installed .app bundle's code signature and
+// Gatekeeper assessment for dmg/zip installers. It runs before
+// postApplicationInstall adds a Gatekeeper exception and strips quarantine,
+// so verification gates the bypass rather than being bypassed by it.
+func verifyInstalledApp(ctx context.Context, logger *slog.Logger, appPath, installerPath string, pin *maintained_apps.FMASignature) error {
+	switch strings.ToLower(filepath.Ext(installerPath)) {
+	case ".pkg", ".mpkg":
+		// Already verified pre-install by verifyInstallerSignature.
+		return nil
+	}
+	if appPath == "" {
+		// This check gates the Gatekeeper exception and quarantine stripping
+		// in postApplicationInstall, so an undetected app path must fail
+		// verification (report-only warns; enforce mode fails) rather than
+		// silently pass.
+		return errors.New("no installed .app bundle detected; cannot verify the app's signature for dmg/zip installers")
+	}
+
+	res, err := sigverify.VerifyAppBundle(ctx, appPath)
+	if err != nil {
+		return fmt.Errorf("verifying app bundle signature: %w", err)
+	}
+	return evaluateDarwinSignature(ctx, logger, res, pin)
+}
+
+// evaluateDarwinSignature compares an observed signature against the app's
+// pin. It returns an error for the hard-fail conditions in the failure
+// policy; the caller decides whether that fails validation (enforce mode) or
+// warns (report-only).
+func evaluateDarwinSignature(ctx context.Context, logger *slog.Logger, res *sigverify.DarwinResult, pin *maintained_apps.FMASignature) error {
+	switch {
+	case pin != nil && pin.Unsigned:
+		if res.NoSignature {
+			logger.InfoContext(ctx, "Installer is unsigned, as pinned")
+			return nil
+		}
+		if !res.Verified {
+			// A formerly-unsigned installer now carrying a broken or
+			// untrusted signature is a tamper indicator, not a vendor
+			// starting to sign.
+			return fmt.Errorf("pin says unsigned but installer now carries an invalid signature: %s", res.Detail)
+		}
+		logger.WarnContext(ctx, fmt.Sprintf("Installer is now validly signed by %q but the pin says unsigned; update the pin", res.Identity))
+		return nil
+	case pin != nil:
+		switch {
+		case res.NoSignature:
+			return fmt.Errorf("installer is unsigned but the pin expects team ID %s", pin.AppleTeamID)
+		case !res.Verified:
+			return fmt.Errorf("signature verification failed: %s", res.Detail)
+		case res.TeamID != pin.AppleTeamID:
+			return fmt.Errorf("signer identity changed: observed team ID %s, pinned %s", res.TeamID, pin.AppleTeamID)
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Signature verified: signed by %q (matches pin)", res.Identity))
+	default: // no pin
+		switch {
+		case res.NoSignature:
+			return errors.New(`installer is unsigned and the app has no "unsigned" signature pin`)
+		case !res.Verified:
+			return fmt.Errorf("signature verification failed: %s", res.Detail)
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Signature verified: signed by %q (no pin recorded yet)", res.Identity))
+	}
+
+	// Notarization: an accepted "Notarized Developer ID" Gatekeeper
+	// assessment means Apple's automated malware analysis ran on these exact
+	// bytes, and spctl consulted XProtect and Apple's revocation service.
+	if pin != nil && pin.Notarized {
+		if !res.NotarizationChecked {
+			return errors.New("pin expects notarization but no Gatekeeper assessment could run")
+		}
+		if !res.Notarized {
+			return fmt.Errorf("pin expects a notarization ticket but Gatekeeper assessed: %s", res.NotarizationDetail)
+		}
+		logger.InfoContext(ctx, fmt.Sprintf("Notarization verified: %s", res.NotarizationDetail))
+		return nil
+	}
+	if res.NotarizationChecked && !res.Notarized {
+		logger.WarnContext(ctx, fmt.Sprintf("Installer was not assessed as notarized: %s", res.NotarizationDetail))
+	}
+	return nil
+}
+
+// scanInstallerForMalware is a no-op on macOS: the notarization enforcement
+// in evaluateDarwinSignature is the malware layer (Apple's notary service
+// scanned the bytes; spctl consults XProtect at assessment time).
+func scanInstallerForMalware(_ context.Context, _ *slog.Logger, _ string) error {
+	return nil
 }
 
 func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath string) error {
@@ -39,8 +151,6 @@ func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath
 
 	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
 	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
-	appLogger.InfoContext(ctx, fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
-	appLogger.InfoContext(ctx, fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
 	}
@@ -50,10 +160,13 @@ func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath
 type QuarantineResult struct {
 	QuarantineOutputError error
 	QuarantineStatus      string
-	SpctlOutputError      error
-	SpctlStatus           string
 }
 
+// removeAppQuarantine adds a Gatekeeper exception and strips the quarantine
+// attribute so the freshly installed app can launch in CI. The Gatekeeper
+// assessment that used to be merely logged here now runs as a real gate in
+// verifyInstalledApp BEFORE this bypass is applied, so this only eases
+// installation of an already-verified binary.
 func removeAppQuarantine(appPath string) (QuarantineResult, error) {
 	var result QuarantineResult
 
@@ -63,12 +176,6 @@ func removeAppQuarantine(appPath string) (QuarantineResult, error) {
 		result.QuarantineOutputError = fmt.Errorf("checking quarantine status: %v", err)
 	}
 	result.QuarantineStatus = fmt.Sprintf("Quarantine status: '%s'", strings.TrimSpace(string(output)))
-	cmd = exec.Command("spctl", "-a", "-v", appPath)
-	output, err = cmd.CombinedOutput()
-	if err != nil {
-		result.SpctlOutputError = fmt.Errorf("checking spctl status: %v", err)
-	}
-	result.SpctlStatus = fmt.Sprintf("spctl status: '%s'", strings.TrimSpace(string(output)))
 
 	cmd = exec.Command("sudo", "spctl", "--add", appPath)
 	if err := cmd.Run(); err != nil {
