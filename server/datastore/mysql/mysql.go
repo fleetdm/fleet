@@ -37,6 +37,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -93,6 +94,17 @@ type Datastore struct {
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
+
+	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
+	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
+	// preventing lock convoys on the unique index when many hosts report the same software catalog.
+	// Keys are softwareTitleCacheKey strings, values are struct{}.
+	knownSoftwareTitleKeys sync.Map
+
+	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
+	// same title key. Only one goroutine per title actually executes the INSERT; others wait
+	// and share the result. This prevents lock convoys on cold-start (#48719).
+	titleInsertSF singleflight.Group
 }
 
 // WithPusher sets an APNs pusher for the datastore, used when activating

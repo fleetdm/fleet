@@ -72,6 +72,12 @@ var cleanupBatchSize = 1000
 // Any remaining orphans will be processed on the next hourly cron cycle.
 var cleanupMaxIterations = 100
 
+// softwareTitleCacheKey builds a string key for the in-process cache of known software titles.
+// It mirrors the titleKey struct used inside preInsertSoftwareInventory.
+func softwareTitleCacheKey(name, source, extensionFor, bundleID string, isKernel bool) string {
+	return strings.ToLower(normalizeForCollation(name)) + "\x00" + source + "\x00" + extensionFor + "\x00" + bundleID + "\x00" + strconv.FormatBool(isKernel)
+}
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -293,13 +299,22 @@ func deleteHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
-	stmt, args, err := sqlx.In(stmt, toDelete)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
+	const batchSize = 500
+	for i := 0; i < len(toDelete); i += batchSize {
+		end := i + batchSize
+		if end > len(toDelete) {
+			end = len(toDelete)
+		}
+		batch := toDelete[i:end]
+
+		stmt := `DELETE FROM host_software_installed_paths WHERE id IN (?)`
+		stmt, args, err := sqlx.In(stmt, batch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building delete statement for delete host_software_installed_paths")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "executing delete statement for delete host_software_installed_paths")
+		}
 	}
 
 	return nil
@@ -1018,51 +1033,108 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			batchSoftware[key] = needsInsert[key]
 		}
 
-		// Each batch in its own transaction
-		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// First insert any needed software titles
-			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
-			for checksum, sw := range batchSoftware {
-				if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
-					// there is not an existing software title corresponding to this incoming software version
-					newTitleName := sw.Name
-					if sw.BundleIdentifier != "" {
-						// First check if there's an FMA with this bundle identifier - use its canonical name
-						if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
-							newTitleName = fmaName
-						} else {
-							// Fall back to computed best name from osquery reports
-							key := titleKey{
-								bundleID:     sw.BundleIdentifier,
-								source:       sw.Source,
-								extensionFor: sw.ExtensionFor,
-							}
-							if computedName, exists := bestTitleNames[key]; exists {
-								newTitleName = computedName
-							}
+		// Compute which software titles need to be created.
+		// This is done outside the transaction because the computation is pure (no DB access).
+		newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
+		for checksum, sw := range batchSoftware {
+			if _, ok := incomingChecksumsToExistingTitleSummaries[checksum]; !ok {
+				// there is not an existing software title corresponding to this incoming software version
+				newTitleName := sw.Name
+				if sw.BundleIdentifier != "" {
+					// First check if there's an FMA with this bundle identifier - use its canonical name
+					if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
+						newTitleName = fmaName
+					} else {
+						// Fall back to computed best name from osquery reports
+						key := titleKey{
+							bundleID:     sw.BundleIdentifier,
+							source:       sw.Source,
+							extensionFor: sw.ExtensionFor,
+						}
+						if computedName, exists := bestTitleNames[key]; exists {
+							newTitleName = computedName
 						}
 					}
+				}
 
-					newTitle := fleet.SoftwareTitle{
-						Name:         newTitleName,
-						Source:       sw.Source,
-						ExtensionFor: sw.ExtensionFor,
-						IsKernel:     sw.IsKernel,
-					}
-					if sw.BundleIdentifier != "" {
-						newTitle.BundleIdentifier = ptr.String(sw.BundleIdentifier)
-					}
-					if sw.ApplicationID != nil && *sw.ApplicationID != "" {
-						newTitle.ApplicationID = sw.ApplicationID
-					}
-					if sw.UpgradeCode != nil {
-						// intentionally write both empty and non-empty strings as upgrade codes
-						newTitle.UpgradeCode = sw.UpgradeCode
-					}
-					newTitlesNeeded[checksum] = newTitle
+				newTitle := fleet.SoftwareTitle{
+					Name:         newTitleName,
+					Source:       sw.Source,
+					ExtensionFor: sw.ExtensionFor,
+					IsKernel:     sw.IsKernel,
+				}
+				if sw.BundleIdentifier != "" {
+					newTitle.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+				}
+				if sw.ApplicationID != nil && *sw.ApplicationID != "" {
+					newTitle.ApplicationID = sw.ApplicationID
+				}
+				if sw.UpgradeCode != nil {
+					// intentionally write both empty and non-empty strings as upgrade codes
+					newTitle.UpgradeCode = sw.UpgradeCode
+				}
+				newTitlesNeeded[checksum] = newTitle
+			}
+		}
+
+		// INSERT IGNORE new software titles OUTSIDE the main transaction (#48719).
+		// Each INSERT IGNORE is auto-committed independently, so it holds row/gap locks
+		// for only microseconds instead of the entire transaction duration. This eliminates
+		// lock convoys when many hosts concurrently report the same software catalog.
+		if len(newTitlesNeeded) > 0 {
+			// Build the full set of unique titles (for ID resolution later).
+			uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
+			for _, title := range newTitlesNeeded {
+				bundleID := ""
+				if title.BundleIdentifier != nil {
+					bundleID = *title.BundleIdentifier
+				}
+				key := titleKey{
+					name:         strings.ToLower(normalizeForCollation(title.Name)),
+					source:       title.Source,
+					extensionFor: title.ExtensionFor,
+					bundleID:     bundleID,
+					isKernel:     title.IsKernel,
+				}
+				if _, exists := uniqueTitles[key]; !exists {
+					uniqueTitles[key] = title
 				}
 			}
 
+			// INSERT IGNORE each title individually using auto-commit (outside any transaction).
+			// singleflight ensures that for each title key, only one goroutine actually
+			// executes the INSERT; concurrent goroutines wait and share the result.
+			// The in-process cache prevents future DB hits entirely.
+			const insertTitleStmt = `INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES (?,?,?,?,?,?,?)`
+			for key, title := range uniqueTitles {
+				cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, key.bundleID, title.IsKernel)
+				if _, cached := ds.knownSoftwareTitleKeys.Load(cacheKey); cached {
+					continue
+				}
+				// Capture loop variables for the closure.
+				titleCopy := title
+				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (interface{}, error) {
+					// Double-check cache after winning the singleflight race.
+					if _, cached := ds.knownSoftwareTitleKeys.Load(cacheKey); cached {
+						return nil, nil
+					}
+					if _, err := ds.writer(ctx).ExecContext(ctx, insertTitleStmt,
+						titleCopy.Name, titleCopy.Source, titleCopy.ExtensionFor, titleCopy.BundleIdentifier,
+						titleCopy.IsKernel, titleCopy.ApplicationID, titleCopy.UpgradeCode,
+					); err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "pre-insert software_titles")
+					}
+					ds.knownSoftwareTitleKeys.Store(cacheKey, struct{}{})
+					return nil, nil
+				})
+				if sfErr != nil {
+					return sfErr
+				}
+			}
+		}
+
+		// Each batch in its own transaction (for SELECT title IDs + INSERT software).
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Map to store title IDs for all titles (both existing and new)
 			titleIDsByChecksum := make(map[string]uint, len(incomingChecksumsToExistingTitleSummaries))
 
@@ -1071,47 +1143,33 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				titleIDsByChecksum[checksum] = titleSummary.ID
 			}
 			if len(newTitlesNeeded) > 0 {
-				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
+				// Build the set of unique titles for the SELECT query.
+				uniqueTitles := make(map[titleKey]fleet.SoftwareTitle)
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
 					if title.BundleIdentifier != nil {
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						// adjust for matching MySQL collation
 						name:         strings.ToLower(normalizeForCollation(title.Name)),
 						source:       title.Source,
 						extensionFor: title.ExtensionFor,
 						bundleID:     bundleID,
 						isKernel:     title.IsKernel,
 					}
-
-					if _, exists := uniqueTitlesToInsert[key]; !exists {
-						uniqueTitlesToInsert[key] = title
+					if _, exists := uniqueTitles[key]; !exists {
+						uniqueTitles[key] = title
 					}
 				}
 
-				// Insert software titles
-				const numberOfArgsPerSoftwareTitles = 7
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES %s", titlesValues)
-				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
-
-				for _, title := range uniqueTitlesToInsert {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel, title.ApplicationID, title.UpgradeCode)
-				}
-
-				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
-					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
-				}
-
-				// Retrieve the IDs for the titles we just inserted (or that already existed)
+				// Retrieve the IDs for the titles we just inserted (or that already existed).
+				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
 				var retrievedTitleSummaries []fleet.SoftwareTitleSummary
-				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
-				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitles)), ",")
+				queryArgs := make([]interface{}, 0, len(uniqueTitles)*4)
 				var upgradeCodes []string
-				for tk := range uniqueTitlesToInsert {
-					title := uniqueTitlesToInsert[tk]
+				for tk := range uniqueTitles {
+					title := uniqueTitles[tk]
 					bundleID := ""
 					if title.BundleIdentifier != nil {
 						bundleID = *title.BundleIdentifier
@@ -1239,6 +1297,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						}
 					}
 				}
+
 			}
 
 			// Insert software entries
