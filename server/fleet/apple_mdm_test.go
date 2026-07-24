@@ -514,6 +514,26 @@ func TestHostDEPAssignment(t *testing.T) {
 	}
 }
 
+func TestDEPDeviceErrorTypeMessage(t *testing.T) {
+	cases := []struct {
+		errType DEPDeviceErrorType
+		expect  string
+	}{
+		{DEPDeviceErrorTokenInvalid, "Fleet can't connect to Apple Business. An admin needs to renew the AB token."},
+		{DEPDeviceErrorTermsExpired, "Apple Business terms/conditions have changed. An admin must accept them."},
+		{DEPDeviceErrorNotFound, "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server."},
+		{DEPDeviceErrorServerError, "Apple's servers are temporarily unavailable. Please try again later."},
+		{DEPDeviceErrorUnavailable, "Fleet can't retrieve data from Apple right now. Please try again later."},
+		{DEPDeviceErrorType("unknown"), "Fleet can't retrieve data from Apple right now. Please try again later."},
+	}
+
+	for _, c := range cases {
+		t.Run(string(c.errType), func(t *testing.T) {
+			require.Equal(t, c.expect, c.errType.Message())
+		})
+	}
+}
+
 func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 	// create a test profile
 	var b bytes.Buffer

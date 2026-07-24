@@ -649,9 +649,10 @@ func setupReleaseABTest(t *testing.T) (*Service, *mock.Store, *nanodep_mock.Stor
 	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	base.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
 
-	// Short-circuit the DEP client's terms-expired after-hook.
+	// Short-circuit the DEP client's terms-expired and token-invalid after-hooks.
 	ds.CountABMTokensWithTermsExpiredFunc = func(context.Context) (int, error) { return 0, nil }
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.SetABMTokenInvalidForOrgNameFunc = func(context.Context, string, bool) (bool, error) { return false, nil }
 	ds.DeleteHostDEPAssignmentsFunc = func(context.Context, uint, []string) error { return nil }
 
 	dep := &nanodep_mock.Storage{}

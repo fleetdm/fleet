@@ -101,127 +101,146 @@ func TestDEPClient(t *testing.T) {
 		return count, nil
 	}
 
-	checkDSCalled := func(readInvoked, writeTokInvoked, writeAppCfgInvoked bool) {
+	tokenInvalidByOrgName := map[string]bool{
+		"org1": false,
+		"org2": false,
+	}
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+		was, ok := tokenInvalidByOrgName[orgName]
+		if !ok {
+			return invalid, nil
+		}
+		tokenInvalidByOrgName[orgName] = invalid
+		return was, nil
+	}
+
+	checkDSCalled := func(readInvoked, writeTokInvoked, writeAppCfgInvoked, writeTokenInvalidInvoked bool) {
 		require.Equal(t, readInvoked, ds.AppConfigFuncInvoked)
 		require.Equal(t, readInvoked, ds.CountABMTokensWithTermsExpiredFuncInvoked)
 		require.Equal(t, writeTokInvoked, ds.SetABMTokenTermsExpiredForOrgNameFuncInvoked)
 		require.Equal(t, writeAppCfgInvoked, ds.SaveAppConfigFuncInvoked)
+		require.Equal(t, writeTokenInvalidInvoked, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 		ds.AppConfigFuncInvoked = false
 		ds.CountABMTokensWithTermsExpiredFuncInvoked = false
 		ds.SaveAppConfigFuncInvoked = false
 		ds.SetABMTokenTermsExpiredForOrgNameFuncInvoked = false
+		ds.SetABMTokenInvalidForOrgNameFuncInvoked = false
 	}
 
 	cases := []struct {
-		token               string
-		orgName             string
-		wantErr             bool
-		readInvoked         bool
-		writeTokInvoked     bool
-		writeAppCfgInvoked  bool
-		wantAppCfgTermsFlag bool
-		wantToksTermsFlags  map[string]bool
+		token                    string
+		orgName                  string
+		wantErr                  bool
+		readInvoked              bool
+		writeTokInvoked          bool
+		writeAppCfgInvoked       bool
+		writeTokenInvalidInvoked bool
+		wantAppCfgTermsFlag      bool
+		wantToksTermsFlags       map[string]bool
 	}{
 		// use a valid token, appconfig should not be updated (already unflagged)
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use a valid token without org, nothing is checked
 		{
 			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
 		{
 			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
-		// use an invalid token, appconfig should not even be read (not a terms error)
+		// use an invalid token, appconfig should not even be read (not a terms error); also not a
+		// token_rejected/signature_invalid error, so token_invalid is not touched either
 		{
 			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
-		// terms changed for org1 during the auth request
+		// terms changed for org1 during the auth request; terms-not-signed is
+		// proof the token was accepted, so token_invalid is cleared (a no-op
+		// here since it was already false)
 		{
 			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
 		},
 
 		// use of an invalid token does not update the flag
 		{
 			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
 		},
 
 		// use of a valid token for org1 resets the flags
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use of a valid token again with org2 does not update anything
 		{
 			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// terms changed for org2 during the actual account request, after auth
 		{
 			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// again terms changed after auth for org2, doesn't update appConfig
 		{
 			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// terms changed during auth for org2, doesn't update appConfig
 		{
 			token: termsChangedToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// terms changed during auth for org1, now both tokens have the flag, doesn't update appConfig
 		{
 			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// use a valid token without org, nothing is checked
 		{
 			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
 		{
 			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// valid token for org1, resets that token's flag but not appConfig
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// valid token again for org1, still no write to appConfig
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// valid token again for org2, this time resets appConfig
 		{
 			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 	}
 
@@ -272,9 +291,12 @@ func TestDEPClient(t *testing.T) {
 			require.True(t, store.RetrieveAuthTokensFuncInvoked)
 			require.True(t, store.RetrieveConfigFuncInvoked)
 		}
-		checkDSCalled(c.readInvoked, c.writeTokInvoked, c.writeAppCfgInvoked)
+		checkDSCalled(c.readInvoked, c.writeTokInvoked, c.writeAppCfgInvoked, c.writeTokenInvalidInvoked)
 		require.Equal(t, c.wantAppCfgTermsFlag, appCfg.MDM.AppleBMTermsExpired)
 		require.Equal(t, c.wantToksTermsFlags, termsExpiredByOrgName)
+		// none of these cases produce a token_rejected/signature_invalid error,
+		// so token_invalid should never actually flip to true.
+		require.Equal(t, map[string]bool{"org1": false, "org2": false}, tokenInvalidByOrgName)
 	}
 }
 
