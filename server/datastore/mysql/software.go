@@ -124,6 +124,7 @@ func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
 	return ok
 }
 
+
 func (ds *Datastore) evictKnownSoftwareTitleKeysLocked() {
 	evicted := 0
 	// Go map iteration order is randomized, so this evicts an arbitrary half of the cache.
@@ -1167,7 +1168,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if ds.hasKnownSoftwareTitleKey(cacheKey) {
 						return nil, nil
 					}
-					if _, err := ds.writer(ctx).ExecContext(ctx, insertTitleStmt,
+					// Use context.WithoutCancel so the INSERT completes even if the
+				// leader goroutine's request is canceled mid-flight (#48719).
+				insertCtx := context.WithoutCancel(ctx)
+				if _, err := ds.writer(insertCtx).ExecContext(insertCtx, insertTitleStmt,
 						titleCopy.Name, titleCopy.Source, titleCopy.ExtensionFor, titleCopy.BundleIdentifier,
 						titleCopy.IsKernel, titleCopy.ApplicationID, titleCopy.UpgradeCode,
 					); err != nil {
