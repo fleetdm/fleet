@@ -3,6 +3,7 @@ package profiles
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -13,6 +14,7 @@ import (
 func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 	ctx := t.Context()
 	host := AndroidAppConfigSubstitutionHost{
+		HostID:         42,
 		UUID:           "host-uuid-1",
 		HardwareSerial: "ABC123",
 		Platform:       "android",
@@ -176,6 +178,55 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
 		require.Nil(t, got)
 	})
+
+	t.Run("custom host vital substituted", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			require.EqualValues(t, 42, hostID)
+			require.Contains(t, document, "$FLEET_HOST_VITAL_7")
+			return `{"managedConfiguration": {"assetTag": "asset-123"}}`, nil
+		}
+		cfg := []byte(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_7"}}`)
+		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		require.Contains(t, string(got), "asset-123")
+		require.True(t, ds.ExpandCustomHostVitalsFuncInvoked)
+	})
+
+	t.Run("custom host vital alongside a Fleet variable, both substituted", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			// Called after the $FLEET_VAR_ substitution above has already run, so
+			// the document should carry the resolved UUID, not the token.
+			require.Contains(t, document, "host-uuid-1")
+			return strings.ReplaceAll(document, "$FLEET_HOST_VITAL_7", "asset-123"), nil
+		}
+		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "assetTag": "$FLEET_HOST_VITAL_7"}}`)
+		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		s := string(got)
+		require.Contains(t, s, "host-uuid-1")
+		require.Contains(t, s, "asset-123")
+	})
+
+	t.Run("custom host vital with no value set for host returns error", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}}
+		}
+		cfg := []byte(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_7"}}`)
+		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		var missing *fleet.MissingCustomHostVitalValueError
+		require.ErrorAs(t, err, &missing)
+		require.Nil(t, got)
+	})
+}
+
+func TestContainsFleetVarOrCustomHostVital(t *testing.T) {
+	require.True(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "$FLEET_VAR_HOST_UUID"}`)))
+	require.True(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "$FLEET_HOST_VITAL_7"}`)))
+	require.False(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "plain"}`)))
+	require.False(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "FLEET_HOST_VITAL_no_dollar_sign"}`)))
 }
 
 func TestJsonEscapeString(t *testing.T) {

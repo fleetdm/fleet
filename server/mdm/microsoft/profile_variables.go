@@ -81,7 +81,7 @@ type ProfilePreprocessParams struct {
 func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params ProfilePreprocessParams, profileContents string) (string, error) {
 	// Check if Fleet variables or custom host vitals are present.
 	fleetVars := variables.Find(profileContents)
-	hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(profileContents)) > 0
+	hasHostVitals := len(fleet.FindCustomHostVitalIDs(profileContents)) > 0
 	if len(fleetVars) == 0 && !hasHostVitals {
 		// No variables to replace, return original content
 		return profileContents, nil

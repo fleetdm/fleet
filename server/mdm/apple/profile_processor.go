@@ -190,7 +190,7 @@ func preprocessProfileContents(
 		// Check if Fleet variables or custom host vitals are present.
 		contentsStr := string(contents)
 		fleetVars := variables.Find(contentsStr)
-		hasHostVitals := len(fleet.ContainsCustomHostVitalIDs(contentsStr)) > 0
+		hasHostVitals := len(fleet.FindCustomHostVitalIDs(contentsStr)) > 0
 		if len(fleetVars) == 0 && !hasHostVitals {
 			continue
 		}

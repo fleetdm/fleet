@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -184,7 +183,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 		configByAppID = map[string][]byte{applicationID: config}
 	}
 
-	needsPerHostSubstitution := config != nil && variables.ContainsBytes(config)
+	needsPerHostSubstitution := config != nil && profiles.ContainsFleetVarOrCustomHostVital(config)
 
 	if needsPerHostSubstitution {
 		hostUUIDs := make([]string, 0, len(hostUUIDToPolicyID))
@@ -208,6 +207,7 @@ func (v *SoftwareWorker) makeAndroidAppAvailableBatch(ctx context.Context, appli
 			}
 
 			subHost := profiles.AndroidAppConfigSubstitutionHost{
+				HostID:         h.ID,
 				UUID:           h.UUID,
 				HardwareSerial: h.HardwareSerial,
 				Platform:       h.Platform,
@@ -549,7 +549,7 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 
 	hasVars := false
 	for _, cfg := range configsByAppID {
-		if variables.ContainsBytes(cfg) {
+		if profiles.ContainsFleetVarOrCustomHostVital(cfg) {
 			hasVars = true
 			break
 		}
@@ -571,6 +571,7 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 
 func androidHostToSubstitutionHost(h *fleet.AndroidHost) profiles.AndroidAppConfigSubstitutionHost {
 	return profiles.AndroidAppConfigSubstitutionHost{
+		HostID:         h.Host.ID,
 		UUID:           h.Host.UUID,
 		HardwareSerial: h.Host.HardwareSerial,
 		Platform:       h.Host.Platform,
