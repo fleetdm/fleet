@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2.3.2",
+      "version": "2026.2.4.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devolutions.remotedesktopmanager';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devolutions.remotedesktopmanager' AND version_compare(bundle_short_version, '2026.2.3.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devolutions.remotedesktopmanager' AND version_compare(bundle_short_version, '2026.2.4.1') < 0);"
       },
-      "installer_url": "https://cdn.devolutions.net/download/Mac/Devolutions.RemoteDesktopManager.Mac.2026.2.3.2.dmg",
+      "installer_url": "https://cdn.devolutions.net/download/Mac/Devolutions.RemoteDesktopManager.Mac.2026.2.4.1.dmg",
       "install_script_ref": "4607770f",
       "uninstall_script_ref": "4fd2b3fa",
-      "sha256": "d56c53b091fb588b6b8fc06ae85596324d2ccf929ba469898c2a08ca43991fa0",
+      "sha256": "d138f14c8b2528e618ba6eb96acefff1e15bb4ae1c2cdd47b48ae4febc662e3a",
       "default_categories": [
         "Productivity"
       ]
