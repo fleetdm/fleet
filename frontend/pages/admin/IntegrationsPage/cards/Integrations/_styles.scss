@@ -76,6 +76,12 @@
       width: 24px;
     }
   }
+
+  &__delete-button {
+    // Prevent the trash icon from being cut off
+    width: auto;
+  }
+
   .empty-table__container {
     h3 {
       margin-bottom: px-to-rem(10);

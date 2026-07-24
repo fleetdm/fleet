@@ -4,6 +4,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsButton from "components/ViewAllHostsLink";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
@@ -174,6 +175,14 @@ const generateTableHeaders = (
           labelsGitOpsManaged,
           repoURL
         );
+
+        if (
+          dropdownOptions.length === 1 &&
+          dropdownOptions[0].value === "view_hosts"
+        ) {
+          return <ViewAllHostsButton platformLabelId={label.id} rowHover />;
+        }
+
         return (
           <ActionsDropdown
             options={dropdownOptions}
