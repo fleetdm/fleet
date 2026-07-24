@@ -37,6 +37,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -98,7 +99,30 @@ type Datastore struct {
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
+
+	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
+	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
+	// preventing lock convoys on the unique index when many hosts report the same software catalog.
+	// The cache evicts an arbitrary half of entries once it reaches a fixed size cap to avoid
+	// unbounded growth on long-lived servers without forcing a full cold start.
+	knownSoftwareTitleKeys map[string]struct{}
+	// knownSoftwareTitleKeysMu serializes cache writes and clears; reads use RLock.
+	knownSoftwareTitleKeysMu sync.RWMutex
+
+	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
+	// same title key. Only one goroutine per title actually executes the INSERT; others wait
+	// and share the result. This prevents lock convoys on cold-start (#48719).
+	titleInsertSF singleflight.Group
 }
+
+// maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so
+// long-lived servers do not retain every title they have ever seen.
+const maxKnownSoftwareTitleKeys = 100_000
+
+// evictKnownSoftwareTitleKeys removes half the cache when the cap is hit. Keeping the other half
+// preserves most steady-state hits while avoiding a full cold start that would reintroduce a burst
+// of INSERT IGNORE statements.
+const evictKnownSoftwareTitleKeys = maxKnownSoftwareTitleKeys / 2
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
 // next activities that require MDM commands.
@@ -284,17 +308,18 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 // Use this when you need to share database connections with other bounded context datastores.
 func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             conns.Primary,
-		replica:             conns.Replica,
-		logger:              conns.Options.Logger,
-		clock:               c,
-		config:              cfg,
-		readReplicaConfig:   conns.Options.ReplicaConfig,
-		writeCh:             make(chan itemToWrite),
-		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
-		serverPrivateKey:    conns.Options.PrivateKey,
-		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
+		primary:                conns.Primary,
+		replica:                conns.Replica,
+		logger:                 conns.Options.Logger,
+		clock:                  c,
+		config:                 cfg,
+		readReplicaConfig:      conns.Options.ReplicaConfig,
+		writeCh:                make(chan itemToWrite),
+		stmtCache:              make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff:    conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:       conns.Options.PrivateKey,
+		knownSoftwareTitleKeys: make(map[string]struct{}),
+		Datastore:              NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()
