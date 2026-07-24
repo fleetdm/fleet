@@ -117,6 +117,37 @@ tasks:
       - ditto -c -k --sequesterRsrc --keepParent "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"
       - 'echo "Created {{.BIN_DIR}}/{{.PRODUCT_NAME}}.zip"'
 
+  pkg:
+    summary: Wraps the packaged `.app` into a Fleet-installable `.pkg`
+    desc: |
+      Builds {{.BIN_DIR}}/{{.PRODUCT_NAME}}.pkg from the existing
+      {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app — a component installer that drops the app
+      into /Applications. Upload it via Fleet > Software > Add software > Custom
+      package; identifier + version are read from the app's Info.plist so Fleet can
+      track install status.
+
+      Like `dist`, this never rebuilds — it packages whatever .app is present, so
+      you can wrap a notarized build (recommended for real hosts — an ad-hoc build
+      only installs cleanly because the pkg install doesn't set a quarantine flag):
+        task package              # ad-hoc signed
+        task darwin:sign:notarize # Developer ID + notarized
+        task pkg
+    preconditions:
+      - sh: test -d "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+        msg: |
+          No {{.BIN_DIR}}/{{.PRODUCT_NAME}}.app found. Build it first:
+            task package              # ad-hoc signed
+            task darwin:sign:notarize # Developer ID + notarized
+    cmds:
+      - |
+        APP="{{.BIN_DIR}}/{{.PRODUCT_NAME}}.app"
+        PLIST="$APP/Contents/Info.plist"
+        VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")
+        IDENTIFIER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")
+        rm -f "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.pkg"
+        pkgbuild --component "$APP" --install-location /Applications --identifier "$IDENTIFIER" --version "$VERSION" "{{.BIN_DIR}}/{{.PRODUCT_NAME}}.pkg"
+        echo "Created {{.BIN_DIR}}/{{.PRODUCT_NAME}}.pkg ($IDENTIFIER $VERSION) — installs to /Applications; upload via Fleet custom package."
+
   create:app:bundle:
     summary: Creates an `.app` bundle
     cmds:

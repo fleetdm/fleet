@@ -27,23 +27,24 @@ func (s *ProcessService) StopProcess(id string) error    { return s.pm.Stop(id) 
 func (s *ProcessService) RestartProcess(id string) error { return s.pm.Restart(id) }
 func (s *ProcessService) ForgetProcess(id string) error  { return s.pm.Forget(id) }
 
-// ShutdownNow stops all managed processes + docker, then triggers app exit.
-func (s *ProcessService) ShutdownNow(repoPath string) error {
-	s.pm.ShutdownNow(repoPath)
+// ShutdownNow stops all managed processes + every server's docker stack, then
+// triggers app exit. targets is one (cwd, project) per configured server.
+func (s *ProcessService) ShutdownNow(targets []processes.ComposeTarget) error {
+	s.pm.ShutdownNow(targets)
 	if s.onQuit != nil {
 		s.onQuit()
 	}
 	return nil
 }
 
-func (s *ProcessService) DockerComposeStatus(cwd string) (processes.DockerStatus, error) {
-	return processes.DockerComposeStatus(cwd)
+func (s *ProcessService) DockerComposeStatus(cwd, project string) (processes.DockerStatus, error) {
+	return processes.DockerComposeStatus(cwd, project)
 }
-func (s *ProcessService) DockerComposeDown(cwd string) (string, error) {
-	return s.pm.DockerComposeDown(cwd)
+func (s *ProcessService) DockerComposeDown(id, cwd, project string) (string, error) {
+	return s.pm.DockerComposeDown(id, cwd, project)
 }
-func (s *ProcessService) DockerComposeRestart(cwd string) (string, error) {
-	return processes.DockerComposeRestart(cwd)
+func (s *ProcessService) DockerComposeRestart(cwd, project string) (string, error) {
+	return processes.DockerComposeRestart(cwd, project)
 }
 
 func (s *ProcessService) ServeTCPCheck(host string, port uint16) bool {

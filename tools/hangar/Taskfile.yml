@@ -30,6 +30,11 @@ tasks:
     cmds:
       - task: "{{OS}}:dist"
 
+  pkg:
+    summary: Wraps the already-built .app into a Fleet-installable .pkg (bin/Fleet Hangar.pkg)
+    cmds:
+      - task: "{{OS}}:pkg"
+
   run:
     summary: Runs the application
     cmds:

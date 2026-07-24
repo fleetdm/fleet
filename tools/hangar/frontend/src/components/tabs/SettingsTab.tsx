@@ -7,12 +7,24 @@ import {
   type EnvVar,
   type GitopsDirScan,
   type NgrokYamlInfo,
+  type ServerPorts,
+  type ServerProfile,
   type Settings,
   type ThemePreference,
-} from "../../lib/tauri";
+} from "../../lib/ipc";
+import {
+  activeServer,
+  canAddServer,
+  MAX_SERVERS,
+  serverColorVar,
+  updateActiveServer,
+  updateServer,
+} from "../../lib/servers";
+import { staleNgrokTunnels } from "../../lib/orchestration";
 import { noAutocorrect } from "../../lib/noAutocorrect";
 
 export type SettingsSection =
+  | "servers"
   | "paths"
   | "fleet-server"
   | "fleetctl"
@@ -59,6 +71,9 @@ export function SettingsTab({
           overflow: "auto",
         }}
       >
+        {section === "servers" && (
+          <ServersSection settings={settings} onChange={onChange} />
+        )}
         {section === "paths" && (
           <PathsSection settings={settings} onChange={onChange} />
         )}
@@ -151,8 +166,9 @@ function Sidebar({
     >
       <div style={{ flex: 1, overflow: "auto", padding: "var(--pad-medium) 0" }}>
         <Group title="Setup">
+          <Item id="servers" label="Servers" />
           <Item id="paths" label="Paths" />
-          <Item id="fleet-server" label="Fleet server" />
+          <Item id="fleet-server" label="Fleet server (active)" />
           <Item id="fleetctl" label="fleetctl contexts" />
           <Item id="gitops" label="GitOps directory" />
         </Group>
@@ -376,6 +392,482 @@ function PathField({
   );
 }
 
+/* ----- Servers section ----- */
+
+// Lightweight path helpers for deriving a sibling worktree dir (string-only;
+// the backend validates the real path on `git worktree add`).
+function pathDirname(p: string): string {
+  const t = p.replace(/\/+$/, "");
+  const i = t.lastIndexOf("/");
+  return i <= 0 ? "/" : t.slice(0, i);
+}
+function pathBasename(p: string): string {
+  const t = p.replace(/\/+$/, "");
+  const i = t.lastIndexOf("/");
+  return i < 0 ? t : t.slice(i + 1);
+}
+
+const PORT_FIELDS: { key: keyof ServerPorts; label: string }[] = [
+  { key: "server", label: "fleet serve" },
+  { key: "mysql", label: "MySQL" },
+  { key: "redis", label: "Redis" },
+  { key: "s3", label: "S3" },
+  { key: "s3_console", label: "S3 console" },
+];
+
+const COLOR_KEYS = ["green", "purple", "blue"];
+
+/// Finds host ports used by more than one server. Each entry is "two servers
+/// configured with the same number" — the most common pre-launch mistake.
+function portConflicts(servers: ServerProfile[]): Map<number, string[]> {
+  const byPort = new Map<number, string[]>();
+  for (const s of servers) {
+    for (const f of PORT_FIELDS) {
+      const port = s.ports[f.key];
+      const arr = byPort.get(port) ?? [];
+      arr.push(`${s.name} ${f.label}`);
+      byPort.set(port, arr);
+    }
+  }
+  const conflicts = new Map<number, string[]>();
+  for (const [port, who] of byPort) {
+    if (who.length > 1) conflicts.set(port, who);
+  }
+  return conflicts;
+}
+
+function ServersSection({
+  settings,
+  onChange,
+}: {
+  settings: Settings;
+  onChange: (next: Settings) => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const commit = useCallback(
+    async (next: Settings) => {
+      setError(null);
+      try {
+        await api.saveSettings(next);
+        onChange(next);
+      } catch (e) {
+        setError(String(e));
+      }
+    },
+    [onChange],
+  );
+
+  async function addServer() {
+    setBusy(true);
+    setError(null);
+    try {
+      const profile = await api.newServerProfile();
+      await commit({
+        ...settings,
+        servers: [...settings.servers, profile],
+        active_server_id: profile.id,
+      });
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  }
+
+  function removeServer(id: string) {
+    if (settings.servers.length <= 1) return;
+    const servers = settings.servers.filter((s) => s.id !== id);
+    const active_server_id =
+      settings.active_server_id === id
+        ? servers[0].id
+        : settings.active_server_id;
+    commit({ ...settings, servers, active_server_id });
+  }
+
+  const conflicts = portConflicts(settings.servers);
+  const primaryRepo = settings.servers[0]?.worktree_path ?? null;
+
+  return (
+    <div style={{ maxWidth: 820, display: "flex", flexDirection: "column", gap: "var(--pad-medium)" }}>
+      <div>
+        <PageHeading>Servers</PageHeading>
+        <div className="dim" style={{ fontSize: "var(--fs-xx-small)", lineHeight: 1.5 }}>
+          Run up to {MAX_SERVERS} independent local Fleet servers in parallel — each on its
+          own git worktree (so it can build/run a different branch), ports, and
+          docker compose project. Server 1 keeps the canonical dev ports; others
+          use offset blocks. Switch the active server from the top bar.
+        </div>
+      </div>
+
+      {conflicts.size > 0 && (
+        <div
+          style={{
+            background: "var(--tint-warning-soft)",
+            border: "1px solid var(--ui-warning)",
+            borderRadius: "var(--radius-md)",
+            padding: "8px 12px",
+            fontSize: "var(--fs-xx-small)",
+            color: "var(--ui-on-warning)",
+          }}
+        >
+          ⚠ Port conflict: {Array.from(conflicts.entries()).map(([port, who]) => `${port} (${who.join(" + ")})`).join("; ")}.
+          Give each server a distinct port or the second stack will fail to bind.
+        </div>
+      )}
+
+      {settings.servers.map((s, i) => (
+        <ServerCard
+          key={s.id}
+          server={s}
+          index={i}
+          isActive={s.id === settings.active_server_id}
+          canRemove={settings.servers.length > 1}
+          primaryRepo={i === 0 ? null : primaryRepo}
+          onSetActive={() => commit({ ...settings, active_server_id: s.id })}
+          onUpdate={(updater) => commit(updateServer(settings, s.id, updater))}
+          onRemove={() => removeServer(s.id)}
+          setError={setError}
+        />
+      ))}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button
+          className="primary"
+          onClick={addServer}
+          disabled={busy || !canAddServer(settings)}
+          style={{ padding: "6px 14px" }}
+          title={
+            canAddServer(settings)
+              ? "Add another local server"
+              : `Maximum of ${MAX_SERVERS} servers`
+          }
+        >
+          {busy ? "adding…" : "+ Add server"}
+        </button>
+        {!canAddServer(settings) && (
+          <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
+            Maximum of {MAX_SERVERS} servers reached.
+          </span>
+        )}
+      </div>
+
+      {error && (
+        <div style={{ color: "var(--ui-error)", fontSize: "var(--fs-xx-small)" }}>
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ServerCard({
+  server,
+  index,
+  isActive,
+  canRemove,
+  primaryRepo,
+  onSetActive,
+  onUpdate,
+  onRemove,
+  setError,
+}: {
+  server: ServerProfile;
+  index: number;
+  isActive: boolean;
+  canRemove: boolean;
+  // The main clone to base new worktrees on (null for server 1, which IS the
+  // base / configures its worktree by picking a clone directly).
+  primaryRepo: string | null;
+  onSetActive: () => void;
+  onUpdate: (updater: (s: ServerProfile) => ServerProfile) => void;
+  onRemove: () => void;
+  setError: (e: string | null) => void;
+}) {
+  const accent = serverColorVar(server.color);
+  const [ref, setRef] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  async function pickExisting() {
+    const result = await api.pickFolder();
+    if (!result || typeof result !== "string") return;
+    const probed = await api.probeFleetRepo(result);
+    if (!probed[0]?.valid) {
+      setError(probed[0]?.reason ?? "not a valid fleet repo");
+      return;
+    }
+    setError(null);
+    const detected = await api.detectFleetConfig(probed[0].path);
+    onUpdate((s) => ({
+      ...s,
+      worktree_path: probed[0].path,
+      fleet_serve: { ...s.fleet_serve, config_path: detected },
+    }));
+  }
+
+  async function createWorktree() {
+    if (!primaryRepo || !ref.trim()) return;
+    // Sibling of the main clone, named <clone>-<serverID> (e.g. fleet-s2).
+    const dest = `${pathDirname(primaryRepo)}/${pathBasename(primaryRepo)}-${server.id}`;
+    setCreating(true);
+    setError(null);
+    try {
+      await api.gitAddWorktree(primaryRepo, dest, ref.trim());
+      const detected = await api.detectFleetConfig(dest);
+      onUpdate((s) => ({
+        ...s,
+        worktree_path: dest,
+        branch: ref.trim(),
+        fleet_serve: { ...s.fleet_serve, config_path: detected },
+      }));
+      setRef("");
+    } catch (e) {
+      setError(String(e));
+    }
+    setCreating(false);
+  }
+
+  return (
+    <div
+      className="card"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        borderLeft: `3px solid ${accent}`,
+      }}
+    >
+      {/* header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span
+          aria-hidden
+          style={{ width: 10, height: 10, borderRadius: "50%", background: accent, flexShrink: 0 }}
+        />
+        <input
+          value={server.name}
+          onChange={(e) => onUpdate((s) => ({ ...s, name: e.target.value }))}
+          {...noAutocorrect}
+          aria-label="Server name"
+          style={{ fontWeight: 600, flex: 1, minWidth: 0, maxWidth: 220 }}
+        />
+        <span className="mono dim" style={{ fontSize: "var(--fs-xxx-small)" }}>
+          {server.compose_project}
+        </span>
+        <div style={{ flex: 1 }} />
+        <ColorPicker
+          value={server.color}
+          onChange={(color) => onUpdate((s) => ({ ...s, color }))}
+        />
+        {isActive ? (
+          <span
+            style={{
+              fontSize: "var(--fs-xxx-small)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: accent,
+              border: `1px solid ${accent}`,
+              borderRadius: 999,
+              padding: "2px 8px",
+            }}
+          >
+            active
+          </span>
+        ) : (
+          <button
+            onClick={onSetActive}
+            style={{ padding: "3px 10px", fontSize: "var(--fs-xx-small)" }}
+          >
+            Set active
+          </button>
+        )}
+        {canRemove && (
+          <button
+            className={confirmRemove ? "danger" : undefined}
+            onClick={() => {
+              if (!confirmRemove) {
+                setConfirmRemove(true);
+                return;
+              }
+              onRemove();
+            }}
+            onBlur={() => setConfirmRemove(false)}
+            title="Remove this server profile (leaves the worktree on disk)"
+            style={{ padding: "3px 10px", fontSize: "var(--fs-xx-small)" }}
+          >
+            {confirmRemove ? "Confirm" : "Remove"}
+          </button>
+        )}
+      </div>
+
+      {/* worktree */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ fontSize: "var(--fs-xx-small)", color: "var(--app-text-dim)" }}>
+          {index === 0 ? "Fleet clone (worktree base)" : "Git worktree"}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div
+            className="mono"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              background: "var(--app-surface-2)",
+              border: "1px solid var(--app-border)",
+              borderRadius: "var(--radius-md)",
+              padding: "6px 10px",
+              color: server.worktree_path ? "var(--app-text)" : "var(--app-text-dim)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={server.worktree_path ?? ""}
+          >
+            {server.worktree_path ?? "not set"}
+          </div>
+          <button onClick={pickExisting}>📁 Pick existing</button>
+        </div>
+
+        {index > 0 && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginTop: 4,
+            }}
+          >
+            <input
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              placeholder="branch / tag / commit (e.g. rc-minor-fleet-v4.86.0)"
+              {...noAutocorrect}
+              className="mono"
+              style={{ flex: 1, minWidth: 0, fontSize: "var(--fs-xx-small)" }}
+              disabled={!primaryRepo}
+            />
+            <button
+              onClick={createWorktree}
+              disabled={!primaryRepo || !ref.trim() || creating}
+              title={
+                primaryRepo
+                  ? `git worktree add ${pathBasename(primaryRepo)}-${server.id} ${ref || "<ref>"}`
+                  : "Configure server 1's clone first"
+              }
+              style={{ padding: "4px 12px", fontSize: "var(--fs-xx-small)" }}
+            >
+              {creating ? "creating…" : "Create worktree"}
+            </button>
+          </div>
+        )}
+        <div className="dim" style={{ fontSize: "var(--fs-xxx-small)", marginTop: 2 }}>
+          {index === 0
+            ? "The main clone. Other servers add git worktrees from it."
+            : primaryRepo
+              ? `Create checks out the ref into a sibling of the main clone (${pathBasename(primaryRepo)}-${server.id}), or pick an existing clone/worktree.`
+              : "Set server 1's clone first to enable worktree creation."}
+        </div>
+      </div>
+
+      {/* ports */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ fontSize: "var(--fs-xx-small)", color: "var(--app-text-dim)" }}>
+          Host ports
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {PORT_FIELDS.map((f) => (
+            <PortField
+              key={f.key}
+              label={f.label}
+              value={server.ports[f.key]}
+              onCommit={(n) =>
+                onUpdate((s) => ({ ...s, ports: { ...s.ports, [f.key]: n } }))
+              }
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColorPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (c: string) => void;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 4 }} role="group" aria-label="Accent color">
+      {COLOR_KEYS.map((c) => {
+        const selected = c === value;
+        return (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            aria-label={c}
+            aria-pressed={selected}
+            style={{
+              width: 18,
+              height: 18,
+              padding: 0,
+              borderRadius: "50%",
+              background: serverColorVar(c),
+              border: selected ? "2px solid var(--app-text)" : "2px solid transparent",
+              cursor: "pointer",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/// Numeric port input committing on blur (or Enter). Keeps local draft so
+/// typing doesn't fire a save per keystroke; reverts an out-of-range value.
+function PortField({
+  label,
+  value,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+  function commit() {
+    const n = Number(draft);
+    if (!Number.isInteger(n) || n < 1 || n > 65535) {
+      setDraft(String(value));
+      return;
+    }
+    if (n !== value) onCommit(n);
+  }
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <span className="dim" style={{ fontSize: "var(--fs-xxx-small)" }}>
+        {label}
+      </span>
+      <input
+        type="number"
+        value={draft}
+        min={1}
+        max={65535}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+        className="mono"
+        style={{ width: 86, fontSize: "var(--fs-xx-small)" }}
+      />
+    </label>
+  );
+}
+
 /* ----- Paths section ----- */
 
 function PathsSection({
@@ -388,24 +880,6 @@ function PathsSection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function pickRepo() {
-    const result = await api.pickFolder();
-    if (!result || typeof result !== "string") return;
-    const probed = await api.probeFleetRepo(result);
-    if (!probed[0]?.valid) {
-      setError(probed[0]?.reason ?? "not a valid fleet repo");
-      return;
-    }
-    setError(null);
-    // Re-derive the serve --config from the newly selected repo: point at
-    // its fleet.yml if present, otherwise clear it (env / dev defaults).
-    const detectedConfig = await api.detectFleetConfig(probed[0].path);
-    await save({
-      ...settings,
-      repo_path: probed[0].path,
-      fleet_serve: { ...settings.fleet_serve, config_path: detectedConfig },
-    });
-  }
   async function pickFleetctl() {
     // No file-type filter — fleetctl is a bare binary with no extension
     // on Unix. The OS picker only returns existing files anyway, so
@@ -434,17 +908,15 @@ function PathsSection({
   return (
     <div style={{ maxWidth: 720 }}>
       <PageHeading>Paths</PageHeading>
+      <div className="dim" style={{ fontSize: "var(--fs-xx-small)", marginBottom: "var(--pad-medium)" }}>
+        Fleet repositories / worktrees are configured per server in the{" "}
+        <span style={{ color: "var(--app-text)" }}>Servers</span> section. This
+        is for the shared fleetctl binary.
+      </div>
       <div
         className="card"
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
       >
-        <PathField
-          label="Fleet repository"
-          value={settings.repo_path}
-          placeholder="not set"
-          onPick={pickRepo}
-          busy={busy}
-        />
         <PathField
           label="fleetctl binary"
           value={settings.fleetctl_path}
@@ -454,8 +926,8 @@ function PathsSection({
           busy={busy}
           hint={
             settings.fleetctl_path
-              ? "Using the picked binary. Click clear to revert to the repo's build/fleetctl."
-              : "Falls back to <repo>/build/fleetctl. Pick a different binary if you want to point at a release build elsewhere."
+              ? "Using the picked binary. Click clear to revert to the active server's build/fleetctl."
+              : "Falls back to the active server's <worktree>/build/fleetctl. Pick a different binary to point at a release build elsewhere."
           }
         />
         {error && (
@@ -666,7 +1138,9 @@ function FleetServerSection({
   settings: Settings;
   onChange: (next: Settings) => void;
 }) {
-  const cfg = settings.fleet_serve;
+  // Edits the ACTIVE server's serve config (switch servers from the top bar).
+  const server = activeServer(settings);
+  const cfg = server.fleet_serve;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -674,10 +1148,10 @@ function FleetServerSection({
     setBusy(true);
     setError(null);
     try {
-      const next: Settings = {
-        ...settings,
-        fleet_serve: { ...cfg, ...updates },
-      };
+      const next = updateActiveServer(settings, (s) => ({
+        ...s,
+        fleet_serve: { ...s.fleet_serve, ...updates },
+      }));
       await api.saveSettings(next);
       onChange(next);
     } catch (e) {
@@ -730,12 +1204,16 @@ function FleetServerSection({
       }}
     >
       <div>
-        <PageHeading>Fleet server</PageHeading>
+        <PageHeading>
+          Fleet server ·{" "}
+          <span style={{ color: serverColorVar(server.color) }}>{server.name}</span>
+        </PageHeading>
         <div className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
           Controls what flags and env vars{" "}
-          <span className="mono">./build/fleet serve --dev</span> spawns
-          with. Premium/free lives on the Server tab next to the chain
-          row so you can flip it without leaving the run flow.
+          <span className="mono">./build/fleet serve --dev</span> spawns with
+          for the <strong>active</strong> server ({server.name}). Switch servers
+          from the top bar. Premium/free lives on the Server tab next to the
+          chain row so you can flip it without leaving the run flow.
         </div>
       </div>
 
@@ -1451,6 +1929,16 @@ function NgrokSection({
     try {
       const result = await api.parseNgrokYml(cfg.yml_path);
       setInfo(result);
+      // Self-heal: drop any selected tunnel that no longer exists in the yml
+      // (renamed/removed) so the start command can't reference a phantom.
+      const stale = staleNgrokTunnels(settings, result);
+      if (stale.length > 0) {
+        updateDefaults({
+          default_tunnels: cfg.default_tunnels.filter(
+            (n) => !stale.includes(n),
+          ),
+        });
+      }
       if (result.valid && result.resolved_path) {
         try {
           const txt = await api.readTextFile(result.resolved_path);
@@ -1939,6 +2427,21 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         subtitle: "perf agents (matches --os_templates on the command line)",
         mode: { kind: "pattern", pattern: "os_templates" },
       },
+      {
+        // Catches both Hangar's cached <app-data>/bin/scepserver and any
+        // external scepserver-<os>-<arch> binary run by hand.
+        id: "scep",
+        title: "SCEP servers",
+        subtitle: "any scepserver process (matches the command line)",
+        mode: { kind: "pattern", pattern: "scepserver" },
+      },
+      {
+        // The local TUF file-server the tools/tuf/test scripts leave running.
+        id: "tuf",
+        title: "TUF server (port 8081)",
+        subtitle: "whoever is listening on the TUF port",
+        mode: { kind: "port", port: 8081 },
+      },
     ],
     [pythonPort],
   );
@@ -1973,7 +2476,57 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         {cards.map((c) => (
           <TroubleshootCardView key={c.id} card={c} />
         ))}
+        <TufAssetsCard />
       </div>
+    </div>
+  );
+}
+
+// TufAssetsCard removes the generated local TUF repo (<repo>/test_tuf) — the
+// asset cleanup that pairs with killing the TUF server above.
+function TufAssetsCard() {
+  const [phase, setPhase] = useState<"idle" | "armed" | "deleting">("idle");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const del = async () => {
+    setPhase("deleting");
+    setMsg(null);
+    try {
+      await api.tufDeleteAssets();
+      setMsg("Deleted test_tuf");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPhase("idle");
+    }
+  };
+
+  return (
+    <div className="card" style={{ padding: "var(--pad-medium)", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <span style={{ fontWeight: 600, fontSize: "var(--fs-x-small)" }}>TUF assets</span>
+        <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>
+          delete the generated repo (<span className="mono">test_tuf</span>) in the Fleet repo root
+        </span>
+        {msg && (
+          <span className="dim" style={{ fontSize: "var(--fs-xx-small)" }}>{msg}</span>
+        )}
+      </div>
+      <div style={{ flex: 1 }} />
+      {phase === "armed" ? (
+        <>
+          <button onClick={del} className="danger" style={{ padding: "5px 12px" }}>
+            Confirm delete
+          </button>
+          <button onClick={() => setPhase("idle")} style={{ padding: "5px 12px" }}>
+            Cancel
+          </button>
+        </>
+      ) : (
+        <button onClick={() => setPhase("armed")} disabled={phase === "deleting"} style={{ padding: "5px 12px" }}>
+          {phase === "deleting" ? "Deleting…" : "Delete assets"}
+        </button>
+      )}
     </div>
   );
 }

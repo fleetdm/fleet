@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { ThemePreference } from "./tauri";
+import type { ThemePreference } from "./ipc";
 
 /// Applies the user's theme preference to <body>. Toggles the
 /// `.dark-mode` class — same hook frontend/styles/var/colors.scss uses,

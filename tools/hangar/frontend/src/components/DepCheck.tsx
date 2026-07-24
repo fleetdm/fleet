@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type DepCheck as DepCheckT } from "../lib/tauri";
+import { api, type DepCheck as DepCheckT } from "../lib/ipc";
 
 async function openDocs(url: string) {
   try {

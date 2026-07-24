@@ -5,6 +5,8 @@
 package services
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 )
@@ -31,6 +33,43 @@ func (s *SettingsService) SaveSettings(in settings.Settings) error {
 	return settings.Save(dir, in)
 }
 
+// NewServerProfile returns a fresh server profile for the next free slot
+// (canonical-but-offset ports, compose project, color, serve config), leaving
+// name/worktree for the caller to fill before saving. Errors if the server cap
+// is already reached. The slot is derived from the currently-saved servers so
+// the new ports/project/ID never collide.
+func (s *SettingsService) NewServerProfile() (settings.ServerProfile, error) {
+	dir, err := paths.ConfigDir()
+	if err != nil {
+		return settings.ServerProfile{}, err
+	}
+	cur, err := settings.Load(dir)
+	if err != nil {
+		return settings.ServerProfile{}, err
+	}
+	p, ok := settings.NextServerProfile(cur.Servers)
+	if !ok {
+		return settings.ServerProfile{}, fmt.Errorf("server limit reached (max %d)", settings.MaxServers)
+	}
+	return p, nil
+}
+
+// NewScepProfile returns a fresh SCEP launch profile (unique id, next free port
+// starting at 2016, challenge/debug defaults), leaving name/depot for the caller
+// to fill before saving. The slot is derived from the currently-saved profiles
+// so id/port never collide.
+func (s *SettingsService) NewScepProfile() (settings.ScepProfile, error) {
+	dir, err := paths.ConfigDir()
+	if err != nil {
+		return settings.ScepProfile{}, err
+	}
+	cur, err := settings.Load(dir)
+	if err != nil {
+		return settings.ScepProfile{}, err
+	}
+	return settings.NextScepProfile(cur.ScepProfiles), nil
+}
+
 // ProbeFleetRepo validates a single path, or (when path is empty) discovers
 // Fleet clones under the well-known dev roots.
 func (s *SettingsService) ProbeFleetRepo(path string) []settings.RepoProbe {
@@ -44,6 +83,12 @@ func (s *SettingsService) ProbeFleetRepo(path string) []settings.RepoProbe {
 // (fleet.yml/fleet.yaml), or "" if none.
 func (s *SettingsService) DetectFleetConfig(repo string) string {
 	return settings.DetectFleetConfig(repo)
+}
+
+// NgrokTunnels returns the currently-running ngrok tunnels (with public URLs)
+// from ngrok's local API. Empty when ngrok isn't running.
+func (s *SettingsService) NgrokTunnels() ([]settings.NgrokRunningTunnel, error) {
+	return settings.FetchNgrokTunnels()
 }
 
 // ParseNgrokYml summarizes an ngrok.yml (empty path = ngrok's default).
