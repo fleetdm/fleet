@@ -69,7 +69,8 @@ export interface IDepAssignmentHostResponse {
     mdm_migration_deadline: string | null;
     serial_number: string;
     response_status: DEPDeviceStatus;
-  };
+  } | null;
+  dep_device_error: string | null;
   host_dep_assignment: {
     assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
@@ -79,7 +80,7 @@ export interface IDepAssignmentHostResponse {
     abm_token_id: number;
     mdm_migration_deadline: string;
     mdm_migration_completed: string;
-  };
+  } | null;
 }
 
 export type IUnlockHostResponse =

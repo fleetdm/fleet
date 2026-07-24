@@ -33,6 +33,7 @@ export interface IMdmAbToken {
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
+  token_invalid: boolean;
   macos_fleet: ITokenFleet;
   ios_fleet: ITokenFleet;
   ipados_fleet: ITokenFleet;
