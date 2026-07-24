@@ -157,7 +157,7 @@ func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
