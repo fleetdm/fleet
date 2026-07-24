@@ -2011,6 +2011,20 @@
       "description": "Creative Force Triad enables direct printing from the Creative Force platform to Zebra label printers."
     },
     {
+      "name": "Crestron AirMedia Peripherals",
+      "slug": "crestron-airmedia-peripherals/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Peripherals",
+      "description": "Crestron AirMedia Peripherals enables wireless conferencing with Crestron AirMedia Series 3 receivers."
+    },
+    {
+      "name": "Crestron AirMedia",
+      "slug": "crestron-airmedia/windows",
+      "platform": "windows",
+      "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+      "description": "Crestron AirMedia enables wireless presentation and conferencing with AirMedia receivers."
+    },
+    {
       "name": "Cribl Edge",
       "slug": "cribl-edge/windows",
       "platform": "windows",
@@ -2200,6 +2214,20 @@
       "description": "DataSpell is an IDE for Professional Data Scientists."
     },
     {
+      "name": "DataSpell",
+      "slug": "dataspell/windows",
+      "platform": "windows",
+      "unique_identifier": "DataSpell",
+      "description": "DataSpell is a JetBrains IDE for data science, with notebooks, interactive Python/R, and database tools."
+    },
+    {
+      "name": "DAX Studio",
+      "slug": "dax-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "DAX Studio",
+      "description": "DAX Studio is a tool for writing, running, and analyzing DAX queries against tabular data models."
+    },
+    {
       "name": "Dayflow",
       "slug": "dayflow/darwin",
       "platform": "darwin",
@@ -2340,6 +2368,13 @@
       "description": "Default Folder X is a utility to enhance the Open and Save dialogs in applications."
     },
     {
+      "name": "Delinea Connection Manager",
+      "slug": "delinea-connection-manager/windows",
+      "platform": "windows",
+      "unique_identifier": "Delinea Connection Manager",
+      "description": "Delinea Connection Manager provides secure RDP and SSH connections to remote servers."
+    },
+    {
       "name": "Dell Command Update",
       "slug": "dell-command-update/windows",
       "platform": "windows",
@@ -2389,6 +2424,20 @@
       "description": "DevKnife is a collection of handy developer tools."
     },
     {
+      "name": "Devolutions Launcher",
+      "slug": "devolutions-launcher/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Launcher",
+      "description": "Devolutions Launcher opens remote connections from Devolutions Server and Devolutions Hub."
+    },
+    {
+      "name": "Devolutions Workspace",
+      "slug": "devolutions-workspace/windows",
+      "platform": "windows",
+      "unique_identifier": "Devolutions Password Manager",
+      "description": "Devolutions Password Manager (formerly Workspace) provides access to Devolutions accounts and credentials."
+    },
+    {
       "name": "DEVONsphere Express",
       "slug": "devonsphere-express/darwin",
       "platform": "darwin",
@@ -2401,6 +2450,13 @@
       "platform": "darwin",
       "unique_identifier": "com.devon-technologies.think",
       "description": "DEVONthink is a collect, organise, edit and annotate documents."
+    },
+    {
+      "name": "DevPod",
+      "slug": "devpod/windows",
+      "platform": "windows",
+      "unique_identifier": "DevPod",
+      "description": "DevPod is an open-source, client-only tool for spinning up reproducible development environments."
     },
     {
       "name": "DevToys",
@@ -2466,6 +2522,20 @@
       "description": "digiKam is a digital photo manager."
     },
     {
+      "name": "digiSeal Reader",
+      "slug": "digiseal-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "digiSeal reader",
+      "description": "digiSeal Reader verifies signed and sealed documents and time stamps."
+    },
+    {
+      "name": "Directory Opus",
+      "slug": "directory-opus/windows",
+      "platform": "windows",
+      "unique_identifier": "Directory Opus",
+      "description": "Directory Opus is an advanced file manager and Windows Explorer replacement."
+    },
+    {
       "name": "Discord",
       "slug": "discord/darwin",
       "platform": "darwin",
@@ -2492,6 +2562,13 @@
       "platform": "darwin",
       "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
       "description": "Drivers for DisplayLink docks, adapters and monitors."
+    },
+    {
+      "name": "dnGrep",
+      "slug": "dngrep/windows",
+      "platform": "windows",
+      "unique_identifier": "dnGrep",
+      "description": "dnGrep is a search tool for finding text across files with regex, XPath, and phonetic matching."
     },
     {
       "name": "DockDoor",
@@ -2557,6 +2634,13 @@
       "description": "Downie is a downloads videos from different websites."
     },
     {
+      "name": "Draftable Desktop",
+      "slug": "draftable-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Draftable Desktop",
+      "description": "Draftable Desktop compares documents (PDF, Word, PowerPoint) and highlights changes, offline."
+    },
+    {
       "name": "Drata Agent",
       "slug": "drata-agent/darwin",
       "platform": "darwin",
@@ -2583,6 +2667,13 @@
       "platform": "windows",
       "unique_identifier": "draw.io",
       "description": "draw.io is a versatile diagramming or whiteboarding application."
+    },
+    {
+      "name": "dRofus",
+      "slug": "drofus/windows",
+      "platform": "windows",
+      "unique_identifier": "dRofus",
+      "description": "dRofus is a planning and data-management tool for building and construction projects."
     },
     {
       "name": "Dropbox",
@@ -2690,6 +2781,13 @@
       "description": "Dymo Connect is a software for DYMO LabelWriters."
     },
     {
+      "name": "DYMO ID",
+      "slug": "dymo-id/windows",
+      "platform": "windows",
+      "unique_identifier": "DYMO ID",
+      "description": "DYMO ID is label-design software for DYMO XTL and Rhino 6000+ industrial label makers."
+    },
+    {
       "name": "Dynalist",
       "slug": "dynalist/darwin",
       "platform": "darwin",
@@ -2730,6 +2828,69 @@
       "platform": "darwin",
       "unique_identifier": "epp.package.committers",
       "description": "Eclipse IDE is an Eclipse integrated development environment for Java."
+    },
+    {
+      "name": "Eclipse Temurin JDK 11",
+      "slug": "eclipse-temurin-jdk-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 11 is the free, open-source OpenJDK 11 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 17",
+      "slug": "eclipse-temurin-jdk-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 17 is the free, open-source OpenJDK 17 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 21",
+      "slug": "eclipse-temurin-jdk-21/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 21 is the free, open-source OpenJDK 21 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JDK 8",
+      "slug": "eclipse-temurin-jdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JDK with Hotspot",
+      "description": "Eclipse Temurin JDK 8 is the free, open-source OpenJDK 8 distribution from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 11",
+      "slug": "eclipse-temurin-jre-11/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 11 is the free, open-source OpenJDK 11 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 17",
+      "slug": "eclipse-temurin-jre-17/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 17 is the free, open-source OpenJDK 17 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 21",
+      "slug": "eclipse-temurin-jre-21/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 21 is the free, open-source OpenJDK 21 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Eclipse Temurin JRE 8",
+      "slug": "eclipse-temurin-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "Eclipse Temurin JRE with Hotspot",
+      "description": "Eclipse Temurin JRE 8 is the free, open-source OpenJDK 8 Java runtime from the Eclipse Adoptium project."
+    },
+    {
+      "name": "Egnyte WebEdit",
+      "slug": "egnyte-webedit/windows",
+      "platform": "windows",
+      "unique_identifier": "Egnyte WebEdit",
+      "description": "Egnyte WebEdit opens files from the Egnyte web UI directly in their native desktop applications."
     },
     {
       "name": "Egnyte",
@@ -2779,6 +2940,13 @@
       "platform": "darwin",
       "unique_identifier": "com.kamban.elephas",
       "description": "Elephas is a personal AI Writing Assistant."
+    },
+    {
+      "name": "Elevate UC",
+      "slug": "elevate-uc/windows",
+      "platform": "windows",
+      "unique_identifier": "Elevate UC",
+      "description": "Elevate UC is an Intermedia unified-communications client for calling, messaging, and meetings."
     },
     {
       "name": "Elgato Camera Hub",
@@ -2858,11 +3026,25 @@
       "description": "eM Client is an email client."
     },
     {
+      "name": "EndNote",
+      "slug": "endnote/windows",
+      "platform": "windows",
+      "unique_identifier": "EndNote 2025",
+      "description": "EndNote is a reference manager for organizing citations and formatting bibliographies."
+    },
+    {
       "name": "Enpass",
       "slug": "enpass/darwin",
       "platform": "darwin",
       "unique_identifier": "in.sinew.Enpass-Desktop",
       "description": "Enpass is a password and credentials manager."
+    },
+    {
+      "name": "Enpass",
+      "slug": "enpass/windows",
+      "platform": "windows",
+      "unique_identifier": "Enpass",
+      "description": "Enpass is an offline password manager that stores credentials in a local, master-password-protected vault."
     },
     {
       "name": "Ente Auth",
@@ -2905,6 +3087,13 @@
       "platform": "darwin",
       "unique_identifier": "com.evernote.Evernote",
       "description": "Evernote is an app for note taking, organising, task lists, and archiving."
+    },
+    {
+      "name": "Evernote",
+      "slug": "evernote/windows",
+      "platform": "windows",
+      "unique_identifier": "Evernote",
+      "description": "Evernote is a note-taking app for capturing notes, tasks, and schedules in one place."
     },
     {
       "name": "ExifCleaner",
@@ -3089,6 +3278,20 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox Developer Edition",
+      "slug": "firefox@developer-edition/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefoxdeveloperedition",
+      "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
+      "name": "Mozilla Firefox Developer Edition",
+      "slug": "firefox@developer-edition/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Developer Edition (x64 en-US)",
+      "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
       "name": "Mozilla Firefox ESR",
       "slug": "firefox@esr/darwin",
       "platform": "darwin",
@@ -3101,6 +3304,20 @@
       "platform": "windows",
       "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
       "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox Nightly",
+      "slug": "firefox@nightly/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.nightly",
+      "description": "Mozilla Firefox Nightly is the daily development build of the Firefox web browser, with the newest features before they reach beta and release."
+    },
+    {
+      "name": "Mozilla Firefox Nightly",
+      "slug": "firefox@nightly/windows",
+      "platform": "windows",
+      "unique_identifier": "Firefox Nightly",
+      "description": "Mozilla Firefox Nightly is the daily development build of the Firefox web browser, with the newest features before they reach beta and release."
     },
     {
       "name": "Fission",
@@ -3122,6 +3339,13 @@
       "platform": "darwin",
       "unique_identifier": "net.flexoptix.flexoptix.app",
       "description": "FLEXOPTIX App is a connect to your FLEXBOX without cables and configure transceivers."
+    },
+    {
+      "name": "FlexWhere for Desktop",
+      "slug": "flexwhere/windows",
+      "platform": "windows",
+      "unique_identifier": "Flexwhere for Desktop",
+      "description": "FlexWhere for Desktop shows real-time workplace and colleague availability from FlexWhere."
     },
     {
       "name": "Fluid",
@@ -3194,6 +3418,27 @@
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
+      "name": "Fortify",
+      "slug": "fortify/windows",
+      "platform": "windows",
+      "unique_identifier": "Fortify",
+      "description": "Fortify enables cross-browser use of local certificates and smart cards."
+    },
+    {
+      "name": "Foxit PDF Editor",
+      "slug": "foxit-pdf-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Foxit PDF Editor",
+      "description": "Foxit PDF Editor is a desktop application for creating and editing PDF documents."
+    },
+    {
+      "name": "Foxit PDF Reader",
+      "slug": "foxit-pdf-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Foxit PDF Reader",
+      "description": "Foxit PDF Reader is a desktop application for viewing and annotating PDF documents."
+    },
+    {
       "name": "Framer",
       "slug": "framer/darwin",
       "platform": "darwin",
@@ -3222,6 +3467,13 @@
       "description": "Free Download Manager is a download accelerator and organizer."
     },
     {
+      "name": "FreeCAD",
+      "slug": "freecad/windows",
+      "platform": "windows",
+      "unique_identifier": "FreeCAD",
+      "description": "FreeCAD is a general-purpose, open-source parametric 3D CAD modeler."
+    },
+    {
       "name": "FreeFileSync",
       "slug": "freefilesync/darwin",
       "platform": "darwin",
@@ -3248,6 +3500,41 @@
       "platform": "darwin",
       "unique_identifier": "com.nektony.Funter-SIII",
       "description": "Funter is a shows hidden files and folders and switches their visibility in Finder."
+    },
+    {
+      "name": "Gadwin PrintScreen Pro",
+      "slug": "gadwin-printscreen-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreenPro (64-Bit)",
+      "description": "Gadwin PrintScreen Pro is a screen capture tool for saving, printing, and sharing screenshots."
+    },
+    {
+      "name": "Gadwin PrintScreen",
+      "slug": "gadwin-printscreen/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin PrintScreen (64-Bit)",
+      "description": "Gadwin PrintScreen is a screen capture tool that saves screenshots in multiple graphics formats."
+    },
+    {
+      "name": "Gadwin ScreenRecorder",
+      "slug": "gadwin-screenrecorder/windows",
+      "platform": "windows",
+      "unique_identifier": "Gadwin ScreenRecorder (64-Bit)",
+      "description": "Gadwin ScreenRecorder is a screen recording tool for creating videos of on-screen activity."
+    },
+    {
+      "name": "Galaxy Modeler",
+      "slug": "galaxy-modeler/windows",
+      "platform": "windows",
+      "unique_identifier": "Galaxy Modeler",
+      "description": "Galaxy Modeler is a visual schema design tool for GraphQL data modeling."
+    },
+    {
+      "name": "Garmin BaseCamp",
+      "slug": "garmin-basecamp/windows",
+      "platform": "windows",
+      "unique_identifier": "Garmin BaseCamp",
+      "description": "Garmin BaseCamp is a trip-planning application for organizing maps, routes, and outdoor activities."
     },
     {
       "name": "Garmin Express",
@@ -3318,6 +3605,13 @@
       "platform": "windows",
       "unique_identifier": "GenesysCloud",
       "description": "Genesys Cloud is a desktop app for running the Genesys Cloud contact center platform as a stand-alone program, separate from the web browser."
+    },
+    {
+      "name": "GeoGebra Classic",
+      "slug": "geogebra-classic/windows",
+      "platform": "windows",
+      "unique_identifier": "GeoGebra Classic",
+      "description": "GeoGebra Classic is a math tool bundle for geometry, algebra, spreadsheets, and calculus."
     },
     {
       "name": "Gephi",
@@ -3425,11 +3719,25 @@
       "description": "Glyphs is a font editor."
     },
     {
+      "name": "Go",
+      "slug": "go/windows",
+      "platform": "windows",
+      "unique_identifier": "Go Programming Language",
+      "description": "Go is an open-source programming language for building secure, scalable systems."
+    },
+    {
       "name": "Go2Shell",
       "slug": "go2shell/darwin",
       "platform": "darwin",
       "unique_identifier": "com.zipzapmac.Go2Shell",
       "description": "Go2Shell is an opens a terminal window to the current directory in Finder."
+    },
+    {
+      "name": "GoAnywhere OpenPGP Studio",
+      "slug": "goanywhere-openpgp-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "GoAnywhere OpenPGP Studio",
+      "description": "GoAnywhere OpenPGP Studio is a free PGP encryption tool for securing files."
     },
     {
       "name": "Godot Engine",
@@ -3474,11 +3782,25 @@
       "description": "GoLand is a Go (golang) IDE by JetBrains"
     },
     {
+      "name": "GoldenDict-ng",
+      "slug": "goldendict-ng/windows",
+      "platform": "windows",
+      "unique_identifier": "GoldenDict-ng",
+      "description": "GoldenDict-ng is an open-source dictionary lookup program supporting multiple dictionary formats."
+    },
+    {
       "name": "GoodSync",
       "slug": "goodsync/darwin",
       "platform": "darwin",
       "unique_identifier": "com.sibersystems.goodsyncmac2000",
       "description": "GoodSync is a file synchronisation and backup software."
+    },
+    {
+      "name": "Google Ads Editor",
+      "slug": "google-ads-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Ads Editor",
+      "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
     },
     {
       "name": "Google Chrome",
@@ -3528,6 +3850,13 @@
       "platform": "darwin",
       "unique_identifier": "com.google.GeminiMacOS",
       "description": "Google Gemini is a native desktop AI assistant from Google."
+    },
+    {
+      "name": "Google Web Designer",
+      "slug": "google-web-designer/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Web Designer",
+      "description": "Google Web Designer is a tool for creating HTML5-based ads, videos, and interactive designs."
     },
     {
       "name": "GoToMeeting",
@@ -3593,6 +3922,20 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Graphviz",
+      "slug": "graphviz/windows",
+      "platform": "windows",
+      "unique_identifier": "Graphviz",
+      "description": "Graphviz is open-source graph visualization software for representing structural information as diagrams."
+    },
+    {
+      "name": "grepWin",
+      "slug": "grepwin/windows",
+      "platform": "windows",
+      "unique_identifier": "grepWin",
+      "description": "grepWin is a regular expression search-and-replace tool for Windows."
+    },
+    {
       "name": "Grids",
       "slug": "grids/darwin",
       "platform": "darwin",
@@ -3647,6 +3990,13 @@
       "platform": "darwin",
       "unique_identifier": "com.pointum.hazeover",
       "description": "HazeOver is a windows manager and desktop organiser."
+    },
+    {
+      "name": "HeidiSQL",
+      "slug": "heidisql/windows",
+      "platform": "windows",
+      "unique_identifier": "HeidiSQL",
+      "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
     },
     {
       "name": "Helium",
@@ -3740,6 +4090,13 @@
       "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
     },
     {
+      "name": "HP Prime Virtual Calculator",
+      "slug": "hp-prime-virtual-calculator/windows",
+      "platform": "windows",
+      "unique_identifier": "HP Prime Virtual Calculator",
+      "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
+    },
+    {
       "name": "Hubstaff",
       "slug": "hubstaff/darwin",
       "platform": "darwin",
@@ -3752,6 +4109,13 @@
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
+      "name": "HWMonitor",
+      "slug": "hwmonitor/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID HWMonitor",
+      "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",
@@ -5147,6 +5511,20 @@
       "description": "Mountain Duck is a mounts servers and cloud storages as a disk on the desktop."
     },
     {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.macos.FirefoxVPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
+    },
+    {
+      "name": "Mozilla VPN",
+      "slug": "mozilla-vpn/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla VPN",
+      "description": "Mozilla VPN is a virtual private network service from the makers of Firefox that encrypts your device's internet connection and hides your location."
+    },
+    {
       "name": "MQTTX",
       "slug": "mqttx/darwin",
       "platform": "darwin",
@@ -6247,6 +6625,13 @@
     },
     {
       "name": "Prisma Browser",
+      "slug": "prisma-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.talon-sec.Work",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
+    },
+    {
+      "name": "Prisma Browser",
       "slug": "prisma-browser/windows",
       "platform": "windows",
       "unique_identifier": "Prisma Access Browser",
@@ -7189,6 +7574,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sveinbjorn.Sloth",
       "description": "Sloth is a displays all open files and sockets in use by all running processes."
+    },
+    {
+      "name": "Smallstep Agent",
+      "slug": "smallstepagent/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.smallstep.Agent",
+      "description": "Smallstep Agent is a device identity agent that manages certificates for secure access to Wi-Fi, VPNs, and other resources."
     },
     {
       "name": "Smartsheet",

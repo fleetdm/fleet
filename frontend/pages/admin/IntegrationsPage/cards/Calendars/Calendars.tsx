@@ -156,7 +156,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
 
   if (!isPremiumTier)
     return (
-      <SettingsSection title="Calendars">
+      <SettingsSection title="Calendar events">
         <PremiumFeatureMessage />
       </SettingsSection>
     );
@@ -443,7 +443,7 @@ const Calendars = ({ appConfig }: IAppConfigFormProps): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Calendars" className={baseClass}>
+    <SettingsSection title="Calendar events" className={baseClass}>
       <PageDescription
         content={
           <>

@@ -16,7 +16,7 @@ It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.
 - **Loading screen** with Fleet logo while the portal loads
 - **File download support** for `.mobileconfig` profiles and other files served by Fleet
 - **Dark/light mode** respects the user's system appearance
-- **`fleet://` URL scheme** for deep linking to Self-service, Policies, and triggering refetches
+- **`fleet://` URL scheme** for deep linking to Self-service, Policies, triggering refetches, and Update/Install all
 - **MDM required** — both the app and installer enforce MDM enrollment
 - **Code signed and notarized** for secure distribution via `.pkg` installer
 
@@ -152,16 +152,7 @@ open "build/Fleet Desktop.app"
 ./build-pkg.sh
 ```
 
-Local builds are unsigned. Signing and notarization happen in CI with Fleet's Developer ID certificates and provisioning profiles. You can ad-hoc sign locally to sanity-check the bundle layout (the restricted entitlements won't be honored without a real profile):
-
-```bash
-codesign --force --options runtime --sign - \
-  --entitlements FleetPSSOExtension/FleetPSSOExtension.entitlements \
-  "build/Fleet Desktop.app/Contents/PlugIns/FleetPSSOExtension.appex"
-codesign --force --options runtime --sign - \
-  --entitlements FleetDesktop/FleetDesktop.entitlements "build/Fleet Desktop.app"
-codesign --verify --deep --strict "build/Fleet Desktop.app"
-```
+To test end to end locally (a dev-signed app/extension against your local Fleet server), `build.sh` accepts `TEAM_ID`, `APP_BUNDLE_ID`, `EXT_BUNDLE_ID`, `SIGNING_IDENTITY`, `APP_PROFILE`, and `EXT_PROFILE`, and `build-pkg.sh` accepts `APP_BUNDLE_ID` and `INSTALLER_SIGNING_IDENTITY` — together they build and sign the app + `.pkg` under a non-production Fleet dev team. See the [Local development: Apple Platform SSO](../../docs/Contributing/guides/platform-sso-local-development.md) guide for the full walkthrough (signing assets, AASA override, tunnel, profile, and logs).
 
 ### Environment Variables
 
@@ -189,13 +180,19 @@ Fleet Desktop registers the `fleet://` URL scheme, allowing other tools and scri
 | `fleet://policies` | Opens the Policies tab |
 | `fleet://refetch` | Triggers a device refetch and opens the app |
 | `fleet://update_all` | Opens Self-service and clicks "Update all" |
+| `fleet://install_all` | Opens Self-service and clicks "Install all" |
+| `fleet://install_all?category_id=##` | Opens Self-service filtered to a category and clicks "Install all" |
 | `fleet://anything-else` | Brings the app to the foreground |
+
+Both `_` and `-` separators are accepted (e.g. `fleet://install_all` and `fleet://install-all` are equivalent).
 
 Example usage from a script or terminal:
 
 ```bash
 open fleet://self-service
 open fleet://refetch
+open fleet://install_all
+open "fleet://install_all?category_id=5"
 ```
 
 ## CI/CD

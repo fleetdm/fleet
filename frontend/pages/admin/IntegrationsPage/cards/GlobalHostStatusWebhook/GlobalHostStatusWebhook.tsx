@@ -141,7 +141,7 @@ const GlobalHostStatusWebhook = ({
   );
   return (
     <div className={baseClass}>
-      <SettingsSection title="Host status webhook">
+      <SettingsSection title="Host status alerts">
         <PageDescription
           variant="right-panel"
           content={<>Send an alert if a portion of your hosts go offline.</>}

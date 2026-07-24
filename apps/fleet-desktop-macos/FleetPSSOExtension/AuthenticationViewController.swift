@@ -9,6 +9,14 @@
 
 import AuthenticationServices
 import Cocoa
+import os
+
+// Registration runs headless (Setup Assistant, background repairs), so the
+// unified log is the only visibility into which step failed. Dynamic values
+// are private-by-default; annotate non-sensitive ones .public and never log
+// the registration token or key material.
+let logger = Logger(subsystem: "com.fleetdm.fleet-desktop.pssoextension",
+                    category: "psso")
 
 final class AuthenticationViewController: NSViewController,
     ASAuthorizationProviderExtensionAuthorizationRequestHandler {

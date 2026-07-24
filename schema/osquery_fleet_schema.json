@@ -229,6 +229,124 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/adobe_plugins.yml"
   },
   {
+    "name": "ai_tools",
+    "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, agent instruction files, and browser extensions. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "evented": false,
+    "examples": "Count AI tools per type on the host.\n\n```\nSELECT type, count(*) FROM ai_tools GROUP BY type;\n```\n\nList outbound AI/MCP connections to see where data is going.\n\n```\nSELECT name, endpoint FROM ai_tools WHERE type = 'sockets' AND location = 'remote';\n```\n\nList running MCP servers and their transport.\n\n```\nSELECT name, source AS client, location, running, pid FROM ai_tools WHERE type = 'mcp_server' AND running = 1;\n```\n\nFind anything carrying a security risk flag across every type.\n\n```\nSELECT type, name, risk_flags, path FROM ai_tools WHERE risk_flags != '';\n```\n\nList AI editor plugins with versions.\n\n```\nSELECT name, identifier, version, category FROM ai_tools WHERE type = 'ide_plugins';\n```\n\nList AI browser extensions and their risk flags.\n\n```\nSELECT name, identifier, source, risk_flags FROM ai_tools WHERE type = 'browser_extension';\n```",
+    "notes": "The extension enumerates all home directories on the host (`/Users/*`, `/home/*`, `/root`, `C:\\Users\\*`), not just the daemon account's. Running as root provides full visibility across all users.",
+    "columns": [
+      {
+        "name": "type",
+        "description": "Options are `mcp_server`, `ide_plugins`, `agents`, `apps`, `sockets`, `agent_instruction`, or `browser_extension`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "name",
+        "description": "Server, plugin, agent, app, process, or instruction-file name.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "identifier",
+        "description": "Unique identifier varying by type: MCP server name, plugin ID (`publisher.name`), agent binary, bundle ID, socket service, or instruction tool.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "category",
+        "description": "Classification bucket (e.g. `coding-assistant`, `agent-runtime`, `inference-api-local`, `mcp-remote-egress`, `ai-api-egress`, `mcp-server`, `agent-instruction`).",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "location",
+        "description": "`local` or `remote`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "source",
+        "description": "Provenance: MCP client, editor, install method, platform source, socket direction, or instruction tool.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "version",
+        "description": "Version of the tool, if available.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "path",
+        "description": "Config, install, binary, app, process, or instruction-file path.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "endpoint",
+        "description": "Remote MCP URL or socket remote `addr:port`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "running",
+        "description": "Whether the tool is currently running (1 = yes, 0 = no).",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID if the tool is running.",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "port",
+        "description": "Listening port, API port, or local port (varies by type).",
+        "type": "integer",
+        "required": false
+      },
+      {
+        "name": "risk_flags",
+        "description": "Comma-separated security risk tokens (empty string = none). Possible values: `remote_fetch_exec`, `unpinned_dependency`, `mcp_shell_exec`, `mcp_fs_write`, `plaintext_secret`, `world_readable_config`, `cleartext_endpoint`, `bypass_permissions`, `auto_accept_edits`, `skip_permissions_runtime`, `injection_markers`, `hidden_unicode`, `world_writable`, `broad_host_permissions`, `sideloaded_unverified`.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "sha256",
+        "description": "SHA-256 content hash of the primary artifact (config file, binary, or instruction file) for change detection and threat-intel matching.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "uid",
+        "description": "User ID of the owner.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "username",
+        "description": "Username of the owner.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "detail",
+        "description": "Compact JSON with type-specific extras (empty fields omitted). Examples: `transport`, `command`, `args`, `env_keys`, `capabilities`, `launch_hash`, `permission_mode`, `markers`, `scope`, `publisher`, `editor_family`, `runtime`, `protocol`, `remote_host`, `cmdline`.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/ai_tools",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/ai_tools.yml"
+  },
+  {
     "name": "alf",
     "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
@@ -1038,6 +1156,25 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/appcompat_shims.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fappcompat_shims.yml&value=name%3A%20appcompat_shims%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "apple_hardware_info",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Hardware marketing name for macOS hosts.",
+    "columns": [
+      {
+        "name": "hardware_marketing_name",
+        "type": "text",
+        "required": true,
+        "description": "Hardware marketing name, e.g. \"MacBook Air (13-inch, M5)\"."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/apple_hardware_info",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apple_hardware_info.yml"
   },
   {
     "name": "apps",

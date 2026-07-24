@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.4.0.2",
+      "version": "6.5.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'mega.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'mega.mac' AND version_compare(bundle_short_version, '6.4.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'mega.mac' AND version_compare(bundle_short_version, '6.5.0.2') < 0);"
       },
       "installer_url": "https://mega.nz/MEGAsyncSetupArm64.dmg",
       "install_script_ref": "eabe95a2",

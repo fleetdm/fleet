@@ -61,6 +61,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
@@ -89,6 +90,25 @@ func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore,
 }
 
 func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	// Custom host vital reference validation is wired into all script/profile
+	// upload paths. Provide a permissive default so tests that don't reference
+	// $FLEET_HOST_VITAL_<id> don't need to stub it (the real datastore no-ops
+	// when the document has no such tokens). Tests that assert on it can override.
+	if mockDS, ok := ds.(*fleet_mock.Store); ok {
+		if mockDS.ValidateReferencedCustomHostVitalsFunc == nil {
+			mockDS.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+		}
+		// On Premium, AppConfig assembly and the osquery detail-query flow read the
+		// Microsoft conditional access integration. Default to an empty (not set up)
+		// integration so premium tests that don't care about it don't panic on a nil
+		// mock. Tests that assert on it can override.
+		if mockDS.ConditionalAccessMicrosoftGetFunc == nil {
+			mockDS.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+				return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+			}
+		}
+	}
+
 	lic := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	logger := slog.New(slog.DiscardHandler)
 	writer, err := logging.NewFilesystemLogWriter(t.Context(), fleetConfig.Filesystem.StatusLogFile, logger, fleetConfig.Filesystem.EnableLogRotation,
@@ -129,6 +149,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore = opts[0].KeyValueStore
 	}
 
+	// pssoNonceStore backs the PSSO single-use nonces; wired from the test Redis
+	// pool when one is provided (integration tests), nil otherwise.
+	var pssoNonceStore fleet.PSSONonceStore
+
 	task := async.NewTask(ds, nil, c, nil)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
@@ -150,6 +174,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
 			distributedLock = redis_lock.NewLock(opts[0].Pool)
 			keyValueStore = redis_key_value.New(opts[0].Pool)
+			pssoNonceStore = psso.NewRedisNonceStore(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -208,7 +233,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
-		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
+		// The Conditional Access feature is gated on Fleet Premium; callers that
+		// exercise it must provide a premium license via opts[0].License.
+		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
@@ -296,7 +323,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			digiCertService,
 			androidModule,
 			estCAService,
-			nil, // PSSO nonce store; integration tests don't exercise PSSO
+			pssoNonceStore,
 		)
 		if err != nil {
 			panic(err)
@@ -882,6 +909,13 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 		{"POST", "/api/latest/fleet/software/web_apps", false, true},
+		{"POST", "/api/latest/fleet/hosts/1/name_template/resend", false, true},
+		{"GET", "/api/latest/fleet/assets", false, true},
+		{"GET", "/api/latest/fleet/assets/1", false, true},
+		// TODO: multipart/form data parsing issue, see comment above
+		// {"POST", "/api/latest/fleet/assets", false, true},
+		{"DELETE", "/api/latest/fleet/assets/1", false, true},
+		{"POST", "/api/latest/fleet/assets/batch", false, true},
 	}
 }
 

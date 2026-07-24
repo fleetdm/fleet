@@ -1746,6 +1746,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "software_display_name": Display name of the software title.
+- "pinned_version": The version a Fleet-maintained app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). `null` when the app automatically updates to the latest version, or when the version wasn't changed.
 
 #### Example
 
@@ -1761,6 +1762,7 @@ This activity contains the following fields:
   "software_title_id": 2234,
   "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "software_display_name": "Crowdstrike Falcon",
+  "pinned_version": "149.0.7827.54",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2547,6 +2549,48 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_google_workspace_integration
+
+Generated when a Google Workspace integration is configured to sync IdP host vitals.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was configured.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## edited_google_workspace_integration
+
+Generated when an existing Google Workspace integration is edited.
+
+This activity contains a `domain` field with the Google Workspace primary domain.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
+## deleted_google_workspace_integration
+
+Generated when a Google Workspace integration is removed.
+
+This activity contains a `domain` field with the Google Workspace primary domain that was removed.
+
+#### Example
+
+```json
+{
+  "domain": "example.com"
+}
+```
+
 ## enabled_conditional_access_automations
 
 Generated when conditional access automations are enabled for a fleet.
@@ -2615,6 +2659,21 @@ This activity contains the following fields:
 ```json
 {
 	"custom_variable_id": 123,
+	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## updated_custom_variable
+
+Generated when a custom variable's value is updated.
+
+This activity contains the following fields:
+- "custom_variable_name": the name of the custom variable.
+
+#### Example
+
+```json
+{
 	"custom_variable_name": "SOME_API_KEY"
 }
 ```
@@ -2963,6 +3022,8 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
   "host_id": 1,
@@ -3008,6 +3069,40 @@ This activity contains the following fields:
 }
 ```
 
+## edited_windows_automatic_enrollment_default_fleet
+
+Generated when the default fleet for Windows automatic enrollments is edited.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
+- "fleet_name": The name of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## edited_account_provisioning
+
+Generated when settings for account provisioning are edited.
+
+This activity contains the following fields:
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+  "fleet_id": 1,
+  "fleet_name": "💻 Workstations"
+}
+```
+
 ## added_label_to_host
 
 Generated when a label is added to a host.
@@ -3047,6 +3142,25 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "label_id": 42,
   "label_name": "Engineering"
+}
+```
+
+## released_from_ab
+
+Generated when a host has been released from Apple Business (AB).
+
+This activity contains the following fields:
+- "host_id": ID of the host being released from AB.
+- "host_display_name": Display name of the host being released from AB.
+- "host_serial": Hardware serial number of the host being released from AB.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_serial": "ABC123"
 }
 ```
 

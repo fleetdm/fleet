@@ -1,7 +1,7 @@
 const fleetMaintainedPackageTypes = ["dmg", "zip"] as const;
 const unixPackageTypes = ["pkg", "deb", "rpm", "dmg", "zip", "tar.gz"] as const;
 const windowsPackageTypes = ["msi", "exe", "zip"] as const;
-const scriptOnlyPackageTypes = ["sh", "ps1"] as const;
+const scriptOnlyPackageTypes = ["sh", "ps1", "py"] as const;
 const iosIpadosPackageTypes = ["ipa"] as const;
 export const packageTypes = [
   ...unixPackageTypes,

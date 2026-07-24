@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import classnames from "classnames";
 import { noop } from "lodash";
 
-import { REC_LOCK_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
+import {
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
+  REC_LOCK_SYNTHETIC_PROFILE_UUID,
+} from "pages/hosts/details/helpers";
 
 import { FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID } from "interfaces/mdm";
 import { getErrorReason } from "interfaces/errors";
@@ -70,20 +73,24 @@ const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
 interface IOSSettingsResendCellProps {
   canResendProfiles: boolean;
   canRotateRecoveryLockPassword?: boolean;
+  canResendHostNameTemplate?: boolean;
   profile: IHostMdmProfileWithAddedStatus;
   resendRequest: (profileUUID: string) => Promise<void>;
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
   rotateRecoveryLockPassword?: () => Promise<void>;
+  resendHostNameTemplate?: () => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsResendCell = ({
   canResendProfiles,
   canRotateRecoveryLockPassword = false,
+  canResendHostNameTemplate = false,
   profile,
   resendRequest,
   resendCertificateRequest,
   rotateRecoveryLockPassword,
+  resendHostNameTemplate,
   onProfileResent = noop,
 }: IOSSettingsResendCellProps) => {
   const [isResending, setIsResending] = useState(false);
@@ -131,14 +138,38 @@ const OSSettingsResendCell = ({
     setIsRotating(false);
   };
 
+  const onResendHostNameTemplate = async () => {
+    if (!resendHostNameTemplate) return;
+    setIsResending(true);
+    try {
+      await resendHostNameTemplate();
+      onProfileResent();
+    } catch (e) {
+      notify.error("Couldn't resend. Please try again.", { response: e });
+    }
+    setIsResending(false);
+  };
+
   const isFailed = profile.status === "failed";
   const isVerified = profile.status === "verified";
+  const isRecoveryLockRow =
+    profile.profile_uuid === REC_LOCK_SYNTHETIC_PROFILE_UUID;
+  const isHostNameRow =
+    profile.profile_uuid === HOST_NAME_SYNTHETIC_PROFILE_UUID;
+
+  // The host name row is a synthetic row resent through its own endpoint, so it
+  // must not go through the profile-resend path above.
   const showResendButton =
     canResendProfiles &&
     (isFailed || isVerified) &&
-    profile.profile_uuid !== REC_LOCK_SYNTHETIC_PROFILE_UUID;
+    !isRecoveryLockRow &&
+    !isHostNameRow;
   const showRotateButton =
     canRotateRecoveryLockPassword && (isFailed || isVerified);
+  // canResendHostNameTemplate is already pre-gated on the host name row by the
+  // caller, mirroring how showRotateButton relies on canRotateRecoveryLockPassword.
+  const showResendHostNameButton =
+    canResendHostNameTemplate && (isFailed || isVerified);
 
   return (
     <div className={baseClass}>
@@ -147,6 +178,12 @@ const OSSettingsResendCell = ({
       )}
       {showRotateButton && (
         <RotateButton isRotating={isRotating} onClick={onRotatePassword} />
+      )}
+      {showResendHostNameButton && (
+        <ResendButton
+          isResending={isResending}
+          onClick={onResendHostNameTemplate}
+        />
       )}
     </div>
   );

@@ -142,6 +142,7 @@ type ServerConfig struct {
 	GzipResponses                    bool          `yaml:"gzip_responses"`
 	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 	AllowPrivateNetworkIntegrations  bool          `yaml:"allow_private_network_integrations"`
+	BypassNetworkBlocking            bool          `yaml:"bypass_network_blocking"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -863,18 +864,9 @@ func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string))
 }
 
 // MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
-// Currently only set on Cloud environments.
 type MicrosoftCompliancePartnerConfig struct {
-	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
-	ProxyAPIKey string `yaml:"proxy_api_key"`
 	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
 	ProxyURI string `yaml:"proxy_uri"`
-}
-
-// IsSet returns if the compliance partner configuration is set.
-// Currently only set on Cloud environments.
-func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
-	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -1420,6 +1412,7 @@ func (man Manager) addConfigs() {
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
 	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
 	man.addConfigBool("server.allow_private_network_integrations", false, "Allow integration HTTP requests to private network addresses (RFC 1918). Loopback and cloud metadata addresses are always blocked regardless of this setting.")
+	man.addConfigBool("server.bypass_network_blocking", false, "Disable all outbound network blocking protections for integration HTTP requests (loopback, cloud metadata, and private network addresses). Only intended for environments where egress is already constrained by external infrastructure (e.g. an egress proxy or firewall) that Fleet's own checks would otherwise conflict with. This is an infrastructure-level setting and cannot be changed at runtime.")
 	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1830,7 +1823,6 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 
 	// Microsoft Compliance Partner
-	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 
 	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
@@ -1935,6 +1927,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
 			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 			AllowPrivateNetworkIntegrations:  man.getConfigBool("server.allow_private_network_integrations"),
+			BypassNetworkBlocking:            man.getConfigBool("server.bypass_network_blocking"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
@@ -2173,8 +2166,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
-			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
-			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+			ProxyURI: man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 		ConditionalAccess: ConditionalAccessConfig{
 			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),

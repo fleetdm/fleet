@@ -1006,6 +1006,22 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global admins can write/modify AB release devices
+allow {
+  object.type == "mdm_ab_release"
+  subject.global_role == admin
+  action == write
+}
+
+# Team admins can write/modify AB release devices on their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_ab_release"
+  object.team_id != 0
+  team_role(subject, object.team_id) == admin
+  action == write
+}
+
 # Global admins can read and write Apple MDM enrollments.
 allow {
   object.type == "mdm_apple_enrollment_profile"
@@ -1308,6 +1324,51 @@ allow {
 }
 
 ##
+# Custom host vitals
+##
+
+# Global admins, maintainers, and gitops can write custom host vital definitions.
+allow {
+  object.type == "custom_vital"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Any global user can read custom host vital definitions.
+allow {
+  object.type == "custom_vital"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Any team user can read custom host vital definitions for hosts in its team.
+allow {
+  object.type == "custom_vital"
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+##
+# Host custom host vital values (per-host)
+##
+
+# Global admins and maintainers can set a host's custom host vital value (not
+# gitops — setting a host value is not a fleetctl gitops operation).
+allow {
+  object.type == "host_custom_vital"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admins and maintainers can set the value for hosts in their team.
+allow {
+  object.type == "host_custom_vital"
+  not is_null(object.team_id)
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+##
 # Android
 ##
 # Global admins can connect enterprise.
@@ -1320,10 +1381,10 @@ allow {
 ##
 # SCIM (System for Cross-domain Identity Management)
 ##
-# Global admins and maintainers can access SCIM.
+# Only global admins can access SCIM.
 allow {
   object.type == "scim_user"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == admin
   action == [read, write][_]
 }
 
