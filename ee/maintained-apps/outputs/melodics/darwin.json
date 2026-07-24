@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.0.865",
+      "version": "5.0.871",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics' AND version_compare(bundle_short_version, '5.0.865') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.melodics.Melodics' AND version_compare(bundle_short_version, '5.0.871') < 0);"
       },
-      "installer_url": "https://web-cdn.melodics.com/download/4D384FAE-459E-4B7D-96FB-CED72673CAF5.zip",
+      "installer_url": "https://web-cdn.melodics.com/download/0F733618-1183-44AD-A29F-70EC22EFBBC8.zip",
       "install_script_ref": "3d315b05",
       "uninstall_script_ref": "4abaa93b",
-      "sha256": "569d149818a10961d853bdbc8afd27e010919d1de1ac0ce9a1af83716c890d4d",
+      "sha256": "c8458d7cfaf5940b440adc45c1e8c56507039cb0cc2c9299c5a3181f3705578b",
       "default_categories": [
         "Productivity"
       ]
