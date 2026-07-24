@@ -216,7 +216,7 @@ func TestIngestValidations(t *testing.T) {
 
 			// The managed "is app open" query matches a running process inside the app bundle.
 			require.Equal(t,
-				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON LEFT(p.path, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier),
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');", out.UniqueIdentifier),
 				out.Queries.Open,
 			)
 		})
