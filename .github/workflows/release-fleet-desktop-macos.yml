@@ -12,7 +12,7 @@ name: Release Fleet Desktop (macOS)
 # 2. Builds, signs, and notarizes the pkg via fleet-desktop-macos-build.yml.
 # 3. Uploads to R2:
 #    - fleet-desktop-macos/v<version>/fleet_desktop-v<version>.pkg
-#    - fleet-desktop-macos/v<version>/meta.json (version, sha256, url)
+#    - fleet-desktop-macos/v<version>/meta.json (version, fleet_desktop_pkg_sha256, fleet_desktop_pkg_url)
 # 4. Downloads the pkg back from the public URL and verifies its SHA256
 #    matches the built artifact, then writes the checksum to the run summary.
 #

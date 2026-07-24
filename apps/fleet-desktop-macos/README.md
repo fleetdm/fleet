@@ -256,7 +256,7 @@ Re-encode and update the secrets when a profile expires or the signing certifica
    ```
 3. In the Actions tab, run **Release Fleet Desktop (macOS)**, selecting the tag in the "Use workflow from" dropdown.
 
-The workflow fails before building if the selected ref isn't a `fleet-desktop-macos-v*` tag on `main`, if the tag version doesn't match `Info.plist`, or if that version is already uploaded. It builds via the CI workflow above, uploads the pkg plus a `meta.json` (`version`, `sha256`, `url`), then downloads the pkg back from the public URL and verifies its SHA256 before succeeding. The checksum and URLs are written to the run summary.
+The workflow fails before building if the selected ref isn't a `fleet-desktop-macos-v*` tag on `main`, if the tag version doesn't match `Info.plist`, or if that version is already uploaded. It builds via the CI workflow above, uploads the pkg plus a `meta.json` (`version`, `fleet_desktop_pkg_sha256`, `fleet_desktop_pkg_url`), then downloads the pkg back from the public URL and verifies its SHA256 before succeeding. The checksum and URLs are written to the run summary.
 
 The `testing` input uploads to `download-testing.fleetdm.com` instead of production — use it for the first run after changing the workflow.
 
