@@ -92,6 +92,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
   - path: ../lib/all/reports/dex-queries.yml
+  - path: ../lib/all/reports/ai-tool-detection.yml
 software:
   packages:
     # Linux apps
