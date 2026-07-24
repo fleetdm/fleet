@@ -89,6 +89,7 @@ reports:
   - path: ./lib/all/reports/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/reports/detect-apns-certificate.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
+  - path: ./lib/windows/reports/collect-windows-11-hardware-readiness.yml
 controls:
   apple_require_hardware_attestation: true
   enable_disk_encryption: true
