@@ -99,7 +99,7 @@ func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
 		return
 	}
 	if len(ds.knownSoftwareTitleKeys) >= maxKnownSoftwareTitleKeys {
-		ds.knownSoftwareTitleKeys = make(map[string]struct{})
+		ds.evictKnownSoftwareTitleKeysLocked()
 	}
 	ds.knownSoftwareTitleKeys[key] = struct{}{}
 }
@@ -107,7 +107,7 @@ func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
 func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 	ds.knownSoftwareTitleKeysMu.Lock()
 	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	ds.clearKnownSoftwareTitleKeysLocked()
+	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
 func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
@@ -117,8 +117,15 @@ func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
 	return ok
 }
 
-func (ds *Datastore) clearKnownSoftwareTitleKeysLocked() {
-	ds.knownSoftwareTitleKeys = make(map[string]struct{})
+func (ds *Datastore) evictKnownSoftwareTitleKeysLocked() {
+	evicted := 0
+	for key := range ds.knownSoftwareTitleKeys {
+		delete(ds.knownSoftwareTitleKeys, key)
+		evicted++
+		if evicted >= evictKnownSoftwareTitleKeys {
+			return
+		}
+	}
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {

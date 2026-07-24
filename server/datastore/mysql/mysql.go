@@ -98,8 +98,8 @@ type Datastore struct {
 	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
 	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
 	// preventing lock convoys on the unique index when many hosts report the same software catalog.
-	// The cache is periodically cleared once it reaches a fixed size cap to avoid unbounded growth
-	// on long-lived servers.
+	// The cache evicts older entries in bulk once it reaches a fixed size cap to avoid unbounded
+	// growth on long-lived servers without forcing a full cold start.
 	knownSoftwareTitleKeys map[string]struct{}
 	// knownSoftwareTitleKeysMu serializes cache reads, writes, and clears.
 	knownSoftwareTitleKeysMu sync.Mutex
@@ -111,6 +111,7 @@ type Datastore struct {
 }
 
 const maxKnownSoftwareTitleKeys = 100_000
+const evictKnownSoftwareTitleKeys = maxKnownSoftwareTitleKeys / 2
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
 // next activities that require MDM commands.
