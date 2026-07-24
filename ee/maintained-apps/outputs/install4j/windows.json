@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "11.0.5",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'install4j%' AND publisher = 'ej-technologies GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'install4j%' AND publisher = 'ej-technologies GmbH' AND version_compare(version, '11.0.5') < 0);"
+      },
+      "installer_url": "https://download.ej-technologies.com/install4j/install4j_windows-x64_11_0_5.exe",
+      "install_script_ref": "05891962",
+      "uninstall_script_ref": "5088f107",
+      "sha256": "ce78720703ae04b13a555c79ea0deea0c6d390757466bd4a1d35f6e36d5c7733",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "05891962": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# install4j ships as an install4j-built installer (bundled JRE). -q runs it\n# unattended; suppressUnattendedReboot avoids an automatic reboot.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"-q -Dinstall4j.suppressUnattendedReboot=true\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "5088f107": "# Uninstalls install4j. install4j registers an ARP entry whose UninstallString\n# points at its uninstall.exe; -q runs it unattended.\n\n$softwareNameLike = \"install4j*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = $selected.UninstallString\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\nif ($exeArgs -notmatch '(?i)(^|\\s)-q(\\s|$)') { $exeArgs = \"$exeArgs -q\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

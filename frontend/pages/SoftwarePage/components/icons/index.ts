@@ -490,17 +490,28 @@ import Hyper from "./Hyper";
 import Hyperkey from "./Hyperkey";
 import I1Profiler from "./I1Profiler";
 import IbmNotifier from "./IbmNotifier";
+import IbmSemeruJdk11 from "./IbmSemeruJdk11";
+import IbmSemeruJdk17 from "./IbmSemeruJdk17";
+import IbmSemeruJdk21 from "./IbmSemeruJdk21";
+import IbmSemeruJdk8 from "./IbmSemeruJdk8";
+import IbmSemeruJre11 from "./IbmSemeruJre11";
+import IbmSemeruJre17 from "./IbmSemeruJre17";
+import IbmSemeruJre21 from "./IbmSemeruJre21";
+import IbmSemeruJre8 from "./IbmSemeruJre8";
 import IconComposer from "./IconComposer";
 import Iconjar from "./Iconjar";
 import Idagio from "./Idagio";
 import Iexplorer from "./Iexplorer";
 import Iina from "./Iina";
+import Imageglass from "./Imageglass";
 import ImazingConverter from "./ImazingConverter";
+import ImazingHeicConverter from "./ImazingHeicConverter";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import Imhex from "./Imhex";
 import Inkscape from "./Inkscape";
 import InputSourcePro from "./InputSourcePro";
 import Insomnia from "./Insomnia";
+import Install4J from "./Install4J";
 import Intellidock from "./Intellidock";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
@@ -508,6 +519,9 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Invesalius from "./Invesalius";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import Irfanview from "./Irfanview";
+import Ironpython from "./Ironpython";
+import Isobuster from "./Isobuster";
 import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
 import Itsycal from "./Itsycal";
@@ -1620,24 +1634,38 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hyperkey: Hyperkey,
   i1profiler: I1Profiler,
   "ibm notifier": IbmNotifier,
+  "ibm semeru runtime open edition jdk 11": IbmSemeruJdk11,
+  "ibm semeru runtime open edition jdk 17": IbmSemeruJdk17,
+  "ibm semeru runtime open edition jdk 21": IbmSemeruJdk21,
+  "ibm semeru runtime open edition jdk 8": IbmSemeruJdk8,
+  "ibm semeru runtime open edition jre 11": IbmSemeruJre11,
+  "ibm semeru runtime open edition jre 17": IbmSemeruJre17,
+  "ibm semeru runtime open edition jre 21": IbmSemeruJre21,
+  "ibm semeru runtime open edition jre 8": IbmSemeruJre8,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
   iconjar: Iconjar,
   idagio: Idagio,
   iexplorer: Iexplorer,
   iina: Iina,
+  imageglass: Imageglass,
   imazing: IMazingProfileEditor,
   "imazing converter": ImazingConverter,
+  "imazing heic converter": ImazingHeicConverter,
   "imazing profile editor": IMazingProfileEditor,
   imhex: Imhex,
   inkscape: Inkscape,
   "input source pro": InputSourcePro,
   insomnia: Insomnia,
+  install4j: Install4J,
   insyncclient: DruvaInSync,
   intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
   invesalius: Invesalius,
+  irfanview: Irfanview,
+  "ironpython 3": Ironpython,
+  isobuster: Isobuster,
   istherenet: Istherenet,
   iterm2: ITerm,
   itsycal: Itsycal,

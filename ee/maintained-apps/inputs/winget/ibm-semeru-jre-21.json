@@ -1,0 +1,13 @@
+{
+  "name": "IBM Semeru Runtime Open Edition JRE 21",
+  "slug": "ibm-semeru-jre-21/windows",
+  "package_identifier": "IBM.Semeru.21.JRE",
+  "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '21.%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}
