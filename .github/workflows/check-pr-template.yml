@@ -28,6 +28,12 @@ jobs:
             exit 0
           fi
 
+          # Exempt Dependabot — QA tracking is handled by dependabot-qa-ticket.yml
+          if [ "$AUTHOR" = "dependabot[bot]" ]; then
+            echo "Author is dependabot[bot]; skipping PR template check."
+            exit 0
+          fi
+
           # Exempt PRs whose changed files are ALL under exempt paths
           files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files" --jq '.[].filename')
           if [ -n "$files" ] && ! grep -qvE '^(ee/maintained-apps/|it-and-security/)' <<< "$files"; then

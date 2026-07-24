@@ -34,6 +34,18 @@ rules:
   # NOTE: `action.yml` matches every composite-action manifest. Today only .github/actions/r2-upload
   # carries findings; a future finding in another composite action (e.g. eng-metrics) would also be
   # suppressed. Revisit if more composite actions are added.
+  # dependabot-qa-ticket.yml uses pull_request_target for write access but never checks out
+  # PR code -- it only calls the GitHub API via actions/github-script, so there is no code-
+  # injection vector.
+  dangerous-triggers:
+    ignore:
+      - dependabot-qa-ticket.yml
+  # dependabot-qa-ticket.yml gates on github.event.pull_request.user.login (the PR author),
+  # not github.actor. zizmor still flags the pull_request_target bot condition; waived because
+  # user.login is not spoofable for same-repo Dependabot PRs.
+  bot-conditions:
+    ignore:
+      - dependabot-qa-ticket.yml
   template-injection:
     ignore:
       - action.yml # .github/actions/r2-upload/action.yml (bash; env/inputs from trusted callers)
