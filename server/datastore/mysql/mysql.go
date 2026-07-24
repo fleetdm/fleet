@@ -102,6 +102,8 @@ type Datastore struct {
 	// Keys are softwareTitleCacheKey strings, values are struct{}. The cache is periodically
 	// cleared once it reaches a fixed size cap to avoid unbounded growth on long-lived servers.
 	knownSoftwareTitleKeys sync.Map
+	// knownSoftwareTitleKeysMu serializes cache writes and clears so the cache size tracking stays accurate.
+	knownSoftwareTitleKeysMu sync.Mutex
 	// knownSoftwareTitleKeysCount tracks the approximate number of cached title keys.
 	knownSoftwareTitleKeysCount atomic.Uint64
 

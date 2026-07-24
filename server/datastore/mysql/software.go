@@ -93,15 +93,23 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 }
 
 func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
+	ds.knownSoftwareTitleKeysMu.Lock()
+	defer ds.knownSoftwareTitleKeysMu.Unlock()
 	if _, loaded := ds.knownSoftwareTitleKeys.LoadOrStore(key, struct{}{}); loaded {
 		return
 	}
 	if ds.knownSoftwareTitleKeysCount.Add(1) >= maxKnownSoftwareTitleKeys {
-		ds.clearKnownSoftwareTitleKeys()
+		ds.clearKnownSoftwareTitleKeysLocked()
 	}
 }
 
 func (ds *Datastore) clearKnownSoftwareTitleKeys() {
+	ds.knownSoftwareTitleKeysMu.Lock()
+	defer ds.knownSoftwareTitleKeysMu.Unlock()
+	ds.clearKnownSoftwareTitleKeysLocked()
+}
+
+func (ds *Datastore) clearKnownSoftwareTitleKeysLocked() {
 	ds.knownSoftwareTitleKeys.Clear()
 	ds.knownSoftwareTitleKeysCount.Store(0)
 }
