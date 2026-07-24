@@ -264,6 +264,38 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 		require.False(t, gotInvalid)
 	})
 
+	t.Run("terms not signed clears token_invalid", func(t *testing.T) {
+		// Apple only evaluates terms after authenticating the token, so a
+		// terms-not-signed response is definitive proof the token itself was
+		// accepted -- token_invalid should clear even though the call fails.
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"T_C_NOT_SIGNED"`))
+		})
+		var gotOrgName string
+		var gotInvalid bool
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		// wasSet=true means the flag was already set, so stillSetCount stays
+		// at 0 and this test doesn't also need to stub SaveAppConfigFunc.
+		ds.SetABMTokenTermsExpiredForOrgNameFunc = func(ctx context.Context, orgName string, expired bool) (bool, error) {
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+		require.Equal(t, orgName, gotOrgName)
+		require.False(t, gotInvalid)
+	})
+
 	t.Run("unrelated error does not touch token_invalid", func(t *testing.T) {
 		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
