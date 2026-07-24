@@ -93,6 +93,33 @@ func GetProjectItems(projectID, limit int) ([]ProjectItem, error) { // backward 
 	return items, err
 }
 
+// OrgProject is a lightweight org-level project listing entry.
+type OrgProject struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Closed bool   `json:"closed"`
+}
+
+// ListOrgProjects lists an org's projects (number, title, URL) so callers can
+// resolve a project name to its number/URL.
+func ListOrgProjects(owner string) ([]OrgProject, error) {
+	if owner == "" {
+		owner = "fleetdm"
+	}
+	out, err := RunCommandWithRetry(fmt.Sprintf("gh project list --owner %s --format json --limit 200", owner), 3)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Projects []OrgProject `json:"projects"`
+	}
+	if err := json.Unmarshal(out, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Projects, nil
+}
+
 // GetCurrentSprintItems returns only the items in the current sprint for a project.
 // It first fetches all items (up to limit) and then filters to those that have a non-nil
 // Sprint field whose Title matches the active iteration. The active iteration is determined

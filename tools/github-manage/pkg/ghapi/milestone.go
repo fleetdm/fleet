@@ -160,20 +160,35 @@ func GetProjectsForIssues(issueNumbers []int, progress func(current, total, issu
 // GetIssueProjectStatuses returns a map of projectID -> Status value for an issue across given projects.
 // If the issue is not present in a project or the Status is unset, the value will be an empty string.
 type ProjectStatus struct {
-	Present bool   // true if the issue is in this project
-	Status  string // "" when unset
+	Present   bool   // true if the issue is in this project
+	Status    string // "" when unset
+	UpdatedAt string // the project's last-updated timestamp (RFC3339), "" if unknown
+	Title     string // the project's title
 }
 
 func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectStatus, error) {
-	// Single GraphQL query to fetch all project items and their Status field for this issue
-	owner, repo, err := getRepoOwnerAndName()
+	found, err := GetAllIssueProjectStatuses(issueNumber)
 	if err != nil {
-		// If repo cannot be determined, return absent for all
-		res := make(map[int]ProjectStatus, len(projects))
-		for _, pid := range projects {
+		found = map[int]ProjectStatus{}
+	}
+	// Compose response for requested projects, marking absences with Present=false.
+	res := make(map[int]ProjectStatus, len(projects))
+	for _, pid := range projects {
+		if ps, ok := found[pid]; ok {
+			res[pid] = ps
+		} else {
 			res[pid] = ProjectStatus{Present: false, Status: ""}
 		}
-		return res, nil
+	}
+	return res, nil
+}
+
+// GetAllIssueProjectStatuses returns the Status value for every project the issue
+// belongs to, keyed by project number. One GraphQL call; unset Status is "".
+func GetAllIssueProjectStatuses(issueNumber int) (map[int]ProjectStatus, error) {
+	owner, repo, err := getRepoOwnerAndName()
+	if err != nil {
+		return nil, err
 	}
 
 	query := `query($owner:String!,$repo:String!,$number:Int!){
@@ -181,7 +196,7 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 			issue(number:$number){
 				projectItems(first:100){
 					nodes{
-						project{ number title }
+						project{ number title updatedAt }
 						fieldValues(first:50){
 							nodes{
 								__typename
@@ -199,12 +214,7 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 	cmd := fmt.Sprintf("gh api graphql -f query='%s' -f owner='%s' -f repo='%s' -F number=%d", query, owner, repo, issueNumber)
 	out, err := runCommandWithRetry(cmd, 5, 2*time.Second)
 	if err != nil {
-		// On error, default to absent for all requested projects
-		res := make(map[int]ProjectStatus, len(projects))
-		for _, pid := range projects {
-			res[pid] = ProjectStatus{Present: false, Status: ""}
-		}
-		return res, nil
+		return nil, err
 	}
 	var resp struct {
 		Data struct {
@@ -213,8 +223,9 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 					ProjectItems struct {
 						Nodes []struct {
 							Project struct {
-								Number int    `json:"number"`
-								Title  string `json:"title"`
+								Number    int    `json:"number"`
+								Title     string `json:"title"`
+								UpdatedAt string `json:"updatedAt"`
 							} `json:"project"`
 							FieldValues struct {
 								Nodes []struct {
@@ -232,14 +243,10 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(out, &resp); err != nil {
-		res := make(map[int]ProjectStatus, len(projects))
-		for _, pid := range projects {
-			res[pid] = ProjectStatus{Present: false, Status: ""}
-		}
-		return res, nil
+		return nil, err
 	}
 
-	// Build a map of project number -> status value
+	// Build a map of project number -> status value.
 	found := make(map[int]ProjectStatus)
 	for _, node := range resp.Data.Repository.Issue.ProjectItems.Nodes {
 		pid := node.Project.Number
@@ -250,19 +257,9 @@ func GetIssueProjectStatuses(issueNumber int, projects []int) (map[int]ProjectSt
 				break
 			}
 		}
-		found[pid] = ProjectStatus{Present: true, Status: statusVal}
+		found[pid] = ProjectStatus{Present: true, Status: statusVal, UpdatedAt: node.Project.UpdatedAt, Title: node.Project.Title}
 	}
-
-	// Compose response for requested projects, marking absences with Present=false
-	res := make(map[int]ProjectStatus, len(projects))
-	for _, pid := range projects {
-		if ps, ok := found[pid]; ok {
-			res[pid] = ps
-		} else {
-			res[pid] = ProjectStatus{Present: false, Status: ""}
-		}
-	}
-	return res, nil
+	return found, nil
 }
 
 // runCommandWithRetry executes a shell command capturing combined output and retries with

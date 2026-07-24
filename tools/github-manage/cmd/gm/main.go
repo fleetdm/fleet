@@ -46,6 +46,7 @@ func main() {
 	rootCmd.AddCommand(releasesCmd)
 	rootCmd.AddCommand(preSprintCmd)
 	rootCmd.AddCommand(bugsCmd)
+	rootCmd.AddCommand(jarvisCmd)
 
 	// Test command to test SetCurrentSprint functionality
 	rootCmd.AddCommand(&cobra.Command{
