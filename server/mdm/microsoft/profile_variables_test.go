@@ -273,7 +273,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			hostUUID:        "test-host-1234-uuid",
 			profileContents: `<Replace><Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
 			expectError:     true,
-			processingError: `Couldn't install certificate. The challenge for the "CERTIFICATE" certificate authority includes a character that Windows doesn't support. Windows certificate enrollment supports letters, numbers, spaces, and these characters: ' ( ) + , - . / : = ?`,
+			processingError: fmt.Sprintf(scepChallengeInvalidCharsDetail, "CERTIFICATE"),
 			setup: func() {
 				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
 					return []*fleet.CertificateAuthority{
