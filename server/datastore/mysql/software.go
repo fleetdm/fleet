@@ -79,7 +79,7 @@ func softwareTitleCacheKey(name, source, extensionFor, bundleID string, isKernel
 		strings.ToLower(normalizeForCollation(name)),
 		source,
 		extensionFor,
-		bundleID,
+		strings.ToLower(bundleID),
 		strconv.FormatBool(isKernel),
 	}, fleet.SoftwareFieldSeparator)
 }
