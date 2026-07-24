@@ -1274,8 +1274,6 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 	})
 
 	t.Run("edit persists and disables the windows managed local account toggle", func(t *testing.T) {
-		// regression: editTeamFromSpec copies WindowsSettings selectively and would otherwise
-		// drop the toggle on every team apply
 		svc, ds, saved := newSvc(t, true)
 		existing := &fleet.Team{ID: 42, Name: teamName}
 		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) { return existing, nil }
@@ -1291,8 +1289,7 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, (*saved).Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 
-		// an explicit false disables it again (the gitops client sends false when the key is
-		// absent from the YAML)
+		// an explicit false disables the managed local account again
 		spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
 		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplyTeamSpecOptions{})
 		require.NoError(t, err)
@@ -1397,9 +1394,9 @@ func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	require.True(t, ds.SaveTeamFuncInvoked)
 }
 
-// TestModifyTeamMDMManagedLocalAccountRequiresMDM covers the MDM-off gates for both platform
-// toggles, which the integration suite can't exercise since it always runs with MDM configured,
-// plus the Windows toggle's persistence and activity.
+// TestModifyTeamMDMManagedLocalAccountRequiresMDM covers the MDM-off gates for both platform toggles, which the
+// integration suite can't exercise since it always runs with MDM configured, plus the Windows managed local account toggle's
+// persistence and activity.
 func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
@@ -1451,7 +1448,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		},
 	}}
 
-	t.Run("macOS enable requires Apple MDM", func(t *testing.T) {
+	t.Run("macOS enable admin account requires Apple MDM", func(t *testing.T) {
 		_, err := svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
 			MacOSSetup: &fleet.MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(true)},
 		}})
@@ -1460,14 +1457,14 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 	})
 
-	t.Run("windows enable requires Windows MDM", func(t *testing.T) {
+	t.Run("windows enable admin account requires Windows MDM", func(t *testing.T) {
 		_, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "windows_settings.managed_local_account_settings")
 		require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 	})
 
-	t.Run("windows toggle persists and fires activity", func(t *testing.T) {
+	t.Run("windows enable admin toggle persists and fires activity", func(t *testing.T) {
 		windowsMDMConfigured = true
 		team, err := svc.ModifyTeam(ctx, 1, windowsPayload)
 		require.NoError(t, err)

@@ -2674,20 +2674,12 @@ func (c *Client) DoGitOps(
 		} else {
 			mdmAppConfig["macos_setup"] = fleet.NewMacOSSetupWithDefaults()
 		}
-		// Put in default values for windows_settings. gitops is declarative: default the Windows
-		// managed local account toggle to disabled when the key is absent, so removing it from
-		// the YAML turns the feature off. The gitops parser normalizes controls.windows_settings
-		// to the fleet struct type (see pkg/spec/gitops.go), so that is the shape asserted here.
+		// Put in default values for windows_settings
 		if incoming.Controls.WindowsSettings != nil {
-			if ws, ok := incoming.Controls.WindowsSettings.(fleet.WindowsSettings); ok && !ws.ManagedLocalAccountSettings.Enabled.Valid {
-				ws.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-				incoming.Controls.WindowsSettings = ws
-			}
 			mdmAppConfig["windows_settings"] = incoming.Controls.WindowsSettings
 		} else {
 			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{
-				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
-				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
 		// Put in default values for android_settings

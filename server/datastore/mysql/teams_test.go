@@ -901,8 +901,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EndUserLocalAccountType:     optjson.SetString("admin"),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
-				// force-defaulted to enabled false when the team config is saved
+				CustomSettings:              optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			},
 			AndroidSettings: fleet.AndroidSettings{

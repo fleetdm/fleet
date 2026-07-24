@@ -1225,8 +1225,7 @@ func TestMDMConfig(t *testing.T) {
 			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
 			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				// the merge path defaults the toggle from the stored config
+				CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			},
 			AndroidSettings: fleet.AndroidSettings{
@@ -3044,8 +3043,8 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path through
-// PATCH /config for both platform toggles, which ModifyTeam doesn't handle.
+// TestModifyAppConfigManagedLocalAccount covers the no-team (team 0) path through PATCH /config for both managed
+// local account platform toggles, which ModifyTeam doesn't handle.
 func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 
@@ -3062,75 +3061,75 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		wantWindowsEnabled bool
 	}{
 		{
-			name:        "macOS: MDM not configured rejects the change",
+			name:        "macOS: enabling managed local account requires Apple MDM",
 			appleMDMOff: true,
 			patch:       `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
 			wantErr:     "setup_experience.enable_managed_local_account",
 		},
 		{
-			name:           "macOS: enabling emits the enabled activity",
+			name:           "macOS: enabling managed local account emits the enabled activity",
 			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
 			wantActivities: []string{"enabled_managed_local_account:darwin"},
 		},
 		{
-			name:           "macOS: disabling emits the disabled activity",
+			name:           "macOS: disabling managed local account emits the disabled activity",
 			startMacOS:     true,
 			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:darwin"},
 		},
 		{
-			name:  "macOS: no-op change emits no activity",
+			name:  "macOS: managed local account no-op change emits no activity",
 			patch: `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
 		},
 		{
-			name:               "windows: enable persists and fires activity",
+			name:               "windows: enabling managed local account persists and fires activity",
 			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
-			name:           "windows: disable persists and fires activity",
+			name:           "windows: disabling managed local account persists and fires activity",
 			startWindows:   true,
 			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
-			name:               "windows: null enabled means not provided",
+			name:               "windows: null managed local account enabled means not provided",
 			startWindows:       true,
 			patch:              `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": null}}}}`,
 			wantWindowsEnabled: true,
 		},
 		{
-			name:  "windows: no-op change fires no activity",
+			name:  "windows: managed local account no-op change fires no activity",
 			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
 		},
 		{
-			name:               "enabling both platforms in one payload fires one activity per platform",
+			name:               "enabling managed local account on both platforms in one payload fires one activity per platform",
 			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},
 		{
-			name:     "windows: enable requires premium",
+			name:     "windows: enabling managed local account requires premium",
 			freeTier: true,
 			patch:    `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
 			wantErr:  "missing or invalid license",
 		},
 		{
-			name:           "windows: disable is allowed without premium (license downgrade)",
+			name:           "windows: disabling managed local account is allowed without premium (license downgrade)",
 			freeTier:       true,
 			startWindows:   true,
 			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
 			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
-			name:          "windows: enable requires windows MDM",
+			name:          "windows: enabling managed local account requires Windows MDM",
 			windowsMDMOff: true,
 			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
 			wantErr:       "windows_settings.managed_local_account_settings",
 		},
 		{
-			name:    "windows: account type rejected",
+			name:    "windows: managed local account with end_user_local_account_type rejected",
 			patch:   `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}, "end_user_local_account_type": "admin"}}}`,
 			wantErr: "end_user_local_account_type",
 		},

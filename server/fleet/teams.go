@@ -104,8 +104,7 @@ type TeamPayloadMDM struct {
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
 }
 
-// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH
-// endpoint.
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
 type TeamPayloadWindowsSettings struct {
 	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
@@ -170,9 +169,6 @@ func (t Team) MarshalJSON() ([]byte, error) {
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.
 	// Also need to implement json.Marshaler/Unmarshaler on each type that embeds Team so because it will be promoted
 	// to the parent struct.
-	if !t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		t.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-	}
 	x := struct {
 		ID          uint            `json:"id"`
 		CreatedAt   time.Time       `json:"created_at"`
@@ -473,9 +469,6 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
-	if !t.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		t.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-	}
 	return json.Marshal(t)
 }
 
@@ -771,12 +764,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
-	// default on a local copy: mutating the caller's Team here would be a surprising side effect
-	windowsSettings := t.Config.MDM.WindowsSettings
-	if !windowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		windowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-	}
-	mdmSpec.WindowsSettings = windowsSettings
+	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 
 	var webhookSettings TeamSpecWebhookSettings

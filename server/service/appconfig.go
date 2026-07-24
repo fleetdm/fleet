@@ -877,9 +877,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
-	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above,
-	// an explicit JSON null means "not provided": keep the old value rather than persisting an
-	// invalid optjson state.
+	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above, an explicit JSON null
+	// means "not provided": keep the old value rather than persisting an invalid optjson state.
 	if !oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
 		oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
 	}
@@ -1977,13 +1976,13 @@ func (svc *Service) validateMDM(
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.configuration_profiles",
-				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 
 		if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
 			!oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
 			invalid.Append("windows_settings.managed_local_account_settings.enabled",
-				`Couldn’t enable windows_settings.managed_local_account_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+				"Couldn’t enable windows_settings.managed_local_account_settings. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)

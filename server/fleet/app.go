@@ -1279,9 +1279,6 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
-	if !c.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
-		c.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -2121,6 +2118,17 @@ func (v *Version) AuthzType() string {
 // Future fields (username, password policy) land here.
 type ManagedLocalAccountSettings struct {
 	Enabled optjson.Bool `json:"enabled"`
+}
+
+// MarshalJSON defaults the enabled flag to false when it was never set, so every serialization
+// path (API responses, stored config JSON, spec exports, GitOps payloads) emits a boolean
+// rather than null. Request payloads are unaffected: clients send raw JSON, not this struct.
+func (m ManagedLocalAccountSettings) MarshalJSON() ([]byte, error) {
+	if !m.Enabled.Valid {
+		m.Enabled = optjson.SetBool(false)
+	}
+	type alias ManagedLocalAccountSettings
+	return json.Marshal(alias(m))
 }
 
 type WindowsSettings struct {

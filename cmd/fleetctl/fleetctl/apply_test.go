@@ -825,6 +825,7 @@ spec:
 
 	newMDMSettings := fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
+		WindowsSettings:              fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -910,6 +911,7 @@ spec:
 
 	newMDMSettings = fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
+		WindowsSettings:              fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1644,6 +1646,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1690,6 +1693,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
