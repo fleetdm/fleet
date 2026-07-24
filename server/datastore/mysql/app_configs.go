@@ -135,6 +135,10 @@ func (ds *Datastore) SetAndroidEnabledAndConfigured(ctx context.Context, configu
 }
 
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+	if strings.TrimSpace(secret) == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("EnrollSecret"), "no matching secret found")
+	}
+
 	var s fleet.EnrollSecret
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
