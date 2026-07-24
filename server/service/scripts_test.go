@@ -1077,6 +1077,108 @@ func TestBatchScriptExecute(t *testing.T) {
 	})
 }
 
+// fleetMatchCase is the shared matrix for the script/host fleet-match behavior
+// by tier. On Free the match is skipped entirely (any script runs on any host,
+// since team_ids are stale leftovers from a prior Premium license); on Premium
+// the original strict match is preserved. Regression coverage for
+// https://github.com/fleetdm/fleet/issues/49291.
+type fleetMatchCase struct {
+	name       string
+	tier       string
+	scriptTeam *uint
+	hostTeam   *uint
+	wantErr    bool
+}
+
+var fleetMatchCases = []fleetMatchCase{
+	// Free: everything runs, regardless of stale team_ids.
+	{"free/no-team script on team host (reported bug)", fleet.TierFree, nil, new(uint(1)), false},
+	{"free/team script on unassigned host", fleet.TierFree, new(uint(2)), nil, false},
+	{"free/team script on different-team host", fleet.TierFree, new(uint(2)), new(uint(1)), false},
+	{"free/no-team script on no-team host", fleet.TierFree, nil, nil, false},
+	// Premium: strict match preserved.
+	{"premium/no-team script on team host", fleet.TierPremium, nil, new(uint(1)), true},
+	{"premium/team script on different-team host", fleet.TierPremium, new(uint(2)), new(uint(1)), true},
+	{"premium/team script on unassigned host", fleet.TierPremium, new(uint(2)), nil, true},
+	{"premium/matching team", fleet.TierPremium, new(uint(1)), new(uint(1)), false},
+	{"premium/no-team script on no-team host", fleet.TierPremium, nil, nil, false},
+}
+
+func TestRunHostScriptFleetMatchByTier(t *testing.T) {
+	run := func(t *testing.T, tc fleetMatchCase) error {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: tc.tier, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{ID: 1, Hostname: "h", TeamID: tc.hostTeam, SeenTime: time.Now(), OrbitNodeKey: new("abc")}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) { return host, nil }
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil
+		}
+		ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) { return []byte("echo"), nil }
+		ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+			return &fleet.HostScriptResult{HostID: request.HostID, ExecutionID: "abc"}, nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		_, err := svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: 1, ScriptID: new(uint(1))}, 0)
+		return err
+	}
+
+	for _, tc := range fleetMatchCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := run(t, tc)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "does not belong to the same fleet")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBatchScriptExecuteFleetMatchByTier(t *testing.T) {
+	run := func(t *testing.T, tc fleetMatchCase) ([]uint, error) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: tc.tier, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{{ID: 1, TeamID: tc.hostTeam}}, nil
+		}
+		var executed []uint
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			executed = hostIDs
+			return "batch-abc", nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1}, nil, nil)
+		return executed, err
+	}
+
+	for _, tc := range fleetMatchCases {
+		t.Run(tc.name, func(t *testing.T) {
+			executed, err := run(t, tc)
+			if tc.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, "all hosts must be on the same fleet as the script")
+			} else {
+				require.NoError(t, err)
+				require.ElementsMatch(t, []uint{1}, executed)
+			}
+		})
+	}
+}
+
 func TestWipeHostRequestDecodeBody(t *testing.T) {
 	ctx := context.Background()
 

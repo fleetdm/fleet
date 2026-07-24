@@ -1,0 +1,1 @@
+- Fixed running scripts on Fleet Free for hosts previously assigned to a fleet on Fleet Premium.
