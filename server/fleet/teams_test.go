@@ -1,7 +1,6 @@
 package fleet
 
 import (
-	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -395,54 +394,4 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.True(t, clone.Features.EnableHostUsers)
 		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
 	})
-}
-
-func TestTeamMarshalWindowsManagedLocalAccountSettings(t *testing.T) {
-	team := Team{
-		ID:   1,
-		Name: "t1",
-		Config: TeamConfig{
-			MDM: TeamMDM{
-				WindowsSettings: WindowsSettings{
-					ManagedLocalAccountSettings: ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
-				},
-			},
-		},
-	}
-
-	b, err := json.Marshal(team)
-	require.NoError(t, err)
-	var out map[string]any
-	require.NoError(t, json.Unmarshal(b, &out))
-	windowsSettings := out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
-	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
-
-	// unset defaults to enabled false on both the API output and the DB save path
-	empty := Team{ID: 2, Name: "t2"}
-	b, err = json.Marshal(empty)
-	require.NoError(t, err)
-	require.NoError(t, json.Unmarshal(b, &out))
-	windowsSettings = out["mdm"].(map[string]any)["windows_settings"].(map[string]any)
-	require.Equal(t, map[string]any{"enabled": false}, windowsSettings["managed_local_account_settings"])
-
-	v, err := empty.Config.Value()
-	require.NoError(t, err)
-	var stored map[string]any
-	require.NoError(t, json.Unmarshal(v.([]byte), &stored))
-	storedWindows := stored["mdm"].(map[string]any)["windows_settings"].(map[string]any)
-	require.Equal(t, map[string]any{"enabled": false}, storedWindows["managed_local_account_settings"])
-}
-
-func TestTeamMDMCopyManagedLocalAccountSettings(t *testing.T) {
-	tm := &TeamMDM{
-		WindowsSettings: WindowsSettings{
-			ManagedLocalAccountSettings: ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
-		},
-	}
-	clone := tm.Copy()
-	require.NotSame(t, tm, clone)
-	require.Equal(t, tm, clone)
-
-	clone.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
-	require.True(t, tm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }

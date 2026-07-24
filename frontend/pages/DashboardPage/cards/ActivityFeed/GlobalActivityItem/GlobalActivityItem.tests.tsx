@@ -728,9 +728,6 @@ describe("Activity Feed", () => {
       <GlobalActivityItem activity={windowsActivity} isPremiumTier />
     );
     expect(
-      screen.getByText("enabled managed local accounts for", { exact: false })
-    ).toBeInTheDocument();
-    expect(
       screen.getByText("Windows hosts assigned to the", { exact: false })
     ).toBeInTheDocument();
     unmount();

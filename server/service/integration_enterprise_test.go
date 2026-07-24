@@ -218,6 +218,16 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
 }
 
+// defaultExpectedWindowsSettings returns the WindowsSettings shape produced by a team config
+// save/load round trip with nothing configured: an empty custom settings slice and the managed
+// local account toggle force-defaulted to disabled.
+func defaultExpectedWindowsSettings() fleet.WindowsSettings {
+	return fleet.WindowsSettings{
+		CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+	}
+}
+
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	t := s.T()
 
@@ -340,11 +350,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			// force-defaulted to enabled false when the team config is saved
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -471,11 +477,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			// force-defaulted to enabled false when the team config is saved
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -516,11 +518,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			// force-defaulted to enabled false when the team config is saved
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -563,11 +561,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			// force-defaulted to enabled false when the team config is saved
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
@@ -3468,11 +3462,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
-		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-			// force-defaulted to enabled false when the team config is saved
-			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
-		},
+		WindowsSettings: defaultExpectedWindowsSettings(),
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 			Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
