@@ -3077,6 +3077,8 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 
+#### Example
+
 ```json
 {
   "host_id": 1,
@@ -3119,6 +3121,23 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## edited_windows_automatic_enrollment_default_fleet
+
+Generated when the default fleet for Windows automatic enrollments is edited.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
+- "fleet_name": The name of the default fleet for Windows automatic enrollments, `null` if set to no fleet.
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
 }
 ```
 
@@ -3178,6 +3197,25 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "label_id": 42,
   "label_name": "Engineering"
+}
+```
+
+## released_from_ab
+
+Generated when a host has been released from Apple Business (AB).
+
+This activity contains the following fields:
+- "host_id": ID of the host being released from AB.
+- "host_display_name": Display name of the host being released from AB.
+- "host_serial": Hardware serial number of the host being released from AB.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_serial": "ABC123"
 }
 ```
 
