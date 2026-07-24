@@ -8,6 +8,7 @@ import (
 	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
+	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -286,6 +287,15 @@ func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 	require.Len(t, activities, 3)
 	assert.Less(t, activities[0].ID, activities[1].ID)
 	assert.Less(t, activities[1].ID, activities[2].ID)
+
+	// Order keys outside the allowlist (including columns not returned by the
+	// query) must be rejected rather than passed through to the SQL.
+	for _, badKey := range []string{"details", "host_only", "password"} {
+		_, _, err := env.ds.ListActivities(ctx, listOpts(withOrder(badKey, activityapi.OrderAscending)))
+		var invalidErr platform_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidErr, "order_key %q should be rejected", badKey)
+		assert.True(t, invalidErr.IsClientError())
+	}
 }
 
 func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
@@ -402,6 +412,17 @@ func testListHostPastActivities(t *testing.T, env *testEnv) {
 				require.NotNil(t, a.Details)
 			}
 		})
+	}
+
+	// Only the documented order keys are allowed; anything else is rejected.
+	for _, goodKey := range []string{"id", "created_at", "activity_type"} {
+		_, _, err := env.ds.ListHostPastActivities(ctx, hostID, listOpts(withOrder(goodKey, activityapi.OrderAscending)))
+		require.NoError(t, err, "order_key %q should be allowed", goodKey)
+	}
+	for _, badKey := range []string{"details", "user_email", "host_only"} {
+		_, _, err := env.ds.ListHostPastActivities(ctx, hostID, listOpts(withOrder(badKey, activityapi.OrderAscending)))
+		var invalidErr platform_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidErr, "order_key %q should be rejected", badKey)
 	}
 }
 

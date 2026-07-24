@@ -123,7 +123,7 @@ func (s *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt a
 		return nil, nil, err
 	}
 
-	applyListOptionsDefaults(&opt, "a.created_at")
+	applyListOptionsDefaults(&opt, "created_at")
 	// Convert public options to internal options
 	internalOpt := types.ListOptions{
 		ListOptions:     opt,

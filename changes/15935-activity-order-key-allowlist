@@ -1,0 +1,1 @@
+- Restricted the `order_key` parameter on the list activities and list host past activities endpoints to an allowlist of sortable columns, so it can no longer be used to sort by arbitrary columns.

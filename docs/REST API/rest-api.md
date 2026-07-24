@@ -529,7 +529,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.                    |
-| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
+| order_key       | string  | query | What to order results by. Allowed fields are `id`, `created_at`, `activity_type`, `user_id`, `user_name`, `user_email`, `streamed`, and `fleet_initiated`. |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | query | string | query | Search query keywords. Searchable fields include `actor_full_name` and `actor_email`.
