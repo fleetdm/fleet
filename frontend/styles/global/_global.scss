@@ -218,7 +218,12 @@ form,
     // flex properties only have an effect when checkbox help text is present
     display: flex;
     flex-direction: column;
-    gap: $pad-small;
+    gap: $pad-xsmall;
+
+    .form-field__help-text {
+      // aligns helper text with the checkbox label instead of the checkbox icon
+      padding-left: $pad-large;
+    }
   }
 
   &--slider {

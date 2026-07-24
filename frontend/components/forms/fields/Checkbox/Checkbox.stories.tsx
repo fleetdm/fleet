@@ -27,3 +27,10 @@ export const WithLabel: Story = {
     children: <b>Label</b>,
   },
 };
+
+export const WithHelpText: Story = {
+  args: {
+    children: <b>Label</b>,
+    helpText: "This is some helper text that should align with the label.",
+  },
+};
