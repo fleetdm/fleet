@@ -813,8 +813,9 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 		require.NoError(t, err)
 		_, err = f.WriteString(fmt.Sprintf(`
 controls:
+%s
   windows_enabled_and_configured: true
-  android_enabled_and_configured: true%s
+  android_enabled_and_configured: true
   windows_entra_tenant_ids:
     - 1a86b496-e2a4-43ef-ba00-20004e29b13b
   windows_entra_client_ids:
@@ -840,9 +841,8 @@ software:
 		return f.Name()
 	}
 
-	// include the Windows managed local account toggle (#48720) in the applied controls
-	globalFile := writeGlobalFile(`
-  windows_settings:
+	// include the Windows managed local account toggle in the applied controls
+	globalFile := writeGlobalFile(`  windows_settings:
     managed_local_account_settings:
       enabled: true`)
 
@@ -856,8 +856,7 @@ software:
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
 	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 
-	// gitops is declarative for the managed local account toggle: re-applying without the key
-	// disables it
+	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
 	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
 	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }
