@@ -548,6 +548,7 @@ type agent struct {
 	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
+	FleetdPollInterval    time.Duration
 	DiskEncryptionEnabled bool
 	mdmProfileFailureProb float64
 	OSPatchLevel          int                 // For Linux patches
@@ -566,6 +567,20 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+
+	// servedDistributedInterval, servedConfigRefresh and servedLoggerTLSPeriod
+	// hold interval overrides parsed from the agent options served by Fleet in
+	// the config response, in seconds (0 = not served). Real osquery honors
+	// these options; the simulator historically did not (fixed startup
+	// tickers), which made it impossible to quiet running agents server-side
+	// the way a real customer can. Each loop resets its ticker when the served
+	// value changes. The orbit/Fleet Desktop loop additionally watches
+	// servedDistributedInterval as a quiet signal (real fleetd has no
+	// server-driven interval knob), so a load test can silence all
+	// fleetd-originated traffic with one agent-options change.
+	servedDistributedInterval atomic.Int64
+	servedConfigRefresh       atomic.Int64
+	servedLoggerTLSPeriod     atomic.Int64
 
 	// cache of this host's per-host certificates (the certs unique to this host, excluding the shared certs every host
 	// reports). Note that this requires a mutex even though only used in a.processQuery, that's because both the runLoop
@@ -654,7 +669,7 @@ func newAgent(
 	hostIndexOffset int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval, fleetdPollInterval time.Duration,
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
@@ -757,6 +772,7 @@ func newAgent(
 		LogInterval:                   logInterval,
 		QueryInterval:                 queryInterval,
 		MDMCheckInInterval:            mdmCheckInInterval,
+		FleetdPollInterval:            fleetdPollInterval,
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
 		defaultSerialProb:             defaultSerialProb,
@@ -937,28 +953,50 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	// (1) distributed thread:
 	go func() {
-		liveQueryTicker := time.NewTicker(a.QueryInterval)
+		queryInterval := effectiveInterval(&a.servedDistributedInterval, a.QueryInterval)
+		liveQueryTicker := time.NewTicker(queryInterval)
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
 			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
 				_ = a.DistributedWrite(resp.Queries)
 			}
+			if next := effectiveInterval(&a.servedDistributedInterval, a.QueryInterval); next != queryInterval {
+				queryInterval = next
+				liveQueryTicker.Reset(queryInterval)
+			}
 		}
 	}()
 
 	// (2) config thread:
+	// Fleet's agent-options validation does not allow config_refresh in served
+	// config options (it is a command_line_flags setting applied by fleetd via
+	// osquery restart, which this simulator does not model). The config loop
+	// therefore also honors the quiet signal (served distributed_interval >=
+	// 1h), so one agent-options change silences every osquery loop.
 	go func() {
-		configTicker := time.NewTicker(a.ConfigInterval)
+		configEffective := func() time.Duration {
+			if quietFor := a.servedDistributedInterval.Load(); quietFor >= 3600 {
+				return time.Duration(quietFor) * time.Second
+			}
+			return effectiveInterval(&a.servedConfigRefresh, a.ConfigInterval)
+		}
+		configInterval := configEffective()
+		configTicker := time.NewTicker(configInterval)
 		defer configTicker.Stop()
 
 		for range configTicker.C {
 			_ = a.config()
+			if next := configEffective(); next != configInterval {
+				configInterval = next
+				configTicker.Reset(configInterval)
+			}
 		}
 	}()
 
 	// (3) logger thread:
-	logTicker := time.NewTicker(a.LogInterval)
+	logInterval := effectiveInterval(&a.servedLoggerTLSPeriod, a.LogInterval)
+	logTicker := time.NewTicker(logInterval)
 	defer logTicker.Stop()
 	for range logTicker.C {
 		// check if we have any scheduled queries that should be returning results
@@ -998,7 +1036,20 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		a.sendLogsBatch()
 		newBufferedCount := a.countBuffered() - prevCount
 		a.stats.UpdateBufferedLogs(newBufferedCount)
+		if next := effectiveInterval(&a.servedLoggerTLSPeriod, a.LogInterval); next != logInterval {
+			logInterval = next
+			logTicker.Reset(logInterval)
+		}
 	}
+}
+
+// effectiveInterval returns the served agent-options override as a duration,
+// or def when no override has been served.
+func effectiveInterval(served *atomic.Int64, def time.Duration) time.Duration {
+	if secs := served.Load(); secs > 0 {
+		return time.Duration(secs) * time.Second
+	}
+	return def
 }
 
 func (a *agent) countBuffered() int {
@@ -1176,28 +1227,79 @@ func (a *agent) runOrbitLoop() {
 		checkToken()
 	}
 
+	// atLeastPoll raises a default polling interval to the configured
+	// --fleetd_poll_interval floor (0 = keep defaults). Real fleetd has no
+	// such knob; this lets a load test model payload-only (socket-like)
+	// traffic where fleetd polling would not exist.
+	atLeastPoll := func(d time.Duration) time.Duration {
+		if a.FleetdPollInterval > d {
+			return a.FleetdPollInterval
+		}
+		return d
+	}
 	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
-	orbitConfigTicker := time.Tick(30 * time.Second)
+	orbitConfigDefault := atLeastPoll(30 * time.Second)
+	orbitConfigTicker := time.NewTicker(orbitConfigDefault)
+	defer orbitConfigTicker.Stop()
 	// orbit makes a call every 5 minutes to check the validity of the device
 	// token on the server
-	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
+	orbitTokenRemoteCheckDefault := atLeastPoll(5 * time.Minute)
+	orbitTokenRemoteCheckTicker := time.NewTicker(orbitTokenRemoteCheckDefault)
+	defer orbitTokenRemoteCheckTicker.Stop()
 	// orbit pings the server every 1 hour to rotate the device token
-	orbitTokenRotationTicker := time.Tick(1 * time.Hour)
+	orbitTokenRotationDefault := atLeastPoll(1 * time.Hour)
+	orbitTokenRotationTicker := time.NewTicker(orbitTokenRotationDefault)
+	defer orbitTokenRotationTicker.Stop()
 	// orbit polls the /orbit/ping endpoint every 5 minutes to check if the
 	// server capabilities have changed
-	capabilitiesCheckerTicker := time.Tick(5 * time.Minute)
+	capabilitiesCheckerDefault := atLeastPoll(5 * time.Minute)
+	capabilitiesCheckerTicker := time.NewTicker(capabilitiesCheckerDefault)
+	defer capabilitiesCheckerTicker.Stop()
 	// fleet desktop polls for policy compliance every 5 minutes
-	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
+	fleetDesktopPolicyDefault := atLeastPoll(5 * time.Minute)
+	fleetDesktopPolicyTicker := time.NewTicker(fleetDesktopPolicyDefault)
+	defer fleetDesktopPolicyTicker.Stop()
 	// fleet desktop pings every 10s for connectivity check.
-	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
+	fleetDesktopConnectivityDefault := atLeastPoll(10 * time.Second)
+	fleetDesktopConnectivityCheck := time.NewTicker(fleetDesktopConnectivityDefault)
+	defer fleetDesktopConnectivityCheck.Stop()
+	// quietWatcher makes no server requests; it watches the quiet signal
+	// (served distributed_interval >= 1h, parsed by the osquery config thread)
+	// and stretches or restores the orbit and Fleet Desktop tickers. Real
+	// fleetd has no server-driven interval knob, so this simulator-only
+	// behavior is what lets a load test silence all fleetd-originated traffic
+	// with the same agent-options change that quiets osquery.
+	quietWatcher := time.NewTicker(20 * time.Second)
+	defer quietWatcher.Stop()
+	orbitQuiet := false
 
 	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
 
 	for {
 		select {
-		case <-orbitConfigTicker:
+		case <-quietWatcher.C:
+			quietFor := time.Duration(a.servedDistributedInterval.Load()) * time.Second
+			quiet := quietFor >= time.Hour
+			if quiet == orbitQuiet {
+				continue
+			}
+			orbitQuiet = quiet
+			stretchOrRestore := func(t *time.Ticker, def time.Duration) {
+				if quiet {
+					t.Reset(quietFor)
+				} else {
+					t.Reset(def)
+				}
+			}
+			stretchOrRestore(orbitConfigTicker, orbitConfigDefault)
+			stretchOrRestore(orbitTokenRemoteCheckTicker, orbitTokenRemoteCheckDefault)
+			stretchOrRestore(orbitTokenRotationTicker, orbitTokenRotationDefault)
+			stretchOrRestore(capabilitiesCheckerTicker, capabilitiesCheckerDefault)
+			stretchOrRestore(fleetDesktopPolicyTicker, fleetDesktopPolicyDefault)
+			stretchOrRestore(fleetDesktopConnectivityCheck, fleetDesktopConnectivityDefault)
+		case <-orbitConfigTicker.C:
 			cfg, err := orbitClient.GetConfig()
 			if err != nil {
 				a.stats.IncrementOrbitErrors()
@@ -1235,7 +1337,7 @@ func (a *agent) runOrbitLoop() {
 				default:
 				}
 			}
-		case <-orbitTokenRemoteCheckTicker:
+		case <-orbitTokenRemoteCheckTicker.C:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementOrbitErrors()
@@ -1243,7 +1345,7 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
-		case <-orbitTokenRotationTicker:
+		case <-orbitTokenRotationTicker.C:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
@@ -1255,12 +1357,12 @@ func (a *agent) runOrbitLoop() {
 				// fleet desktop performs a burst of check token requests after a token is rotated
 				checkToken()
 			}
-		case <-capabilitiesCheckerTicker:
+		case <-capabilitiesCheckerTicker.C:
 			if err := orbitClient.Ping(); err != nil {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
-		case <-fleetDesktopPolicyTicker:
+		case <-fleetDesktopPolicyTicker.C:
 			if !a.disableFleetDesktop {
 				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementDesktopErrors()
@@ -1268,7 +1370,7 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
-		case <-fleetDesktopConnectivityCheck:
+		case <-fleetDesktopConnectivityCheck.C:
 			if !a.disableFleetDesktop {
 				if err := deviceClient.Ping(); err != nil {
 					a.stats.IncrementDesktopErrors()
@@ -2108,6 +2210,37 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	return nil
 }
 
+// applyServedOptions mirrors how real osquery applies interval options from
+// the TLS config response. Only the intervals the simulator loops actually
+// use are honored.
+func (a *agent) applyServedOptions(options map[string]interface{}) {
+	setOrClear := func(target *atomic.Int64, key string) {
+		if v, ok := options[key]; ok {
+			if secs, ok := asSeconds(v); ok && secs > 0 {
+				target.Store(secs)
+				return
+			}
+		}
+		// Key absent (or unparseable/zero): revert to the startup default so a
+		// removed override doesn't ratchet the last served value forever.
+		target.Store(0)
+	}
+	setOrClear(&a.servedDistributedInterval, "distributed_interval")
+	setOrClear(&a.servedConfigRefresh, "config_refresh")
+	setOrClear(&a.servedLoggerTLSPeriod, "logger_tls_period")
+}
+
+func asSeconds(v interface{}) (int64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return int64(n), true
+	case string:
+		secs, err := strconv.ParseInt(n, 10, 64)
+		return secs, err == nil
+	}
+	return 0, false
+}
+
 func (a *agent) config() error {
 	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
 	if err != nil {
@@ -2133,11 +2266,14 @@ func (a *agent) config() error {
 		Packs map[string]struct {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
+		Options map[string]interface{} `json:"options"`
 	}{}
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
+
+	a.applyServedOptions(parsedResp.Options)
 
 	existingLastRunData := make(map[string]int64)
 
@@ -3802,6 +3938,7 @@ func main() {
 		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
 		// without push notifications, but definitely not every minute.
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
+		fleetdPollInterval  = flag.Duration("fleetd_poll_interval", 0, "When > 0, raises every orbit/Fleet Desktop polling interval to at least this duration (load tests that model payload-only traffic)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -4095,6 +4232,7 @@ func main() {
 			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
+			*fleetdPollInterval,
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
 			softwareInstaller{
