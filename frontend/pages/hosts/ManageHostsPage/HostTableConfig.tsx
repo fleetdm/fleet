@@ -58,24 +58,41 @@ type ISelectionCellProps = CellProps<IHost>;
 type IIssuesCellProps = CellProps<IHost, IHost["issues"]>;
 type IDeviceUserCellProps = CellProps<IHost, IHost["device_mapping"]>;
 
-const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
-  if (!users?.length) {
-    return [];
-  }
-  const condensed =
-    users.length === 4
-      ? users
-          .slice(-4)
+const MAX_USER_EMAILS_IN_TOOLTIP = 5;
 
-          .map((u) => u.email)
-          .reverse()
-      : users
-          .slice(-3)
-          .map((u) => u.email)
-          .reverse() || [];
-  return users.length > 4
-    ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
-    : condensed;
+interface IPrimaryDeviceUser {
+  primaryEmail?: string;
+  suffixCount: number;
+  tooltipLines: string[];
+}
+
+const getPrimaryDeviceUser = (users: IDeviceUser[]): IPrimaryDeviceUser => {
+  if (!users?.length) {
+    return { primaryEmail: undefined, suffixCount: 0, tooltipLines: [] };
+  }
+
+  const idpUser = users.find((u) => u.source === "mdm_idp_accounts");
+  const chromeUser = users.find((u) => u.source === "google_chrome_profiles");
+  const primary = idpUser ?? chromeUser ?? users[0];
+  const suffixCount = users.length - 1;
+
+  // No other emails to surface in a tooltip, so leave tooltipLines empty.
+  if (suffixCount === 0) {
+    return { primaryEmail: primary.email, suffixCount, tooltipLines: [] };
+  }
+
+  const orderedEmails = [
+    primary.email,
+    ...users.filter((u) => u !== primary).map((u) => u.email),
+  ];
+  const shown = orderedEmails.slice(0, MAX_USER_EMAILS_IN_TOOLTIP);
+  const remainder = orderedEmails.length - MAX_USER_EMAILS_IN_TOOLTIP;
+
+  return {
+    primaryEmail: primary.email,
+    suffixCount,
+    tooltipLines: remainder > 0 ? shown.concat(`+${remainder} more`) : shown,
+  };
 };
 
 const lastSeenTime = (
@@ -202,26 +219,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
       // TODO(android): is android supported?
-      const numUsers = cellProps.cell.value?.length || 0;
-      const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length > 1) {
-        return (
-          <TooltipWrapper
-            tipContent={tooltipTextWithLineBreaks(users)}
-            underline={false}
-            showArrow
-            position="top"
-            tipOffset={10}
-            fixedPositionStrategy
-          >
-            <TextCell italic value={`${numUsers} users`} />
-          </TooltipWrapper>
-        );
-      }
-      if (users.length === 1) {
-        return <TextCell value={users[0]} />;
-      }
-      return <TextCell />;
+      const { primaryEmail, suffixCount, tooltipLines } = getPrimaryDeviceUser(
+        cellProps.cell.value || []
+      );
+      return (
+        <TooltipTruncatedTextCell
+          value={primaryEmail}
+          tooltip={
+            tooltipLines.length > 0
+              ? tooltipTextWithLineBreaks(tooltipLines)
+              : undefined
+          }
+          suffix={suffixCount > 0 ? `+${suffixCount}` : undefined}
+          justifySuffixEnd
+          showTooltipWithSuffix
+          className="w250"
+        />
+      );
     },
   },
   // UUID
@@ -791,4 +805,5 @@ export {
   defaultHiddenColumns,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
+  getPrimaryDeviceUser,
 };
