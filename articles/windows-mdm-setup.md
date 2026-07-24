@@ -219,6 +219,29 @@ Testing automatic enrollment requires creating a test user in Microsoft Entra ID
 
 2. After it's been wiped, open your workstation and follow the setup steps. On the screen in which you're asked to sign in, you should see the title "Welcome to [your organization]!" next to the logo you uploaded in step 4.
 
+### Set a default fleet for new hosts
+
+_Available in Fleet Premium_
+
+By default, Windows hosts enrolled via Autopilot are added to "Unassigned". You can configure a default fleet so that new hosts enrolled into MDM are automatically assigned to a specific fleet—similar to how [Apple Business default fleets](https://fleetdm.com/guides/macos-mdm-setup#set-a-default-team-for-hosts-enrolled-via-abm) work.
+
+#### In the UI
+
+1. Head to **Settings > Integrations > MDM > Windows MDM** and select **Edit**.
+
+2. Under **User driven enrollment**, use the **Default team** dropdown to select the fleet that new hosts enrolled into MDM should be assigned to.
+
+3. Select **Save**.
+
+#### Via GitOps (YAML)
+
+Add the `windows_enrollment` key under `mdm` in your global (org) settings YAML file:
+
+```yaml
+  mdm:
+    windows_enrollment:
+      default_fleet: "💻 Workstations"
+```
 
 ## Automatic Windows MDM migration
 
