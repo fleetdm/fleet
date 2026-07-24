@@ -72,6 +72,11 @@ type windowsProfileValidator struct {
 	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
 	locURIHasContent bool
 
+	// Accumulates all CharData fragments within a <LocURI> element so the complete value is validated as a whole. This
+	// prevents bypasses where a forbidden substring (e.g. "BitLocker") is split across CDATA or comment boundaries so
+	// that no single CharData token contains the full reserved string.
+	locURIAccumulator strings.Builder
+
 	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected.
 	allowCustomDiskEncryption bool
 
@@ -223,7 +228,41 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 	// content. Whitespace-only content is rejected in validateLocURIFormat.
 	if elementName == "LocURI" && !v.locURIHasContent {
 		v.currentElement = ""
+		v.locURIAccumulator.Reset()
 		return errors.New("<LocURI> can't be empty.")
+	}
+
+	// When leaving a LocURI element, validate the fully accumulated content so that forbidden substrings split across
+	// CDATA or comment boundaries are caught.
+	if elementName == "LocURI" {
+		locURI := v.locURIAccumulator.String()
+		v.locURIAccumulator.Reset()
+
+		if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
+			v.currentElement = ""
+			v.locURIHasContent = false
+			return err
+		}
+
+		if err := validateLocURIFormat(locURI); err != nil {
+			v.currentElement = ""
+			v.locURIHasContent = false
+			return err
+		}
+
+		if v.isInExec() {
+			if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
+				v.currentElement = ""
+				v.locURIHasContent = false
+				return err
+			}
+		} else {
+			if err := v.scepValidator.validateLocURI(locURI); err != nil {
+				v.currentElement = ""
+				v.locURIHasContent = false
+				return err
+			}
+		}
 	}
 
 	v.currentElement = ""
@@ -237,25 +276,15 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 		return nil
 	}
 
-	locURI := string(el)
-	if strings.TrimSpace(locURI) != "" {
+	fragment := string(el)
+	if strings.TrimSpace(fragment) != "" {
 		v.locURIHasContent = true
 	}
 
-	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
-	// specific message.
-	if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
-		return err
-	}
-
-	if err := validateLocURIFormat(locURI); err != nil {
-		return err
-	}
-
-	if v.isInExec() {
-		return v.scepValidator.validateExecLocURI(locURI)
-	}
-	return v.scepValidator.validateLocURI(locURI)
+	// Accumulate CharData fragments; actual validation happens in handleEndElement when the full LocURI value is known.
+	// This prevents bypasses where a forbidden substring is split across CDATA or comment boundaries.
+	v.locURIAccumulator.WriteString(fragment)
+	return nil
 }
 
 // validateLocURIFormat rejects LocURI values that real Windows MDM devices reject with status 400 (empirically verified
