@@ -4,11 +4,13 @@
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
+In Fleet you can add variables in [scripts](https://fleetdm.com/guides/scripts), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template). In scripts and configuration profiles, variables are hidden when viewed in the Fleet UI or API. In a host name template, a variable's value becomes the host's name in Fleet and on the device, so it isn't hidden.
 
 Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
-Custom variables (`$FLEET_SECRET_*`) hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
+Script-only packages (.sh, .ps1, .py) also support custom variables (`$FLEET_SECRET_*`). Fleet replaces them with their values when the install script is sent to the host.
+
+Custom variables hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 
 ## Add variables
 
@@ -22,7 +24,7 @@ To add or delete a variable in the UI, go to `Controls` > `Variables` and click 
 
 ![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
 
-Variables are global, meaning they can be used in scripts and profiles across all fleets.
+Variables are global, meaning they can be used in scripts, configuration profiles, and host name templates across all fleets.
 
 ### GitOps
 
@@ -101,6 +103,7 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 ## Known limitations and issues
 
 - **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
+- **Host name templates**: A custom variable used in a [host name template](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) isn't hidden — its value becomes the host's name in Fleet and on the device. Only use custom variables for values that are safe to display (for example, a site or location code).
 - After changing a variable used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)
 - Fleet does not hide the secret in script results. Don't print/echo your secrets to the console output.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.

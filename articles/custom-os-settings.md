@@ -10,6 +10,42 @@ For Windows hosts, copy this [Windows configuration profile template](https://fl
 
 For Android hosts, copy this [Android configuration profile template](https://fleetdm.com/learn-more-about/example-android-profile) and update the profile using the options available in [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#resource:-policy). To learn how, watch [this video](https://youtu.be/Jk4Zcb2sR1w). To learn more about the different settings availabe for fully managed vs. BYOD Android devices, see [Google's documentation](https://support.google.com/work/android/topic/9621435?hl=en&ref_topic=6151012,6090502,6090491,&sjid=13375704519136380831-NA).
 
+### Apple declarations (DDM)
+
+For macOS hosts, Fleet supports uploading Apple Declarative Device Management (DDM) profiles as `.json` files. Fleet supports the following declaration types:
+
+#### Configurations (`com.apple.configuration.*`)
+Enforce settings like passcode policies, account configurations, and more.
+
+The following configuration declarations are not supported:
+
+- com.apple.configuration.management.status-subscriptions
+- com.apple.configuration.watch.enrollment
+- com.apple.configuration.app.managed
+- com.apple.configuration.package
+
+#### Assets (`com.apple.asset.*`)
+Deploy credentials, certificates, and other assets referenced by configurations.
+
+Each **asset declaration** `.json` must include a `Type`, `Identifier`, and `Payload` key. Example:
+
+```json
+{
+  "Type": "com.apple.asset.data",
+  "Identifier": "com.example.sudo-config-asset",
+  "Payload": {
+    "Reference": {
+      "DataURL": "https://mdm.yourcompany.com/assets/sudo-config.zip",
+      "ContentType": "application/zip"
+    }
+  }
+}
+```
+
+To upload an asset declaration, use the same workflow (UI, API, or GitOps) as configuration profiles. 
+
+For more complex workflows, such as deploying an in-house app package (`.ipa`), the recommended approach is to host the manifest and package on your own infrastructure and upload the corresponding asset declaration to Fleet. Asset files are raw JSON following Apple's [DDM schema](https://developer.apple.com/documentation/devicemanagement).
+
 ## Enforce
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
@@ -20,9 +56,17 @@ Fleet UI:
 
 2. Choose which fleet you want to add a configuration profile to by selecting the desired fleet in the fleets dropdown in the upper left corner. Fleets are available in Fleet Premium.
 
-3. Select **Add profile** and choose your configuration profile.
+3. Select either **Profiles** or **Assets** from the sub menu.
+  - To add a configuration profile, select **Add profile** and choose your configuration profile and target.
+  - To add an asset, select **Add asset** and choose your asset.
 
-4. To edit the OS setting, first remove the old configuration profile and then add the new one.
+Once the profile is saved, you can edit the profile's targets or replace the configuration file. Hover over the profile row and select the **pencil/edit button** to edit the following:
+
+  - Targets (all hosts or custom). For custom targets, you can edit the labels (include and/or exclude).
+  - Configuration profile. In the edit modal, hover over the uploaded file and select the **pencil/edit button** to upload a replacement file.
+  > The replacement file must match the original:
+  > - **DDM profiles:** same declaration identifier and file name
+  > - **.mobileconfig profiles:** same `PayloadIdentifier` and `PayloadDisplayName`
 
 Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile) in the Fleet API.
 
@@ -38,7 +82,7 @@ If two Windows profiles configure the same setting (LocURI) and one is removed, 
 
 ### Device and user scope
 
-Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles. User-scoped declaration (DDM) profiles for macOS are coming soon.
+Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles.
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
 
@@ -47,6 +91,7 @@ How to deliver user-scoped configuration profiles:
 #### macOS
 
 1. If you use iMazing Profile Creator, open your configuration profile in iMazing, select the **General** tab and update the **Payoad Scope** to **User**.
+
 2. If you edit your configuration profiles in a text editor, open the configuraiton profile in your text editor, find or add the `PayloadScope` key, and set the value to `User`. Here's an example `.mobileconfig` snippet:
 
 ```
@@ -62,9 +107,25 @@ How to deliver user-scoped configuration profiles:
 </plist>
 ```
 
+Here's an example DDM (`com.apple.configuration.*`) snippet:
+```json
+{
+    "Type": "com.apple.configuration.passcode.settings",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "ServerToken": "E180CA9A-F089-4FA3-BBDF-94CC159C4AE8",
+    "Payload": {
+        "RequirePasscode": true,
+        "RequireComplexPasscode": true,
+        "MinimumLength": 10,
+        "MaximumInactivityInMinutes": 1
+    }
+}
+```
+
 #### Windows
 
 1. Head to the [Windows configuration profiles (CSPs) documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider) to verify that all the settings in your Windows profile support the user scope. For example, the [SCEP setting](https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescep) supports both the device and user scope.
+
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
 #### Upgrading from below 4.71.0
@@ -72,11 +133,13 @@ How to deliver user-scoped configuration profiles:
 Fleet added support for user-scoped macOS configuration profiles in Fleet 4.71.0. If you're upgrading Fleet from a version below 4.71.0, here's how to prepare your already enrolled hosts for macOS user-scoped configuration profiles:
 
 1. If the host automatically enrolled to Fleet (via ADE), you don't need to take action. Fleet added support for the user-scoped configuration profiles on these hosts.
+
 2. To deliver user-scoped profiles to hosts that manually enrolled and turned on MDM, first turn off MDM and ask end user to [turn on MDM](https://fleetdm.com/guides/mdm-migration#migrate-hosts:~:text=If%20the%20host%20is%20not%20assigned%20to%20Fleet%20in%20ABM%20(manual%20enrollment)%2C%20the%20end%20user%20will%20be%20given%20the%20option%20to%20download%20the%20MDM%20enrollment%20profile%20on%20their%20My%20device%20page.) through the **My device** page.
 
 Edit user-scoped configuration profiles that are already installed on hosts:
 
 1. Check for profiles with `PayloadScope` set to `User`. Already deployed profiles with `PayloadScope` set to `User` won’t be re-installed on hosts automatically.
+
 2. To change them to the user-scope, update the `PayloadIdentifier`, re-add the profile to Fleet, and delete the old profile. This will uninstall the device-scope profile and install the profile in the user scope. If you're using [GitOps](https://fleetdm.com/docs/configuration/yaml-files), just update the `PayloadIdentifier` and run GitOps.
 
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
@@ -89,7 +152,9 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 To see the status of a specific setting, hover over the setting's row in the **Configuration profiles** table and select the information (**i**) icon.
 
-Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
+When editing a profile via Fleet's GitOps workflow, the profile's status will begin updating to "Pending" within 30 seconds. In larger installations, it may take a few minutes for the status to apply to all hosts.
+
+Editing a profile's labels sets the status to "Pending" for newly targeted hosts.
 
 ### Verified
 

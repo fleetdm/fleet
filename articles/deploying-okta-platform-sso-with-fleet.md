@@ -62,7 +62,7 @@ The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic cha
 
 #### Step 2: Add Okta as a CA in Fleet
 
-In Fleet, go to **Settings** → **Integrations** → **Certificate authorities** and click **Add CA**. Select **Okta CA or Microsoft Device Enrollment service (NDES)** and enter the values from step 7:
+In Fleet, go to **Settings** → **Integrations** → **Certificate enrollment** and click **Add CA**. Select **Okta CA or Microsoft Device Enrollment service (NDES)** and enter the values from step 7:
 
 - **SCEP URL:** The SCEP URL from Okta
 - **Admin URL:** The Challenge URL from Okta

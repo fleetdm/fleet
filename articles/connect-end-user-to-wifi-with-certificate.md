@@ -35,7 +35,7 @@ We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates
   
 ### Step 2: Connect Fleet to Okta's CA
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown. Okta uses NDES under the hood.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your Okta CA should appear in the list in Fleet.
@@ -77,7 +77,7 @@ The following steps show how to deploy DigiCert certificates.
 
 ### Step 3: Connect Fleet to DigiCert
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **DigiCert** in the dropdown.
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to log in to your DigiCert One.
@@ -211,7 +211,7 @@ Set-Date -Date "2026-03-16 12:00:00"
 
 ### Step 2: Connect Fleet to NDES
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Okta CA or Microsoft NDES** in the dropdown.
 3. Enter your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
 4. Select **Add CA**. Your NDES certificate authority (CA) should appear in the list in Fleet.
@@ -428,6 +428,8 @@ To create a **user-scope** profile, replace `./Device/` with `./User/` in all `<
 
 The following steps show how to deploy [Smallstep](https://smallstep.com/) certificates.
 
+> Smallstep is currently supported on macOS, iOS, and iPadOS hosts only. It is not currently supported for Windows hosts. See [fleetdm/fleet#48925](https://github.com/fleetdm/fleet/issues/48925).
+
 ### Step 1: Configure Smallstep with Fleet information
 
 Currently, using the Smallstep-Jamf connector is the best practice. Fleet is testing the new Smallstep-Fleet connector.
@@ -446,7 +448,7 @@ Currently, using the Smallstep-Jamf connector is the best practice. Fleet is tes
 
 ### Step 2: Configure Fleet with Smallstep information
 
-1. In Fleet, go to **Settings > Integrations > Certificates** and click **Add CA**. 
+1. In Fleet, go to **Settings > Integrations > Certificate enrollment** and click **Add CA**. 
 
 2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
 
@@ -547,7 +549,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 ### Step 2: Connect Fleet to Hydrant
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your Hydrant EST **URL**.
@@ -630,7 +632,7 @@ The following steps show how to deploy certificates from any certificate authori
 
 ### Step 1: Connect Fleet to a SCEP CA
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select the **Add CA** button and select **Custom Simple Certificate Enrollment Protocol (SCEP)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (for example, "WIFI_AUTHENTICATION"). This name will be used later as a variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
@@ -889,7 +891,7 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 ### Step 2: Connect Fleet to the EST server
 
-1. In Fleet, head to **Settings > Integrations > Certificates**.
+1. In Fleet, head to **Settings > Integrations > Certificate enrollment**.
 2. Select **Add CA** and then choose **Custom Enrollment over Secure Transport (EST)** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
 4. Add your EST **URL**.
@@ -1038,7 +1040,7 @@ fetch_cert -ca <EST-CA-ID> -fleeturl "<Fleet-server-URL>" -csr CustomerUserNetwo
 * On **Windows**, SCEP challenge strings should NOT include `base64` encoding or special characters such as `! @ # $ % ^ & * _`, and Common Names (CN) should NOT include `+` characters.
 * The Windows SCEP client adds ⁠/pkiclient.exe to the SCEP server URL. When using Fleet's SCEP proxy to deploy certificates, Fleet removes it, allowing you to use non-NDES SCEP servers.
 * On **Windows** hosts, Fleet supports one proxied certificate per configuration profile. To deploy multiple certificates to a host, use a separate configuration profile for each certificate.
-* On **Windows** hosts, Fleet will not verify the SCEP profile via osquery. Fleet will mark it as verified, if a successful request went through, even if the certificate is not present.
+* On **Windows** hosts, Fleet verifies proxied SCEP certificates (Custom SCEP proxy and NDES) by observing the issued certificate on the host via osquery, and marks the profile **Failed** if the certificate never appears or if the upstream CA returns an error. This requires osquery 5.23.1 or later on the host. See [Verifying Windows SCEP certificates](#verifying-windows-scep-certificates).
 * On **Windows** hosts, Fleet will not remove deployed certificates when configuration profiles are removed from Fleet or when host is transfered to another fleet.
 
 ### Troubleshooting NDES on Windows
@@ -1074,6 +1076,22 @@ SCEP proxy:
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the SCEP server remains in the SCEP profile.
 
+
+### Verifying Windows SCEP certificates
+
+When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP proxy or Microsoft NDES), it confirms that the certificate was actually issued before reporting the profile as **Verified**. Each host's profile moves through the following statuses, visible on **Host details > OS settings**:
+
+- **Pending**: the profile is queued for delivery to the host.
+- **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
+- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU.
+- **Failed**: either Fleet's SCEP proxy observed an error from the upstream CA during certificate issuance (for example, `SCEP PKIOperation failed: HTTP 500`), or the certificate was not observed on the host within one hour of delivery (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
+
+To verify Windows SCEP certificates, Fleet requires:
+
+- Fleet's agent (fleetd) with **osquery 5.23.1 or later** on the host, so Fleet can read the host's installed certificates.
+- The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
+
+For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
 
 ### How to get the CAThumbprint for Windows SCEP profiles
 

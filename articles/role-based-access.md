@@ -124,6 +124,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add Microsoft Entra tenant                                                                                                                 |          |            |            |            | ✅    |         |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                                  | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom variables                                                                                                  |          |            |            | ✅         | ✅    | ✅      |
+| View custom host vitals                                                                                                                    | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
+| Create, edit, and delete custom host vitals                                                                                                |          |            |            | ✅         | ✅    | ✅      |
+| Set custom host vital values on hosts                                                                                                      |          |            |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -201,6 +204,8 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
 | View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
+| View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         | ✅         |
+| Set custom host vital values on hosts                                                                                            |               |                |                 | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
