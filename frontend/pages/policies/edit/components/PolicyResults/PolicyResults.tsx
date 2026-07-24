@@ -113,7 +113,7 @@ const PolicyResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="inverse"
+          variant="secondary"
         >
           <>
             Show query <Icon name="eye" />
@@ -124,7 +124,7 @@ const PolicyResults = ({
           onClick={
             tableType === "errors" ? onExportErrorsResults : onExportResults
           }
-          variant="inverse"
+          variant="secondary"
         >
           <>
             Export {tableType}

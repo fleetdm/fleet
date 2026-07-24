@@ -19,7 +19,7 @@ import {
   MDM_ENROLLMENT_STATUS_UI_MAP,
 } from "interfaces/mdm";
 import hostAPI, {
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   DepDeviceError,
   IDepAssignmentHostResponse,
 } from "services/entities/hosts";
@@ -53,7 +53,7 @@ interface IMDMStatusModal {
 type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
 
 type DepAssignProfileResponseErrors = Exclude<
-  DepAssignProfileResponse,
+  DEPDeviceStatus,
   "SUCCESS" | undefined
 >;
 
@@ -350,12 +350,13 @@ const MDMStatusModal = ({
     if (!depDevice) {
       // host_dep_assignment is expected to be present whenever this section
       // renders (see the parent's gating condition below) -- the case above
-      // already covers host_dep_assignment set with no dep_device.
+      // already covers host_dep_assignment set with no dep_device (including
+      // the NOT_ACCESSIBLE/NOT_FOUND case, via dep_error).
       return null;
     }
 
     const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
-      Exclude<DepAssignProfileResponse, "SUCCESS" | undefined>,
+      Exclude<DEPDeviceStatus, "SUCCESS" | undefined>,
       { label: JSX.Element | string; tooltip: JSX.Element | string }
     > = {
       THROTTLED: {

@@ -1528,6 +1528,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+		return false, nil
+	}
 
 	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 		return []string{"foobar"}, nil
@@ -2377,6 +2380,9 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
+		}
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return false, nil
 		}
 
 		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {

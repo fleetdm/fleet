@@ -1054,13 +1054,17 @@ func NewDEPClient(storage godep.ClientStorage, updater fleet.ABMTermsUpdater, lo
 		}
 
 		// if the request failed due to the token being rejected or its
-		// signature being invalid, or if it succeeded, update the ABM token's
-		// token_invalid flag accordingly. If it failed for any other reason, do
-		// not update the flag. This must happen before the terms-expired
-		// handling below, as that block can return early from this after-hook
-		// once its own bookkeeping is done.
+		// signature being invalid, flag the ABM token's token_invalid. If it
+		// succeeded, or failed with a different *definitive* signal that the
+		// token itself was accepted (e.g. terms not signed -- Apple only
+		// evaluates terms after authenticating the token), clear the flag.
+		// Any other failure (e.g. a transient network or server error) is
+		// inconclusive and leaves the flag untouched. This must happen before
+		// the terms-expired handling below, as that block can return early
+		// from this after-hook once its own bookkeeping is done.
 		tokenInvalid := reqErr != nil && (godep.IsTokenRejected(reqErr) || godep.IsSignatureInvalid(reqErr))
-		if reqErr == nil || tokenInvalid {
+		tokenAccepted := reqErr == nil || godep.IsTermsNotSigned(reqErr)
+		if tokenAccepted || tokenInvalid {
 			if _, err := updater.SetABMTokenInvalidForOrgName(ctx, orgName, tokenInvalid); err != nil {
 				logger.ErrorContext(ctx, "Apple DEP client: failed to update token invalid status of ABM token", "err", err)
 			}

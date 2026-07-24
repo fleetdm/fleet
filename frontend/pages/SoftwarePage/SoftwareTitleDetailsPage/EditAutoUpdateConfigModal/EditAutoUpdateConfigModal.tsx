@@ -295,7 +295,7 @@ const EditAutoUpdateConfigModal = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button onClick={onExit} variant="inverse">
+            <Button onClick={onExit} variant="secondary">
               Cancel
             </Button>
             <GitOpsModeTooltipWrapper

@@ -1,9 +1,10 @@
-// All other styling in customStyles part of react-select-5
-.actions-dropdown-select__control {
-  &:focus-visible {
-    background-color: $ui-fleet-black-75;
-  }
-}
+// All other styling in customStyles part of react-select-5.
+//
+// The keyboard-focus ring specifically lives there too, not here — a plain
+// CSS `:focus-visible` (even via `:has(input:focus-visible)`) fires on a
+// mouse click as well as Tab, because browsers always treat a focused text
+// input as focus-visible. customStyles tracks the last input method itself
+// (see isKeyboardFocus in ActionsDropdown.tsx) to tell them apart.
 
 .actions-dropdown__wrapper {
   display: flex;

@@ -122,7 +122,7 @@ const generateSelectedTableHeaders = (
     id: "delete",
     Header: "",
     Cell: (cellProps: { row: Row<IApiEndpointRow> }) => (
-      <Button onClick={() => handleRemove(cellProps.row)} variant="icon">
+      <Button onClick={() => handleRemove(cellProps.row)} variant="subdued">
         <Icon name="close-filled" />
       </Button>
     ),

@@ -105,7 +105,7 @@ const generateTableHeaders = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },

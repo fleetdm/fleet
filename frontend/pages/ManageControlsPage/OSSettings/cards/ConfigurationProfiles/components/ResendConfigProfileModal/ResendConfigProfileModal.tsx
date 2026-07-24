@@ -63,7 +63,7 @@ const ResendConfigProfileModal = ({
         >
           Resend
         </Button>
-        <Button variant="inverse" onClick={onExit} disabled={isResending}>
+        <Button variant="secondary" onClick={onExit} disabled={isResending}>
           Cancel
         </Button>
       </div>

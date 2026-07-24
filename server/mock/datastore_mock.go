@@ -186,7 +186,7 @@ type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet
 
 type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFilter) error
 
@@ -1460,6 +1460,8 @@ type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
+type ReconcileWindowsProfilesStatusFunc func(ctx context.Context) error
+
 type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
 
 type ListWindowsProfilesForReconcileByTeamFunc func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error)
@@ -1814,7 +1816,7 @@ type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*flee
 
 type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
 
-type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) (changed bool, err error)
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -4399,6 +4401,9 @@ type DataStore struct {
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
+	ReconcileWindowsProfilesStatusFunc        ReconcileWindowsProfilesStatusFunc
+	ReconcileWindowsProfilesStatusFuncInvoked bool
+
 	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
 	GetWindowsMDMHostForReconcileFuncInvoked bool
 
@@ -6145,11 +6150,11 @@ func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLabelFunc(ctx, label, teamFilter)
+	return s.SaveLabelFunc(ctx, label, hostIDs, teamFilter)
 }
 
 func (s *DataStore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
@@ -10604,6 +10609,13 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
+func (s *DataStore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsProfilesStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsProfilesStatusFunc(ctx)
+}
+
 func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
 	s.mu.Lock()
 	s.GetWindowsMDMHostForReconcileFuncInvoked = true
@@ -11843,7 +11855,7 @@ func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID u
 	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
 }
 
-func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (changed bool, err error) {
 	s.mu.Lock()
 	s.SetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()

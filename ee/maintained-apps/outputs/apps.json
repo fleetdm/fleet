@@ -366,6 +366,13 @@
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
+      "name": "Airtable",
+      "slug": "airtable/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
@@ -1267,6 +1274,20 @@
       "platform": "windows",
       "unique_identifier": "Box",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Box.Box-Edit",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Tools",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
     },
     {
       "name": "Brave",
@@ -6453,7 +6474,14 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "PopChar X",

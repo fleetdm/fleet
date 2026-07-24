@@ -7,9 +7,7 @@ software/os/:id > Top section
 import React from "react";
 import classnames from "classnames";
 
-import { SingleValue } from "react-select-5";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import { TooltipContent } from "interfaces/dropdownOption";
+import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
 
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import { getGitOpsModeTipContent } from "utilities/helpers";
@@ -26,7 +24,7 @@ import useGitOpsMode from "hooks/useGitOpsMode";
 import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import Button from "components/buttons/Button";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -73,7 +71,7 @@ export const buildActionOptions = ({
   canManageVersions,
   canConfigureAutoUpdate,
   hasExistingPatchPolicy = false,
-}: BuildActionOptionsArgs): CustomOptionType[] => {
+}: BuildActionOptionsArgs): IDropdownOption[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
   let disabledPatchPolicyTooltipContent: TooltipContent | undefined;
@@ -99,11 +97,11 @@ export const buildActionOptions = ({
     disabledPatchPolicyTooltipContent = "Patch policy is already added.";
   }
 
-  const options: CustomOptionType[] = [
+  const options: IDropdownOption[] = [
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      isDisabled: gitOpsModeEnabled,
+      disabled: gitOpsModeEnabled,
       tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
@@ -113,7 +111,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      isDisabled: !!gitOpsModeEnabled && isAppleVpp,
+      disabled: !!gitOpsModeEnabled && isAppleVpp,
       tooltipContent: disableEditSoftwareTooltipContent,
     });
   }
@@ -123,7 +121,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      isDisabled: gitOpsModeEnabled,
+      disabled: gitOpsModeEnabled,
       tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
@@ -133,7 +131,7 @@ export const buildActionOptions = ({
     options.push({
       label: "Patch",
       value: ACTION_PATCH,
-      isDisabled: !!disabledPatchPolicyTooltipContent,
+      disabled: !!disabledPatchPolicyTooltipContent,
       tooltipContent: disabledPatchPolicyTooltipContent,
     });
   }
@@ -240,8 +238,8 @@ const SoftwareDetailsSummary = ({
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
-  const onSelectSoftwareAction = (option: SingleValue<CustomOptionType>) => {
-    switch (option?.value) {
+  const onSelectSoftwareAction = (value: string) => {
+    switch (value) {
       case ACTION_EDIT_APPEARANCE:
         onClickEditAppearance && onClickEditAppearance();
         break;
@@ -346,7 +344,7 @@ const SoftwareDetailsSummary = ({
                   position="top"
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="inverse"
+                      variant="subdued"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
                     >
@@ -356,14 +354,13 @@ const SoftwareDetailsSummary = ({
                   )}
                 />
               ) : (
-                <DropdownWrapper
+                <ActionsDropdown
                   className={`${baseClass}__actions-dropdown`}
-                  name="software-actions"
                   onChange={onSelectSoftwareAction}
                   placeholder="Actions"
                   options={actionOptions}
-                  variant="button"
-                  nowrapMenu
+                  variant="secondary"
+                  menuAlign="right"
                 />
               )}
             </div>

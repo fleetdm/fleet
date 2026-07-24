@@ -28,13 +28,26 @@ func TestIsTokenRejected(t *testing.T) {
 			false,
 		},
 		{
-			"AuthError with matching status and body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			"AuthError from do() with matching status (401) and body",
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"token_rejected"`)},
 			true,
 		},
 		{
 			"AuthError with matching status but different body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"signature_invalid"`)},
+			false,
+		},
+		{
+			// DoAuth's /session handshake (client/auth.go) constructs
+			// AuthError with whatever status Apple actually returns, often
+			// 403, unlike do() which always uses 401.
+			"AuthError from DoAuth's /session handshake with matching status (403) and body",
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			true,
+		},
+		{
+			"AuthError with matching body but a status neither do() nor DoAuth would use for this error",
+			&depclient.AuthError{StatusCode: http.StatusInternalServerError, Body: []byte(`"token_rejected"`)},
 			false,
 		},
 	}
@@ -64,13 +77,26 @@ func TestIsSignatureInvalid(t *testing.T) {
 			false,
 		},
 		{
-			"AuthError with matching status and body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			"AuthError from do() with matching status (401) and body",
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"signature_invalid"`)},
 			true,
 		},
 		{
 			"AuthError with matching status but different body",
-			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"token_rejected"`)},
+			&depclient.AuthError{StatusCode: http.StatusUnauthorized, Body: []byte(`"token_rejected"`)},
+			false,
+		},
+		{
+			// DoAuth's /session handshake (client/auth.go) constructs
+			// AuthError with whatever status Apple actually returns, often
+			// 403, unlike do() which always uses 401.
+			"AuthError from DoAuth's /session handshake with matching status (403) and body",
+			&depclient.AuthError{StatusCode: http.StatusForbidden, Body: []byte(`"signature_invalid"`)},
+			true,
+		},
+		{
+			"AuthError with matching body but a status neither do() nor DoAuth would use for this error",
+			&depclient.AuthError{StatusCode: http.StatusInternalServerError, Body: []byte(`"signature_invalid"`)},
 			false,
 		},
 	}

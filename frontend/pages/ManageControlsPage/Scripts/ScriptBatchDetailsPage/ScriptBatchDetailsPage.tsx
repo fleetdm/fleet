@@ -281,7 +281,7 @@ const ScriptBatchDetailsPage = ({
                 {
                   type: "secondary",
                   label: "Show script",
-                  buttonVariant: "inverse",
+                  buttonVariant: "secondary",
                   iconName: "eye",
                   onClick: () => {
                     setShowBatchScriptDetails(true);

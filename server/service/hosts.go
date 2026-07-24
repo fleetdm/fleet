@@ -2609,11 +2609,19 @@ func (svc *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint
 	}
 
 	// Apple returns an entry for every requested serial even when it isn't
-	// assigned to this ABM token -- as a status-only entry (e.g.
-	// response_status: NOT_ACCESSIBLE) with the device fields empty -- so a
-	// non-empty ResponseStatus is the real "not found" signal, confirmed live
-	// against ABM for an unassigned serial.
-	if depDevice == nil || depDevice.ResponseStatus != "" {
+	// assigned to this ABM token -- as a status-only entry with no
+	// serial_number -- so an empty SerialNumber (not a nil depDevice) is the
+	// primary "not found" signal, confirmed live against ABM for an
+	// unassigned serial. As a safety net for a device Apple recognizes but
+	// won't detail (e.g. assigned to a different MDM server), also treat a
+	// non-success ResponseStatus as not found in case SerialNumber is
+	// populated in that case.
+	if depDevice == nil {
+		return depAssignment, nil, fleet.DEPDeviceErrorNotFound, nil
+	}
+	status := godep.DeviceStatus(depDevice.ResponseStatus)
+	if depDevice.SerialNumber == "" ||
+		status == godep.DeviceStatusNotAccessible || status == godep.DeviceStatusFailed {
 		return depAssignment, nil, fleet.DEPDeviceErrorNotFound, nil
 	}
 

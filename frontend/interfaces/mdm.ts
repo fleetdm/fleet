@@ -59,13 +59,16 @@ export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
 };
 
 /** These are the values the API will send back to the UI for mdm enrollment status */
-export type MdmEnrollmentStatus =
-  | "On (manual)"
-  | "On (automatic)"
-  | "On (manual - personal)"
-  | "On (company-owned)"
-  | "Off"
-  | "Pending";
+export const MDM_ENROLLMENT_STATUSES = [
+  "On (manual)",
+  "On (automatic)",
+  "On (manual - personal)",
+  "On (company-owned)",
+  "Off",
+  "Pending",
+] as const;
+
+export type MdmEnrollmentStatus = typeof MDM_ENROLLMENT_STATUSES[number];
 
 /** This is the filter value used for query string parameters */
 export type MdmEnrollmentFilterValue =

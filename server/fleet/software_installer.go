@@ -1282,11 +1282,16 @@ const MaxSoftwareInstallAttempts = 3
 const MaxPackagesPerTitle = 10
 
 func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName string) error {
-	var customCount, fmaCount int
+	var customCount int
 	seenHash := make(map[string]struct{}, len(payloads))
+	seenFMA := make(map[uint]struct{}, len(payloads))
+	var fmaNames []string
 	for _, p := range payloads {
 		if p.FleetMaintainedAppID != nil {
-			fmaCount++
+			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
+				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
+				fmaNames = append(fmaNames, p.Title)
+			}
 			continue
 		}
 		customCount++
@@ -1295,7 +1300,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	if fmaCount > 0 && customCount > 0 {
+	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
+	// inventory app, so only one can be added.
+	if len(fmaNames) > 1 {
+		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
+	}
+	if len(fmaNames) > 0 && customCount > 0 {
 		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
 	}
 	if customCount > MaxPackagesPerTitle {
