@@ -6,6 +6,8 @@ In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts witho
 
 Fleet maintains installation metadata for [a number of apps](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json), letting you add them to your own Fleet instance and install them on your hosts without any additional configuration.
 
+For Windows apps that support both machine and user scope, Fleet provides the machine-scoped app. This way, end users with standard (non-admin) access can't uninstall required apps.
+
 ## Important notes on CPU architecture
 
 ### macOS
