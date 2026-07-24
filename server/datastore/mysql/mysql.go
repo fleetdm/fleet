@@ -98,8 +98,8 @@ type Datastore struct {
 	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
 	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
 	// preventing lock convoys on the unique index when many hosts report the same software catalog.
-	// The cache evicts older entries in bulk once it reaches a fixed size cap to avoid unbounded
-	// growth on long-lived servers without forcing a full cold start.
+	// The cache evicts an arbitrary half of entries once it reaches a fixed size cap to avoid
+	// unbounded growth on long-lived servers without forcing a full cold start.
 	knownSoftwareTitleKeys map[string]struct{}
 	// knownSoftwareTitleKeysMu serializes cache writes and clears; reads use RLock.
 	knownSoftwareTitleKeysMu sync.RWMutex
