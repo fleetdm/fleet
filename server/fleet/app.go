@@ -266,6 +266,11 @@ type MDM struct {
 	// Windows automatic enrollment.
 	WindowsEntraClientIDs optjson.Slice[string] `json:"windows_entra_client_ids"`
 
+	// WindowsEnrollment configures behavior for new user-driven Windows MDM enrollments.
+	// Premium only. The DB row backing it (windows_enrollment_config) is the source of truth;
+	// this field carries the setting through the config API and GitOps by fleet name.
+	WindowsEnrollment optjson.Any[WindowsEnrollment] `json:"windows_enrollment"`
+
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
 	// the support, but it is still called "EnabledAndConfigured" for consistency
@@ -2118,6 +2123,14 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+}
+
+// WindowsEnrollment is the mdm.windows_enrollment section of the app config: settings for new
+// user-driven Windows MDM enrollments.
+type WindowsEnrollment struct {
+	// DefaultFleet is the name of the fleet (team) that new user-driven Windows MDM enrollments
+	// are assigned to. Empty means no default: new hosts stay in "No team".
+	DefaultFleet string `json:"default_fleet"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {

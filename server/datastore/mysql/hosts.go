@@ -6662,6 +6662,7 @@ const hostLiteColumns = `
 	h.hardware_serial,
 	h.distributed_interval,
 	h.config_tls_refresh,
+	h.created_at,
 	COALESCE(hst.seen_time, h.created_at) AS seen_time`
 
 func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *string) (*fleet.HostLite, error) {

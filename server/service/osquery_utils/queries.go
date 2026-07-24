@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -3158,6 +3159,13 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		return updated, nil
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
+	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
+	// Best-effort: the link is already established and will not re-run, so a failed assignment is
+	// logged and reported but must not fail the caller (the enrollment/link itself succeeded).
+	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
+		logger.ErrorContext(ctx, "failed to assign windows enrollment default fleet", "err", err, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+	}
 	// Update the host's MDM enrolled flags to show it as a manual enrollment so it doesn't take two full refreshes to
 	// reflect this state.
 	if device.MDMNotInOOBE {
@@ -3193,6 +3201,53 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 		}
 	}
 	return updated, nil
+}
+
+// windowsEnrollmentNewHostGrace is how much earlier than its Windows MDM enrollment row a host row
+// may have been created and still count as "new in this enrollment cycle" for default fleet
+// assignment. It covers fleetd being installed moments before the user completes an Entra
+// enrollment, plus sub-second insert ordering. Hosts older than this kept their fleet on purpose.
+const windowsEnrollmentNewHostGrace = 5 * time.Minute
+
+// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment
+// default fleet iff all of: the linked enrollment is user-driven (LinkWindowsHostMDMEnrollment
+// verifies the UPN before calling), a default fleet is configured, the host has no fleet, and the
+// host record was created in this enrollment cycle (at or after the enrollment row, minus the
+// grace window). Pre-existing hosts are never moved, including hosts deliberately parked in "No
+// team", matching macOS ABM re-enrollment behavior. The transfer runs the same profile side
+// effects as a manual transfer; no transferred_hosts activity is logged, mirroring ABM ingest.
+func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	if teamID == nil {
+		return nil
+	}
+	// Require the primary: the hosts row may have been inserted seconds ago by orbit enroll, and
+	// this path runs only once per link, so a replica-lag NotFound would lose the assignment.
+	host, err := ds.HostLiteByID(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
+	}
+	if host.TeamID != nil {
+		return nil
+	}
+	if host.CreatedAt.Before(device.CreatedAt.Add(-windowsEnrollmentNewHostGrace)) {
+		// The host existed before this MDM enrollment: keep its fleet ("No team" included).
+		return nil
+	}
+	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
+		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
+	}
+	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately;
+	// without it the host keeps No team's profile set until something else triggers a recalc.
+	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
+	}
+	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
+		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
+	return nil
 }
 
 var luksVerifyQuery = DetailQuery{

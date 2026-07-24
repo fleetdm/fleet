@@ -30,6 +30,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"golang.org/x/text/unicode/norm"
 )
@@ -281,6 +282,26 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	// consumes the result of AppConfigObfuscated — they all re-fetch via
 	// svc.ds.AppConfig directly.
 	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
+
+	// The Windows enrollment default fleet's source of truth is the windows_enrollment_config row
+	// (it survives team renames and deletions via its FK), so hydrate the response from it when it
+	// disagrees with the name stored in the app config JSON (team renamed or deleted since the
+	// last write). Otherwise leave the field's stored shape untouched so configs round-trip
+	// unchanged.
+	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
+	}
+	winStoredName := ""
+	if ac.MDM.WindowsEnrollment.Set && ac.MDM.WindowsEnrollment.Valid {
+		winStoredName = ac.MDM.WindowsEnrollment.Value.DefaultFleet
+	}
+	if winDefaultTeamID != nil || winStoredName != winDefaultFleetName {
+		ac.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsEnrollment{DefaultFleet: winDefaultFleetName},
+		}
+	}
 
 	ac.Obfuscate()
 
@@ -1006,8 +1027,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	windowsEnrollmentDefined, windowsEnrollmentTeamID, windowsEnrollmentFleetName, err := svc.validateWindowsEnrollment(ctx, &newAppConfig.MDM, invalid, lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating windows enrollment default fleet")
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	// Normalize the stored JSON to the canonical fleet name when one was resolved. Clears keep the
+	// payload's own shape (empty string or null), consistent with the rest of the optjson pipeline.
+	// The DB row written after save (windows_enrollment_config) is the source of truth; reads
+	// hydrate from it.
+	if windowsEnrollmentDefined && windowsEnrollmentFleetName != "" {
+		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
+			Set: true, Valid: true,
+			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
+		}
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -1280,6 +1317,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		act := fleet.ActivityTypeDeletedMicrosoftEntraClientID{ClientID: clientID}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Microsoft Entra client ID")
+		}
+	}
+
+	// Persist the Windows enrollment default fleet to its config row and log the change. Only when
+	// the payload provided the section (omitted key is a no-op) and the value actually changed.
+	if windowsEnrollmentDefined {
+		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get current windows enrollment default fleet")
+		}
+		if !ptr.Equal(oldWindowsEnrollmentTeamID, windowsEnrollmentTeamID) {
+			if err := svc.ds.SetWindowsEnrollmentDefaultTeam(ctx, windowsEnrollmentTeamID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving windows enrollment default fleet")
+			}
+			var fleetName *string
+			if windowsEnrollmentTeamID != nil {
+				fleetName = &windowsEnrollmentFleetName
+			}
+			act := fleet.ActivityTypeEditedWindowsEnrollmentDefaultFleet{
+				FleetID:   windowsEnrollmentTeamID,
+				FleetName: fleetName,
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited windows enrollment default fleet")
+			}
 		}
 	}
 
@@ -2187,6 +2249,52 @@ func (svc *Service) validateMDM(
 	}
 
 	return nil
+}
+
+// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload
+// and resolves its default fleet name to a team id. Returns defined=false when the section was
+// omitted (no-op). When defined, teamID is the resolved team id (nil to clear) and fleetName is the
+// canonical team name (empty when clearing). Validation failures are accumulated on invalid.
+func (svc *Service) validateWindowsEnrollment(
+	ctx context.Context,
+	newMDM *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	lic *fleet.LicenseInfo,
+) (defined bool, teamID *uint, fleetName string, err error) {
+	if !newMDM.WindowsEnrollment.Set {
+		return false, nil, "", nil
+	}
+
+	name := newMDM.WindowsEnrollment.Value.DefaultFleet
+	if name == "" {
+		// Explicitly clearing the default; allowed on any tier.
+		return true, nil, "", nil
+	}
+
+	if lic == nil || !lic.IsPremium() {
+		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported
+		// config after a license downgrade); only reject attempts to change it. Mirrors the
+		// apple_bm_default_team behavior, and keeps a lapsed license from failing every apply.
+		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+		if dsErr != nil {
+			return true, nil, "", ctxerr.Wrap(ctx, dsErr, "get current windows enrollment default fleet")
+		}
+		if name == curName {
+			return true, curTeamID, curName, nil
+		}
+		invalid.Append("mdm.windows_enrollment.default_fleet", ErrMissingLicense.Error())
+		return true, nil, "", nil
+	}
+
+	tm, err := svc.ds.TeamByName(ctx, name)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			invalid.Append("mdm.windows_enrollment.default_fleet", fmt.Sprintf("fleet %q doesn't exist", name))
+			return true, nil, "", nil
+		}
+		return true, nil, "", ctxerr.Wrap(ctx, err, "get team by name for windows enrollment default fleet")
+	}
+	return true, &tm.ID, tm.Name, nil
 }
 
 func (svc *Service) validateABMAssignments(

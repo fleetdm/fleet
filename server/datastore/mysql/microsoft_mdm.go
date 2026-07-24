@@ -78,6 +78,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context
 		poll_schedule_relaxed,
 		fleetd_sync_capable,
 		has_pending_commands,
+		hardware_serial,
 		created_at,
 		updated_at,
 		host_uuid
@@ -152,6 +153,7 @@ func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context
 		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
+		hardware_serial,
 		created_at,
 		updated_at,
 		host_uuid
@@ -194,6 +196,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx conte
 		awaiting_configuration_at,
 		credentials_hash,
 		credentials_acknowledged,
+		hardware_serial,
 		created_at,
 		updated_at,
 		host_uuid
@@ -234,6 +237,97 @@ func (ds *Datastore) WindowsHostLiteByHardwareSerial(ctx context.Context, hardwa
 		return nil, ctxerr.Wrap(ctx, notFound("Host").WithMessage(hardwareSerial))
 	}
 	return hosts[0], nil
+}
+
+// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on the most
+// recent still-unlinked (host_uuid = '') enrollment row for the device. Written when the DevDetail linking path gets a
+// serial but no matching hosts row exists yet, so the orbit enrollment path can reverse-link by serial later.
+func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET hardware_serial = ?
+		 WHERE mdm_device_id = ? AND (host_uuid IS NULL OR host_uuid = '')
+		 ORDER BY created_at DESC, id DESC LIMIT 1`,
+		hardwareSerial, mdmDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "save unlinked windows enrollment hardware serial")
+	}
+	return nil
+}
+
+// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = '') Windows MDM
+// enrollment whose device-reported SMBIOS serial matches. The read honors ctxdb.RequirePrimary: the orbit enrollment
+// path calls this right after the enrollment row was updated with the serial, so a replica read could miss it.
+func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	if hardwareSerial == "" {
+		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty hardware serial"))
+	}
+	stmt := `SELECT
+		id,
+		mdm_device_id,
+		mdm_hardware_id,
+		device_state,
+		device_type,
+		device_name,
+		enroll_type,
+		enroll_user_id,
+		enroll_proto_version,
+		enroll_client_version,
+		not_in_oobe,
+		awaiting_configuration,
+		awaiting_configuration_at,
+		credentials_hash,
+		credentials_acknowledged,
+		hardware_serial,
+		created_at,
+		updated_at,
+		host_uuid
+		FROM mdm_windows_enrollments
+		WHERE hardware_serial = ? AND (host_uuid IS NULL OR host_uuid = '')
+		ORDER BY created_at DESC, id DESC LIMIT 1`
+
+	var winMDMDevice fleet.MDMWindowsEnrolledDevice
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &winMDMDevice, stmt, hardwareSerial); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage(hardwareSerial))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial")
+	}
+	return &winMDMDevice, nil
+}
+
+// GetWindowsEnrollmentDefaultTeam returns the configured default team for new user-driven Windows MDM enrollments.
+// Returns (nil, "") when no default is configured (including when the referenced team was deleted, which nulls the
+// FK).
+func (ds *Datastore) GetWindowsEnrollmentDefaultTeam(ctx context.Context) (*uint, string, error) {
+	var row struct {
+		TeamID   *uint   `db:"team_id"`
+		TeamName *string `db:"team_name"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, `
+		SELECT wec.team_id, t.name AS team_name
+		FROM windows_enrollment_config wec
+		LEFT JOIN teams t ON t.id = wec.team_id
+		WHERE wec.id = 1`)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, "", nil
+		}
+		return nil, "", ctxerr.Wrap(ctx, err, "get windows enrollment default team")
+	}
+	if row.TeamID == nil || row.TeamName == nil {
+		return nil, "", nil
+	}
+	return row.TeamID, *row.TeamName, nil
+}
+
+// SetWindowsEnrollmentDefaultTeam sets (or clears, with nil) the default team for new user-driven Windows MDM
+// enrollments.
+func (ds *Datastore) SetWindowsEnrollmentDefaultTeam(ctx context.Context, teamID *uint) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO windows_enrollment_config (id, team_id) VALUES (1, ?)
+		ON DUPLICATE KEY UPDATE team_id = VALUES(team_id)`, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows enrollment default team")
+	}
+	return nil
 }
 
 // HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software

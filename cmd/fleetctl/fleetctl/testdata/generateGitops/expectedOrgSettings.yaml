@@ -101,6 +101,8 @@ mdm:
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
         - "\U0001F4F1\U0001F510 Personal mobile devices"
+  windows_enrollment:
+    default_fleet: "\U0001F4BB Workstations"
 org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url_dark_mode: http://some-org-logo-url.com
