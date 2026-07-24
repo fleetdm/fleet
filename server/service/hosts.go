@@ -3247,11 +3247,20 @@ func (svc *Service) OSVersions(
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, count, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+		return nil, count, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities cannot be negative")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
+	}
+
+	if platform != nil {
+		switch *platform {
+		case "darwin", "windows", "linux", "chrome", "ios", "ipados", "android":
+			// valid platform
+		default:
+			return nil, count, nil, fleet.NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", "chrome", "ios", "ipados", or "android".`)
+		}
 	}
 
 	if name != nil && version == nil {
@@ -3441,7 +3450,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	// Input validation
 	if maxVulnerabilities != nil && *maxVulnerabilities < 0 {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities must be >= 0")
+		return nil, nil, fleet.NewInvalidArgumentError("max_vulnerabilities", "max_vulnerabilities cannot be negative")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -3474,12 +3483,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		},
 	)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			// We return an empty result here to be consistent with the fleet/os_versions behavior.
-			// It is possible the os version exists, but the aggregation job has not run yet.
-			return nil, nil, nil
-		}
-		return nil, nil, err
+		return nil, nil, ctxerr.Wrap(ctx, err, "get os version")
 	}
 
 	if osVersion != nil {
