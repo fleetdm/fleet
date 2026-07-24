@@ -710,6 +710,7 @@ func (a ActivityTypeViewedManagedLocalAccount) HostIDs() []uint {
 type ActivityTypeEnabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
@@ -719,6 +720,7 @@ func (a ActivityTypeEnabledManagedLocalAccount) ActivityName() string {
 type ActivityTypeDisabledManagedLocalAccount struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	Platform string  `json:"platform,omitempty"`
 }
 
 func (a ActivityTypeDisabledManagedLocalAccount) ActivityName() string {

@@ -301,7 +301,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", nil, nil); err != nil {
 				return err
 			}
 		}
@@ -326,15 +326,16 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
-func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+// logEnableManagedLocalAccountActivity logs the enabled/disabled managed local account activity for one platform's toggle ("darwin" or "windows").
+func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, enable bool, platform string, teamID *uint, teamName *string) error {
 	var act fleet.ActivityDetails
 	if enable {
-		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	} else {
-		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		return ctxerr.Wrap(ctx, err, "create activity for enable managed local account change")
 	}
 	return nil
 }

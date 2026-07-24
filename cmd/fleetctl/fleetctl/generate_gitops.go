@@ -500,6 +500,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
+			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
 		}
 
 		// Collect failing policy IDs from webhook settings so we can output
@@ -1368,11 +1369,22 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			windowsSettings := map[string]any{}
+			if profiles != nil {
+				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
+					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
+			}
+			// emit the managed local account toggle only when enabled
+			// Product guidance (2026/07/24): we generally do not output all settings, only what's configured
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
+					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
+				}
+			}
+			if len(windowsSettings) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {

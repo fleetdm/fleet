@@ -912,3 +912,31 @@ func TestMacOSSetupValidate(t *testing.T) {
 		}
 	})
 }
+
+// TestManagedLocalAccountSettingsMarshalDefaults verifies every marshal/save path defaults the
+// Windows managed local account toggle to enabled: false and preserves a set value.
+func TestManagedLocalAccountSettingsMarshalDefaults(t *testing.T) {
+	windowsSettings := func(b []byte) any {
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		return out["mdm"].(map[string]any)["windows_settings"].(map[string]any)["managed_local_account_settings"]
+	}
+	marshaled := func(v any) any {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return windowsSettings(b)
+	}
+
+	var ac AppConfig
+	require.Equal(t, map[string]any{"enabled": false}, marshaled(ac))
+	ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+	require.Equal(t, map[string]any{"enabled": true}, marshaled(ac))
+
+	team := Team{ID: 1, Name: "t1"}
+	require.Equal(t, map[string]any{"enabled": false}, marshaled(team))
+
+	// the DB save path (TeamConfig.Value) applies the same default
+	v, err := team.Config.Value()
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"enabled": false}, windowsSettings(v.([]byte)))
+}

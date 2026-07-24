@@ -103,6 +103,15 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+
+	// WindowsSettings exposes only the managed local account surface on the team PATCH endpoint;
+	// configuration profiles are managed through their own endpoints.
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH endpoint.
+type TeamPayloadWindowsSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
