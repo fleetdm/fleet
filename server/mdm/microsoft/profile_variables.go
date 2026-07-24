@@ -31,7 +31,7 @@ var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`
 
 // scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
 // challenge contains characters Windows can't encode as a PrintableString.
-const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The challenge for the "%s" certificate authority includes a character that Windows doesn't support. Windows certificate enrollment supports letters, numbers, spaces, and these characters: ' ( ) + , - . / : = ?`
+const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
 
 // MicrosoftProfileProcessingError is used to indicate errors during Microsoft profile processing, such as variable replacement failures.
 // It should not break the entire deployment flow, but rather be handled gracefully at the profile level, setting it to failed and detail = Error()
