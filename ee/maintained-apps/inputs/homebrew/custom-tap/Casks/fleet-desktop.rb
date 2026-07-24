@@ -8,8 +8,7 @@ cask "fleet-desktop" do
   homepage "https://github.com/fleetdm/fleet/tree/main/apps/fleet-desktop-macos"
 
   livecheck do
-    url :url
-    strategy :github_latest
+    skip "Manually versioned upon release"
   end
 
   depends_on macos: ">= :ventura"
