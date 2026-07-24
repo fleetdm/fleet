@@ -3787,7 +3787,60 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			return err
 		})
 	}
-	// TODO: Add tests for create/delete forbidden declaration types?
+	// A declaration whose type would now fail upload validation — e.g. it was
+	// accepted before its type was added to ForbiddenDeclTypes, or before a
+	// config flag was toggled — must still be deletable. Deletion does not
+	// re-run the upload-time validator; doing so would trap declarations the
+	// user already uploaded. Regression test for
+	// https://github.com/fleetdm/fleet/issues/47535.
+	{
+		forbiddenType := "com.apple.configuration.watch.enrollment"
+		require.Contains(t, fleet.ForbiddenDeclTypes, forbiddenType) // guard: type is genuinely forbidden on upload
+
+		// The delete-time validation this fix removed only ran under strict
+		// validation (AllowAllDeclarations == false), so this test only guards
+		// against its reintroduction when the suite runs strict. Assert that
+		// precondition explicitly so the test can't silently become a no-op if
+		// the suite default ever changes.
+		require.False(t, s.fleetCfg.MDM.AllowAllDeclarations)
+
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		rawJSON := fmt.Sprintf(`{"Type":%q,"Identifier":"com.fleet.forbidden-type","Payload":{}}`, forbiddenType)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
+				declUUID, "com.fleet.forbidden-type", "forbidden-type-decl", rawJSON, fleet.PayloadScopeSystem)
+			return err
+		})
+
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusOK, &deleteResp)
+	}
+
+	// A declaration that uses a Fleet-reserved name stays protected from deletion
+	// through this endpoint. The reserved-name check is the sole Fleet-managed
+	// gate on the delete path, so make sure removing the upload-time validation
+	// (above) didn't open a hole.
+	{
+		reservedName := servermdm.FleetMacOSUpdatesProfileName
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
+		rawJSON := `{"Type":"com.apple.configuration.softwareupdate.enforcement.specific","Identifier":"com.fleet.reserved","Payload":{}}`
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO mdm_apple_declarations (declaration_uuid, identifier, name, raw_json, scope, uploaded_at, team_id) VALUES (?, ?, ?, ?, ?, NOW(6), 0)",
+				declUUID, "com.fleet.reserved", reservedName, rawJSON, fleet.PayloadScopeSystem)
+			return err
+		})
+
+		var deleteResp deleteMDMConfigProfileResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", declUUID), nil, http.StatusBadRequest, &deleteResp)
+
+		// the API refused to delete it, so remove the seeded row directly
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", declUUID)
+			return err
+		})
+	}
 
 	// make fleet add a FileVault profile
 	acResp := appConfigResponse{}
