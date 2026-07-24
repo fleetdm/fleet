@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.8.8",
+      "version": "4.8.10",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app' AND version_compare(bundle_short_version, '4.8.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getcleanshot.app' AND version_compare(bundle_short_version, '4.8.10') < 0);"
       },
-      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-4.8.8.dmg",
+      "installer_url": "https://updates.getcleanshot.com/v3/CleanShot-X-4.8.10.dmg",
       "install_script_ref": "f84f89bc",
       "uninstall_script_ref": "acc4c41d",
-      "sha256": "dddd72482120856ba6a2984159aacab47ca221be18cb9467867a4f3ba1cdd8a0",
+      "sha256": "0f1b1cdda9a93908ced0341abb0d505adc55e51d145562013085b1e70f366d84",
       "default_categories": [
         "Productivity"
       ]

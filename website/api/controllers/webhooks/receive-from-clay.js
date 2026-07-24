@@ -37,6 +37,7 @@ module.exports = {
         'Website - Newsletter',
         'Website - Swag request',
         'Event',
+        'Event - 2026-07 PSU MacAdmins',
         'GitHub - Stared fleetdm/fleet',
         'GitHub - Forked fleetdm/fleet',
         'GitHub - Contributed to fleetdm/fleet',

@@ -247,7 +247,7 @@ export const PinnedToMajorVersion: Story = {
           pending={5}
           failed={3}
           hashSha256="af001543fcc5fbf484203b207d8af4fce44fc6975ca3db0eac49a49581af29b7"
-          downloadUrl="https://example.com/chrome-149.0.7827.54.pkg"
+          canDownload
         />
         <StoryRow
           filename="Google Chrome"
@@ -324,7 +324,7 @@ export const MacCustomPackageMultipleVersions: Story = {
           pending={3}
           failed={1}
           hashSha256="b9d3a9d6c1e9442f9c0bb56af4f37b87f0bcb6df7f8db5a30e1bdce20c40a8d3"
-          downloadUrl="https://example.com/acme-helper-2.4.0.pkg"
+          canDownload
         />
         <StoryRow
           filename="AcmeHelper.pkg"
@@ -369,7 +369,7 @@ export const WindowsCustomPackageMultipleVersions: Story = {
           pending={4}
           failed={2}
           hashSha256="2e8a4f3b9c1d5e7a8b6c2f0d1e3a5b7c9d2e4f6a8b0c1d3e5f7a9b1c3d5e7f9a"
-          downloadUrl="https://example.com/npp-8.6.9.msi"
+          canDownload
         />
         <StoryRow
           filename="NotepadPlusPlus.msi"
@@ -419,7 +419,7 @@ export const WindowsMixedCustomAndFma: Story = {
           pending={6}
           failed={2}
           hashSha256="9f2c4e6a8b0d1f3e5a7c9b1d3f5e7a9c1b3d5f7e9a1c3b5d7f9e1a3c5b7d9f1e"
-          downloadUrl="https://example.com/firefox-131.0.3.msi"
+          canDownload
         />
         <StoryRow
           filename="Mozilla Firefox"
@@ -478,7 +478,7 @@ export const MacOSMixedCustomAndFma: Story = {
           pending={4}
           failed={2}
           hashSha256="d4e7a1c3b5f9e1a3c5b7d9f1e3a5c7b9d1f3e5a7c9b1d3f5e7a9c1b3d5f7e9a1"
-          downloadUrl="https://example.com/slack-4.39.95.pkg"
+          canDownload
         />
         <StoryRow
           filename="Slack"
@@ -560,7 +560,7 @@ export const IOSInHouseIpaMultipleVersions: Story = {
           pending={2}
           failed={1}
           hashSha256="6b1d3a5c7e9f0b2d4a6c8e1f3b5d7a9c0e2f4b6d8a0c1e3f5b7d9a1c3e5f7b9d"
-          downloadUrl="https://example.com/acme-warehouse-5.2.1.ipa"
+          canDownload
         />
         <StoryRow
           filename="AcmeWarehouse.ipa"

@@ -140,6 +140,12 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{script.ScriptContents}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
 
 	// setup experience is only supported for macOS currently so we need to override the file
 	// extension check in the general script validation

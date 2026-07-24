@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.5.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DAX Studio %' AND publisher = 'DAX Studio' AND version_compare(version, '3.5.2') < 0);"
+      },
+      "installer_url": "https://github.com/DaxStudio/DaxStudio/releases/download/v3.5.2/DaxStudio_3_5_2_setup.exe",
+      "install_script_ref": "efa942ae",
+      "uninstall_script_ref": "23e6b8df",
+      "sha256": "19745500cea14beca2aebdd48e0f09f9903f2e46e3f57eac215f33b0c8c8bae7",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "23e6b8df": "# Locates DAX Studio's Inno Setup uninstaller from the registry and runs it\n# silently. DAX Studio embeds the version in its DisplayName (e.g.\n# \"DAX Studio 3.5.2.1205\"), so we match by prefix and require the publisher.\n# The ARP entry can land in HKLM or (when the Inno installer writes per-user\n# registry while placing files machine-wide) in the installing user's hive, so\n# we search HKLM, the WOW6432Node view, and HKCU.\n\n$softwareNameLike = \"DAX Studio*\"\n$publisherLike    = \"DAX Studio*\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n# 0 = success; 3010/1641 = success but reboot required.\n$ExpectedExitCodes = @(0, 3010, 1641)\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path $paths `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $null\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -and $key.DisplayName -like $softwareNameLike -and $key.Publisher -like $publisherLike) {\n        $selected = $key\n        break\n    }\n}\n\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# Best-effort: stop the app so the uninstaller doesn't fail on locked files.\nStop-Process -Name \"daxstudio\" -Force -ErrorAction SilentlyContinue\n\n$uninstallCommand = if ($selected.QuietUninstallString) {\n    $selected.QuietUninstallString\n} else {\n    $selected.UninstallString\n}\n\n# Parse uninstaller exe path (Inno quotes the path because it lives under\n# \"Program Files\").\n$exePath = \"\"\n$existingArgs = \"\"\nif ($uninstallCommand -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} elseif ($uninstallCommand -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exePath = $matches[1]\n    $existingArgs = $matches[2].Trim()\n} else {\n    Throw \"Could not parse uninstall string: $uninstallCommand\"\n}\n\n# Inno Setup uninstallers take /VERYSILENT for a silent uninstall.\nif ($existingArgs -notmatch '(?i)/VERYSILENT') {\n    $existingArgs = (\"$existingArgs /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\").Trim()\n}\n\nWrite-Host \"Selected entry DisplayName: $($selected.DisplayName)\"\nWrite-Host \"Uninstall command: $exePath\"\nWrite-Host \"Uninstall args: $existingArgs\"\n\n$process = Start-Process -FilePath $exePath -ArgumentList $existingArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\nif ($ExpectedExitCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "efa942ae": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add arguments to install silently (DAX Studio uses an Inno Setup-based installer; /ALLUSERS forces machine scope)\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n  PassThru = $true\n  Wait = $true\n}\n\n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

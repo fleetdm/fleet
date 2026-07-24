@@ -70,6 +70,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/psso"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -148,6 +149,21 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// networkBlockingModeFor decides the outbound network-blocking mode for
+// integration HTTP requests. BypassNetworkBlocking is an infra-level escape
+// hatch, only settable via server startup config, never a runtime admin
+// operation.
+func networkBlockingModeFor(devModeEnabled bool, serverConfig configpkg.ServerConfig) fleethttp.NetworkBlockingMode {
+	switch {
+	case devModeEnabled, serverConfig.BypassNetworkBlocking:
+		return fleethttp.BlockingBypassAll
+	case serverConfig.AllowPrivateNetworkIntegrations:
+		return fleethttp.BlockingPrivateAllowed
+	default:
+		return fleethttp.BlockingFull
+	}
+}
+
 // runServeCmd is a named function so that NilAway can analyze it for nil-safety.
 func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, devLicense, devExpiredLicense bool) {
 	config := configManager.LoadConfig()
@@ -157,14 +173,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	// Set network blocking mode for outbound integration requests.
-	switch {
-	case dev_mode.IsEnabled:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingBypassAll)
-	case config.Server.AllowPrivateNetworkIntegrations:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingPrivateAllowed)
-	default:
-		fleethttp.SetNetworkBlockingMode(fleethttp.BlockingFull)
-	}
+	fleethttp.SetNetworkBlockingMode(networkBlockingModeFor(dev_mode.IsEnabled, config.Server))
 
 	license, err := initLicense(&config, devLicense, devExpiredLicense)
 	if err != nil {
@@ -330,6 +339,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		logger.WarnContext(cmd.Context(), "Disabling custom FileVault management because Fleet Premium license is not present")
 	}
 
+	if config.MDM.EnableCustomDiskEncryption && !license.IsPremium() {
+		config.MDM.EnableCustomDiskEncryption = false
+		logger.WarnContext(cmd.Context(), "Disabling custom disk encryption management because Fleet Premium license is not present")
+	}
+
 	mdmStorage, depStorage, scepStorage := initAppleMDMStorages(mds, initFatal)
 
 	mdmPushService := initAppleMDMPushService(mdmStorage, logger)
@@ -422,23 +436,21 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	})
 
-	var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
-	if config.MicrosoftCompliancePartner.IsSet() {
-		var err error
-		conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
-			config.MicrosoftCompliancePartner.ProxyURI,
-			config.MicrosoftCompliancePartner.ProxyAPIKey,
-			func() (string, error) {
-				appCfg, err := ds.AppConfig(ctx)
-				if err != nil {
-					return "", fmt.Errorf("failed to load appconfig: %w", err)
-				}
-				return appCfg.ServerSettings.ServerURL, nil
-			},
-		)
-		if err != nil {
-			initFatal(err, "new microsoft compliance proxy")
-		}
+	// The Microsoft Compliance Partner proxy is available to all Fleet Premium
+	// instances (including self-hosted). The feature itself is gated on the
+	// license tier at the service layer.
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		initFatal(err, "new microsoft compliance proxy")
 	}
 
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -604,6 +616,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			digiCertService,
 			androidSvc,
 			hydrantService,
+			psso.NewRedisNonceStore(redisPool),
 		)
 		if err != nil {
 			initFatal(err, "initial Fleet Premium service")
@@ -884,6 +897,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			commander,
 			appCfg.ServerSettings.ServerURL,
 			config,
+			svc,
 		); err != nil {
 			initFatal(err, "setup mdm apple services")
 		}

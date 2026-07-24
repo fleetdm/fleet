@@ -8,6 +8,8 @@ In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts)
 
 Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
+Custom variables (`$FLEET_SECRET_*`) hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
+
 ## Add variables
 
 A variable can be used in a script or configuration profile by specifying a variable in the format `$FLEET_SECRET_MYNAME` or `${FLEET_SECRET_MYNAME}`. When the script or profile is sent to the host, Fleet will replace the variable with the variable's value. The prefix `FLEET_SECRET_` is required to indicate that this is a variable, and Fleet reserves this prefix for variables.

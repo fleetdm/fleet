@@ -105,6 +105,9 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When nil, the policy defaults to the title's first-added package.
+	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
 	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
@@ -141,6 +144,7 @@ var (
 	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -262,6 +266,21 @@ func verifyPolicyPlatforms(platforms string) error {
 	return nil
 }
 
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
+}
+
 func verifyPatchPolicy(team string, typ string) error {
 	if typ == PolicyTypePatch && emptyString(team) {
 		return errPatchPolicyRequiresTeam
@@ -300,6 +319,11 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted (or 0), the policy defaults to the title's first-added package.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
@@ -583,6 +607,13 @@ type PolicySpec struct {
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
+	// SoftwareInstallerID is the ID of the specific package the policy pins
+	// on a multi-package title. Nil for VPP-backed policies (which pin via
+	// vpp_apps_teams_id, not an installer). The multi-package policy
+	// automation UI reads this on load to reflect the user's non-default
+	// package choice; when nil, the UI falls back to the title's first-added
+	// package.
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
@@ -618,6 +649,9 @@ func (p PolicySpec) Verify() error {
 	}
 	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
 		return err
+	}
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
 	}
 	return p.VerifyLabelScopes()
 }

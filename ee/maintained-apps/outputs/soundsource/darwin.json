@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.0.6",
+      "version": "6.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.soundsource';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.soundsource' AND version_compare(bundle_short_version, '6.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.rogueamoeba.soundsource' AND version_compare(bundle_short_version, '6.1.0') < 0);"
       },
       "installer_url": "https://cdn.rogueamoeba.com/soundsource/download/SoundSource.zip",
       "install_script_ref": "43ef7cf8",

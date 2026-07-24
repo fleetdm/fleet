@@ -113,7 +113,7 @@
               </a>
             </div>
           </div>
-        </div><%// End of [purpose="hero-slides"]%>
+        </div><%/* End of [purpose="hero-slides"] */%>
       </div>
       <div purpose="page-body">
       <div>
@@ -136,8 +136,13 @@
           </div>
           <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/mollie', $event)">
             <img alt="Mollie logo" src="/images/mollie-logo-136x40@2x.png">
-            <p>Mollie manages endpoint compliance the same way it ships software</p>
+            <p>Mollie manages endpoint compliance the same way it ships software.</p>
             <a href="/case-study/mollie">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/primo', $event)">
+            <img alt="Primo logo" src="/images/logo-primo-174x40@2x.png">
+            <p>Primo built an HR-driven IT platform, powered by Fleet.</p>
+            <a href="/case-study/primo">Read their story</a>
           </div>
           <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/stripe', $event)">
             <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
@@ -148,36 +153,6 @@
             <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
             <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
             <a href="/case-study/thumbtack">Read their story</a>
-          </div>
-          <% /*  Automatically created cards for anonymous case studies  */%>
-          <% for(let article of initalCaseStudyLinksToShow) { %>
-            <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)">
-              <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
-              <% if(article.meta.cardBodyForCustomersPage){ %>
-                <p><%- article.meta.cardBodyForCustomersPage %></p>
-              <% } else {%>
-                <p><%- article.meta.articleTitle %>.</p>
-              <% }%>
-              <a href="<%- article.url %>">Read their story</a>
-            </div>
-          <% } %>
-          <% for(let batch of blocksOfCaseStudies) { %>
-            <% for(let article of batch) { %>
-              <div purpose="article-card" @click="clickGotoCaseStudyLink('<%- article.url %>', $event)" v-if="pageOfCaseStudiesVisible >= <%- blocksOfCaseStudies.indexOf(batch) %>">
-                <p><strong><%- article.meta.cardTitleForCustomersPage %></strong></p>
-                <% if(article.meta.cardBodyForCustomersPage){ %>
-                  <p><%- article.meta.cardBodyForCustomersPage %></p>
-                <% } else {%>
-                  <p><%- article.meta.articleTitle %>.</p>
-                <% }%>
-                <a href="<%- article.url %>">Read their story</a>
-              </div>
-            <% } %>
-          <% } %>
-        </div>
-        <div purpose="button-container">
-          <div purpose="button-row" class="d-flex flex-row align-items-center justify-content-center w-100" v-if="pageOfCaseStudiesVisible !== (numberOfPagesOfCaseStudies - 2)">
-            <a purpose="cta-button" @click="clickShowMoreCaseStudies()">Load more</a>
           </div>
         </div>
       </div>

@@ -106,6 +106,9 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
+		{"ListHostSoftwareMultiplePackagesPrecedence", testListHostSoftwareMultiplePackagesPrecedence},
+		{"ListHostSoftwareMultiplePackagesInstallDetails", testListHostSoftwareMultiplePackagesInstallDetails},
+		{"ListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned", testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned},
 		{"TestListHostSoftwareVulnerableAndVPP", testListHostSoftwareVulnerableAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
@@ -4066,6 +4069,66 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, software[i], got)
 	}
+}
+
+// TestSoftwareTitleUpgradeCodeDriftMatch verifies the #48875 fix: a Windows program whose
+// reported name has drifted from the stored title's name but shares its upgrade_code is
+// resolved to that existing title by the pre-insert lookup — so it is NOT treated as a new
+// title and does not issue a doomed INSERT IGNORE on every ingest.
+func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	const upgradeCode = "{55ac7218-24cb-4b99-9449-f28d9c59cc7e}"
+
+	// Host 1 reports "7-Zip 24.08 (x64)" — this creates the title, keyed by upgrade_code.
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: "7-Zip 24.08 (x64)", Version: "24.08", Source: "programs", UpgradeCode: new(upgradeCode)},
+	})
+	require.NoError(t, err)
+
+	var stored struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &stored,
+			`SELECT id, name, upgrade_code FROM software_titles WHERE source='programs' AND upgrade_code=?`, upgradeCode)
+	})
+	require.Equal(t, "7-Zip 24.08 (x64)", stored.Name)
+
+	// A different host reports the SAME program at a drifted name but the SAME upgrade_code.
+	drift := fleet.Software{Name: "7-Zip 24.09 (x64 edition)", Version: "24.09", Source: "programs", UpgradeCode: new(upgradeCode)}
+	cs, err := drift.ComputeRawChecksum()
+	require.NoError(t, err)
+	csKey := string(cs)
+
+	got, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{csKey: {}},
+		map[string]fleet.Software{csKey: drift},
+	)
+	require.NoError(t, err)
+
+	// The drift-named program must resolve to the existing title via its upgrade_code.
+	// Before the fix this map is empty (name lookup misses), so the program is treated as new.
+	summary, ok := got[csKey]
+	require.True(t, ok, "drift-named program should resolve to the existing title by upgrade_code")
+	require.Equal(t, stored.ID, summary.ID)
+
+	// Negative control: a program with an unknown upgrade_code is not matched (correctly new).
+	other := fleet.Software{Name: "Nonexistent 1.0", Version: "1.0", Source: "programs", UpgradeCode: new("{00000000-0000-0000-0000-000000000000}")}
+	ocs, err := other.ComputeRawChecksum()
+	require.NoError(t, err)
+	ocsKey := string(ocs)
+	gotOther, _, err := ds.getIncomingSoftwareChecksumsToExistingTitles(ctx,
+		map[string]struct{}{ocsKey: {}},
+		map[string]fleet.Software{ocsKey: other},
+	)
+	require.NoError(t, err)
+	_, matched := gotOther[ocsKey]
+	require.False(t, matched, "program with unknown upgrade_code should not match any title")
 }
 
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
@@ -11736,7 +11799,7 @@ func testListSoftwareInventoryDeletedHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, titleID, software[0].ID)
 }
 
-// testListHostSoftwareShPackageForDarwin tests that .sh packages
+// testListHostSoftwareShPackageForDarwin tests that .sh and .py packages
 // (stored as platform='linux') are visible to darwin hosts
 func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -11769,6 +11832,24 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Create a .py installer (platform='linux', extension='py'), also runnable on darwin
+	tfrPy, err := fleet.NewTempFileReader(strings.NewReader("print('hello')"), t.TempDir)
+	require.NoError(t, err)
+	_, pyTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "python3 installer.py",
+		InstallerFile:   tfrPy,
+		StorageID:       "py-storage-darwin-test",
+		Filename:        "test-script.py",
+		Title:           "Test Py Script",
+		Version:         "1.0.0",
+		Source:          "py_packages",
+		Platform:        "linux", // .py files are stored as linux platform
+		Extension:       "py",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	// Create a regular .deb installer (platform='linux'), shouldn't be visible to darwin
 	tfr2, err := fleet.NewTempFileReader(strings.NewReader("deb content"), t.TempDir)
 	require.NoError(t, err)
@@ -11796,19 +11877,25 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	sw, _, err := ds.ListHostSoftware(ctx, darwinHost, opts)
 	require.NoError(t, err)
 
-	// Darwin host should see the .sh package but not the .deb package
-	var foundSh, foundDeb bool
+	// Darwin host should see the .sh and .py packages but not the .deb package
+	var foundSh, foundPy, foundDeb bool
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
 			require.Equal(t, "Test Script", s.Name)
 			require.Equal(t, "sh_packages", s.Source)
 		}
+		if s.ID == pyTitleID {
+			foundPy = true
+			require.Equal(t, "Test Py Script", s.Name)
+			require.Equal(t, "py_packages", s.Source)
+		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.True(t, foundSh, ".sh package should be visible to darwin host")
+	require.True(t, foundPy, ".py package should be visible to darwin host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to darwin host")
 
 	// Query available software for linux host, should see both
@@ -11816,16 +11903,21 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	foundSh = false
+	foundPy = false
 	foundDeb = false
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
+		}
+		if s.ID == pyTitleID {
+			foundPy = true
 		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.True(t, foundSh, ".sh package should be visible to linux host")
+	require.True(t, foundPy, ".py package should be visible to linux host")
 	require.True(t, foundDeb, ".deb package should be visible to linux host")
 
 	// Create a Windows host
@@ -11836,18 +11928,23 @@ func testListHostSoftwareShPackageForDarwin(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, windowsHost, opts)
 	require.NoError(t, err)
 
-	// Windows host should NOT see .sh or .deb packages
+	// Windows host should NOT see .sh, .py, or .deb packages
 	foundSh = false
+	foundPy = false
 	foundDeb = false
 	for _, s := range sw {
 		if s.ID == shTitleID {
 			foundSh = true
+		}
+		if s.ID == pyTitleID {
+			foundPy = true
 		}
 		if s.ID == debTitleID {
 			foundDeb = true
 		}
 	}
 	require.False(t, foundSh, ".sh package should NOT be visible to windows host")
+	require.False(t, foundPy, ".py package should NOT be visible to windows host")
 	require.False(t, foundDeb, ".deb package should NOT be visible to windows host")
 }
 
@@ -12324,8 +12421,13 @@ func testListHostSoftwareFMAReplacedInstallerInScopeShowsActiveMetadata(t *testi
 	}
 	require.NotNil(t, fmaRow, "FMA App should appear in list (in-scope active installer)")
 	require.NotNil(t, fmaRow.SoftwarePackage, "software_package must be populated when active installer is in scope")
+	require.Equal(t, "fma.pkg", fmaRow.SoftwarePackage.Name)
+	require.Equal(t, "2.0", fmaRow.SoftwarePackage.Version)
 	require.NotNil(t, fmaRow.SoftwarePackage.SelfService, "self_service flag should be set")
 	require.True(t, *fmaRow.SoftwarePackage.SelfService, "self_service should reflect the ACTIVE installer's value (true), not the recorded inactive one (false)")
+	require.Equal(t, new(fleet.SoftwareInstalled), fmaRow.Status)
+	require.NotNil(t, fmaRow.SoftwarePackage.LastInstall, "install history from the inactive installer should remain visible on its replacement")
+	require.Equal(t, hostInstall, fmaRow.SoftwarePackage.LastInstall.InstallUUID)
 }
 
 // When osquery inventory matches multiple installer rows for the same title, the active
@@ -13565,4 +13667,395 @@ func testCreateIntermediateInstallFailureRecordAfterDeletion(t *testing.T, ds *D
 	require.Equal(t, fleet.SoftwareInstallFailed, batchPendingResult.Status)
 	require.Equal(t, "batch-pending-app", batchPendingResult.SoftwareTitle)
 	require.Equal(t, "batch-pending.pkg", batchPendingResult.SoftwarePackage)
+}
+
+// testListHostSoftwareMultiplePackagesPrecedence verifies that when a title holds multiple
+// label-scoped packages, ListHostSoftware deterministically shows the first-added in-scope package
+// as software_package (matching the install-time precedence resolver) and does not emit duplicate
+// title rows.
+func testListHostSoftwareMultiplePackagesPrecedence(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice-multipkg@example.com", true)
+
+	hostBoth := test.NewHost(t, ds, "h-both", "", "h-both-key", "h-both-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostBoth, false)
+	hostSecondOnly := test.NewHost(t, ds, "h-second", "", "h-second-key", "h-second-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostSecondOnly, false)
+	hostNeither := test.NewHost(t, ds, "h-none", "", "h-none-key", "h-none-uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, hostNeither, false)
+
+	time.Sleep(time.Second) // ensure labels_updated_at is before label creation
+
+	var titleID uint
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, tID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "ArchTargetedApp",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.archapp",
+			UserID:           user.ID,
+			Platform:         "darwin",
+			SelfService:      true,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		titleID = tID
+		return id
+	}
+
+	// Two packages under one title (e.g. Arm vs Intel builds): pkgA is first-added.
+	firstAddedID := newPkg("storage-a", "pkgA.pkg")
+	secondID := newPkg("storage-b", "pkgB.pkg")
+	require.Less(t, firstAddedID, secondID)
+
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "labelA" + t.Name()})
+	require.NoError(t, err)
+	labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "labelB" + t.Name()})
+	require.NoError(t, err)
+
+	// hostBoth matches both packages, hostSecondOnly only pkgB, hostNeither none.
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostBoth.ID, []uint{labelA.ID, labelB.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostSecondOnly.ID, []uint{labelB.ID}))
+	for _, h := range []*fleet.Host{hostBoth, hostSecondOnly, hostNeither} {
+		h.LabelUpdatedAt = time.Now()
+		require.NoError(t, ds.UpdateHost(ctx, h))
+	}
+	time.Sleep(time.Second)
+
+	// Scope each package to its label (include-any).
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), firstAddedID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{labelA.Name: {LabelName: labelA.Name, LabelID: labelA.ID}},
+	}, softwareTypeInstaller))
+	require.NoError(t, setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), secondID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{labelB.Name: {LabelName: labelB.Name, LabelID: labelB.ID}},
+	}, softwareTypeInstaller))
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+	}
+
+	// hostBoth matches pkgA and pkgB → first-added (pkgA) wins, exactly one row for the title.
+	sw, _, err := ds.ListHostSoftware(ctx, hostBoth, opts)
+	require.NoError(t, err)
+	rowsForTitle := 0
+	for _, s := range sw {
+		if s.ID == titleID {
+			rowsForTitle++
+			require.NotNil(t, s.SoftwarePackage)
+			require.Equal(t, "pkgA.pkg", s.SoftwarePackage.Name)
+		}
+	}
+	require.Equal(t, 1, rowsForTitle, "multi-package title must appear exactly once")
+
+	// hostSecondOnly matches only pkgB → the in-scope sibling is shown (title not hidden).
+	sw, _, err = ds.ListHostSoftware(ctx, hostSecondOnly, opts)
+	require.NoError(t, err)
+	rowsForTitle = 0
+	for _, s := range sw {
+		if s.ID == titleID {
+			rowsForTitle++
+			require.NotNil(t, s.SoftwarePackage)
+			require.Equal(t, "pkgB.pkg", s.SoftwarePackage.Name)
+		}
+	}
+	require.Equal(t, 1, rowsForTitle, "title with an in-scope sibling must not be hidden")
+
+	// hostNeither matches no package → title is not available for install.
+	sw, _, err = ds.ListHostSoftware(ctx, hostNeither, opts)
+	require.NoError(t, err)
+	for _, s := range sw {
+		require.NotEqual(t, titleID, s.ID, "title should not be available when the host is in scope for no package")
+	}
+}
+
+func testListHostSoftwareMultiplePackagesInstallDetails(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice-multipkg-installs@example.com", true)
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "labelA" + t.Name()})
+	require.NoError(t, err)
+
+	newPackage := func(storageID, filename, version, contents string, labels fleet.LabelIdentsWithScope) (uint, uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(contents), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			UninstallScript:  "uninstall",
+			InstallerFile:    tfr,
+			StorageID:        storageID,
+			Filename:         filename,
+			Title:            "MultiPackageInstallDetails",
+			Version:          version,
+			Source:           "apps",
+			BundleIdentifier: "com.example.multi-package-install-details",
+			UserID:           user.ID,
+			Platform:         "darwin",
+			SelfService:      true,
+			ValidatedLabels:  &labels,
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+
+	installerA, titleID := newPackage("install-details-a", "package-a.pkg", "1.0", "package a", fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName:     map[string]fleet.LabelIdent{labelA.Name: {LabelName: labelA.Name, LabelID: labelA.ID}},
+	})
+	installerB, titleIDB := newPackage("install-details-b", "package-b.pkg", "2.0", "package b", fleet.LabelIdentsWithScope{})
+	require.Equal(t, titleID, titleIDB)
+	require.Less(t, installerA, installerB)
+
+	newHost := func(name string, inScopeForA bool) *fleet.Host {
+		host := test.NewHost(t, ds, name, "", name+"-key", name+"-uuid", time.Now(), test.WithPlatform("darwin"))
+		if inScopeForA {
+			require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{labelA.ID}))
+		}
+		host.LabelUpdatedAt = time.Now()
+		require.NoError(t, ds.UpdateHost(ctx, host))
+		return host
+	}
+
+	seedInstall := func(hostID, installerID uint, executionID string, at time.Time, exitCode int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, install_script_exit_code, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?)`,
+				executionID, hostID, installerID, exitCode, at, at)
+			return err
+		})
+	}
+	seedUninstall := func(hostID, installerID uint, executionID string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, uninstall, uninstall_script_exit_code, created_at, updated_at)
+				VALUES (?, ?, ?, 1, 0, ?, ?)`,
+				executionID, hostID, installerID, at, at)
+			return err
+		})
+	}
+	seedUpcoming := func(hostID, installerID uint, executionID, activityType string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			result, err := q.ExecContext(ctx, `
+				INSERT INTO upcoming_activities
+					(host_id, priority, fleet_initiated, activity_type, execution_id, payload, created_at)
+				VALUES (?, 0, 1, ?, ?, JSON_OBJECT('self_service', false), ?)`, hostID, activityType, executionID, at)
+			if err != nil {
+				return err
+			}
+			activityID, err := result.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `
+				INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id)
+				VALUES (?, ?)`, activityID, installerID)
+			return err
+		})
+	}
+	getTitle := func(t *testing.T, host *fleet.Host) *fleet.HostSoftwareWithInstaller {
+		t.Helper()
+		software, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 20, IncludeMetadata: true, OrderKey: "name"},
+			IncludeAvailableForInstall: true,
+		})
+		require.NoError(t, err)
+		for _, item := range software {
+			if item.ID == titleID {
+				require.NotNil(t, item.SoftwarePackage)
+				return item
+			}
+		}
+		require.FailNow(t, "software title not found")
+		return nil
+	}
+	assertPackage := func(t *testing.T, got *fleet.HostSoftwareWithInstaller, name, version string) {
+		t.Helper()
+		require.NotNil(t, got.SoftwarePackage)
+		require.Equal(t, name, got.SoftwarePackage.Name)
+		require.Equal(t, version, got.SoftwarePackage.Version)
+	}
+
+	baseTime := time.Now().Add(-time.Hour).UTC().Truncate(time.Microsecond)
+
+	t.Run("first added in scope installer", func(t *testing.T) {
+		host := newHost("multi-install-details-both", true)
+		seedInstall(host.ID, installerA, "both-a", baseTime, 0)
+		seedInstall(host.ID, installerB, "both-b", baseTime.Add(time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Equal(t, new(fleet.SoftwareInstalled), got.Status)
+		require.NotNil(t, got.SoftwarePackage.LastInstall)
+		require.Equal(t, "both-a", got.SoftwarePackage.LastInstall.InstallUUID)
+	})
+
+	t.Run("only second installer in scope", func(t *testing.T) {
+		host := newHost("multi-install-details-second", false)
+		seedInstall(host.ID, installerB, "second-b", baseTime, 0)
+		seedInstall(host.ID, installerA, "second-a", baseTime.Add(time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-b.pkg", "2.0")
+		require.Equal(t, new(fleet.SoftwareInstalled), got.Status)
+		require.NotNil(t, got.SoftwarePackage.LastInstall)
+		require.Equal(t, "second-b", got.SoftwarePackage.LastInstall.InstallUUID)
+	})
+
+	t.Run("resolved installer has no install", func(t *testing.T) {
+		host := newHost("multi-install-details-sibling-only", true)
+		seedInstall(host.ID, installerB, "sibling-only-b", baseTime, 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Nil(t, got.Status)
+		require.Nil(t, got.SoftwarePackage.LastInstall)
+	})
+
+	t.Run("most recent install for resolved installer", func(t *testing.T) {
+		host := newHost("multi-install-details-recency", true) // resolved installer = A
+		seedInstall(host.ID, installerA, "recency-a-old", baseTime, 0)
+		seedInstall(host.ID, installerA, "recency-a-new", baseTime.Add(time.Minute), 0)
+		// Sibling B installed more recently than either A install. The result must be the resolved
+		// installer's own most-recent install, not the globally-most-recent (B) one. An unordered
+		// merge could otherwise surface B's UUID next to A's name/version.
+		seedInstall(host.ID, installerB, "recency-b-newest", baseTime.Add(2*time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Equal(t, new(fleet.SoftwareInstalled), got.Status)
+		require.NotNil(t, got.SoftwarePackage.LastInstall)
+		require.Equal(t, "recency-a-new", got.SoftwarePackage.LastInstall.InstallUUID)
+	})
+
+	t.Run("status and last install use resolved installer", func(t *testing.T) {
+		host := newHost("multi-install-details-status", true)
+		seedInstall(host.ID, installerA, "status-a-failed", baseTime, 1)
+		seedInstall(host.ID, installerB, "status-b-installed", baseTime.Add(time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Equal(t, new(fleet.SoftwareInstallFailed), got.Status)
+		require.NotNil(t, got.SoftwarePackage.LastInstall)
+		require.Equal(t, "status-a-failed", got.SoftwarePackage.LastInstall.InstallUUID)
+	})
+
+	t.Run("uninstall recency is per installer", func(t *testing.T) {
+		host := newHost("multi-install-details-uninstall", true)
+		seedInstall(host.ID, installerA, "uninstall-a-install", baseTime, 0)
+		seedUninstall(host.ID, installerA, "uninstall-a", baseTime.Add(time.Minute))
+		seedInstall(host.ID, installerB, "uninstall-b-install", baseTime.Add(2*time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Nil(t, got.Status)
+		require.NotNil(t, got.SoftwarePackage.LastInstall)
+		require.Equal(t, "uninstall-a-install", got.SoftwarePackage.LastInstall.InstallUUID)
+		require.NotNil(t, got.SoftwarePackage.LastUninstall)
+		require.Equal(t, "uninstall-a", got.SoftwarePackage.LastUninstall.ExecutionID)
+	})
+
+	t.Run("pending uninstall without install uses resolved installer", func(t *testing.T) {
+		host := newHost("multi-install-details-pending-uninstall", true)
+		seedUpcoming(host.ID, installerA, "pending-uninstall-a", "software_uninstall", baseTime)
+		seedInstall(host.ID, installerB, "pending-uninstall-b-install", baseTime.Add(time.Minute), 0)
+
+		got := getTitle(t, host)
+		assertPackage(t, got, "package-a.pkg", "1.0")
+		require.Equal(t, new(fleet.SoftwareUninstallPending), got.Status)
+		require.Nil(t, got.SoftwarePackage.LastInstall)
+		require.NotNil(t, got.SoftwarePackage.LastUninstall)
+		require.Equal(t, "pending-uninstall-a", got.SoftwarePackage.LastUninstall.ExecutionID)
+	})
+}
+
+// testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned verifies that the out-of-scope
+// failed-install prune stays selective for multi-package titles. A title the host is out of scope
+// for, whose first-added installer failed, is pruned even if a sibling later succeeded (it is not
+// installable and not in inventory). A title whose first-added installer succeeded is kept, proving
+// the prune keys on the (provisional) status rather than blanket-dropping every out-of-scope title.
+func testListHostSoftwareMultiPackageOutOfScopeFailedInstallPruned(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Bob", "bob-oos-failed@example.com", true)
+	labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "oosA" + t.Name()})
+	require.NoError(t, err)
+	labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "oosB" + t.Name()})
+	require.NoError(t, err)
+
+	newScopedPackage := func(title, bundleID, storageID, filename, version string, label *fleet.Label) (uint, uint) {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storageID), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			UninstallScript:  "uninstall",
+			InstallerFile:    tfr,
+			StorageID:        storageID,
+			Filename:         filename,
+			Title:            title,
+			Version:          version,
+			Source:           "apps",
+			BundleIdentifier: bundleID,
+			UserID:           user.ID,
+			Platform:         "darwin",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{
+				LabelScope: fleet.LabelScopeIncludeAny,
+				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelName: label.Name, LabelID: label.ID}},
+			},
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+
+	seedInstall := func(hostID, installerID uint, executionID string, exitCode int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, install_script_exit_code, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?)`,
+				executionID, hostID, installerID, exitCode, time.Now(), time.Now())
+			return err
+		})
+	}
+
+	// Host is a member of neither label, so it is out of scope for every package below.
+	host := test.NewHost(t, ds, "oos-failed-host", "", "oos-failed-key", "oos-failed-uuid", time.Now(), test.WithPlatform("darwin"))
+	host.LabelUpdatedAt = time.Now()
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	// Title 1: two active packages; first-added A failed, sibling B later succeeded. Out of scope and
+	// not in osquery inventory, so it is pruned (a stale failed attempt on an uninstallable title).
+	installerA, prunedTitleID := newScopedPackage("OOSFailedPrune", "com.example.oos-failed-prune", "oos-a", "oos-a.pkg", "1.0", labelA)
+	installerB, titleIDB := newScopedPackage("OOSFailedPrune", "com.example.oos-failed-prune", "oos-b", "oos-b.pkg", "2.0", labelB)
+	require.Equal(t, prunedTitleID, titleIDB)
+	require.Less(t, installerA, installerB)
+	seedInstall(host.ID, installerA, "oos-a-failed", 1)
+	seedInstall(host.ID, installerB, "oos-b-success", 0)
+
+	// Title 2 (positive control): out of scope, first-added installer succeeded, so the prune must not
+	// drop it. Guards against a regression that blanket-removes every out-of-scope title.
+	installerC, keptTitleID := newScopedPackage("OOSSuccessKept", "com.example.oos-success-kept", "oos-c", "oos-c.pkg", "1.0", labelA)
+	require.NotEqual(t, prunedTitleID, keptTitleID)
+	seedInstall(host.ID, installerC, "oos-c-success", 0)
+
+	software, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 50, IncludeMetadata: true, OrderKey: "name"},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+	listed := make(map[uint]struct{}, len(software))
+	for _, item := range software {
+		listed[item.ID] = struct{}{}
+	}
+	require.NotContains(t, listed, prunedTitleID, "out-of-scope title whose first-added installer failed should be pruned")
+	require.Contains(t, listed, keptTitleID, "out-of-scope title whose first-added installer succeeded must remain (prune is status-selective)")
 }

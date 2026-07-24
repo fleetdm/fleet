@@ -32,7 +32,17 @@ Learn how to enforce authentication in the [setup experience guide](https://flee
 
 When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, IdP authentication won't be enforced.
+> IdP authentication is best-effort when a host enrolls through fleetd, not through Autopilot or an Entra join during OOBE. Fleet relies on fleetd to enforce it, so a technical end user can skip it, for example by installing a fleetd older than 1.50.0 (which doesn't support IdP authentication) or by enrolling with a script that calls Fleet's enroll endpoint directly with the enroll secret, which is embedded in the installer. Treat it as a way to guide end users, not a security control.
+
+### Skip authentication when building the installer
+
+If end users authenticate before fleetd is installed, for example during 3rd party Windows Autopilot or Intune enrollment, you can skip Fleet's authentication window. Add the `--bypass-end-user-auth` flag when you build the installer:
+
+```bash
+fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
+```
+
+Hosts that install this package enroll without the authentication prompt. Available in Fleet 4.91.0 and later, and requires fleetd 1.60.0 or later in the installer.
 
 ## Install software
 
@@ -57,6 +67,16 @@ To replace the Fleet logo with your organization's logo:
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 > Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
+
+### Policies are checked before install
+
+On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the software has associated policies and the host passes all of them, Fleet skips the install. If the host fails any of them, Fleet installs the software. Software without associated policies is always installed.
+
+To associate a policy with software, use the policy's **Install software** automation. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+A policy only counts toward the decision if it applies to the host. For example, a policy scoped to labels that exclude the host is ignored. If none of the associated policies apply to the host, or the host doesn't report policy results within 30 minutes of enrolling, Fleet installs the software.
+
+A skipped install counts as a success. It shows as **Installed** on the end user's setup progress page, it doesn't create an install activity, and it never triggers **Cancel setup if software fails**.
 
 ### Cancel setup if software fails (Windows)
 
