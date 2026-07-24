@@ -1,1 +1,0 @@
-- Fixed a bug where pinning a Fleet-maintained app to a different version didn't update the patch policy for it.
