@@ -111,11 +111,19 @@ jobs:
           : # Check via the R2 API rather than the public URL: it's authoritative,
           : # and a pre-upload GET of the URL could prime the CDN with a cached 404
           : # that the post-upload verification then trips over.
-          : # Fail closed: prove the bucket is listable before concluding the
-          : # version is absent, because rclone reports an empty prefix and some
-          : # connection failures the same way.
+          : # Surface broken credentials/endpoint as their own failure before the
+          : # exit-code handling below.
           rclone lsf "r2:${R2_BUCKET}" --max-depth 1 > /dev/null
-          existing=$(rclone lsf "r2:${R2_BUCKET}/${RELEASE_PREFIX}/v${VERSION}/" 2>/dev/null || true)
+          rc=0
+          existing=$(rclone lsf "r2:${R2_BUCKET}/${RELEASE_PREFIX}/v${VERSION}/" 2>rclone-stderr.log) || rc=$?
+          : # rclone exit 3 = directory not found, i.e. this version was never
+          : # uploaded. Any other failure means we could not check; fail rather
+          : # than risk overwriting an existing release.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            cat rclone-stderr.log >&2
+            echo "::error::Could not determine whether v${VERSION} is already released (rclone exit code $rc)."
+            exit 1
+          fi
           if [ -n "$existing" ]; then
             echo "::error::${RELEASE_PREFIX}/v${VERSION}/ already exists at ${BASE_URL}. Releases are immutable; bump the version to publish a new build."
             exit 1
