@@ -20,7 +20,6 @@ import {
 } from "interfaces/mdm";
 import hostAPI, {
   DEPDeviceStatus,
-  DepDeviceError,
   IDepAssignmentHostResponse,
 } from "services/entities/hosts";
 
@@ -100,18 +99,6 @@ const getProfileStatusUI = (raw?: string | null) => {
 
 const DEFAULT_DEP_ERROR_MESSAGE =
   "Fleet can't retrieve data from Apple right now. Please try again later.";
-
-const DEP_ERROR_UI_MAP: Record<DepDeviceError, string> = {
-  TOKEN_INVALID:
-    "Fleet can't connect to Apple Business. An admin needs to renew the AB token.",
-  TERMS_EXPIRED:
-    "Apple Business terms/conditions have changed. An admin must accept them.",
-  NOT_FOUND:
-    "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server.",
-  SERVER_ERROR:
-    "Apple's servers are temporarily unavailable. Please try again later.",
-  UNAVAILABLE: DEFAULT_DEP_ERROR_MESSAGE,
-};
 
 export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
   if (!responseUpdatedAt) {
@@ -328,7 +315,7 @@ const MDMStatusModal = ({
     }
 
     // host_dep_assignment present but no dep_device means Apple didn't return
-    // device details -- dep_error classifies why, if known.
+    // device details -- dep_device_error explains why, if known.
     if (
       depAssignmentData.host_dep_assignment &&
       !depAssignmentData.dep_device
@@ -338,9 +325,7 @@ const MDMStatusModal = ({
           singleCustomLine
           className={`${baseClass}__dep-error`}
           description={
-            depAssignmentData.dep_error
-              ? DEP_ERROR_UI_MAP[depAssignmentData.dep_error]
-              : DEFAULT_DEP_ERROR_MESSAGE
+            depAssignmentData.dep_device_error ?? DEFAULT_DEP_ERROR_MESSAGE
           }
         />
       );
@@ -351,7 +336,7 @@ const MDMStatusModal = ({
       // host_dep_assignment is expected to be present whenever this section
       // renders (see the parent's gating condition below) -- the case above
       // already covers host_dep_assignment set with no dep_device (including
-      // the NOT_ACCESSIBLE/NOT_FOUND case, via dep_error).
+      // the NOT_ACCESSIBLE/NOT_FOUND case, via dep_device_error).
       return null;
     }
 
