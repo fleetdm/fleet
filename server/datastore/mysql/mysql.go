@@ -110,7 +110,13 @@ type Datastore struct {
 	titleInsertSF singleflight.Group
 }
 
+// maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so
+// long-lived servers do not retain every title they have ever seen.
 const maxKnownSoftwareTitleKeys = 100_000
+
+// evictKnownSoftwareTitleKeys removes half the cache when the cap is hit. Keeping the other half
+// preserves most steady-state hits while avoiding a full cold start that would reintroduce a burst
+// of INSERT IGNORE statements.
 const evictKnownSoftwareTitleKeys = maxKnownSoftwareTitleKeys / 2
 
 // WithPusher sets an APNs pusher for the datastore, used when activating

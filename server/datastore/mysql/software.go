@@ -119,6 +119,9 @@ func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
 
 func (ds *Datastore) evictKnownSoftwareTitleKeysLocked() {
 	evicted := 0
+	// Go map iteration order is randomized, so this evicts an arbitrary half of the cache.
+	// That is sufficient here because any retained title key still avoids an INSERT IGNORE, and
+	// arbitrary bulk eviction is much cheaper than maintaining a strict LRU in this hot path.
 	for key := range ds.knownSoftwareTitleKeys {
 		delete(ds.knownSoftwareTitleKeys, key)
 		evicted++
