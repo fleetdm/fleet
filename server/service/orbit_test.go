@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	hostidentity_types "github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1653,4 +1654,97 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			require.Equal(t, tc.wantFlags, got)
 		})
 	}
+}
+
+func TestEnrollOrbitEndUserAuthLegacyFlag(t *testing.T) {
+	// When end user authentication is required and the enrolling agent does not
+	// advertise the end_user_auth capability (for example an older agent that
+	// does not set the X-Fleet-Capabilities header), the
+	// AllowLegacyOrbitEnrollmentWithoutEndUserAuth config flag decides whether
+	// enrollment is blocked or allowed.
+	newSvc := func(t *testing.T, allowLegacy bool) (*mock.DataStore, fleet.Service, context.Context) {
+		// mock.Store hard-codes EnrollOrbit to return (nil, nil), which would make
+		// the flag-enabled success path panic. Use the underlying mock.DataStore so
+		// EnrollOrbitFunc is honored.
+		ds := new(mock.DataStore)
+		cfg := config.TestConfig()
+		cfg.MDM.AllowLegacyOrbitEnrollmentWithoutEndUserAuth = allowLegacy
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+
+		// Global enroll secret (no team) with end user auth required at the app-config level.
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			return &fleet.EnrollSecret{Secret: secret}, nil
+		}
+		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+			return nil, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EnabledAndConfigured = true
+			ac.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			return ac, nil
+		}
+		// No IdP account linked and not previously enrolled: a genuine first-time enrollment.
+		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+			return nil, nil
+		}
+		ds.HostPreviouslyOrbitEnrolledFunc = func(ctx context.Context, hostInfo fleet.OrbitHostInfo, isMDMEnabled bool) (bool, error) {
+			return false, nil
+		}
+		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+			return &fleet.Host{ID: 1, UUID: "host-uuid-1", Platform: "ubuntu"}, nil
+		}
+		ds.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+		return ds, svc, ctx
+	}
+
+	hostInfo := fleet.OrbitHostInfo{
+		HardwareUUID:   "host-uuid-1",
+		HardwareSerial: "serial-1",
+		Hostname:       "host-1",
+		Platform:       "ubuntu",
+		PlatformLike:   "debian",
+	}
+
+	// noEUACtx builds a request context advertising only unrelated capabilities,
+	// simulating an agent that does not support end user auth.
+	noEUACtx := func(ctx context.Context) context.Context {
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+		req.Header.Set(fleet.CapabilitiesHeader, "foo,bar")
+		return capabilities.NewContext(ctx, req)
+	}
+
+	t.Run("flag disabled blocks enrollment", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, false)
+		_, err := svc.EnrollOrbit(noEUACtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked, "no host must be enrolled when EUA is required and the flag is off")
+	})
+
+	t.Run("flag enabled allows enrollment", func(t *testing.T) {
+		ds, svc, ctx := newSvc(t, true)
+		nodeKey, err := svc.EnrollOrbit(noEUACtx(ctx), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.True(t, ds.EnrollOrbitFuncInvoked)
+	})
+
+	t.Run("flag enabled still gates agents that support EUA", func(t *testing.T) {
+		// The escape hatch only applies to agents that do not support end user
+		// auth. A modern agent that advertises the capability must still go
+		// through the SSO flow even when the flag is on.
+		ds, svc, ctx := newSvc(t, true)
+		euaCtx := func(ctx context.Context) context.Context {
+			req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
+			req.Header.Set(fleet.CapabilitiesHeader, string(fleet.CapabilityEndUserAuth))
+			return capabilities.NewContext(ctx, req)
+		}
+		_, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "END_USER_AUTH_REQUIRED")
+		require.False(t, ds.EnrollOrbitFuncInvoked)
+	})
 }

@@ -33032,9 +33032,9 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
 
 	// Orbit client capabilities — Linux and Windows orbit builds advertise
-	// CapabilityEndUserAuth. Without this header the EnrollOrbit handler
-	// short-circuits past the EUA gating (with a logged warning) and the bug
-	// would not be exercised.
+	// CapabilityEndUserAuth. The X-Fleet-Capabilities header is an
+	// informational hint only: EUA gating must hold regardless of what
+	// the client advertises.
 	var caps fleet.CapabilityMap
 	caps.PopulateFromString(string(fleet.CapabilityEndUserAuth))
 	capsHeaders := map[string]string{fleet.CapabilitiesHeader: caps.String()}
@@ -33057,19 +33057,29 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		require.NoError(t, err)
 
 		// Step 1: First orbit enrollment attempt — no IdP linked yet, so the
-		// server returns END_USER_AUTH_REQUIRED (HTTP 401).
-		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusUnauthorized, capsHeaders)
-		respBody, err := io.ReadAll(res.Body)
-		res.Body.Close()
-		require.NoError(t, err)
-		require.Contains(t, string(respBody), "END_USER_AUTH_REQUIRED",
-			"expected EUA gating to block enrollment when no IdP is linked")
+		// server returns END_USER_AUTH_REQUIRED (HTTP 401). The gate must hold
+		// regardless of the client-supplied X-Fleet-Capabilities header, so we
+		// exercise it with the capability advertised, with the header omitted,
+		// and with unrelated capabilities — all must be blocked and must not
+		// create a host row.
+		for name, headers := range map[string]map[string]string{
+			"advertises end_user_auth": capsHeaders,
+			"no capabilities header":   nil,
+			"unrelated capabilities":   {fleet.CapabilitiesHeader: "foo,bar"},
+		} {
+			res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusUnauthorized, headers)
+			respBody, err := io.ReadAll(res.Body)
+			res.Body.Close()
+			require.NoError(t, err)
+			require.Contains(t, string(respBody), "END_USER_AUTH_REQUIRED",
+				"expected EUA gating to block enrollment when no IdP is linked (%s)", name)
 
-		// The hosts row must not exist yet — the orbit enroll path returned
-		// before reaching EnrollOrbit.
-		_, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
-		require.Error(t, err)
-		require.True(t, fleet.IsNotFound(err))
+			// The hosts row must not exist yet — the orbit enroll path returned
+			// before reaching EnrollOrbit.
+			_, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+			require.Error(t, err, name)
+			require.True(t, fleet.IsNotFound(err), name)
+		}
 
 		// Step 2: Simulate the Orbit Setup Experience SSO callback writing the
 		// IdP account and linking it to the host UUID. This matches what
@@ -33101,7 +33111,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitEnrollWithIdPPopulatesDeviceMa
 		// Step 3: Orbit retries the enrollment — EnrollOrbit creates the hosts
 		// row and the post-EnrollOrbit reconcile in orbit.go calls
 		// AssociateHostMDMIdPAccount, which populates host_emails.
-		res = s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
+		res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/enroll", enrollBody, http.StatusOK, capsHeaders)
 		var orbitResp enrollOrbitResponse
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&orbitResp))
 		res.Body.Close()
