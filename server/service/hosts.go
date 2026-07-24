@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"iter"
 	"net/http"
 	"reflect"
@@ -74,11 +73,12 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 	}
 
 	return &fleet.HostDetailResponse{
-		HostDetail:  *host,
-		Status:      host.Status(time.Now()),
-		DisplayText: host.Hostname,
-		DisplayName: host.DisplayName(),
-		Geolocation: geoLoc,
+		HostDetail:            *host,
+		Status:                host.Status(time.Now()),
+		DisplayText:           host.Hostname,
+		DisplayName:           host.DisplayName(),
+		Geolocation:           geoLoc,
+		HardwareMarketingName: host.HardwareMarketingName(),
 	}, nil
 }
 
@@ -3071,40 +3071,45 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 		return
 	}
 
+	// read back the CSV to reorder and (optionally) filter columns
+	recs, err := csv.NewReader(&buf).ReadAll()
+	if err != nil {
+		logging.WithErr(ctx, err)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		return
+	}
+
 	returnAll := len(r.Columns) == 0
 
 	var outRows [][]string
-	if !returnAll {
-		// read back the CSV to filter out any unwanted columns
-		recs, err := csv.NewReader(&buf).ReadAll()
-		if err != nil {
-			logging.WithErr(ctx, err)
-			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
-			return
+	if returnAll {
+		// gocsv appends hardware_marketing_name after all Host columns because
+		// it's a HostResponse field, but the documented report places it right
+		// after hardware_model, so reorder the columns to match. The filtered
+		// path below already emits columns in the requested order.
+		reorderCSVColumnAfter(recs, "hardware_marketing_name", "hardware_model")
+		outRows = recs
+	} else if len(recs) > 0 {
+		// map the header names to their field index
+		hdrs := make(map[string]int, len(recs[0]))
+		for i, hdr := range recs[0] {
+			hdrs[hdr] = i
 		}
 
-		if len(recs) > 0 {
-			// map the header names to their field index
-			hdrs := make(map[string]int, len(recs))
-			for i, hdr := range recs[0] {
-				hdrs[hdr] = i
-			}
-
-			outRows = make([][]string, len(recs))
-			for i, rec := range recs {
-				for _, col := range r.Columns {
-					colIx, ok := hdrs[col]
-					if !ok {
-						// invalid column name - it would be nice to catch this in the
-						// endpoint before processing the results, but it would require
-						// duplicating the list of columns from the Host's struct tags to a
-						// map and keep this in sync, for what is essentially a programmer
-						// mistake that should be caught and corrected early.
-						encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
-						return
-					}
-					outRows[i] = append(outRows[i], rec[colIx])
+		outRows = make([][]string, len(recs))
+		for i, rec := range recs {
+			for _, col := range r.Columns {
+				colIx, ok := hdrs[col]
+				if !ok {
+					// invalid column name - it would be nice to catch this in the
+					// endpoint before processing the results, but it would require
+					// duplicating the list of columns from the Host's struct tags to a
+					// map and keep this in sync, for what is essentially a programmer
+					// mistake that should be caught and corrected early.
+					encodeError(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("invalid column name: %q", col)}, w)
+					return
 				}
+				outRows[i] = append(outRows[i], rec[colIx])
 			}
 		}
 	}
@@ -3114,14 +3119,52 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
 
-	var err error
-	if returnAll {
-		_, err = io.Copy(w, &buf)
-	} else {
-		err = csv.NewWriter(w).WriteAll(outRows)
-	}
-	if err != nil {
+	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
 		logging.WithErr(ctx, err)
+	}
+}
+
+// reorderCSVColumnAfter moves the column named col so that it immediately
+// follows the column named afterCol in every record (header + rows). It is a
+// no-op if either column is missing.
+func reorderCSVColumnAfter(recs [][]string, col, afterCol string) {
+	if len(recs) == 0 {
+		return
+	}
+
+	from, after := -1, -1
+	for i, hdr := range recs[0] {
+		switch hdr {
+		case col:
+			from = i
+		case afterCol:
+			after = i
+		}
+	}
+	if from < 0 || after < 0 || from == after {
+		return
+	}
+
+	// Build the new column index order with `from` placed right after `after`.
+	order := make([]int, 0, len(recs[0]))
+	for i := range recs[0] {
+		if i == from {
+			continue
+		}
+		order = append(order, i)
+		if i == after {
+			order = append(order, from)
+		}
+	}
+
+	for r, rec := range recs {
+		newRec := make([]string, len(order))
+		for j, idx := range order {
+			if idx < len(rec) {
+				newRec[j] = rec[idx]
+			}
+		}
+		recs[r] = newRec
 	}
 }
 

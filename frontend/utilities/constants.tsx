@@ -442,6 +442,7 @@ export const HOST_VITALS_DATA = [
   "uptime",
   "last_enrolled_at",
   "hardware_model",
+  "hardware_marketing_name",
   "hardware_serial",
   "primary_ip",
   "public_ip",

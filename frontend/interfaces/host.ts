@@ -353,6 +353,7 @@ export interface IHost {
   cpu_logical_cores: number;
   hardware_vendor: string;
   hardware_model: string;
+  hardware_marketing_name: string;
   hardware_version: string;
   hardware_serial: string;
   computer_name: string;
