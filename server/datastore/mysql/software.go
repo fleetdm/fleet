@@ -111,6 +111,12 @@ func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
+func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
+	ds.knownSoftwareTitleKeysMu.Lock()
+	defer ds.knownSoftwareTitleKeysMu.Unlock()
+	delete(ds.knownSoftwareTitleKeys, key)
+}
+
 func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
 	ds.knownSoftwareTitleKeysMu.Lock()
 	defer ds.knownSoftwareTitleKeysMu.Unlock()
@@ -1368,7 +1374,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			)
 
 			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
-			var missingSoftwareTitles []string
+			var missingChecksums []string
 			for _, checksum := range batchKeys {
 				sw := batchSoftware[checksum]
 				var titleID *uint
@@ -1376,9 +1382,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				if id, ok := titleIDsByChecksum[checksum]; ok {
 					titleID = &id
 				} else {
-					// Track software missing title IDs for debugging
-					missingSoftwareTitles = append(missingSoftwareTitles,
-						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
+					// Track software missing title IDs; titles inserted outside the
+					// transaction may have been deleted by a concurrent CleanupSoftwareTitles.
+					missingChecksums = append(missingChecksums, checksum)
 				}
 
 				// Use FMA canonical name if available, otherwise use osquery-reported name.
@@ -1412,17 +1418,30 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				)
 			}
 
-			// Log an error if we have software without title IDs
-			// This shouldn't happen in normal operation. And this code is here to catch bugs.
-			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
-				exampleCount := 3
-				if len(missingSoftwareTitles) < exampleCount {
-					exampleCount = len(missingSoftwareTitles)
+			// When title IDs are missing, a concurrent CleanupSoftwareTitles likely
+			// deleted the titles we just inserted (they were orphaned briefly outside the
+			// transaction). Clear those cache entries so they are re-inserted on the next
+			// agent check-in and return an error to abort this attempt without inserting
+			// software rows with NULL title_id.
+			if len(missingChecksums) > 0 {
+				var examples []string
+				for _, checksum := range missingChecksums {
+					sw := batchSoftware[checksum]
+					if len(examples) < 3 {
+						examples = append(examples, fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
+					}
+					// Evict from the in-process cache so the next attempt re-inserts the title.
+					if title, ok := newTitlesNeeded[checksum]; ok {
+						bundleID := ""
+						if title.BundleIdentifier != nil {
+							bundleID = *title.BundleIdentifier
+						}
+						cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, bundleID, title.IsKernel)
+						ds.deleteKnownSoftwareTitleKey(cacheKey)
+					}
 				}
-				ds.logger.ErrorContext(ctx, "inserting software without title_id",
-					"count", len(missingSoftwareTitles),
-					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
-				)
+				return ctxerr.Errorf(ctx, "missing title_id for %d software entries (e.g. %s); titles may have been concurrently deleted",
+					len(missingChecksums), strings.Join(examples, "; "))
 			}
 
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {

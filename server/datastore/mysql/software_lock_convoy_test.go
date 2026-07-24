@@ -281,7 +281,7 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 			elapsedReplace := time.Since(startReplace)
 			t.Logf("  Host %d replacement took: %s", idx, elapsedReplace)
 			if err != nil {
-				t.Logf("  Host %d replacement error: %v", idx, err)
+				t.Errorf("  Host %d replacement error: %v", idx, err)
 			}
 		}(i)
 	}
