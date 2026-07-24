@@ -240,7 +240,7 @@ Add the `windows_automatic_enrollment` key under `mdm` in your global (org) sett
 ```yaml
   mdm:
     windows_automatic_enrollment:
-      default_fleets: "💻 Workstations"
+      default_fleet: "💻 Workstations"
 ```
 
 ## Automatic Windows MDM migration
