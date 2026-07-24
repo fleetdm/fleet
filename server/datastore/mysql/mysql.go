@@ -101,8 +101,8 @@ type Datastore struct {
 	// The cache evicts older entries in bulk once it reaches a fixed size cap to avoid unbounded
 	// growth on long-lived servers without forcing a full cold start.
 	knownSoftwareTitleKeys map[string]struct{}
-	// knownSoftwareTitleKeysMu serializes cache reads, writes, and clears.
-	knownSoftwareTitleKeysMu sync.Mutex
+	// knownSoftwareTitleKeysMu serializes cache writes and clears; reads use RLock.
+	knownSoftwareTitleKeysMu sync.RWMutex
 
 	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
 	// same title key. Only one goroutine per title actually executes the INSERT; others wait
