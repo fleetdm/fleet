@@ -1,0 +1,10 @@
+{
+  "name": "Witch",
+  "unique_identifier": "com.manytricks.witchdaemon",
+  "token": "witch",
+  "installer_format": "dmg",
+  "slug": "witch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

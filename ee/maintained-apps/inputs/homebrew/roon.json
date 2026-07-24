@@ -1,0 +1,10 @@
+{
+  "name": "Roon",
+  "unique_identifier": "com.roon.Roon",
+  "token": "roon",
+  "installer_format": "dmg",
+  "slug": "roon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Swift Shift",
+  "unique_identifier": "com.pablopunk.Swift-Shift",
+  "token": "swift-shift",
+  "installer_format": "zip",
+  "slug": "swift-shift/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

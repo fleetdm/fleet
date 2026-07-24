@@ -1,0 +1,10 @@
+{
+  "name": "Raspberry Pi Imager",
+  "unique_identifier": "com.raspberrypi.imagingutility",
+  "token": "raspberry-pi-imager",
+  "installer_format": "dmg",
+  "slug": "raspberry-pi-imager/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

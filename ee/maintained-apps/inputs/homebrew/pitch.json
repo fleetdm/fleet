@@ -1,0 +1,10 @@
+{
+  "name": "Pitch",
+  "unique_identifier": "io.pitch.pitch-macos",
+  "token": "pitch",
+  "installer_format": "dmg",
+  "slug": "pitch/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

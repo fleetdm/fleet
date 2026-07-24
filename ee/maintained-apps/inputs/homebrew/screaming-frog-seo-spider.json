@@ -1,0 +1,10 @@
+{
+  "name": "Screaming Frog SEO Spider",
+  "unique_identifier": "uk.co.screamingfrog.seo.spider",
+  "token": "screaming-frog-seo-spider",
+  "installer_format": "dmg",
+  "slug": "screaming-frog-seo-spider/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

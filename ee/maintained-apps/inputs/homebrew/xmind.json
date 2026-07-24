@@ -1,0 +1,10 @@
+{
+  "name": "XMind",
+  "unique_identifier": "org.xmind.cathy.application",
+  "token": "xmind",
+  "installer_format": "dmg",
+  "slug": "xmind/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

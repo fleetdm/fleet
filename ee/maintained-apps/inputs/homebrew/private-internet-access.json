@@ -1,0 +1,10 @@
+{
+  "name": "Private Internet Access",
+  "unique_identifier": "com.privateinternetaccess.vpn",
+  "token": "private-internet-access",
+  "installer_format": "zip",
+  "slug": "private-internet-access/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

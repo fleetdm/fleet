@@ -1,0 +1,10 @@
+{
+  "name": "R",
+  "unique_identifier": "org.R-project.R",
+  "token": "r-app",
+  "installer_format": "pkg",
+  "slug": "r-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

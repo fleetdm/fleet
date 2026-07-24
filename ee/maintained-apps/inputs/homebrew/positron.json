@@ -1,0 +1,10 @@
+{
+  "name": "Positron",
+  "unique_identifier": "com.rstudio.positron",
+  "token": "positron",
+  "installer_format": "zip",
+  "slug": "positron/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

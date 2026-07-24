@@ -1,0 +1,10 @@
+{
+  "name": "Perimeter 81",
+  "unique_identifier": "com.safervpn.osx.smb",
+  "token": "perimeter81",
+  "installer_format": "pkg",
+  "slug": "perimeter81/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

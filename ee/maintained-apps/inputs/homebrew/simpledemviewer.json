@@ -1,0 +1,10 @@
+{
+  "name": "SimpleDEMViewer",
+  "unique_identifier": "jp.jizoh.SDVr8",
+  "token": "simpledemviewer",
+  "installer_format": "zip",
+  "slug": "simpledemviewer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

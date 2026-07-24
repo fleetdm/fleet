@@ -1,0 +1,10 @@
+{
+  "name": "Tableau Public",
+  "unique_identifier": "com.tableausoftware.tableaupublic",
+  "token": "tableau-public",
+  "installer_format": "pkg",
+  "slug": "tableau-public/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

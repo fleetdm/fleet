@@ -1,0 +1,10 @@
+{
+  "name": "Tag Editor",
+  "unique_identifier": "com.amvidia.Tag-Editor-FS",
+  "token": "tageditor",
+  "installer_format": "dmg",
+  "slug": "tageditor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

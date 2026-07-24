@@ -1,0 +1,10 @@
+{
+  "name": "Synology Assistant",
+  "unique_identifier": "com.synology.DSAssistant",
+  "token": "synologyassistant",
+  "installer_format": "dmg",
+  "slug": "synologyassistant/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

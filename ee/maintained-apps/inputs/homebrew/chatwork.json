@@ -1,0 +1,10 @@
+{
+  "name": "ChatWork",
+  "unique_identifier": "com.electron.chatwork",
+  "token": "chatwork",
+  "installer_format": "dmg",
+  "slug": "chatwork/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

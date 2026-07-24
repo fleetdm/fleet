@@ -1,0 +1,10 @@
+{
+  "name": "SystHist",
+  "unique_identifier": "co.eclecticlight.SystHist",
+  "token": "systhist",
+  "installer_format": "zip",
+  "slug": "systhist/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

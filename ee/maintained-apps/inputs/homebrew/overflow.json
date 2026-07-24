@@ -1,0 +1,10 @@
+{
+  "name": "Overflow",
+  "unique_identifier": "com.stuntsoftware.Overflow3",
+  "token": "overflow",
+  "installer_format": "zip",
+  "slug": "overflow/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

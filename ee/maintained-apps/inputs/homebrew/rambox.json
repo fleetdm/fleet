@@ -1,0 +1,10 @@
+{
+  "name": "Rambox",
+  "unique_identifier": "com.rambox",
+  "token": "rambox",
+  "installer_format": "zip",
+  "slug": "rambox/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
