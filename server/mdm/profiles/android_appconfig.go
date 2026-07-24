@@ -1,6 +1,7 @@
 package profiles
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -130,6 +131,20 @@ func SubstituteFleetVarsInAndroidAppConfig(
 	}
 
 	return []byte(contents), nil
+}
+
+// ContainsFleetVarOrCustomHostVital reports whether content has a $FLEET_VAR_*
+// token or a $FLEET_HOST_VITAL_<id> token. Checks bytes for the vital prefix
+// before falling back to fleet.FindCustomHostVitalIDs, which needs a string, to
+// avoid that conversion's allocation in the common case where content has neither.
+func ContainsFleetVarOrCustomHostVital(content []byte) bool {
+	if variables.ContainsBytes(content) {
+		return true
+	}
+	if !bytes.Contains(content, []byte(fleet.CustomHostVitalPrefix)) {
+		return false
+	}
+	return len(fleet.FindCustomHostVitalIDs(string(content))) > 0
 }
 
 // replaceJSONSafe replaces a Fleet variable in contents with a JSON-safe value.

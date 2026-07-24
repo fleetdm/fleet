@@ -1505,12 +1505,6 @@ func testMissingCustomHostVitalValueMarksProfileFailed(t *testing.T, ds fleet.Da
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
-func TestContainsFleetVarsOrCustomHostVitals(t *testing.T) {
-	require.True(t, containsFleetVarsOrCustomHostVitals([]byte(`{"a": "$FLEET_VAR_HOST_UUID"}`)))
-	require.True(t, containsFleetVarsOrCustomHostVitals([]byte(`{"a": "$FLEET_HOST_VITAL_7"}`)))
-	require.False(t, containsFleetVarsOrCustomHostVitals([]byte(`{"a": "plain"}`)))
-}
-
 func TestAndroidVarSubstitutionFailureDetail(t *testing.T) {
 	t.Run("missing custom host vital value", func(t *testing.T) {
 		detail, ok := androidVarSubstitutionFailureDetail(&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}})

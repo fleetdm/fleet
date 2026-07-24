@@ -18,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
-	"github.com/fleetdm/fleet/v4/server/variables"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
@@ -704,13 +703,6 @@ func androidVarSubstitutionFailureDetail(err error) (detail string, ok bool) {
 	return "", false
 }
 
-// containsFleetVarsOrCustomHostVitals reports whether content has a $FLEET_VAR_*
-// token or a $FLEET_HOST_VITAL_<id> token. variables.ContainsBytes alone misses
-// custom host vitals, which use a different prefix.
-func containsFleetVarsOrCustomHostVitals(content []byte) bool {
-	return variables.ContainsBytes(content) || len(fleet.FindCustomHostVitalIDs(string(content))) > 0
-}
-
 func substituteProfileVarsForHost(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -723,7 +715,7 @@ func substituteProfileVarsForHost(
 
 	hasVars := false
 	for _, content := range profilesContents {
-		if containsFleetVarsOrCustomHostVitals(content) {
+		if profiles.ContainsFleetVarOrCustomHostVital(content) {
 			hasVars = true
 			break
 		}
@@ -745,7 +737,7 @@ func substituteProfileVarsForHost(
 
 	result := make(map[string]json.RawMessage, len(profilesContents))
 	for profUUID, content := range profilesContents {
-		if !containsFleetVarsOrCustomHostVitals(content) {
+		if !profiles.ContainsFleetVarOrCustomHostVital(content) {
 			result[profUUID] = content
 			continue
 		}

@@ -222,6 +222,13 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 	})
 }
 
+func TestContainsFleetVarOrCustomHostVital(t *testing.T) {
+	require.True(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "$FLEET_VAR_HOST_UUID"}`)))
+	require.True(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "$FLEET_HOST_VITAL_7"}`)))
+	require.False(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "plain"}`)))
+	require.False(t, ContainsFleetVarOrCustomHostVital([]byte(`{"a": "FLEET_HOST_VITAL_no_dollar_sign"}`)))
+}
+
 func TestJsonEscapeString(t *testing.T) {
 	tests := []struct {
 		input    string
