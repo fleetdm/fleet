@@ -1,0 +1,5 @@
+- Added tooltips to the "Agent," "Last restarted," and "Status" column headers on the Hosts page explaining which platforms are supported and why.
+- On the Host details page, vitals with a "Not supported" value are now hidden instead of shown.
+- Fixed the "Last restarted" vital showing on ChromeOS hosts, where it's not actually collected.
+- Updated the "Last opened" tooltip on the Host details Software table to explain why it's only supported for native macOS, Windows, and Linux apps and packages.
+- Removed the `cellProps.rows.length === 1` workaround (which suppressed the tooltip whenever the table had exactly one row) by adding the correct CSS, which removes the tooltip overflowing if the host table is only 1 row.

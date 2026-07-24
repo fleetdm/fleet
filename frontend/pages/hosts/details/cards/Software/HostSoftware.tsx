@@ -305,9 +305,8 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
-          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading

@@ -385,26 +385,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Status
   {
     title: "Status",
-    Header: (cellProps: IHostTableHeaderProps) => {
+    Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
             <>
-              Online hosts will respond to a live report. Currently only
-              supported for macOS, Windows, and Linux.
+              Only supported on hosts that run Fleet&apos;s agent: macOS,
+              Windows, Linux, and ChromeOS.
             </>
           }
           className="status-header"
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
         >
           Status
         </TooltipWrapper>
       );
-      return (
-        <HeaderCell
-          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
-          disableSortBy
-        />
-      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
     },
     disableSortBy: true,
     accessor: "status",
@@ -580,9 +577,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Agent
   {
     title: "Agent",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Agent" isSortedDesc={cellProps.column.isSortedDesc} />
-    ),
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent="Only supported on hosts that run Fleet's agent: macOS, Windows, Linux, and ChromeOS."
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
+        >
+          Agent
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: (row) => row.orbit_version || row.osquery_version,
     id: "agent",
     Cell: (cellProps: IHostTableStringCellProps) => {
@@ -674,12 +685,23 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // Last restarted
   {
     title: "Last restarted",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Last restarted"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent="Only supported on macOS, Windows, and Linux, where Fleet's agent can measure system uptime."
+          tooltipClass="host-table-header-tooltip"
+          fixedPositionStrategy
+        >
+          Last restarted
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={titleWithToolTip}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      );
+    },
     accessor: "last_restarted_at",
     id: "last_restarted_at",
     Cell: (cellProps: IHostTableStringCellProps) => {
