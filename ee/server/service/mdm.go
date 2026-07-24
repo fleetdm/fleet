@@ -326,8 +326,7 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
-// logEnableManagedLocalAccountActivity logs the enabled/disabled managed local account activity
-// for one platform's toggle ("darwin" or "windows").
+// logEnableManagedLocalAccountActivity logs the enabled/disabled managed local account activity for one platform's toggle ("darwin" or "windows").
 func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, enable bool, platform string, teamID *uint, teamName *string) error {
 	var act fleet.ActivityDetails
 	if enable {

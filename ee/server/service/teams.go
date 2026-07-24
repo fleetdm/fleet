@@ -217,19 +217,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	var (
-		macOSMinVersionUpdated            bool
-		updateNewHostsChanged             bool
-		iOSMinVersionUpdated              bool
-		iPadOSMinVersionUpdated           bool
-		windowsUpdatesUpdated             bool
-		macOSDiskEncryptionUpdated        bool
-		recoveryLockPasswordUpdated       bool
-		macOSEnableEndUserAuthUpdated     bool
-		macOSManagedLocalAccountUpdated   bool
-		windowsManagedLocalAccountUpdated bool
-		conditionalAccessUpdated          bool
-		nameTemplateUpdated               bool
+		macOSMinVersionUpdated          bool
+		updateNewHostsChanged           bool
+		iOSMinVersionUpdated            bool
+		iPadOSMinVersionUpdated         bool
+		windowsUpdatesUpdated           bool
+		macOSDiskEncryptionUpdated      bool
+		recoveryLockPasswordUpdated     bool
+		macOSEnableEndUserAuthUpdated   bool
+		macOSManagedLocalAccountUpdated bool
+		conditionalAccessUpdated        bool
+		nameTemplateUpdated             bool
 	)
+	var windowsManagedLocalAccountUpdated bool
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -1457,7 +1457,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				})
 			}
 
-			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts)
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
@@ -1521,9 +1521,8 @@ func (svc *Service) createTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	opts fleet.ApplyTeamSpecOptions,
+	dryRun bool,
 ) (*fleet.Team, error) {
-	dryRun := opts.DryRun
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
 		agentOptions = appCfg.AgentOptions
@@ -1546,14 +1545,6 @@ func (svc *Service) createTeamFromSpec(
 	var macOSSettings fleet.MacOSSettings
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings); err != nil {
 		return nil, err
-	}
-	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
-	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
-		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
-	}
-	if spec.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !windowsEnabledAndConfigured {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.managed_local_account_settings.enabled",
-			"Couldn't enable windows_settings.managed_local_account_settings. "+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 	macOSSetup := spec.MDM.MacOSSetup
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {

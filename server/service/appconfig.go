@@ -880,6 +880,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above,
 	// an explicit JSON null means "not provided": keep the old value rather than persisting an
 	// invalid optjson state.
+	if !oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
 	if newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
 		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
 	} else {
@@ -1902,7 +1905,8 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
-	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
+	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
+		mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
 		invalid.Append("windows_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {

@@ -838,6 +838,7 @@ org_settings:
 software:
 `, extraControls, fleetServerURL, orgName))
 		require.NoError(t, err)
+		require.NoError(t, f.Close())
 		return f.Name()
 	}
 

@@ -3183,6 +3183,13 @@ func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
 			wantErr:  "missing or invalid license",
 		},
 		{
+			name:           "disable is allowed without premium (license downgrade)",
+			freeTier:       true,
+			startEnabled:   true,
+			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
+			wantActivities: []string{"disabled_managed_local_account:windows"},
+		},
+		{
 			name:          "enable requires windows MDM",
 			windowsMDMOff: true,
 			patch:         `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
