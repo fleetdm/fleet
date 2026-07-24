@@ -98,14 +98,11 @@ type Datastore struct {
 	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
 	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
 	// preventing lock convoys on the unique index when many hosts report the same software catalog.
-	// Keys are softwareTitleCacheKey strings, values are struct{}. The cache is periodically
-	// cleared once it reaches a fixed size cap to avoid unbounded growth on long-lived servers.
-	knownSoftwareTitleKeys sync.Map
-	// knownSoftwareTitleKeysMu serializes cache writes and clears so the cache size tracking stays accurate.
+	// The cache is periodically cleared once it reaches a fixed size cap to avoid unbounded growth
+	// on long-lived servers.
+	knownSoftwareTitleKeys map[string]struct{}
+	// knownSoftwareTitleKeysMu serializes cache reads, writes, and clears.
 	knownSoftwareTitleKeysMu sync.Mutex
-	// knownSoftwareTitleKeysCount tracks the number of cached title keys and must only be
-	// read or written while holding knownSoftwareTitleKeysMu.
-	knownSoftwareTitleKeysCount uint64
 
 	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
 	// same title key. Only one goroutine per title actually executes the INSERT; others wait
@@ -299,17 +296,18 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 // Use this when you need to share database connections with other bounded context datastores.
 func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c clock.Clock) (*Datastore, error) {
 	ds := &Datastore{
-		primary:             conns.Primary,
-		replica:             conns.Replica,
-		logger:              conns.Options.Logger,
-		clock:               c,
-		config:              cfg,
-		readReplicaConfig:   conns.Options.ReplicaConfig,
-		writeCh:             make(chan itemToWrite),
-		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: conns.Options.MinLastOpenedAtDiff,
-		serverPrivateKey:    conns.Options.PrivateKey,
-		Datastore:           NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
+		primary:                conns.Primary,
+		replica:                conns.Replica,
+		logger:                 conns.Options.Logger,
+		clock:                  c,
+		config:                 cfg,
+		readReplicaConfig:      conns.Options.ReplicaConfig,
+		writeCh:                make(chan itemToWrite),
+		stmtCache:              make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff:    conns.Options.MinLastOpenedAtDiff,
+		serverPrivateKey:       conns.Options.PrivateKey,
+		knownSoftwareTitleKeys: make(map[string]struct{}),
+		Datastore:              NewAndroidDatastore(conns.Options.Logger, conns.Primary, conns.Replica),
 	}
 
 	go ds.writeChanLoop()

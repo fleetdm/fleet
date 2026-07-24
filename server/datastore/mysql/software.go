@@ -95,13 +95,13 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
 	ds.knownSoftwareTitleKeysMu.Lock()
 	defer ds.knownSoftwareTitleKeysMu.Unlock()
-	if _, loaded := ds.knownSoftwareTitleKeys.LoadOrStore(key, struct{}{}); loaded {
+	if _, loaded := ds.knownSoftwareTitleKeys[key]; loaded {
 		return
 	}
-	ds.knownSoftwareTitleKeysCount++
-	if ds.knownSoftwareTitleKeysCount >= maxKnownSoftwareTitleKeys {
-		ds.clearKnownSoftwareTitleKeysLocked()
+	if len(ds.knownSoftwareTitleKeys) >= maxKnownSoftwareTitleKeys {
+		ds.knownSoftwareTitleKeys = make(map[string]struct{})
 	}
+	ds.knownSoftwareTitleKeys[key] = struct{}{}
 }
 
 func (ds *Datastore) clearKnownSoftwareTitleKeys() {
@@ -110,9 +110,15 @@ func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 	ds.clearKnownSoftwareTitleKeysLocked()
 }
 
+func (ds *Datastore) hasKnownSoftwareTitleKey(key string) bool {
+	ds.knownSoftwareTitleKeysMu.Lock()
+	defer ds.knownSoftwareTitleKeysMu.Unlock()
+	_, ok := ds.knownSoftwareTitleKeys[key]
+	return ok
+}
+
 func (ds *Datastore) clearKnownSoftwareTitleKeysLocked() {
-	ds.knownSoftwareTitleKeys.Clear()
-	ds.knownSoftwareTitleKeysCount = 0
+	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
@@ -1137,14 +1143,14 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			const insertTitleStmt = `INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, application_id, upgrade_code) VALUES (?,?,?,?,?,?,?)`
 			for key, title := range uniqueTitles {
 				cacheKey := softwareTitleCacheKey(title.Name, title.Source, title.ExtensionFor, key.bundleID, title.IsKernel)
-				if _, cached := ds.knownSoftwareTitleKeys.Load(cacheKey); cached {
+				if ds.hasKnownSoftwareTitleKey(cacheKey) {
 					continue
 				}
 				// Capture loop variables for the closure.
 				titleCopy := title
 				_, sfErr, _ := ds.titleInsertSF.Do(cacheKey, func() (interface{}, error) {
 					// Double-check cache after winning the singleflight race.
-					if _, cached := ds.knownSoftwareTitleKeys.Load(cacheKey); cached {
+					if ds.hasKnownSoftwareTitleKey(cacheKey) {
 						return nil, nil
 					}
 					if _, err := ds.writer(ctx).ExecContext(ctx, insertTitleStmt,
