@@ -1256,7 +1256,7 @@ org_settings:
 
 The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
 
-- `default_fleet` specifies the name of the fleet all Windows hosts go in (default: `""`).
+- `default_fleet` specifies the name of the fleet that automatically enrolled Windows hosts go in (default: `""`).
 
 #### Example
 
@@ -1264,7 +1264,7 @@ The `windows_automatic_enrollment` section lets you control the default fleet th
 org_settings:
   mdm:
     windows_automatic_enrollment: # Available in Fleet Premium
-    - default_fleet: Windows Workstations
+      default_fleet: Windows Workstations
 ```
 
 #### volume_purchasing_program

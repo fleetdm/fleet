@@ -2121,7 +2121,7 @@ Modifies the Fleet's configuration with the supplied information.
       "apple_setup_assistant": "path/to/config.json"
     },
     "windows_automatic_enrollment": {
-      "default_fleet": "123"
+      "default_fleet": "Workstations"
     },
     "apple_server_url": "https://instance.fleet.com"
   },
@@ -2818,7 +2818,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| default_fleet                     | string  | The id of the fleet that Windows automatically enrolled hosts will be placed in.
+| default_fleet                     | string  | The name of the fleet that Windows automatically enrolled hosts will be placed in. Empty string (default) places hosts in "No fleet".
 
 <br/>
 
@@ -2893,7 +2893,7 @@ _Available in Fleet Premium._
       "apple_setup_assistant": "path/to/config.json"
     },
     "windows_automatic_enrollment": {
-      "default_fleet": "123"
+      "default_fleet": "Workstations"
     }
   }
 }
@@ -14443,9 +14443,6 @@ _Available in Fleet Premium_
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
-      },
-      "windows_automatic_enrollment": {
-        "default_fleet": "123"
       }
     }
   }
@@ -14773,7 +14770,6 @@ Returned when the requested name only differs from another fleet's name by lette
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
-| windows_automatic_enrollment         | object  | See [`mdm.windows_automatic_enrollment`](#mdm-windows-automatic-enrollment2). |
 
 <br/>
 
@@ -14909,9 +14905,6 @@ Returned when the requested name only differs from another fleet's name by lette
     },
     "setup_experience": {
       "enable_end_user_authentication": false
-    },
-    "windows_automatic_enrollment": {
-      "default_fleet": "123"
     }
   }
 }
@@ -15089,9 +15082,6 @@ _Available in Fleet Premium_
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
         "apple_setup_assistant": "path/to/config.json"
-      },
-      "windows_automatic_enrollment": {
-        "default_fleet": "123"
       }
     },
     "users": [
