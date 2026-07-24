@@ -73,6 +73,8 @@
   &__help-text {
     @include help-text;
     margin-top: $pad-xxsmall;
+    // aligns helper text with the radio label instead of the radio control
+    padding-left: $pad-large;
   }
 
   &__disabled {
