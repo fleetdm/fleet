@@ -2522,11 +2522,11 @@ type getHostDEPAssignmentRequest struct {
 }
 
 type getHostDEPAssignmentResponse struct {
-	ID                uint                      `json:"id"`
-	HostDEPAssignment *fleet.HostDEPAssignment  `json:"host_dep_assignment"`
-	DEPDevice         *godep.DeviceDetails      `json:"dep_device"`
-	DEPDeviceError    *fleet.DEPDeviceErrorType `json:"dep_device_error"`
-	Err               error                     `json:"error,omitempty"`
+	ID                uint                     `json:"id"`
+	HostDEPAssignment *fleet.HostDEPAssignment `json:"host_dep_assignment"`
+	DEPDevice         *godep.DeviceDetails     `json:"dep_device"`
+	DEPDeviceError    *string                  `json:"dep_device_error"`
+	Err               error                    `json:"error,omitempty"`
 }
 
 func (r getHostDEPAssignmentResponse) Error() error { return r.Err }
@@ -2538,16 +2538,17 @@ func getHostDEPAssignmentEndpoint(ctx context.Context, request any, svc fleet.Se
 		return getHostDEPAssignmentResponse{Err: err}, nil
 	}
 
-	var depErrorPtr *fleet.DEPDeviceErrorType
+	var depErrorMessage *string
 	if depError != "" {
-		depErrorPtr = &depError
+		msg := depError.Message()
+		depErrorMessage = &msg
 	}
 
 	return getHostDEPAssignmentResponse{
 		ID:                req.ID,
 		HostDEPAssignment: depAssignment,
 		DEPDevice:         depDevice,
-		DEPDeviceError:    depErrorPtr,
+		DEPDeviceError:    depErrorMessage,
 	}, nil
 }
 

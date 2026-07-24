@@ -771,6 +771,24 @@ const (
 	DEPDeviceErrorUnavailable DEPDeviceErrorType = "UNAVAILABLE"
 )
 
+// Message returns a human-readable description of the error, suitable for
+// display to an end user (e.g. as the dep_device_error attribute of the
+// dep_assignment endpoint).
+func (e DEPDeviceErrorType) Message() string {
+	switch e {
+	case DEPDeviceErrorTokenInvalid:
+		return "Fleet can't connect to Apple Business. An admin needs to renew the AB token."
+	case DEPDeviceErrorTermsExpired:
+		return "Apple Business terms/conditions have changed. An admin must accept them."
+	case DEPDeviceErrorNotFound:
+		return "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server."
+	case DEPDeviceErrorServerError:
+		return "Apple's servers are temporarily unavailable. Please try again later."
+	default:
+		return "Fleet can't retrieve data from Apple right now. Please try again later."
+	}
+}
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
