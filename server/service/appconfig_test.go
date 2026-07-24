@@ -1235,7 +1235,6 @@ func TestMDMConfig(t *testing.T) {
 			EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
 			WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			WindowsEnrollment:          optjson.Any[fleet.WindowsEnrollment]{Set: true},
 		}
 
 		for _, change := range changes {
@@ -3196,6 +3195,14 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			name:           "omitted key is a no-op",
 			licenseTier:    fleet.TierPremium,
 			payload:        `{"org_info":{"org_name":"Test2"}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "null keeps the persisted setting",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":null}}`,
 			currentTeamID:  &teamID,
 			expectSet:      false,
 			expectActivity: false,

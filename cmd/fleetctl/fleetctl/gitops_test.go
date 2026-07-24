@@ -4616,9 +4616,27 @@ software:
 	cases := []struct {
 		name             string
 		cfgs             []string
+		extraArgs        []string
+		seedTeamName     string
 		dryRunAssertion  func(t *testing.T, out string, defaultTeamID *uint, err error)
 		realRunAssertion func(t *testing.T, out string, defaultTeamID *uint, err error)
 	}{
+		{
+			name: "delete-other-fleets cannot delete the default fleet",
+			cfgs: []string{
+				global(`windows_enrollment:
+      default_fleet: "💻 Workstations"`),
+				team("Other team"),
+			},
+			extraArgs:    []string{"--delete-other-fleets"},
+			seedTeamName: "💻 Workstations",
+			dryRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+			realRunAssertion: func(t *testing.T, out string, defaultTeamID *uint, err error) {
+				require.ErrorContains(t, err, "windows_enrollment default_fleet 💻 Workstations cannot be deleted")
+			},
+		},
 		{
 			name: "fleet declared in the same run",
 			cfgs: []string{
@@ -4725,6 +4743,11 @@ software:
 				return nil
 			}
 
+			if tt.seedTeamName != "" {
+				seeded := &fleet.Team{ID: 99, Name: tt.seedTeamName}
+				savedTeams[tt.seedTeamName] = &seeded
+			}
+
 			// Track the persisted default fleet, overriding the helper's stateful default so the
 			// test can assert on it directly.
 			var defaultTeamID *uint
@@ -4754,6 +4777,7 @@ software:
 					args = append(args, "-f", tmpFile.Name())
 				}
 			}
+			args = append(args, tt.extraArgs...)
 
 			// Dry run
 			out, err := runAppNoChecks(append(args, "--dry-run"))

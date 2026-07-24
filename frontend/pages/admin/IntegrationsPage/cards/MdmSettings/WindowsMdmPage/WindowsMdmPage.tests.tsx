@@ -7,9 +7,7 @@ import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import configAPI from "services/entities/config";
 import WindowsMdmPage from "./WindowsMdmPage";
 
-jest.mock("services/entities/config", () => ({
-  updateMDMConfig: jest.fn(() => Promise.resolve({})),
-}));
+jest.mock("services/entities/config");
 
 describe("WindowsMdmPage", () => {
   it("renders only the windows mdm slider when on free tier", () => {
@@ -119,6 +117,7 @@ describe("WindowsMdmPage", () => {
   });
 
   it("saves the toggle states and the default fleet through the config API", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
     const render = createCustomRenderer({
       context: {
         app: {

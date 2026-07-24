@@ -559,6 +559,11 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 
+				}
+
+				// Runs outside the multi-file gate above: the resolved default fleet name is also
+				// needed by the --delete-other-fleets guard below, even on single-file runs.
+				if isGlobalConfig && appConfig.License.IsPremium() {
 					windowsEnrollmentDefaultFleet, windowsEnrollmentFleetMissing, err = checkWindowsEnrollmentAssignment(config, fleetClient)
 					if err != nil {
 						return err
@@ -709,6 +714,9 @@ func gitopsCommand() *cli.Command {
 						}
 						if slices.Contains(vppTeams, team.Name) {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
+						}
+						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
+							return fmt.Errorf("windows_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)

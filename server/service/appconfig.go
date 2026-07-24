@@ -1037,14 +1037,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Normalize the stored JSON to the canonical fleet name when one was resolved. Clears keep the
-	// payload's own shape (empty string or null), consistent with the rest of the optjson pipeline.
-	// The DB row written after save (windows_enrollment_config) is the source of truth; reads
-	// hydrate from it.
+	// payload's own shape, consistent with the rest of the optjson pipeline. The DB row written
+	// after save (windows_enrollment_config) is the source of truth; reads hydrate from it.
 	if windowsEnrollmentDefined && windowsEnrollmentFleetName != "" {
 		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
 			Set: true, Valid: true,
 			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
 		}
+	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
+		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated
+		// it as omitted), so restore the stored value rather than persisting the null.
+		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
 	}
 
 	// ignore MDM.EnabledAndConfigured MDM.AppleBMTermsExpired, and MDM.AppleBMEnabledAndConfigured
@@ -2261,7 +2264,9 @@ func (svc *Service) validateWindowsEnrollment(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (defined bool, teamID *uint, fleetName string, err error) {
-	if !newMDM.WindowsEnrollment.Set {
+	if !newMDM.WindowsEnrollment.Set || !newMDM.WindowsEnrollment.Valid {
+		// Omitted key or explicit null: keep the persisted setting (same convention as
+		// enable_disk_encryption). Only an object clears or changes it.
 		return false, nil, "", nil
 	}
 
