@@ -676,6 +676,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2025-6554"},
 			continuesToUpdate: true,
 		},
+		// Keep these aligned with the live NVD feed consumed by DownloadCVEFeed.
+		// NVD no longer returns CVE-2025-9074 for these CPEs; Docker lists
+		// CVE-2026-2664 as fixed in Docker Desktop 4.62.0:
+		// https://docs.docker.com/security/security-announcements/
 		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
 			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,

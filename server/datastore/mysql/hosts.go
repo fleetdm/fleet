@@ -35,6 +35,7 @@ var (
 	hostIssuesInsertBatchSize                = 10000
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
 	hostsDeleteBatchSize                     = 5000
+	cleanupExpiredHostsBatchSize             = 5000
 )
 
 var (
@@ -3935,41 +3936,65 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
-	var allIdsToDelete []uint
-	hostIDToExpiryWindow := make(map[uint]int)
-	// Process hosts using global expiry
-	if ac.HostExpirySettings.HostExpiryEnabled {
-		sqlQuery := findHostsSql + " AND (team_id IS NULL"
-		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
-		if len(teamsUsingGlobalExpiry) > 0 {
-			sqlQuery += " OR team_id IN (?)"
-			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
-			}
-		}
-		sqlQuery += ")"
-		var globalIDs []uint
-		err = ds.writer(ctx).SelectContext(
-			ctx,
-			&globalIDs,
-			sqlQuery,
-			args...,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
-		}
-		for _, id := range globalIDs {
-			hostIDToExpiryWindow[id] = ac.HostExpirySettings.HostExpiryWindow
-		}
-		allIdsToDelete = append(allIdsToDelete, globalIDs...)
+	type expiredHostScope struct {
+		expiryWindow int
+		querySuffix  string
+		args         []any
 	}
 
-	// Process hosts using team expiry
-	for teamId, expiry := range teamsUsingCustomExpiry {
+	var expiredHostScopes []expiredHostScope
+	if ac.HostExpirySettings.HostExpiryEnabled {
+		querySuffix := " AND (team_id IS NULL"
+		args := []any{ac.HostExpirySettings.HostExpiryWindow}
+		if len(teamsUsingGlobalExpiry) > 0 {
+			querySuffix += " OR team_id IN (?)"
+			args = append(args, teamsUsingGlobalExpiry)
+		}
+		querySuffix += ")"
+		expiredHostScopes = append(expiredHostScopes, expiredHostScope{
+			expiryWindow: ac.HostExpirySettings.HostExpiryWindow,
+			querySuffix:  querySuffix,
+			args:         args,
+		})
+	}
+
+	customExpiryTeamIDs := make([]uint, 0, len(teamsUsingCustomExpiry))
+	for teamID := range teamsUsingCustomExpiry {
+		customExpiryTeamIDs = append(customExpiryTeamIDs, teamID)
+	}
+	slices.Sort(customExpiryTeamIDs)
+	for _, teamID := range customExpiryTeamIDs {
+		expiry := teamsUsingCustomExpiry[teamID]
+		expiredHostScopes = append(expiredHostScopes, expiredHostScope{
+			expiryWindow: expiry,
+			querySuffix:  " AND team_id = ?",
+			args:         []any{expiry, teamID},
+		})
+	}
+
+	var allIdsToDelete []uint
+	hostIDToExpiryWindow := make(map[uint]int)
+	lastHostIDByScope := make([]uint, len(expiredHostScopes))
+	queryExpiredHosts := func(scopeIndex, limit int) error {
+		if limit <= 0 {
+			return nil
+		}
+
+		scope := expiredHostScopes[scopeIndex]
+		sqlQuery := findHostsSql + scope.querySuffix
+		args := append([]any(nil), scope.args...)
+		if lastHostIDByScope[scopeIndex] > 0 {
+			sqlQuery += " AND h.id > ?"
+			args = append(args, lastHostIDByScope[scopeIndex])
+		}
+		sqlQuery += " ORDER BY h.id LIMIT ?"
+		args = append(args, limit)
+		sqlQuery, args, err = sqlx.In(sqlQuery, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query to get expired host ids")
+		}
+
 		var ids []uint
-		sqlQuery := findHostsSql + " AND team_id = ?"
-		args := []interface{}{expiry, teamId}
 		err = ds.writer(ctx).SelectContext(
 			ctx,
 			&ids,
@@ -3977,12 +4002,51 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 			args...,
 		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting team expired hosts")
+			return ctxerr.Wrap(ctx, err, "getting expired hosts")
 		}
 		for _, id := range ids {
-			hostIDToExpiryWindow[id] = expiry
+			hostIDToExpiryWindow[id] = scope.expiryWindow
+		}
+		if len(ids) > 0 {
+			lastHostIDByScope[scopeIndex] = ids[len(ids)-1]
 		}
 		allIdsToDelete = append(allIdsToDelete, ids...)
+		return nil
+	}
+
+	// Reserve part of the batch for each expiry scope so a large global backlog
+	// does not consume the entire batch before custom-expiry teams are considered.
+	remainingReservedBudget := cleanupExpiredHostsBatchSize
+	for scopeIndex := range expiredHostScopes {
+		scopesLeft := len(expiredHostScopes) - scopeIndex
+		reservedLimit := remainingReservedBudget / scopesLeft
+		if reservedLimit == 0 && remainingReservedBudget > 0 {
+			reservedLimit = 1
+		}
+		if reservedLimit == 0 {
+			break
+		}
+
+		err = queryExpiredHosts(scopeIndex, reservedLimit)
+		if err != nil {
+			return nil, err
+		}
+		remainingReservedBudget -= reservedLimit
+	}
+
+	// Fill unused capacity from scopes that still have more expired hosts.
+	remainingBatchSize := cleanupExpiredHostsBatchSize - len(allIdsToDelete)
+	for scopeIndex := range expiredHostScopes {
+		if remainingBatchSize <= 0 {
+			break
+		}
+
+		previousCount := len(allIdsToDelete)
+		err = queryExpiredHosts(scopeIndex, remainingBatchSize)
+		if err != nil {
+			return nil, err
+		}
+		remainingBatchSize -= len(allIdsToDelete) - previousCount
 	}
 
 	// Get host details before deletion for activity creation
