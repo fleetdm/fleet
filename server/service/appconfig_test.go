@@ -3130,3 +3130,142 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		})
 	}
 }
+
+func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	teamID := uint(7)
+
+	type testCase struct {
+		name           string
+		licenseTier    string
+		payload        string
+		currentTeamID  *uint
+		expectErr      string
+		expectSet      bool
+		expectSetTo    *uint
+		expectActivity bool
+	}
+	testCases := []testCase{
+		{
+			name:           "set to existing fleet",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			expectSet:      true,
+			expectSetTo:    &teamID,
+			expectActivity: true,
+		},
+		{
+			name:           "unchanged value writes nothing",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "clear with empty string",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      true,
+			expectSetTo:    nil,
+			expectActivity: true,
+		},
+		{
+			name:        "unknown fleet name is invalid",
+			licenseTier: fleet.TierPremium,
+			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Nope"}}}`,
+			expectErr:   `fleet "Nope" doesn't exist`,
+		},
+		{
+			name:        "premium required to set",
+			licenseTier: fleet.TierFree,
+			payload:     `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			expectErr:   "missing or invalid license",
+		},
+		{
+			name:           "unchanged value tolerated without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":"Workstations"}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "omitted key is a no-op",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"org_info":{"org_name":"Test2"}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "null keeps the persisted setting",
+			licenseTier:    fleet.TierPremium,
+			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tc.licenseTier}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			var activities []string
+			opts.ActivityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, act activity_api.ActivityDetails) error {
+				activities = append(activities, act.ActivityName())
+				return nil
+			}
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				if name == "Workstations" {
+					return &fleet.Team{ID: teamID, Name: "Workstations"}, nil
+				}
+				return nil, newNotFoundError()
+			}
+			ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+				if tc.currentTeamID != nil {
+					return tc.currentTeamID, "Workstations", nil
+				}
+				return nil, "", nil
+			}
+			var setTo *uint
+			ds.SetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context, id *uint) error {
+				setTo = id
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tc.payload), fleet.ApplySpecOptions{})
+			if tc.expectErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectErr)
+				require.False(t, ds.SaveAppConfigFuncInvoked)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.expectSet, ds.SetWindowsEnrollmentDefaultTeamFuncInvoked)
+			if tc.expectSet {
+				require.Equal(t, tc.expectSetTo, setTo)
+			}
+			if tc.expectActivity {
+				require.Contains(t, activities, "edited_windows_enrollment_default_fleet")
+			} else {
+				require.NotContains(t, activities, "edited_windows_enrollment_default_fleet")
+			}
+		})
+	}
+}

@@ -1214,6 +1214,10 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
+		// The GET /config response hydrates windows_enrollment.default_fleet with the canonical
+		// fleet name from its config row, so this round-trips through gitops apply. Emit the inner
+		// value so an unset default exports as an explicit empty string rather than null.
+		result[jsonFieldName(t, "WindowsEnrollment")] = mdm.WindowsEnrollment.Value
 		vppTokens, err := cmd.Client.GetVPPTokens()
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error fetching VPP tokens: %s\n", err)

@@ -146,6 +146,8 @@ func gitopsCommand() *cli.Command {
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 			var abmTeams, vppTeams, missingVPPTeams []string
 			var hasMissingABMTeam, usesLegacyABMConfig bool
+			var windowsEnrollmentDefaultFleet string
+			var windowsEnrollmentFleetMissing bool
 			type missingVPPTeamWithApps struct {
 				config   *spec.GitOps
 				vppApps  []*fleet.TeamSpecAppStoreApp
@@ -556,6 +558,27 @@ func gitopsCommand() *cli.Command {
 							}
 						}
 					}
+
+				}
+
+				// Runs outside the multi-file gate above: the resolved default fleet name is also
+				// needed by the --delete-other-fleets guard below, even on single-file runs.
+				if isGlobalConfig && appConfig.License.IsPremium() {
+					windowsEnrollmentDefaultFleet, windowsEnrollmentFleetMissing, err = checkWindowsEnrollmentAssignment(config, fleetClient)
+					if err != nil {
+						return err
+					}
+					if windowsEnrollmentFleetMissing {
+						if mdm, ok := config.OrgSettings["mdm"]; ok {
+							if mdmMap, ok := mdm.(map[string]any); ok {
+								// The referenced fleet may be created later in this run. Deleting the
+								// key makes the first apply a no-op for this setting (an omitted key
+								// keeps the stored value); it is applied separately after teams are
+								// processed.
+								delete(mdmMap, "windows_enrollment")
+							}
+						}
+					}
 				}
 
 				// Teams need a VPP token before VPP apps can be applied. When some VPP
@@ -648,6 +671,11 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 			}
+			if windowsEnrollmentDefaultFleet != "" && windowsEnrollmentFleetMissing {
+				if err = applyWindowsEnrollmentAssignmentIfNeeded(c, teamNames, windowsEnrollmentDefaultFleet, flDryRun, fleetClient); err != nil {
+					return err
+				}
+			}
 			// Now that VPP tokens have been assigned, we can apply VPP apps to the new team.
 			// For simplicity, we simply re-apply the entire config. This only happens once when the team is created.
 			for _, teamWithApps := range missingVPPTeamsWithApps {
@@ -686,6 +714,9 @@ func gitopsCommand() *cli.Command {
 						}
 						if slices.Contains(vppTeams, team.Name) {
 							return fmt.Errorf("volume_purchasing_program team %s cannot be deleted", team.Name)
+						}
+						if windowsEnrollmentDefaultFleet != "" && norm.NFC.String(team.Name) == windowsEnrollmentDefaultFleet {
+							return fmt.Errorf("windows_enrollment default_fleet %s cannot be deleted", team.Name)
 						}
 						if flDryRun {
 							_, _ = fmt.Fprintf(c.App.Writer, "[!] would've deleted team %s\n", team.Name)
@@ -1271,6 +1302,78 @@ func applyABMTokenAssignmentIfNeeded(
 		return nil
 	}
 	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying ABM teams\n")
+	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
+		return fmt.Errorf("applying fleet config: %w", err)
+	}
+	return nil
+}
+
+// checkWindowsEnrollmentAssignment reads org_settings.mdm.windows_enrollment.default_fleet and
+// reports whether the referenced fleet doesn't exist in Fleet yet (it may be created later in the
+// same gitops run). Returns an empty name when the section or the value is absent.
+func checkWindowsEnrollmentAssignment(config *spec.GitOps, fleetClient *service.Client) (defaultFleet string, missingTeam bool, err error) {
+	mdm, ok := config.OrgSettings["mdm"]
+	if !ok {
+		return "", false, nil
+	}
+	mdmMap, ok := mdm.(map[string]any)
+	if !ok {
+		return "", false, nil
+	}
+	we, ok := mdmMap["windows_enrollment"]
+	if !ok {
+		return "", false, nil
+	}
+	// A wrong shape is passed through untouched so the server-side validation reports it.
+	weMap, ok := we.(map[string]any)
+	if !ok {
+		return "", false, nil
+	}
+	name, _ := weMap["default_fleet"].(string)
+	if name == "" {
+		return "", false, nil
+	}
+	// normalize for Unicode support
+	name = norm.NFC.String(name)
+	teams, err := fleetClient.ListTeams("")
+	if err != nil {
+		return "", false, err
+	}
+	for _, tm := range teams {
+		if norm.NFC.String(tm.Name) == name {
+			return name, false, nil
+		}
+	}
+	return name, true, nil
+}
+
+// applyWindowsEnrollmentAssignmentIfNeeded applies the deferred
+// org_settings.mdm.windows_enrollment.default_fleet once teams have been processed, failing if the
+// referenced fleet still doesn't exist.
+func applyWindowsEnrollmentAssignmentIfNeeded(
+	ctx *cli.Context,
+	teamNames []string,
+	defaultFleet string,
+	flDryRun bool,
+	fleetClient *service.Client,
+) error {
+	knownTeams, err := knownTeamNamesForTokenAssignment(teamNames, fleetClient)
+	if err != nil {
+		return err
+	}
+	if _, ok := knownTeams[norm.NFC.String(defaultFleet)]; !ok {
+		return fmt.Errorf("windows_enrollment default_fleet %q not found in team configs", defaultFleet)
+	}
+	if flDryRun {
+		_, _ = fmt.Fprint(ctx.App.Writer, "[!] would apply Windows enrollment default fleet\n")
+		return nil
+	}
+	_, _ = fmt.Fprintf(ctx.App.Writer, "[+] applying Windows enrollment default fleet\n")
+	appConfigUpdate := map[string]map[string]any{
+		"mdm": {
+			"windows_enrollment": map[string]any{"default_fleet": defaultFleet},
+		},
+	}
 	if err := fleetClient.ApplyAppConfig(appConfigUpdate, fleet.ApplySpecOptions{}); err != nil {
 		return fmt.Errorf("applying fleet config: %w", err)
 	}

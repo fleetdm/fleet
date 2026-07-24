@@ -9,4 +9,16 @@
     font-size: $small;
     margin-bottom: $pad-small;
   }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: $small;
+    font-weight: $bold;
+  }
 }

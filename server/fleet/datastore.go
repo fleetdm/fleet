@@ -2317,6 +2317,23 @@ type Datastore interface {
 	// WindowsHostLiteByHardwareSerial returns a HostLite for the Windows host whose hardware_serial matches the given serial.
 	WindowsHostLiteByHardwareSerial(ctx context.Context, hardwareSerial string) (*HostLite, error)
 
+	// MDMWindowsSaveUnlinkedEnrollmentHardwareSerial stores the SMBIOS serial reported over OMA-DM (DevDetail) on a
+	// still-unlinked (host_uuid = '') Windows MDM enrollment, so the orbit enrollment path can reverse-link the
+	// enrollment once the host record exists.
+	MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.Context, mdmDeviceID string, hardwareSerial string) error
+
+	// MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = '') Windows
+	// MDM enrollment whose device-reported SMBIOS serial matches. Returns a NotFound error when there is none.
+	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*MDMWindowsEnrolledDevice, error)
+
+	// GetWindowsEnrollmentDefaultTeam returns the configured default team for new user-driven Windows MDM
+	// enrollments: nil team id and empty name when unset.
+	GetWindowsEnrollmentDefaultTeam(ctx context.Context) (teamID *uint, teamName string, err error)
+
+	// SetWindowsEnrollmentDefaultTeam sets (or clears, with nil) the default team for new user-driven Windows MDM
+	// enrollments.
+	SetWindowsEnrollmentDefaultTeam(ctx context.Context, teamID *uint) error
+
 	// MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a give MDMWindowsEnrolledDevice entry from the database using the device id
 	MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error
 

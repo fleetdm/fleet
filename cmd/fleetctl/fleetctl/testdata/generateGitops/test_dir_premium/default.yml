@@ -138,6 +138,8 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
       location: Fleet Device Management Inc.
+    windows_enrollment:
+      default_fleet: "💻 Workstations"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url_dark_mode: http://some-org-logo-url.com

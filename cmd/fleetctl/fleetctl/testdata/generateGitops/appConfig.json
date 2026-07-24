@@ -291,6 +291,9 @@
       "custom_settings": []
     },
     "volume_purchasing_program": null,
+    "windows_enrollment": {
+      "default_fleet": "💻 Workstations"
+    },
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []
