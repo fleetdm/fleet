@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -95,6 +96,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	*p.Name = strings.TrimSpace(*p.Name)
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+	}
+	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 	}
 	if fleet.IsReservedTeamName(*p.Name) {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
@@ -183,6 +187,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+		}
+		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(*payload.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
@@ -1325,6 +1332,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		spec.Name = strings.TrimSpace(spec.Name)
 		if spec.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+		}
+		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(spec.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))

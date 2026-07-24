@@ -6,6 +6,7 @@ import { IQuery } from "interfaces/query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import { IEditPackFormData } from "interfaces/pack";
 import PATHS from "router/paths";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import InputField from "components/forms/fields/InputField";
 import BackButton from "components/BackButton";
@@ -93,6 +94,7 @@ const NewPackForm = ({
           error={errors.name}
           inputWrapperClass={`${baseClass}__pack-title`}
           autofocus
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           onChange={onChangePackDescription}
@@ -102,6 +104,7 @@ const NewPackForm = ({
           name="description"
           placeholder="Add a description of your pack"
           type="textarea"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <SelectTargetsDropdown
           label="Select pack targets"

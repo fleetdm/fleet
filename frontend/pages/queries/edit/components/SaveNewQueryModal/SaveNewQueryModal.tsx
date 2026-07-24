@@ -18,6 +18,7 @@ import {
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 
 import { CommaSeparatedPlatformString } from "interfaces/platform";
@@ -47,8 +48,6 @@ import labelsAPI, {
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
-
-const NAME_MAX_LENGTH = 255;
 
 export interface ISaveNewQueryModalProps {
   queryValue: string;
@@ -241,7 +240,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"

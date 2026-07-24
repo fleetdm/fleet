@@ -3,16 +3,11 @@ import { ILabelFormData } from "./LabelForm";
 export interface ILabelFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
-  description?: { isValid: boolean; message?: string };
 }
-
-// Matches length in DB
-const MAX_LABEL_NAME_LENGTH = 255;
-const MAX_LABEL_DESCRIPTION_LENGTH = 255;
 
 type IMessageFunc = (formData: ILabelFormData) => string;
 type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof ILabelFormData;
+type IFormValidationKey = "name";
 
 interface IValidation {
   name: string;
@@ -35,22 +30,6 @@ const FORM_VALIDATIONS: IFormValidations = {
         name: "required",
         isValid: (formData) => formData.name.trim().length > 0,
         message: "Label name must be present",
-      },
-      {
-        name: "notTooLong",
-        isValid: (formData) => formData.name.length <= MAX_LABEL_NAME_LENGTH,
-        message: `Name may not exceed ${MAX_LABEL_NAME_LENGTH} characters`,
-      },
-    ],
-  },
-  description: {
-    validations: [
-      {
-        name: "notTooLong",
-        isValid: (formData) =>
-          !formData.description ||
-          formData.description.length <= MAX_LABEL_DESCRIPTION_LENGTH,
-        message: `Description may not exceed ${MAX_LABEL_DESCRIPTION_LENGTH} characters`,
       },
     ],
   },
@@ -81,9 +60,6 @@ export const validateLabelFormData = (
         case "name":
           formValidation.name = { isValid: true };
           break;
-        case "description":
-          formValidation.description = { isValid: true };
-          break;
         default: {
           const _exhaustiveCheck: never = objKey;
           break;
@@ -95,9 +71,6 @@ export const validateLabelFormData = (
       switch (objKey) {
         case "name":
           formValidation.name = { isValid: false, message };
-          break;
-        case "description":
-          formValidation.description = { isValid: false, message };
           break;
         default: {
           const _exhaustiveCheck: never = objKey;
