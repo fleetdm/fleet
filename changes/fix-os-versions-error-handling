@@ -1,0 +1,1 @@
+- Fixed the OS versions API (`GET /api/latest/fleet/os_versions`) to return a validation error for an unsupported `platform` filter and a "not found" error for an unknown OS version ID, instead of a successful but empty or null-filled response. Also corrected the `max_vulnerabilities` validation message so the `>=` character is no longer returned HTML-escaped.

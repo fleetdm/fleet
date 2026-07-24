@@ -6362,10 +6362,9 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
@@ -6411,8 +6410,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// team1 user does not have access to team0 host
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	assert.Empty(t, osVersionsResp.OSVersions)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp)
 
 	// Move host from team0 to team1
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))

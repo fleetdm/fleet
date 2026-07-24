@@ -2902,6 +2902,60 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
 
+// TestOSVersionsErrorHandling covers the error-handling fixes from #49483:
+// invalid platform, invalid OS version id, and the encoding of the
+// max_vulnerabilities validation message.
+func TestOSVersionsErrorHandling(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: []fleet.OSVersion{}}, nil
+	}
+	ds.OSVersionFunc = func(
+		ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter,
+	) (*fleet.OSVersion, *time.Time, error) {
+		return nil, nil, newNotFoundError()
+	}
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	admin := test.UserContext(ctx, test.UserAdmin)
+
+	// An invalid platform is rejected with a validation error instead of
+	// silently returning an empty, successful result.
+	_, _, _, err := svc.OSVersions(admin, nil, new("notrealplatform"), nil, nil, fleet.ListOptions{}, false, nil)
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "Invalid platform")
+	require.False(t, ds.OSVersionsFuncInvoked, "datastore should not be queried when the platform is invalid")
+
+	// A documented platform is still accepted.
+	_, _, _, err = svc.OSVersions(admin, nil, new("ios"), nil, nil, fleet.ListOptions{}, false, nil)
+	require.NoError(t, err)
+
+	// A negative max_vulnerabilities returns a readable message with no ">"
+	// character (JSON encoding would otherwise escape it to ">").
+	_, _, _, err = svc.OSVersions(admin, nil, nil, nil, nil, fleet.ListOptions{}, false, new(-5))
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "cannot be negative")
+	require.NotContains(t, fmt.Sprint(err), ">")
+
+	_, _, err = svc.OSVersion(admin, 1, nil, false, new(-5))
+	require.Error(t, err)
+	require.Contains(t, fmt.Sprint(err), "cannot be negative")
+
+	// A non-existent OS version id returns a not-found error rather than a
+	// 200 response with a null-filled object.
+	_, _, err = svc.OSVersion(admin, 99999, nil, false, nil)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected a not-found error for a missing OS version id")
+}
+
 func TestOSVersionsListOptions(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)

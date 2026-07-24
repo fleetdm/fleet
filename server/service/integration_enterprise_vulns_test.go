@@ -296,7 +296,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 		// Test 4: Request with max_vulnerabilities=-1 should return error
 		res := s.Do("GET", "/api/latest/fleet/os_versions?max_vulnerabilities=-1", nil, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+		require.Contains(t, errMsg, "max_vulnerabilities cannot be negative")
 	})
 
 	t.Run("entity endpoint", func(t *testing.T) {
@@ -322,7 +322,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersionsMaxVulnerabilities() {
 		// Test 4: Request with max_vulnerabilities=-1 should return error
 		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d?max_vulnerabilities=-1", osVersionID), nil, http.StatusUnprocessableEntity)
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "max_vulnerabilities must be >= 0")
+		require.Contains(t, errMsg, "max_vulnerabilities cannot be negative")
 	})
 }
 
