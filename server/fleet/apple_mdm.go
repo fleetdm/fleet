@@ -749,7 +749,7 @@ const (
 )
 
 // DEPDeviceErrorType describes why Fleet could not retrieve a host's DEP
-// device details from Apple, for the dep_error attribute of the
+// device details from Apple, for the dep_device_error attribute of the
 // dep_assignment endpoint. It is empty when there was no error.
 type DEPDeviceErrorType string
 
