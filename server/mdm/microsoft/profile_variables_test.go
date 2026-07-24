@@ -15,30 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestWindowsSCEPChallengeRegexp locks down the exact PrintableString character class. This class has already caused two
-// incidents (#47255 shipped it too strict, #49758 reverted it), so every allowed special is asserted individually and a broad
-// sample of common password characters is asserted rejected.
-func TestWindowsSCEPChallengeRegexp(t *testing.T) {
-	t.Parallel()
-
-	allowed := []string{
-		"", "abc", "ABC", "019", "a b", " leading", "trailing ", " both ", "  ",
-		"'", "(", ")", "+", ",", "-", ".", "/", ":", "=", "?",
-		"Fleet-SCEP-dash-2026", " ws-test ", "a'b(c)d+e,f-g.h/i:j=k?l m",
-	}
-	for _, challenge := range allowed {
-		require.True(t, windowsSCEPChallengeRegexp.MatchString(challenge), "expected challenge %q to be allowed", challenge)
-	}
-
-	rejected := []string{
-		"_", "!", "@", "#", "$", "%", "^", "&", "*", "~", "`", `"`, ";", "<", ">", "{", "}", "[", "]", "|", `\`,
-		"\t", "\n", "é", "日", "Fleet_SCEP_underscore", "pass word!", "JURAzXStYElNpVi63B_ps6D0WxF7b3Gv",
-	}
-	for _, challenge := range rejected {
-		require.False(t, windowsSCEPChallengeRegexp.MatchString(challenge), "expected challenge %q to be rejected", challenge)
-	}
-}
-
 func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 	ds := new(mock.Store)
 

@@ -24,11 +24,9 @@ func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDepende
 }
 
 // windowsSCEPChallengeRegexp matches challenges made up entirely of characters valid in an ASN.1 PrintableString: letters,
-// digits, space, and ' ( ) + , - . / : = ?. Windows encodes the SCEP challenge password as a PrintableString, so a challenge
-// with any other character (most commonly "_") makes enrollment fail on-device with "The string contains a non-printable
-// character." (#47492). The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on
-// Windows 11. Only Windows enforces PrintableString (Apple accepts a broader set), so this is checked at delivery time for
-// Windows hosts only instead of when the certificate authority is saved (#49756).
+// digits, space, and ' ( ) + , - . / : = ?. Windows encodes the SCEP challenge password as a PrintableString, so a challenge with
+// any other character (most commonly "_") makes enrollment fail on-device with "The string contains a non-printable character."
+// The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on Windows 11.
 var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`)
 
 // scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
@@ -148,7 +146,6 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			if err != nil {
 				return profileContents, err
 			}
-			// IsCustomSCEPConfigured guarantees the CA exists in the map; the nil check guards against a nil pointer value.
 			if ca := deps.CustomSCEPCAs[caName]; ca != nil && !windowsSCEPChallengeRegexp.MatchString(ca.Challenge) {
 				return profileContents, &MicrosoftProfileProcessingError{
 					message: fmt.Sprintf(scepChallengeInvalidCharsDetail, caName),
