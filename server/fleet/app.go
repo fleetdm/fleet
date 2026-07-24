@@ -2129,7 +2129,7 @@ type WindowsSettings struct {
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
 
 	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
-	// fleetd on Windows hosts during Autopilot/OOBE enrollment (#43488).
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
 	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 

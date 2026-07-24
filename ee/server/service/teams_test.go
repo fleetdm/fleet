@@ -1414,7 +1414,7 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 }
 
 // TestModifyTeamWindowsManagedLocalAccount covers the new
-// windows_settings.managed_local_account_settings surface on the team PATCH endpoint (#48720).
+// windows_settings.managed_local_account_settings surface on the team PATCH endpoint.
 func TestModifyTeamWindowsManagedLocalAccount(t *testing.T) {
 	setup := func(t *testing.T, windowsMDMConfigured bool) (*Service, *mock.Store, *[]string, context.Context) {
 		authorizer, err := authz.NewAuthorizer()

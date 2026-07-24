@@ -3132,7 +3132,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 }
 
 // TestModifyAppConfigWindowsManagedLocalAccount covers the new
-// windows_settings.managed_local_account_settings surface (#48720): persistence, activities,
+// windows_settings.managed_local_account_settings surface: persistence, activities,
 // premium gating, the Windows-MDM precondition, and null semantics.
 func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
 	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
