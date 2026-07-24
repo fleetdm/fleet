@@ -98,7 +98,8 @@ func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
 	if _, loaded := ds.knownSoftwareTitleKeys.LoadOrStore(key, struct{}{}); loaded {
 		return
 	}
-	if ds.knownSoftwareTitleKeysCount.Add(1) >= maxKnownSoftwareTitleKeys {
+	ds.knownSoftwareTitleKeysCount++
+	if ds.knownSoftwareTitleKeysCount >= maxKnownSoftwareTitleKeys {
 		ds.clearKnownSoftwareTitleKeysLocked()
 	}
 }
@@ -111,7 +112,7 @@ func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 
 func (ds *Datastore) clearKnownSoftwareTitleKeysLocked() {
 	ds.knownSoftwareTitleKeys.Clear()
-	ds.knownSoftwareTitleKeysCount.Store(0)
+	ds.knownSoftwareTitleKeysCount = 0
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {

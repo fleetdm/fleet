@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -104,8 +103,8 @@ type Datastore struct {
 	knownSoftwareTitleKeys sync.Map
 	// knownSoftwareTitleKeysMu serializes cache writes and clears so the cache size tracking stays accurate.
 	knownSoftwareTitleKeysMu sync.Mutex
-	// knownSoftwareTitleKeysCount tracks the approximate number of cached title keys.
-	knownSoftwareTitleKeysCount atomic.Uint64
+	// knownSoftwareTitleKeysCount tracks the number of cached title keys.
+	knownSoftwareTitleKeysCount uint64
 
 	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
 	// same title key. Only one goroutine per title actually executes the INSERT; others wait
