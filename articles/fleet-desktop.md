@@ -10,13 +10,14 @@ Fleet Desktop unlocks two key benefits:
 
 If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can optionally deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open this app everytime the end user logs in or restarts their Mac. 
 
-## Install Fleet Desktop
-For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
+## Install and upgrade
 
-## Upgrade Fleet Desktop
-Once installed, Fleet Desktop will be automatically updated via Fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+Fleet Desktop is bundled in Fleet's agent (fleetd) so it's automatically installed when you [enroll hosts](https://fleetdm.com/guides/enroll-hosts) by installing fleetd.
+
+Once installed, Fleet Desktop will be [automatically upgraded](https://fleetdm.com/guides/fleetd-updates).
 
 ## Custom transparency link
+
 Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.
 
 > The custom transparency link is only available for users with Fleet Premium
@@ -26,7 +27,7 @@ On the settings page, go to **Organization Settings > Fleet Desktop > Custom tra
 
 For information on setting the custom transparency link via a YAML configuration file, see the [configuration files](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) documentation.
 
-## Secure Fleet Desktop
+## Security
 
 Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a [Random (Version 4) UUID](https://www.rfc-editor.org/rfc/rfc4122.html#section-4.4) token to uniquely identify each host.
 
@@ -53,6 +54,27 @@ As a consequence, Fleet Desktop will issue a new token if the current token is:
 
 This change is imperceptible to users, as clicking on the "My device" tray item always uses a valid token. If a user visits an address with an expired token, they will get a message instructing them to click on the tray item again.
 
+## Advanced
+
+### Hide the menu bar icon on macOS
+
+Some Fleet users want to hide the menu bar icon on macOS because of the limited menu bar "real estate."
+
+How to hide the menu bar icon:
+
+1. Add the [hide script](TODO) to Fleet.
+2. Go to a device's **Host details** page.
+3. Select **Actions > Run script** and run the hide script.
+
+To run this script automatically across all macOS hosts create a policy in Fleet with the following query:
+
+```sql
+TODO
+```
+
+Then, add connect hide script to this policy via [policy automations](https://fleetdm.com/guides/policy-automation-run-script). 
+
+Fleet's agent (fleetd) upgrades won't re-show the menu bar icon because upgrades don't touch the plist updated by the hide script.
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
