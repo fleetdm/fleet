@@ -101,6 +101,7 @@ func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
 	if len(ds.knownSoftwareTitleKeys) >= maxKnownSoftwareTitleKeys {
 		ds.evictKnownSoftwareTitleKeysLocked()
 	}
+	// Store after potential eviction so the caller's key survives the clear.
 	ds.knownSoftwareTitleKeys[key] = struct{}{}
 }
 
