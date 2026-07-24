@@ -2127,6 +2127,7 @@ func (m ManagedLocalAccountSettings) MarshalJSON() ([]byte, error) {
 	if !m.Enabled.Valid {
 		m.Enabled = optjson.SetBool(false)
 	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion into this MarshalJSON
 	type alias ManagedLocalAccountSettings
 	return json.Marshal(alias(m))
 }
