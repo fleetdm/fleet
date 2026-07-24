@@ -34,6 +34,35 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 	return nil
 }
 
+// SaveHostManagedLocalAccountFromEscrow stores a device-generated password for hosts where fleetd
+// creates the account (Windows). command_uuid stays NULL and status is set directly to verified:
+// there is no MDM command to acknowledge. Re-escrow (retry or re-enrollment) replaces the password
+// and clears the pending/rotation columns so a Windows row can never be selected for auto-rotation.
+func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error {
+	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "encrypting managed local account password")
+	}
+
+	const stmt = `
+		INSERT INTO host_managed_local_account_passwords
+			(host_uuid, encrypted_password, command_uuid, status)
+		VALUES (?, ?, NULL, ?)
+		ON DUPLICATE KEY UPDATE
+			encrypted_password = VALUES(encrypted_password),
+			command_uuid = NULL,
+			status = VALUES(status),
+			account_uuid = NULL,
+			pending_encrypted_password = NULL,
+			pending_command_uuid = NULL,
+			auto_rotate_at = NULL
+	`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, fleet.MDMDeliveryVerified); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host managed local account from escrow")
+	}
+	return nil
+}
+
 func (ds *Datastore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
 	const stmt = `SELECT encrypted_password, updated_at FROM host_managed_local_account_passwords WHERE host_uuid = ?`
 

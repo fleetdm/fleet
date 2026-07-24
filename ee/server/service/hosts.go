@@ -757,9 +757,10 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	if !fleet.IsMacOSPlatform(host.Platform) {
+	isWindows := host.Platform == "windows"
+	if !fleet.IsMacOSPlatform(host.Platform) && !isWindows {
 		return nil, &fleet.BadRequestError{
-			Message: "Host is not a macOS device.",
+			Message: "Host is not a macOS or Windows device.",
 		}
 	}
 
@@ -785,8 +786,11 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 
 	// Surface the rotation lifecycle alongside the password so the modal can
 	// render the auto-rotate / pending-rotation banner on first open without a
-	// separate host-details refetch round-trip.
-	pwd.PendingRotation = acct.PendingRotation
+	// separate host-details refetch round-trip. Windows accounts never rotate,
+	// so their response omits the rotation fields.
+	if !isWindows {
+		pwd.PendingRotation = acct.PendingRotation
+	}
 
 	// Log the activity before applying any view side-effects. If activity
 	// creation fails the endpoint returns an error and the password is not
@@ -798,6 +802,12 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		HostDisplayName: host.DisplayName(),
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
+	// Windows accounts do not auto-rotate, so viewing must not arm the rotate timer and
+	// AutoRotateAt stays nil.
+	if isWindows {
+		return pwd, nil
 	}
 
 	// Start the auto-rotation timer (no-op for views inside the existing window)
@@ -837,6 +847,9 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	// Authorize as "execute mdm_command", which is the correct access requirement.
 	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
+	}
+	if host.Platform == "windows" {
+		return &fleet.BadRequestError{Message: "Password rotation is not available for Windows hosts."}
 	}
 	if !fleet.IsMacOSPlatform(host.Platform) {
 		return &fleet.BadRequestError{Message: "Host is not a macOS device."}

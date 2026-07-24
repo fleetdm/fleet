@@ -1182,6 +1182,8 @@ type ReconcileHostDeviceNamesForHostsFunc func(ctx context.Context, hostIDs []ui
 
 type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
 
+type SaveHostManagedLocalAccountFromEscrowFunc func(ctx context.Context, hostUUID string, plaintextPassword string) error
+
 type GetHostManagedLocalAccountPasswordFunc func(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error)
 
 type GetHostManagedLocalAccountStatusFunc func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error)
@@ -3981,6 +3983,9 @@ type DataStore struct {
 
 	SaveHostManagedLocalAccountFunc        SaveHostManagedLocalAccountFunc
 	SaveHostManagedLocalAccountFuncInvoked bool
+
+	SaveHostManagedLocalAccountFromEscrowFunc        SaveHostManagedLocalAccountFromEscrowFunc
+	SaveHostManagedLocalAccountFromEscrowFuncInvoked bool
 
 	GetHostManagedLocalAccountPasswordFunc        GetHostManagedLocalAccountPasswordFunc
 	GetHostManagedLocalAccountPasswordFuncInvoked bool
@@ -9629,6 +9634,13 @@ func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID st
 	s.SaveHostManagedLocalAccountFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveHostManagedLocalAccountFunc(ctx, hostUUID, plaintextPassword, commandUUID)
+}
+
+func (s *DataStore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID string, plaintextPassword string) error {
+	s.mu.Lock()
+	s.SaveHostManagedLocalAccountFromEscrowFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveHostManagedLocalAccountFromEscrowFunc(ctx, hostUUID, plaintextPassword)
 }
 
 func (s *DataStore) GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*fleet.HostManagedLocalAccountPassword, error) {
