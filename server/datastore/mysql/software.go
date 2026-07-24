@@ -3099,7 +3099,7 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "find orphaned software titles for cleanup")
 		}
 		if len(ids) == 0 {
-			return nil
+			break
 		}
 		lastID = ids[len(ids)-1]
 
@@ -3114,6 +3114,16 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		ra, _ := res.RowsAffected()
 		n += ra
 	}
+
+	// If any titles were deleted, clear the in-process title cache so that future
+	// software ingestions re-insert titles instead of skipping them.
+	if n > 0 {
+		ds.knownSoftwareTitleKeys.Range(func(key, _ any) bool {
+			ds.knownSoftwareTitleKeys.Delete(key)
+			return true
+		})
+	}
+
 	return nil
 }
 
