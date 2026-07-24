@@ -5929,6 +5929,70 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	assert.Empty(t, resp.Software)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	// create 2 teams
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	// create 1 host on team1
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "h1"),
+		NodeKey:         new(t.Name() + "h1"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h1.local",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Install software only on h1 (team1).
+	testSw := fleet.Software{Name: "UniqueTitleApp", Version: "3.4.5", Source: "apps", BundleIdentifier: "com.unique.titleapp"}
+	_, err = s.ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, h1, false))
+	require.Len(t, h1.Software, 1)
+	require.NotNil(t, h1.Software[0].TitleID)
+	titleID := *h1.Software[0].TitleID
+
+	// Deliberately do NOT call SyncHostsSoftwareTitles here: the title's
+	// entry in software_titles_host_counts (which SoftwareTitleByID relies
+	// on) is only populated by that periodic sync, so skipping it
+	// reproduces the up-to-~1h window between a host reporting new
+	// software and the next sync run. The in-scope enrichment below must
+	// still succeed immediately via a live (non-aggregated) fallback.
+
+	// Filtering team1 (in-scope) by the software title returns the host and the title's name.
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
+	require.NotNil(t, resp.SoftwareTitle)
+	assert.Equal(t, testSw.Name, resp.SoftwareTitle.Name)
+
+	// Filtering team2 (out-of-scope: the title isn't installed on any host on
+	// this team) must not leak the title's name/display_name — software_title
+	// should be omitted entirely, not backfilled from an unscoped lookup.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team2.ID),
+	)
+	require.Empty(t, resp.Hosts)
+	assert.Nil(t, resp.SoftwareTitle)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	t := s.T()
 
@@ -11563,9 +11627,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareVersionsResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
 
-				// Get a global software title
+				// Get a global software title (only on the "no team" host, which
+				// no team-scoped user can see): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
@@ -11627,9 +11693,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareTitlesResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
 
-				// Get a team software title
+				// Get a team software title (on team1 and "no team", neither
+				// visible to this team-2 user): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
