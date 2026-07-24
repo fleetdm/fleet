@@ -52,13 +52,6 @@ export type DEPDeviceStatus =
   | "THROTTLED"
   | "NOT_ACCESSIBLE";
 
-export type DepDeviceError =
-  | "TOKEN_INVALID"
-  | "TERMS_EXPIRED"
-  | "NOT_FOUND"
-  | "SERVER_ERROR"
-  | "UNAVAILABLE";
-
 export interface IDepAssignmentHostResponse {
   id: number;
   dep_device: {
@@ -77,7 +70,7 @@ export interface IDepAssignmentHostResponse {
     serial_number: string;
     response_status: DEPDeviceStatus;
   } | null;
-  dep_error: DepDeviceError | null;
+  dep_device_error: string | null;
   host_dep_assignment: {
     assign_profile_response: DEPDeviceStatus;
     profile_uuid: string;
