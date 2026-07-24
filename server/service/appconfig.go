@@ -1546,29 +1546,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	macOSManagedLocalAccountChanged := oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value
-	if macOSManagedLocalAccountChanged {
+	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
 		var act fleet.ActivityDetails
 		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
-			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "darwin"}
 		} else {
-			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "darwin"}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
 		}
 	}
 
-	// The Windows toggle logs the same platform-agnostic activity types; skip it when the macOS
-	// toggle changed in the same direction in this request to avoid two identical entries.
-	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
-		!(macOSManagedLocalAccountChanged &&
-			appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value == appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
+	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
 		var act fleet.ActivityDetails
 		if appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
-			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
 		} else {
-			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")

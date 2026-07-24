@@ -3151,14 +3151,14 @@ func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
 		{
 			name:           "enable persists and fires activity",
 			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
-			wantActivities: []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()},
+			wantActivities: []string{"enabled_managed_local_account:windows"},
 			wantEnabled:    true,
 		},
 		{
 			name:           "disable persists and fires activity",
 			startEnabled:   true,
 			patch:          `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
-			wantActivities: []string{fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName()},
+			wantActivities: []string{"disabled_managed_local_account:windows"},
 		},
 		{
 			name:         "null enabled means not provided",
@@ -3171,9 +3171,9 @@ func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
 			patch: `{"mdm": {"windows_settings": {"managed_local_account_settings": {"enabled": false}}}}`,
 		},
 		{
-			name:           "enabling both platforms in one payload fires one activity",
+			name:           "enabling both platforms in one payload fires one activity per platform",
 			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"managed_local_account_settings": {"enabled": true}}}}`,
-			wantActivities: []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()},
+			wantActivities: []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
 			wantEnabled:    true,
 		},
 		{
@@ -3230,9 +3230,11 @@ func TestModifyAppConfigWindowsManagedLocalAccount(t *testing.T) {
 
 			var gotActivities []string
 			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
-				switch act.(type) {
-				case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
-					gotActivities = append(gotActivities, act.ActivityName())
+				switch a := act.(type) {
+				case fleet.ActivityTypeEnabledManagedLocalAccount:
+					gotActivities = append(gotActivities, a.ActivityName()+":"+a.Platform)
+				case fleet.ActivityTypeDisabledManagedLocalAccount:
+					gotActivities = append(gotActivities, a.ActivityName()+":"+a.Platform)
 				}
 				return nil
 			}

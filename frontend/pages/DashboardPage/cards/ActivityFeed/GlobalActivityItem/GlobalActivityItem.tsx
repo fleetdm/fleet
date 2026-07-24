@@ -615,31 +615,39 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         enabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );
   },
   disabledManagedLocalAccount: (activity: IActivity) => {
+    // activities created before the platform detail existed omit it, which means macOS
+    const platformDisplay =
+      PLATFORM_DISPLAY_NAMES[activity.details?.platform ?? "darwin"];
     return (
       <>
         {" "}
         disabled managed local accounts for{" "}
         {activity.details?.team_name ? (
           <>
-            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+            {platformDisplay} hosts assigned to the{" "}
+            <b>{activity.details.team_name}</b> fleet.
           </>
         ) : (
-          "unassigned hosts."
+          `unassigned ${platformDisplay} hosts.`
         )}
       </>
     );

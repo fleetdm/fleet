@@ -1439,9 +1439,11 @@ func TestModifyTeamWindowsManagedLocalAccount(t *testing.T) {
 		activities := &[]string{}
 		mockSvc := &svcmock.Service{}
 		mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
-			switch act.(type) {
-			case fleet.ActivityTypeEnabledManagedLocalAccount, fleet.ActivityTypeDisabledManagedLocalAccount:
-				*activities = append(*activities, act.ActivityName())
+			switch a := act.(type) {
+			case fleet.ActivityTypeEnabledManagedLocalAccount:
+				*activities = append(*activities, a.ActivityName()+":"+a.Platform)
+			case fleet.ActivityTypeDisabledManagedLocalAccount:
+				*activities = append(*activities, a.ActivityName()+":"+a.Platform)
 			}
 			return nil
 		}
@@ -1467,7 +1469,7 @@ func TestModifyTeamWindowsManagedLocalAccount(t *testing.T) {
 		require.True(t, ds.SaveTeamFuncInvoked)
 		require.True(t, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 		require.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
-		require.Equal(t, []string{fleet.ActivityTypeEnabledManagedLocalAccount{}.ActivityName()}, *activities)
+		require.Equal(t, []string{"enabled_managed_local_account:windows"}, *activities)
 	})
 
 	t.Run("enable requires windows MDM", func(t *testing.T) {

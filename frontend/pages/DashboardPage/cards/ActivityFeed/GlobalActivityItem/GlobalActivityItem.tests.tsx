@@ -719,6 +719,33 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
   });
 
+  it("renders an 'enabled_managed_local_account' activity with the platform, defaulting to macOS", () => {
+    const windowsActivity = createMockActivity({
+      type: ActivityType.EnabledManagedLocalAccount,
+      details: { team_name: "Workstations", platform: "windows" },
+    });
+    const { unmount } = render(
+      <GlobalActivityItem activity={windowsActivity} isPremiumTier />
+    );
+    expect(
+      screen.getByText("enabled managed local accounts for", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Windows hosts assigned to the", { exact: false })
+    ).toBeInTheDocument();
+    unmount();
+
+    // activities created before the platform detail existed omit it, which means macOS
+    const legacyActivity = createMockActivity({
+      type: ActivityType.DisabledManagedLocalAccount,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={legacyActivity} isPremiumTier />);
+    expect(
+      screen.getByText("unassigned macOS hosts.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
   it("renders a 'rotated_managed_local_account_password' type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.RotatedManagedLocalAccountPassword,

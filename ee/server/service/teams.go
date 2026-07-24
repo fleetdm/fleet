@@ -669,16 +669,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	if macOSManagedLocalAccountUpdated {
-		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name); err != nil {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable managed local account")
 		}
 	}
-	// The Windows toggle logs the same platform-agnostic activity types; skip it when the macOS
-	// toggle changed in the same direction in this request to avoid two identical entries.
-	if windowsManagedLocalAccountUpdated &&
-		!(macOSManagedLocalAccountUpdated &&
-			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value == team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
-		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, &team.ID, &team.Name); err != nil {
+	if windowsManagedLocalAccountUpdated {
+		if err := svc.logEnableManagedLocalAccountActivity(ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update windows enable managed local account")
 		}
 	}
@@ -2222,19 +2218,15 @@ func (svc *Service) editTeamFromSpec(
 
 	if didUpdateEnableManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &team.ID, &team.Name,
+			ctx, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
 	}
 
-	// The Windows toggle logs the same platform-agnostic activity types; skip it when the macOS
-	// toggle changed in the same direction in this apply to avoid two identical entries.
-	if didUpdateWindowsManagedLocalAccount &&
-		!(didUpdateEnableManagedLocalAccount &&
-			team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value == team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
+	if didUpdateWindowsManagedLocalAccount {
 		if err := svc.logEnableManagedLocalAccountActivity(
-			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, &team.ID, &team.Name,
+			ctx, team.Config.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, "windows", &team.ID, &team.Name,
 		); err != nil {
 			return err
 		}
@@ -2580,7 +2572,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 		if didUpdateManagedLocalAccount {
-			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, &tm.ID, &tm.Name); err != nil {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &tm.ID, &tm.Name); err != nil {
 				return err
 			}
 		}

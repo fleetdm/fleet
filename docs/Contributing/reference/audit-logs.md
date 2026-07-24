@@ -2922,13 +2922,15 @@ Generated when a user turns on create managed local account for a fleet (or unas
 This activity contains the following fields:
 - "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform the setting applies to, `"darwin"` (macOS) or `"windows"`. Activities created before this field existed omit it, which means `"darwin"`.
 
 #### Example
 
 ```json
 {
   "fleet_id": 123,
-  "fleet_name": "Workstations"
+  "fleet_name": "Workstations",
+  "platform": "windows"
 }
 ```
 
@@ -2939,13 +2941,15 @@ Generated when a user turns off create managed local account for a fleet (or una
 This activity contains the following fields:
 - "fleet_id": The ID of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
 - "fleet_name": The name of the fleet that create managed local account applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
+- "platform": The platform the setting applies to, `"darwin"` (macOS) or `"windows"`. Activities created before this field existed omit it, which means `"darwin"`.
 
 #### Example
 
 ```json
 {
   "fleet_id": 123,
-  "fleet_name": "Workstations"
+  "fleet_name": "Workstations",
+  "platform": "windows"
 }
 ```
 
