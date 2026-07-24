@@ -5238,14 +5238,28 @@
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
-      "name": "Microsoft .NET Runtime 10",
+      "name": "Microsoft .NET Runtime 10 (ARM64)",
+      "slug": "microsoft-dotnet-runtime-10-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET Runtime - 10",
+      "description": "Microsoft .NET Runtime 10 (ARM64) is the ARM64 build of the runtime required to run .NET 10 applications, providing the libraries and execution environment for console and server apps."
+    },
+    {
+      "name": "Microsoft .NET Runtime 10 (x64)",
       "slug": "microsoft-dotnet-runtime-10/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft .NET Runtime - 10",
       "description": "Microsoft .NET Runtime 10 is the runtime required to run .NET 10 applications, providing the libraries and execution environment for console and server apps."
     },
     {
-      "name": "Microsoft .NET Runtime 8",
+      "name": "Microsoft .NET Runtime 8 (ARM64)",
+      "slug": "microsoft-dotnet-runtime-8-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft .NET Runtime - 8",
+      "description": "Microsoft .NET Runtime 8 (ARM64) is the ARM64 build of the runtime required to run .NET 8 applications, providing the libraries and execution environment for console and server apps."
+    },
+    {
+      "name": "Microsoft .NET Runtime 8 (x64)",
       "slug": "microsoft-dotnet-runtime-8/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft .NET Runtime - 8",
