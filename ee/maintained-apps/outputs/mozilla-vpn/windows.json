@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation' AND version_compare(version, '2.39.0') < 0);"
       },
       "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.39.0/windows/MozillaVPN.msi",
-      "install_script_ref": "c02fc638",
+      "install_script_ref": "8959087b",
       "uninstall_script_ref": "500bade7",
       "sha256": "aec6f8a8ede72ea9607d6a9fd1a4f5d12c8e662b8dea87b1b106ece0b8946f94",
       "default_categories": [
