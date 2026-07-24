@@ -188,13 +188,6 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 
-	// Now insert installed paths for all of them
-	sPaths := make(map[string]struct{})
-	for i := 0; i < softwareCount; i++ {
-		key := fmt.Sprintf("/Applications/DeleteTestApp%d.app|DeleteTestApp %d1.0.0apps", i, i)
-		sPaths[key] = struct{}{}
-	}
-
 	// Get the software IDs that were created
 	var swIDs []struct {
 		ID   uint   `db:"id"`
