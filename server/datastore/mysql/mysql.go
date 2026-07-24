@@ -103,7 +103,8 @@ type Datastore struct {
 	knownSoftwareTitleKeys sync.Map
 	// knownSoftwareTitleKeysMu serializes cache writes and clears so the cache size tracking stays accurate.
 	knownSoftwareTitleKeysMu sync.Mutex
-	// knownSoftwareTitleKeysCount tracks the number of cached title keys.
+	// knownSoftwareTitleKeysCount tracks the number of cached title keys and must only be
+	// read or written while holding knownSoftwareTitleKeysMu.
 	knownSoftwareTitleKeysCount uint64
 
 	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
