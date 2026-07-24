@@ -517,6 +517,10 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ## Activities
 
++ [List activities](#list-activities)
++ [List policy automation activities](#list-policy-automation-activities)
++ [Reset policy results](#reset-policy-results)
+
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
@@ -609,6 +613,156 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 }
 
 ```
+
+### List policy automation activities
+
+`GET /api/v1/fleet/policies/:id/automation_activities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The policy ID. |
+| status   | string | path | Optional filter by automation status. Either "success" or "error" |
+| query   | string | path | Search query to filter by. Can search by host's name. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/policies/12/automation_activities?query=Anna's%20MacBook`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 412,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "failed_webhook_policy_automation",
+      "fleet_initiated": true,
+      "details": {
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "error",
+      "output": null
+    },
+    {
+      "created_at": "2023-07-27T14:34:22Z",
+      "id": 410,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "fleet_initiated": false,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "script_name": "remediate-gatekeeper.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": "Gatekeeper enabled\n"
+    },
+    {
+      "created_at": "2023-07-27T14:33:01Z",
+      "id": 407,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_software",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 11,
+        "host_display_name": "Marco's Windows",
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "software_title": "1Password",
+        "software_package": "1Password.msi",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 11,
+      "host_display_name": "Marco's Windows",
+      "status": "error",
+      "output": "Installing software...\nFailed\nExit code: 1"
+    },
+    {
+      "created_at": "2023-07-27T14:31:47Z",
+      "id": 404,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_app_store_app",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "software_title": "Logic Pro",
+        "app_store_id": "1234567",
+        "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Reset policy results
+
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+
+`POST /api/v1/fleet/policies/:policy_id/reset`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                                                   |
+| --------- | ------- | ---- | --------------------------------------------------------------------------------------------- |
+| policy_id | integer | path | **Required.** The policy's ID.                                                                |
+| host_id   | integer | query | When set, resets only this host's result for the policy instead of resetting all hosts.      |
+
+#### Example
+
+`POST /api/v1/fleet/policies/123/reset?host_id=42`
+
+##### Default response
+
+`Status: 200`
+
+#### Errors
+
+| Status | Description                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| 403    | The authenticated user does not have write access to the policy.       |
+| 404    | No policy with the given `policy_id` exists.                           |
 
 ---
 
