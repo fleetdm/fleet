@@ -1715,6 +1715,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
 - [Store secret variables](#store-secret-variables)
+- [Upsert custom host vitals](#upsert-custom-host-vitals)
 
 ### Get reports
 
@@ -2660,6 +2661,40 @@ Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
     {
       "name": "FLEET_SECRET_SOME_API_TOKEN",
       "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+### Upsert custom host vitals
+
+Declaratively reconciles custom host vital definitions: names included in the request are created (if missing) or left unchanged (if already existing); names not included in the request are deleted.
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                                                                                      |
+| ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------------ |
+| custom_host_vitals | list    | body | **Required.** List of objects consisting of field: `name`. |
+| dry_run            | boolean | body | **Optional.** If true, validates the provided custom host vitals and returns any validation errors, but does not apply the changes. |
+
+#### Example
+
+`PUT /api/v1/fleet/spec/custom_host_vitals`
+
+##### Request body
+
+```json
+{
+  "custom_host_vitals": [
+    {
+      "name": "Asset tag"
     }
   ]
 }
