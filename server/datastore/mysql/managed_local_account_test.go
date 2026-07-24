@@ -32,6 +32,8 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"DeferredRotation", testManagedLocalAccountDeferredRotation},
 		{"GetForAutoRotation", testManagedLocalAccountGetForAutoRotation},
 		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
+		{"SaveFromEscrow", testManagedLocalAccountSaveFromEscrow},
+		{"EscrowExcludedFromAutoRotation", testManagedLocalAccountEscrowExcludedFromAutoRotation},
 	}
 
 	for _, c := range cases {
@@ -534,4 +536,73 @@ func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore)
 	_, err = ds.GetManagedLocalAccountByPendingCommandUUID(ctx, "no-such-cmd")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "win-escrow-host"
+
+	// Fresh escrow (Windows): no MDM command, stored directly as verified.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "_fleetadmin", got.Username)
+	assert.Equal(t, "WIN-PASS-1", got.Password)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.True(t, status.PasswordAvailable)
+
+	// command_uuid stays NULL for escrowed rows.
+	var commandUUID *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &commandUUID,
+			`SELECT command_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+	})
+	assert.Nil(t, commandUUID)
+
+	// Re-escrow (retry or re-enrollment) replaces the password and keeps command_uuid NULL.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
+}
+
+// testManagedLocalAccountEscrowExcludedFromAutoRotation proves a Windows-shaped row (NULL
+// command_uuid, NULL account_uuid, NULL auto_rotate_at, verified) is never selected by the
+// auto-rotation cron, so Windows accounts are structurally excluded from rotation.
+func testManagedLocalAccountEscrowExcludedFromAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "win-rot-host",
+		ComputerName:    "Win Rot Host",
+		OsqueryHostID:   new("win-rot-osq"),
+		NodeKey:         new("win-rot-node"),
+		UUID:            "win-rot-host-uuid",
+		Platform:        "windows",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
+
+	// Even if a viewed timestamp were somehow set, the NULL account_uuid keeps the row out. Force a
+	// past auto_rotate_at to prove account_uuid alone excludes it.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, host.UUID)
+		return err
+	})
+
+	rows, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+	for _, r := range rows {
+		assert.NotEqual(t, host.UUID, r.HostUUID, "windows escrow row must never be selected for rotation")
+	}
 }

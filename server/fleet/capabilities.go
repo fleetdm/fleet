@@ -109,6 +109,9 @@ const (
 	// signals that the host has queued Windows MDM commands. This lets the server relax the aggressive Windows MDM poll while keeping command
 	// latency low.
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
+	// CapabilityWindowsManagedLocalAccount is set when fleetd can create and hide the Windows
+	// managed local admin account and escrow its password.
+	CapabilityWindowsManagedLocalAccount Capability = "windows_managed_local_account"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -145,6 +148,7 @@ func GetOrbitClientCapabilities() CapabilityMap {
 	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server signals queued MDM commands.
 	if runtime.GOOS == "windows" {
 		capabilities[CapabilityWindowsMDMSync] = struct{}{}
+		capabilities[CapabilityWindowsManagedLocalAccount] = struct{}{}
 	}
 	return capabilities
 }

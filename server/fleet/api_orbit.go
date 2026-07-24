@@ -266,6 +266,34 @@ func (r OrbitPostLUKSResponse) Error() error { return r.Err }
 func (r OrbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Windows managed local account password
+/////////////////////////////////////////////////////////////////////////////////
+
+// OrbitPostManagedLocalAccountRequest carries the device-generated password that Windows fleetd
+// escrows after creating the managed local admin account. ClientError, when set, reports a
+// device-side failure so the server can log it without recording a password.
+type OrbitPostManagedLocalAccountRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Password     string `json:"password"`
+	ClientError  string `json:"client_error"`
+}
+
+func (r *OrbitPostManagedLocalAccountRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostManagedLocalAccountRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostManagedLocalAccountResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostManagedLocalAccountResponse) Error() error { return r.Err }
+func (r OrbitPostManagedLocalAccountResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get Orbit software install details
 /////////////////////////////////////////////////////////////////////////////////
 

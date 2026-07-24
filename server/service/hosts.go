@@ -1787,6 +1787,16 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				}
 			}
 
+			// populate managed local account status for Windows hosts. The account is created by
+			// fleetd and escrowed, so a row only exists once the host has reported one.
+			acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get host managed local account status")
+			}
+			if acct != nil {
+				host.MDM.OSSettings.ManagedLocalAccount = *acct
+			}
+
 			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host mdm windows profiles")
