@@ -14553,7 +14553,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| features                                                | object  | body | Per-fleet feature toggles. v1 accepts only the `historical_data` sub-field; other `features` sub-fields are writable per-fleet only via GitOps. See [features.historical_data](#features-historical-data) below. |
+| features                                                | object  | body | Per-fleet feature toggles. Accepts only certain sub-fields; other `features` sub-fields are writable per-fleet only via GitOps. See [features](#features2) below. |
 
 #### Example (transfer hosts to a fleet)
 
@@ -14931,17 +14931,38 @@ Returned when the requested name only differs from another fleet's name by lette
 }
 ```
 
+#### features
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. Only applies if `features.enable_software_inventory` is not enabled globally.  If this key is omitted, the previously-configured value does not change. |
+| historical_data         | object  | See [features.historical_data](#features-historical-data). |
+
 ##### features.historical_data
+
+`features.historical_data` is an object with the following structure:
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
+| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
 
 Sub-keys mirror the global `features.historical_data` shape and default to
 `true`. A dataset is collected for a host in this fleet only when both the
 global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
 the PATCH body retain their current stored value.
 
-| Name              | Type    | Description                                                                                                |
-| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
-| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
+  }
+}
+```
 
 ###### Example request body
 
