@@ -49,7 +49,7 @@ func TestUp_20260721173820(t *testing.T) {
 		`SELECT patch_when_closed FROM policies WHERE id = ?`, policy2))
 	assert.True(t, patchWhenClosed)
 
-	const managedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.example.app');"
+	const managedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON LEFT(p.path, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.example.app');"
 	title2 := execNoErrLastID(t, db,
 		`INSERT INTO software_titles (name, source, extension_for) VALUES ('App2', 'apps', '')`)
 	installer2 := execNoErrLastID(t, db, `

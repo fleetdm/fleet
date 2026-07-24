@@ -169,7 +169,7 @@ func defaultMacOSOpenQuery(bundleIdentifier string) string {
 	// - get processes by name - requires a lot of manual overrides
 	// - use the running_apps table - not reliable when run through orbit
 	// - use the "app" artifact in the homebrew cask - requires extra code to extract
-	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%%') WHERE a.bundle_identifier = '%s');"
+	openTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON LEFT(p.path, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = '%s');"
 	return fmt.Sprintf(openTemplate, escapeSQLLiteral(bundleIdentifier))
 }
 
