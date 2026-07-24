@@ -1,5 +1,9 @@
 #!/bin/bash
 # CIS 5.6 - Ensure the "root" Account Is Disabled
-# Disables the root account and sets its shell to /usr/bin/false.
+# Removes root's secure token (if any), disables the root account, and sets
+# its shell to /usr/bin/false so the AuthenticationAuthority key is absent
+# and the query passes.
+/usr/bin/sudo /usr/bin/fdesetup remove -user root 2>/dev/null || true
+/usr/bin/sudo /usr/bin/dscl /Local/Default delete /Users/root AuthenticationAuthority 2>/dev/null || true
 /usr/bin/sudo /usr/sbin/dsenableroot -d 2>/dev/null || true
 /usr/bin/sudo /usr/bin/dscl . -create /Users/root UserShell /usr/bin/false

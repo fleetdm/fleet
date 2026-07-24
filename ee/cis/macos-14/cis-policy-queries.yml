@@ -1470,38 +1470,44 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Screen Saver Corners Are Secure (FDA Required)
+  name: CIS - Ensure Screen Saver Hot Corners Are Secure For Current User (FDA Required)
   cis_id: "2.7.1"
   platforms: macOS
   platform: darwin
   description: |
-    Setting a hot corner to disable the screen saver poses a potential security risk since an
-    unauthorized person could use this to bypass the login screen and gain access to the system.
+    Hot Corners can be configured to disable the screen saver by moving the mouse cursor to a corner of the screen. This can only be accomplished by the current user, so that is the only user that needs to be audited. Setting a hot corner to disable the screen saver poses a potential security risk since an unauthorized person could use this to bypass the login screen and gain access to the system.
 
-    FDA (Full Disk Access) is required to read the configuration of all the users in the device
-    ('/Users/*/Library/Preferences/com.apple.dock.plist')
+    FDA (Full Disk Access) is required to read the current console user's Dock configuration
+    ('/Users/<current user>/Library/Preferences/com.apple.dock.plist').
   resolution: |
-    Ask your system administrator to deploy a script that will configure
-    `wvous-tl-corner`, `wvous-bl-corner`, `wvous-tr-corner`, and `wvous-br-corner` in
-    domain `com.apple.dock` to a value that is not 6 (for all users of the device).
+    Terminal Method:
+      For the current user, ensure none of `wvous-tl-corner`, `wvous-tr-corner`,
+      `wvous-bl-corner`, or `wvous-br-corner` in domain `com.apple.dock` is set to 6
+      (Disable Screen Saver):
+        /usr/bin/sudo -u <current user> /usr/bin/defaults delete /Users/<current user>/Library/Preferences/com.apple.dock wvous-bl-corner
+        (repeat for wvous-tl-corner, wvous-tr-corner, and wvous-br-corner)
 
     Graphical Method:
       Perform the following steps to ensure that a Hot Corner is not set to Disable Screen Saver:
         1. Open System Settings
         2. Select Desktop & Dock
-        3. Select`Hot Corners...`
+        3. Select `Hot Corners...`
         4. Verify that `Disable Screen Saver` is not set to any of the corners.
   query: |
-    SELECT 1 WHERE NOT EXISTS(
+    SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM plist
-      WHERE path LIKE '/Users/%/Library/Preferences/com.apple.dock.plist' AND (
-        key = 'wvous-br-corner' OR
-        key = 'wvous-bl-corner' OR
-        key = 'wvous-tr-corner' OR
-        key = 'wvous-tl-corner'
-    ) AND value = 6);
+      WHERE path = (
+          SELECT '/Users/' || user || '/Library/Preferences/com.apple.dock.plist'
+          FROM logged_in_users
+          WHERE type = 'user' AND tty = 'console'
+          ORDER BY time DESC
+          LIMIT 1
+        )
+        AND key IN ('wvous-tl-corner', 'wvous-tr-corner', 'wvous-bl-corner', 'wvous-br-corner')
+        AND value = 6
+    );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -1914,34 +1920,34 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  name: CIS - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
   cis_id: "2.10.1"
   platforms: macOS
   platform: darwin
-  description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 20 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 20 minutes is the default for new accounts.
+  description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 15 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 15 minutes is the default for new accounts.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver to be Enabled.
+    Ask your system administrator to deploy an MDM profile that ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver to be Enabled.
     Graphical method:
-      Perform the following steps to ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled:
+      Perform the following steps to ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled:
         1. Open System Settings
         2. Select Lock Screen
-        3. Verify that Start Screen Saver when inactive is set for 20 minutes or less (≤1200 seconds)
+        3. Verify that Start Screen Saver when inactive is set for 15 minutes or less (≤900 seconds)
   query: |
     SELECT 1 WHERE 
       EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            CAST(value AS INT) <= 1200 AND
+            CAST(value AS INT) <= 900 AND
             username = ''
         )
       AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.screensaver' AND 
-            name='idleTime' AND 
-            CAST(value AS INT) > 1200
-        );  
+        SELECT 1 FROM managed_policies WHERE
+            domain='com.apple.screensaver' AND
+            name='idleTime' AND
+            CAST(value AS INT) > 900
+        );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
@@ -2342,32 +2348,30 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Security Auditing Retention Is Enabled
+  name: CIS - Ensure Security Auditing Logs Are Retained for 30 Days
   cis_id: "3.4"
   platforms: macOS
   platform: darwin
   description: |
     The macOS audit capability contains important information to investigate security or operational issues. This resource is only completely useful if it is retained long enough to allow technical staff to find the root cause of anomalies in the records.
-    Retention can be set to respect both size and longevity. To retain as much as possible under a certain size, the recommendation is to use the following:
-    expire-after:60d OR 5G
-    This recomendation is based on minimum storage for review and investigation. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage requirement is not required.
+    Retention can be set to respect both size and longevity. The recommendation is to retain audit logs for at least 30 days:
+    expire-after:30d
+    This recommendation is based on the minimum number of days retained for review and investigation. If your organization has storage constraints, you can add a storage value limit in addition to the days retained, for example: expire-after:30d OR 5G. When a third party tool is in use to allow remote logging or the store and forwarding of logs, this local storage is a supplemental source of data.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention. It writes to a unique temp file and atomically replaces /etc/security/audit_control only on success:
+    Ask your system administrator to deploy the following script, which ensures audit logs are retained for at least 30 days. It writes to a unique temp file and atomically replaces /etc/security/audit_control only on success:
     TMP="$(/usr/bin/mktemp /tmp/audit_control.XXXXXX)" && \
-    /usr/bin/sudo /usr/bin/awk '/^expire-after:/ { print "expire-after:60d OR 5G"; found=1; next } { print } END { if (!found) print "expire-after:60d OR 5G" }' /etc/security/audit_control > "$TMP" && \
+    /usr/bin/sudo /usr/bin/awk '/^expire-after:/ { print "expire-after:30d"; found=1; next } { print } END { if (!found) print "expire-after:30d" }' /etc/security/audit_control > "$TMP" && \
     /usr/bin/sudo /bin/mv "$TMP" /etc/security/audit_control && \
     /usr/bin/sudo /usr/sbin/chown root:wheel /etc/security/audit_control && \
     /usr/bin/sudo /bin/chmod 0400 /etc/security/audit_control
   query: |
     SELECT 1 WHERE EXISTS (
-      SELECT line,
-      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 1) AS INTEGER) AS days,
-      CAST(regex_match(line, 'expire-after:(\d+)d OR (\d+)G', 2) AS INTEGER) AS size
+      SELECT 1
       FROM file_lines
       WHERE path = '/etc/security/audit_control'
-      AND days >=60
-      AND size >=5
+      AND line LIKE 'expire-after:%'
+      AND CAST(regex_match(line, '(\d+)d', 1) AS INTEGER) >= 30
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -2764,6 +2768,8 @@ spec:
       SELECT 1 FROM file f
       WHERE
         f.path LIKE '/Library/%'
+        -- Exclude the non-accessible /Library/AppStore folder (per CIS audit)
+        AND f.path NOT LIKE '/Library/AppStore%'
         AND f.type = 'directory'
         -- World-writable: other-write bit (octal 2) in the last digit
         AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
@@ -2979,19 +2985,22 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure all user storage APFS volumes are encrypted (Fleetd Required)
+  name: CIS - Ensure all internal user storage APFS volumes are encrypted (Fleetd Required)
   cis_id: "5.3.1"
   platforms: macOS
   platform: darwin
   description: |
-    Apple developed a new file system which was first made available in 10.12 and then became the
-    default in 10.13. The file system is optimized for Flash and Solid-State storage and encryption.
-    https://en.wikipedia.org/wiki/Apple_File_System macOS computers generally have several volumes
-    created as part of APFS formatting, including Preboot, Recovery and Virtual Memory (VM), as well
-    as traditional user disks.
+    Apple developed the APFS (Apple File System) structure primarily for flash and solid-state
+    drives. This file structure was first made available in 10.12 and then became the default in
+    10.13. macOS computers generally have several volumes created as part of APFS formatting,
+    including Preboot, Recovery and Virtual Memory (VM), as well as traditional user disks.
     All APFS volumes that do not have specific roles and do not require encryption should be
     encrypted. "Role" disks include Preboot, Recovery and VM. User disks are labelled with "(No
     specific role)" by default.
+
+    Note: The fleetd `apfs_volumes` table does not distinguish internal from external disks, so
+    this query evaluates all non-role APFS volumes. External APFS/HFS+ volumes (CIS 5.3.2) are
+    not separately covered — see the README limitations.
   resolution: |
     Manual method:
     Use Disk Utility to erase a user disk and format as APFS (Encrypted).
@@ -3006,29 +3015,6 @@ spec:
         role != "xART" AND
         role != "Hardware" AND
         filevault != 1
-    );
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure all user storage CoreStorage volumes are encrypted (Fleetd Required)
-  cis_id: "5.3.2"
-  platforms: macOS
-  platform: darwin
-  description: |
-    Apple introduced CoreStorage with 10.7. It is used as the default for formatting on macOS volumes prior to 10.13.
-    While FileVault protects the boot volume, data may be copied to other attached storage and reduce the protection afforded by FileVault.
-    Ensure all user volumes are encrypted to protect data.
-  resolution: |
-    Manual method:
-      Use Disk Utility to convert volumes to APFS or delete them.
-      It is no longer possible to encrypt CoreStorage volumes without converting them.
-  query: |
-    SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM corestorage_logical_volume_families WHERE EncryptionType != "AES-XTS"
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
@@ -3104,10 +3090,16 @@ spec:
     Using the sudo command allows users to perform functions as a root user while limiting and password
     protecting the access privileges. By default the root account is not enabled on a macOS computer.
     An administrator can escalate privileges using the sudo command (use -s or -i to get a root shell).
+
+    If root was ever enabled it may have been granted a secure token that is not removed when the
+    account is disabled. The audit verifies that root has no secure token — even when the account is
+    not enabled — by confirming the AuthenticationAuthority key is absent for /Users/root.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script:
-      /usr/bin/sudo /usr/sbin/dsenableroot -d
+    Ask your system administrator to deploy the following script, which removes root's secure token
+    (if any) and disables the root user:
+      /usr/bin/sudo /usr/bin/fdesetup remove -user root
+      /usr/bin/sudo /usr/bin/dscl /Local/Default delete /Users/root AuthenticationAuthority
   query: |
     SELECT 1 from dscl WHERE command = 'read' AND path = '/Users/root' AND key = 'AuthenticationAuthority' AND value = '';
   purpose: Informational
