@@ -1113,7 +1113,9 @@ func TestRunHostScriptFleetMatchByTier(t *testing.T) {
 		host := &fleet.Host{ID: 1, Hostname: "h", TeamID: tc.hostTeam, SeenTime: time.Now(), OrbitNodeKey: new("abc")}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) { return host, nil }
-		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) { return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil }
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil
+		}
 		ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) { return []byte("echo"), nil }
 		ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
 		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
@@ -1147,7 +1149,9 @@ func TestBatchScriptExecuteFleetMatchByTier(t *testing.T) {
 		license := &fleet.LicenseInfo{Tier: tc.tier, Expiration: time.Now().Add(24 * time.Hour)}
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
-		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) { return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil }
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			return &fleet.Script{ID: id, TeamID: tc.scriptTeam}, nil
+		}
 		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 			return []*fleet.Host{{ID: 1, TeamID: tc.hostTeam}}, nil
 		}
