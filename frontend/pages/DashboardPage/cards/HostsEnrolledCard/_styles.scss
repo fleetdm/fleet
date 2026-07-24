@@ -33,6 +33,17 @@
     cursor: pointer;
   }
 
+  // Clickable platform labels are keyboard-operable buttons (see #48214). Give
+  // them a visible focus indicator when reached via keyboard: an outline ring
+  // plus a darker label fill to further set the focused row apart from the
+  // muted inactive ticks. This must be excluded from the recharts outline
+  // suppression below so the ring actually renders.
+  &__tick--clickable:focus-visible {
+    outline: 1px solid $core-focused-outline;
+    outline-offset: 2px;
+    fill: $core-fleet-black;
+  }
+
   &__tooltip {
     background: $core-fleet-black;
     color: $core-fleet-white;
@@ -59,13 +70,15 @@
 
   // Suppress browser focus/click outlines on the chart wrapper, SVG surface,
   // and individual bar rectangles. Recharts wraps each bar in a focusable
-  // <rect> and the chart surface itself is focusable when interactive.
+  // <rect> and the chart surface itself is focusable when interactive. The
+  // clickable platform labels are excluded so their keyboard focus ring (above)
+  // survives — they are the one element in the chart meant to be tab-focusable.
   .recharts-wrapper,
   .recharts-surface,
   .recharts-bar-rectangle,
   .recharts-rectangle,
-  .recharts-wrapper *:focus,
-  .recharts-wrapper *:focus-visible {
+  .recharts-wrapper *:focus:not(.hosts-enrolled-card__tick--clickable),
+  .recharts-wrapper *:focus-visible:not(.hosts-enrolled-card__tick--clickable) {
     outline: none !important;
   }
 }

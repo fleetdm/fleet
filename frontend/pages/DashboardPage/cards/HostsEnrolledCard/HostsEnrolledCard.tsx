@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
+import classnames from "classnames";
 import {
   BarChart,
   Bar,
@@ -119,6 +120,9 @@ interface IYAxisTickProps {
   x?: number;
   y?: number;
   payload?: { value: string; index: number };
+  // recharts merges its own "recharts-cartesian-axis-tick-value" class in via
+  // cloneElement; forward it so recharts' internal tick measurement still works.
+  className?: string;
   fontSize: number;
   isClickable: (index: number) => boolean;
   onLabelClick: (index: number) => void;
@@ -128,24 +132,41 @@ const ClickableYAxisTick = ({
   x = 0,
   y = 0,
   payload,
+  className,
   fontSize,
   isClickable,
   onLabelClick,
 }: IYAxisTickProps): JSX.Element => {
   if (!payload) return <g />;
   const clickable = isClickable(payload.index);
+
+  // Make clickable platform labels real, keyboard-operable controls: focusable
+  // via Tab (tabIndex), announced as buttons, and activatable with Enter/Space
+  // in addition to a mouse click. They navigate programmatically (no href), so
+  // button semantics fit better than a link. See #48214.
+  const handleKeyDown = (event: React.KeyboardEvent<SVGTextElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onLabelClick(payload.index);
+    }
+  };
+
   return (
-    <g
-      transform={`translate(${x},${y})`}
-      onClick={clickable ? () => onLabelClick(payload.index) : undefined}
-    >
+    <g transform={`translate(${x},${y})`}>
       <text
         x={0}
         y={0}
         dy={4}
         textAnchor="end"
         fontSize={fontSize}
-        className={clickable ? `${baseClass}__tick--clickable` : undefined}
+        className={classnames(className, {
+          [`${baseClass}__tick--clickable`]: clickable,
+        })}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={clickable ? `${payload.value} hosts` : undefined}
+        onClick={clickable ? () => onLabelClick(payload.index) : undefined}
+        onKeyDown={clickable ? handleKeyDown : undefined}
       >
         {payload.value}
       </text>
