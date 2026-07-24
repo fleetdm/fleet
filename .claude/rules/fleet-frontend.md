@@ -107,6 +107,17 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 ## Forms
 Cap free-text inputs' `maxLength` to the backend column length (check `server/datastore/mysql/schema.sql`, don't guess) via `inputOptions={{ maxLength: NAME_MAX_LENGTH }}` on `InputField`, using a local constant.
 
+## Validation
+
+**Read `frontend/docs/patterns.md#data-validation` before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
+- No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
+- Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. Handler shows errors and returns early.
+- Field errors clear on **focus**, not on typing.
+- Re-validate on blur, never on keystroke.
+- Error text renders in the field's label slot via `FormField` (replaces the label). No separate error line below the input.
+- Field-specific server errors: render inline AND fire a toast (long forms may scroll the field off-screen).
+- Copy: verb + object + constraint. `Enter your email`, not `Email is required`. No terminal periods.
+
 ## Lists & rows
 User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
 
