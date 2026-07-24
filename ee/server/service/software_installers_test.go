@@ -2662,15 +2662,13 @@ func TestPlanPatchPolicy(t *testing.T) {
 		return &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &teamID, Patch: patch, PatchWhenClosed: patchWhenClosed}
 	}
 
-	// patch_when_closed with no patch is silently ignored (no policy, no error), whether patch is
-	// omitted with no existing policy or explicitly disabled.
-	t.Run("ignores patch_when_closed without patch", func(t *testing.T) {
-		patchFlag, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
-		require.NoError(t, err)
-		assert.False(t, patchFlag)
-		patchFlag, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
-		require.NoError(t, err)
-		assert.False(t, patchFlag)
+	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
+	// existing policy or explicitly disabled.
+	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
+		_, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+		_, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
 	// While patch_when_closed is on, the user pre-install query is managed and can't be edited.

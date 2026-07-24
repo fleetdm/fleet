@@ -243,9 +243,9 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		return ds
 	}
 
-	// Creating a patch-when-closed policy forces continuous automations on, even when the
-	// request left the field at its default false.
-	t.Run("create auto-sets continuous automations", func(t *testing.T) {
+	// Creating a patch-when-closed policy with continuous automations on succeeds and clears the
+	// title's managed pre-install query.
+	t.Run("create patch-when-closed policy", func(t *testing.T) {
 		ds := setupDS()
 		var captured fleet.PolicyPayload
 		ds.NewTeamPolicyFunc = func(ctx context.Context, tID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -261,15 +261,30 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		}
 
 		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
-			Type:                 &patchType,
-			PatchSoftwareTitleID: new(patchSoftwareTitleID),
-			PatchWhenClosed:      true,
+			Type:                         &patchType,
+			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
 		})
 		require.NoError(t, err)
 		assert.True(t, captured.PatchWhenClosed)
-		assert.True(t, captured.ContinuousAutomationsEnabled, "patch_when_closed should force continuous automations on")
+		assert.True(t, captured.ContinuousAutomationsEnabled)
 		// enabling patch_when_closed cancels the title's pending installs so they re-evaluate
 		assert.True(t, ds.ClearPreInstallQueryForTitleFuncInvoked)
+	})
+
+	// continuous_automations_enabled=false with patch_when_closed=true is rejected on create too.
+	t.Run("create rejects disabling continuous automations", func(t *testing.T) {
+		ds := setupDS()
+		svc, baseCtx := newTestService(t, ds, nil, nil)
+		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
+			Type:                         &patchType,
+			PatchSoftwareTitleID:         new(patchSoftwareTitleID),
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: false,
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "continuous_automations_enabled")
 	})
 
 	// patch_when_closed only applies to patch policies.
@@ -285,8 +300,8 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		require.ErrorContains(t, err, "patch_when_closed")
 	})
 
-	// Continuous automations can't be turned off in the same request that keeps
-	// patch_when_closed on.
+	// An explicit continuous_automations_enabled=false alongside patch_when_closed=true is rejected;
+	// omitting it (see next case) still auto-sets it to true.
 	t.Run("modify rejects disabling continuous automations", func(t *testing.T) {
 		ds := setupDS()
 		svc, baseCtx := newTestService(t, ds, nil, nil)

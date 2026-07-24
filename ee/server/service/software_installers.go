@@ -950,6 +950,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			Type:                 &patchType,
 			PatchSoftwareTitleID: &payload.TitleID,
 			PatchWhenClosed:      patchWhenClosedFlag,
+			// patch_when_closed requires continuous automations on; the create rejects it otherwise.
+			ContinuousAutomationsEnabled: patchWhenClosedFlag,
 		}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 		}
@@ -991,8 +993,7 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	} else {
 		patchFlag = *payload.Patch
 	}
-	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy. A value
-	// set without patch is ignored, not rejected: the caller just won't create a policy to carry it.
+	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy.
 	if payload.PatchWhenClosed == nil {
 		if existingPolicy != nil {
 			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
@@ -1001,6 +1002,11 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 		}
 	} else {
 		patchWhenClosedFlag = *payload.PatchWhenClosed
+	}
+
+	// patch_when_closed is only meaningful with patch enabled (in this request or already on the title).
+	if payload.PatchWhenClosed != nil && !patchFlag {
+		return false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
 	}
 
 	// The pre-install query is read-only only while patch_when_closed will actually be in effect.
