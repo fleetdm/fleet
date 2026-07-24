@@ -809,17 +809,22 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	var shouldDoSideEffects bool
 
-	existingPolicy, err := svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
-	}
-	patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload, existingInstaller, existingPolicy)
-	if err != nil {
-		return nil, err
-	}
-	if patchFlag && patchWhenClosedFlag && existingInstaller.PreInstallQuery != "" {
-		payload.PreInstallQuery = new("")
-		dirty["PreInstallQuery"] = true
+	var existingPolicy *fleet.PatchPolicyData
+	var patchFlag, patchWhenClosedFlag bool
+
+	if existingInstaller.FleetMaintainedAppID != nil {
+		existingPolicy, err = svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
+		}
+		patchFlag, patchWhenClosedFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
+		if err != nil {
+			return nil, err
+		}
+		if patchFlag && patchWhenClosedFlag && existingInstaller.PreInstallQuery != "" {
+			payload.PreInstallQuery = new("")
+			dirty["PreInstallQuery"] = true
+		}
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
