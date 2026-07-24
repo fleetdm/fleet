@@ -1,1 +1,1 @@
-- Improved the Apple Business Manager success toast shown after editing fleet assignments to name the organization (for example, "Successfully updated fleets for Acme Inc.") instead of the less clear "Successfully updated fleets for AB token."
+- Improved the Apple Business success toast shown after editing fleet assignments to name the organization.
