@@ -500,6 +500,11 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			return fleet.ErrMissingLicense
 		}
 
+		// PatchWhenClosed is premium-only.
+		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
 		// Make sure any applied labels exist.
 		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny, policy.LabelsExcludeAll)
 		if len(labels) > 0 {
