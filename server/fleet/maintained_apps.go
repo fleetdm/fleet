@@ -21,6 +21,13 @@ type MaintainedApp struct {
 	PatchQuery            string   `json:"-" db:"patch_query"`
 }
 
+// WindowsFMAName is a Windows FMA's canonical name and the prefix used to match
+// versioned program names (e.g. prefix "Granola" -> "Granola 7.373.2").
+type WindowsFMAName struct {
+	Prefix string `db:"prefix"`
+	Name   string `db:"name"`
+}
+
 func (s *MaintainedApp) Source() string {
 	if s.Platform == "windows" {
 		return "programs"

@@ -30,6 +30,9 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
 		{"SoftwareTitleRenamingWindows", testSoftwareTitleRenamingWindows},
 		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
+		{"GetWindowsFMANames", testGetWindowsFMANames},
+		{"WindowsFMANameOnIngest", testWindowsFMANameOnIngest},
+		{"ReconcileWindowsSoftwareTitles", testReconcileWindowsSoftwareTitles},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1316,4 +1319,205 @@ func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
 	require.Len(t, names, 2) // still only the two unambiguous identifiers
 	_, ok = names["org.mozilla.firefox"]
 	require.False(t, ok)
+}
+
+func testGetWindowsFMANames(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Initially empty
+	names, err := ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	require.Empty(t, names)
+
+	// Windows FMA where name == unique_identifier (the common case, e.g. Granola).
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Granola",
+		Slug:             "granola/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Granola",
+	})
+	require.NoError(t, err)
+
+	// Windows FMA where unique_identifier is a shorter prefix of the name (Box Drive).
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Box Drive",
+		Slug:             "box-drive/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Box",
+	})
+	require.NoError(t, err)
+
+	// A darwin FMA must not be returned.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Granola",
+		Slug:             "granola/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.granola.app",
+	})
+	require.NoError(t, err)
+
+	names, err = ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	byName := make(map[string]string, len(names))
+	for _, n := range names {
+		byName[n.Name] = n.Prefix
+	}
+	require.Len(t, byName, 2)
+	require.Equal(t, "Granola", byName["Granola"])
+	// prefix is the shorter of name and unique_identifier (LEAST).
+	require.Equal(t, "Box", byName["Box Drive"])
+}
+
+// testWindowsFMANameOnIngest: with a Windows FMA present, ingesting a versioned
+// program name links onto the canonical FMA title instead of creating a new one.
+func testWindowsFMANameOnIngest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// FMA + installer create the canonical "Granola" title first.
+	maintained, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Granola",
+		Slug:             "granola/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Granola",
+	})
+	require.NoError(t, err)
+	// A "Zoom" FMA to exercise the negative (non-)match case below.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Zoom",
+		Slug:             "zoom/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Zoom",
+	})
+	require.NoError(t, err)
+
+	_, canonicalTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Granola",
+		Source:               "programs",
+		StorageID:            "storageid1",
+		Filename:             "granola.exe",
+		Extension:            "exe",
+		Platform:             "windows",
+		Version:              "7.373.2",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintained.ID),
+	})
+	require.NoError(t, err)
+
+	// Ingest host inventory with the version in the name, plus an unrelated app
+	// that merely shares a prefix with the "Zoom" FMA (no trailing space -> no match).
+	software := []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+		{Name: "Zoombie 5.0", Version: "5.0", Source: "programs"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// "Granola 7.373.2" inventory links to the canonical "Granola" title...
+	var granolaTitleID uint
+	var granolaSWName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &granolaTitleID,
+			`SELECT title_id FROM software WHERE name = 'Granola 7.373.2' AND source = 'programs'`)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &granolaSWName,
+			`SELECT name FROM software WHERE name = 'Granola 7.373.2' AND source = 'programs'`)
+	})
+	require.Equal(t, canonicalTitleID, granolaTitleID)
+	// ...while the software row keeps its versioned name.
+	require.Equal(t, "Granola 7.373.2", granolaSWName)
+
+	// No standalone "Granola 7.373.2" title was created.
+	var granolaVersionTitles int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &granolaVersionTitles,
+			`SELECT COUNT(*) FROM software_titles WHERE name = 'Granola 7.373.2'`)
+	})
+	require.Zero(t, granolaVersionTitles)
+
+	// "Zoombie 5.0" is a distinct app: it must NOT be renamed to "Zoom".
+	var zoombieTitleName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &zoombieTitleName,
+			`SELECT st.name FROM software_titles st JOIN software s ON s.title_id = st.id WHERE s.name = 'Zoombie 5.0'`)
+	})
+	require.Equal(t, "Zoombie 5.0", zoombieTitleName)
+}
+
+// testReconcileWindowsSoftwareTitles: existing versioned Windows titles are merged
+// onto the canonical FMA title by the reconcile pass (fixes already-mismatched data).
+func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Ingest two versions BEFORE any FMA exists -> two separate versioned titles
+	// (the mismatched state). Include an unrelated "Zoombie" app and an MSI app.
+	software := []fleet.Software{
+		{Name: "Granola 7.373.1", Version: "7.373.1", Source: "programs"},
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+		{Name: "Zoombie 5.0", Version: "5.0", Source: "programs"},
+		{Name: "Widget 2.0", Version: "2.0", Source: "programs", UpgradeCode: new("{ABC}")},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	titleCount := func(name string) int {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM software_titles WHERE name = ? AND source = 'programs'`, name)
+		})
+		return n
+	}
+	require.Equal(t, 1, titleCount("Granola 7.373.1"))
+	require.Equal(t, 1, titleCount("Granola 7.373.2"))
+
+	// Now the Granola + Zoom + Widget FMAs get synced.
+	for _, app := range []*fleet.MaintainedApp{
+		{Name: "Granola", Slug: "granola/windows", Platform: "windows", UniqueIdentifier: "Granola"},
+		{Name: "Zoom", Slug: "zoom/windows", Platform: "windows", UniqueIdentifier: "Zoom"},
+		{Name: "Widget", Slug: "widget/windows", Platform: "windows", UniqueIdentifier: "Widget"},
+	} {
+		_, err = ds.UpsertMaintainedApp(ctx, app)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	// The two versioned Granola titles are gone, replaced by a single "Granola" title.
+	require.Zero(t, titleCount("Granola 7.373.1"))
+	require.Zero(t, titleCount("Granola 7.373.2"))
+	require.Equal(t, 1, titleCount("Granola"))
+
+	// Both Granola software rows now point at the single canonical title, keeping
+	// their versioned names.
+	var canonicalID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &canonicalID, `SELECT id FROM software_titles WHERE name = 'Granola' AND source = 'programs'`)
+	})
+	var linked []struct {
+		Name    string `db:"name"`
+		TitleID uint   `db:"title_id"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &linked, `SELECT name, title_id FROM software WHERE name LIKE 'Granola %' ORDER BY name`)
+	})
+	require.Len(t, linked, 2)
+	for _, l := range linked {
+		require.Equal(t, canonicalID, l.TitleID, "software %q should link to canonical title", l.Name)
+	}
+
+	// Negative cases: unrelated prefix-sharing app and MSI (upgrade_code) app untouched.
+	require.Equal(t, 1, titleCount("Zoombie 5.0"))
+	require.Equal(t, 1, titleCount("Widget 2.0"))
+	require.Zero(t, titleCount("Widget"))
+
+	// Idempotent: a second run is a no-op.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, 1, titleCount("Granola"))
+	require.Zero(t, titleCount("Granola 7.373.1"))
 }

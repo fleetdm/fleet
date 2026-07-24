@@ -3256,6 +3256,11 @@ type Datastore interface {
 	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
 
+	// GetWindowsFMANames returns the name prefix and canonical name for each
+	// Windows FMA, used during software ingestion to collapse versioned program
+	// names (e.g. "Granola 7.373.2") onto the canonical FMA title ("Granola").
+	GetWindowsFMANames(ctx context.Context) ([]WindowsFMAName, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate management
 

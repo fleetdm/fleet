@@ -1059,3 +1059,52 @@ func TestCachedFMANamesByIdentifier(t *testing.T) {
 	require.Equal(t, "VS Code Updated", names5["com.microsoft.VSCode"])
 	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }
+
+func TestCachedWindowsFMANames(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithWindowsFMANamesExpiration(100*time.Millisecond))
+
+	names := []fleet.WindowsFMAName{{Prefix: "Granola", Name: "Granola"}}
+	mockedDS.GetWindowsFMANamesFunc = func(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+		return append([]fleet.WindowsFMAName(nil), names...), nil
+	}
+	mockedDS.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		return app, nil
+	}
+	mockedDS.ClearRemovedFleetMaintainedAppsFunc = func(ctx context.Context, slugsToKeep []string) error {
+		return nil
+	}
+
+	// Initial call hits the DB.
+	got, err := ds.GetWindowsFMANames(context.Background())
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.True(t, mockedDS.GetWindowsFMANamesFuncInvoked)
+	mockedDS.GetWindowsFMANamesFuncInvoked = false
+
+	// Second call is served from cache.
+	_, err = ds.GetWindowsFMANames(context.Background())
+	require.NoError(t, err)
+	require.False(t, mockedDS.GetWindowsFMANamesFuncInvoked)
+
+	// UpsertMaintainedApp invalidates the cache.
+	_, err = ds.UpsertMaintainedApp(context.Background(), &fleet.MaintainedApp{
+		Name: "Zoom", Slug: "zoom/windows", Platform: "windows", UniqueIdentifier: "Zoom",
+	})
+	require.NoError(t, err)
+	names = append(names, fleet.WindowsFMAName{Prefix: "Zoom", Name: "Zoom"})
+
+	got, err = ds.GetWindowsFMANames(context.Background())
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	require.True(t, mockedDS.GetWindowsFMANamesFuncInvoked)
+	mockedDS.GetWindowsFMANamesFuncInvoked = false
+
+	// ClearRemovedFleetMaintainedApps also invalidates the cache.
+	require.NoError(t, ds.ClearRemovedFleetMaintainedApps(context.Background(), []string{"zoom/windows"}))
+	_, err = ds.GetWindowsFMANames(context.Background())
+	require.NoError(t, err)
+	require.True(t, mockedDS.GetWindowsFMANamesFuncInvoked)
+}
