@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "10.6.1",
+      "version": "10.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos' AND version_compare(bundle_short_version, '10.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nordvpn.macos' AND version_compare(bundle_short_version, '10.7.0') < 0);"
       },
-      "installer_url": "https://downloads.nordcdn.com/apps/macos/generic/NordVPN-OpenVPN/10.6.1/NordVPN.pkg",
+      "installer_url": "https://downloads.nordcdn.com/apps/macos/generic/NordVPN-OpenVPN/10.7.0/NordVPN.pkg",
       "install_script_ref": "60b24e24",
       "uninstall_script_ref": "4f2c1a63",
-      "sha256": "e6894a3b98eb8e1e2130ba2ed40a45ee1675eb3bd604c5a958171aa4e2626a3c",
+      "sha256": "532c0e4a055e928a4ab11ebda5296d3464b535594340f15851fc26f5e8b9a440",
       "default_categories": [
         "Productivity"
       ]

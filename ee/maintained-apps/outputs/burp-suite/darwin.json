@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.6",
+      "version": "2026.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70' AND version_compare(bundle_short_version, '2026.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.9806-1938-4586-6531.70' AND version_compare(bundle_short_version, '2026.7.1') < 0);"
       },
-      "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=desktop&version=2026.6&type=MacOsArm64",
+      "installer_url": "https://portswigger-cdn.net/burp/releases/download?product=desktop&version=2026.7.1&type=MacOsArm64",
       "install_script_ref": "bfa4bf9a",
       "uninstall_script_ref": "6916a6a5",
-      "sha256": "709a014d0398da2b840a200418e0dfe51fcfb1fb70d44ebf1465973c84e17f8b",
+      "sha256": "eb950e39d44a0ef13918f2eefc9986a3b97423e7bd59ce2175e9e5d9806148a2",
       "default_categories": [
         "Developer tools"
       ]

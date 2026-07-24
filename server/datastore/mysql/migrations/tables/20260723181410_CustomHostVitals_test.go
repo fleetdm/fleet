@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260715144547(t *testing.T) {
+func TestUp_20260723181410(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a host so we can attach a per-host value.

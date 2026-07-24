@@ -3412,6 +3412,9 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	checkSummaryWindows := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup; this test seeds
+		// host_mdm_windows_profiles directly, so reconcile it first.
+		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
 		require.NotNil(t, ps)

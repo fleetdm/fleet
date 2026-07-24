@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260708185958, Down_20260708185958)
+	MigrationClient.AddMigration(Up_20260723181406, Down_20260723181406)
 }
 
-func Up_20260708185958(tx *sql.Tx) error {
+func Up_20260723181406(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		CREATE TABLE mdm_apple_psso_devices (
 			host_uuid  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -39,6 +39,6 @@ func Up_20260708185958(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260708185958(tx *sql.Tx) error {
+func Down_20260723181406(tx *sql.Tx) error {
 	return nil
 }

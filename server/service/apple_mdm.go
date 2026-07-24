@@ -1969,27 +1969,20 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 
 	// Check if the declaration contains a secret variable. If it does, this means that the declaration
 	// has been provided by the user and can be deleted. We don't need to validate that it is a Fleet declaration.
+	//
+	// Whether a declaration is Fleet-managed (and therefore protected from
+	// deletion through this endpoint) is determined solely by its reserved name.
+	// We deliberately do NOT run the upload-time validator (ValidateUserProvided)
+	// here: any declaration already stored was accepted at upload time, so
+	// re-validating it on delete would trap user-uploaded declarations whenever
+	// the accepted set later shrinks (a config flag is toggled, or a type is
+	// added to ForbiddenDeclTypes). See https://github.com/fleetdm/fleet/issues/47535.
 	hasSecretVariable := len(fleet.ContainsPrefixVars(string(decl.RawJSON), fleet.ServerSecretPrefix)) > 0
 	if !hasSecretVariable {
 		if _, ok := mdm_types.FleetReservedProfileNames()[decl.Name]; ok {
 			return &fleet.BadRequestError{
 				Message:     "profiles managed by Fleet can't be deleted using this endpoint.",
 				InternalErr: fmt.Errorf("deleting profile %s is not allowed because it's managed by Fleet", decl.Name),
-			}
-		}
-
-		// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
-		// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
-		// for more types of declarations
-		var d fleet.MDMAppleRawDeclaration
-		if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
-			return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
-		}
-
-		// skip declaration validation if the allow all declarations flag is set.
-		if !svc.config.MDM.AllowAllDeclarations {
-			if err := d.ValidateUserProvided(); err != nil {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 			}
 		}
 	}
