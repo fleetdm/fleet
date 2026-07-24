@@ -9,6 +9,7 @@ import FormField from "components/forms/FormField";
 const PLATFORM_STRINGS: { [key: string]: string } = {
   darwin: "macOS",
   windows: "MS Windows",
+  linux: "Linux",
   ubuntu: "Ubuntu Linux",
   zorin: "Zorin OS",
   centos: "CentOS Linux",
@@ -18,6 +19,7 @@ const platformOptions: CustomOptionType[] = [
   { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
+  { label: "Linux", value: "linux" },
   { label: "Ubuntu", value: "ubuntu" },
   { label: "Centos", value: "centos" },
 ];
