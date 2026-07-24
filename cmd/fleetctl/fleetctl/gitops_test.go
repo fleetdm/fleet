@@ -808,12 +808,13 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 	)
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
-	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	writeGlobalFile := func(extraControls string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
 controls:
   windows_enabled_and_configured: true
-  android_enabled_and_configured: true
+  android_enabled_and_configured: true%s
   windows_entra_tenant_ids:
     - 1a86b496-e2a4-43ef-ba00-20004e29b13b
   windows_entra_client_ids:
@@ -834,10 +835,18 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName))
-	require.NoError(t, err)
+`, extraControls, fleetServerURL, orgName))
+		require.NoError(t, err)
+		return f.Name()
+	}
 
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name()})
+	// include the Windows managed local account toggle (#48720) in the applied controls
+	globalFile := writeGlobalFile(`
+  windows_settings:
+    managed_local_account_settings:
+      enabled: true`)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
@@ -845,6 +854,12 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// gitops is declarative for the managed local account toggle: re-applying without the key
+	// disables it
+	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }
 
 func TestGitOpsExceptionEnforcement(t *testing.T) {
@@ -8791,58 +8806,4 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestGitOpsWindowsManagedLocalAccount covers the new
-// windows_settings.managed_local_account_settings key end to end through the real gitops client
-// and server (#48720): the toggle persists, repeated applies are stable, and removing the key
-// from the YAML declaratively disables the feature.
-func TestGitOpsWindowsManagedLocalAccount(t *testing.T) {
-	// Cannot run t.Parallel() because it sets environment variables.
-	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
-
-	const fleetServerURL = "https://fleet.example.com"
-	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
-
-	writeConfig := func(controls string) string {
-		f, err := os.CreateTemp(t.TempDir(), "*.yml")
-		require.NoError(t, err)
-		_, err = f.WriteString(fmt.Sprintf(`
-controls:
-%s
-queries:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-    server_url: %s
-  org_info:
-    contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
-    org_name: GitOps Windows Managed Local Account Test
-  secrets:
-    - secret: globalSecret
-software:
-`, controls, fleetServerURL))
-		require.NoError(t, err)
-		return f.Name()
-	}
-
-	enabledFile := writeConfig(`  windows_enabled_and_configured: true
-  windows_settings:
-    managed_local_account_settings:
-      enabled: true`)
-	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
-	require.True(t, ds.SaveAppConfigFuncInvoked)
-	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
-
-	// a second apply of the same file must be stable
-	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
-	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
-
-	// removing the key from the YAML declaratively disables the feature
-	disabledFile := writeConfig(`  windows_enabled_and_configured: true`)
-	_ = runAppForTest(t, []string{"gitops", "-f", disabledFile})
-	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }

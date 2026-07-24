@@ -1712,7 +1712,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
-	// The enabled Windows managed local account is emitted (#48720).
+	// The enabled Windows managed local account is emitted.
 	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
 	require.True(t, ok, "expected a windows_settings section")
 	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
