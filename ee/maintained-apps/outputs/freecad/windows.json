@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.1.1",
+      "version": "1.1.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team' AND version_compare(version, '1.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'FreeCAD%' AND publisher = 'FreeCAD Team' AND version_compare(version, '1.1.2') < 0);"
       },
-      "installer_url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.1/FreeCAD_1.1.1-Windows-x86_64-py311-installer.exe",
+      "installer_url": "https://github.com/FreeCAD/FreeCAD/releases/download/1.1.2/FreeCAD_1.1.2-Windows-x86_64-py311-installer.exe",
       "install_script_ref": "1cf2c1f5",
       "uninstall_script_ref": "6baebf4c",
-      "sha256": "3e4caf58cc1d82e4e8d726572f741ae664b6e91a77c4d3cb59102d9b8bd51feb",
+      "sha256": "a5d9d829c10a6074620dc4ca52ca13e71d87d866e0caf4b737172ffb4f94bec9",
       "default_categories": [
         "Productivity"
       ]

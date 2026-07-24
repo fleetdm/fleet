@@ -456,7 +456,7 @@ There's also a `PRIMO_TOOLTIP` constant in `utilities/constants.tsx` for disable
 #### What it affects
 
 - **"Create fleet" button**: disabled on ManageFleetsPage
-- **Fleet switcher**: hidden (both the page `TeamsDropdown` header and the command palette fleet picker)
+- **Fleet switcher**: hidden (both the page `FleetsDropdown` header and the command palette fleet picker)
 - **Selected fleet**: `useTeamIdParam` defaults to "Unassigned" instead of "All fleets"
 - **Empty states**: skip the fleet-scoped copy premium normally shows, falling back to the generic header that free tier already uses (e.g., "No policies yet" instead of "No policies for this fleet" or "No policies apply to all fleets")
 - **User form**: fleets dropdown disabled

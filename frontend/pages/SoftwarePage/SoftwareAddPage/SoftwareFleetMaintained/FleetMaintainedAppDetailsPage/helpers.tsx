@@ -66,6 +66,11 @@ export const getErrorMessage = (err: unknown) => {
     return REQUEST_TIMEOUT_ERROR_MESSAGE;
   }
 
+  // Server returns a complete user-facing message; pass it through as-is.
+  if (reason.includes("can be added to the same fleet")) {
+    return ensurePeriod(reason);
+  }
+
   // software is already available for install
   if (reason.toLowerCase().includes("already")) {
     const alreadyAvailableMessage = formatAlreadyAvailableInstallMessage(

@@ -104,6 +104,7 @@ const ReleaseFromABModal = ({
             className={`${baseClass}__confirm-checkbox`}
             value={isChecked}
             onChange={(value: boolean) => setIsChecked(value)}
+            variant="danger"
           >
             I understand this action can&apos;t be undone for{" "}
             <b>{host.display_name}</b>.
@@ -113,7 +114,7 @@ const ReleaseFromABModal = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse-alert" onClick={onModalExit}>
+            <Button variant="secondary" onClick={onModalExit}>
               Cancel
             </Button>
             <Button
