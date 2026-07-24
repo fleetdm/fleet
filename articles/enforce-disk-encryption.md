@@ -12,7 +12,9 @@ For macOS hosts that automatically enroll, end users are forced to enable disk e
 
 > On macOS 15.7, if the end user account type is set to **Standard** or **Skip (no account)** during [setup experience](https://fleetdm.com/guides/setup-experience), FileVault cannot be enabled locally through System Settings. To encrypt the disk on these hosts, enforce disk encryption via Fleet using the steps below. This issue does not affect macOS 26.
 
-For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
+For Windows, currently, disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). BitLocker PIN can only be enforced on hosts that do not have the C: volume already encrypted.
+
+For Linux, encryption requires end user interaction. [Learn more](#enforce-disk-encryption-on-linux).
 
 ## Enforce disk encryption
 
