@@ -1,0 +1,16 @@
+{
+  "name": "IsoBuster",
+  "slug": "isobuster/windows",
+  "package_identifier": "SmartProjects.IsoBuster",
+  "unique_identifier": "IsoBuster",
+  "fuzzy_match_name": "IsoBuster%",
+  "program_publisher": "Smart Projects",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/isobuster_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/isobuster_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.75",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IrfanView%' AND publisher = 'Irfan Skiljan' AND version_compare(version, '4.75') < 0);"
+      },
+      "installer_url": "https://download.fileforum.com/download/967963863-1/iview475_x64_setup.exe",
+      "install_script_ref": "fa8b00ca",
+      "uninstall_script_ref": "a73e4b46",
+      "sha256": "6b7e36c089194347be1bea5fea08dc97316f2181e40427e7e2867ad7ba3906a0",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "a73e4b46": "# Uninstalls IrfanView. Its ARP DisplayName carries the version+arch\n# (e.g. \"IrfanView 4.75 (64-bit)\"), so match by prefix and run the registered\n# uninstaller (iv_uninstall.exe) silently.\n\n$softwareNameLike = \"IrfanView*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\nif ($exeArgs -notmatch '(?i)(^|\\s)/silent(\\s|$)') { $exeArgs = \"$exeArgs /silent\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "fa8b00ca": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# IrfanView uses its own installer; /silent runs it unattended and /allusers=1\n# installs machine-wide. /desktop and /group control shortcut creation.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"/silent /desktop=1 /group=1 /allusers=1 /assoc=0\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

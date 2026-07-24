@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "8.0.492.9",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '8.%';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JRE)%' AND publisher = 'Semeru' AND version LIKE '8.%' AND version_compare(version, '8.0.492.9') < 0);"
+      },
+      "installer_url": "https://github.com/ibmruntimes/semeru8-binaries/releases/download/jdk-8.0.492.0/ibm-semeru-open-jre_x64_windows_8.0.492.0.msi",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "ec929ddf",
+      "sha256": "b21693e6902cd56f0dee3fb35f2913c0cb0c9f5ee3adb1dbbc9f90cd9921779c",
+      "default_categories": [
+        "Developer tools"
+      ],
+      "upgrade_code": "{041384D8-37B2-E50B-D93E-492ADFC3C0EF}"
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "ec929ddf": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{041384D8-37B2-E50B-D93E-492ADFC3C0EF}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

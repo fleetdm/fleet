@@ -1,0 +1,15 @@
+{
+  "name": "Ibis Calculeren voor Bouw",
+  "slug": "ibis-calculeren-voor-bouw/windows",
+  "package_identifier": "BrinkSoftware.IbisCalculerenVoorBouw",
+  "unique_identifier": "Ibis Calculeren voor Bouw",
+  "program_publisher": "Brink Software B.V.",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "uninstall_type": "msi",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/ibis-calculeren-voor-bouw_install.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

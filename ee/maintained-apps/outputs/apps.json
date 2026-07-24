@@ -4160,11 +4160,74 @@
       "description": "i1Profiler is an automation and creative controls for photographers and designers."
     },
     {
+      "name": "Ibis Calculeren voor Bouw",
+      "slug": "ibis-calculeren-voor-bouw/windows",
+      "platform": "windows",
+      "unique_identifier": "Ibis Calculeren voor Bouw",
+      "description": "Ibis Calculeren voor Bouw is a Dutch construction cost-estimation and quantity-takeoff application from Brink Software."
+    },
+    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
       "unique_identifier": "com.ibm.cio.notifier",
       "description": "IBM Notifier is an agent that displays custom notifications and alerts to end users on macOS."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 11",
+      "slug": "ibm-semeru-jdk-11/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 11 is a free, production-ready OpenJDK 11 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 17",
+      "slug": "ibm-semeru-jdk-17/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 17 is a free, production-ready OpenJDK 17 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 21",
+      "slug": "ibm-semeru-jdk-21/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 21 is a free, production-ready OpenJDK 21 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 8",
+      "slug": "ibm-semeru-jdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 8 is a free, production-ready OpenJDK 8 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 11",
+      "slug": "ibm-semeru-jre-11/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 11 is a free, production-ready OpenJDK 11 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 17",
+      "slug": "ibm-semeru-jre-17/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 17 is a free, production-ready OpenJDK 17 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 21",
+      "slug": "ibm-semeru-jre-21/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 21 is a free, production-ready OpenJDK 21 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 8",
+      "slug": "ibm-semeru-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 8 is a free, production-ready OpenJDK 8 Java runtime built with the Eclipse OpenJ9 JVM."
     },
     {
       "name": "Icon Composer",
@@ -4202,11 +4265,25 @@
       "description": "IINA is a modern, free and open-source media player for macOS."
     },
     {
+      "name": "ImageGlass",
+      "slug": "imageglass/windows",
+      "platform": "windows",
+      "unique_identifier": "ImageGlass",
+      "description": "ImageGlass is a lightweight, open-source image viewer that supports over 80 image formats."
+    },
+    {
       "name": "iMazing Converter",
       "slug": "imazing-converter/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingHEICConverterMac",
       "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
+    },
+    {
+      "name": "iMazing HEIC Converter",
+      "slug": "imazing-heic-converter/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing HEIC Converter",
+      "description": "iMazing HEIC Converter is a free tool that converts HEIC photos and HEVC videos to JPEG, PNG, or MP4."
     },
     {
       "name": "iMazing Profile Editor",
@@ -4251,6 +4328,20 @@
       "description": "ImHex is a hex editor for reverse engineers."
     },
     {
+      "name": "ImpExpPro",
+      "slug": "impexppro/windows",
+      "platform": "windows",
+      "unique_identifier": "Benthic Software: ImpExpPro 1.x 64bit",
+      "description": "ImpExpPro is an import/export tool for Oracle databases that imports data, exports query results, and runs SQL and PL/SQL."
+    },
+    {
+      "name": "Infix PDF Editor",
+      "slug": "infix-pdf-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Infix PDF Editor",
+      "description": "Infix PDF Editor is a desktop application for editing text, images, fonts, and pages inside existing PDF files."
+    },
+    {
       "name": "Inkscape",
       "slug": "inkscape/darwin",
       "platform": "darwin",
@@ -4284,6 +4375,13 @@
       "platform": "windows",
       "unique_identifier": "Insomnia",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
+      "name": "install4j",
+      "slug": "install4j/windows",
+      "platform": "windows",
+      "unique_identifier": "install4j",
+      "description": "install4j is a multi-platform Java installer builder that generates native installers and launchers for Java applications."
     },
     {
       "name": "IntelliDock",
@@ -4333,6 +4431,27 @@
       "platform": "darwin",
       "unique_identifier": "br.gov.cti.invesalius",
       "description": "InVesalius is a 3D medical imaging reconstruction software."
+    },
+    {
+      "name": "IrfanView",
+      "slug": "irfanview/windows",
+      "platform": "windows",
+      "unique_identifier": "IrfanView",
+      "description": "IrfanView is a fast, compact image viewer, editor, and converter for Windows."
+    },
+    {
+      "name": "IronPython 3",
+      "slug": "ironpython/windows",
+      "platform": "windows",
+      "unique_identifier": "IronPython 3",
+      "description": "IronPython 3 is an open-source implementation of the Python programming language that is tightly integrated with .NET."
+    },
+    {
+      "name": "IsoBuster",
+      "slug": "isobuster/windows",
+      "platform": "windows",
+      "unique_identifier": "IsoBuster",
+      "description": "IsoBuster is a data recovery tool that reads and extracts files from optical discs, disk images, and memory cards."
     },
     {
       "name": "IsThereNet",

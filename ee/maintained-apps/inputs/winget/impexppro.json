@@ -1,0 +1,16 @@
+{
+  "name": "ImpExpPro",
+  "slug": "impexppro/windows",
+  "package_identifier": "BenthicSoftware.ImpExpPro.1",
+  "unique_identifier": "Benthic Software: ImpExpPro 1.x 64bit",
+  "fuzzy_match_name": "Benthic Software: ImpExpPro 1.x%",
+  "program_publisher": "Benthic Software",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/impexppro_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/impexppro_uninstall.ps1",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

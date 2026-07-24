@@ -1,0 +1,14 @@
+{
+  "name": "IronPython 3",
+  "slug": "ironpython/windows",
+  "package_identifier": "Microsoft.IronPython.3",
+  "unique_identifier": "IronPython 3",
+  "fuzzy_match_name": "IronPython 3%",
+  "program_publisher": ".NET Foundation",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

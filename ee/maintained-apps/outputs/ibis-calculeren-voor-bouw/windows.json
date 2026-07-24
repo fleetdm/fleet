@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "4.2.73.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Ibis Calculeren voor Bouw' AND publisher = 'Brink Software B.V.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Ibis Calculeren voor Bouw' AND publisher = 'Brink Software B.V.' AND version_compare(version, '4.2.73.0') < 0);"
+      },
+      "installer_url": "https://www.ibis.nl/hubfs/Downloads%20ibis.nl%20en%20ibis.be/Bouw/IbisCalculerenVoorBouw_Setup_x64.exe",
+      "install_script_ref": "33da2c87",
+      "uninstall_script_ref": "95123419",
+      "sha256": "c00468376bb21934e3677a72a0c5aae571140d4fdbce840ac178640cd52878af",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{4DE7B318-4A06-4205-8850-71CEADC68770}"
+    }
+  ],
+  "refs": {
+    "33da2c87": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Ibis Calculeren voor Bouw ships as an InstallShield wrapper around an MSI.\n# /S runs the wrapper silently; /V passes /quiet /norestart through to msiexec\n# for a silent machine-wide install.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"/S /V`\"/quiet /norestart`\"\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "95123419": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\nforeach ($product_code in $inst.RelatedProducts('{4DE7B318-4A06-4205-8850-71CEADC68770}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n\n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n\n    # If the uninstall failed, bail\n    if ($successCodes -notcontains $process.ExitCode) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+  }
+}

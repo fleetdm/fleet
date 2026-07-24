@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.0.14.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'iMazing HEIC Converter%' AND publisher = 'DigiDNA';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'iMazing HEIC Converter%' AND publisher = 'DigiDNA' AND version_compare(version, '1.0.14.0') < 0);"
+      },
+      "installer_url": "https://downloads.imazing.com/windows/iMazing-HEIC-Converter/1.0.14/iMazing_HEIC_Converter_1.0.14.exe",
+      "install_script_ref": "3d9f90a6",
+      "uninstall_script_ref": "0ba90d93",
+      "sha256": "d57b3a4edba2e626a1ad893e76cc1b094fa022405cdf8320a9daaaab31c2cad9",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "0ba90d93": "# Uninstalls iMazing HEIC Converter (Inno Setup). Matches the ARP entry by DisplayName prefix and runs its silent uninstaller.\n$softwareNameLike = \"iMazing HEIC Converter*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike) {\n        $foundUninstaller = $true\n        $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n        $uninstallArgs = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\"\n\n        $splitArgs = $uninstallCommand.Split('\"')\n        if ($splitArgs.Length -gt 1) {\n            if ($splitArgs.Length -eq 3) {\n                $uninstallArgs = \"$( $splitArgs[2] ) $uninstallArgs\".Trim()\n            } elseif ($splitArgs.Length -gt 3) {\n                Throw \"Uninstall command contains multiple quoted strings. Update the script.`nUninstall command: $uninstallCommand\"\n            }\n            $uninstallCommand = $splitArgs[1]\n        }\n        Write-Host \"Uninstall command: $uninstallCommand\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{ FilePath = $uninstallCommand; PassThru = $true; Wait = $true }\n        if ($uninstallArgs -ne '') { $processOptions.ArgumentList = \"$uninstallArgs\" }\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstaller for '$softwareNameLike' not found.\"\n    $exitCode = 1\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "3d9f90a6": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# iMazing HEIC Converter uses an Inno Setup installer; these switches run it silently machine-wide.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" `\n  -ArgumentList \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}
