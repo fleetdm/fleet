@@ -98,6 +98,25 @@ type TeamPayloadMDM struct {
 
 	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
 	HostNameTemplate optjson.String `json:"name_template"`
+
+	// MacOSSettings and WindowsSettings expose only the managed local account surface on the team
+	// PATCH endpoint; configuration profiles are managed through their own endpoints. The macOS
+	// fields alias the deprecated MacOSSetup fields (see SyncManagedLocalAccountAliases).
+	MacOSSettings   *TeamPayloadMacOSSettings   `json:"macos_settings" renameto:"apple_settings"`
+	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
+}
+
+// TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields settable via
+// the team PATCH endpoint.
+type TeamPayloadMacOSSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
+	EndUserLocalAccountType     optjson.String              `json:"end_user_local_account_type"`
+}
+
+// TeamPayloadWindowsSettings is the subset of windows_settings fields settable via the team PATCH
+// endpoint.
+type TeamPayloadWindowsSettings struct {
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -160,6 +179,9 @@ func (t Team) MarshalJSON() ([]byte, error) {
 	// We do not want it be promoted to the parent struct, because it causes issues when using sqlx for scanning.
 	// Also need to implement json.Marshaler/Unmarshaler on each type that embeds Team so because it will be promoted
 	// to the parent struct.
+	// force-populate the managed local account alias fields so both API surfaces agree
+	SyncManagedLocalAccountAliases(&t.Config.MDM.MacOSSettings, t.Config.MDM.MacOSSetup, &t.Config.MDM.WindowsSettings)
+
 	x := struct {
 		ID          uint            `json:"id"`
 		CreatedAt   time.Time       `json:"created_at"`
@@ -460,6 +482,8 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
 		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
+	// keep the stored managed local account alias fields consistent with the canonical values
+	SyncManagedLocalAccountAliases(&t.MDM.MacOSSettings, t.MDM.MacOSSetup, &t.MDM.WindowsSettings)
 	return json.Marshal(t)
 }
 
@@ -750,6 +774,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	var mdmSpec TeamSpecMDM
 	mdmSpec.MacOSUpdates = t.Config.MDM.MacOSUpdates
 	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
+	// make sure the managed local account alias fields reflect the canonical values (teams stored
+	// before the alias fields existed have them unset in the config JSON)
+	SyncManagedLocalAccountAliases(&t.Config.MDM.MacOSSettings, t.Config.MDM.MacOSSetup, &t.Config.MDM.WindowsSettings)
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup

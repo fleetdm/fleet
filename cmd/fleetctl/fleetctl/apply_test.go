@@ -823,8 +823,20 @@ spec:
       grace_period_days: 1
 `)
 
+	// the managed local account alias fields are force-synced from the canonical
+	// macos_setup values on save (see SyncManagedLocalAccountAliases)
+	aliasSyncedMacOSSettings := fleet.MacOSSettings{
+		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+		EndUserLocalAccountType:     optjson.SetString("admin"),
+	}
+	aliasSyncedWindowsSettings := fleet.WindowsSettings{
+		ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+	}
+
 	newMDMSettings := fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
+		MacOSSettings:                aliasSyncedMacOSSettings,
+		WindowsSettings:              aliasSyncedWindowsSettings,
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -910,6 +922,8 @@ spec:
 
 	newMDMSettings = fleet.MDM{
 		DeprecatedAppleBMDefaultTeam: "team1",
+		MacOSSettings:                aliasSyncedMacOSSettings,
+		WindowsSettings:              aliasSyncedWindowsSettings,
 		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1642,7 +1656,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			CustomSettings:              []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -1688,7 +1707,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			CustomSettings:              []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)

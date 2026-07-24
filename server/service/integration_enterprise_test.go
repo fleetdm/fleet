@@ -337,11 +337,18 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
+		// the managed local account alias fields are force-synced from the canonical
+		// macos_setup values when the team config is saved (see SyncManagedLocalAccountAliases)
+		MacOSSettings: fleet.MacOSSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -469,8 +476,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
+		// the managed local account alias fields are force-synced from the canonical
+		// macos_setup values when the team config is saved (see SyncManagedLocalAccountAliases)
+		MacOSSettings: fleet.MacOSSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -512,8 +526,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
+		// the managed local account alias fields are force-synced from the canonical
+		// macos_setup values when the team config is saved (see SyncManagedLocalAccountAliases)
+		MacOSSettings: fleet.MacOSSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -557,8 +578,15 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
+		// the managed local account alias fields are force-synced from the canonical
+		// macos_setup values when the team config is saved (see SyncManagedLocalAccountAliases)
+		MacOSSettings: fleet.MacOSSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3460,8 +3488,15 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			EnableManagedLocalAccount:   optjson.SetBool(false),
 			EndUserLocalAccountType:     optjson.SetString("admin"),
 		},
+		// the managed local account alias fields are force-synced from the canonical
+		// macos_setup values when the team config is saved (see SyncManagedLocalAccountAliases)
+		MacOSSettings: fleet.MacOSSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			CustomSettings:              optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},

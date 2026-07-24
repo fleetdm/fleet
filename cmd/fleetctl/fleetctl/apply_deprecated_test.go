@@ -330,7 +330,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			CustomSettings:              []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -376,7 +381,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			CustomSettings:              []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
+			EndUserLocalAccountType:     optjson.SetString("admin"),
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
