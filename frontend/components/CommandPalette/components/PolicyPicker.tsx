@@ -10,7 +10,7 @@ import {
   IPolicyStats,
 } from "interfaces/policy";
 import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 
 import usePickerSearch from "./usePickerSearch";
@@ -110,12 +110,14 @@ const PolicyPicker = ({
               </span>
               {showCriticalBadge && <CriticalPolicyBadge />}
               {showPatchBadge && (
-                <PillBadge tipContent={PATCH_TOOLTIP_CONTENT}>Patch</PillBadge>
+                <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
+                  Patch
+                </Tag>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This policy runs on all hosts.">
+                <Tag tooltip="This policy runs on all hosts." size="small">
                   Inherited
-                </PillBadge>
+                </Tag>
               )}
             </div>
           </Command.Item>

@@ -1,0 +1,95 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 $pad-small;
+  border: 1px solid $ui-fleet-black-25;
+  border-radius: $border-radius;
+  font-size: $xx-small;
+  font-weight: $bold;
+  color: $ui-fleet-black-75;
+  white-space: nowrap;
+  box-sizing: border-box;
+
+  // per design, large (28px, the default set above) is used most often;
+  // small is reserved for tight contexts like a table row
+  &--small {
+    height: 24px;
+  }
+
+  &--clickable {
+    background: none;
+    cursor: pointer;
+
+    &:hover {
+      background-color: $ui-off-white;
+      border-color: $ui-fleet-black-50;
+    }
+
+    &:focus-visible {
+      border-color: $core-fleet-black;
+      outline: none;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-5;
+      border-color: $ui-fleet-black-50;
+    }
+
+    &:disabled {
+      border-color: $ui-fleet-black-33;
+      color: $ui-fleet-black-33;
+      cursor: default;
+    }
+  }
+
+  &--dismissible {
+    gap: $pad-small;
+    padding: 0 $pad-xsmall 0 $pad-small;
+
+    &:hover {
+      background-color: $ui-off-white;
+      border-color: $ui-fleet-black-50;
+    }
+
+    // the dismiss `<button>` is the only focusable descendant, so
+    // :focus-within is what lets the tag itself pick up the focus ring
+    &:focus-within {
+      border-color: $core-fleet-black;
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-5;
+      border-color: $ui-fleet-black-50;
+    }
+  }
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    overflow: hidden;
+  }
+
+  &__dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+  }
+}

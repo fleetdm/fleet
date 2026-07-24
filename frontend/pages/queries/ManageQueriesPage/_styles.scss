@@ -94,10 +94,6 @@
           tbody {
             .name__cell {
               width: auto;
-
-              .inherited-badge {
-                overflow: initial;
-              }
             }
 
             @media (max-width: $break-md) {

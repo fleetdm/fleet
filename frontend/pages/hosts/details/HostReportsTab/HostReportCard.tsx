@@ -12,7 +12,7 @@ import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
 import ActionsDropdown from "components/ActionsDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { Colors } from "styles/var/colors";
 
@@ -180,13 +180,10 @@ const HostReportCard = ({
         </div>
         <div className={`${baseClass}__header-right`}>
           {report.report_clipped && (
-            <PillBadge
-              className={`${baseClass}__clipped-badge`}
-              tipContent="This report has paused saving results. If automations are enabled, results are still sent to your log destination."
-            >
+            <Tag tooltip="This report has paused saving results. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
               Report clipped
-            </PillBadge>
+            </Tag>
           )}
           <ActionsDropdown
             options={actionOptions}

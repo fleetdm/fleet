@@ -5,7 +5,7 @@ import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import Icon from "components/Icon";
-import PillBadge from "components/PillBadge";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import usePickerSearch from "./usePickerSearch";
@@ -110,9 +110,9 @@ const ReportPicker = ({
                 </TooltipWrapper>
               )}
               {showInheritedBadge && (
-                <PillBadge tipContent="This report runs on all hosts.">
+                <Tag tooltip="This report runs on all hosts." size="small">
                   Inherited
-                </PillBadge>
+                </Tag>
               )}
             </div>
           </Command.Item>
