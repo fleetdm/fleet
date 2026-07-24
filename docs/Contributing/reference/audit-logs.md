@@ -3164,6 +3164,57 @@ This activity contains the following fields:
 }
 ```
 
+## edited_disk_encryption_settings_apple
+
+Generated when a user edits disk encryption settings for Apple hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## edited_disk_encryption_settings_windows
+
+Generated when a user edits disk encryption settings for Windows hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
+## edited_disk_encryption_settings_linux
+
+Generated when a user edits disk encryption settings for Linux hosts on a fleet (or unassigned hosts).
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet, `null` if it applies to hosts that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet, `null` if it applies to devices that are not in a fleet ("Unassigned").
+
+#### Example
+
+```json
+{
+  "fleet_id": 123,
+  "fleet_name": "Workstations"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
