@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.7.3",
+      "version": "26.7.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.chatwise';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.chatwise' AND version_compare(bundle_short_version, '26.7.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.chatwise' AND version_compare(bundle_short_version, '26.7.4') < 0);"
       },
-      "installer_url": "https://releases.chatwise.app/26.7.3/ChatWise-26.7.3-arm64.dmg",
+      "installer_url": "https://releases.chatwise.app/26.7.4/ChatWise-26.7.4-arm64.dmg",
       "install_script_ref": "b3b382a0",
       "uninstall_script_ref": "da509fe4",
-      "sha256": "285ecdf7225ad044a2d3801c70016d2521e1046134bc576c7c0befd896c8cd86",
+      "sha256": "5023f1dc53a1bfff788ba317aed2893b8208d5e9e419864f41674693672b2817",
       "default_categories": [
         "Communication"
       ]
