@@ -3696,7 +3696,7 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 		return nil
 	}
 
-	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
 	return executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost)
 }
 
@@ -3775,7 +3775,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
 		// Per-host desired (applicable) live profiles, used by the execute step to protect LocURIs a remove target shares with a
 		// profile still desired on the same host (label-aware, so a label-scoped profile only protects the hosts it applies to).
-		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, profilesByTeam)
+		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
 
 		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous prefix of
 		// the work-hosts and the cursor can resume at the last delivered host.

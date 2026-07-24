@@ -46,22 +46,22 @@ func TestEntityAppliesToHost_AppleWrapper(t *testing.T) {
 
 	t.Run("wrong team -> false", func(t *testing.T) {
 		p := &fleet.AppleProfileForReconcile{TeamID: 5, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.False(t, EntityAppliesToHost(p, host, nil))
+		require.False(t, EntityAppliesToHost(p, host, nil, false))
 	})
 	t.Run("global team matches nil team_id host", func(t *testing.T) {
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.True(t, EntityAppliesToHost(p, host, nil))
+		require.True(t, EntityAppliesToHost(p, host, nil, false))
 	})
 	t.Run("non-apple platform -> false (Apple-only platform gate)", func(t *testing.T) {
 		linuxHost := *host
 		linuxHost.Platform = "linux"
 		p := &fleet.AppleProfileForReconcile{TeamID: 0, IncludeMode: fleet.AppleProfileIncludeNone}
-		require.False(t, EntityAppliesToHost(p, &linuxHost, nil))
+		require.False(t, EntityAppliesToHost(p, &linuxHost, nil, false))
 	})
-	// The shared package tests the dynamic-label timing rule itself; this case
-	// pins that the Apple wrapper threads host.LabelUpdatedAt into it, rather
-	// than e.g. a zero time.
-	t.Run("host.LabelUpdatedAt is threaded into the exclude-timing gate", func(t *testing.T) {
+	// The shared package tests the dynamic-label unknown-membership rule itself;
+	// this case pins that the Apple wrapper threads host.LabelUpdatedAt and the
+	// on-host state into it, rather than e.g. a zero time.
+	t.Run("host.LabelUpdatedAt is threaded into the exclude unknown-membership gate", func(t *testing.T) {
 		dynamicExcLabel := fleet.AppleProfileLabelRef{
 			LabelID:             new(uint(99)),
 			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
@@ -73,18 +73,21 @@ func TestEntityAppliesToHost_AppleWrapper(t *testing.T) {
 			IncludeLabels: []fleet.AppleProfileLabelRef{{LabelID: new(uint(1))}},
 			ExcludeLabels: []fleet.AppleProfileLabelRef{dynamicExcLabel},
 		}
-		// Host scanned before the dynamic exclude label was created -> disqualified.
+		// Host scanned before the dynamic exclude label was created: membership is
+		// unknown, so the current state is preserved — withheld when not on the
+		// host, kept when already on it.
 		staleHost := &fleet.AppleHostReconcileInfo{
 			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
 			LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
 		}
-		require.False(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}))
+		require.False(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}, false))
+		require.True(t, EntityAppliesToHost(p, staleHost, map[uint]struct{}{1: {}}, true))
 		// Once the host's scan advances past the label's CreatedAt, it applies.
 		freshHost := &fleet.AppleHostReconcileInfo{
 			HostID: 1, UUID: "h1", TeamID: nil, Platform: "darwin",
 			LabelUpdatedAt: time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC),
 		}
-		require.True(t, EntityAppliesToHost(p, freshHost, map[uint]struct{}{1: {}}))
+		require.True(t, EntityAppliesToHost(p, freshHost, map[uint]struct{}{1: {}}, false))
 	})
 }
 
@@ -132,8 +135,8 @@ func TestEntityAppliesToHost_DeclarationsShareSameDispatcher(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			pr := EntityAppliesToHost(prof, host, c.hostLabels)
-			dr := EntityAppliesToHost(decl, host, c.hostLabels)
+			pr := EntityAppliesToHost(prof, host, c.hostLabels, false)
+			dr := EntityAppliesToHost(decl, host, c.hostLabels, false)
 			require.Equal(t, c.want, pr, "profile result")
 			require.Equal(t, c.want, dr, "declaration result")
 			require.Equal(t, pr, dr,
@@ -329,6 +332,171 @@ func TestComputeReconcileDeltas(t *testing.T) {
 		require.Len(t, toInstall, 1) // pGlobal still installs
 		require.Empty(t, toRemove)
 	})
+
+	// Unknown-membership preservation: a dynamic label created after the host's
+	// last label scan must preserve the host's current profile state instead of
+	// forcing a removal (see #47865).
+	t.Run("unknown dynamic exclude label preserves current state", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(30)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pExc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aExcProf",
+			ProfileIdentifier: "com.example.exc",
+			ProfileName:       "Exc",
+			TeamID:            0,
+			Checksum:          []byte("eeee"),
+			IncludeMode:       fleet.AppleProfileIncludeNone,
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pExc}}
+
+		// Not on the host: withheld until the host reports label results.
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Already installed on the host: kept, no removal.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aExcProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("eeee"),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Host reports label results (scan time advances past the label's
+		// CreatedAt): membership is now authoritative. Member -> removed.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownExc.CreatedAt.Add(time.Hour)
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {30: {}}}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aExcProf", toRemove[0].ProfileUUID)
+
+		// Non-member after the scan -> kept installed, and installed on hosts
+		// that didn't have it.
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, nil, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Len(t, toInstall, 1)
+		require.Empty(t, toRemove)
+	})
+
+	t.Run("unknown dynamic include_all label preserves current state", func(t *testing.T) {
+		unknownInc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(31)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pInc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aIncProf",
+			ProfileIdentifier: "com.example.inc",
+			ProfileName:       "Inc",
+			TeamID:            0,
+			Checksum:          []byte("ffff"),
+			IncludeMode:       fleet.AppleProfileIncludeAll,
+			IncludeLabels:     []fleet.AppleProfileLabelRef{{LabelID: new(uint(10))}, unknownInc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pInc}}
+		// Host is a confirmed member of the pre-existing include label only.
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {10: {}}}
+
+		// Not on the host: withheld until membership in the new label is known.
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, nil, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Already installed on the host: kept, no removal.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aIncProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("ffff"),
+				OperationType: fleet.MDMOperationTypeInstall,
+				Status:        new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+
+		// Scan advances, host confirmed NOT a member of the new label -> removed.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownInc.CreatedAt.Add(time.Hour)
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Len(t, toRemove, 1)
+		require.Equal(t, "aIncProf", toRemove[0].ProfileUUID)
+
+		// Scan advances, host confirmed a member of both labels -> stays.
+		memberLabels := map[uint]map[uint]struct{}{hostA.HostID: {10: {}, 31: {}}}
+		toInstall, toRemove = ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, memberLabels, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+	})
+
+	t.Run("unknown labels do not preserve a profile pending removal", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(32)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		pExc := &fleet.AppleProfileForReconcile{
+			ProfileUUID:       "aExcProf",
+			ProfileIdentifier: "com.example.exc",
+			ProfileName:       "Exc",
+			TeamID:            0,
+			Checksum:          []byte("eeee"),
+			IncludeMode:       fleet.AppleProfileIncludeNone,
+			ExcludeLabels:     []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		profByTeam := map[uint][]*fleet.AppleProfileForReconcile{0: {pExc}}
+		// A remove operation is in flight: the profile is NOT considered on the
+		// host, so the unknown exclude label keeps it withheld (no flip back to
+		// install) and the in-flight removal proceeds untouched.
+		current := map[string][]*fleet.MDMAppleProfilePayload{
+			"uuid-A": {{
+				ProfileUUID:   "aExcProf",
+				HostUUID:      "uuid-A",
+				Checksum:      []byte("eeee"),
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        new(fleet.MDMDeliveryPending),
+			}},
+		}
+		toInstall, toRemove := ComputeReconcileDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, profByTeam, map[string]struct{}{},
+		)
+		require.Empty(t, toInstall)
+		require.Empty(t, toRemove)
+	})
 }
 
 func TestComputeDeclarationDeltas(t *testing.T) {
@@ -393,6 +561,61 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, "tok1", rows[0].Token)
+	})
+
+	t.Run("unknown dynamic exclude label preserves current declaration state", func(t *testing.T) {
+		unknownExc := fleet.AppleProfileLabelRef{
+			LabelID:             new(uint(40)),
+			LabelMembershipType: int(fleet.LabelMembershipTypeDynamic),
+			CreatedAt:           hostA.LabelUpdatedAt.Add(time.Hour),
+		}
+		dExc := &fleet.AppleDeclarationForReconcile{
+			DeclarationUUID:       "aDeclExc",
+			DeclarationIdentifier: "com.example.decl.exc",
+			DeclarationName:       "ExcDecl",
+			TeamID:                0,
+			Token:                 []byte("tokE"),
+			IncludeMode:           fleet.AppleProfileIncludeNone,
+			ExcludeLabels:         []fleet.AppleProfileLabelRef{unknownExc},
+		}
+		byTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {dExc}}
+
+		// Not on the host: withheld, nothing changes.
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, byTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+
+		// Already installed on the host: kept, no removal row.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclExc",
+				Token:           "tokE",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+			}},
+		}
+		changedDevice, changedUser, rows = ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, byTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+
+		// Scan advances and the host is a confirmed member -> removal row.
+		freshHost := *hostA
+		freshHost.LabelUpdatedAt = unknownExc.CreatedAt.Add(time.Hour)
+		hostLabels := map[uint]map[uint]struct{}{hostA.HostID: {40: {}}}
+		changedDevice, changedUser, rows = ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{&freshHost}, hostLabels, current, byTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, rows[0].OperationType)
 	})
 }
 

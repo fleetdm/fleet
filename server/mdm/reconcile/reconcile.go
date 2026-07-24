@@ -16,13 +16,19 @@ import (
 // team gate, then composes the include + exclude label handlers carried by the entity.
 //
 // hostEffectiveTeamID is the host's team with nil normalized to 0 (team_id=0 is its own "no team" scope, not a fallback for
-// teamed hosts). hostLabelUpdatedAt is the host's labels-last-scanned timestamp, used by the exclude-any handler's dynamic-label
-// timing rule. hostLabels is the set of label IDs the host is a member of.
+// teamed hosts). hostLabelUpdatedAt is the host's labels-last-scanned timestamp, used by the include-all and exclude-any
+// handlers' dynamic-label unknown-membership rule. hostLabels is the set of label IDs the host is a member of.
+//
+// entityOnHost reports whether the entity is currently on the host: an install-operation row exists for it in the platform's
+// host_mdm_*_profiles table, whatever its status (including failed — Fleet still intends the entity to be there). No row, or a
+// remove-operation row, means not on host. It drives the unknown-membership rules so that a dynamic label the host hasn't
+// evaluated yet preserves the entity's current state instead of forcing a removal.
 func EntityAppliesToHost(
 	e fleet.MDMLabeledEntity,
 	hostEffectiveTeamID uint,
 	hostLabelUpdatedAt time.Time,
 	hostLabels map[uint]struct{},
+	entityOnHost bool,
 ) bool {
 	if e.GetTeamID() != hostEffectiveTeamID {
 		return false
@@ -32,7 +38,7 @@ func EntityAppliesToHost(
 		var ok bool
 		switch e.GetIncludeMode() {
 		case fleet.MDMProfileIncludeAll:
-			ok = HandlerIncludeAll(e.GetIncludeLabels(), hostLabels)
+			ok = HandlerIncludeAll(e.GetIncludeLabels(), hostLabelUpdatedAt, hostLabels, entityOnHost)
 		case fleet.MDMProfileIncludeAny:
 			ok = HandlerIncludeAny(e.GetIncludeLabels(), hostLabels)
 		default:
@@ -44,7 +50,7 @@ func EntityAppliesToHost(
 	}
 
 	if exc := e.GetExcludeLabels(); len(exc) > 0 {
-		if HandlerExcludeAny(exc, hostLabelUpdatedAt, hostLabels) {
+		if HandlerExcludeAny(exc, hostLabelUpdatedAt, hostLabels, entityOnHost) {
 			return false
 		}
 	}
@@ -52,9 +58,22 @@ func EntityAppliesToHost(
 	return true
 }
 
+// membershipUnknown reports whether the host's membership in the label cannot be known yet: a dynamic label created after the
+// host's last label-query report (hostLabelUpdatedAt) has never been evaluated by the host, so the absence of a membership row
+// carries no signal. Manual and host-vitals labels are server-populated, so their membership is always considered known.
+func membershipUnknown(l fleet.MDMProfileLabelRef, hostLabelUpdatedAt time.Time) bool {
+	return l.LabelMembershipType == int(fleet.LabelMembershipTypeDynamic) &&
+		!l.CreatedAt.IsZero() &&
+		hostLabelUpdatedAt.Before(l.CreatedAt)
+}
+
 // HandlerIncludeAll checks that host is a member of every (non-broken) include label. A broken label disqualifies the entity,
 // mirroring the legacy SQL where include-* with a broken label produces no desired-state row.
-func HandlerIncludeAll(labels []fleet.MDMProfileLabelRef, hostLabels map[uint]struct{}) bool {
+//
+// A label with unknown membership (see membershipUnknown) counts as a member only when the entity is already on the host, so
+// adding a label to an entity's scope doesn't remove it from hosts that haven't evaluated the label yet; hosts without the
+// entity keep waiting for confirmed membership. A confirmed non-member label still disqualifies regardless of entityOnHost.
+func HandlerIncludeAll(labels []fleet.MDMProfileLabelRef, hostLabelUpdatedAt time.Time, hostLabels map[uint]struct{}, entityOnHost bool) bool {
 	if len(labels) == 0 {
 		return false
 	}
@@ -62,9 +81,13 @@ func HandlerIncludeAll(labels []fleet.MDMProfileLabelRef, hostLabels map[uint]st
 		if l.LabelID == nil {
 			return false
 		}
-		if _, ok := hostLabels[*l.LabelID]; !ok {
-			return false
+		if _, ok := hostLabels[*l.LabelID]; ok {
+			continue
 		}
+		if entityOnHost && membershipUnknown(l, hostLabelUpdatedAt) {
+			continue
+		}
+		return false
 	}
 	return true
 }
@@ -88,27 +111,26 @@ func HandlerIncludeAny(labels []fleet.MDMProfileLabelRef, hostLabels map[uint]st
 //
 //   - Any broken exclude label disqualifies the entity entirely (we can't
 //     prove the exclusion).
-//   - Dynamic labels created after the host's last label scan
-//     (hostLabelUpdatedAt) are treated as "results not yet reported" and
-//     also disqualify, so we don't install a profile that the
-//     not-yet-scanned label would exclude.
-//     Manual labels (membership_type=1) skip this timing check.
-//     Host vital labels run their own cron to associate, skip the timing check.
+//   - A label with unknown membership (see membershipUnknown) preserves the
+//     entity's current state: it disqualifies only when the entity is not
+//     already on the host, so we don't install an entity the not-yet-evaluated
+//     label might exclude, and we don't remove one the label might allow.
 //
 // Returns true if the host should be excluded, false if the host passes the exclude gate.
 func HandlerExcludeAny(
 	labels []fleet.MDMProfileLabelRef,
 	hostLabelUpdatedAt time.Time,
 	hostLabels map[uint]struct{},
+	entityOnHost bool,
 ) bool {
 	for _, l := range labels {
 		if l.LabelID == nil {
 			return true
 		}
-		if l.LabelMembershipType == int(fleet.LabelMembershipTypeDynamic) && !l.CreatedAt.IsZero() && hostLabelUpdatedAt.Before(l.CreatedAt) {
+		if _, isMember := hostLabels[*l.LabelID]; isMember {
 			return true
 		}
-		if _, isMember := hostLabels[*l.LabelID]; isMember {
+		if !entityOnHost && membershipUnknown(l, hostLabelUpdatedAt) {
 			return true
 		}
 	}

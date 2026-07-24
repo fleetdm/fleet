@@ -27,6 +27,10 @@ const HoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 // platform gate, then delegates the team + include/exclude label gates to
 // the platform-neutral dispatcher in server/mdm/reconcile.
 //
+// entityOnHost reports whether the entity currently has an install-operation
+// row on the host (any status); the shared dispatcher uses it to preserve the
+// host's current state when a dynamic label's membership is still unknown.
+//
 // Both the batched profile and declaration reconcilers — and the per-host
 // enrollment path — route through this function. The shared package is
 // the single source of truth for "does this label-gated MDM entity apply
@@ -36,11 +40,12 @@ func EntityAppliesToHost(
 	e fleet.AppleLabeledEntity,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
+	entityOnHost bool,
 ) bool {
 	if !IsEligiblePlatform(host.Platform) {
 		return false
 	}
-	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels)
+	return reconcile.EntityAppliesToHost(e, host.EffectiveTeamID(), host.LabelUpdatedAt, hostLabels, entityOnHost)
 }
 
 // IsEligiblePlatform reports whether the host's platform is one of the
@@ -65,17 +70,21 @@ func ComputeReconcileDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, p := range teamProfiles {
-			if !EntityAppliesToHost(p, host, labelsForHost) {
-				continue
-			}
-			desired[p.ProfileUUID] = p
-		}
-
 		current := currentByHost[host.UUID]
 		currentByProfile := make(map[string]*fleet.MDMAppleProfilePayload, len(current))
 		for _, c := range current {
 			currentByProfile[c.ProfileUUID] = c
+		}
+
+		for _, p := range teamProfiles {
+			onHost := false
+			if c, ok := currentByProfile[p.ProfileUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(p, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[p.ProfileUUID] = p
 		}
 
 		for profUUID, p := range desired {
@@ -202,17 +211,21 @@ func ComputeDeclarationDeltas(
 
 		labelsForHost := hostLabels[host.HostID]
 
-		for _, d := range teamDecls {
-			if !EntityAppliesToHost(d, host, labelsForHost) {
-				continue
-			}
-			desired[d.DeclarationUUID] = d
-		}
-
 		current := currentByHost[host.UUID]
 		currentByDecl := make(map[string]*fleet.MDMAppleHostDeclaration, len(current))
 		for _, c := range current {
 			currentByDecl[c.DeclarationUUID] = c
+		}
+
+		for _, d := range teamDecls {
+			onHost := false
+			if c, ok := currentByDecl[d.DeclarationUUID]; ok {
+				onHost = c.OperationType == fleet.MDMOperationTypeInstall
+			}
+			if !EntityAppliesToHost(d, host, labelsForHost, onHost) {
+				continue
+			}
+			desired[d.DeclarationUUID] = d
 		}
 
 		for declUUID, d := range desired {
