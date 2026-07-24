@@ -1424,8 +1424,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			// When title IDs are missing, a concurrent CleanupSoftwareTitles likely
 			// deleted the titles we just inserted (they were orphaned briefly outside the
 			// transaction). Clear those cache entries so they are re-inserted on the next
-			// agent check-in and return an error to abort this attempt without inserting
-			// software rows with NULL title_id.
+			// agent check-in. The software row proceeds with NULL title_id; the next
+			// ingestion cycle will re-create the title and link it.
 			if len(missingChecksums) > 0 {
 				var examples []string
 				for _, checksum := range missingChecksums {
