@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.78.15",
+      "version": "2.78.16",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.akiflow.akiflow';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.akiflow.akiflow' AND version_compare(bundle_short_version, '2.78.15') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.akiflow.akiflow' AND version_compare(bundle_short_version, '2.78.16') < 0);"
       },
-      "installer_url": "https://download.akiflow.com/builds/Akiflow-2.78.15-75bee25a-universal.dmg",
+      "installer_url": "https://download.akiflow.com/builds/Akiflow-2.78.16-d29d46e9-universal.dmg",
       "install_script_ref": "19097683",
       "uninstall_script_ref": "9d10ecef",
-      "sha256": "4fb7af17e02d091e7bcceb386b7ed58ef8e45edb8ffee0f572b1bafec7e85ea2",
+      "sha256": "61a20803fb8799bd2297cde9203c685eeac52b023140a642eca4bee9d633022e",
       "default_categories": [
         "Productivity"
       ]

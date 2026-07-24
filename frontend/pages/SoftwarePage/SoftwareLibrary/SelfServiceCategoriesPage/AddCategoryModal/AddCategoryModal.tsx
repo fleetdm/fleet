@@ -2,13 +2,13 @@ import React, { useState } from "react";
 
 import selfServiceCategoriesAPI from "services/entities/self_service_categories";
 import { hasStatusKey } from "interfaces/errors";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 
 const baseClass = "add-category-modal";
-const NAME_MAX_LENGTH = 255;
 
 interface IAddCategoryModalProps {
   fleetId: number;
@@ -26,9 +26,7 @@ const AddCategoryModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const trimmedName = name.trim();
-  const isInvalid =
-    trimmedName.length === 0 || trimmedName.length > NAME_MAX_LENGTH;
-  const isDisabled = isInvalid || isSubmitting;
+  const isDisabled = trimmedName.length === 0 || isSubmitting;
 
   const onNameChange = (value: string) => {
     setName(value);
@@ -74,7 +72,7 @@ const AddCategoryModal = ({
           error={error}
           autofocus
           ignore1password
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <div className="modal-cta-wrap">
           <Button type="submit" disabled={isDisabled} isLoading={isSubmitting}>

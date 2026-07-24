@@ -61,6 +61,13 @@ describe("RenameFleetModal", () => {
     expect(defaultProps.onSubmit).toHaveBeenCalledWith({ name: "New Name" });
   });
 
+  it("caps the fleet name input at 255 characters (matches DB varchar(255))", () => {
+    render(<RenameFleetModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText("Fleet name") as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
+  });
+
   it("does not call onSubmit when name is whitespace-only", async () => {
     render(<RenameFleetModal {...defaultProps} />);
 

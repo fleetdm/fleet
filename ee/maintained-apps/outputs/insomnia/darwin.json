@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "13.0.2",
+      "version": "13.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app' AND version_compare(bundle_short_version, '13.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app' AND version_compare(bundle_short_version, '13.1.0') < 0);"
       },
-      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4013.0.2/Insomnia.Core-13.0.2.dmg",
+      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4013.1.0/Insomnia.Core-13.1.0.dmg",
       "install_script_ref": "80491bd1",
       "uninstall_script_ref": "093d2a58",
-      "sha256": "4af7e5a14c241b28a2c16370bb6cb0b53c4a9fb00c4814a95e413a2c67a584d7",
+      "sha256": "227a2e5b056c33933b2cd01bc5ca206c950474768433d5ee36968be7dc0cc017",
       "default_categories": [
         "Developer tools"
       ]

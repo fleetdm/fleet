@@ -464,6 +464,9 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"DELETE FROM software_categories WHERE team_id != 0")
 	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
+	// Clear the in-process software title cache so it doesn't retain entries
+	// for titles that were just truncated from the database.
+	ds.clearKnownSoftwareTitleKeys()
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient
