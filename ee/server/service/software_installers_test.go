@@ -913,6 +913,16 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 		require.True(t, state.ds.SaveInstallerUpdatesFuncInvoked)
 	})
 
+	t.Run("rejects patch controls on a non-FMA installer", func(t *testing.T) {
+		state := setup(t, "Dummy App", "dummy_installer.pkg", "pkg", "darwin", "dummy-storage", []string{"com.example.dummy"}, false)
+		_, err := state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID: titleID,
+			TeamID:  &state.teamID,
+			Patch:   new(true),
+		})
+		require.ErrorContains(t, err, "Fleet-maintained apps")
+	})
+
 	t.Run("upgrade code allows a different title name", func(t *testing.T) {
 		contents, storageID := readInstaller(t, "../../../server/service/testdata/software-installers/fleet-osquery.msi")
 		state := setup(t, "Fleet agent", "fleet-osquery.msi", "msi", "windows", storageID, []string{"{70A53353-01E5-424B-8819-ED882B3805D9}"}, false)
@@ -2640,4 +2650,80 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 			assert.Equal(t, c.want, got)
 		})
 	}
+}
+
+func TestPlanPatchPolicy(t *testing.T) {
+	titleID := uint(42)
+	teamID := uint(0)
+	fmaInstaller := &fleet.SoftwareInstaller{TitleID: &titleID, FleetMaintainedAppID: new(uint(7)), PreInstallQuery: "SELECT old;"}
+	nonFMAInstaller := &fleet.SoftwareInstaller{TitleID: &titleID}
+
+	payload := func(patch *bool, patchWhenClosed *bool) *fleet.UpdateSoftwareInstallerPayload {
+		return &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &teamID, Patch: patch, PatchWhenClosed: patchWhenClosed}
+	}
+
+	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
+	// existing policy or explicitly disabled.
+	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
+		_, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+		_, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+	})
+
+	// While patch_when_closed is on, the user pre-install query is managed and can't be edited.
+	t.Run("rejects pre-install edit while managed", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	// A pre-install edit on a non-FMA package is never managed; nothing to plan.
+	t.Run("allows pre-install edit on non-FMA package", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		patchFlag, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+	})
+
+	// patch:true with no existing policy plans a create with patch_when_closed on.
+	t.Run("creates when no policy exists", func(t *testing.T) {
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
+	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
+		_, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// patch:false disables the existing patch policy.
+	t.Run("disables when patch off", func(t *testing.T) {
+		patchFlag, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+	})
+
+	// Toggling patch_when_closed on an existing policy keeps patch on and flips the value.
+	t.Run("updates patch_when_closed on existing policy", func(t *testing.T) {
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
+	})
+
+	// A pre-install edit is allowed when the title's patch policy has patch_when_closed off.
+	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, patchWhenClosedFlag, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+	})
 }
