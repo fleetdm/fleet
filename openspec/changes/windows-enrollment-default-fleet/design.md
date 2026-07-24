@@ -1,4 +1,4 @@
-# Design: Default fleet for Windows automatic enrollment
+# Design: Default fleet for Windows enrollment
 
 ## Context
 
@@ -20,13 +20,13 @@ Steps 4 and 5 race. Any design that assigns the fleet at link time (or later, li
 - ESP installs the wrong fleet's setup experience software.
 - Deadlock-to-timeout: if "No team" has no setup experience items, init enqueues nothing; after the transfer, `handleESPRelease` sees empty results but `HasWindowsSetupExperienceItemsForTeam(newTeam) = true` and waits for an enqueue that never comes (orbit never re-calls init), until the 3 hour ESP timeout fails the device.
 
-Apple parity reference: ABM default teams are applied when the host is first created (ABM sync ingest or restore after deletion); re-enrollment never moves an existing host. Deleting a team that is an ABM default clears the reference (`ee/server/service/teams.go`, `CleanRemovedTeam`); deletion is not blocked.
+Apple parity reference: ABM default teams are applied when the host is first created (ABM sync ingest or restore after deletion); re-enrollment never moves an existing host. Deleting a team that is an ABM default clears the reference (`ee/server/service/teams.go` calls `CleanRemovedTeam`, defined on `MDMAppleABMAssignmentInfo` in `server/fleet/app.go`); deletion is not blocked.
 
 ## Goals / Non-goals
 
 **Goals:**
 
-- A global admin can set one default fleet for Windows automatic enrollment (UI, config API, GitOps).
+- A global admin can set one default fleet for new Windows MDM enrollments (UI, config API, GitOps). Product naming is `windows_enrollment` / "User driven enrollment"; the covered enrollments are the Entra-based ones (`WindowsMDMEnrollTypeAutomatic`).
 - Automatically enrolled Windows hosts that are new to Fleet land in that fleet, and the fleet is set **before** the ESP setup experience is enqueued, so the correct software, scripts, and profiles apply during OOBE.
 - Behavior mirrors ABM defaults where it makes sense: existing hosts keep their fleet on re-enrollment; changing the default only affects future enrollments; deleting the default fleet clears the setting.
 - Premium only, global admin (and GitOps role via gitops) only.
@@ -34,7 +34,7 @@ Apple parity reference: ABM default teams are applied when the host is first cre
 **Non-goals:**
 
 - Per-Entra-tenant or per-platform defaults (single global setting; can evolve later like ABM went from `apple_bm_default_team` to per-token teams).
-- Distinguishing "true Autopilot" (deployment profile present) from other Entra automatic enrollments. Fleet has no reliable signal for this; the product naming ("automatic enrollment") intentionally covers all of them.
+- Distinguishing "true Autopilot" (deployment profile present) from other Entra enrollments. Fleet has no reliable signal for this; the product naming ("User driven enrollment" in the UI, "new MDM enrolled Windows hosts" in docs) intentionally covers all of them.
 - Retroactively moving already-enrolled hosts when the setting changes.
 - Windows server exclusion logic changes (existing `is_server` handling is untouched).
 
@@ -42,10 +42,10 @@ Apple parity reference: ABM default teams are applied when the host is first cre
 
 ### 1. Storage: `team_id` in a dedicated single-row table, fleet name surfaced in the config API
 
-New table `windows_automatic_enrollment_config` (single row, `team_id` nullable FK to `teams(id)` with `ON DELETE SET NULL`). The config API and GitOps surface the fleet **name** under `mdm.windows_automatic_enrollment.default_fleet` (empty string = unassigned), hydrated at read time by joining `teams`.
+New table `windows_enrollment_config` (single row, `team_id` nullable FK to `teams(id)` with `ON DELETE SET NULL`). The config API and GitOps surface the fleet **name** under `mdm.windows_enrollment.default_fleet` (empty string = unassigned), hydrated at read time by joining `teams`.
 
 - Why not the fleet name in `app_config_json` (legacy `apple_bm_default_team` pattern): renames silently orphan the reference; that pattern was deprecated for ABM for exactly this reason.
-- Why not id-as-string in the API (what the REST API doc PR #49591 currently shows): GitOps is name-based and the YAML doc (#49589) uses the name; ids in YAML would be unusable across environments. Follow-up doc fix required either way, so converge on name. The UI maps name to id using the fleets list it already loads.
+- Why not id-as-string in the API (what the REST API doc originally showed): GitOps is name-based; ids in YAML would be unusable across environments. The docs now use the name everywhere (fixed on `docs-v4.91.0`, then renamed to `windows_enrollment` by #49902). The UI maps name to id using the fleets list it already loads.
 - Why not the community PR's `windows_mdm_default_team` table plus dedicated endpoints: the shipped product docs put the setting in the config API, not new endpoints. Keep the table idea (it gives the FK cleanup for free) but drop the endpoints.
 - `AppConfig.MDM` gains `WindowsAutomaticEnrollment optjson.Any`-style struct (`optjson.Slice`/`optjson.Object` conventions as for `AppleBusinessManager`): present for API/gitops round-tripping, but the DB row is the source of truth. `ModifyAppConfig` validates the name against existing fleets, resolves to id, writes the table, and emits the activity when the value changed.
 
@@ -58,7 +58,7 @@ Two pieces:
 
 The assignment itself lives in one helper called from `LinkWindowsHostMDMEnrollment` so all three link paths (reverse link, DevDetail, osquery backstop) get it. The late paths are degraded-but-correct fallbacks for edge cases (placeholder serials, DevDetail never answered); for those, accept that ESP may have used No team's items, which is still no worse than today.
 
-**Assignment rule:** apply the default fleet iff all of: the enrollment is automatic (`IsValidUPN(user_id)`), a default fleet is configured at link time, the host has no fleet assigned, and the host is new to Fleet in this enrollment cycle. "New in this cycle" means the host row was created at or after the MDM enrollment row (deleted-then-re-enrolled hosts qualify because their row is re-created; a pre-existing host that an admin parked in "No team" does not, so it stays in "No team", exact macOS ABM parity). In the reverse-link path this is known directly (orbit enrollment just created the row); in the late link paths, compare `hosts.created_at` against the enrollment row's `created_at`. Transfer via the same side-effect path as a manual transfer (`BulkSetPendingMDMHostProfiles` etc.), not a bare datastore `AddHostsToTeam` (the community PR's bare call skips profile reconciliation). No `transferred_hosts` activity is logged, mirroring ABM ingest.
+**Assignment rule:** apply the default fleet iff all of: the enrollment is user-driven (automatic type, `IsValidUPN(user_id)`), a default fleet is configured at link time, the host has no fleet assigned, and the host is new to Fleet in this enrollment cycle. "New in this cycle" means the host row was created at or after the MDM enrollment row (deleted-then-re-enrolled hosts qualify because their row is re-created; a pre-existing host that an admin parked in "No team" does not, so it stays in "No team", exact macOS ABM parity). In the reverse-link path this is known directly (orbit enrollment just created the row); in the late link paths, compare `hosts.created_at` against the enrollment row's `created_at`. Transfer via the same side-effect path as a manual transfer (`BulkSetPendingMDMHostProfiles` etc.), not a bare datastore `AddHostsToTeam` (the community PR's bare call skips profile reconciliation). No `transferred_hosts` activity is logged, mirroring ABM ingest.
 
 - Why not plain `TeamID == nil`: it would pull a host deliberately parked in "No team" into the default fleet on automatic re-enrollment; product decision (Victor, 2026-07-24) is that such hosts stay in "No team", matching macOS.
 - Why not gate `SetupExperienceInit` until the link completes: orbit treats an init error as terminal for the boot (no retry), so holding init would break setup experience entirely.
@@ -69,20 +69,20 @@ The assignment itself lives in one helper called from `LinkWindowsHostMDMEnrollm
 
 ### 4. GitOps
 
-`org_settings.mdm.windows_automatic_enrollment.default_fleet` (object, not the list shown in the YAML doc example; doc to be fixed). The referenced fleet may be created in the same GitOps run, so reuse the existing ABM/VPP mechanism in `cmd/fleetctl/fleetctl/gitops.go`: validate the name against declared teams, apply after teams exist, honor dry-run assumptions. Omitting the key is a no-op; explicit empty string clears the setting. `generate-gitops` exports the current value.
+`org_settings.mdm.windows_enrollment.default_fleet` (object, not the list shown in the YAML doc example; doc to be fixed). The referenced fleet may be created in the same GitOps run, so reuse the existing ABM/VPP mechanism in `cmd/fleetctl/fleetctl/gitops.go`: validate the name against declared teams, apply after teams exist, honor dry-run assumptions. Omitting the key is a no-op; explicit empty string clears the setting. `generate-gitops` exports the current value.
 
 ### 5. UI (Figma "✅ Ready" page, section "Settings > Integrations > MDM > Windows")
 
 All on `WindowsMdmPage` (`/settings/integrations/mdm/windows`):
 
-- New "Automatic enrollment" section: "Default fleet" dropdown listing all fleets plus "Unassigned" (default). Helper text: "Hosts that automatically enroll (Windows Autopilot) are added to this fleet." with a Learn more link. Disabled with tooltip "Fleet must be connected to Entra to set a default fleet." when no Entra connection is configured (`config.mdm.windows_entra_tenant_ids` empty); the tooltip's Learn more goes to `/settings/integrations/automatic-enrollment/windows`. Read-only in GitOps mode. Premium only (section hidden on Free, and the backend rejects the setting without a Premium license).
+- New "User driven enrollment" section: "Default fleet" dropdown listing all fleets plus "Unassigned" (default). Helper text: "New hosts enrolled into MDM are automatically assigned to this fleet." with a Learn more link to `https://fleetdm.com/learn-more-about/windows-default-fleet` (route added by website PR #49898, pointing at `guides/windows-mdm-setup#set-a-default-fleet-for-new-hosts`; the guide anchor still needs to land via #48658). Disabled with tooltip "Fleet must be connected to Entra to set a default fleet." when no Entra connection is configured (`config.mdm.windows_entra_tenant_ids` empty); the tooltip's Learn more goes to `/settings/integrations/automatic-enrollment/windows`. Read-only in GitOps mode. Premium only (section hidden on Free, and the backend rejects the setting without a Premium license).
 - Replace the "End user experience" radios with a "Turn on MDM programmatically" toggle bound to the existing `mdm.enable_turn_on_windows_mdm_manually` (toggle on = `false`). Tooltip: "When enabled, MDM is turned on when Fleet's agent is installed. When disabled, end users turn on MDM manually in Settings > Access work or school (requires Microsoft Entra). Only applies to manual enrollment." Learn more: `https://fleetdm.com/learn-more-about/mdm-enrollment` (route merged in #49603). UI-only change; no backend field changes.
 - Existing "Automatically migrate hosts connected to another MDM solution" checkbox moves under a new "Migration" heading.
-- Saving uses the existing `PATCH /config` call from this page, now including `windows_automatic_enrollment` when the dropdown changed.
+- Saving uses the existing `PATCH /config` call from this page, now including `windows_enrollment` when the dropdown changed.
 
 ### 6. Activity
 
-`edited_windows_automatic_enrollment_default_fleet`, fields `fleet_id` and `fleet_name` (both null when cleared), emitted from `ModifyAppConfig` (covers UI, API, and GitOps) only when the value actually changed. Dashboard label: "Edited automatic enrollment default fleet: Windows". Feed copy per Figma: "<user> edited the default fleet for Windows automatic enrollment hosts to <fleet>." Already documented in audit-logs on `docs-v4.91.0` (#49594).
+`edited_windows_enrollment_default_fleet`, fields `fleet_id` and `fleet_name` (both null when cleared), emitted from `ModifyAppConfig` (covers UI, API, and GitOps) only when the value actually changed. Dashboard label: "Edited enrollment default fleet: Windows". Feed copy per Figma: "<user> edited the default fleet for Windows hosts to <fleet>." Documented in audit-logs on `docs-v4.91.0` (#49594, renamed by #49902).
 
 ### 7. Fleet deletion
 
@@ -92,24 +92,25 @@ All on `WindowsMdmPage` (`/settings/integrations/mdm/windows`):
 
 - [Reverse link matches the wrong host on duplicate serials] → Same exposure as existing serial linking; placeholder serials are excluded exactly like `tryLinkUnlinkedEnrollmentFromDevDetail` does, and the osquery backstop self-corrects links.
 - [Serial never arrives before orbit enrolls (device slow to answer DevDetail, or placeholder serial)] → Late assignment via the DevDetail/osquery link paths still lands the host in the right fleet; only the ESP content may reflect No team. Document in the guide that No team setup experience should be kept empty when using a default fleet, or accept the fallback.
-- [Settings app (BYOD) automatic enrollments are included] → Intentional per product naming, but means a BYOD Entra join with MDM-pushed fleetd gets the default fleet. If QA/product wants Autopilot-OOBE-only, the rule gains `not_in_oobe = false`; one-line change, decide during review.
+- [Settings app (BYOD) Entra enrollments are included] → Intentional per product naming ("User driven enrollment"), but means a BYOD Entra join with MDM-pushed fleetd gets the default fleet. If QA/product wants Autopilot-OOBE-only, the rule gains `not_in_oobe = false`; one-line change, decide during review.
 - [Clock-based "new in this cycle" check in late link paths] → `hosts.created_at` vs enrollment `created_at` comparison needs a small grace window for sub-second ordering; the reverse-link path (the common case) does not rely on timestamps at all.
 - [GitOps ordering: fleet created in the same run] → Reuse the proven ABM/VPP deferred-apply machinery rather than inventing a new pass.
 - [Migration adds a column to `mdm_windows_enrollments`, a hot table] → Nullable column addition, no backfill, no index needed beyond an index on (`hardware_serial`) scoped to unlinked lookups; verify with the standard migration test.
 
 ## Migration plan
 
-1. DB migration: new `windows_automatic_enrollment_config` table; add `hardware_serial` to `mdm_windows_enrollments`.
+1. DB migration: new `windows_enrollment_config` table; add `hardware_serial` to `mdm_windows_enrollments`.
 2. Backend, CLI, frontend land together behind the Premium license check; no feature flag needed (setting defaults to unassigned, which is today's behavior).
 3. Rollback: the setting is additive; downgrading Fleet leaves the table unused and hosts enroll into No team as before.
 
 ## Open questions
 
-- Autopilot-only (`not_in_oobe = false`) vs all automatic enrollments: this design says all automatic, matching product naming. Confirm with product (melpike) during review.
+- Scope wording gap: the docs and helper text say "new hosts enrolled into MDM" broadly, but the UI section is "User driven enrollment" and the dropdown is gated on an Entra connection, which points at Entra (user-driven / `WindowsMDMEnrollTypeAutomatic`) enrollments only. This design targets user-driven enrollments. The one divergent edge case: a brand-new host that gets fleetd first (global enroll secret) and then enrolls in MDM programmatically would NOT get the default fleet under this design. Confirm with product (melpike).
 - Exact `optjson` shape in `AppConfig` (object with `default_fleet` string) vs a flatter field: follow whatever `AppleBusinessManager` conventions make round-tripping cleanest; decide at implementation.
 
 ## Resolved decisions
 
-- Host parked in "No team" that re-enrolls automatically stays in "No team" (Victor, 2026-07-24). Encoded in the assignment rule above.
+- Host parked in "No team" that re-enrolls via user-driven enrollment stays in "No team" (Victor, 2026-07-24). Encoded in the assignment rule above.
 - Deleting the fleet referenced as the default clears the reference; deletion is not blocked (Victor, 2026-07-24).
-- API doc uses the fleet name (not id string); YAML doc uses object form. Fixed on a branch off `docs-v4.91.0` ahead of implementation.
+- API doc uses the fleet name (not id string); YAML doc uses object form. Fixed on `docs-v4.91.0` ahead of implementation.
+- Product renamed the setting to `mdm.windows_enrollment.default_fleet`, the activity to `edited_windows_enrollment_default_fleet` (label "Edited enrollment default fleet: Windows"), and the UI section to "User driven enrollment" (docs PR #49902 and Figma update, 2026-07-24). This supersedes the earlier Autopilot-only-vs-all-automatic open question: the section name covers all Entra user-driven flavors.
