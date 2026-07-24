@@ -520,7 +520,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error)
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
@@ -1457,6 +1457,8 @@ type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (
 type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type ReconcileWindowsProfilesStatusFunc func(ctx context.Context) error
 
 type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
 
@@ -4394,6 +4396,9 @@ type DataStore struct {
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
 
+	ReconcileWindowsProfilesStatusFunc        ReconcileWindowsProfilesStatusFunc
+	ReconcileWindowsProfilesStatusFuncInvoked bool
+
 	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
 	GetWindowsMDMHostForReconcileFuncInvoked bool
 
@@ -7309,11 +7314,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error) {
 	s.mu.Lock()
 	s.SoftwareTitleNameForHostFilterFuncInvoked = true
 	s.mu.Unlock()
-	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id, teamID, tmFilter)
 }
 
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
@@ -10590,6 +10595,13 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	s.GetMDMWindowsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsProfilesStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsProfilesStatusFunc(ctx)
 }
 
 func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {

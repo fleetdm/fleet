@@ -6,6 +6,8 @@ In Fleet, you can install Fleet-maintained apps on macOS and Windows hosts witho
 
 Fleet maintains installation metadata for [a number of apps](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json), letting you add them to your own Fleet instance and install them on your hosts without any additional configuration.
 
+For Windows apps that support both machine and user scope, Fleet provides the machine-scoped app. This way, end users with standard (non-admin) access can't uninstall required apps.
+
 ## Important notes on CPU architecture
 
 ### macOS
@@ -89,11 +91,21 @@ Use a caret (`^`) constraint to pin to a major version (for example, `"^147"`). 
 
 You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:id/package`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
 
-## Roll back to a previous version
+## Rollback to a previous version
 
-If a new version introduces a bug, roll back by pinning the app to the previous version using the same **Actions > Versions** workflow (or the GitOps `version` key or REST API above).
+> Installing an older version of an app on top of a newer version might cause issues for some apps. The best practice is to test this on a test device first.
 
-> Hosts already running the newer version will downgrade to the pinned version the next time the app is installed.
+Sometimes, end users report that the latest version of an app introcduces buggy behavior that prevents them from getting their work done. If this happens, you can rollback the app to the older version:
+
+1. Pin the app to the older version. [Learn how](#pin-a-version).
+2. If you use [patch policy](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) to keep your app up to date, delete the policy.
+3. Create a new, custom policy (Zoom example below) that fails if a host has the version with the buggy behavior and add a software automation to install the older version.
+
+```sql
+SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM programs WHERE name = 'Zoom' AND version = '<version_with_bug>'
+);
+```
 
 ## Keep apps up to date with patch policies
 

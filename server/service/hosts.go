@@ -301,21 +301,23 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		titleID := *req.Opts.SoftwareTitleIDFilter
 
 		// 1. Try full title for this team.
-		// Needed in order to grab display_name if it exists
+		// Needed in order to grab display_name if it exists.
 		st, err := svc.SoftwareTitleByID(ctx, titleID, req.Opts.TeamFilter)
 		switch {
 		case err == nil:
-			fmt.Println("regular")
 			softwareTitle = st
 
 		case fleet.IsNotFound(err):
-			// Not found: only ID + Name as string from helper.
-			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID)
+			// SoftwareTitleByID depends on the software_titles_host_counts
+			// aggregate, populated only by the periodic
+			// SyncHostsSoftwareTitles job, so a title just installed on an
+			// in-scope host can be NotFound here until the next sync. Fall
+			// back to a live join instead of leaving softwareTitle unset.
+			name, displayName, errName := svc.SoftwareTitleNameForHostFilter(ctx, titleID, req.Opts.TeamFilter)
 			if errName != nil && !fleet.IsNotFound(errName) {
 				return listHostsResponse{Err: errName}, nil
 			}
 			if errName == nil {
-				fmt.Println("here")
 				softwareTitle = &fleet.SoftwareTitle{
 					ID: titleID,
 				}

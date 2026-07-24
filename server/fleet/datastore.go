@@ -723,7 +723,7 @@ type Datastore interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
-	SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name, displayName string, err error)
+	SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (name, displayName string, err error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
@@ -2455,6 +2455,10 @@ type Datastore interface {
 	// each Windows host in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// ReconcileWindowsProfilesStatus recomputes the per-host Windows profile status rollup and drops rollup rows for hosts with no
+	// profiles.
+	ReconcileWindowsProfilesStatus(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles

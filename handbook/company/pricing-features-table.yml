@@ -542,7 +542,7 @@
 - industryName: Conditional access
   friendlyName: Device health
   description: Automatically block access to corporate resources when a device falls out of compliance with Fleet policies, using Okta or Microsoft Entra ID conditional access (zero trust). This keep corporate data out of the hands of compromised or misconfigured devices (4.84.0).
-  documentationUrl: https://fleetdm.com/docs/using-fleet/conditional-access
+  documentationUrl: https://fleetdm.com/guides/conditional-access
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/38041
   screenshotSrc:
   tier: Premium

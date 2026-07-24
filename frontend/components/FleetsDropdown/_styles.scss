@@ -1,0 +1,142 @@
+.fleet-dropdown-wrapper {
+  // Shrink to fit the Button so the menu (positioned at left: 0 of the
+  // react-select root, which spans the wrapper) doesn't overflow way off to
+  // the side when the wrapper is dropped into a block-level page header.
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+
+  &--disabled {
+    pointer-events: none;
+  }
+}
+
+.fleet-dropdown {
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 0;
+
+    // Button renders label + chevron inside <div class="children-wrapper">.
+    // The gap has to live there — not on the button itself.
+    .children-wrapper {
+      gap: $pad-small;
+    }
+
+    &--form-field {
+      padding: 8px 16px;
+      background-color: $ui-light-grey;
+      border-radius: $border-radius;
+    }
+  }
+
+  &__button-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 24px;
+    line-height: normal;
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__button--form-field &__button-label {
+    font-size: $x-small;
+  }
+
+  &__icon {
+    svg {
+      transition: transform 0.25s ease;
+    }
+
+    &--open svg {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__search-row {
+    // Sits at Menu level (above the scrolling MenuList). Menu owns the outer
+    // pad-medium inset; padding-bottom here provides the pad-medium gap
+    // between the search input and the first option below.
+    padding-bottom: $pad-medium;
+    background-color: $core-fleet-white;
+  }
+
+  &__search-field {
+    position: relative;
+    display: flex;
+
+    .icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+  }
+
+  &__search-input {
+    @include menu-search-input;
+  }
+
+  // Even with tabIndex=-1 the MenuList can still receive programmatic focus
+  // (e.g. click-to-scroll). Suppress the browser's default focus outline so
+  // the scroll container never renders a stray blue ring.
+  &__menu-list:focus,
+  &__menu-list:focus-visible {
+    outline: none;
+  }
+
+  // Scroll-fade anchor sits at the bottom of the options area with
+  // zero flow height, so toggling the fade's visibility never changes
+  // MenuList.scrollHeight (which would clamp scrollTop and jump at the
+  // very bottom of the list). Negative bottom pulls the anchor past
+  // MenuList's pad-small paddingBottom so the gradient sits flush
+  // against the outer edge of the scroll area rather than 8px above it.
+  //
+  // The visible gradient is a ::before pseudo-element sized 35px,
+  // toggled via opacity on the --visible modifier — that keeps the fade
+  // out of layout entirely regardless of visibility.
+  &__scroll-fade {
+    position: sticky;
+    bottom: -$pad-small;
+    height: 0;
+    pointer-events: none;
+    z-index: 9;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 35px;
+      // Fade from opaque Fleet-white at the bottom to transparent
+      // Fleet-white at the top. Uses the shared -transparent variant
+      // (same RGB as $core-fleet-white with alpha 0 in both light and
+      // dark themes) so dark-mode variable swaps carry through with no
+      // additional overrides — same pattern as the horizontal table
+      // shadows.
+      background: linear-gradient(
+        to top,
+        $core-fleet-white 0%,
+        $core-fleet-white-transparent 100%
+      );
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    &--visible::before {
+      opacity: 1;
+    }
+  }
+
+  &__add-fleet-footer {
+    // padding-top pushes "Add fleet" pad-medium below the border-top divider.
+    padding-top: $pad-medium;
+    background-color: $core-fleet-white;
+    display: flex;
+    border-top: solid 1px $ui-fleet-black-10;
+  }
+}

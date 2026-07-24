@@ -130,7 +130,6 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - When to escalate a blocker outside the group, and to whom.
 
 **Product Designer**
-- Whether a new issue takes the **full draft** or **fast draft** lane.
 - Whether a story has enough definition to move to **Ready**.
 - Product scope of a story: what is in, what is out, and what is deferred.
 - When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) on product or design ambiguity.
@@ -166,8 +165,7 @@ Each product group runs its own GitHub project board with the following columns,
 | Column | What it means |
 |:---|:---|
 | 📨 Inbox | Any issue labeled with the product group's `#g-*` label lands here. |
-| 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the product group board until drafting is complete. |
-| 🪿 Fast draft | The team hasn't looked at the issue together yet. Drafting happens in-place on the issue, often during standup or async in the group's Slack channel. |
+| 🦢 Drafting | The PD, or another contributor, is [drafting](https://fleetdm.com/handbook/product-design#drafting) the issue. |
 | 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Try to resolve async first; otherwise raise at the next standup. |
 | 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
 | 🐣 In progress | An engineer is actively implementing the change. |
@@ -178,25 +176,18 @@ Each product group runs its own GitHub project board with the following columns,
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
 
-### Drafting tracks: full draft vs. fast draft
-
-The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making skills.
-
-**Full draft** is typically reserved for customer promises and activation blockers, where design ambiguity or customer-facing risk is highest. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist), including a [t-shirt size](#t-shirt-sizing-capacity-planning). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next standup or planning meeting where it moves to **Ready**.
-
-**Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. The PD and EM are responsible for escalating to the HPD and/or CTO if needed. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
-
 ### Estimation
 
-Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) is part of **full draft** and happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing — full draft (and the estimation that comes with it) is reserved for customer promises, activation blockers, and other high-risk work.
+Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing. It's reserved for customer promises, activation blockers, and other high-risk work.
 
 ### How issues move
 
-- **Inbox → Fast draft or Full draft**: every issue moves into a drafting lane. The PD picks the lane (see above). Bugs and priority issues (P2 or greater) are triaged at the daily standup; stories are triaged at the weekly planning meeting.
-- **Fast draft → Ready**: stories move to **Ready** only during weekly planning, or during standup if they are a priority story (P2 or greater) or if there is nothing else for the group to work on. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
-- **Full draft → Ready**: when the PD completes drafting, they bring the issue to the next standup or planning meeting where it moves to **Ready**.
+- **Inbox → Ready**: Engineering Manager (EM) moves bugs and reliability issues to **Ready** during standup.
+- **Inbox → Drafting**: Product Designer (PD) adds stories and moves them to **Drafting**. During standup, Engineering Manager moves bugs to **Drafting** that need product design input.
+- **Drafting → Ready**: When drafting is complete, the PD assigns the EM to the story. During weekly planning, the EM reviews the story with the team, moves it to **Ready**, and assigns an engineer up to the team's capacity for the following week. If there's no capacity, the issue stays assigned to the EM in the **Drafting** column.
 - **Ready → In progress → Ready for review → Awaiting QA**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 - **Awaiting QA → Ready for release**: the QA Engineer is responsible for moving the issue from **Awaiting QA** to **Ready for release** once they have verified the change.
+- **Ready for release → Confirm & celebrate → Done**: [learn more](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone).
 
 ### Working the board
 
@@ -207,11 +198,19 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 
 ### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). ["Full draft" user stories](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft) that were approved at design review are reviewed. 
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
 
 ### Weekly planning (1 hour, Monday)
 
 The product group walks the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged during this meeting and either moved straight to **Ready** or assigned a drafting lane.
+
+### User story reviews
+
+User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "User story review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
+
+The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
+
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story is moved back to the "In progress" column for additional drafting. If there are no design changes, the story remains with the Engineering DRI to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
 
 ### Release demo (every 3 weeks)
 

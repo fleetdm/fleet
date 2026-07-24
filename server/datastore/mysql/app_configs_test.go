@@ -157,6 +157,19 @@ func testAppConfigEnrollSecrets(t *testing.T, ds *Datastore) {
 	assert.Error(t, err)
 	assert.Nil(t, secret)
 
+	// An empty or whitespace-only secret is rejected as not-found before
+	// matching, even when an empty secret exists in storage (e.g. a row created
+	// before the create/update validation existed).
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team1.ID, []*fleet.EnrollSecret{{Secret: "", TeamID: &team1.ID}}))
+	for _, in := range []string{"", "   ", "\t\n"} {
+		secret, err = ds.VerifyEnrollSecret(ctx, in)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+		require.Nil(t, secret)
+	}
+	// remove the empty secret so the rest of the test starts from a clean slate
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team1.ID, []*fleet.EnrollSecret{}))
+
 	err = ds.ApplyEnrollSecrets(ctx, &team1.ID,
 		[]*fleet.EnrollSecret{
 			{Secret: "one_secret", TeamID: &team1.ID},

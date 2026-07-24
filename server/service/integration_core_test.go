@@ -9991,6 +9991,29 @@ func (s *integrationTestSuite) TestEnrollOsquery() {
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
 	require.NotEmpty(t, resp.NodeKey)
+
+	// A team may retain an empty enroll secret created before the create/update
+	// validation existed. Simulate that by writing an empty secret directly via
+	// the datastore, bypassing the service-layer validation.
+	ctx := context.Background()
+	emptyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "empty"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &emptyTeam.ID, []*fleet.EnrollSecret{{Secret: "", TeamID: &emptyTeam.ID}}))
+
+	// Enrolling with an empty or whitespace-only secret must be rejected as
+	// node_invalid, even though an empty secret exists in storage.
+	for _, badSecret := range []string{"", "   "} {
+		j, err = json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   badSecret,
+			HostIdentifier: t.Name() + "empty-host",
+		})
+		require.NoError(t, err)
+		badRes := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(badRes.Body).Decode(&body))
+		badRes.Body.Close()
+		require.Equal(t, true, body["node_invalid"])
+	}
 }
 
 func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
