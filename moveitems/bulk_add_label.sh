@@ -1,0 +1,2 @@
+
+for each in `gh project item-list --limit 800 --format json --owner fleetdm 58 | jq -r '["number", "assignee", "sprint", "estimate", "labels"], (.items[] | [.content.number, (.assignees[0] // "unassigned"), .sprint.title, (.estimate // "none"), (.labels | join(", "))]) | @tsv' | column -t -s $'\t' | grep -v ":release" | grep -v number | awk '{print $1}'`; do echo $each; gh issue edit $each --add-label ":release"; done
