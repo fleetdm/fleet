@@ -65,6 +65,23 @@ go run ./tools/migration-cleanup \
 If the branch only exists on the remote, pass the plain branch name. The tool
 tries the local branch first, then `origin/<branch>`.
 
+### Comparing two revisions of main
+
+`--base` defaults to `main` (the RC-branch case). To compare two revisions of
+`main` — for example to see renumbers that landed between two merged PRs —
+pass the older revision as `--base` and the newer one as `-b`:
+
+```sh
+go run ./tools/migration-cleanup \
+  -b <newer-main-sha> \
+  --base <older-main-sha>
+```
+
+The tool walks `<older>..<newer>` and reports any migration renames it finds.
+The generated SQL still assumes a contiguous grouped renumber (as an RC would
+produce), so inspect it before running `--apply` against a real database when
+the renames span unrelated commits.
+
 ## Dry run
 
 Dry run connects to MySQL, loads the real rows from `migration_status_tables`
