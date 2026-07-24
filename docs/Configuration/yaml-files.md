@@ -348,11 +348,13 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
-- `enable_disk_encryption` Deprecated. Use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) settings instead.
-- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `android_enabled_and_configured` specifies whether or not to turn on Android MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
+
+`enable_disk_encryption` at this level is deprecated. Please us per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
+
 
 #### Example
 
