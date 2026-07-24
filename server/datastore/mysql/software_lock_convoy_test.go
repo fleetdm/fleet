@@ -161,7 +161,9 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	t.Logf("    Avg per-host ingestion: %dms", totalMs.Load()/int64(hostCount))
 
 	// The cold-start should be significantly slower than steady-state due to lock contention
-	t.Logf("\n  Convoy factor (cold wall / steady wall): %.1fx", float64(wallTime.Milliseconds())/float64(wallTime2.Milliseconds()))
+	if wallTime2 > 0 {
+		t.Logf("\n  Convoy factor (cold wall / steady wall): %.1fx", float64(wallTime)/float64(wallTime2))
+	}
 }
 
 // TestHostSoftwareInstalledPathsDeleteExplosion reproduces #49805.
