@@ -244,6 +244,22 @@ Under Fleet's Apple Developer team (`8VBZ3948LU`, the team that owns the pinned 
 
 Re-encode and update the secrets when a profile expires or the signing certificate is rotated. To inspect a profile — its entitlements and, crucially, the certs it authorizes — dump it with `security cms -D -i <profile>.provisionprofile`; the `DeveloperCertificates` array must contain the CI signing cert above.
 
+## Releasing
+
+[`.github/workflows/release-fleet-desktop-macos.yml`](../../.github/workflows/release-fleet-desktop-macos.yml) publishes a tagged, signed, notarized build to `https://download.fleetdm.com/fleet-desktop-macos/v<version>/`. Releases are immutable — a version that already exists on download.fleetdm.com cannot be overwritten. No GitHub Release is created; the git tag is the release marker.
+
+1. Bump `CFBundleShortVersionString` (and `CFBundleVersion`) in `FleetDesktop/Info.plist` and merge to `main`.
+2. Tag the commit and push the tag:
+   ```bash
+   git tag fleet-desktop-macos-v<version>
+   git push origin fleet-desktop-macos-v<version>
+   ```
+3. In the Actions tab, run **Release Fleet Desktop (macOS)**, selecting the tag in the "Use workflow from" dropdown.
+
+The workflow fails before building if the selected ref isn't a `fleet-desktop-macos-v*` tag on `main`, if the tag version doesn't match `Info.plist`, or if that version is already uploaded. It builds via the CI workflow above, uploads the pkg plus a `meta.json` (`version`, `sha256`, `url`), then downloads the pkg back from the public URL and verifies its SHA256 before succeeding. The checksum and URLs are written to the run summary.
+
+The `testing` input uploads to `download-testing.fleetdm.com` instead of production — use it for the first run after changing the workflow.
+
 ## License
 
 Licensed under the MIT Expat license via the repository [root LICENSE](../LICENSE).
