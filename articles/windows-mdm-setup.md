@@ -235,7 +235,7 @@ By default, Windows hosts enrolled via Autopilot are added to "No team." You can
 
 #### Via GitOps (YAML)
 
-Add the `windows_autopilot_default_team` key under `mdm` in your global (org) settings YAML file:
+Add the `windows_automatic_enrollment` key under `mdm` in your global (org) settings YAML file:
 
 ```yaml
   mdm:
