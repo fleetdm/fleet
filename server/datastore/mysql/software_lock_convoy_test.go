@@ -77,11 +77,12 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 
 	for i := 0; i < hostCount; i++ {
 		hostID := hosts[i].ID
+		// Copy the slice to avoid data races (UpdateHostSoftware may mutate it in-place).
+		sw := slices.Clone(sharedSoftware)
 		g.Go(func() error {
 			<-ready // wait for all goroutines to be ready
 			start := time.Now()
-			softwareCopy := slices.Clone(sharedSoftware)
-			_, err := ds.UpdateHostSoftware(ctx, hostID, softwareCopy)
+			_, err := ds.UpdateHostSoftware(ctx, hostID, sw)
 			elapsed := time.Since(start)
 			ms := elapsed.Milliseconds()
 			totalMs.Add(ms)
@@ -127,11 +128,11 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	var g2 errgroup.Group
 	for i := 0; i < hostCount; i++ {
 		hostID := hosts[i].ID
+		sw := slices.Clone(sharedSoftware)
 		g2.Go(func() error {
 			<-ready2
 			start := time.Now()
-			softwareCopy := slices.Clone(sharedSoftware)
-			_, err := ds.UpdateHostSoftware(ctx, hostID, softwareCopy)
+			_, err := ds.UpdateHostSoftware(ctx, hostID, sw)
 			elapsed := time.Since(start)
 			ms := elapsed.Milliseconds()
 			totalMs.Add(ms)
@@ -248,14 +249,23 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(concurrentHosts)
 
+	// Create hosts synchronously to avoid require.* panics from goroutines.
+	concurrentTestHosts := make([]*fleet.Host, concurrentHosts)
+	for i := 0; i < concurrentHosts; i++ {
+		concurrentTestHosts[i] = test.NewHost(t, ds, fmt.Sprintf("concurrent-del-%d", i), "", fmt.Sprintf("cd-key-%d", i), fmt.Sprintf("cd-uuid-%d", i), time.Now())
+	}
+
 	for i := 0; i < concurrentHosts; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			h := test.NewHost(t, ds, fmt.Sprintf("concurrent-del-%d", idx), "", fmt.Sprintf("cd-key-%d", idx), fmt.Sprintf("cd-uuid-%d", idx), time.Now())
+			h := concurrentTestHosts[idx]
+
+			// Copy slices to avoid data races (UpdateHostSoftware may mutate in-place).
+			swCopy := slices.Clone(software)
+			newSwCopy := slices.Clone(newSoftware)
 
 			// First, ingest software with paths
-			softwareCopy := slices.Clone(software)
-			_, err := ds.UpdateHostSoftware(ctx, h.ID, softwareCopy)
+			_, err := ds.UpdateHostSoftware(ctx, h.ID, swCopy)
 			if err != nil {
 				t.Logf("Host %d initial ingest error: %v", idx, err)
 				return
@@ -276,8 +286,7 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 
 			// Now replace everything
 			start := time.Now()
-			newSoftwareCopy := slices.Clone(newSoftware)
-			_, err = ds.UpdateHostSoftware(ctx, h.ID, newSoftwareCopy)
+			_, err = ds.UpdateHostSoftware(ctx, h.ID, newSwCopy)
 			elapsed := time.Since(start)
 			t.Logf("  Host %d replacement took: %s", idx, elapsed)
 			if err != nil {
