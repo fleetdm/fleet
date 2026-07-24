@@ -18,7 +18,7 @@
   "dependencies": {
     "axios": "1.16.1",
     "rimraf": "6.1.2",
-    "tar": "7.5.16"
+    "tar": "7.5.21"
   },
   "keywords": [
     "osquery",
