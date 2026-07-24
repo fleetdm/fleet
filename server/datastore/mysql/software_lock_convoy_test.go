@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -30,7 +31,7 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 	ctx := context.Background()
 
 	const (
-		hostCount     = 50 // concurrent hosts
+		hostCount     = 50  // concurrent hosts
 		softwareCount = 100 // software items per host (all identical across hosts)
 	)
 
@@ -79,7 +80,8 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 		g.Go(func() error {
 			<-ready // wait for all goroutines to be ready
 			start := time.Now()
-			_, err := ds.UpdateHostSoftware(ctx, hostID, sharedSoftware)
+			softwareCopy := slices.Clone(sharedSoftware)
+			_, err := ds.UpdateHostSoftware(ctx, hostID, softwareCopy)
 			elapsed := time.Since(start)
 			ms := elapsed.Milliseconds()
 			totalMs.Add(ms)
@@ -128,7 +130,8 @@ func TestSoftwareTitlesInsertIgnoreLockConvoy(t *testing.T) {
 		g2.Go(func() error {
 			<-ready2
 			start := time.Now()
-			_, err := ds.UpdateHostSoftware(ctx, hostID, sharedSoftware)
+			softwareCopy := slices.Clone(sharedSoftware)
+			_, err := ds.UpdateHostSoftware(ctx, hostID, softwareCopy)
 			elapsed := time.Since(start)
 			ms := elapsed.Milliseconds()
 			totalMs.Add(ms)
@@ -251,7 +254,8 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 			h := test.NewHost(t, ds, fmt.Sprintf("concurrent-del-%d", idx), "", fmt.Sprintf("cd-key-%d", idx), fmt.Sprintf("cd-uuid-%d", idx), time.Now())
 
 			// First, ingest software with paths
-			_, err := ds.UpdateHostSoftware(ctx, h.ID, software)
+			softwareCopy := slices.Clone(software)
+			_, err := ds.UpdateHostSoftware(ctx, h.ID, softwareCopy)
 			if err != nil {
 				t.Logf("Host %d initial ingest error: %v", idx, err)
 				return
@@ -272,7 +276,8 @@ func TestHostSoftwareInstalledPathsDeleteExplosion(t *testing.T) {
 
 			// Now replace everything
 			start := time.Now()
-			_, err = ds.UpdateHostSoftware(ctx, h.ID, newSoftware)
+			newSoftwareCopy := slices.Clone(newSoftware)
+			_, err = ds.UpdateHostSoftware(ctx, h.ID, newSoftwareCopy)
 			elapsed := time.Since(start)
 			t.Logf("  Host %d replacement took: %s", idx, elapsed)
 			if err != nil {

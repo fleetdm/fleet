@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -98,14 +99,19 @@ type Datastore struct {
 	// knownSoftwareTitleKeys caches title keys that are known to exist in software_titles.
 	// This eliminates redundant INSERT IGNORE statements during concurrent software ingestion,
 	// preventing lock convoys on the unique index when many hosts report the same software catalog.
-	// Keys are softwareTitleCacheKey strings, values are struct{}.
+	// Keys are softwareTitleCacheKey strings, values are struct{}. The cache is periodically
+	// cleared once it reaches a fixed size cap to avoid unbounded growth on long-lived servers.
 	knownSoftwareTitleKeys sync.Map
+	// knownSoftwareTitleKeysCount tracks the approximate number of cached title keys.
+	knownSoftwareTitleKeysCount atomic.Uint64
 
 	// titleInsertSF deduplicates concurrent INSERT IGNORE INTO software_titles calls for the
 	// same title key. Only one goroutine per title actually executes the INSERT; others wait
 	// and share the result. This prevents lock convoys on cold-start (#48719).
 	titleInsertSF singleflight.Group
 }
+
+const maxKnownSoftwareTitleKeys = 100_000
 
 // WithPusher sets an APNs pusher for the datastore, used when activating
 // next activities that require MDM commands.

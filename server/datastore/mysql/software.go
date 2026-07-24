@@ -75,7 +75,13 @@ var cleanupMaxIterations = 100
 // softwareTitleCacheKey builds a string key for the in-process cache of known software titles.
 // It mirrors the titleKey struct used inside preInsertSoftwareInventory.
 func softwareTitleCacheKey(name, source, extensionFor, bundleID string, isKernel bool) string {
-	return strings.ToLower(normalizeForCollation(name)) + "\x00" + source + "\x00" + extensionFor + "\x00" + bundleID + "\x00" + strconv.FormatBool(isKernel)
+	return strings.Join([]string{
+		strings.ToLower(normalizeForCollation(name)),
+		source,
+		extensionFor,
+		bundleID,
+		strconv.FormatBool(isKernel),
+	}, fleet.SoftwareFieldSeparator)
 }
 
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
@@ -84,6 +90,20 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 		result[s.ToUniqueStr()] = s
 	}
 	return result
+}
+
+func (ds *Datastore) cacheKnownSoftwareTitleKey(key string) {
+	if _, loaded := ds.knownSoftwareTitleKeys.LoadOrStore(key, struct{}{}); loaded {
+		return
+	}
+	if ds.knownSoftwareTitleKeysCount.Add(1) >= maxKnownSoftwareTitleKeys {
+		ds.clearKnownSoftwareTitleKeys()
+	}
+}
+
+func (ds *Datastore) clearKnownSoftwareTitleKeys() {
+	ds.knownSoftwareTitleKeys.Clear()
+	ds.knownSoftwareTitleKeysCount.Store(0)
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
@@ -1124,7 +1144,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					); err != nil {
 						return nil, ctxerr.Wrap(ctx, err, "pre-insert software_titles")
 					}
-					ds.knownSoftwareTitleKeys.Store(cacheKey, struct{}{})
+					ds.cacheKnownSoftwareTitleKey(cacheKey)
 					return nil, nil
 				})
 				if sfErr != nil {
@@ -3118,10 +3138,7 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	// If any titles were deleted, clear the in-process title cache so that future
 	// software ingestions re-insert titles instead of skipping them.
 	if n > 0 {
-		ds.knownSoftwareTitleKeys.Range(func(key, _ any) bool {
-			ds.knownSoftwareTitleKeys.Delete(key)
-			return true
-		})
+		ds.clearKnownSoftwareTitleKeys()
 	}
 
 	return nil
