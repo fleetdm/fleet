@@ -1,0 +1,89 @@
+- name: Collect IDE extensions
+  automations_enabled: true
+  description: Collects installed VS Code (and VS Code-compatible IDE) extensions for each user, including name, publisher, version, and edition.
+  interval: 1800
+  logging: snapshot
+  platform: darwin
+  query: |-
+    SELECT u.username,
+           e.name,
+           e.publisher,
+           e.version,
+           e.vscode_edition
+    FROM users u
+    CROSS JOIN vscode_extensions e USING (uid);
+- name: Detect MCP client configurations
+  automations_enabled: true
+  description: Detects Model Context Protocol (MCP) client configurations across common apps (Cursor, Claude Desktop, Claude Code, VS Code including the RooCode & Augment extensions, Gemini CLI, and LMStudio) and returns each configured MCP server by name.
+  interval: 1800
+  logging: snapshot
+  observer_can_run: true
+  platform: darwin,windows,linux
+  query: |-
+    /* ----------------------------------------------------------
+       1️⃣  Get MCP client configurations from your endpoints.
+           (including the two new VS Code extensions: RooCode & Augment)
+       ---------------------------------------------------------- */
+    WITH path_suffixes(path) AS (
+      VALUES
+        -- Cursor
+        ('/.cursor/mcp.json'),
+        -- Claude Desktop (macOS)
+        ('/Library/Application Support/Claude/claude_desktop_config.json'),
+        -- Claude Desktop (Windows)
+        ('\AppData\Roaming\Claude\claude_desktop_config.json'),
+        -- Claude Code
+        ('/.claude.json'),
+        /* ───── VS Code (original paths) ────────────────────── */
+        ('/Library/Application Support/Code/User/mcp.json'),              -- macOS
+        ('/.config/Code/User/mcp.json'),                                  -- Linux / Ubuntu
+        ('\AppData\Roaming\Code\User\mcp.json'),                          -- Windows
+        /* ───── VS Code – RooCode & Augment (new paths) ────────── */
+        -- RooCode
+        ('/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),          -- macOS
+        ('/.config/Code/User/globalStorage/rooveterinaryinc.roo-cline/settings/mcp_settings.json'),                              -- Linux / Ubuntu
+        ('\AppData\Roaming\Code\User\globalStorage\rooveterinaryinc.roo-cline\settings\mcp_settings.json'),                      -- Windows
+        -- Augment
+        ('/Library/Application Support/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),    -- macOS
+        ('/.config/Code/User/globalStorage/augment.vscode-augment/augment-global-state/mcpServers.json'),                        -- Linux / Ubuntu
+        ('\AppData\Roaming\Code\User\globalStorage\augment.vscode-augment\augment-global-state\mcpServers.json'),                -- Windows
+        /* ───── Other apps ─────────────────────────────────── */
+        ('/.gemini/settings.json'),   -- Gemini CLI (macOS/Linux/Windows)
+        ('/.lmstudio/mcp.json')       -- LMStudio (macOS/Linux/Windows)
+    ),
+
+    /* ----------------------------------------------------------
+       2️⃣  Build absolute file paths for every user + suffix
+       ---------------------------------------------------------- */
+    full_paths AS (
+      SELECT
+        u.directory || p.path AS full_path,
+        p.path                AS suffix
+      FROM users u
+      JOIN path_suffixes p ON 1=1
+    ),
+
+    /* ----------------------------------------------------------
+       3️⃣  Read only the files that actually exist and concat them
+       ---------------------------------------------------------- */
+    config_files AS (
+      SELECT
+        f.path,
+        group_concat(f.line, '') AS contents
+      FROM file_lines f
+      JOIN full_paths fp ON f.path = fp.full_path
+      GROUP BY f.path
+    )
+
+    /* ----------------------------------------------------------
+       4️⃣  Parse JSON & pull out each MCP server configuration
+       ---------------------------------------------------------- */
+    SELECT
+      cf.path,
+      je.key   AS name,
+      je.value AS mcp_config
+    FROM config_files cf
+    JOIN json_each(
+      COALESCE(json_extract(cf.contents, '$.mcpServers'),
+               json_extract(cf.contents, '$.servers'))
+    ) AS je;
