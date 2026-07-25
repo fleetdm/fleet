@@ -92,6 +92,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
   - path: ../lib/all/reports/dex-queries.yml
+  - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
     # Linux apps
