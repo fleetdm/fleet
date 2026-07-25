@@ -1,0 +1,45 @@
+- name: Collect Windows 11 hardware readiness
+  description: "Collects hardware details and evaluates each device against Microsoft's minimum Windows 11 hardware requirements (64-bit CPU, 2+ cores, 1GHz+ clock speed, 4GB+ RAM, 64GB+ storage, TPM 2.0 enabled, Secure Boot enabled)."
+  query: |
+    SELECT
+      device_name, manufacturer, model, serial_number,
+      os_name, os_version, os_build,
+      cpu_model, cpu_ghz, cpu_cores, cpu_bits,
+      ram_gb, system_disk_gb, tpm_version, tpm_enabled, secure_boot,
+      CASE WHEN cpu_bits = 64                               THEN 'pass' ELSE 'fail' END AS check_64bit,
+      CASE WHEN cpu_cores >= 2                              THEN 'pass' ELSE 'fail' END AS check_cores,
+      CASE WHEN cpu_ghz >= 1.0                              THEN 'pass' ELSE 'fail' END AS check_cpu_speed,
+      CASE WHEN ram_gb >= 4                                 THEN 'pass' ELSE 'fail' END AS check_ram,
+      CASE WHEN system_disk_gb >= 64                        THEN 'pass' ELSE 'fail' END AS check_storage,
+      CASE WHEN tpm_version LIKE '2.0%' AND tpm_enabled = 1 THEN 'pass' ELSE 'fail' END AS check_tpm,
+      CASE WHEN secure_boot = 1                             THEN 'pass' ELSE 'fail' END AS check_secure_boot,
+      CASE WHEN cpu_bits = 64 AND cpu_cores >= 2 AND cpu_ghz >= 1.0
+            AND ram_gb >= 4 AND system_disk_gb >= 64
+            AND tpm_version LIKE '2.0%' AND tpm_enabled = 1
+            AND secure_boot = 1
+           THEN 'ready' ELSE 'not ready' END AS win11_hardware_baseline
+    FROM (
+      SELECT
+        (SELECT computer_name   FROM system_info)                                 AS device_name,
+        (SELECT hardware_vendor FROM system_info)                                 AS manufacturer,
+        (SELECT hardware_model  FROM system_info)                                 AS model,
+        (SELECT hardware_serial FROM system_info)                                 AS serial_number,
+        (SELECT name    FROM os_version)                                          AS os_name,
+        (SELECT version FROM os_version)                                          AS os_version,
+        (SELECT build   FROM os_version)                                          AS os_build,
+        (SELECT model           FROM cpu_info LIMIT 1)                            AS cpu_model,
+        (SELECT ROUND(max_clock_speed / 1000.0, 2) FROM cpu_info LIMIT 1)         AS cpu_ghz,
+        (SELECT number_of_cores FROM cpu_info LIMIT 1)                            AS cpu_cores,
+        (SELECT address_width   FROM cpu_info LIMIT 1)                            AS cpu_bits,
+        ROUND((SELECT physical_memory FROM system_info) / 1073741824.0, 1)        AS ram_gb,
+        ROUND((SELECT size FROM logical_drives WHERE boot_partition = 1 LIMIT 1)
+              / 1000000000.0, 1)                                                  AS system_disk_gb,
+        (SELECT spec_version FROM tpm_info LIMIT 1)                               AS tpm_version,
+        (SELECT enabled      FROM tpm_info LIMIT 1)                               AS tpm_enabled,
+        (SELECT secure_boot  FROM secureboot LIMIT 1)                             AS secure_boot
+    );
+  interval: 86400 # Every 1 day
+  observer_can_run: true
+  automations_enabled: false
+  logging: differential
+  platform: windows
