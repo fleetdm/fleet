@@ -4160,13 +4160,6 @@
       "description": "i1Profiler is an automation and creative controls for photographers and designers."
     },
     {
-      "name": "Ibis Calculeren voor Bouw",
-      "slug": "ibis-calculeren-voor-bouw/windows",
-      "platform": "windows",
-      "unique_identifier": "Ibis Calculeren voor Bouw",
-      "description": "Ibis Calculeren voor Bouw is a Dutch construction cost-estimation and quantity-takeoff application from Brink Software."
-    },
-    {
       "name": "IBM Notifier",
       "slug": "ibm-notifier/darwin",
       "platform": "darwin",
@@ -4326,13 +4319,6 @@
       "platform": "windows",
       "unique_identifier": "ImHex",
       "description": "ImHex is a hex editor for reverse engineers."
-    },
-    {
-      "name": "ImpExpPro",
-      "slug": "impexppro/windows",
-      "platform": "windows",
-      "unique_identifier": "Benthic Software: ImpExpPro 1.x 64bit",
-      "description": "ImpExpPro is an import/export tool for Oracle databases that imports data, exports query results, and runs SQL and PL/SQL."
     },
     {
       "name": "Infix PDF Editor",
