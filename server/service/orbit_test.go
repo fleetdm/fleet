@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -1653,4 +1654,178 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			require.Equal(t, tc.wantFlags, got)
 		})
 	}
+}
+
+// TestGetOrbitConfigWindowsManagedLocalAccount covers the CreateWindowsManagedLocalAccount
+// notification gating: it is set only when the host is awaiting configuration (ESP), the team or
+// No-team setting is enabled, fleetd advertises the capability, and the license is premium.
+func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
+	// withMLACapability returns a context whose X-Fleet-Capabilities advertise the managed local
+	// account capability, as a capable Windows fleetd would send.
+	withMLACapability := func(ctx context.Context) context.Context {
+		req := httptest.NewRequest("POST", "/api/fleet/orbit/config", nil)
+		cm := fleet.CapabilityMap{fleet.CapabilityWindowsManagedLocalAccount: struct{}{}}
+		req.Header.Set(fleet.CapabilitiesHeader, cm.String())
+		return capabilities.NewContext(ctx, req)
+	}
+
+	setupSvc := func(t *testing.T, tier string, settingEnabled bool, awaiting fleet.WindowsMDMAwaitingConfiguration) (*mock.Store, fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{ID: 1, OsqueryHostID: new("test"), UUID: "host-uuid-1", Platform: "windows"}
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
+		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) { return nil, nil }
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool { return false }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet, ConnectedToFleet: true}, nil
+		}
+		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error { return nil }
+		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: awaiting}, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		return ds, svc, ctx
+	}
+
+	t.Run("all gates hold sets the notification", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("awaiting=Active also sets it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationActive)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("outside OOBE (awaiting=None) does not set it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("setting disabled does not set it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationPending)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("missing capability does not set it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		// no capability header on the context
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	t.Run("free license does not set it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+}
+
+// TestEscrowWindowsManagedLocalAccountPassword covers the orbit escrow endpoint: eligibility via
+// Windows MDM enrollment, input validation, the created activity, and the OpenSpec rule that an
+// escrow is stored even when the setting was toggled off after the notification (never orphan the
+// on-device account).
+func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
+	setup := func(t *testing.T, enrolled bool, settingEnabled bool) (*mock.Store, fleet.Service, context.Context, *TestServerOpts) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid-1", OsqueryHostID: new("test")}
+		ctx = test.HostContext(ctx, host)
+
+		ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			if !enrolled {
+				return nil, newNotFoundError()
+			}
+			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hostUUID}, nil
+		}
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
+		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
+		return ds, svc, ctx, opts
+	}
+
+	t.Run("host without Windows MDM enrollment is rejected", func(t *testing.T) {
+		ds, svc, ctx, _ := setup(t, false, true)
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "pw", "")
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	})
+
+	t.Run("empty password is rejected", func(t *testing.T) {
+		ds, svc, ctx, _ := setup(t, true, true)
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "")
+		require.Error(t, err)
+		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	})
+
+	t.Run("overlong password is rejected", func(t *testing.T) {
+		ds, svc, ctx, _ := setup(t, true, true)
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, strings.Repeat("a", 257), "")
+		require.Error(t, err)
+		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	})
+
+	t.Run("client error is logged and nothing is stored", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		activityLogged := false
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			activityLogged = true
+			return nil
+		}
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "netapi32 add failed")
+		require.NoError(t, err)
+		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+		require.False(t, activityLogged)
+	})
+
+	t.Run("successful escrow stores the password and logs the created activity once", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		var savedPassword string
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error {
+			savedPassword = plaintextPassword
+			return nil
+		}
+		activityCount := 0
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			require.Equal(t, fleet.ActivityTypeCreatedManagedLocalAccount{}.ActivityName(), a.ActivityName())
+			activityCount++
+			return nil
+		}
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
+		require.NoError(t, err)
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+		require.Equal(t, "device-generated-pw", savedPassword)
+		require.Equal(t, 1, activityCount)
+	})
+
+	t.Run("stores the password even when the setting was disabled after the notification", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, false)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error { return nil }
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
+		require.NoError(t, err)
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	})
 }

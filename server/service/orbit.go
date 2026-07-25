@@ -1527,6 +1527,9 @@ func postOrbitManagedLocalAccountEndpoint(ctx context.Context, request any, svc 
 // 32-character passwords; the ceiling only guards against a malformed or malicious request.
 const managedLocalAccountMaxPasswordLength = 256
 
+// managedLocalAccountMaxClientErrorLength bounds the logged length of the device-reported error.
+const managedLocalAccountMaxClientErrorLength = 512
+
 func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -1545,8 +1548,12 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "verify windows mdm enrollment for managed local account escrow")
 	}
 
-	// A device-side failure is logged and nothing is recorded.
+	// A device-side failure is logged and nothing is recorded. clientError is untrusted input from
+	// fleetd, so truncate it before logging to bound log volume.
 	if clientError != "" {
+		if len(clientError) > managedLocalAccountMaxClientErrorLength {
+			clientError = clientError[:managedLocalAccountMaxClientErrorLength]
+		}
 		svc.logger.WarnContext(ctx, "fleetd reported an error creating the windows managed local account",
 			"host_id", host.ID, "host_uuid", host.UUID, "client_error", clientError)
 		return nil
