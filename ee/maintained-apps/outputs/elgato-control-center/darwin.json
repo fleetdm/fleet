@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.8.2",
+      "version": "1.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter' AND version_compare(bundle_short_version, '1.8.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.corsair.ControlCenter' AND version_compare(bundle_short_version, '1.9') < 0);"
       },
-      "installer_url": "https://edge.elgato.com/egc/macos/eccm/1.8.2/ElgatoControlCenter-1.8.2.20643.zip",
+      "installer_url": "https://edge.elgato.com/egc/macos/eccm/1.9/ElgatoControlCenter-1.9.20829.app.zip",
       "install_script_ref": "b4374aef",
       "uninstall_script_ref": "01138a65",
-      "sha256": "c84270f56f4adacd1c47058cc5a3824b0911886f3519c21b4f54c4ebf9dce869",
+      "sha256": "0bb521ee9413ca48aa0fa85db07fd98f1301490bab9001d003a06960681fc0a1",
       "default_categories": [
         "Productivity"
       ]
