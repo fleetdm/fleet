@@ -9043,6 +9043,10 @@ func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, got.TokenInvalid)
 
+	invalid, err := ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
 	// set t1 invalid
 	was, err := ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
 	require.NoError(t, err)
@@ -9052,10 +9056,18 @@ func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, got.TokenInvalid)
 
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, invalid)
+
 	// t2 is unaffected
 	got, err = ds.GetABMTokenByOrgName(ctx, t2.OrganizationName)
 	require.NoError(t, err)
 	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
 
 	// setting t1 invalid again is a no-op, previous value was already true
 	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
@@ -9071,6 +9083,10 @@ func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, got.TokenInvalid)
 
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
 	// setting the invalid flag of a non-existing token always returns as if it
 	// did not update (which is fine, it will only be called after a DEP API
 	// call that used this token, so if the token does not exist it would fail
@@ -9081,6 +9097,11 @@ func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
 	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", true)
 	require.NoError(t, err)
 	require.True(t, was)
+
+	// reading the invalid flag of a non-existing token is a not-found error
+	_, err = ds.IsABMTokenInvalidForOrgName(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {

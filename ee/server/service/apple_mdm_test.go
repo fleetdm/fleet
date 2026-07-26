@@ -653,6 +653,7 @@ func setupReleaseABTest(t *testing.T) (*Service, *mock.Store, *nanodep_mock.Stor
 	ds.CountABMTokensWithTermsExpiredFunc = func(context.Context) (int, error) { return 0, nil }
 	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 	ds.SetABMTokenInvalidForOrgNameFunc = func(context.Context, string, bool) (bool, error) { return false, nil }
+	ds.IsABMTokenInvalidForOrgNameFunc = func(context.Context, string) (bool, error) { return false, nil }
 	ds.DeleteHostDEPAssignmentsFunc = func(context.Context, uint, []string) error { return nil }
 
 	dep := &nanodep_mock.Storage{}

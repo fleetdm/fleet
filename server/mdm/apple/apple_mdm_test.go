@@ -129,6 +129,10 @@ func TestDEPService(t *testing.T) {
 			return 0, nil
 		}
 
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+
 		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
 			require.Equal(t, "org1", orgName)
 			require.False(t, invalid)
@@ -212,11 +216,45 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 			gotOrgName, gotInvalid = orgName, invalid
 			return true, nil
 		}
+		// currently valid, so the write is needed to flag it as invalid
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
+		}
 
 		require.Error(t, call())
 		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 		require.Equal(t, orgName, gotOrgName)
 		require.True(t, gotInvalid)
+	})
+
+	t.Run("read error falls back to always writing", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
+		})
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return true, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, errors.New("boom")
+		}
+
+		require.Error(t, call())
+		require.True(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
+	})
+
+	t.Run("token rejected but already flagged invalid skips the write", func(t *testing.T) {
+		ds, call := setupTest(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`"token_rejected"`))
+		})
+		// already invalid, so no write is needed
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
+		}
+
+		require.Error(t, call())
+		require.False(t, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 	})
 
 	t.Run("signature invalid sets token_invalid", func(t *testing.T) {
@@ -229,6 +267,10 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
 			gotOrgName, gotInvalid = orgName, invalid
 			return true, nil
+		}
+		// currently valid, so the write is needed to flag it as invalid
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
 		}
 
 		require.Error(t, call())
@@ -247,6 +289,10 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
 			gotOrgName, gotInvalid = orgName, invalid
 			return false, nil
+		}
+		// currently invalid, so the write is needed to clear it
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return true, nil
 		}
 		// incidental to this test: any successful call also flows through the
 		// hook's pre-existing terms-expired bookkeeping, which needs these
@@ -276,6 +322,10 @@ func TestNewDEPClient_TokenInvalid(t *testing.T) {
 		var gotInvalid bool
 		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
 			gotOrgName, gotInvalid = orgName, invalid
+			return true, nil
+		}
+		// currently invalid, so the write is needed to clear it
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
 			return true, nil
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {

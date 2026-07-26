@@ -6493,6 +6493,19 @@ func (ds *Datastore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName s
 	return wasSet, nil
 }
 
+func (ds *Datastore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error) {
+	const stmt = `SELECT token_invalid FROM abm_tokens WHERE organization_name = ?`
+
+	var invalid bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &invalid, stmt, orgName); err != nil {
+		if err == sql.ErrNoRows {
+			return false, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+		return false, ctxerr.Wrap(ctx, err, "get abm_tokens token_invalid")
+	}
+	return invalid, nil
+}
+
 func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
 	// The expectation is that abm_tokens will have few rows (we don't even
 	// support pagination on the "list ABM tokens" endpoint), so this query
