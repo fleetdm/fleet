@@ -1,0 +1,1 @@
+- Added Adobe plugins to software inventory: Fleet now detects Adobe Creative Cloud plugins (CEP and UXP extensions) on macOS and Windows hosts and lists them on the Software page and host details with the software type "Plugin (Adobe)", including version and host count.
