@@ -131,17 +131,27 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         !!config?.mdm.enabled_and_configured &&
         !!isPremiumTier,
       onSuccess: ({ ab_tokens }) => {
-        ab_tokens.length &&
+        // Always update the context, even when the list is empty (e.g., the
+        // last token was deleted) -- otherwise stale expiry/banner state from
+        // a previous non-empty response would linger indefinitely.
+        if (ab_tokens.length === 0) {
           setABMExpiry({
-            earliestExpiry: getEarliestExpiry(ab_tokens),
-            needsAbmTermsRenewal: ab_tokens.some(
-              (token) => token.terms_expired
-            ),
-            hasAbmTokenInvalid: ab_tokens.some((token) => token.token_invalid),
-            invalidAbmTokenOrgNames: ab_tokens
-              .filter((token) => token.token_invalid)
-              .map((token) => token.org_name),
+            earliestExpiry: "",
+            needsAbmTermsRenewal: false,
+            hasAbmTokenInvalid: false,
+            invalidAbmTokenOrgNames: [],
           });
+          return;
+        }
+
+        setABMExpiry({
+          earliestExpiry: getEarliestExpiry(ab_tokens),
+          needsAbmTermsRenewal: ab_tokens.some((token) => token.terms_expired),
+          hasAbmTokenInvalid: ab_tokens.some((token) => token.token_invalid),
+          invalidAbmTokenOrgNames: ab_tokens
+            .filter((token) => token.token_invalid)
+            .map((token) => token.org_name),
+        });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
       // API behaved this way when the token is already expired or invalid.
