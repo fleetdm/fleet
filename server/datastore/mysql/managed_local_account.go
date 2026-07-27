@@ -38,7 +38,9 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 // creates the account (Windows). command_uuid stays NULL and status is set directly to verified:
 // there is no MDM command to acknowledge. Re-escrow (retry or re-enrollment) replaces the password
 // and clears the pending/rotation columns so a Windows row can never be selected for auto-rotation.
-func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error {
+// windowsMDMDeviceID records the enrollment this password belongs to, so the server stops asking a
+// provisioned host to create the account and starts asking again after a re-enrollment.
+func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error {
 	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "encrypting managed local account password")
@@ -46,8 +48,8 @@ func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, 
 
 	const stmt = `
 		INSERT INTO host_managed_local_account_passwords
-			(host_uuid, encrypted_password, command_uuid, status)
-		VALUES (?, ?, NULL, ?)
+			(host_uuid, encrypted_password, command_uuid, status, windows_mdm_device_id)
+		VALUES (?, ?, NULL, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			encrypted_password = VALUES(encrypted_password),
 			command_uuid = NULL,
@@ -56,9 +58,10 @@ func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, 
 			pending_encrypted_password = NULL,
 			pending_command_uuid = NULL,
 			auto_rotate_at = NULL,
-			client_error = ''
+			client_error = '',
+			windows_mdm_device_id = VALUES(windows_mdm_device_id)
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, fleet.MDMDeliveryVerified); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, fleet.MDMDeliveryVerified, windowsMDMDeviceID); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host managed local account from escrow")
 	}
 	return nil

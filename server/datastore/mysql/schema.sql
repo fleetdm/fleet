@@ -886,6 +886,7 @@ CREATE TABLE `host_managed_local_account_passwords` (
   `pending_command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `initiated_by_fleet` tinyint(1) NOT NULL DEFAULT '0',
   `client_error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `windows_mdm_device_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`host_uuid`),
   KEY `idx_hmlap_command_uuid` (`command_uuid`),
   KEY `fk_hmlap_status` (`status`),

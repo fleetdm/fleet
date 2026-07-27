@@ -907,6 +907,19 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
+	// MDMDeviceID identifies the current enrollment. Unlike the enrollment row itself, which is reused across re-enrollments of the same
+	// hardware, this value rotates each time the device enrolls.
+	MDMDeviceID string
+	// ManagedLocalAccountDeviceID is the MDMDeviceID that escrowed the host's stored managed local account password, or nil when no password
+	// is stored. It differing from MDMDeviceID means the stored password belongs to a previous enrollment and the account must be recreated.
+	ManagedLocalAccountDeviceID *string
+}
+
+// HasEscrowedManagedLocalAccountForCurrentEnrollment reports whether the host has already escrowed a managed local account password for the
+// enrollment it is currently on. A host that escrowed under a previous enrollment (it was wiped and re-enrolled) counts as not having one:
+// the account no longer exists on the machine, so the stored password is stale and must be replaced.
+func (s MDMWindowsHostConfigState) HasEscrowedManagedLocalAccountForCurrentEnrollment() bool {
+	return s.ManagedLocalAccountDeviceID != nil && *s.ManagedLocalAccountDeviceID == s.MDMDeviceID
 }
 
 type MDMWindowsEnrolledDevice struct {

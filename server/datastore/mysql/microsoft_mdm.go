@@ -262,19 +262,26 @@ SELECT EXISTS (
 // Internal poll-schedule Replaces are excluded from the flag, so tuning the poll cadence does not itself request an on-demand wake. Reader-backed;
 // wrap the context with ctxdb.RequirePrimary for primary-routed reads.
 func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
+	// The managed local account join is LEFT so hosts without a stored password still return a row; a NULL
+	// windows_mdm_device_id is what tells GetOrbitConfig the account has never been escrowed for this host.
 	const stmt = `
 		SELECT
-			awaiting_configuration,
-			has_pending_commands,
-			fleetd_sync_capable
-		FROM mdm_windows_enrollments
-		WHERE host_uuid = ?
-		ORDER BY created_at DESC, id DESC
+			e.awaiting_configuration,
+			e.has_pending_commands,
+			e.fleetd_sync_capable,
+			e.mdm_device_id,
+			mla.windows_mdm_device_id AS managed_local_account_device_id
+		FROM mdm_windows_enrollments e
+		LEFT JOIN host_managed_local_account_passwords mla ON mla.host_uuid = e.host_uuid
+		WHERE e.host_uuid = ?
+		ORDER BY e.created_at DESC, e.id DESC
 		LIMIT 1`
 	var row struct {
-		AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
-		HasPendingCommands    bool                                  `db:"has_pending_commands"`
-		FleetdSyncCapable     bool                                  `db:"fleetd_sync_capable"`
+		AwaitingConfiguration       fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+		HasPendingCommands          bool                                  `db:"has_pending_commands"`
+		FleetdSyncCapable           bool                                  `db:"fleetd_sync_capable"`
+		MDMDeviceID                 string                                `db:"mdm_device_id"`
+		ManagedLocalAccountDeviceID *string                               `db:"managed_local_account_device_id"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -283,9 +290,11 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		return nil, ctxerr.Wrap(ctx, err, "get MDMWindowsHostConfigState")
 	}
 	return &fleet.MDMWindowsHostConfigState{
-		AwaitingConfiguration: row.AwaitingConfiguration,
-		HasPendingCommands:    row.HasPendingCommands,
-		FleetdSyncCapable:     row.FleetdSyncCapable,
+		AwaitingConfiguration:       row.AwaitingConfiguration,
+		HasPendingCommands:          row.HasPendingCommands,
+		FleetdSyncCapable:           row.FleetdSyncCapable,
+		MDMDeviceID:                 row.MDMDeviceID,
+		ManagedLocalAccountDeviceID: row.ManagedLocalAccountDeviceID,
 	}, nil
 }
 

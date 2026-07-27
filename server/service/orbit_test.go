@@ -1658,8 +1658,9 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 }
 
 // TestGetOrbitConfigWindowsManagedLocalAccount covers the CreateWindowsManagedLocalAccount
-// notification gating: it is set only when the host is awaiting configuration (ESP), the team or
-// No-team setting is enabled, fleetd advertises the capability, and the license is premium.
+// notification gating: it is set for any Windows MDM host (not just during the setup experience)
+// when the team or No-team setting is enabled, fleetd advertises the capability, and the license is
+// premium, and it stops once the host has escrowed a password for its current enrollment.
 func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	// withMLACapability returns a context whose X-Fleet-Capabilities advertise the managed local
 	// account capability, as a capable Windows fleetd would send.
@@ -1670,7 +1671,11 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		return capabilities.NewContext(ctx, req)
 	}
 
-	setupSvc := func(t *testing.T, tier string, settingEnabled bool, awaiting fleet.WindowsMDMAwaitingConfiguration) (*mock.Store, fleet.Service, context.Context) {
+	const currentDeviceID = "current-enrollment-device-id"
+
+	setupSvc := func(t *testing.T, tier string, settingEnabled bool, awaiting fleet.WindowsMDMAwaitingConfiguration,
+		escrowedDeviceID *string,
+	) (*mock.Store, fleet.Service, context.Context) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}, SkipCreateTestUsers: true})
 
@@ -1690,7 +1695,11 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		}
 		ds.SetMDMWindowsEnrollmentFleetdSyncCapableFunc = func(ctx context.Context, hostUUID string, capable bool) error { return nil }
 		ds.GetMDMWindowsHostConfigStateFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-			return &fleet.MDMWindowsHostConfigState{AwaitingConfiguration: awaiting}, nil
+			return &fleet.MDMWindowsHostConfigState{
+				AwaitingConfiguration:       awaiting,
+				MDMDeviceID:                 currentDeviceID,
+				ManagedLocalAccountDeviceID: escrowedDeviceID,
+			}, nil
 		}
 
 		ctx = test.HostContext(ctx, host)
@@ -1698,35 +1707,55 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	}
 
 	t.Run("all gates hold sets the notification", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending, nil)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
 
 	t.Run("awaiting=Active also sets it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationActive)
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationActive, nil)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
 
-	t.Run("outside OOBE (awaiting=None) does not set it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone)
+	// Enabling the setting provisions the existing fleet, so a host long past its setup experience is
+	// asked to create the account just like one that just enrolled.
+	t.Run("outside the setup experience (awaiting=None) also sets it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, nil)
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
+	// Idempotence: a host that already escrowed for this enrollment is left alone, so the account is
+	// not recreated and the created activity is not logged on every poll.
+	t.Run("already escrowed for this enrollment does not set it", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, new(currentDeviceID))
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
 
+	// A wiped and re-imaged host keeps its password row (it is keyed by hardware UUID), but the
+	// enrollment's device ID has rotated, so the stale password must be replaced.
+	t.Run("escrowed under a previous enrollment sets it again", func(t *testing.T) {
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, new("previous-device-id"))
+		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	})
+
 	t.Run("setting disabled does not set it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationPending)
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, false, fleet.WindowsMDMAwaitingConfigurationPending, nil)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
 	})
 
 	t.Run("missing capability does not set it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending, nil)
 		// no capability header on the context
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
@@ -1734,7 +1763,7 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	})
 
 	t.Run("free license does not set it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationPending)
+		_, svc, ctx := setupSvc(t, fleet.TierFree, true, fleet.WindowsMDMAwaitingConfigurationPending, nil)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
 		require.NoError(t, err)
 		assert.False(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
@@ -1762,7 +1791,9 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
 		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error {
+			return nil
+		}
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
 		return ds, svc, ctx, opts
 	}
@@ -1827,7 +1858,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 	t.Run("successful escrow stores the password and logs the created activity once", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		var savedPassword string
-		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error {
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error {
 			savedPassword = plaintextPassword
 			return nil
 		}

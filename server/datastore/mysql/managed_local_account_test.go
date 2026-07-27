@@ -544,7 +544,7 @@ func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
 	hostUUID := "win-escrow-host"
 
 	// Fresh escrow (Windows): no MDM command, stored directly as verified.
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1", "win-device-1"))
 
 	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
@@ -566,10 +566,28 @@ func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
 	assert.Nil(t, commandUUID)
 
 	// Re-escrow (retry or re-enrollment) replaces the password and keeps command_uuid NULL.
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2", "win-device-1"))
 	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "WIN-PASS-2", got.Password)
+
+	// The escrowing enrollment is recorded, and a re-escrow under a new enrollment replaces it. This
+	// is what stops the server re-asking a provisioned host while still covering a re-imaged one.
+	var deviceID *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &deviceID,
+			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+	})
+	require.NotNil(t, deviceID)
+	assert.Equal(t, "win-device-1", *deviceID)
+
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-3", "win-device-2"))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &deviceID,
+			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+	})
+	require.NotNil(t, deviceID)
+	assert.Equal(t, "win-device-2", *deviceID)
 }
 
 // testManagedLocalAccountReportEscrowError covers the device-reported failure path: a first-time
@@ -590,7 +608,7 @@ func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
 	assert.False(t, status.PasswordAvailable)
 
 	// A successful escrow after the failure stores the password, flips to verified and clears the error.
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-RECOVERED"))
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-RECOVERED", "win-device-err"))
 	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
 	require.NoError(t, err)
 	require.NotNil(t, status.Status)
@@ -641,7 +659,7 @@ func testManagedLocalAccountEscrowExcludedFromAutoRotation(t *testing.T, ds *Dat
 		SeenTime:        ds.clock.Now(),
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS", "win-rot-device"))
 
 	// Even if a viewed timestamp were somehow set, the NULL account_uuid keeps the row out. Force a
 	// past auto_rotate_at to prove account_uuid alone excludes it.

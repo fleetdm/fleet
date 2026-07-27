@@ -610,23 +610,31 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 				}
 			}
 
+			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
+			// setting enabled. This is not scoped to the setup experience: enabling the setting provisions every Windows MDM host, the
+			// way BitLocker enforcement does, so an existing fleet is covered and the enrollment path a host happened to take does not
+			// decide whether it gets an account.
+			//
+			// The request stops once the host escrows a password for this enrollment. Comparing the escrowing enrollment's device ID
+			// against the current one is what makes that idempotent without stranding a re-imaged device: mdm_windows_enrollments rows
+			// survive a wipe (they are keyed by hardware ID), so a host that re-enrolls carries its old password row, and only the
+			// rotated device ID reveals that the stored password no longer matches the machine. A host that reported a failure keeps
+			// being asked, so a transient failure self-heals on the next poll.
+			if mlaCapable && !state.HasEscrowedManagedLocalAccountForCurrentEnrollment() {
+				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
+					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
+					if err != nil {
+						return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
+					}
+					notifs.CreateWindowsManagedLocalAccount = enabled
+				}
+			}
+
 			switch {
 			case state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationPending ||
 				state.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationActive:
 				// During the Autopilot ESP, the setup experience flow delivers queued commands.
 				notifs.RunSetupExperience = true
-
-				// During OOBE, ask a capable premium fleetd to create and escrow the Windows managed
-				// local admin account when the host's team (or No team) has the setting enabled.
-				if mlaCapable {
-					if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
-						enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
-						if err != nil {
-							return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking windows managed local account setting")
-						}
-						notifs.CreateWindowsManagedLocalAccount = enabled
-					}
-				}
 			case state.HasPendingCommands:
 				// Outside the ESP: if this host's fleetd can start an on-demand OMA-DM session, ask it to sync now so queued commands apply
 				// without waiting for the poll.
@@ -1544,7 +1552,8 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	// Eligibility is the host's Windows MDM enrollment rather than host.Platform, because enrollment
 	// is what the notification that produced this password was gated on. Checking the same signal
 	// here means a device can only escrow a password the server actually asked it to create.
-	if _, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID); err != nil {
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+	if err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{Message: "managed local account escrow is only supported for Windows MDM hosts"}
 		}
@@ -1575,8 +1584,9 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	}
 
 	// Store the password before anything else can fail. The account already exists on the device, so
-	// any path that returns without storing orphans it with a password nobody can recover.
-	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password); err != nil {
+	// any path that returns without storing orphans it with a password nobody can recover. Recording
+	// the enrollment's device ID is what stops the server asking this host to create the account again.
+	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password, enrolledDevice.MDMDeviceID); err != nil {
 		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
 	}
 

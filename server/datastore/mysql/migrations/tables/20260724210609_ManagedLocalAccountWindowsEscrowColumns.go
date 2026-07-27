@@ -21,12 +21,17 @@ func init() {
 //     tautologies until the column is nullable.
 //   - client_error is added to record the device-reported reason the account could not be created,
 //     mirroring host_disk_encryption_keys.client_error.
+//   - windows_mdm_device_id is added to record which Windows MDM enrollment escrowed the password.
+//     mdm_windows_enrollments rows are reused across re-enrollments (they are unique on
+//     mdm_hardware_id), but the device ID rotates, so comparing it is how the server knows a stored
+//     password belongs to the current enrollment and not to a wiped-and-re-imaged predecessor.
 func Up_20260724210609(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE host_managed_local_account_passwords " +
 			"MODIFY `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NULL, " +
 			"MODIFY `encrypted_password` blob NULL, " +
-			"ADD COLUMN `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''",
+			"ADD COLUMN `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '', " +
+			"ADD COLUMN `windows_mdm_device_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL",
 	); err != nil {
 		return fmt.Errorf("adapting host_managed_local_account_passwords for device-created accounts: %w", err)
 	}

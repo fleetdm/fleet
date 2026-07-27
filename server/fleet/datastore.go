@@ -1906,14 +1906,12 @@ type Datastore interface {
 	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
-	// SaveHostManagedLocalAccountFromEscrow encrypts and stores a device-generated managed local
-	// account password (Windows) with a NULL command_uuid and status verified, replacing any prior
-	// password and clearing the pending/rotation columns.
-	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error
+	// SaveHostManagedLocalAccountFromEscrow encrypts and stores a device-generated managed local account password (Windows).
+	// windowsMDMDeviceID records the enrollment it belongs to, so a re-enrolled host is asked to create the account again.
+	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error
 
-	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed
-	// local account (Windows), marking the row failed and storing the error. Any previously stored
-	// password is preserved.
+	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account
+	// (Windows), marking the row failed and storing the error. Any previously stored password is preserved.
 	ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error
 
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account

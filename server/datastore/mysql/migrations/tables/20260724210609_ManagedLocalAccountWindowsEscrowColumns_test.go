@@ -67,4 +67,23 @@ func TestUp_20260724210609(t *testing.T) {
 	).Scan(&clientError, &encryptedPassword))
 	require.Equal(t, "NetUserAdd failed: access denied", clientError)
 	require.Nil(t, encryptedPassword)
+
+	// An escrowed row records the enrollment it came from; rows that predate the migration and macOS
+	// rows leave it NULL.
+	_, err = db.Exec(`
+		INSERT INTO host_managed_local_account_passwords (host_uuid, encrypted_password, command_uuid, status, windows_mdm_device_id)
+		VALUES (?, ?, NULL, 'verified', ?)`, "windows-escrowed-host", []byte("enc"), "device-id-1")
+	require.NoError(t, err)
+
+	var deviceID *string
+	require.NoError(t, db.QueryRow(
+		`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, "windows-escrowed-host",
+	).Scan(&deviceID))
+	require.NotNil(t, deviceID)
+	require.Equal(t, "device-id-1", *deviceID)
+
+	require.NoError(t, db.QueryRow(
+		`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, existingHostUUID,
+	).Scan(&deviceID))
+	require.Nil(t, deviceID)
 }
