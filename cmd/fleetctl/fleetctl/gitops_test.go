@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3462,6 +3464,86 @@ software:
 		require.Len(t, enrolledTeamSecrets, 1)
 		assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 	})
+}
+
+// TestGitOpsDDMAssetsNotAppliedOnFreeTier verifies that applying a GitOps
+// config that manages Apple DDM assets never calls the premium-only assets
+// batch endpoint on Fleet Free.
+func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
+	// Cannot run t.Parallel() because runServerWithMockedDS sets environment variables.
+
+	server, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// "No team" apply reads/writes the default team config and looks up team 0.
+	defaultTeamConfig := &fleet.TeamConfig{}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = 1
+		return job, nil
+	}
+
+	// Count requests reaching the premium-only DDM assets batch endpoint.
+	var assetsBatchCalls atomic.Int32
+	base := server.Config.Handler
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/fleet/assets/batch") {
+			assetsBatchCalls.Add(1)
+		}
+		base.ServeHTTP(w, r)
+	})
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+
+	// A global config that manages macos_settings and declares a DDM asset. A
+	// non-empty asset set forces the client down the (premium-gated) apply path.
+	dir := t.TempDir()
+	assetPath := filepath.Join(dir, "asset.json")
+	require.NoError(t, os.WriteFile(assetPath, []byte(`{
+  "Type": "com.apple.asset.credential.userpassword",
+  "Identifier": "com.fleetdm.asset.example",
+  "Payload": {"UserName": "admin"}
+}`), 0o600))
+
+	globalFilePath := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFilePath, fmt.Appendf(nil, `
+controls:
+  macos_settings:
+    assets:
+      - path: ./asset.json
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+software:
+`, fleetServerURL, orgName), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFilePath})
+	require.NoError(t, err, "free-tier GitOps with DDM assets must succeed; a non-zero call count means the premium-only batch endpoint was hit")
+	assert.Zero(t, assetsBatchCalls.Load(), "DDM assets batch endpoint must never be called on Fleet Free")
 }
 
 func createTeamFileBasic(t *testing.T, secret string) *os.File {
