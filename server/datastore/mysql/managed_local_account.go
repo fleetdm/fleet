@@ -74,13 +74,17 @@ func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, 
 // clears the error. A first failure inserts a row with a NULL password, meaning "no password", not
 // an empty one.
 func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error {
+	// windows_mdm_device_id is cleared so the server asks this host to create the account again on its
+	// next poll: the column means "the enrollment we hold a good password for", and after a failure we
+	// no longer do. Leaving it set would suppress the retry and strand the host on status=failed.
 	const stmt = `
 		INSERT INTO host_managed_local_account_passwords
 			(host_uuid, encrypted_password, command_uuid, status, client_error)
 		VALUES (?, NULL, NULL, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			status = VALUES(status),
-			client_error = VALUES(client_error)
+			client_error = VALUES(client_error),
+			windows_mdm_device_id = NULL
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, fleet.MDMDeliveryFailed, clientError); err != nil {
 		return ctxerr.Wrap(ctx, err, "report managed local account escrow error")

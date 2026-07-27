@@ -630,6 +630,15 @@ func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, "WIN-PASS-RECOVERED", got.Password)
 
+	// Recording a failure clears the escrowing enrollment, so the host is asked to create the account
+	// again on its next poll. Leaving it set would suppress the retry and strand the host on failed.
+	var deviceID *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &deviceID,
+			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+	})
+	assert.Nil(t, deviceID)
+
 	// A failure-only row holds no password at all, so reading it is a not-found rather than an
 	// attempt to decrypt an empty blob.
 	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
