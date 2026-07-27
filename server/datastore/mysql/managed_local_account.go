@@ -38,59 +38,30 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 // creates the account (Windows). command_uuid stays NULL and status is set directly to verified:
 // there is no MDM command to acknowledge. Re-escrow (retry or re-enrollment) replaces the password
 // and clears the pending/rotation columns so a Windows row can never be selected for auto-rotation.
-// windowsMDMDeviceID records the enrollment this password belongs to, so the server stops asking a
-// provisioned host to create the account and starts asking again after a re-enrollment.
-// Returns whether this escrow established the account for an enrollment that did not already have
-// one, so callers can log the created activity only when an account was really created rather than
-// on every escrow the device happens to send.
-func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) (bool, error) {
+func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error {
 	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "encrypting managed local account password")
+		return ctxerr.Wrap(ctx, err, "encrypting managed local account password")
 	}
 
-	const (
-		existingStmt = `SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ? FOR UPDATE`
-		upsertStmt   = `
-			INSERT INTO host_managed_local_account_passwords
-				(host_uuid, encrypted_password, command_uuid, status, windows_mdm_device_id)
-			VALUES (?, ?, NULL, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				encrypted_password = VALUES(encrypted_password),
-				command_uuid = NULL,
-				status = VALUES(status),
-				account_uuid = NULL,
-				pending_encrypted_password = NULL,
-				pending_command_uuid = NULL,
-				auto_rotate_at = NULL,
-				client_error = '',
-				windows_mdm_device_id = VALUES(windows_mdm_device_id)
+	const stmt = `
+		INSERT INTO host_managed_local_account_passwords
+			(host_uuid, encrypted_password, command_uuid, status)
+		VALUES (?, ?, NULL, ?)
+		ON DUPLICATE KEY UPDATE
+			encrypted_password = VALUES(encrypted_password),
+			command_uuid = NULL,
+			status = VALUES(status),
+			account_uuid = NULL,
+			pending_encrypted_password = NULL,
+			pending_command_uuid = NULL,
+			auto_rotate_at = NULL,
+			client_error = ''
 	`
-	)
-
-	var created bool
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Read the enrollment the stored password belongs to before overwriting it. The row is locked
-		// so two escrows arriving together cannot both conclude they created the account.
-		var existing *string
-		switch err := sqlx.GetContext(ctx, tx, &existing, existingStmt, hostUUID); {
-		case err == nil:
-			created = existing == nil || *existing != windowsMDMDeviceID
-		case errors.Is(err, sql.ErrNoRows):
-			created = true
-		default:
-			return ctxerr.Wrap(ctx, err, "read existing managed local account enrollment")
-		}
-
-		if _, err := tx.ExecContext(ctx, upsertStmt, hostUUID, encrypted, fleet.MDMDeliveryVerified, windowsMDMDeviceID); err != nil {
-			return ctxerr.Wrap(ctx, err, "save host managed local account from escrow")
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, encrypted, fleet.MDMDeliveryVerified); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host managed local account from escrow")
 	}
-	return created, nil
+	return nil
 }
 
 // ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed
@@ -100,17 +71,13 @@ func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, 
 // clears the error. A first failure inserts a row with a NULL password, meaning "no password", not
 // an empty one.
 func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error {
-	// windows_mdm_device_id is cleared so the server asks this host to create the account again on its
-	// next poll: the column means "the enrollment we hold a good password for", and after a failure we
-	// no longer do. Leaving it set would suppress the retry and strand the host on status=failed.
 	const stmt = `
 		INSERT INTO host_managed_local_account_passwords
 			(host_uuid, encrypted_password, command_uuid, status, client_error)
 		VALUES (?, NULL, NULL, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			status = VALUES(status),
-			client_error = VALUES(client_error),
-			windows_mdm_device_id = NULL
+			client_error = VALUES(client_error)
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, fleet.MDMDeliveryFailed, clientError); err != nil {
 		return ctxerr.Wrap(ctx, err, "report managed local account escrow error")

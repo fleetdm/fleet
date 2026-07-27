@@ -907,22 +907,10 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
-	// MDMDeviceID identifies the device to its current enrollment, as reported in the enrollment request alongside a hardware ID that is
-	// stable for the life of the machine.
-	MDMDeviceID string
-	// ManagedLocalAccountDeviceID is the MDMDeviceID that escrowed the host's stored managed local account password, or nil when no usable
-	// password is stored. Re-enrollment sets it back to nil (MDMWindowsDeleteEnrolledDeviceOnReenrollment), which is what marks a stored
-	// password as belonging to a machine state that may no longer exist.
-	ManagedLocalAccountDeviceID *string
-}
-
-// HasEscrowedManagedLocalAccountForCurrentEnrollment reports whether the host has already escrowed a managed local account password for the
-// enrollment it is currently on, in which case it must not be asked to create the account again. Re-enrollment clears the escrowing
-// enrollment, so a host that was wiped and re-enrolled counts as not having one: the account is gone and the stored password is unusable.
-// The device ID comparison additionally covers a stored password whose enrollment marker survived, which the re-enrollment cleanup should
-// have cleared.
-func (s MDMWindowsHostConfigState) HasEscrowedManagedLocalAccountForCurrentEnrollment() bool {
-	return s.ManagedLocalAccountDeviceID != nil && *s.ManagedLocalAccountDeviceID == s.MDMDeviceID
+	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment, which is what
+	// stops the server asking it to create the account again. It is per-enrollment state: re-enrolling deletes the enrollment row, so a
+	// device that was wiped and re-enrolled starts false again and is asked to recreate the account.
+	ManagedLocalAccountEscrowed bool
 }
 
 type MDMWindowsEnrolledDevice struct {

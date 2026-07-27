@@ -611,8 +611,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
-			// setting enabled. The request stops once the host escrows a password for this enrollment.. Re-enrollment clears the escrowing enrollment.
-			if mlaCapable && !state.HasEscrowedManagedLocalAccountForCurrentEnrollment() {
+			// setting enabled. The request stops once the host escrows a password for this enrollment. Re-enrolling deletes the enrollment
+			// row and with it the flag, so a re-imaged device is asked again.
+			if mlaCapable && !state.ManagedLocalAccountEscrowed {
 				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
 					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
 					if err != nil {
@@ -1541,8 +1542,7 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	}
 
 	// Eligibility is the host's Windows MDM enrollment
-	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
-	if err != nil {
+	if _, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID); err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{Message: "managed local account escrow is only supported for Windows MDM hosts"}
 		}
@@ -1560,6 +1560,10 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
 			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
 		}
+		// The device no longer has an account we know the password to, so keep asking it to create one.
+		if _, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear windows managed local account escrowed flag")
+		}
 		return nil
 	}
 
@@ -1571,9 +1575,15 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	}
 
 	// Store the password before anything else can fail.
-	created, err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password, enrolledDevice.MDMDeviceID)
-	if err != nil {
+	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password); err != nil {
 		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
+	}
+
+	// Mark the enrollment provisioned so the host stops being asked. If this fails the password is
+	// already safe and the host is simply asked again, which re-escrows the same way.
+	created, err := svc.ds.SetMDMWindowsManagedLocalAccountEscrowed(ctx, host.UUID, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows managed local account escrowed flag")
 	}
 
 	// The setting or license may have changed between the notification and this escrow. That does not change what we

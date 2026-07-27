@@ -132,6 +132,23 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 	return nil
 }
 
+// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local
+// account password for its current enrollment. It reports whether the value actually changed, so the
+// caller can log the created activity only when an account was really created and not every time a
+// device re-sends an escrow it already made.
+func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+	res, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET managed_local_account_escrowed = ?
+		 WHERE host_uuid = ? AND managed_local_account_escrowed != ?
+		 ORDER BY created_at DESC, id DESC LIMIT 1`,
+		escrowed, hostUUID, escrowed)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set mdm windows enrollment managed local account escrowed")
+	}
+	changed, _ := res.RowsAffected()
+	return changed > 0, nil
+}
+
 // MDMWindowsGetEnrolledDeviceWithDeviceID receives a Windows MDM device id and
 // returns the device information.
 func (ds *Datastore) MDMWindowsGetEnrolledDeviceWithHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
@@ -262,26 +279,21 @@ SELECT EXISTS (
 // Internal poll-schedule Replaces are excluded from the flag, so tuning the poll cadence does not itself request an on-demand wake. Reader-backed;
 // wrap the context with ctxdb.RequirePrimary for primary-routed reads.
 func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID string) (*fleet.MDMWindowsHostConfigState, error) {
-	// The managed local account join is LEFT so hosts without a stored password still return a row; a NULL
-	// windows_mdm_device_id is what tells GetOrbitConfig the account has never been escrowed for this host.
 	const stmt = `
 		SELECT
-			e.awaiting_configuration,
-			e.has_pending_commands,
-			e.fleetd_sync_capable,
-			e.mdm_device_id,
-			mla.windows_mdm_device_id AS managed_local_account_device_id
-		FROM mdm_windows_enrollments e
-		LEFT JOIN host_managed_local_account_passwords mla ON mla.host_uuid = e.host_uuid
-		WHERE e.host_uuid = ?
-		ORDER BY e.created_at DESC, e.id DESC
+			awaiting_configuration,
+			has_pending_commands,
+			fleetd_sync_capable,
+			managed_local_account_escrowed
+		FROM mdm_windows_enrollments
+		WHERE host_uuid = ?
+		ORDER BY created_at DESC, id DESC
 		LIMIT 1`
 	var row struct {
 		AwaitingConfiguration       fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
 		HasPendingCommands          bool                                  `db:"has_pending_commands"`
 		FleetdSyncCapable           bool                                  `db:"fleetd_sync_capable"`
-		MDMDeviceID                 string                                `db:"mdm_device_id"`
-		ManagedLocalAccountDeviceID *string                               `db:"managed_local_account_device_id"`
+		ManagedLocalAccountEscrowed bool                                  `db:"managed_local_account_escrowed"`
 	}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -293,8 +305,7 @@ func (ds *Datastore) GetMDMWindowsHostConfigState(ctx context.Context, hostUUID 
 		AwaitingConfiguration:       row.AwaitingConfiguration,
 		HasPendingCommands:          row.HasPendingCommands,
 		FleetdSyncCapable:           row.FleetdSyncCapable,
-		MDMDeviceID:                 row.MDMDeviceID,
-		ManagedLocalAccountDeviceID: row.ManagedLocalAccountDeviceID,
+		ManagedLocalAccountEscrowed: row.ManagedLocalAccountEscrowed,
 	}, nil
 }
 
@@ -442,8 +453,9 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
-// delivery statuses are reset for the new enrollment, and clears the managed
-// local account's escrowing enrollment so the account is recreated.
+// delivery statuses are reset for the new enrollment. Per-enrollment flags on
+// the enrollment row itself (managed_local_account_escrowed, for one) need no
+// explicit reset: they are deleted along with the row.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
@@ -457,10 +469,6 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 			JOIN hosts h ON ser.host_uuid = h.osquery_host_id OR ser.host_uuid = h.uuid
 			WHERE h.uuid = ?`
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
-		// The password itself is kept: it is the only copy, and the account may still exist on a device
-		// that merely re-enrolled rather than being wiped. Only the enrollment marker is cleared.
-		clearManagedLocalAccountStmt = `UPDATE host_managed_local_account_passwords
-			SET windows_mdm_device_id = NULL WHERE host_uuid = ?`
 	)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -488,12 +496,6 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				// Clear ALL stale upcoming activities (any activity_type) so they don't block new activities on re-enrollment.
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
-				}
-				// Clear the enrollment that escrowed the managed local account password, so the new
-				// enrollment is asked to create the account again. A device that re-enrolls may have been
-				// wiped, in which case the account is gone and the stored password is unusable.
-				if _, err := tx.ExecContext(ctx, clearManagedLocalAccountStmt, hostUUID.String); err != nil {
-					return ctxerr.Wrap(ctx, err, "clear managed local account enrollment for host")
 				}
 			}
 

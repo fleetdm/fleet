@@ -16,18 +16,27 @@ func init() {
 //     say it holds no password.
 //   - client_error is added to record the device-reported reason the account could not be created,
 //     mirroring host_disk_encryption_keys.client_error.
-//   - windows_mdm_device_id is added to record which Windows MDM enrollment escrowed the password.
-//     Re-enrollment clears it, so the server can tell a password it can still trust from one that may
-//     belong to a machine that has since been wiped, and ask the device to create the account again.
+//
+// It also adds mdm_windows_enrollments.managed_local_account_escrowed, which records that the device
+// has escrowed a password for its current enrollment so the server stops asking it to create the
+// account. It lives on the enrollment rather than the password because it is per-enrollment state,
+// like fleetd_sync_capable next to it: the enrollment row is deleted when a device re-enrolls, so a
+// re-imaged machine is asked again without any explicit cleanup.
 func Up_20260724210609(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE host_managed_local_account_passwords " +
 			"MODIFY `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NULL, " +
 			"MODIFY `encrypted_password` blob NULL, " +
-			"ADD COLUMN `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '', " +
-			"ADD COLUMN `windows_mdm_device_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL",
+			"ADD COLUMN `client_error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''",
 	); err != nil {
 		return fmt.Errorf("adapting host_managed_local_account_passwords for device-created accounts: %w", err)
+	}
+
+	if _, err := tx.Exec(
+		"ALTER TABLE mdm_windows_enrollments " +
+			"ADD COLUMN `managed_local_account_escrowed` tinyint(1) NOT NULL DEFAULT '0'",
+	); err != nil {
+		return fmt.Errorf("adding mdm_windows_enrollments.managed_local_account_escrowed: %w", err)
 	}
 	return nil
 }

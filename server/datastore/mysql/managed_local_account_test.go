@@ -544,8 +544,7 @@ func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
 	hostUUID := "win-escrow-host"
 
 	// Fresh escrow (Windows): no MDM command, stored directly as verified.
-	_, err := ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1", "win-device-1")
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
 
 	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
@@ -567,30 +566,10 @@ func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
 	assert.Nil(t, commandUUID)
 
 	// Re-escrow (retry or re-enrollment) replaces the password and keeps command_uuid NULL.
-	_, err = ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2", "win-device-1")
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
 	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "WIN-PASS-2", got.Password)
-
-	// The escrowing enrollment is recorded, and a re-escrow under a new enrollment replaces it. This
-	// is what stops the server re-asking a provisioned host while still covering a re-imaged one.
-	var deviceID *string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &deviceID,
-			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
-	})
-	require.NotNil(t, deviceID)
-	assert.Equal(t, "win-device-1", *deviceID)
-
-	_, err = ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-3", "win-device-2")
-	require.NoError(t, err)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &deviceID,
-			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
-	})
-	require.NotNil(t, deviceID)
-	assert.Equal(t, "win-device-2", *deviceID)
 }
 
 // testManagedLocalAccountReportEscrowError covers the device-reported failure path: a first-time
@@ -611,8 +590,7 @@ func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
 	assert.False(t, status.PasswordAvailable)
 
 	// A successful escrow after the failure stores the password, flips to verified and clears the error.
-	_, err = ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-RECOVERED", "win-device-err")
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-RECOVERED"))
 	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
 	require.NoError(t, err)
 	require.NotNil(t, status.Status)
@@ -633,15 +611,6 @@ func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
 	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "WIN-PASS-RECOVERED", got.Password)
-
-	// Recording a failure clears the escrowing enrollment, so the host is asked to create the account
-	// again on its next poll. Leaving it set would suppress the retry and strand the host on failed.
-	var deviceID *string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &deviceID,
-			`SELECT windows_mdm_device_id FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
-	})
-	assert.Nil(t, deviceID)
 
 	// A failure-only row holds no password at all, so reading it is a not-found rather than an
 	// attempt to decrypt an empty blob.
@@ -672,8 +641,7 @@ func testManagedLocalAccountEscrowExcludedFromAutoRotation(t *testing.T, ds *Dat
 		SeenTime:        ds.clock.Now(),
 	})
 	require.NoError(t, err)
-	_, err = ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS", "win-rot-device")
-	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
 
 	// Even if a viewed timestamp were somehow set, the NULL account_uuid keeps the row out. Force a
 	// past auto_rotate_at to prove account_uuid alone excludes it.
