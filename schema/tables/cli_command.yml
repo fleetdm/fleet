@@ -1,12 +1,14 @@
 name: cli_command
 platforms:
   - macos
-description: TODO
+  - windows
+  - linux
+description: Allows querying devices using CLI commands.
 examples: |-
-  TODO
+  Get a host's version of the fleetctl command line tool.
 
   ```
-  TODO
+  SELECT cli_command_output FROM cli_command WHERE cli_command_input = "fleetctl -version | awk 'NR==1{print $4}'";
   ```
 columns:
   - name: cli_command_input
