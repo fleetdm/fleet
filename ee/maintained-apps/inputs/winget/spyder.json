@@ -3,6 +3,7 @@
   "slug": "spyder/windows",
   "package_identifier": "Spyder.Spyder",
   "unique_identifier": "Spyder",
+  "fuzzy_match_name": true,
   "program_publisher": "Spyder Project Contributors and others",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/spyder_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/spyder_uninstall.ps1",

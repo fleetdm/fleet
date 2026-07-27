@@ -3,6 +3,7 @@
   "slug": "logitech-unifying-software/windows",
   "package_identifier": "Logitech.UnifyingSoftware",
   "unique_identifier": "Logitech Unifying Software",
+  "fuzzy_match_name": true,
   "program_publisher": "Logitech",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/logitech_unifying_software_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/logitech_unifying_software_uninstall.ps1",

@@ -9,5 +9,5 @@
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "",
-  "default_categories": ["Developer tools"]
+  "default_categories": ["Security"]
 }

@@ -3,8 +3,8 @@
     {
       "version": "2.52.33",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Logitech Unifying Software' AND publisher = 'Logitech';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Logitech Unifying Software' AND publisher = 'Logitech' AND version_compare(version, '2.52.33') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Logitech Unifying Software %' AND publisher = 'Logitech';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Logitech Unifying Software %' AND publisher = 'Logitech' AND version_compare(version, '2.52.33') < 0);"
       },
       "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/unifying/unifying252.exe",
       "install_script_ref": "a3795eea",

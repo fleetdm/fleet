@@ -3,15 +3,15 @@
     {
       "version": "4.8.1.610",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'TreeSize Free' AND publisher = 'JAM Software';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'TreeSize Free' AND publisher = 'JAM Software' AND version_compare(version, '4.8.1.610') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'TreeSize Free %' AND publisher = 'JAM Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TreeSize Free %' AND publisher = 'JAM Software' AND version_compare(version, '4.8.1.610') < 0);"
       },
       "installer_url": "https://downloads.jam-software.de/treesize_free/archive/v4.8.1.610/TreeSizeFreeSetup.exe",
       "install_script_ref": "36e33a58",
       "uninstall_script_ref": "f316b604",
       "sha256": "d800f1765539194a088cd06b2b8a73c40c4a1001425f2a892f495a53db9da2de",
       "default_categories": [
-        "Productivity"
+        "Utilities"
       ]
     }
   ],

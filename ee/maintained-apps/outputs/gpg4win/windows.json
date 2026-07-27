@@ -3,15 +3,15 @@
     {
       "version": "5.0.2",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Gpg4win' AND publisher = 'The Gpg4win Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Gpg4win' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.0.2') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Gpg4win %' AND publisher = 'The Gpg4win Project' AND version_compare(version, '5.0.2') < 0);"
       },
       "installer_url": "https://files.gpg4win.org/gpg4win-5.0.2.exe",
       "install_script_ref": "e9aef2fd",
       "uninstall_script_ref": "d4026d8a",
       "sha256": "11864cdc6dedd58c5448ab1c0868886e56bdad96972bc06dcd44b80f9e527051",
       "default_categories": [
-        "Developer tools"
+        "Security"
       ]
     }
   ],
