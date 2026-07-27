@@ -24,7 +24,7 @@ It's important to note that quality updates are *cumulative*, so installing the 
 
 ## Start with Fleet's built-in enforcement
 
-Before writing any custom profiles, know that Fleet handles the core case out of the box. In **Controls > OS updates**, you can set a **deadline** and **grace period** for Windows hosts on each team. Under the hood, this uses the same deadline policies described in the next section, so most teams never need to touch them directly.
+Before writing any custom profiles, know that Fleet handles the core case out of the box. In **Controls > OS updates**, you can set a **deadline** and **grace period** for Windows hosts on each fleet. Under the hood, this uses the same deadline policies described in the next section, so most teams never need to touch them directly.
 
 Custom settings come in when you want to go beyond enforcement: rollout rings, pinning a release, patching Office, or locking down the end-user experience. That's what the rest of this guide is for.
 
@@ -70,7 +70,7 @@ Patch Tuesday lands on your testing ring the same day. If a week passes without 
 
 ## Pin the release you actually want
 
-Windows Update will eventually offer devices the next feature release. If you'd rather move to when all the testing is complete and your devices are ready on your schedule, pin it.
+Windows Update will eventually offer devices the next feature release. If you'd rather move when testing is complete and your devices are ready, on your schedule, pin it.
 
 - `ProductVersion` — the product to stay on or move to. Supported value type is a string containing a Windows product, for example, "Windows 11" or "11" or "Windows 10".
 - `TargetReleaseVersion` — the specific release (e.g., `24H2` or `25H2`).
@@ -92,7 +92,7 @@ Push the profile with today's date to the affected fleet, and updates stop being
 
 Two policies that punch above their weight:
 
-- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [official documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products).
+- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [official documentation](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products).
 - `ExcludeWUDriversInQualityUpdate` — set to `1` to keep driver updates out of quality updates. Whether you want this depends on your hardware fleet; if your vendor ships driver updates through their own tooling, excluding Windows Update drivers avoids the two clashing.
 
 ## Managing the end-user experience
