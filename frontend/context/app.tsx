@@ -75,7 +75,7 @@ interface ISetAndroidEnterpriseDeletedAction {
 interface IAbmExpiry {
   earliestExpiry: string;
   needsAbmTermsRenewal: boolean;
-  hasAbmTokenInvalid: boolean;
+  hasInvalidABMToken: boolean;
   invalidAbmTokenOrgNames: string[];
 }
 
@@ -184,7 +184,7 @@ type InitialStateType = {
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
   needsAbmTermsRenewal: boolean;
-  hasAbmTokenInvalid: boolean;
+  hasInvalidABMToken: boolean;
   invalidAbmTokenOrgNames: string[];
   willAppleBmExpire: boolean;
   willApplePnsExpire: boolean;
@@ -264,7 +264,7 @@ export const initialState = {
   isApplePnsExpired: false,
   isVppExpired: false,
   needsAbmTermsRenewal: false,
-  hasAbmTokenInvalid: false,
+  hasInvalidABMToken: false,
   invalidAbmTokenOrgNames: [],
   willAppleBmExpire: false,
   willApplePnsExpire: false,
@@ -422,7 +422,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
       const {
         earliestExpiry,
         needsAbmTermsRenewal,
-        hasAbmTokenInvalid,
+        hasInvalidABMToken,
         invalidAbmTokenOrgNames,
       } = abmExpiry;
       return {
@@ -431,7 +431,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
         isAppleBmExpired: hasLicenseExpired(earliestExpiry),
         willAppleBmExpire: willExpireWithinXDays(earliestExpiry, 30),
         needsAbmTermsRenewal,
-        hasAbmTokenInvalid,
+        hasInvalidABMToken,
         invalidAbmTokenOrgNames,
       };
     }
@@ -605,7 +605,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isApplePnsExpired: state.isApplePnsExpired,
       isVppExpired: state.isVppExpired,
       needsAbmTermsRenewal: state.needsAbmTermsRenewal,
-      hasAbmTokenInvalid: state.hasAbmTokenInvalid,
+      hasInvalidABMToken: state.hasInvalidABMToken,
       invalidAbmTokenOrgNames: state.invalidAbmTokenOrgNames,
       willAppleBmExpire: state.willAppleBmExpire,
       willApplePnsExpire: state.willApplePnsExpire,
@@ -706,7 +706,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isWindowsMdmEnabledAndConfigured,
       state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
-      state.hasAbmTokenInvalid,
+      state.hasInvalidABMToken,
       state.invalidAbmTokenOrgNames,
       state.noSandboxHosts,
       state.sandboxExpiry,

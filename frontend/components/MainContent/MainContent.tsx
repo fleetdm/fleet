@@ -44,7 +44,7 @@ const MainContent = ({
     isAppleBmExpired,
     isVppExpired,
     needsAbmTermsRenewal,
-    hasAbmTokenInvalid,
+    hasInvalidABMToken,
     invalidAbmTokenOrgNames,
     willAppleBmExpire,
     willApplePnsExpire,
@@ -71,7 +71,7 @@ const MainContent = ({
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
         banner = <AppleBMTermsMessage />;
-      } else if (hasAbmTokenInvalid) {
+      } else if (hasInvalidABMToken) {
         banner = (
           <AppleBMTokenInvalidMessage orgNames={invalidAbmTokenOrgNames} />
         );

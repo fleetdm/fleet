@@ -138,7 +138,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
           setABMExpiry({
             earliestExpiry: "",
             needsAbmTermsRenewal: false,
-            hasAbmTokenInvalid: false,
+            hasInvalidABMToken: false,
             invalidAbmTokenOrgNames: [],
           });
           return;
@@ -147,7 +147,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
         setABMExpiry({
           earliestExpiry: getEarliestExpiry(ab_tokens),
           needsAbmTermsRenewal: ab_tokens.some((token) => token.terms_expired),
-          hasAbmTokenInvalid: ab_tokens.some((token) => token.token_invalid),
+          hasInvalidABMToken: ab_tokens.some((token) => token.token_invalid),
           invalidAbmTokenOrgNames: ab_tokens
             .filter((token) => token.token_invalid)
             .map((token) => token.org_name),
@@ -160,7 +160,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
           setABMExpiry({
             earliestExpiry: GUARANTEED_PAST_DATE,
             needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
-            hasAbmTokenInvalid: false,
+            hasInvalidABMToken: false,
             invalidAbmTokenOrgNames: [],
           });
         }

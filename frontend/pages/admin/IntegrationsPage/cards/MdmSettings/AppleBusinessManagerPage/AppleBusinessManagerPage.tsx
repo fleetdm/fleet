@@ -75,14 +75,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
           setABMExpiry({
             earliestExpiry: "",
             needsAbmTermsRenewal: false,
-            hasAbmTokenInvalid: false,
+            hasInvalidABMToken: false,
             invalidAbmTokenOrgNames: [],
           });
         } else {
           setABMExpiry({
             earliestExpiry: getEarliestExpiry(data),
             needsAbmTermsRenewal: data.some((token) => token.terms_expired),
-            hasAbmTokenInvalid: data.some((token) => token.token_invalid),
+            hasInvalidABMToken: data.some((token) => token.token_invalid),
             invalidAbmTokenOrgNames: data
               .filter((token) => token.token_invalid)
               .map((token) => token.org_name),
@@ -162,7 +162,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         needsAbmTermsRenewal: refetchedTokens.some(
           (token) => token.terms_expired
         ),
-        hasAbmTokenInvalid: invalidAbmTokenOrgNames.length > 0,
+        hasInvalidABMToken: invalidAbmTokenOrgNames.length > 0,
         invalidAbmTokenOrgNames,
       });
     }

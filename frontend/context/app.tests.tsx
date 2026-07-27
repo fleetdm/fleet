@@ -53,7 +53,7 @@ describe("sortAvailableTeams", () => {
 
 const AbmExpiryConsumer = () => {
   const {
-    hasAbmTokenInvalid,
+    hasInvalidABMToken,
     invalidAbmTokenOrgNames,
     setABMExpiry,
   } = useContext(AppContext);
@@ -66,7 +66,7 @@ const AbmExpiryConsumer = () => {
           setABMExpiry({
             earliestExpiry: "",
             needsAbmTermsRenewal: false,
-            hasAbmTokenInvalid: true,
+            hasInvalidABMToken: true,
             invalidAbmTokenOrgNames: [
               "Acme Inc.",
               "Fleet Device Management Inc.",
@@ -76,14 +76,14 @@ const AbmExpiryConsumer = () => {
       >
         Set invalid tokens
       </button>
-      <div data-testid="has-invalid">{String(hasAbmTokenInvalid)}</div>
+      <div data-testid="has-invalid">{String(hasInvalidABMToken)}</div>
       <div data-testid="org-names">{invalidAbmTokenOrgNames.join(", ")}</div>
     </div>
   );
 };
 
 describe("AppProvider - setABMExpiry", () => {
-  it("defaults hasAbmTokenInvalid to false and invalidAbmTokenOrgNames to an empty list", () => {
+  it("defaults hasInvalidABMToken to false and invalidAbmTokenOrgNames to an empty list", () => {
     renderWithSetup(
       <AppProvider>
         <AbmExpiryConsumer />
@@ -94,7 +94,7 @@ describe("AppProvider - setABMExpiry", () => {
     expect(screen.getByTestId("org-names")).toHaveTextContent("");
   });
 
-  it("updates hasAbmTokenInvalid and invalidAbmTokenOrgNames when setABMExpiry is called", async () => {
+  it("updates hasInvalidABMToken and invalidAbmTokenOrgNames when setABMExpiry is called", async () => {
     const { user } = renderWithSetup(
       <AppProvider>
         <AbmExpiryConsumer />
