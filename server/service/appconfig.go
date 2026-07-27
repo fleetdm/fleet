@@ -859,6 +859,27 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
+	// macos_settings.managed_local_account_settings.enabled and
+	// macos_settings.end_user_local_account_type alias the deprecated macos_setup
+	// (setup_experience) fields; converge new-surface writes onto newAppConfig.MDM.MacOSSetup so
+	// the merge blocks below (and validateMDM) see a single canonical value. When both surfaces
+	// are written, the one that changed relative to the stored value wins (a GET-modify-PATCH
+	// round trip echoes the unchanged surface); genuinely conflicting writes are rejected.
+	newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = fleet.ResolveManagedLocalAccountAliasBool(
+		newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount,
+		newAppConfig.MDM.MacOSSettings.ManagedLocalAccountSettings.Enabled,
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount,
+	)
+	resolvedAccountType, err := fleet.ResolveManagedLocalAccountAliasAccountType(
+		newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType,
+		newAppConfig.MDM.MacOSSettings.EndUserLocalAccountType,
+		oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType = resolvedAccountType
+
 	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
 		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
 	}
@@ -875,6 +896,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	} else {
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	}
+
+	// windows_settings.managed_local_account_settings.enabled is stored as-is (no deprecated
+	// alias). Like EnableDiskEncryption above, an explicit JSON null means "not provided": keep
+	// the old value rather than persisting an invalid optjson state.
+	if newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+	} else {
+		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -1165,6 +1195,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, ctxerr.Wrap(ctx, err, "bootstrap psso assets")
 		}
 	}
+
+	// normalize the managed local account alias fields from the canonical values so the saved
+	// config doesn't carry whatever optjson state the payload happened to have (e.g. explicit
+	// nulls); marshaling does the same, this keeps the in-memory struct consistent too
+	fleet.SyncManagedLocalAccountAliases(&appConfig.MDM.MacOSSettings, appConfig.MDM.MacOSSetup, &appConfig.MDM.WindowsSettings)
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
@@ -1537,7 +1572,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
+	macOSManagedLocalAccountChanged := oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+	if macOSManagedLocalAccountChanged {
 		var act fleet.ActivityDetails
 		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
 			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
@@ -1546,6 +1582,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
+	// The Windows toggle logs the same platform-agnostic activity types; skip it when the macOS
+	// toggle changed in the same direction in this request to avoid two identical entries.
+	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
+		!(macOSManagedLocalAccountChanged &&
+			appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value == appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value) {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")
 		}
 	}
 
@@ -1881,6 +1933,26 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	// managed local account settings (both platforms) and the Apple end user account type are
+	// premium-only. Compare resolved values so a free-tier payload echoing the defaults back
+	// (enabled false, type "admin") is not rejected.
+	if mdm.MacOSSetup.EnableManagedLocalAccount.Value != oldMdm.MacOSSetup.EnableManagedLocalAccount.Value && !lic.IsPremium() {
+		invalid.Append("apple_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
+	}
+	oldAccountType := oldMdm.MacOSSetup.EndUserLocalAccountType.Value
+	if oldAccountType == "" {
+		oldAccountType = "admin"
+	}
+	newAccountType := mdm.MacOSSetup.EndUserLocalAccountType.Value
+	if newAccountType == "" {
+		newAccountType = "admin"
+	}
+	if newAccountType != oldAccountType && !lic.IsPremium() {
+		invalid.Append("apple_settings.end_user_local_account_type", ErrMissingLicense.Error())
+	}
+	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
+		invalid.Append("windows_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
@@ -1950,6 +2022,12 @@ func (svc *Service) validateMDM(
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.configuration_profiles",
 				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+		}
+
+		if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
+			!oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+			invalid.Append("windows_settings.managed_local_account_settings.enabled",
+				`Couldn’t enable windows_settings.managed_local_account_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)

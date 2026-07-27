@@ -8792,3 +8792,78 @@ func TestGetLabelUsagePolicyScopes(t *testing.T) {
 		})
 	}
 }
+
+// TestGitOpsManagedLocalAccount covers the new managed_local_account_settings keys end to end
+// through the real gitops client and server (#48720): the apple_settings surface converges onto
+// the deprecated setup_experience storage, the Windows toggle persists, repeated applies are
+// stable, and removing the keys from the YAML declaratively disables the feature.
+func TestGitOpsManagedLocalAccount(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	ds, savedAppConfigPtr, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	const fleetServerURL = "https://fleet.example.com"
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	writeConfig := func(controls string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
+controls:
+%s
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Managed Local Account Test
+  secrets:
+    - secret: globalSecret
+software:
+`, controls, fleetServerURL))
+		require.NoError(t, err)
+		return f.Name()
+	}
+
+	// enable via the new nested keys on both platforms
+	enabledFile := writeConfig(`  windows_enabled_and_configured: true
+  apple_settings:
+    managed_local_account_settings:
+      enabled: true
+    end_user_local_account_type: standard
+  windows_settings:
+    managed_local_account_settings:
+      enabled: true`)
+	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
+	require.True(t, ds.SaveAppConfigFuncInvoked)
+	require.True(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccount.Value,
+		"apple_settings.managed_local_account_settings.enabled must converge onto the deprecated storage")
+	require.Equal(t, "standard", (*savedAppConfigPtr).MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// a second apply of the same file must be stable (no oscillation against the stored values)
+	_ = runAppForTest(t, []string{"gitops", "-f", enabledFile})
+	require.True(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	require.Equal(t, "standard", (*savedAppConfigPtr).MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// removing the keys from the YAML declaratively disables the feature on both platforms
+	disabledFile := writeConfig(`  windows_enabled_and_configured: true`)
+	_ = runAppForTest(t, []string{"gitops", "-f", disabledFile})
+	require.False(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	require.Equal(t, "admin", (*savedAppConfigPtr).MDM.MacOSSetup.EndUserLocalAccountType.Value)
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// the deprecated setup_experience spelling still applies, to the Apple value only
+	deprecatedFile := writeConfig(`  windows_enabled_and_configured: true
+  setup_experience:
+    enable_create_local_admin_account: true`)
+	_ = runAppForTest(t, []string{"gitops", "-f", deprecatedFile})
+	require.True(t, (*savedAppConfigPtr).MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value,
+		"the deprecated field must not control the Windows setting")
+}

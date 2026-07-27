@@ -21,8 +21,13 @@ spec:
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
+        end_user_local_account_type: admin
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -80,8 +85,13 @@ spec:
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
+        end_user_local_account_type: admin
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null

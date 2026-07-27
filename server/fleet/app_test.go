@@ -912,3 +912,181 @@ func TestMacOSSetupValidate(t *testing.T) {
 		}
 	})
 }
+
+func TestSyncManagedLocalAccountAliases(t *testing.T) {
+	t.Run("app config marshal populates aliases from macos_setup", func(t *testing.T) {
+		var ac AppConfig
+		ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(true)
+		ac.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("standard")
+
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		mdm := out["mdm"].(map[string]any)
+		macOSSettings := mdm["macos_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": true}, macOSSettings["managed_local_account_settings"])
+		require.Equal(t, "standard", macOSSettings["end_user_local_account_type"])
+		windowsSettings := mdm["windows_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": false}, windowsSettings["managed_local_account_settings"])
+	})
+
+	t.Run("app config marshal defaults when macos_setup is unset", func(t *testing.T) {
+		var ac AppConfig
+
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		mdm := out["mdm"].(map[string]any)
+		macOSSettings := mdm["macos_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": false}, macOSSettings["managed_local_account_settings"])
+		require.Equal(t, "admin", macOSSettings["end_user_local_account_type"])
+	})
+
+	t.Run("marshal overrides stale alias values with the canonical ones", func(t *testing.T) {
+		var ac AppConfig
+		ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+		ac.MDM.MacOSSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true) // stale
+
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		mdm := out["mdm"].(map[string]any)
+		macOSSettings := mdm["macos_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": false}, macOSSettings["managed_local_account_settings"])
+	})
+
+	t.Run("windows enabled value is preserved", func(t *testing.T) {
+		var ac AppConfig
+		ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+
+		b, err := json.Marshal(ac)
+		require.NoError(t, err)
+
+		var out map[string]any
+		require.NoError(t, json.Unmarshal(b, &out))
+		mdm := out["mdm"].(map[string]any)
+		windowsSettings := mdm["windows_settings"].(map[string]any)
+		require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
+	})
+}
+
+func TestMacOSSettingsFromMapManagedLocalAccount(t *testing.T) {
+	t.Run("parses managed local account fields", func(t *testing.T) {
+		var s MacOSSettings
+		set, err := s.FromMap(map[string]any{
+			"managed_local_account_settings": map[string]any{"enabled": true},
+			"end_user_local_account_type":    "standard",
+		})
+		require.NoError(t, err)
+		require.True(t, set["managed_local_account_settings"])
+		require.True(t, set["end_user_local_account_type"])
+		require.True(t, s.ManagedLocalAccountSettings.Enabled.Valid)
+		require.True(t, s.ManagedLocalAccountSettings.Enabled.Value)
+		require.Equal(t, "standard", s.EndUserLocalAccountType.Value)
+	})
+
+	t.Run("absent keys leave fields unset", func(t *testing.T) {
+		var s MacOSSettings
+		set, err := s.FromMap(map[string]any{})
+		require.NoError(t, err)
+		require.False(t, set["managed_local_account_settings"])
+		require.False(t, s.ManagedLocalAccountSettings.Enabled.Valid)
+		require.False(t, s.EndUserLocalAccountType.Valid)
+	})
+
+	t.Run("non-object managed_local_account_settings errors", func(t *testing.T) {
+		var s MacOSSettings
+		_, err := s.FromMap(map[string]any{"managed_local_account_settings": "yes"})
+		require.Error(t, err)
+	})
+
+	t.Run("non-bool enabled errors", func(t *testing.T) {
+		var s MacOSSettings
+		_, err := s.FromMap(map[string]any{"managed_local_account_settings": map[string]any{"enabled": "yes"}})
+		require.Error(t, err)
+	})
+
+	t.Run("non-string end_user_local_account_type errors", func(t *testing.T) {
+		var s MacOSSettings
+		_, err := s.FromMap(map[string]any{"end_user_local_account_type": true})
+		require.Error(t, err)
+	})
+}
+
+func TestResolveManagedLocalAccountAliases(t *testing.T) {
+	t.Run("bool", func(t *testing.T) {
+		unset := optjson.Bool{}
+		cases := []struct {
+			name                      string
+			deprecated, alias, stored optjson.Bool
+			want                      optjson.Bool
+		}{
+			{"neither set", unset, unset, optjson.SetBool(false), unset},
+			{"only deprecated", optjson.SetBool(true), unset, optjson.SetBool(false), optjson.SetBool(true)},
+			{"only alias", unset, optjson.SetBool(true), optjson.SetBool(false), optjson.SetBool(true)},
+			{"both equal", optjson.SetBool(true), optjson.SetBool(true), optjson.SetBool(false), optjson.SetBool(true)},
+			{"deprecated echoes stored, alias wins", optjson.SetBool(false), optjson.SetBool(true), optjson.SetBool(false), optjson.SetBool(true)},
+			{"alias echoes stored, deprecated wins", optjson.SetBool(false), optjson.SetBool(true), optjson.SetBool(true), optjson.SetBool(false)},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.Equal(t, tc.want, ResolveManagedLocalAccountAliasBool(tc.deprecated, tc.alias, tc.stored))
+			})
+		}
+	})
+
+	t.Run("account type", func(t *testing.T) {
+		unset := optjson.String{}
+		cases := []struct {
+			name                      string
+			deprecated, alias, stored optjson.String
+			want                      optjson.String
+			wantErr                   bool
+		}{
+			{"neither set", unset, unset, optjson.SetString("admin"), unset, false},
+			{"only deprecated", optjson.SetString("standard"), unset, unset, optjson.SetString("standard"), false},
+			{"only alias", unset, optjson.SetString("standard"), unset, optjson.SetString("standard"), false},
+			{"both equal", optjson.SetString("none"), optjson.SetString("none"), unset, optjson.SetString("none"), false},
+			{"deprecated echoes stored, alias wins", optjson.SetString("admin"), optjson.SetString("standard"), optjson.SetString("admin"), optjson.SetString("standard"), false},
+			{"deprecated echoes empty stored as admin, alias wins", optjson.SetString("admin"), optjson.SetString("standard"), unset, optjson.SetString("standard"), false},
+			{"alias echoes stored, deprecated wins", optjson.SetString("standard"), optjson.SetString("admin"), optjson.SetString("admin"), optjson.SetString("standard"), false},
+			{"both changed to different values conflicts", optjson.SetString("standard"), optjson.SetString("none"), optjson.SetString("admin"), unset, true},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := ResolveManagedLocalAccountAliasAccountType(tc.deprecated, tc.alias, tc.stored)
+				if tc.wantErr {
+					require.ErrorContains(t, err, "Conflicting values")
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+			})
+		}
+	})
+}
+
+func TestAppConfigCloneManagedLocalAccountSettings(t *testing.T) {
+	var ac AppConfig
+	ac.MDM.MacOSSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+	ac.MDM.MacOSSettings.EndUserLocalAccountType = optjson.SetString("standard")
+	ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(true)
+
+	cloned, err := ac.Clone()
+	require.NoError(t, err)
+	clonedAC := cloned.(*AppConfig)
+	require.Equal(t, ac.MDM.MacOSSettings, clonedAC.MDM.MacOSSettings)
+	require.Equal(t, ac.MDM.WindowsSettings, clonedAC.MDM.WindowsSettings)
+
+	// mutating the clone must not affect the original (plain value fields)
+	clonedAC.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	clonedAC.MDM.MacOSSettings.EndUserLocalAccountType = optjson.SetString("admin")
+	require.True(t, ac.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+	require.Equal(t, "standard", ac.MDM.MacOSSettings.EndUserLocalAccountType.Value)
+}
