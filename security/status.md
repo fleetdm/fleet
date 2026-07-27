@@ -284,6 +284,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [GHSA-r7wm-3cxj-wff9](https://nvd.nist.gov/vuln/detail/GHSA-r7wm-3cxj-wff9)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Incomplete fix for GHSA-72hv-8253-57qq; like the parent advisory, it only affects Java/JVM services that feed attacker-controlled chunked input to Jackson's asynchronous (non-blocking) JSON parser. jackson-core is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted streamed JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
+### [GHSA-hrxh-6v49-42gf](https://nvd.nist.gov/vuln/detail/GHSA-hrxh-6v49-42gf)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerabilities affect the xDS RBAC authorization engine and the HTTP/2 server transport of gRPC-Go; fleetctl does not run a gRPC server nor use xDS (grpc is a transitive dependency used by the Fleet server).
+- **Products:** `fleetctl`,`pkg:golang/google.golang.org/grpc`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
 ### [GHSA-72hv-8253-57qq](https://nvd.nist.gov/vuln/detail/GHSA-72hv-8253-57qq)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -347,6 +363,22 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-01 13:33:33
+
+### [CVE-2026-46604](https://nvd.nist.gov/vuln/detail/CVE-2026-46604)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl links golang.org/x/image only for its WebP decoder (used to validate org logo images); the vulnerable TIFF decoder (golang.org/x/image/tiff) is only imported by a macOS-only orbit extension and is not compiled into fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
+
+### [CVE-2026-46602](https://nvd.nist.gov/vuln/detail/CVE-2026-46602)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl links golang.org/x/image only for its WebP decoder (used to validate org logo images); the vulnerable TIFF decoder (golang.org/x/image/tiff) is only imported by a macOS-only orbit extension and is not compiled into fleetctl.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/image`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 14:10:31
 
 ### [CVE-2026-42504](https://nvd.nist.gov/vuln/detail/CVE-2026-42504)
 - **Author:** @lucasmrod
