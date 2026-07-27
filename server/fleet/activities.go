@@ -421,7 +421,10 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
-	HostID           uint    `json:"host_id"`
+	// HostID is omitted when zero so Windows enrollments (which don't set it;
+	// see #47874) keep their existing activity payload. It is always set for
+	// Apple enrollments.
+	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
 	InstalledFromDEP bool    `json:"installed_from_dep"`
