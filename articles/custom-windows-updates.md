@@ -2,7 +2,7 @@
 
 Keeping Windows devices patched is one of the most important things an admin is responsible for, but also one of the easiest to get wrong. Push too hard and you're rebooting laptops mid-presentation. Go too soft and you're staring at a fleet full of devices three cumulative updates behind.
 
-Windows exposes all of its update behavior through the [Update Policy CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update), a comprehensive set of controls that determine what updates devices get, when they install, and how much say the end user has in the process. Fleet can TODO TODO TODO
+Windows exposes all of its update behavior through the [Update Policy CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update), a comprehensive set of controls that determine what updates devices get, when they install, and how much say the end user has in the process.
 
 This guide covers the policies worth knowing, the ones worth skipping, and how to deploy and verify them with Fleet.
 
@@ -86,7 +86,7 @@ When a bad patch ships, admins want a brake, not an entire config refactor:
 - `PauseQualityUpdatesStartTime` — pauses quality updates for 35 days from the date you set (format: `2026-07-27`).
 - `PauseFeatureUpdatesStartTime` — same, for feature updates.
 
-Push the profile with today's date to the affected fleet, and updates stop being offered for 35 days or until you clear it. Because it's just a profile, un-pausing is deleting the profile. {HARRY WANT TO CONFIRM THIS ACTUALLY WORKS}
+Push the profile with today's date to the affected fleet, and updates stop being offered for 35 days or until you clear it. Because it's just a profile, un-pausing is deleting the profile. Fleet automatically removes settings pushed via profile when it's removed.
 
 ## Don't forget Office (and think about drivers)
 
