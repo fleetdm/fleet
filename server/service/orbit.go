@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -611,14 +611,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
-			// setting enabled.
-			//
-			// The request stops once the host escrows a password for this enrollment, which is what keeps this from recreating the
-			// account and re-logging its activity on every poll. Re-enrollment clears the escrowing enrollment
-			// (MDMWindowsDeleteEnrolledDeviceOnReenrollment, alongside the profile and setup-experience resets), so a device that was
-			// wiped is asked to create the account again rather than being left with a stored password it no longer has. Comparing the
-			// device IDs also covers the case where that cleanup did not run. A host that reported a failure keeps being asked, so a
-			// transient failure self-heals on the next poll.
+			// setting enabled. The request stops once the host escrows a password for this enrollment.. Re-enrollment clears the escrowing enrollment.
 			if mlaCapable && !state.HasEscrowedManagedLocalAccountForCurrentEnrollment() {
 				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
 					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
@@ -1547,9 +1540,7 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	// Eligibility is the host's Windows MDM enrollment rather than host.Platform, because enrollment
-	// is what the notification that produced this password was gated on. Checking the same signal
-	// here means a device can only escrow a password the server actually asked it to create.
+	// Eligibility is the host's Windows MDM enrollment
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -1558,15 +1549,13 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "verify windows mdm enrollment for managed local account escrow")
 	}
 
-	// A device-side failure marks the account failed and records the reason, the same way BitLocker
-	// and LUKS escrow errors are persisted, so it surfaces on the host instead of only in the logs.
-	// clientError is untrusted input from fleetd: truncate by rune (not byte, which could split a
-	// multi-byte character) so it always fits the column and stays valid UTF-8.
+	// A device-side failure marks the account failed and records the reason, the same way BitLocker and LUKS escrow
+	// errors are persisted, so it surfaces on the host instead of only in the logs. clientError is untrusted input from
+	// fleetd: truncate by rune (not byte, which could split a multi-byte character) so it always fits the column and
+	// stays valid UTF-8.
 	if clientError != "" {
-		if utf8.RuneCountInString(clientError) > managedLocalAccountMaxClientErrorLength {
-			clientError = string([]rune(clientError)[:managedLocalAccountMaxClientErrorLength])
-		}
-		svc.logger.WarnContext(ctx, "fleetd reported an error creating the windows managed local account",
+		clientError = str.TruncateRunes(clientError, managedLocalAccountMaxClientErrorLength)
+		svc.logger.InfoContext(ctx, "fleetd reported an error creating the windows managed local account",
 			"host_id", host.ID, "host_uuid", host.UUID, "client_error", clientError)
 		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
 			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
@@ -1581,16 +1570,13 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return &fleet.BadRequestError{Message: "managed local account password is too long"}
 	}
 
-	// Store the password before anything else can fail. The account already exists on the device, so
-	// any path that returns without storing orphans it with a password nobody can recover. Recording
-	// the enrollment's device ID is what stops the server asking this host to create the account again.
+	// Store the password before anything else can fail.
 	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password, enrolledDevice.MDMDeviceID); err != nil {
 		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
 	}
 
-	// The setting or license may have changed between the notification and this escrow. That does not
-	// change what we store, only whether it is worth flagging, so this check is best-effort: a failure
-	// to read the config must not turn a stored password into an error response.
+	// The setting or license may have changed between the notification and this escrow. That does not change what we
+	// store, only whether it is worth flagging, so this check is best-effort.
 	if appConfig, err := svc.ds.AppConfig(ctx); err != nil {
 		svc.logger.ErrorContext(ctx, "load app config to check managed local account setting after escrow", "err", err)
 	} else if enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig); err != nil {
