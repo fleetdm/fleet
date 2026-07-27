@@ -63,8 +63,10 @@ const generateTableHeaders = (
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
         <LinkCell
+          className="w400"
           value={cellProps.cell.value}
           path={PATHS.FLEET_DETAILS_USERS(cellProps.row.original.id)}
+          tooltipTruncate
         />
       ),
     },

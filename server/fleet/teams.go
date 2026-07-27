@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.

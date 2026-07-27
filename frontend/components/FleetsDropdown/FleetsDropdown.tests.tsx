@@ -74,6 +74,37 @@ describe("FleetsDropdown - component", () => {
     expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
   });
 
+  it("clicking a fleet option updates the selected fleet", async () => {
+    const user = userEvent.setup();
+
+    const TestHarness = () => {
+      const [selectedFleetId, setSelectedFleetId] = React.useState(1);
+
+      return (
+        <FleetsDropdown
+          currentUserFleets={USER_FLEETS}
+          selectedFleetId={selectedFleetId}
+          onChange={setSelectedFleetId}
+        />
+      );
+    };
+
+    render(<TestHarness />);
+
+    // Starts on Fleet 1
+    expect(getTrigger(/Fleet 1/)).toBeInTheDocument();
+
+    // Open menu and click Fleet 2
+    await user.click(getTrigger(/Fleet 1/));
+    await user.click(screen.getByText("Fleet 2"));
+
+    // Selection propagated through onChange -> selectedFleetId
+    expect(getTrigger(/Fleet 2/)).toBeInTheDocument();
+
+    // Menu should close after selection
+    expect(screen.queryByText("Fleet 1")).not.toBeInTheDocument();
+  });
+
   describe("in-menu search", () => {
     // Search only appears once the list has 10+ rows.
     const MANY_FLEETS = [
