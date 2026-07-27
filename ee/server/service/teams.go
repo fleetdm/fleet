@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 
@@ -34,35 +35,42 @@ func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 		return &authz.Forbidden{}
 	}
 
-	isGlobalObs := user.IsGlobalObserver()
-	isGlobalTechnician := user.GlobalRole != nil && *user.GlobalRole == fleet.RoleTechnician
+	// Only global admins/maintainers and team admins/maintainers are allowed to
+	// read enroll secrets (see the enroll_secret authorization policy). We mask
+	// the secret for every other user, including gitops, observers, observer+,
+	// and technicians, so that being able to modify a team does not imply being
+	// able to read its enroll secrets.
+	canReadGlobal := user.GlobalRole != nil &&
+		(*user.GlobalRole == fleet.RoleAdmin || *user.GlobalRole == fleet.RoleMaintainer)
 
-	teamMemberships := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return true
-	})
-	obsMembership := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleObserver || t.Role == fleet.RoleObserverPlus
-	})
-	isTeamTechnician := user.TeamMembership(func(t fleet.UserTeam) bool {
-		return t.Role == fleet.RoleTechnician
+	canReadTeam := user.TeamMembership(func(t fleet.UserTeam) bool {
+		return t.Role == fleet.RoleAdmin || t.Role == fleet.RoleMaintainer
 	})
 
 	for _, t := range teams {
 		if t == nil {
 			continue
 		}
-		// We mask the password for the following users:
-		// - User has no roles.
-		// - User is a global observer/observer+/technician.
-		// - User does not belong to the team or is a team observer/observer+/technician.
-		if isGlobalObs || isGlobalTechnician ||
-			user.GlobalRole == nil && (!teamMemberships[t.ID] || obsMembership[t.ID] || isTeamTechnician[t.ID]) {
-			for _, s := range t.Secrets {
-				s.Secret = fleet.MaskedPassword
-			}
+		if canReadGlobal || canReadTeam[t.ID] {
+			continue
+		}
+		for _, s := range t.Secrets {
+			s.Secret = fleet.MaskedPassword
 		}
 	}
 	return nil
+}
+
+// maskTeamSecretsForViewer masks the enroll secrets of the given teams for the
+// current viewer, unless they are allowed to read them. It is used on team
+// write endpoints so that being able to modify a team does not imply being able
+// to read its enroll secrets (e.g. gitops).
+func (svc *Service) maskTeamSecretsForViewer(ctx context.Context, teams ...*fleet.Team) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	return obfuscateSecrets(vc.User, teams)
 }
 
 func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Team, error) {
@@ -89,6 +97,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if *p.Name == "" {
 		return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
 	}
+	if utf8.RuneCountInString(*p.Name) > fleet.MaxTeamNameLength {
+		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
+	}
 	if fleet.IsReservedTeamName(*p.Name) {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
 	}
@@ -112,6 +123,11 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if p.Secrets != nil {
 		if len(p.Secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, fleet.NewInvalidArgumentError("secrets", "too many secrets")
+		}
+		for _, s := range p.Secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+			}
 		}
 		team.Secrets = p.Secrets
 	} else {
@@ -143,6 +159,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, ctxerr.Wrap(ctx, err, "create activity for team creation")
 	}
 
+	// Mask enroll secrets for users that are not allowed to read them (e.g.
+	// gitops), so that creating a team does not leak the (possibly
+	// server-generated) plaintext enroll secret to a role that cannot read it.
+	if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+		return nil, err
+	}
+
 	return team, nil
 }
 
@@ -164,6 +187,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		*payload.Name = strings.TrimSpace(*payload.Name)
 		if *payload.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "may not be empty")
+		}
+		if utf8.RuneCountInString(*payload.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
 		}
 		if fleet.IsReservedTeamName(*payload.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
@@ -669,6 +695,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 		}
 	}
+
+	// Mask enroll secrets for users that are not allowed to read them (e.g.
+	// gitops), so that the write response does not leak plaintext secrets to a
+	// role that cannot read them via the GET endpoints.
+	if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+		return nil, err
+	}
+
 	return team, err
 }
 
@@ -695,6 +729,11 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		}
 	}
 	if applyOptions.DryRun {
+		// Mask enroll secrets so the write response does not leak plaintext
+		// secrets to a role that cannot read them (e.g. gitops).
+		if err := svc.maskTeamSecretsForViewer(ctx, team); err != nil {
+			return nil, err
+		}
 		return team, nil
 	}
 
@@ -719,6 +758,12 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
+	}
+
+	// Mask enroll secrets so the write response does not leak plaintext secrets
+	// to a role that cannot read them (e.g. gitops).
+	if err := svc.maskTeamSecretsForViewer(ctx, tm); err != nil {
+		return nil, err
 	}
 
 	return tm, nil
@@ -1103,6 +1148,9 @@ func (svc *Service) ModifyTeamEnrollSecrets(ctx context.Context, teamID uint, se
 
 	var newSecrets []*fleet.EnrollSecret
 	for _, secret := range secrets {
+		if strings.TrimSpace(secret.Secret) == "" {
+			return nil, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty")
+		}
 		newSecretsValues[secret.Secret] = struct{}{}
 
 		newSecrets = append(newSecrets, &fleet.EnrollSecret{
@@ -1285,6 +1333,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if spec.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
 		}
+		if utf8.RuneCountInString(spec.Name) > fleet.MaxTeamNameLength {
+			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength))
+		}
 		if fleet.IsReservedTeamName(spec.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
 		}
@@ -1368,6 +1419,11 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
+		}
+		for _, s := range secrets {
+			if s == nil || strings.TrimSpace(s.Secret) == "" {
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"), "validate secrets")
+			}
 		}
 		// TODO: should we be we validating the other Apple platforms? if so, we should also include
 		// ValidateMDMSettingsAppleSupportedOSVersion for each platform

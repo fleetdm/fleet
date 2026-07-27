@@ -34,11 +34,11 @@ const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
     <Button
       disabled={isResending}
       onClick={onClick}
-      variant="inverse"
+      variant="secondary"
       className={classNames}
       size="small"
     >
-      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+      <Icon name="refresh" size="small" />
       {buttonText}
     </Button>
   );
@@ -60,11 +60,11 @@ const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
     <Button
       disabled={isRotating}
       onClick={onClick}
-      variant="inverse"
+      variant="secondary"
       className={classNames}
       size="small"
     >
-      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
+      <Icon name="refresh" size="small" />
       {buttonText}
     </Button>
   );

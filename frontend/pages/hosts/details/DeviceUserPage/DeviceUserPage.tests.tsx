@@ -684,7 +684,7 @@ describe("Device User Page", () => {
       await waitFor(
         () => {
           expect(notify.error).toHaveBeenCalledWith(
-            "Vitals are taking longer than expected to load."
+            "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
           );
         },
         { timeout: 4000 }

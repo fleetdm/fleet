@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -1559,6 +1560,39 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
+// TestInstallerCompatibleWithHost verifies that .sh and .py script packages
+// (stored as platform='linux') are compatible with any unix-like host.
+func TestInstallerCompatibleWithHost(t *testing.T) {
+	t.Parallel()
+
+	installer := func(name, platform string) *fleet.SoftwareInstaller {
+		return &fleet.SoftwareInstaller{Name: name, Platform: platform}
+	}
+	host := func(platform string) *fleet.Host { return &fleet.Host{Platform: platform} }
+
+	cases := []struct {
+		name      string
+		installer *fleet.SoftwareInstaller
+		host      *fleet.Host
+		want      bool
+	}{
+		{".py on darwin", installer("script.py", "linux"), host("darwin"), true},
+		{".py on ubuntu", installer("script.py", "linux"), host("ubuntu"), true},
+		{".py on windows", installer("script.py", "linux"), host("windows"), false},
+		{".sh on darwin", installer("script.sh", "linux"), host("darwin"), true},
+		{".sh on ubuntu", installer("script.sh", "linux"), host("ubuntu"), true},
+		{".sh on windows", installer("script.sh", "linux"), host("windows"), false},
+		{".deb on darwin", installer("installer.deb", "linux"), host("darwin"), false},
+		{".pkg on darwin", installer("app.pkg", "darwin"), host("darwin"), true},
+		{".pkg on ubuntu", installer("app.pkg", "darwin"), host("ubuntu"), false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, installerCompatibleWithHost(tt.installer, tt.host))
+		})
+	}
+}
+
 // TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
 // stored platform (windows or darwin) rather than inferring darwin from the extension.
 func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {
@@ -2607,4 +2641,42 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 			assert.Equal(t, c.want, got)
 		})
 	}
+}
+
+func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
+	premiumCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	freeCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+
+	good := "echo $FLEET_VAR_HOST_UUID and ${FLEET_VAR_HOST_END_USER_IDP_USERNAME}"
+	bad := "echo $FLEET_VAR_NONEXISTENT"
+	plain := "echo hello"
+
+	t.Run("no variables passes on both tiers", func(t *testing.T) {
+		for _, ctx := range []context.Context{premiumCtx, freeCtx} {
+			require.NoError(t, validateFleetVariablesOnInstallerScripts(ctx, &plain, nil, &plain))
+		}
+	})
+
+	t.Run("supported variables pass on premium", func(t *testing.T) {
+		require.NoError(t, validateFleetVariablesOnInstallerScripts(premiumCtx, &good, &good, &good))
+	})
+
+	t.Run("unsupported variable names the script", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(premiumCtx, &plain, &bad, nil)
+		require.ErrorContains(t, err, "post-install script")
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.")
+
+		err = validateFleetVariablesOnInstallerScripts(premiumCtx, &bad, nil, &bad)
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae)
+		invalid := iae.Invalid()
+		require.Len(t, invalid, 2)
+		require.Equal(t, "install script", invalid[0]["name"])
+		require.Equal(t, "uninstall script", invalid[1]["name"])
+	})
+
+	t.Run("any variable on free returns license error", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(freeCtx, &plain, nil, &good)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
 }

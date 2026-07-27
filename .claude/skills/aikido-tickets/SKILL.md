@@ -55,7 +55,7 @@ Ask the user for these if not provided:
 | Team | Label | GitHub Project |
 |------|-------|----------------|
 | Orchestration | `#g-orchestration` | https://github.com/orgs/fleetdm/projects/71/ |
-| Security & Compliance | `#g-security-compliance` | https://github.com/orgs/fleetdm/projects/97/ |
+| Supply Chain | `#g-supply-chain` | https://github.com/orgs/fleetdm/projects/97/ |
 | MDM | `#g-mdm` | https://github.com/orgs/fleetdm/projects/58/ |
 | Software | `#g-software` | https://github.com/orgs/fleetdm/projects/70/ |
 | First Impressions | `#g-first-impressions` | https://github.com/orgs/fleetdm/projects/105/ |

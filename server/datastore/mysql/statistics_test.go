@@ -574,9 +574,6 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	markStatisticsStale(t, ctx, ds)
 
 	// Test Entra conditional access: create the integration but without setup done
-	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{
-		ProxyAPIKey: "test-key",
-	}
 	err = ds.ConditionalAccessMicrosoftCreateIntegration(ctx, "test-tenant", "test-secret")
 	require.NoError(t, err)
 
@@ -598,9 +595,10 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 
 	markStatisticsStale(t, ctx, ds)
 
-	// Without the fleet config proxy key, should be false even with setup done
-	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{}
-	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	// On Fleet Free (e.g. after a license downgrade/expiry) the leftover
+	// integration row must not be reported as configured.
+	freeLicense := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, freeLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.False(t, stats.EntraConditionalAccessConfigured)

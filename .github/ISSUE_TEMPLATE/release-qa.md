@@ -2,7 +2,7 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-orchestration,#g-apple-at-work,#g-power-to-pc,#g-auto-patching,#g-security-compliance,:release'
+labels: '#g-orchestration,#g-apple-at-work,#g-power-to-pc,#g-auto-patching,#g-supply-chain,#g-byod,:release'
 assignees: 'xpkoala,andreykizimenko,chrstphr84,Brajim20,marcusallen97,thisisjoegrant'
 
 ---

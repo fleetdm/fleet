@@ -2,7 +2,6 @@ import React from "react";
 import classnames from "classnames";
 
 import Button, { IButtonProps } from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "automations-button";
 
@@ -24,10 +23,10 @@ const AutomationsButton = ({
       className={classNames}
       onClick={onClick}
       disabled={disabled}
-      variant="inverse"
+      variant="secondary"
       size={size}
     >
-      <Icon name="settings" /> Automations
+      Manage automations
     </Button>
   );
 };

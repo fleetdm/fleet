@@ -40,13 +40,14 @@ describe("AssetsTab", () => {
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
   });
 
-  it("prompts to turn on Apple MDM when it is not configured", async () => {
+  it("prompts global admins to turn on Apple MDM when it is not configured", async () => {
     const router = createMockRouter();
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
         app: {
           isPremiumTier: true,
+          isGlobalAdmin: true,
           config: { mdm: { enabled_and_configured: false } } as any,
         },
       },
@@ -60,6 +61,41 @@ describe("AssetsTab", () => {
       PATHS.ADMIN_INTEGRATIONS_MDM_APPLE
     );
     expect(mdmAPI.getAssets).not.toHaveBeenCalled();
+  });
+
+  it("does not show the turn on Apple MDM button to non-global-admins", () => {
+    const nonGlobalAdminContexts = [
+      { isAnyTeamAdmin: true },
+      { isGlobalTechnician: true },
+      { isTeamTechnician: true },
+    ];
+
+    nonGlobalAdminContexts.forEach((roleContext) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            ...roleContext,
+            config: { mdm: { enabled_and_configured: false } } as any,
+          },
+        },
+      });
+
+      const { unmount } = render(
+        <AssetsTab currentTeamId={0} router={createMockRouter()} />
+      );
+
+      expect(
+        screen.getByText("Supported on macOS, iOS, and iPadOS.")
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Turn on Apple MDM" })
+      ).not.toBeInTheDocument();
+      expect(mdmAPI.getAssets).not.toHaveBeenCalled();
+
+      unmount();
+    });
   });
 
   it("renders the empty state when there are no assets", async () => {

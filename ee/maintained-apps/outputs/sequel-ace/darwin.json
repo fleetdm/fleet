@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.3.0",
+      "version": "5.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce' AND version_compare(bundle_short_version, '5.3.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sequelace.SequelAce' AND version_compare(bundle_short_version, '5.3.1') < 0);"
       },
-      "installer_url": "https://github.com/Sequel-Ace/Sequel-Ace/releases/download/production/5.3.0-20102/Sequel-Ace-5.3.0.zip",
+      "installer_url": "https://github.com/Sequel-Ace/Sequel-Ace/releases/download/production/5.3.1-20104/Sequel-Ace-5.3.1.zip",
       "install_script_ref": "fd823f80",
       "uninstall_script_ref": "3049be7c",
-      "sha256": "63564b424fc6b35382989c7dd0916ba03219d6dcb14704046aee7b88d9240511",
+      "sha256": "b66755ec66716e977e295ceb3daca46e081149067adc7e2b087b3dbdf9239f90",
       "default_categories": [
         "Developer tools"
       ]

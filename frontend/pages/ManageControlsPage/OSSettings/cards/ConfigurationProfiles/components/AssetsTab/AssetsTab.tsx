@@ -35,11 +35,15 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
   const {
     config,
     isPremiumTier,
+    isGlobalAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  // Team admins can reach /settings/integrations/mdm/apple, but only global
+  // admins can actually turn on Apple MDM there.
+  const canTurnOnMdm = !!isGlobalAdmin;
   const mdmAppleEnabled = !!config?.mdm.enabled_and_configured;
 
   const [showAddAssetModal, setShowAddAssetModal] = useState(false);
@@ -106,11 +110,13 @@ const AssetsTab = ({ currentTeamId, router }: IAssetsTabProps) => {
           header="Manage assets"
           info="Supported on macOS, iOS, and iPadOS."
           primaryButton={
-            <Button
-              onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE)}
-            >
-              Turn on Apple MDM
-            </Button>
+            canTurnOnMdm ? (
+              <Button
+                onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE)}
+              >
+                Turn on Apple MDM
+              </Button>
+            ) : undefined
           }
         />
       );

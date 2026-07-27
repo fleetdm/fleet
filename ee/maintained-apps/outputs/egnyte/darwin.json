@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.18.1",
+      "version": "1.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp' AND version_compare(bundle_short_version, '1.18.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.egnyte.DesktopApp' AND version_compare(bundle_short_version, '1.19.0') < 0);"
       },
-      "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.18.1/Egnyte_1.18.1_2360.dmg",
+      "installer_url": "https://egnyte-cdn.egnyte.com/desktopapp/mac/en-us/1.19.0/Egnyte_1.19.0_2364.dmg",
       "install_script_ref": "ed6b4114",
       "uninstall_script_ref": "34c8aecc",
-      "sha256": "46c07adfd4cce7f1abff89e6973ee6e0ff5fa58ded8f782cf9f5872250ea53b2",
+      "sha256": "8af51ef25b932c3de1971d041b8d1854dfc179dc9a893231c7fe6e530c326073",
       "default_categories": [
         "Productivity"
       ]

@@ -1,0 +1,13 @@
+.edit-profile-modal {
+  &__modal-content-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-small;
+  }
+}

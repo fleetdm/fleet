@@ -500,8 +500,9 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
-	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerDownloadFailedCopy  = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy        = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerFleetVarsFailedCopy = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -534,6 +535,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerNotFound:
 		*h.Output = SoftwareInstallerNotFoundCopy
+		return
+	case ExitCodeFleetVarResolutionFailed:
+		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -1142,40 +1146,28 @@ type HostSoftwareInstallResultPayload struct {
 	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
-// Status returns the status computed from the result payload. It should match the logic
-// found in the database-computed status (see
-// softwareInstallerHostStatusNamedQuery in mysql/software.go).
+// Status returns the status computed from the result payload. It must match the
+// precedence of the database-computed status and execution_status generated
+// columns on host_software_installs (see schema.sql). A non-zero install-script
+// exit code is a terminal failure: the post-install script runs regardless of
+// the install script's outcome, so its exit code must not be allowed to report a
+// failed install as installed.
 func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	switch {
+	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
+		return SoftwareInstallFailed
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode == 0:
 		return SoftwareInstalled
 	case h.PostInstallScriptExitCode != nil && *h.PostInstallScriptExitCode != 0:
 		return SoftwareInstallFailed
 	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode == 0:
 		return SoftwareInstalled
-	case h.InstallScriptExitCode != nil && *h.InstallScriptExitCode != 0:
-		return SoftwareInstallFailed
 	case h.PreInstallConditionOutput != nil && *h.PreInstallConditionOutput == "":
 		return SoftwareInstallFailed
 	default:
 		return SoftwareInstallPending
 	}
 }
-
-const (
-	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
-	// disabled.
-	ExitCodeScriptsDisabled = -2
-	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
-	ExitCodeInstallerDownloadFailed = -3
-	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
-	// details from the server for longer than the retry window (e.g. because the
-	// installer was deleted/replaced while a setup-experience install was in flight).
-	ExitCodeInstallerNotFound = -4
-)
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
@@ -1279,11 +1271,16 @@ const MaxSoftwareInstallAttempts = 3
 const MaxPackagesPerTitle = 10
 
 func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName string) error {
-	var customCount, fmaCount int
+	var customCount int
 	seenHash := make(map[string]struct{}, len(payloads))
+	seenFMA := make(map[uint]struct{}, len(payloads))
+	var fmaNames []string
 	for _, p := range payloads {
 		if p.FleetMaintainedAppID != nil {
-			fmaCount++
+			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
+				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
+				fmaNames = append(fmaNames, p.Title)
+			}
 			continue
 		}
 		customCount++
@@ -1292,7 +1289,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	if fmaCount > 0 && customCount > 0 {
+	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
+	// inventory app, so only one can be added.
+	if len(fmaNames) > 1 {
+		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
+	}
+	if len(fmaNames) > 0 && customCount > 0 {
 		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
 	}
 	if customCount > MaxPackagesPerTitle {

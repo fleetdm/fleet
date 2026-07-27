@@ -27,10 +27,12 @@ org_settings:
         macos_fleet: "💻 Workstations"
         ios_fleet: "📱🏢 Employee-issued mobile devices"
         ipados_fleet: "📱🏢 Employee-issued mobile devices"
+        byod_fleet: "📱🔐 Personal mobile devices"
       - organization_name: Mactivate LLC
         macos_fleet: "🧪 Testing & QA"
         ios_fleet: "🧪 Testing & QA"
         ipados_fleet: "🧪 Testing & QA"
+        byod_fleet: "🧪 Testing & QA"
     volume_purchasing_program:
       - location: Fleet Device Management Inc.
         fleets:

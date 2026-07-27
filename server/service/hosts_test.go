@@ -31,8 +31,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
@@ -1030,6 +1032,22 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	})
 }
 
+// checkHostWriteAuthErr asserts the result of a host-mutation authorization
+// check. A caller with no read visibility into the host at all must see a
+// NotFound (masking existence), not a Forbidden that would confirm the host
+// exists on some other team; a caller who CAN read the host (e.g. same-team,
+// wrong role) still gets the normal Forbidden, since no new information is
+// disclosed by it.
+func checkHostWriteAuthErr(t *testing.T, shouldFail, expectNotFound bool, err error) {
+	t.Helper()
+	if shouldFail && expectNotFound {
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+		return
+	}
+	checkAuthErr(t, shouldFail, err)
+}
+
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -1252,6 +1270,19 @@ func TestHostAuth(t *testing.T) {
 				IncludePolicies:  false,
 			}
 
+			// A team-only role never has read visibility into a host outside
+			// its own team(s) (including the team_id-less "global" host used
+			// below): a write-authz failure in that case must surface as
+			// NotFound rather than Forbidden, so it doesn't confirm the
+			// host's existence to a caller with no view into it.
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			belongsToTeam1 := false
+			for _, ut := range tt.user.Teams {
+				if ut.Team.ID == 1 {
+					belongsToTeam1 = true
+				}
+			}
+
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
@@ -1277,16 +1308,16 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHost(ctx, 2)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.DeleteHosts(ctx, []uint{1}, nil)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailTeamWrite, isTeamOnlyRole && !belongsToTeam1, err)
 
 			err = svc.DeleteHosts(ctx, []uint{2}, nil)
-			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			checkHostWriteAuthErr(t, tt.shouldFailGlobalWrite, isTeamOnlyRole, err)
 
 			err = svc.AddHostsToTeam(ctx, new(uint(1)), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
@@ -1690,6 +1721,42 @@ func TestDeleteHost(t *testing.T) {
 		require.True(t, opts.ActivityMock.CleanupHostActivitiesFuncInvoked)
 		require.ElementsMatch(t, []uint{hostA.ID, hostB.ID}, cleanedHostIDs)
 	})
+}
+
+func TestDeleteHostDoesNotLeakOutOfScopeExistence(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamHost := &fleet.Host{ID: 1, TeamID: new(uint(1))}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return teamHost, nil
+	}
+
+	// A team-scoped observer with no relationship to team 1 can neither read
+	// nor write host 1: the response must be indistinguishable from a
+	// nonexistent host (NotFound), not a Forbidden that would confirm the
+	// host exists on some other team.
+	outOfScopeUser := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}}
+	err := svc.DeleteHost(viewer.NewContext(ctx, viewer.Viewer{User: outOfScopeUser}), 1)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	err = svc.DeleteHosts(viewer.NewContext(ctx, viewer.Viewer{User: outOfScopeUser}), []uint{1}, nil)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A team-scoped observer who belongs to team 1 can read host 1, just not
+	// write it: this must remain a normal Forbidden error, since no new
+	// information about the host's existence is disclosed by it.
+	inScopeObserver := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}
+	err = svc.DeleteHost(viewer.NewContext(ctx, viewer.Viewer{User: inScopeObserver}), 1)
+	require.Error(t, err)
+	assert.False(t, fleet.IsNotFound(err))
+	assert.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
 }
 
 func TestDeleteHostCreatesActivity(t *testing.T) {
@@ -5518,6 +5585,123 @@ func TestListHostsIgnoresPremiumOptions(t *testing.T) {
 			count, err = svc.CountHosts(premiumCtx, nil, tc.opts)
 			require.NoError(t, err)
 			require.Equal(t, 1, count)
+		})
+	}
+}
+
+func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
+	ds := new(mock.Store)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session":
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			assert.NoError(t, err)
+		case "/devices":
+			var req struct {
+				Devices []string `json:"devices"`
+			}
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			serial := req.Devices[0]
+
+			devices := map[string]any{}
+			switch serial {
+			case "FOUND123":
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "SUCCESS",
+					"profile_status":  "assigned",
+				}
+			case "EMPTYSTATUS123":
+				// Status-only entry: no serial_number, no response_status.
+				devices[serial] = map[string]any{}
+			case "NOTACCESSIBLEWITHSERIAL123":
+				// Recognized by Apple but not accessible from this MDM
+				// server -- serial_number populated despite the failure.
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "NOT_ACCESSIBLE",
+				}
+			case "FAILEDWITHSERIAL123":
+				devices[serial] = map[string]any{
+					"serial_number":   serial,
+					"response_status": "FAILED",
+				}
+				// MISSING123 is intentionally left out of the response entirely.
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": devices}))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	depStorage := &nanodep_mock.Storage{}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{DEPStorage: depStorage})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	serialsByHostID := map[uint]string{
+		1: "FOUND123",
+		2: "EMPTYSTATUS123",
+		3: "NOTACCESSIBLEWITHSERIAL123",
+		4: "FAILEDWITHSERIAL123",
+		5: "MISSING123",
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, HardwareSerial: serialsByHostID[id]}, nil
+	}
+	abmTokenID := uint(9)
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{HostID: hostID, ABMTokenID: &abmTokenID}, nil
+	}
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		return &fleet.ABMToken{ID: tokenID, OrganizationName: "org"}, nil
+	}
+	// The DEP client's after-hook runs on every request (success or
+	// failure) to keep the ABM token's token_invalid/terms_expired flags
+	// in sync, so these datastore methods must be mocked too.
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+		return false, nil
+	}
+	ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+		return false, nil
+	}
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	cases := []struct {
+		name       string
+		hostID     uint
+		wantDevice bool
+		wantDepErr fleet.DEPDeviceErrorType
+	}{
+		{"found device is not misclassified as not found", 1, true, ""},
+		{"status-only entry with empty serial is classified as not found", 2, false, fleet.DEPDeviceErrorNotFound},
+		{"not-accessible device with a populated serial is still classified as not found", 3, false, fleet.DEPDeviceErrorNotFound},
+		{"failed device with a populated serial is still classified as not found", 4, false, fleet.DEPDeviceErrorNotFound},
+		{"missing device entry is classified as not found", 5, false, fleet.DEPDeviceErrorNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, depDevice, depErr, err := svc.GetHostDEPAssignmentDetails(ctx, c.hostID)
+			require.NoError(t, err)
+			assert.Equal(t, c.wantDepErr, depErr)
+			if c.wantDevice {
+				require.NotNil(t, depDevice)
+			} else {
+				assert.Nil(t, depDevice)
+			}
 		})
 	}
 }

@@ -13,7 +13,7 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
-  'microsoft-proxy/*': 'is-cloud-customer',
+  'microsoft-proxy/*': true,
   // Bypass the `is-logged-in` policy for:
 
   'entrance/*': true,
@@ -82,4 +82,5 @@ module.exports.policies = {
   'view-download': true,
   'view-visibility-and-reporting': true,
   'view-security-and-control': true,
+  'view-ai-in-it': true,
 };

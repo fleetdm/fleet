@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
@@ -1122,6 +1124,34 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand custom host vitals for host %d and script %s", host.ID, execID))
 	}
 
+	// Fleet variables expand last: values are end-user-influenced (IdP data),
+	// so any $FLEET_SECRET_* or $FLEET_HOST_VITAL_* text they carry must stay
+	// literal rather than go through the expansions above. Skip executions
+	// that already have a result so a re-fetch can't record a second one.
+	if script.ExitCode == nil {
+		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, script.ScriptContents)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and script %s", host.ID, execID))
+		}
+		if failureMessage != "" {
+			// Record the failed result server-side so the execution leaves the
+			// queue: returning an error would make fleetd stop processing its
+			// whole script queue, while returning the script with an exit code
+			// already set makes fleetd skip just this execution.
+			if err := svc.SaveHostScriptResult(ctx, &fleet.HostScriptResultPayload{
+				ExecutionID: script.ExecutionID,
+				Output:      failureMessage,
+				ExitCode:    fleet.ExitCodeFleetVarResolutionFailed,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure")
+			}
+			script.ExitCode = new(int64(fleet.ExitCodeFleetVarResolutionFailed))
+			script.Output = failureMessage
+			return script, nil
+		}
+		script.ScriptContents = expanded
+	}
+
 	return script, nil
 }
 
@@ -1556,6 +1586,46 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 	if details.HostID != host.ID {
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no installer found for this host")
 	}
+
+	// resolve Fleet variables in the installer's scripts for this host, after
+	// the secrets and custom host vitals expansions done by the datastore
+	var failures []string
+	for _, script := range []*string{&details.InstallScript, &details.PostInstallScript, &details.UninstallScript} {
+		expanded, failureMessage, err := svc.maybeExpandScriptFleetVariables(ctx, host, *script)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("expand fleet variables for host %d and install %s", host.ID, installUUID))
+		}
+		if failureMessage != "" {
+			if !slices.Contains(failures, failureMessage) {
+				failures = append(failures, failureMessage)
+			}
+			continue
+		}
+		*script = expanded
+	}
+	if len(failures) > 0 {
+		// Record the failed result server-side so the install leaves the
+		// pending queue, then return not-found: fleetd tolerates a not-found
+		// details fetch, and with the queue advanced it stops asking. Skip
+		// recording if the execution already has a result so a repeated fetch
+		// can't record a second one (and its activity) for the same install.
+		current, err := svc.ds.GetSoftwareInstallResults(ctx, installUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "check for existing result before recording fleet variable resolution failure")
+		}
+		if current == nil || current.Status == fleet.SoftwareInstallPending {
+			failureMessage := strings.Join(failures, "\n")
+			if err := svc.SaveHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				InstallUUID:           installUUID,
+				InstallScriptExitCode: new(int(fleet.ExitCodeFleetVarResolutionFailed)),
+				InstallScriptOutput:   &failureMessage,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "record fleet variable resolution failure for software install")
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "software install with unresolvable fleet variables")
+	}
+
 	return details, nil
 }
 
@@ -1808,14 +1878,21 @@ func (svc *Service) shouldRetryPolicyAutomationSoftwareInstall(ctx context.Conte
 
 // retryPolicyAutomationSoftwareInstall queues a retry for a policy automation software install.
 func (svc *Service) retryPolicyAutomationSoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult) error {
+	// Retry the version currently targeted by the title, not the (possibly
+	// superseded) installer this attempt was frozen on, so a retry after an
+	// auto-update installs the active version rather than looping on the old one.
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
+	if err != nil {
+		return err
+	}
 	svc.logger.InfoContext(ctx,
 		"queuing policy automation software install retry",
 		"host_id", host.ID,
 		"policy_id", *hsi.PolicyID,
-		"software_installer_id", *hsi.SoftwareInstallerID,
+		"software_installer_id", installerID,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
 		PolicyID: hsi.PolicyID,
 	})
 	return err
@@ -1831,14 +1908,20 @@ func (svc *Service) shouldRetrySoftwareInstall(ctx context.Context, hsi *fleet.H
 
 // retrySoftwareInstall queues a retry for a non-policy software install.
 func (svc *Service) retrySoftwareInstall(ctx context.Context, host *fleet.Host, hsi *fleet.HostSoftwareInstallerResult, fromSetupExperience bool) error {
+	// Retry the version currently targeted by the title, not the (possibly
+	// superseded) installer this attempt was frozen on.
+	installerID, err := svc.ds.ResolveActiveInstallerForRetry(ctx, *hsi.SoftwareInstallerID)
+	if err != nil {
+		return err
+	}
 	svc.logger.InfoContext(ctx,
 		"queuing software install retry",
 		"host_id", host.ID,
-		"software_installer_id", *hsi.SoftwareInstallerID,
+		"software_installer_id", installerID,
 		"self_service", hsi.SelfService,
 		"current_attempt", *hsi.AttemptNumber,
 	)
-	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *hsi.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{
 		SelfService:        hsi.SelfService,
 		UserID:             hsi.UserID,
 		ForSetupExperience: fromSetupExperience,

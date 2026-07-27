@@ -30,7 +30,7 @@ import UploadList from "../../../../../components/UploadList";
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
 import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
-import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
+import EditProfileModal from "./components/EditProfileModal";
 import ProfileListItem from "./components/ProfileListItem";
 import UploadListHeading from "../../../components/UploadListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
@@ -62,11 +62,15 @@ const ConfigurationProfiles = ({
   const {
     config,
     isPremiumTier,
+    isGlobalAdmin,
     isGlobalTechnician,
     isTeamTechnician,
   } = useContext(AppContext);
 
   const isTechnician = isGlobalTechnician || isTeamTechnician;
+  // The "Turn on" button links to /settings/integrations/mdm, which is
+  // gated to global admins only (AuthGlobalAdminRoutes).
+  const canTurnOnMdm = !!isGlobalAdmin;
 
   const mdmEnabled =
     config?.mdm.enabled_and_configured ||
@@ -74,10 +78,7 @@ const ConfigurationProfiles = ({
     config?.mdm.android_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
-  const [
-    profileLabelsModalData,
-    setProfileLabelsModalData,
-  ] = useState<IMdmProfile | null>(null);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
   const [
     showConfigProfileStatusModal,
@@ -130,6 +131,18 @@ const ConfigurationProfiles = ({
     setShowConfigProfileStatusModal(false);
   };
 
+  const onCancelEdit = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+  };
+
+  const onUpdateProfile = () => {
+    selectedProfile.current = null;
+    setShowEditProfileModal(false);
+    refetchProfiles();
+    onMutation();
+  };
+
   const onCancelDelete = () => {
     selectedProfile.current = null;
     setShowDeleteProfileModal(false);
@@ -180,6 +193,11 @@ const ConfigurationProfiles = ({
     setShowConfigProfileStatusModal(true);
   };
 
+  const onClickEdit = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowEditProfileModal(true);
+  };
+
   const onClickDelete = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
     setShowDeleteProfileModal(true);
@@ -223,8 +241,8 @@ const ConfigurationProfiles = ({
             <ProfileListItem
               isPremium={!!isPremiumTier}
               profile={listItem}
-              setProfileLabelsModalData={setProfileLabelsModalData}
               onClickInfo={onClickInfo}
+              onClickEdit={onClickEdit}
               onClickDelete={onClickDelete}
               isTechnician={isTechnician}
             />
@@ -242,11 +260,6 @@ const ConfigurationProfiles = ({
       </>
     );
   };
-
-  const hasLabels =
-    !!profileLabelsModalData?.labels_include_all?.length ||
-    !!profileLabelsModalData?.labels_include_any?.length ||
-    !!profileLabelsModalData?.labels_exclude_any?.length;
 
   const pageDescription =
     activeTab === "assets" ? (
@@ -288,11 +301,13 @@ const ConfigurationProfiles = ({
                 header="Additional configuration required"
                 info="MDM must be turned on to add configuration profiles."
                 primaryButton={
-                  <Button
-                    onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-                  >
-                    Turn on
-                  </Button>
+                  canTurnOnMdm ? (
+                    <Button
+                      onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
+                    >
+                      Turn on
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : (
@@ -312,6 +327,15 @@ const ConfigurationProfiles = ({
           setShowModal={setShowAddProfileModal}
         />
       )}
+      {showEditProfileModal && selectedProfile.current && (
+        <EditProfileModal
+          profile={selectedProfile.current}
+          currentTeamId={currentTeamId}
+          isPremiumTier={!!isPremiumTier}
+          onUpdate={onUpdateProfile}
+          onCancel={onCancelEdit}
+        />
+      )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current.name}
@@ -319,12 +343,6 @@ const ConfigurationProfiles = ({
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
           isDeleting={isDeleting}
-        />
-      )}
-      {isPremiumTier && hasLabels && (
-        <ProfileLabelsModal
-          profile={profileLabelsModalData}
-          setModalData={setProfileLabelsModalData}
         />
       )}
       {showConfigProfileStatusModal && selectedProfile.current && (

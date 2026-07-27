@@ -28,9 +28,9 @@ var secretVariableAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"updated_at": "updated_at",
 }
 
-func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
 	if len(secretVariables) == 0 {
-		return nil
+		return nil, nil, nil
 	}
 
 	// The secret variables should rarely change, so we do not use a transaction here.
@@ -44,7 +44,7 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 	}
 	existingVariables, err := ds.GetSecretVariables(ctx, names)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get existing secret variables")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get existing secret variables")
 	}
 	existingVariableMap := make(map[string]string, len(existingVariables))
 	for _, existingVariable := range existingVariables {
@@ -73,12 +73,15 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		for _, secretVariable := range variablesToInsert {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
+				return nil, nil, ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
 			}
 			args = append(args, secretVariable.Name, valueEncrypted)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert secret variables")
+			return nil, nil, ctxerr.Wrap(ctx, err, "insert secret variables")
+		}
+		for _, secretVariable := range variablesToInsert {
+			created = append(created, secretVariable.Name)
 		}
 	}
 
@@ -90,11 +93,12 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		for _, secretVariable := range variablesToUpdate {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "encrypt secret value for update with server private key")
+				return nil, nil, ctxerr.Wrap(ctx, err, "encrypt secret value for update with server private key")
 			}
 			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, valueEncrypted, secretVariable.Name); err != nil {
-				return ctxerr.Wrap(ctx, err, "update secret variables")
+				return nil, nil, ctxerr.Wrap(ctx, err, "update secret variables")
 			}
+			updated = append(updated, secretVariable.Name)
 		}
 
 		// A changed secret value changes the resolved name of any host whose host
@@ -104,11 +108,11 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 			changedNames = append(changedNames, secretVariable.Name)
 		}
 		if err := ds.resendDeviceNamesForSecretChange(ctx, changedNames); err != nil {
-			return ctxerr.Wrap(ctx, err, "resend device names for secret change")
+			return nil, nil, ctxerr.Wrap(ctx, err, "resend device names for secret change")
 		}
 	}
 
-	return nil
+	return created, updated, nil
 }
 
 func (ds *Datastore) CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error) {

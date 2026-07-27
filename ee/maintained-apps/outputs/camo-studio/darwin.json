@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.8.0",
+      "version": "2.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.reincubate.macos.cam';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.reincubate.macos.cam' AND version_compare(bundle_short_version, '2.8.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.reincubate.macos.cam' AND version_compare(bundle_short_version, '2.8.1') < 0);"
       },
-      "installer_url": "https://releases.reincubate.com/camo/camo-macos-2.8.0.23824.zip",
+      "installer_url": "https://releases.reincubate.com/camo/camo-macos-2.8.1.24089.zip",
       "install_script_ref": "b06ff1f9",
       "uninstall_script_ref": "18ffce78",
-      "sha256": "ca14c4a88dc8d190161b8e46a1723d85156edabe003986f9120d54e73474ce77",
+      "sha256": "2d58d6ab278e6ed080c376b7f9108c0c2e3282b8924516ea99af456318002aee",
       "default_categories": [
         "Productivity"
       ]

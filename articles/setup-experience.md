@@ -133,7 +133,9 @@ A manual rotation cancels any active auto-rotation timer for that host.
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience). 
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+
+> Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 

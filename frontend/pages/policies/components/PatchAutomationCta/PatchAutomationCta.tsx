@@ -53,7 +53,7 @@ const PatchAutomationCta = ({
         renderChildren={(disableChildren) => (
           <Button
             onClick={onAddAutomation}
-            variant="text-icon"
+            variant="secondary"
             disabled={disableChildren || isAddingAutomation}
           >
             {isAddingAutomation ? (

@@ -1728,6 +1728,11 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	secrets := createEnrollSecrets(t, fleet.MaxEnrollSecretsCount+1)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": `+string(jsonMustMarshal(t, secrets))+`}`), http.StatusUnprocessableEntity, &resp)
 
+	// empty and whitespace-only secrets are rejected
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "   "}]}`), http.StatusUnprocessableEntity, &resp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", team.ID), json.RawMessage(`{"secrets": [{"secret": "validSecret"},{"secret": ""}]}`), http.StatusUnprocessableEntity, &resp)
+
 	// No new activities should be generated
 	seenActivitiesIDs[s.lastActivityMatches(activityName, activityDetails, 0)] = struct{}{}
 	require.Len(t, seenActivitiesIDs, 2)
@@ -1986,6 +1991,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with an empty enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "empty_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: ""}},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// create a team with a whitespace-only enroll secret
+	tmResp.Team = nil
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
+		Name:    name + "whitespace_secret",
+		Secrets: []*fleet.EnrollSecret{{Secret: "   "}},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
 	// create a team with invalid host expiry window
 	team4 := &fleet.TeamPayload{
@@ -2342,7 +2361,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 			},
 		},
 	}
-	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus}
+	// team_gitops can modify its team but must not be able to read the team's
+	// enroll secrets (matching the enroll_secret authorization policy).
+	team_gitops := &fleet.User{
+		Name:  "Team GitOps",
+		Email: "team_gitops@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleGitOps,
+			},
+		},
+	}
+	// team_admin can modify its team and is allowed to read enroll secrets, so
+	// it should still receive the plaintext secret in write responses.
+	team_admin := &fleet.User{
+		Name:  "Team Admin",
+		Email: "team_admin@example.com",
+		Teams: []fleet.UserTeam{
+			{
+				Team: *teams[0],
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	// global_gitops can create and modify any team but must not be able to read
+	// enroll secrets.
+	global_gitops := &fleet.User{
+		Name:       "Global GitOps",
+		Email:      "global_gitops@example.com",
+		GlobalRole: new(fleet.RoleGitOps),
+	}
+	users := []*fleet.User{global_obs, global_obs_plus, team_obs, team_obs_plus, team_gitops, team_admin, global_gitops}
 	for _, u := range users {
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -2458,6 +2508,82 @@ func (s *integrationEnterpriseTestSuite) TestTeamSecretsAreObfuscated() {
 				}
 			}
 		}
+	}
+
+	// --------------------------------------------------------------------
+	// A team gitops user can modify a team but must not receive plaintext
+	// enroll secrets in the PATCH response (regression test for the write
+	// endpoint leaking secrets to a role that cannot read them).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_gitops.Email, test.GoodPassword)
+
+	// gitops is forbidden from reading the team and its secrets directly.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID), nil, http.StatusForbidden, &getTeamResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/secrets", teams[0].ID), nil, http.StatusForbidden, &teamEnrollSecretsResponse{})
+
+	// ...but the PATCH write response must mask the secret.
+	var gitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by gitops")}, http.StatusOK, &gitopsPatchResp)
+	require.NotEmpty(t, gitopsPatchResp.Team.Secrets)
+	for _, secret := range gitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// The modify agent options write endpoint must mask the secret too.
+	var gitopsAgentResp teamResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", teams[0].ID),
+		json.RawMessage(`{}`), http.StatusOK, &gitopsAgentResp)
+	require.NotEmpty(t, gitopsAgentResp.Team.Secrets)
+	for _, secret := range gitopsAgentResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A global gitops user must not receive plaintext secrets from the
+	// PATCH response nor when creating a team (the create response can leak
+	// the server-generated enroll secret).
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, global_gitops.Email, test.GoodPassword)
+
+	var globalGitopsPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by global gitops")}, http.StatusOK, &globalGitopsPatchResp)
+	require.NotEmpty(t, globalGitopsPatchResp.Team.Secrets)
+	for _, secret := range globalGitopsPatchResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	var gitopsCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("gitops-created-team")}, http.StatusOK, &gitopsCreateResp)
+	require.NotEmpty(t, gitopsCreateResp.Team.Secrets)
+	for _, secret := range gitopsCreateResp.Team.Secrets {
+		require.Equal(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// --------------------------------------------------------------------
+	// A team admin can read enroll secrets, so the PATCH response must
+	// still contain the plaintext secret.
+	// --------------------------------------------------------------------
+	s.setTokenForTest(t, team_admin.Email, test.GoodPassword)
+
+	var adminPatchResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", teams[0].ID),
+		fleet.TeamPayload{Description: new("patched by admin")}, http.StatusOK, &adminPatchResp)
+	require.NotEmpty(t, adminPatchResp.Team.Secrets)
+	for _, secret := range adminPatchResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
+	}
+
+	// A global admin creating a team can read the generated secret.
+	s.token = s.getTestAdminToken()
+	var adminCreateResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams",
+		fleet.TeamPayload{Name: new("admin-created-team")}, http.StatusOK, &adminCreateResp)
+	require.NotEmpty(t, adminCreateResp.Team.Secrets)
+	for _, secret := range adminCreateResp.Team.Secrets {
+		require.NotEqual(t, fleet.MaskedPassword, secret.Secret)
 	}
 }
 
@@ -5803,6 +5929,70 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	assert.Empty(t, resp.Software)
 }
 
+func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTeam() {
+	t := s.T()
+	ctx := t.Context()
+
+	// create 2 teams
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	// create 1 host on team1
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name() + "h1"),
+		NodeKey:         new(t.Name() + "h1"),
+		UUID:            uuid.New().String(),
+		Hostname:        t.Name() + "h1.local",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Install software only on h1 (team1).
+	testSw := fleet.Software{Name: "UniqueTitleApp", Version: "3.4.5", Source: "apps", BundleIdentifier: "com.unique.titleapp"}
+	_, err = s.ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{testSw})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, h1, false))
+	require.Len(t, h1.Software, 1)
+	require.NotNil(t, h1.Software[0].TitleID)
+	titleID := *h1.Software[0].TitleID
+
+	// Deliberately do NOT call SyncHostsSoftwareTitles here: the title's
+	// entry in software_titles_host_counts (which SoftwareTitleByID relies
+	// on) is only populated by that periodic sync, so skipping it
+	// reproduces the up-to-~1h window between a host reporting new
+	// software and the next sync run. The in-scope enrichment below must
+	// still succeed immediately via a live (non-aggregated) fallback.
+
+	// Filtering team1 (in-scope) by the software title returns the host and the title's name.
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team1.ID),
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
+	require.NotNil(t, resp.SoftwareTitle)
+	assert.Equal(t, testSw.Name, resp.SoftwareTitle.Name)
+
+	// Filtering team2 (out-of-scope: the title isn't installed on any host on
+	// this team) must not leak the title's name/display_name — software_title
+	// should be omitted entirely, not backfilled from an unscoped lookup.
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
+		"software_title_id", fmt.Sprint(titleID),
+		"team_id", fmt.Sprint(team2.ID),
+	)
+	require.Empty(t, resp.Hosts)
+	assert.Nil(t, resp.SoftwareTitle)
+}
+
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	t := s.T()
 
@@ -8857,7 +9047,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {
 
 	// orbitLinuxClient is no longer a member of the 'Foobar' label.
 	err = s.ds.RecordLabelQueryExecutions(ctx, orbitLinuxClient, map[uint]*bool{
-		foobarLabel.ID: nil,
+		foobarLabel.ID: new(false),
 	}, time.Now(), false)
 	require.NoError(t, err)
 
@@ -11437,9 +11627,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareVersionsResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
 
-				// Get a global software title
+				// Get a global software title (only on the "no team" host, which
+				// no team-scoped user can see): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
@@ -11501,9 +11693,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				var resp listSoftwareTitlesResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
 
-				// Get a team software title
+				// Get a team software title (on team1 and "no team", neither
+				// visible to this team-2 user): NotFound, not Forbidden, so its
+				// existence can't be inferred from the response.
 				var getSoftwareTitleResp getSoftwareTitleResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &getSoftwareTitleResp)
 
 				// Get a team software version
 				var getSoftwareResp getSoftwareResponse
@@ -23526,10 +23720,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 		s.clearOktaConditionalAccess()
 	})
 
-	// Test license.managed_cloud is set on Cloud environments.
 	var acResp appConfigResponse
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.True(t, acResp.License.ManagedCloud)
 
 	// Test global maintainer fails to create the integration.
 	u := &fleet.User{
@@ -28074,17 +28265,23 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	// Each cached version carries its own patch query with the version baked in, as real FMA manifests do.
+	const warpPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND version_compare(version, '%s') < 0);"
+	warpQueryV1 := fmt.Sprintf(warpPatchQueryFmt, "1.0")
+	warpQueryV2 := fmt.Sprintf(warpPatchQueryFmt, "2.0")
+
 	// Mock the FMA manifest + installer CDN via the shared helper. The state is
 	// mutable: bumping warp.version/installerBytes (+ ComputeSHA) below simulates a
 	// newly published upstream version on the next cron run.
 	const slug = "cloudflare-warp/windows"
-	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi"}
+	warp := &fmaTestState{version: "1.0", installerBytes: []byte("abc"), installerPath: "/cloudflare-warp.msi", patchQuery: warpQueryV1}
 	startFMAServers(t, s.ds, map[string]*fmaTestState{"/" + slug + ".json": warp})
 
 	// --- helpers ---
 	setManifest := func(version string, b []byte) {
 		warp.version = version
 		warp.installerBytes = b
+		warp.patchQuery = fmt.Sprintf(warpPatchQueryFmt, version)
 		warp.ComputeSHA(b)
 	}
 	runCron := func() {
@@ -28155,6 +28352,18 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	titleID := title.ID
 	require.True(t, activeSelfService(team.ID, titleID))
 
+	// A patch policy generated from the active v1.0 installer; the cron must keep its query on the active version.
+	var patchPolicy fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Type: new("patch"), PatchSoftwareTitleID: &titleID,
+	}, http.StatusOK, &patchPolicy)
+	patchPolicyQuery := func() string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, patchPolicy.Policy.ID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
+	require.Equal(t, warpQueryV1, patchPolicyQuery())
+
 	// === Section A: unpinned advances to the newly published version ===
 	setManifest("2.0", []byte("def"))
 	runCron()
@@ -28163,6 +28372,8 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	require.Len(t, title.SoftwarePackage.FleetMaintainedVersions, 2)
 	// Per-team config is carried forward onto the new version.
 	require.True(t, activeSelfService(team.ID, titleID), "self-service must survive the auto-update")
+	// The cron flip must rewrite the patch policy query to the newly active 2.0 version.
+	require.Equal(t, warpQueryV2, patchPolicyQuery())
 
 	// The cached bytes are real and installable: a host install serves v2.0 bytes.
 	host := createOrbitEnrolledHost(t, "windows", "orbit-autoupdate", s.ds)
@@ -33504,13 +33715,18 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	t := s.T()
 	ctx := context.Background()
 
+	// Each cached zoom version ships its own patch query with the version baked in, as real FMA manifests do.
+	const zoomPatchQueryFmt = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom' AND version_compare(version, '%s') < 0);"
+	zoomQueryV1 := fmt.Sprintf(zoomPatchQueryFmt, "1.0")
+	zoomQueryV2 := fmt.Sprintf(zoomPatchQueryFmt, "2.0")
+
 	// Real FMA mock servers for zoom/windows with a mutable version, so we can cache multiple versions and drive
 	// the GitOps (batch) path end to end. patchQuery makes the app patchable so a patch policy can be created.
 	zoom := &fmaTestState{
 		version:        "1.0",
 		installerBytes: []byte("zoom-1.0"),
 		installerPath:  "/zoom.msi",
-		patchQuery:     "SELECT 1 FROM osquery_info;",
+		patchQuery:     zoomQueryV1,
 	}
 	// Google Chrome ships 4-component versions (e.g. 149.0.7827.156), which are not valid semver. It rides along
 	// on every batch apply below pinned to "^149", exercising the GitOps major match against a non-semver
@@ -33543,6 +33759,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	bumpVersion := func(version string, bytes []byte) {
 		zoom.version = version
 		zoom.installerBytes = bytes
+		zoom.patchQuery = fmt.Sprintf(zoomPatchQueryFmt, version)
 		zoom.ComputeSHA(bytes)
 	}
 
@@ -33589,6 +33806,11 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 		require.NotNilf(t, id, "patch policy %d has no patch_software_title_id", policyID)
 		return *id
 	}
+	patchPolicyQuery := func(policyID uint) string {
+		var resp fleet.GetTeamPolicyByIDResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", team.ID, policyID), nil, http.StatusOK, &resp)
+		return resp.Policy.Query
+	}
 
 	// Two cached versions (1.0, 2.0); the no-version GitOps applies above left the title on Latest (active = newest,
 	// no pin).
@@ -33614,6 +33836,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	patchVersion := func(version string) {
 		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
@@ -33651,6 +33874,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, new("1.0"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
 	require.Equal(t, titleID, patchPolicyTitleID(patchPol.Policy.ID))
+	require.Equal(t, zoomQueryV1, patchPolicyQuery(patchPol.Policy.ID))
 
 	// Caret resolves to the newest cached minor in that major.
 	patchVersion("^2")
@@ -33659,6 +33883,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 	require.Equal(t, "2.0", p.Version)
 	require.Equal(t, new("^2"), p.PinnedVersion)
 	require.Equal(t, p.InstallerID, policyInstallerID(installPol.Policy.ID))
+	require.Equal(t, zoomQueryV2, patchPolicyQuery(patchPol.Policy.ID))
 
 	// A caret with no cached installer in that major keeps the newest cached version instead of erroring.
 	patchVersion("^9")
@@ -34313,4 +34538,346 @@ func (s *integrationEnterpriseTestSuite) TestTeamHostNameTemplate() {
 	require.Equal(t, tmpl, newTeam.Config.MDM.HostNameTemplate)
 	s.lastActivityOfTypeMatches(activityName,
 		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "name_template": %q}`, newTeam.ID, newTeam.Name, tmpl), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestScriptFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "script-fleet-vars", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	const (
+		supportedVarContents   = "echo $FLEET_VAR_HOST_UUID on ${FLEET_VAR_HOST_PLATFORM}"
+		unsupportedVarContents = "echo $FLEET_VAR_NONEXISTENT"
+		unsupportedVarErrMsg   = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+	)
+
+	t.Run("ad-hoc run", func(t *testing.T) {
+		res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: unsupportedVarContents}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		// CA variables are profile-delivery machinery and are rejected in scripts
+		res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts.")
+
+		var runResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: supportedVarContents}, http.StatusAccepted, &runResp)
+
+		// contents are stored unexpanded
+		result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, result.ScriptContents)
+	})
+
+	t.Run("saved script create and update", func(t *testing.T) {
+		body, headers := generateNewScriptMultipartRequest(t,
+			"vars-bad.sh", []byte(unsupportedVarContents), s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		var newScriptResp fleet.CreateScriptResponse
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(supportedVarContents), s.token, nil)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+		err := json.NewDecoder(res.Body).Decode(&newScriptResp)
+		require.NoError(t, err)
+
+		// contents round-trip unexpanded
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), nil, http.StatusOK, "alt", "media")
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, string(b))
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(unsupportedVarContents), s.token, nil)
+		res = s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"vars-good.sh", []byte(supportedVarContents+"\necho updated"), s.token, nil)
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/scripts/%d", newScriptResp.ScriptID), body.Bytes(), http.StatusOK, headers)
+	})
+
+	t.Run("batch set scripts", func(t *testing.T) {
+		tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+		require.NoError(t, err)
+
+		// unsupported variables are rejected, including on dry runs
+		for _, dryRun := range []string{"true", "false"} {
+			res := s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+				{Name: "vars.sh", ScriptContents: []byte(unsupportedVarContents)},
+			}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "dry_run", dryRun)
+			require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg, "dry_run=%s", dryRun)
+		}
+
+		// supported variables pass a dry run without being saved
+		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
+		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID), "dry_run", "true")
+		var listResp fleet.ListScriptsResponse
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		require.Empty(t, listResp.Scripts)
+
+		// and are saved unexpanded on a real apply
+		s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+			{Name: "vars.sh", ScriptContents: []byte(supportedVarContents)},
+		}}, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm.ID))
+		require.Len(t, listResp.Scripts, 1)
+		res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", listResp.Scripts[0].ID), nil, http.StatusOK, "alt", "media")
+		b, err := io.ReadAll(res.Body)
+		require.NoError(t, err)
+		require.Equal(t, supportedVarContents, string(b))
+	})
+
+	t.Run("setup experience script", func(t *testing.T) {
+		body, headers := generateNewScriptMultipartRequest(t,
+			"setup-vars.sh", []byte(unsupportedVarContents), s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusUnprocessableEntity, headers)
+		require.Contains(t, extractServerErrorText(res.Body), unsupportedVarErrMsg)
+
+		body, headers = generateNewScriptMultipartRequest(t,
+			"setup-vars.sh", []byte(supportedVarContents), s.token, nil)
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/script", body.Bytes(), http.StatusOK, headers)
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "ubuntu", "vars-exec-1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "ubuntu", "vars-exec-2", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID, host2.ID}, time.Now())
+	require.NoError(t, err)
+
+	orbitFetchScript := func(t *testing.T, h *fleet.Host, execID string) fleet.OrbitGetScriptResponse {
+		var resp fleet.OrbitGetScriptResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/request",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q}`, *h.OrbitNodeKey, execID)),
+			http.StatusOK, &resp)
+		return resp
+	}
+
+	t.Run("host variables resolve per host at fetch time", func(t *testing.T) {
+		const contents = "echo serial=$FLEET_VAR_HOST_HARDWARE_SERIAL uuid=$FLEET_VAR_HOST_UUID plat=${FLEET_VAR_HOST_PLATFORM}"
+
+		for _, h := range []*fleet.Host{host, host2} {
+			var runResp fleet.RunScriptResponse
+			s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptContents: contents}, http.StatusAccepted, &runResp)
+
+			fetched := orbitFetchScript(t, h, runResp.ExecutionID)
+			require.Equal(t, fmt.Sprintf("echo serial=%s uuid=%s plat=ubuntu", h.HardwareSerial, h.UUID), fetched.ScriptContents)
+			require.Nil(t, fetched.ExitCode)
+
+			// stored contents stay unexpanded
+			stored, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+			require.NoError(t, err)
+			require.Equal(t, contents, stored.ScriptContents)
+
+			// the host posts its result to complete the execution
+			var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, runResp.ExecutionID)),
+				http.StatusOK, &orbitPostScriptResp)
+		}
+	})
+
+	t.Run("unresolvable IdP variable fails the execution without wedging the queue", func(t *testing.T) {
+		// queue two scripts: the first needs an IdP user the host doesn't have
+		var failResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusAccepted, &failResp)
+		var okResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo queued-behind"}, http.StatusAccepted, &okResp)
+
+		// fetching the first script records the failure and returns it marked
+		fetched := orbitFetchScript(t, host, failResp.ExecutionID)
+		require.NotNil(t, fetched.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *fetched.ExitCode)
+
+		// the failed result is stored with the reason as output
+		stored, err := s.ds.GetHostScriptExecutionResult(ctx, failResp.ExecutionID)
+		require.NoError(t, err)
+		require.NotNil(t, stored.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *stored.ExitCode)
+		require.Contains(t, stored.Output, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+
+		// a ran_script activity was created for the failed execution
+		s.lastActivityMatches(fleet.ActivityTypeRanScript{}.ActivityName(),
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_execution_id": %q, "script_name": "", "async": true, "batch_execution_id": null, "policy_id": null, "policy_name": null, "from_setup_experience": false}`,
+				host.ID, host.DisplayName(), failResp.ExecutionID), 0)
+
+		// the results endpoint returns the variable-resolution-failure user message
+		var scriptResultResp fleet.GetScriptResultResponse
+		s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+failResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, scriptResultResp.Message)
+		require.Contains(t, scriptResultResp.Output, "There is no IdP username for this host.")
+
+		// the queue advanced: the second script activated and is fetchable
+		fetched = orbitFetchScript(t, host, okResp.ExecutionID)
+		require.Nil(t, fetched.ExitCode)
+		require.Equal(t, "echo queued-behind", fetched.ScriptContents)
+
+		var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+		s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, okResp.ExecutionID)),
+			http.StatusOK, &orbitPostScriptResp)
+	})
+
+	t.Run("IdP variables resolve and secret-shaped values stay literal", func(t *testing.T) {
+		// link an IdP user to host2 whose username carries $FLEET_SECRET_* text;
+		// variables expand after secrets, so it must reach the host literally
+		var scimUserID int64
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			res, err := db.ExecContext(ctx,
+				`INSERT INTO scim_users (user_name, given_name, family_name, department, active) VALUES (?, ?, ?, ?, ?)`,
+				"jane.doe@example.com ($FLEET_SECRET_INJECTED)", "Jane", "Doe", "Engineering", 1)
+			if err != nil {
+				return err
+			}
+			scimUserID, err = res.LastInsertId()
+			return err
+		})
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+				host2.ID, scimUserID)
+			return err
+		})
+
+		var runResp fleet.RunScriptResponse
+		s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID,
+			ScriptContents: "user=$FLEET_VAR_HOST_END_USER_IDP_USERNAME local=user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@corp.com dept=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"}, http.StatusAccepted, &runResp)
+
+		fetched := orbitFetchScript(t, host2, runResp.ExecutionID)
+		require.Nil(t, fetched.ExitCode)
+		require.Equal(t, "user=jane.doe@example.com ($FLEET_SECRET_INJECTED) local=user_jane.doe@corp.com dept=Engineering", fetched.ScriptContents)
+	})
+
+	t.Run("sync run surfaces the resolution failure", func(t *testing.T) {
+		testRunScriptWaitForResult = 5 * time.Second
+		defer func() { testRunScriptWaitForResult = 0 }()
+
+		// fetch the script from the host side as soon as it is enqueued, which
+		// records the failure while the sync run is waiting for a result
+		done := make(chan struct{})
+		var syncResp fleet.RunScriptSyncResponse
+		go func() {
+			defer close(done)
+			s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo $FLEET_VAR_HOST_END_USER_IDP_USERNAME"}, http.StatusOK, &syncResp)
+		}()
+
+		require.Eventually(t, func() bool {
+			// no require inside the condition: it runs on a separate goroutine,
+			// where FailNow is not supported
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			if err != nil || len(pending) == 0 {
+				return false
+			}
+			orbitFetchScript(t, host, pending[0].ExecutionID)
+			return true
+		}, 3*time.Second, 100*time.Millisecond)
+
+		<-done
+		require.NotNil(t, syncResp.ExitCode)
+		require.EqualValues(t, fleet.ExitCodeFleetVarResolutionFailed, *syncResp.ExitCode)
+		require.Equal(t, fleet.RunScriptFleetVarsFailedErrMsg, syncResp.Message)
+		require.Contains(t, syncResp.Output, "There is no IdP username for this host.")
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// batch (gitops): script-only package with an unsupported variable is
+	// rejected, including on dry runs; supported variables pass a dry run
+	scriptOnly := []*fleet.SoftwareInstallerPayload{{
+		URL:           "script://config.sh",
+		InstallScript: "echo $FLEET_VAR_NONEXISTENT",
+	}}
+	for _, dryRun := range []string{"true", "false"} {
+		resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
+			http.StatusUnprocessableEntity, "team_name", tm.Name, "dry_run", dryRun)
+		require.Contains(t, extractServerErrorText(resp.Body),
+			"Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.", "dry_run=%s", dryRun)
+	}
+	scriptOnly[0].InstallScript = "echo $FLEET_VAR_HOST_UUID"
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: scriptOnly},
+		http.StatusAccepted, "team_name", tm.Name, "dry_run", "true")
+}
+
+func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	writeScript := func(name, contents string) string {
+		path := filepath.Join(tmpDir, name)
+		require.NoError(t, os.WriteFile(path, []byte(contents), 0o644))
+		return path
+	}
+
+	const unsupportedVarErrMsg = "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts."
+
+	// a script package's install script is the uploaded file itself, so an
+	// unsupported variable in the file is rejected at upload
+	badFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-bad.sh", "#!/bin/sh\necho $FLEET_VAR_NONEXISTENT\n"))
+	require.NoError(t, err)
+	defer badFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "vars-pkg.sh",
+		InstallerFile: badFile,
+	}, http.StatusUnprocessableEntity, unsupportedVarErrMsg)
+
+	// supported variables in the file are accepted
+	goodFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-good.sh", "#!/bin/sh\necho $FLEET_VAR_HOST_UUID\n"))
+	require.NoError(t, err)
+	defer goodFile.Close()
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		Filename:      "vars-pkg.sh",
+		InstallerFile: goodFile,
+	}, http.StatusOK, "")
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", "0", "available_for_install", "true")
+	var titleID uint
+	for _, sw := range listResp.SoftwareTitles {
+		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name == "vars-pkg.sh" {
+			titleID = sw.ID
+		}
+	}
+	require.NotZero(t, titleID)
+
+	// replacing the package file is rejected too: the new file's contents
+	// become the install script
+	badUpdateFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-update-bad.sh", "#!/bin/sh\necho hi\necho $FLEET_VAR_NONEXISTENT\n"))
+	require.NoError(t, err)
+	defer badUpdateFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		Filename:      "vars-pkg.sh",
+		InstallerFile: badUpdateFile,
+	}, http.StatusUnprocessableEntity, unsupportedVarErrMsg)
+
+	// a replacement file with a supported variable is accepted and stored unexpanded
+	const updatedContents = "#!/bin/sh\necho $FLEET_VAR_HOST_HARDWARE_SERIAL\n"
+	goodUpdateFile, err := fleet.NewKeepFileReader(writeScript("vars-pkg-update-good.sh", updatedContents))
+	require.NoError(t, err)
+	defer goodUpdateFile.Close()
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		Filename:      "vars-pkg.sh",
+		InstallerFile: goodUpdateFile,
+	}, http.StatusOK, "")
+
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, updatedContents, meta.InstallScript)
 }

@@ -659,6 +659,7 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_profiles":               "host_uuid",
 	"host_mdm_apple_bootstrap_packages":     "host_uuid",
 	"host_mdm_windows_profiles":             "host_uuid",
+	"host_mdm_windows_profiles_status":      "host_uuid",
 	"host_mdm_apple_declarations":           "host_uuid",
 	"host_mdm_apple_awaiting_configuration": "host_uuid",
 	"setup_experience_status_results":       "host_uuid",
@@ -882,7 +883,8 @@ SELECT
   COALESCE(host_issues.total_issues_count, 0) AS total_issues_count,
   hoi.version AS orbit_version,
   hoi.desktop_version AS fleet_desktop_version,
-  hoi.scripts_enabled AS scripts_enabled
+  hoi.scripts_enabled AS scripts_enabled,
+  IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
   ` + hostMDMSelect + `
 FROM
   hosts h

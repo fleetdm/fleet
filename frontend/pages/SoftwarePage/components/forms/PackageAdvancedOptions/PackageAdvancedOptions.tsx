@@ -285,6 +285,7 @@ const PackageAdvancedOptions = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+        variant="secondary"
         disabled={!selectedPackage || requiresAdvancedOptions}
         disabledTooltipContent={
           requiresAdvancedOptions ? (

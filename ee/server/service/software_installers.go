@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -37,6 +38,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -118,6 +120,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		// Redo per-script to report which script references the undefined custom host vital.
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &payload.InstallScript, argErr)
@@ -127,6 +132,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, argErr
 		}
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
+
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+		return nil, err
 	}
 
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
@@ -399,6 +408,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, scripts); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", payload.InstallScript, argErr)
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
@@ -407,6 +419,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, argErr
 		}
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
+
+	if err := validateFleetVariablesOnInstallerScripts(ctx, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript); err != nil {
+		return nil, err
 	}
 
 	// get software by ID, fail if it does not exist or does not have an existing installer
@@ -612,8 +628,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			dirty["Package"] = true
 
 			// For script packages the uploaded file's contents are the install
-			// script, so replacing the file must update install_script too.
+			// script, so replacing the file must update install_script too. The
+			// file's contents were not among the payload fields validated above,
+			// so validate them here.
 			if fleet.IsScriptPackage(existingInstaller.Extension) {
+				if err := validateFleetVariablesOnInstallerScripts(ctx, &payloadForNewInstallerFile.InstallScript, nil, nil); err != nil {
+					return nil, err
+				}
 				payload.InstallScript = &payloadForNewInstallerFile.InstallScript
 				if payloadForNewInstallerFile.InstallScript != existingInstaller.InstallScript {
 					dirty["InstallScript"] = true
@@ -811,15 +832,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
 		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
+			// SetFleetMaintainedAppActiveInstaller also redirects installs frozen on
+			// the version we pinned away from to the newly-active one.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
-			}
-
-			// cancel pending installs of the version we pinned away from
-			if activeInstallerID != existingInstaller.InstallerID {
-				if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, false); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "processing side effects for version pin")
-				}
 			}
 
 			// the pinned version is now the active installer; return it, not the one we pinned away from
@@ -952,6 +968,45 @@ func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptN
 		}
 	}
 	return argErr
+}
+
+// validateFleetVariablesOnInstallerScripts validates $FLEET_VAR_* usage on the
+// installer's scripts, naming the offending script in the error. Nil scripts
+// are skipped (update payloads only carry the scripts that changed).
+func validateFleetVariablesOnInstallerScripts(ctx context.Context, installScript, postInstallScript, uninstallScript *string) error {
+	isPremium := license.IsPremium(ctx)
+	var argErr *fleet.InvalidArgumentError
+	for _, s := range []struct {
+		name     string
+		contents *string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if s.contents == nil {
+			continue
+		}
+		fleetVars := variables.Find(*s.contents)
+		if len(fleetVars) == 0 {
+			continue
+		}
+		if !isPremium {
+			return fleet.ErrMissingLicense
+		}
+		if v := fleet.FindUnsupportedScriptFleetVar(fleetVars); v != "" {
+			msg := fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v)
+			if argErr != nil {
+				argErr.Append(s.name, msg)
+			} else {
+				argErr = fleet.NewInvalidArgumentError(s.name, msg)
+			}
+		}
+	}
+	if argErr != nil {
+		return argErr
+	}
+	return nil
 }
 
 // validateReferencedCustomHostVitalsOnScript mirrors validateEmbeddedSecretsOnScript
@@ -1540,7 +1595,7 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 }
 
 // installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
-// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh runs on any unix-like host).
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh and .py run on any unix-like host).
 func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
 	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
@@ -1549,7 +1604,7 @@ func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet
 	if host.FleetPlatform() == requiredPlatform {
 		return true
 	}
-	return ext == ".sh" && fleet.IsUnixLike(host.Platform)
+	return (ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
@@ -2706,6 +2761,12 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 
+		// static check, so unlike the secrets validation below it also runs on
+		// gitops dry runs
+		if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+			return "", err
+		}
+
 		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validating software categories")
 		}
@@ -2725,6 +2786,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allScripts); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 	}

@@ -503,7 +503,8 @@ type MacOSSettings struct {
 	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
 	// spec: this field is only populated while parsing a GitOps file so the
 	// assets can be applied via their own batch endpoint. It is intentionally
-	// omitted from ToMap/FromMap.
+	// omitted from FromMap; ToMap includes it only so the key passes the team
+	// spec's strict key validation (see applyTeamSpecsRequest.DecodeBody).
 	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
@@ -517,6 +518,7 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"assets":                 s.Assets,
 	}
 }
 
@@ -1932,9 +1934,6 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 	// AllowDisableTelemetry allows specific customers to not send analytics
 	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
-	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
-	// Currently only used to display UI features only present on cloud instances.
-	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {

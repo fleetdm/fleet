@@ -195,6 +195,7 @@ const CalendarEventsModal = forwardRef<
                 showText="Example payload"
                 caretPosition="after"
                 onClick={() => setShowExamplePayload(!showExamplePayload)}
+                variant="secondary"
               />
               {showExamplePayload && renderExamplePayload()}
             </>
