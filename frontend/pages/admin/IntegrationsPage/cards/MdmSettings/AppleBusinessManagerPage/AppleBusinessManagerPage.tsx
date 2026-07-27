@@ -128,11 +128,37 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
     setShowRenewModal(false);
   }, []);
 
-  const onRenewed = useCallback(() => {
+  const onRenewed = useCallback(async () => {
+    const renewedOrgName = selectedToken.current?.org_name;
     selectedToken.current = null;
-    refetch();
     setShowRenewModal(false);
-  }, [refetch]);
+
+    const { data: refetchedTokens } = await refetch();
+
+    // Override just the renewed org's invalid status on top of the refetch,
+    // rather than waiting on a reload to reflect it. A successful renewal is
+    // itself proof the new token is valid, even though the refetch above may
+    // still show it as invalid (the persisted flag isn't cleared until the
+    // next regular DEP cron tick, up to a minute later). Must run after the
+    // refetch resolves, and not before, since the refetch's own onSuccess
+    // otherwise clobbers an earlier optimistic update with this same stale
+    // data.
+    if (renewedOrgName && refetchedTokens) {
+      const invalidAbmTokenOrgNames = refetchedTokens
+        .filter(
+          (token) => token.token_invalid && token.org_name !== renewedOrgName
+        )
+        .map((token) => token.org_name);
+      setABMExpiry({
+        earliestExpiry: getEarliestExpiry(refetchedTokens),
+        needsAbmTermsRenewal: refetchedTokens.some(
+          (token) => token.terms_expired
+        ),
+        hasAbmTokenInvalid: invalidAbmTokenOrgNames.length > 0,
+        invalidAbmTokenOrgNames,
+      });
+    }
+  }, [refetch, setABMExpiry]);
 
   const onDeleteToken = (abmToken: IMdmAbToken) => {
     selectedToken.current = abmToken;
