@@ -3395,7 +3395,6 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "cpu_logical_cores": 8,
       "hardware_vendor": "Apple Inc.",
       "hardware_model": "MacBookPro17,1",
-      "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
       "hardware_version": "",
       "hardware_serial": "C0124FXASD6G",
       "computer_name": "Anna's MacBook Pro",
@@ -3803,7 +3802,7 @@ Returns the information of the specified host.
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host.     |
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
-#### Example (macOS)
+#### Example
 
 `GET /api/v1/fleet/hosts/121`
 
@@ -3848,7 +3847,6 @@ Returns the information of the specified host.
     "cpu_logical_cores": 8,
     "hardware_vendor": "Apple Inc.",
     "hardware_model": "MacBookPro17,1",
-    "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
     "hardware_version": "",
     "hardware_serial": "C0124FXASD6G",
     "computer_name": "Anna's MacBook Pro",
@@ -4074,348 +4072,13 @@ Returns the information of the specified host.
 }
 ```
 
-#### Example (iOS/iPadOS)
-`GET /api/v1/fleet/hosts/121`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host": {
-    "created_at": "2021-08-19T02:02:22Z",
-    "updated_at": "2021-08-19T21:14:58Z",
-    "id": 1,
-    "detail_updated_at": "2021-08-19T21:07:53Z",
-    "last_restarted_at": "2020-11-01T03:01:45Z",
-    "software_updated_at": "2020-11-05T05:09:44Z",
-    "label_updated_at": "2021-08-19T21:07:53Z",
-    "policy_updated_at": "2023-06-26T18:33:15Z",
-    "last_enrolled_at": "2021-08-19T02:02:22Z",
-    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
-    "mdm_enrollment_hardware_attested": true,
-    "seen_time": "2021-08-19T21:14:58Z",
-    "refetch_requested": false,
-    "hostname": "Annas-iPhone",
-    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
-    "udid": "00008110-001A2B3C4D5E6F78",
-    "platform": "ios",
-    "osquery_version": "5.15.0",
-    "orbit_version": "1.22.0",
-    "fleet_desktop_version": null,
-    "scripts_enabled": false,
-    "os_version": "iOS 17.4.1",
-    "build": "21E236",
-    "platform_like": "darwin",
-    "code_name": "",
-    "uptime": 210671000000000,
-    "memory": 6442450944,
-    "cpu_type": "arm64",
-    "cpu_subtype": "ARM64E",
-    "cpu_brand": "Apple A16 Bionic",
-    "cpu_physical_cores": 6,
-    "cpu_logical_cores": 6,
-    "hardware_vendor": "Apple Inc.",
-    "hardware_model": "iPhone15,2",
-    "hardware_version": "iPhone 15 Pro",
-    "hardware_serial": "F2LXX1XXXXXX",
-    "computer_name": "Anna's iPhone",
-    "timezone": null,
-    "display_name": "Anna's iPhone",
-    "public_ip": "123.45.678.910",
-    "primary_ip": "192.168.1.42",
-    "primary_mac": "a4:83:e7:12:34:56",
-    "distributed_interval": 10,
-    "config_tls_refresh": 10,
-    "logger_tls_period": 10,
-    "team_id": null,
-    "fleet_id": null,
-    "pack_stats": null,
-    "team_name": null,
-    "fleet_name": null,
-    "gigs_disk_space_available": 54.3,
-    "percent_disk_space_available": 43,
-    "gigs_total_disk_space": 128,
-    "app_analytics_enabled": true,
-    "accessibility_settings": {
-      "bold_text": false,
-      "increase_contrast": false,
-      "reduce_motion": true,
-      "reduce_transparency": false,
-      "text_size": 1.0,
-      "touch_accommodations": false,
-      "voice_over": false,
-      "zoom": false
-    },
-    "awaiting_configuration": false,
-    "battery_level": 82,
-    "bluetooth_mac": "a4:83:e7:12:34:57",
-    "cellular_technology": "LTE",
-    "data_roaming_enabled": false,
-    "device_properties_attestation": {
-      "device_attested": true,
-      "attestation_status": "valid",
-      "last_attested_at": "2023-02-26T22:33:12Z"
-    },
-    "diagnostic_submission_enabled": true,
-    "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
-    "is_cloud_backup_enabled": true,
-    "is_device_locator_service_enabled": true,
-    "is_do_not_disturb_in_effect": false,
-    "is_mdm_lost_mode_enabled": false,
-    "is_network_tethered": false,
-    "itunes_store_account_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-    "itunes_store_account_is_active": true,
-    "last_cloud_backup_date": "2023-02-25T14:22:10Z",
-    "mdm_options": {
-      "activation_lock_allowed_while_supervised": true,
-      "bootstrap_token_allowed": true,
-      "bootstrap_token_required_for_software_update": false,
-      "bootstrap_token_required_for_kext_approval": false
-    },
-    "model_number": "MNEP3LL/A",
-    "modem_firmware_version": "2.01.00",
-    "organization_info": {
-      "organization_name": "Acme Corp",
-      "organization_address": "123 Main St, New York, NY 10001",
-      "organization_phone": "+1-800-555-0100",
-      "organization_email": "it@example.com",
-      "organization_magic": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-    },
-    "personal_hotspot_enabled": false,
-    "push_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
-    "service_subscriptions": [
-      {
-        "carrier_settings_version": "42.0",
-        "current_carrier_network": "Verizon",
-        "current_mcc": "311",
-        "current_mnc": "480",
-        "eid": "89049032004008882600890049000003",
-        "iccid": "89014103211118510720",
-        "imei": "352099001761481",
-        "is_data_preferred": true,
-        "is_roaming": false,
-        "is_voice_preferred": true,
-        "label": "Primary",
-        "label_id": "com.apple.subscriberLabel.primary",
-        "meid": "35209900176148",
-        "phone_number": "+1-123-456-7890",
-        "slot": "1"
-      }
-    ],
-    "supplemental_build_version": "21E236",
-    "supplemental_os_version_extra": "a",
-    "wifi_mac": "a4:83:e7:12:34:58",
-    "disk_encryption_enabled": true,
-    "status": "online",
-    "display_text": "Annas-iPhone",
-    "additional": {},
-    "issues": {
-      "failing_policies_count": 1,
-      "critical_vulnerabilities_count": 2, // Available in Fleet Premium
-      "total_issues_count": 3
-    },
-    "batteries": [
-      {
-        "cycle_count": 187,
-        "health": "Normal"
-      }
-    ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "maintenance_window": {
-      "starts_at": "2024-06-18T13:27:18−04:00",
-      "timezone": "America/New_York"
-    },
-    "users": [
-      {
-        "uid": 501,
-        "username": "annachao",
-        "type": "",
-        "groupname": "mobile",
-        "shell": ""
-      }
-    ],
-    "end_users": [
-      {
-        "idp_info_updated_at": "2025-03-20T02:02:17Z",
-        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
-        "idp_username": "anna@example.com",
-        "idp_full_name": "Anna Chao",
-        "idp_department": "Product",
-        "idp_groups": [
-          "Product",
-          "Designers"
-        ],
-        "other_emails": [
-          {
-            "email": "anna2@example.com",
-            "source": "managed_apple_id"
-          },
-          {
-            "email": "anna3@example.com",
-            "source": "custom"
-          }
-        ]
-      }
-    ],
-    "labels": [
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 6,
-        "name": "All Hosts",
-        "description": "All hosts which have enrolled in Fleet",
-        "query": "SELECT 1;",
-        "platform": "",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      },
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 9,
-        "name": "iOS",
-        "description": "All iOS hosts",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform = 'ios';",
-        "platform": "ios",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      },
-      {
-        "created_at": "2021-08-19T02:02:17Z",
-        "updated_at": "2021-08-19T02:02:17Z",
-        "id": 12,
-        "name": "Hosts with Gmail installed",
-        "description": "",
-        "query": "SELECT * FROM apps WHERE name LIKE \"%Gmail%\"",
-        "platform": "ios",
-        "label_type": "regular",
-        "label_membership_type": "dynamic"
-      }
-    ],
-    "packs": [],
-    "policies": [
-      {
-        "id": 2,
-        "name": "Passcode required (iOS)",
-        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.mobiledevice.passwordpolicy' AND name = 'forcePIN' AND value = 1 LIMIT 1;",
-        "description": "Checks that a passcode is enforced on the device.",
-        "resolution": "Go to Settings > Face ID & Passcode > Turn Passcode On.",
-        "platform": "ios",
-        "response": "fail",
-        "critical": false
-      },
-      {
-        "id": 3,
-        "name": "SomeQuery3",
-        "query": "SELECT * FROM baz;",
-        "description": "",
-        "resolution": "",
-        "platform": "",
-        "response": "",
-        "critical": false
-      },
-      {
-        "id": 1,
-        "name": "OS version up to date (iOS)",
-        "query": "SELECT 1 FROM os_version WHERE version >= '17.4.1';",
-        "description": "Checks that the device is running the latest iOS version.",
-        "resolution": "Go to Settings > General > Software Update and install the latest update.",
-        "platform": "ios",
-        "response": "pass",
-        "critical": false
-      }
-    ],
-    "software": [
-      {
-        "id": 321,
-        "name": "Gmail",
-        "version": "6.0.240414",
-        "source": "ios_apps",
-        "bundle_identifier": "com.google.Gmail",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/var/containers/Bundle/Application/"]
-      },
-      {
-        "id": 322,
-        "name": "Slack",
-        "version": "23.10.10",
-        "source": "ios_apps",
-        "bundle_identifier": "com.tinyspeck.chatlyio",
-        "last_opened_at": "2021-08-18T21:14:00Z",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/var/containers/Bundle/Application/"]
-      }
-    ],
-    "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": "On (automatic)",
-      "name": "Fleet",
-      "connected_to_fleet": true,
-      "server_url": "https://acme.com/mdm/apple/mdm",
-      "device_status": "unlocked",
-      "pending_action": "",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
-      "apple_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": ""
-      },
-      "setup_experience": {
-        "bootstrap_package_status": "installed",
-        "detail": "",
-        "bootstrap_package_name": ""
-      },
-      "os_settings": {
-        "disk_encryption": {
-          "status": null,
-          "detail": ""
-        }
-      },
-      "profiles": [
-        {
-          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
-          "name": "iOS Restrictions Profile",
-          "status": "verifying",
-          "operation_type": "install",
-          "scope": "device",
-          "managed_local_account": "",
-          "detail": ""
-        }
-      ]
-    }
-  }
-}
-```
-
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
-> Note: 
-> - `signature_information` is only set for macOS (.app) applications. 
-> - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> Note: `signature_information` is only set for macOS (.app) applications.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -4446,7 +4109,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 | exclude_fleet_maintained_policies | boolean | query | If `true`, will omit Fleet-maintained policies from the policies list. |
 
 
-#### Example (macOS)
+#### Example
 
 `GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
@@ -4487,7 +4150,6 @@ If `hostname` is specified when there is more than one host with the same hostna
     "cpu_logical_cores": 1,
     "hardware_vendor": "",
     "hardware_model": "",
-    "hardware_marketing_name": "",
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "23cfc9caacf0",
@@ -4657,295 +4319,12 @@ If `hostname` is specified when there is more than one host with the same hostna
   }
 }
 ```
-#### Example (iOS/iPadOS)
-
-`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host": {
-    "created_at": "2022-02-10T02:29:13Z",
-    "updated_at": "2022-10-14T17:07:11Z",
-    "id": 33,
-    "detail_updated_at": "2022-10-14T17:07:12Z",
-    "label_updated_at": "2022-10-14T17:07:12Z",
-    "policy_updated_at": "2022-10-14T17:07:12Z",
-    "last_enrolled_at": "2022-02-10T02:29:13Z",
-    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
-    "mdm_enrollment_hardware_attested": true,
-    "software_updated_at": "2020-11-05T05:09:44Z",
-    "seen_time": "2022-10-14T17:45:41Z",
-    "refetch_requested": false,
-    "hostname": "Johns-iPhone",
-    "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
-    "platform": "ios",
-    "osquery_version": "5.5.1",
-    "os_version": "iOS 17.4.1",
-    "build": "21E236",
-    "platform_like": "darwin",
-    "code_name": "",
-    "uptime": 20807520000000000,
-    "memory": 6442450944,
-    "cpu_type": "arm64",
-    "cpu_subtype": "ARM64E",
-    "cpu_brand": "Apple A16 Bionic",
-    "cpu_physical_cores": 6,
-    "cpu_logical_cores": 6,
-    "hardware_vendor": "Apple Inc.",
-    "hardware_model": "iPhone15,2",
-    "hardware_version": "iPhone 15 Pro",
-    "hardware_serial": "F2LXX1XXXXXX",
-    "computer_name": "John's iPhone",
-    "timezone": null,
-    "public_ip": "",
-    "primary_ip": "192.168.1.42",
-    "primary_mac": "a4:83:e7:12:34:56",
-    "distributed_interval": 10,
-    "config_tls_refresh": 60,
-    "logger_tls_period": 10,
-    "team_id": 2,
-    "fleet_id": 2,
-    "team_name": null,
-    "fleet_name": null,
-    "gigs_disk_space_available": 54.3,
-    "percent_disk_space_available": 43,
-    "gigs_total_disk_space": 128,
-    "app_analytics_enabled": true,
-    "accessibility_settings": {
-      "bold_text": false,
-      "increase_contrast": false,
-      "reduce_motion": true,
-      "reduce_transparency": false,
-      "text_size": 1.0,
-      "touch_accommodations": false,
-      "voice_over": false,
-      "zoom": false
-    },
-    "awaiting_configuration": false,
-    "battery_level": 82,
-    "bluetooth_mac": "a4:83:e7:12:34:57",
-    "cellular_technology": "LTE",
-    "data_roaming_enabled": false,
-    "device_properties_attestation": {
-      "device_attested": true,
-      "attestation_status": "valid",
-      "last_attested_at": "2023-02-26T22:33:12Z"
-    },
-    "diagnostic_submission_enabled": true,
-    "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
-    "is_cloud_backup_enabled": true,
-    "is_device_locator_service_enabled": true,
-    "is_do_not_disturb_in_effect": false,
-    "is_mdm_lost_mode_enabled": false,
-    "is_network_tethered": false,
-    "itunes_store_account_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-    "itunes_store_account_is_active": true,
-    "last_cloud_backup_date": "2023-02-25T14:22:10Z",
-    "mdm_options": {
-      "activation_lock_allowed_while_supervised": true,
-      "bootstrap_token_allowed": true,
-      "bootstrap_token_required_for_software_update": false,
-      "bootstrap_token_required_for_kext_approval": false
-    },
-    "model_number": "MNEP3LL/A",
-    "modem_firmware_version": "2.01.00",
-    "organization_info": {
-      "organization_name": "Acme Corp",
-      "organization_address": "123 Main St, New York, NY 10001",
-      "organization_phone": "+1-123-456-7890",
-      "organization_email": "it@example.com",
-      "organization_magic": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-    },
-    "personal_hotspot_enabled": false,
-    "push_token": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
-    "service_subscriptions": [
-      {
-        "carrier_settings_version": "42.0",
-        "current_carrier_network": "Verizon",
-        "current_mcc": "311",
-        "current_mnc": "480",
-        "eid": "89049032004008882600890049000003",
-        "iccid": "89014103211118510720",
-        "imei": "352099001761481",
-        "is_data_preferred": true,
-        "is_roaming": false,
-        "is_voice_preferred": true,
-        "label": "Primary",
-        "label_id": "com.apple.subscriberLabel.primary",
-        "meid": "35209900176148",
-        "phone_number": "+1-555-867-5309",
-        "slot": "1"
-      }
-    ],
-    "supplemental_build_version": "21E236",
-    "supplemental_os_version_extra": "a",
-    "wifi_mac": "a4:83:e7:12:34:58",
-    "issues": {
-      "failing_policies_count": 1,
-      "critical_vulnerabilities_count": 2, // Fleet Premium only
-      "total_issues_count": 3
-    },
-    "batteries": [
-      {
-        "cycle_count": 187,
-        "health": "Normal"
-      }
-    ],
-    "geolocation": {
-      "country_iso": "US",
-      "city_name": "New York",
-      "geometry": {
-        "type": "point",
-        "coordinates": [40.6799, -74.0028]
-      }
-    },
-    "pack_stats": [
-      {
-        "pack_id": 1,
-        "pack_name": "Global",
-        "type": "global",
-        "query_stats": [
-          {
-            "scheduled_query_name": "Get running processes (with user_name)",
-            "scheduled_query_id": 49,
-            "query_name": "Get running processes (with user_name)",
-            "pack_name": "Global",
-            "pack_id": 1,
-            "average_memory": 260000,
-            "denylisted": false,
-            "executions": 1,
-            "interval": 86400,
-            "last_executed": "2022-10-14T10:00:01Z",
-            "output_size": 198,
-            "system_time": 20,
-            "user_time": 80,
-            "wall_time": 0
-          }
-        ]
-      }
-    ],
-    "labels": [
-      {
-        "created_at": "2021-09-14T05:11:02Z",
-        "updated_at": "2021-09-14T05:11:02Z",
-        "id": 12,
-        "name": "All iOS",
-        "description": "All iOS devices",
-        "query": "SELECT 1 FROM osquery_info WHERE build_platform = 'ios';",
-        "platform": "ios",
-        "label_type": "builtin",
-        "label_membership_type": "dynamic"
-      }
-    ],
-    "packs": [
-      {
-        "created_at": "2021-09-17T05:28:54Z",
-        "updated_at": "2021-09-17T05:28:54Z",
-        "id": 1,
-        "name": "Global",
-        "description": "Global pack",
-        "disabled": false,
-        "type": "global",
-        "labels": null,
-        "label_ids": null,
-        "hosts": null,
-        "host_ids": null,
-        "teams": null,
-        "fleet": null,
-        "team_ids": null,
-        "fleet_ids": null
-      }
-    ],
-    "policies": [
-      {
-        "id": 142,
-        "name": "Passcode required (iOS)",
-        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.mobiledevice.passwordpolicy' AND name = 'forcePIN' AND value = 1 LIMIT 1;",
-        "description": "Checks to make sure that a passcode is required on iOS devices.",
-        "author_id": 31,
-        "author_name": "",
-        "author_email": "",
-        "team_id": null,
-        "fleet_id": null,
-        "resolution": "To enable a passcode, on the failing device, go to Settings > Face ID & Passcode > Turn Passcode On.",
-        "platform": "ios",
-        "created_at": "2022-09-02T18:52:19Z",
-        "updated_at": "2022-09-02T18:52:19Z",
-        "response": "fail",
-        "critical": false
-      }
-    ],
-    "software": [
-      {
-        "id": 16923,
-        "name": "Gmail",
-        "version": "6.0.240414",
-        "source": "ios_apps",
-        "browser": "",
-        "extension_for": "",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "installed_paths": ["/var/containers/Bundle/Application/"]
-      }
-    ],
-    "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": "On (automatic)",
-      "name": "Fleet",
-      "server_url": "https://acme.com/mdm/apple/mdm",
-      "device_status": "unlocked",
-      "pending_action": "",
-      "macos_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
-      "apple_settings": {
-        "disk_encryption": null,
-        "action_required": null
-      },
-      "macos_setup": {
-        "bootstrap_package_status": "installed",
-        "detail": ""
-      },
-      "setup_experience": {
-        "bootstrap_package_status": "installed",
-        "detail": ""
-      },
-      "os_settings": {
-        "disk_encryption": {
-          "status": null,
-          "detail": ""
-        }
-      },
-      "profiles": [
-        {
-          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
-          "name": "iOS Restrictions Profile",
-          "status": "verifying",
-          "operation_type": "install",
-          "scope": "device",
-          "managed_local_account": "",
-          "detail": ""
-        }
-      ]
-    }
-  }
-}
-```
 
 > Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
-
-> Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
-
 
 ### Get host by Fleet Desktop token
 
@@ -5015,7 +4394,6 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "cpu_logical_cores": 8,
     "hardware_vendor": "Apple Inc.",
     "hardware_model": "MacBookPro17,1",
-    "hardware_marketing_name": "MacBook Pro (13-inch, M1, 2020)",
     "hardware_version": "",
     "hardware_serial": "",
     "computer_name": "Anna's MacBook Pro",
@@ -6001,10 +5379,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -6787,7 +6165,7 @@ Add a dynamic or manual label.
 | criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial` or `uuid`). The label will apply to any host with a matching identifier. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
 | host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
-| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `"darwin"`, `"windows"`, `"linux"`, `"ubuntu"`, and `"centos"`. All platforms are included by default and this option is represented by an empty string. |
+| platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
 
