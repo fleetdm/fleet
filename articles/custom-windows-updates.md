@@ -60,7 +60,7 @@ A deadline says "install within N days of being offered." Deferral policies cont
 
 A simple setup in Fleet might look something like this:
 
-| Team | Quality deferral | Feature deferral |
+| Fleet | Quality deferral | Feature deferral |
 | --- | --- | --- |
 | 🧪 Testing + QA | 0 days | 0 days |
 | 💻 Workstations | 7 days | 30 days |
