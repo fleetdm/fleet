@@ -79,10 +79,10 @@ One warning: pinning is a commitment. If you pin a release and forget about it, 
 
 ## Pausing updates
 
-When a bad patch ships admins want a brake, not an entire config refactor:
+When a bad patch ships, admins want a brake, not an entire config refactor:
 
 - `PauseQualityUpdatesStartTime` — pauses quality updates for 35 days from the date you set (format: `2026-07-27`).
-- `PauseFeatureUpdatesStartTime` — same, for feature updates channel.
+- `PauseFeatureUpdatesStartTime` — same, for feature updates.
 
 Push the profile with today's date to the affected team, and updates stop being offered for 35 days or until you clear it. Because it's just a profile, un-pausing is deleting the profile. {HARRY WANT TO CONFIRM THIS ACTUALLY WORKS}
 
@@ -90,18 +90,18 @@ Push the profile with today's date to the affected team, and updates stop being 
 
 Two policies that punch above their weight:
 
-- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [offical documentation](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products)
+- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [official documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products)
 - `ExcludeWUDriversInQualityUpdate` — set to `1` to keep driver updates out of quality updates. Whether you want this depends on your hardware fleet; if your vendor ships driver updates through their own tooling, excluding Windows Update drivers avoids the two clashing.
 
 ## Managing the end-user experience
 
 The remaining policies control what users see and how much they can interfere:
 
-- `ActiveHoursStart` / `ActiveHoursEnd` / `ActiveHoursMaxRange` — define when automatic restarts won't happen. By default users set their own active hours (up to an 18-hour range); these policies let you set or constrain them. Be aware of the other policies you have configured. If either `AlwaysAutoRebootAtScheduledTimeMinutes` or `NoAutoRebootWithLoggedOnUsers` (a registry key, no CSP available), this policy has no effect.
+- `ActiveHoursStart` / `ActiveHoursEnd` / `ActiveHoursMaxRange` — define when automatic restarts won't happen. By default users set their own active hours (up to an 18-hour range); these policies let you set or constrain them. Be aware of the other policies you have configured. If either `AlwaysAutoRebootAtScheduledTimeMinutes` or `NoAutoRebootWithLoggedOnUsers` (a registry key, no CSP available) is configured, this policy has no effect.
 - `SetDisablePauseUXAccess` — removes the user's ability to hit "Pause updates" in Settings. If you're enforcing a compliance window, this closes the loophole where a user pauses updates for 35 days and sails past your deadline.
-- `SetDisableUXWUAccess` — If you enable this setting user access to Windows Update scan, download and install is removed. \
+- `SetDisableUXWUAccess` — removes the user's ability to scan for, download, and install updates from Settings.
 - `UpdateNotificationLevel` - This policy allows you to define what Windows Update notifications users see. This policy doesn't control how and when updates are downloaded and installed. Below maps the values an admin can set and the expected behavior.
--
+
 | Value | Behavior |
 | --- | --- |
 | 0 (default) | Use the default Windows Update notifications |
@@ -109,13 +109,13 @@ The remaining policies control what users see and how much they can interfere:
 | 2 | Turn off all notifications, including restart warnings |
 
 
-- and `NoUpdateNotificationsDuringActiveHours` - Same values and behavior as the previous key, but can be helpful to dial down update toasts for conference room PCs, digital signage, and other devices where a notification isn't needed or is intrusive. Deadline warnings still appear once the deadline is reached, so enforcement stays visible.
+- `NoUpdateNotificationsDuringActiveHours` - restricts the suppression above to active hours only. Helpful for conference-room PCs, digital signage, and other devices where a notification isn't needed or is intrusive. Deadline warnings still appear once the deadline is reached, so enforcement stays visible.
 
 ## One to leave alone: safeguard holds
 
 `DisableWUfBSafeguards` deserves a mention only as a warning. Safeguard holds are Microsoft's mechanism for blocking a feature update from devices with a known compatibility issue, for example, a driver that bluescreens on the new release. Setting this policy to `1` bypasses those holds.
 
-Microsoft's own docs recommend using it only for validation in IT environments, and the policy deliberately resets to Not Configured after every feature update so nobody disables safeguards once and forgets (hey, good thinking there, Microsoft). Unless you're actively debugging why a specific device isn't being offered an update, leave it alone. More information on this key can be found [here.](https://learn.microsoft.com/en-us/windows/deployment/update/safeguard-holds). 
+Microsoft's own docs recommend using it only for validation in IT environments, and the policy deliberately resets to Not Configured after every feature update so nobody disables safeguards once and forgets (hey, good thinking there, Microsoft). Unless you're actively debugging why a specific device isn't being offered an update, leave it alone. More information can be found [in Microsoft's safeguard holds documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/safeguard-holds) 
 
 ## Deploying with Fleet
 
@@ -213,12 +213,12 @@ AND CAST(data AS integer) <= 7;
 The Update CSP contains roughly 90 policies, and you've now seen the ~20 that matter for most environments. Of the remainder:
 
 - **Legacy Policies** (engaged restart, `DeferUpdatePeriod`, auto-restart deadlines) are earlier generations of the enforcement model, superseded by the deadline policies. If you find them in inherited profiles, migrating to deadlines will simplify your life.
-- **The WSUS section** (`UpdateServiceUrl`, scan-source policies) only matters if you're running WSUS. The one interesting corner is the `SetPolicyDrivenUpdateSourceFor*Updates` family, which lets you move update types to Windows Update one at a time, which can be useful for a gradual migration off WSUS or ConfigMgr.
+- **The WSUS section** (`UpdateServiceUrl`, scan-source policies) only matters if you're running WSUS. The one interesting corner is the `SetPolicyDrivenUpdateSourceFor*Updates` family, which lets you move update types to Windows Update one at a time, useful for a gradual migration off WSUS or ConfigMgr.
 - **The Maintenance Window section** is a newer addition that gives update installs a proper maintenance-window scheduler. Worth watching if you manage servers or kiosks with strict change windows.
 
 ## Conclusion
 
-Windows update management doesn't need a dedicated product or a WSUS server. The Update CSP gives you deadlines, rings, release pinning, and an emergency brake, and Fleet gives you the delivery mechanism, fleet-based targeting, and the means to verify that what you configured is what's actually running. 
+Windows update management doesn't need a dedicated product or a WSUS server. The Update CSP gives you deadlines, rings, release pinning, and an emergency brake, and Fleet gives you the delivery mechanism, fleet-based targeting, and the means to verify that what you configured is what's actually running.
 
 Set the deadline, build your rings, and let the machines patch themselves.
 
