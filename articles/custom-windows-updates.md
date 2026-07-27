@@ -37,7 +37,7 @@ Microsoft has gone through several generations of update enforcement (you'll fin
 | `ConfigureDeadlineGracePeriod` | 0–7 days | 2 |
 | `ConfigureDeadlineGracePeriodForFeatureUpdates` | 0–7 days | 7 |
 
-With deadline policies configured, the download and install happen automatically as soon as the update is offered. The two knobs ann admin can turn are **deadline** and **grace period.**
+With deadline policies configured, the download and install happen automatically as soon as the update is offered. The two knobs an admin can turn are **deadline** and **grace period**.
 
 Deadline: number of days from when the update is offered until the restart is forced (regardless of active hours, user can't reschedule).
 
@@ -90,7 +90,7 @@ Push the profile with today's date to the affected team, and updates stop being 
 
 Two policies that punch above their weight:
 
-- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [official documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products)
+- `AllowMUUpdateService` — set to `1` and Windows Update also patches other Microsoft products, most notably Office. This is **off by default**, which surprises a lot of teams whose Office installs quietly stopped updating when they left WSUS or ConfigMgr behind. You can see the full list of Microsoft products that are in scope for this policy in the [official documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/update-other-microsoft-products).
 - `ExcludeWUDriversInQualityUpdate` — set to `1` to keep driver updates out of quality updates. Whether you want this depends on your hardware fleet; if your vendor ships driver updates through their own tooling, excluding Windows Update drivers avoids the two clashing.
 
 ## Managing the end-user experience
@@ -100,7 +100,8 @@ The remaining policies control what users see and how much they can interfere:
 - `ActiveHoursStart` / `ActiveHoursEnd` / `ActiveHoursMaxRange` — define when automatic restarts won't happen. By default users set their own active hours (up to an 18-hour range); these policies let you set or constrain them. Be aware of the other policies you have configured. If either `AlwaysAutoRebootAtScheduledTimeMinutes` or `NoAutoRebootWithLoggedOnUsers` (a registry key, no CSP available) is configured, this policy has no effect.
 - `SetDisablePauseUXAccess` — removes the user's ability to hit "Pause updates" in Settings. If you're enforcing a compliance window, this closes the loophole where a user pauses updates for 35 days and sails past your deadline.
 - `SetDisableUXWUAccess` — removes the user's ability to scan for, download, and install updates from Settings.
-- `UpdateNotificationLevel` - This policy allows you to define what Windows Update notifications users see. This policy doesn't control how and when updates are downloaded and installed. Below maps the values an admin can set and the expected behavior.
+- `UpdateNotificationLevel` - This policy allows you to define what Windows Update notifications users see. This policy doesn't control how and when updates are downloaded and installed. The table below maps the values an admin can set and the expected behavior.
+
 
 | Value | Behavior |
 | --- | --- |
@@ -115,7 +116,7 @@ The remaining policies control what users see and how much they can interfere:
 
 `DisableWUfBSafeguards` deserves a mention only as a warning. Safeguard holds are Microsoft's mechanism for blocking a feature update from devices with a known compatibility issue, for example, a driver that bluescreens on the new release. Setting this policy to `1` bypasses those holds.
 
-Microsoft's own docs recommend using it only for validation in IT environments, and the policy deliberately resets to Not Configured after every feature update so nobody disables safeguards once and forgets (hey, good thinking there, Microsoft). Unless you're actively debugging why a specific device isn't being offered an update, leave it alone. More information can be found [in Microsoft's safeguard holds documentation.](https://learn.microsoft.com/en-us/windows/deployment/update/safeguard-holds) 
+Microsoft's own docs recommend using it only for validation in IT environments, and the policy deliberately resets to Not Configured after every feature update so nobody disables safeguards once and forgets (hey, good thinking there, Microsoft). Unless you're actively debugging why a specific device isn't being offered an update, leave it alone. More information can be found [in Microsoft's safeguard holds documentation](https://learn.microsoft.com/en-us/windows/deployment/update/safeguard-holds).
 
 ## Deploying with Fleet
 
