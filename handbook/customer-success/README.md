@@ -630,7 +630,7 @@ Every month, the VP of Customer Success creates a new tab in the [usage stats Go
 
 The Google sheet exists for historical purposes (e.g. how many hosts has a customer had enrolled on average over the course of 1 quarter) and to track customers with multiple Fleet environments.
 
-A Grafana dashboard is [coming soon](TODO).
+A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
 
 ## Rituals
 
