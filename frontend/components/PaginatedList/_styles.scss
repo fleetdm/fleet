@@ -71,6 +71,25 @@
       min-width: 0;
       /* This is crucial for proper shrinking */
     }
+
+    // Fade the entire button (border + fill + children), not just its children,
+    // so bordered/filled variants like `secondary` don't leave an empty box behind.
+    .row-hover-button {
+      opacity: 0;
+      // Suppress pointer events while hidden so the invisible button can't
+      // intercept clicks meant for the row. Tab navigation still works —
+      // pointer-events only gates mouse/touch, not keyboard focus.
+      pointer-events: none;
+      transition: opacity 250ms;
+
+      // Reveal on the button's own keyboard focus, not just row hover —
+      // otherwise tabbing to a hidden row-hover button never shows it.
+      &:focus-visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
+
     &:not(.paginated-list__row--disabled):hover {
       background: $ui-off-white;
       cursor: pointer;
@@ -81,6 +100,11 @@
 
       .policy-row__preview-button {
         visibility: visible;
+      }
+
+      .row-hover-button {
+        opacity: 1;
+        pointer-events: auto;
       }
     }
 

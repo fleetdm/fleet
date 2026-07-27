@@ -129,11 +129,12 @@ const formatDetailWindowsProfile = (detail: string) => {
   const keyValuePairs = detail.split(/, */);
   const formattedElements: JSX.Element[] = [];
 
-  // Special case to handle bitlocker error message. It does not follow the
-  // expected string format so we will just render the error message as is.
+  // Special case to handle bitlocker and certificate install error messages.
+  // They do not follow the expected string format so we will just render the error message as is.
   if (
     detail.includes("BitLocker") ||
-    detail.includes("preparing volume for encryption")
+    detail.includes("preparing volume for encryption") ||
+    detail.startsWith("Couldn't install certificate")
   ) {
     return detail;
   }
