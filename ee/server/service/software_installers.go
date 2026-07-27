@@ -3262,14 +3262,18 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			// For FMA installers, check if this version is already cached for this team.
+			// Match on the hash too so a rebuilt package (same version, new hash) isn't
+			// treated as cached and gets downloaded and upserted instead.
 			var fmaVersionCached bool
 			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
-				cached, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				versionExists, cachedHash, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "check cached FMA version")
 				}
-				fmaVersionCached = cached
-				installer.FMAVersionCached = cached
+				if versionExists && cachedHash == p.MaintainedApp.SHA256 {
+					fmaVersionCached = true
+				}
+				installer.FMAVersionCached = fmaVersionCached
 			}
 
 			var installerBytesExist bool
