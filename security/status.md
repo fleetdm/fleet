@@ -348,6 +348,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-06 08:51:11
 
+### [CVE-2026-57433](https://nvd.nist.gov/vuln/detail/CVE-2026-57433)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** perl is not used during fleetd package generation.
+- **Products:** `fleetctl`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-07-27 17:15:39
+
 ### [CVE-2026-54513](https://nvd.nist.gov/vuln/detail/CVE-2026-54513)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
