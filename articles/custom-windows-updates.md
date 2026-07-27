@@ -26,7 +26,7 @@ Before writing any custom profiles, know that Fleet handles the core case out of
 
 Custom settings come in when you want to go beyond enforcement: rollout rings, pinning a release, patching Office, or locking down the end-user experience. That's what the rest of this guide is for.
 
-## The deadline verses the grace period
+## Deadlines vs. grace periods
 
 Microsoft has gone through several generations of update enforcement (you'll find the fossil record in the "Legacy Policies" section of the docs). The current, recommended model is **deadline-driven**, built on four policies:
 
@@ -37,7 +37,7 @@ Microsoft has gone through several generations of update enforcement (you'll fin
 | `ConfigureDeadlineGracePeriod` | 0–7 days | 2 |
 | `ConfigureDeadlineGracePeriodForFeatureUpdates` | 0–7 days | 7 |
 
-With deadline policies configured, the download and install happen automatically as soon as the update is offered. The two knobs and admin can turn are **deadline** and **grace period**
+With deadline policies configured, the download and install happen automatically as soon as the update is offered. The two knobs ann admin can turn are **deadline** and **grace period.**
 
 Deadline: number of days from when the update is offered until the restart is forced (regardless of active hours, user can't reschedule).
 
@@ -68,10 +68,10 @@ Patch Tuesday lands on your testing ring the same day. If a week passes without 
 
 ## Pin the release you actually want
 
-Windows Update will eventually offer devices the next feature release. If you'd rather move to Windows 11 26H1 when all the testing is complete and your devices are ready on your schedule, pinning can be leveraged.
+Windows Update will eventually offer devices the next feature release. If you'd rather move to Windows 11 26H1 when all the testing is complete and your devices are ready on your schedule, pin it.
 
-- `ProductVersion` — the product to stay on or move to. Supported value type is a string containing a Windows product. For example, "Windows 11" or "11" or "Windows 10"
-- `TargetReleaseVersion` — the specific release (e.g., `1809` or `1903`).
+- `ProductVersion` — the product to stay on or move to. Supported value type is a string containing a Windows product, for example, "Windows 11" or "11" or "Windows 10".
+- `TargetReleaseVersion` — the specific release (e.g., `24H2` or `25H2`).
 
 Devices stay on the pinned release until it reaches end of service or you change the policy. These two must be configured **together** — `TargetReleaseVersion` doesn't work on its own.
 
