@@ -106,7 +106,7 @@ The remaining policies control what users see and how much they can interfere:
 | --- | --- |
 | 0 (default) | Use the default Windows Update notifications |
 | 1 | Turn off all notifications, excluding restart warnings |
-| 2 | Turn off all notifications, including restart warnings.
+| 2 | Turn off all notifications, including restart warnings |
 
 
 - and `NoUpdateNotificationsDuringActiveHours` - Same values and behavior as the previous key, but can be helpful to dial down update toasts for conference room PCs, digital signage, and other devices where a notification isn't needed or is intrusive. Deadline warnings still appear once the deadline is reached, so enforcement stays visible.
