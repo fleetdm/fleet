@@ -6,6 +6,8 @@ Windows exposes all of its update behavior through the [Update Policy CSP](https
 
 This guide covers the policies worth knowing, the ones worth skipping, and how to deploy and verify them with Fleet.
 
+## Update types
+
 There are a few different types of updates in Windows that are important to know. Let's take a look at each of them and what they do.
 
 **Feature updates:** These are released annually and contain new features and functionality. For example, **25H2** became generally available on September 30, 2025. Microsoft states 36 months of support for Enterprise and Education editions.
@@ -84,7 +86,7 @@ When a bad patch ships, admins want a brake, not an entire config refactor:
 - `PauseQualityUpdatesStartTime` — pauses quality updates for 35 days from the date you set (format: `2026-07-27`).
 - `PauseFeatureUpdatesStartTime` — same, for feature updates.
 
-Push the profile with today's date to the affected team, and updates stop being offered for 35 days or until you clear it. Because it's just a profile, un-pausing is deleting the profile. {HARRY WANT TO CONFIRM THIS ACTUALLY WORKS}
+Push the profile with today's date to the affected fleet, and updates stop being offered for 35 days or until you clear it. Because it's just a profile, un-pausing is deleting the profile. {HARRY WANT TO CONFIRM THIS ACTUALLY WORKS}
 
 ## Don't forget Office (and think about drivers)
 
