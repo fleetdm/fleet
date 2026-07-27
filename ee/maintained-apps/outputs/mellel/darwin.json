@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.7.0",
+      "version": "6.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel6' AND version_compare(bundle_short_version, '6.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel6' AND version_compare(bundle_short_version, '6.7.1') < 0);"
       },
-      "installer_url": "https://d1riogbqt3a9uw.cloudfront.net/mellel_67002.dmg",
+      "installer_url": "https://d1riogbqt3a9uw.cloudfront.net/mellel_67102.dmg",
       "install_script_ref": "46b16a97",
       "uninstall_script_ref": "7a83c8df",
-      "sha256": "f8833dc531d5d028fe0fed2aef033a61f4330dd75b0a931825b0f3ce9a6e727f",
+      "sha256": "c29a8f555a43b504fa4ecbfa186cfa526ac29a1f1a67a6b25d48014f4af7400d",
       "default_categories": [
         "Productivity"
       ]

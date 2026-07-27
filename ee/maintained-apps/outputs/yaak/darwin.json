@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.4.0",
+      "version": "2026.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop' AND version_compare(bundle_short_version, '2026.4.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.yaak.desktop' AND version_compare(bundle_short_version, '2026.5.0') < 0);"
       },
-      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.4.0/Yaak_2026.4.0_aarch64.dmg",
+      "installer_url": "https://github.com/mountain-loop/yaak/releases/download/v2026.5.0/Yaak_2026.5.0_aarch64.dmg",
       "install_script_ref": "064e2880",
       "uninstall_script_ref": "7041eb1f",
-      "sha256": "d2a05e7782919589564284868312bf040a4cb3d437aa78cb83258985fe65bb02",
+      "sha256": "c191f08eb7796475a6fadbe22b0b38bffb2fc211aa5a591d4061d7a0dc4e427a",
       "default_categories": [
         "Developer tools"
       ]

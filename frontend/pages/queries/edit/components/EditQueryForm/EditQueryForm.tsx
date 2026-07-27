@@ -25,6 +25,7 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -75,8 +76,6 @@ import DiscardDataOption from "../DiscardDataOption";
 import SaveAsNewQueryModal from "../SaveAsNewQueryModal";
 
 const baseClass = "edit-query-form";
-
-const NAME_MAX_LENGTH = 255;
 
 interface IEditQueryFormProps {
   router: InjectedRouter;
@@ -466,7 +465,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
-          inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
