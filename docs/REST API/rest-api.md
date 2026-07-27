@@ -8783,10 +8783,11 @@ The possible `status` values for Windows hosts are listed in [Microsoft's OMA DM
 
 #### Parameters
 
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command_uuid              | string | query | The unique identifier of the command.                                     |
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string  | query | The unique identifier of the command.                                     |
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. Returns only results for the specified host. |
+| channel                   | string  | query | The channel to filter by. Allowed values: `all`, `device`, `user`. Default is `all`. |
 
 #### Example
 
@@ -8857,6 +8858,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| channel                   | string  | query | The channel to filter by. Allowed values: `all`, `device`, `user`. Default is `all`. |
 
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
