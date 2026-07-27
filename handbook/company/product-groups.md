@@ -601,7 +601,7 @@ When the Product Designers (PD) knows a user story in drafting will be pushed, i
 When an Engineering Manager (EM) knows a user story being built will be pushed, it is the EM's responsibility to notify stakeholders.
 
 1. If the story is being built, send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
-2. If `~activation blocker` and/or `~customer promsie` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+2. If `~activation-blocker` and/or `~customer promsie` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
