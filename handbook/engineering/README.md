@@ -117,7 +117,7 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 [User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be built in a single release cycle. When an Engineering Manager (EM) knows a user story will be pushed, it is the EM's responsibility to notify stakeholders:
 
 1. Send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
-2. If `customer-` labels are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
+2. If `~activation blocker` and/or `~customer promise` labels are applied to the user story, also at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
 
 > Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
 
