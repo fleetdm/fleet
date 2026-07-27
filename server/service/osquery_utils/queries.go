@@ -3217,6 +3217,10 @@ const windowsEnrollmentNewHostGrace = 5 * time.Minute
 // team", matching macOS ABM re-enrollment behavior. The transfer runs the same profile side
 // effects as a manual transfer; no transferred_hosts activity is logged, mirroring ABM ingest.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	// Require the primary for both reads: this path runs only once per link, so replica lag could
+	// permanently lose the assignment, either by missing a just-configured default fleet or by a
+	// NotFound on a hosts row that orbit enroll inserted seconds ago.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultTeam(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
@@ -3224,9 +3228,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	if teamID == nil {
 		return nil
 	}
-	// Require the primary: the hosts row may have been inserted seconds ago by orbit enroll, and
-	// this path runs only once per link, so a replica-lag NotFound would lose the assignment.
-	host, err := ds.HostLiteByID(ctxdb.RequirePrimary(ctx, true), hostID)
+	host, err := ds.HostLiteByID(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
 	}

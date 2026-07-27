@@ -94,6 +94,11 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
+	// AppConfigObfuscated hydrates the Windows enrollment default fleet from its config row on
+	// every config read, so default to "not configured" for tests that don't care about it.
+	ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
+	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{

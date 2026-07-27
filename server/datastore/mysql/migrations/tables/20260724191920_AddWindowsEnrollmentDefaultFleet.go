@@ -28,7 +28,7 @@ func Up_20260724191920(tx *sql.Tx) error {
 	}
 
 	// hardware_serial is the SMBIOS serial the device reports over OMA-DM (DevDetail). It is
-	// persisted while the enrollment is still unlinked (host_uuid = '') so the orbit enrollment
+	// persisted while the enrollment is still unlinked (host_uuid = "") so the orbit enrollment
 	// path can reverse-link the enrollment to the host it just created. NULL until the device
 	// answers the DevDetail query; placeholder serials are never stored.
 	_, err = tx.Exec(`

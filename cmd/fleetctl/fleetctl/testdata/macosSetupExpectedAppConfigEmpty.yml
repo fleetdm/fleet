@@ -62,6 +62,7 @@ spec:
       custom_settings: null
     apple_settings:
       configuration_profiles: null
+    windows_enrollment: null
     windows_settings:
       custom_settings: null
       configuration_profiles: null

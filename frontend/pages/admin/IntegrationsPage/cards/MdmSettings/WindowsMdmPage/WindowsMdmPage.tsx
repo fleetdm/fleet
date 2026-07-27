@@ -139,6 +139,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
     <DropdownWrapper
       name="default-fleet"
       label="Default fleet"
+      ariaLabel="Default fleet"
       options={fleetOptions}
       value={defaultFleet}
       onChange={onChangeDefaultFleet}

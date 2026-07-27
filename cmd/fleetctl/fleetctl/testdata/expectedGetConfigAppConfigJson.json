@@ -196,6 +196,7 @@
         "require_all_software_windows": false,
         "software": null
       },
+      "windows_enrollment": null,
       "windows_settings": {
         "custom_settings": null,
         "configuration_profiles": null
