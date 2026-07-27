@@ -91,6 +91,7 @@ jobs:
           DOGFOOD_ENTRA_TENANT_ID: ${{ secrets.DOGFOOD_ENTRA_TENANT_ID }}
           DOGFOOD_OKTA_METADATA_URL_ADMINS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_ADMINS }}
           DOGFOOD_OKTA_METADATA_URL_END_USERS: ${{ secrets.DOGFOOD_OKTA_METADATA_URL_END_USERS }}
+          DOGFOOD_ENTRA_CLIENT_ID: ${{ secrets.DOGFOOD_ENTRA_CLIENT_ID }}
 
       - name: Notify on Gitops failure
         if: failure() && github.ref_name == 'main'

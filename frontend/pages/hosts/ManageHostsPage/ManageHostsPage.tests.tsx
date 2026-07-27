@@ -148,7 +148,7 @@ describe("ManageHostsPage", () => {
 
     // Add hosts button still visible in the page header
     const headerWrap = screen
-      .getByText("Manage enroll secret")
+      .getByText("Enroll secrets")
       .closest(".manage-hosts__button-wrap");
     expect(
       within(headerWrap as HTMLElement).getByText("Add hosts")

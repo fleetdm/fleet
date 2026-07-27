@@ -1,11 +1,13 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
+
+const mockRouter = createMockRouter();
 
 describe("Policies table", () => {
   it("Renders the page-wide empty state when no policies are present (free tier)", async () => {
@@ -28,6 +30,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -59,6 +62,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -92,6 +96,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -125,6 +130,7 @@ describe("Policies table", () => {
         onQueryChange={noop}
         renderPoliciesCount={() => null}
         count={0}
+        router={mockRouter}
       />
     );
 
@@ -158,6 +164,7 @@ describe("Policies table", () => {
         onQueryChange={noop}
         renderPoliciesCount={() => null}
         count={0}
+        router={mockRouter}
       />
     );
 
@@ -188,6 +195,7 @@ describe("Policies table", () => {
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -221,6 +229,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testCriticalPolicy].length}
       />
@@ -260,6 +269,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testInheritedPolicy].length}
       />
@@ -299,6 +309,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testGlobalPolicy].length}
       />
@@ -341,6 +352,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         canAddOrDeletePolicies
         hasPoliciesToDelete
@@ -389,6 +401,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={1}
       />
@@ -420,12 +433,88 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={1}
       />
     );
 
     expect(screen.queryByText("Patch")).not.toBeInTheDocument();
+  });
+
+  it("Renders the Targeted platforms column using the policy's platform field", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const policyWithAllPlatforms = createMockPolicy({
+      id: 100,
+      name: "cross-platform policy",
+      platform: "",
+    });
+    const policyWithDarwin = createMockPolicy({
+      id: 101,
+      name: "macOS policy",
+      platform: "darwin",
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[policyWithAllPlatforms, policyWithDarwin]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={2}
+      />
+    );
+
+    expect(screen.getByText("Targeted platforms")).toBeInTheDocument();
+    expect(screen.getByTestId("darwin-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("windows-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("linux-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chrome-icon")).not.toBeInTheDocument();
+  });
+
+  it("Renders the platform filter dropdown when the table is searchable", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[createMockPolicy({ platform: "darwin" })]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        onAddPolicyClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        router={mockRouter}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.getByText("All platforms")).toBeInTheDocument();
   });
 
   it("Renders the Automations column with correct values", () => {
@@ -464,6 +553,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={2}
       />

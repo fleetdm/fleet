@@ -1,0 +1,9 @@
+.host-name-template {
+  @include vertical-card-layout;
+
+
+  &__content {
+    gap: $pad-large;
+    animation: fade-in 250ms ease-out;
+  }
+}

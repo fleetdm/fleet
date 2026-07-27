@@ -31,6 +31,7 @@ export enum ActivityType {
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
   UserFailedLogin = "user_failed_login",
+  UserMFARequested = "user_mfa_requested",
   UserCreated = "created_user",
   UserDeleted = "deleted_user",
   HostDeleted = "deleted_host",
@@ -148,6 +149,7 @@ export enum ActivityType {
   CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  EditedAppleAccountProvisioning = "edited_apple_account_provisioning",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
   DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   AddedConditionalAccessOkta = "added_conditional_access_okta",
@@ -159,8 +161,12 @@ export enum ActivityType {
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
+  UpdatedCustomVariable = "updated_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
+  EditedCustomHostVitalValue = "edited_custom_host_vital_value",
   EditedSetupExperienceSoftware = "edited_setup_experience_software",
+  CreatedSetupExperienceScript = "created_setup_experience_script",
+  DeletedSetupExperienceScript = "deleted_setup_experience_script",
   EditedHostIdpData = "edited_host_idp_data",
   AddedGoogleWorkspaceIntegration = "added_google_workspace_integration",
   EditedGoogleWorkspaceIntegration = "edited_google_workspace_integration",
@@ -196,6 +202,10 @@ export enum ActivityType {
   RanAutomationTicket = "ran_automation_ticket",
   RanAutomationCalendarEvent = "ran_automation_calendar_event",
   RanAutomationConditionalAccess = "ran_automation_conditional_access",
+  CreatedCustomHostVital = "created_custom_host_vital",
+  EditedCustomHostVital = "edited_custom_host_vital",
+  DeletedCustomHostVital = "deleted_custom_host_vital",
+  ReleasedDeviceFromAB = "released_from_ab",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -229,6 +239,7 @@ export type IHostPastActivityType =
   | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal
   | ActivityType.RanCustomMdmCommand
+  | ActivityType.EditedCustomHostVitalValue
   | ActivityType.RanAutomationWebhook
   | ActivityType.RanAutomationTicket
   | ActivityType.RanAutomationCalendarEvent
@@ -236,7 +247,8 @@ export type IHostPastActivityType =
   | ActivityType.FailedAutomationWebhook
   | ActivityType.FailedAutomationTicket
   | ActivityType.FailedAutomationCalendarEvent
-  | ActivityType.FailedAutomationConditionalAccess;
+  | ActivityType.FailedAutomationConditionalAccess
+  | ActivityType.ReleasedDeviceFromAB;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -361,6 +373,8 @@ export interface IActivityDetails {
   ticket_key?: string;
   ticket_id?: number;
   custom_variable_name?: string;
+  custom_host_vital_id?: number;
+  custom_host_vital_name?: string;
   domain?: string;
   host_idp_username?: string;
   idp_full_name?: string;
@@ -464,19 +478,19 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_app_store_app: "Edited App Store app", // Includes VPP and Android Playstore apps
   edited_conditional_access_microsoft: "Edited conditional access: Microsoft",
   edited_custom_scep_proxy: "Edited certificate authority (CA): custom SCEP",
-  edited_declaration_profile: "GitOps: edited declaration (DDM) profiles",
+  edited_declaration_profile: "Edited declaration (DDM) profiles",
   edited_digicert: "Edited certificate authority (CA): DigiCert",
   edited_ios_min_version: "OS updates: edited iOS",
   edited_ipados_min_version: "OS updates: edited iPadOS",
   edited_macos_min_version: "OS updates: edited macOS",
-  edited_macos_profile: "GitOps: edited configuration profiles: Apple",
+  edited_macos_profile: "Edited configuration profiles: Apple",
   edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
   edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
-  edited_windows_profile: "GitOps: edited configuration profiles: Windows",
+  edited_windows_profile: "Edited configuration profiles: Windows",
   edited_windows_updates: "OS updates: edited Windows",
   enabled_activity_automations: "Enabled activity automations",
   enabled_android_mdm: "Turned on Android MDM",
@@ -521,15 +535,19 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_added_by_sso: "Added user via JIT",
   user_failed_login: "User login: failed",
   user_logged_in: "User login: success",
+  user_mfa_requested: "User login: MFA email sent",
   wiped_host: "Wiped host",
   failed_wipe: "Failed wipe",
+  edited_apple_account_provisioning: "Edited Apple account provisioning",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
     "Deleted conditional access integration: Microsoft",
   escrowed_disk_encryption_key: "Escrowed disk encryption key",
   created_custom_variable: "Created custom variable",
+  updated_custom_variable: "Updated custom variable",
   deleted_custom_variable: "Deleted custom variable",
+  [ActivityType.EditedCustomHostVitalValue]: "Edited custom host vital value",
   [ActivityType.HostDeleted]: "Host deleted",
   [ActivityType.AddedHydrant]: "Added certificate authority (CA): Hydrant",
   [ActivityType.DeletedHydrant]: "Deleted certificate authority (CA): Hydrant",
@@ -562,6 +580,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Deleted conditional access: Okta",
   [ActivityType.EditedSetupExperienceSoftware]:
     "Edited setup experience software",
+  [ActivityType.CreatedSetupExperienceScript]: "Added setup experience script",
+  [ActivityType.DeletedSetupExperienceScript]:
+    "Deleted setup experience script",
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedGoogleWorkspaceIntegration]:
     "Added Google Workspace integration",
@@ -602,4 +623,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Policy automation: calendar event created",
   [ActivityType.RanAutomationConditionalAccess]:
     "Policy automation: single sign-on blocked",
+  [ActivityType.CreatedCustomHostVital]: "Created custom host vital",
+  [ActivityType.EditedCustomHostVital]: "Edited custom host vital",
+  [ActivityType.DeletedCustomHostVital]: "Deleted custom host vital",
+  [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
 };

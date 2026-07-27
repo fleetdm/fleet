@@ -65,11 +65,7 @@ const DeleteAbmModal = ({
         >
           Delete
         </Button>
-        <Button
-          onClick={onCancel}
-          disabled={isDeleting}
-          variant="inverse-alert"
-        >
+        <Button onClick={onCancel} disabled={isDeleting} variant="secondary">
           Cancel
         </Button>
       </div>

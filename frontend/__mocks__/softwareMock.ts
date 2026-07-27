@@ -224,6 +224,7 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   name: "test.app",
   icon_url: null,
   software_package: null,
+  packages: null,
   app_store_app: null,
   source: "apps",
   hosts_count: 1,
@@ -260,6 +261,7 @@ export const createMockSoftwareVersionResponse = (
 };
 
 const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
+  installer_id: 1,
   name: "TestPackage-1.2.3.pkg",
   title_id: 2,
   version: "1.2.3",
@@ -295,6 +297,7 @@ export const createMockSoftwarePackage = (
 };
 
 const DEFAULT_SOFTWARE_PACKAGE_IOS_MOCK: ISoftwarePackage = {
+  installer_id: 2,
   name: "MyApp-2.0.0.ipa",
   title_id: 10,
   version: "2.0.0",
@@ -336,6 +339,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   extension_for: "",
   versions: [createMockSoftwareTitleVersion()],
   software_package: createMockSoftwarePackage(),
+  packages: null,
   app_store_app: null,
 };
 

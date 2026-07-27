@@ -250,21 +250,21 @@ const SelfServiceCard = ({
       })
     : softwareInSelectedCategory;
 
-  // The button is shown on desktop in the "All" filter and in any selected
-  // category. On
-  // "All", `categoryId` is undefined; the click posts to install_all without a
-  // category_id query param and the BE installs every eligible (uninstalled,
-  // not-in-progress) self-service item. Visibility, count, and disabled state
-  // are owned by InstallAllInCategoryButton — see #47855 for the full rules.
-  const installAllButton = !isMobileView ? (
-    <InstallAllInCategoryButton
-      uninstalledCount={uninstalledCount}
-      hasInProgressInCategory={hasInProgress}
-      deviceToken={deviceToken}
-      categoryId={queryParams.category_id}
-      onSuccess={() => onInstallAllSuccess?.()}
-    />
-  ) : null;
+  // The button is shown on desktop ONLY when a specific category is selected
+  // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
+  // single click can't queue an install of the entire catalog — see #48485.
+  // Visibility beyond this (count / in-progress / disabled state) is owned by
+  // InstallAllInCategoryButton — see #47855 for the full rules.
+  const installAllButton =
+    !isMobileView && queryParams.category_id !== undefined ? (
+      <InstallAllInCategoryButton
+        uninstalledCount={uninstalledCount}
+        hasInProgressInCategory={hasInProgress}
+        deviceToken={deviceToken}
+        categoryId={queryParams.category_id}
+        onSuccess={() => onInstallAllSuccess?.()}
+      />
+    ) : null;
 
   if (isMobileView) {
     return (

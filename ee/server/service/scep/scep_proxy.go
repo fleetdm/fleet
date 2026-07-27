@@ -783,7 +783,7 @@ func NDESChallengeErrorToDetail(err error) string {
 	switch {
 	case errors.As(err, &NDESInvalidError{}):
 		return fmt.Sprintf("Invalid NDES admin credentials. Fleet couldn't populate %s. "+
-			"Please update credentials in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol.", varName)
+			"Please update credentials in Settings > Integrations > Certificate enrollment.", varName)
 	case errors.As(err, &NDESPasswordCacheFullError{}):
 		return fmt.Sprintf("The NDES password cache is full. Fleet couldn't populate %s. "+
 			"Please increase the number of cached passwords in NDES and try again.", varName)

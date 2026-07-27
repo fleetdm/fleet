@@ -57,7 +57,7 @@ const AutomationsModal = ({
   onExit,
 }: IAutomationsModalProps): JSX.Element | null => {
   const queryClient = useQueryClient();
-  const { setConfig } = useContext(AppContext);
+  const { setConfig, isPremiumTier } = useContext(AppContext);
 
   const otherFormRef = useRef<
     IAutomationFormHandle<IOtherWorkflowsModalSubmit>
@@ -104,8 +104,7 @@ const AutomationsModal = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const isManagedCloud = globalConfig?.license?.managed_cloud || false;
-  const conditionalAccessProviderText = isManagedCloud
+  const conditionalAccessProviderText = isPremiumTier
     ? "Okta or Microsoft Entra"
     : "Okta";
 
@@ -252,7 +251,7 @@ const AutomationsModal = ({
                     <>
                       <Button
                         type="button"
-                        variant="brand-inverse-icon"
+                        variant="secondary"
                         onClick={togglePreviewCalendarEvent}
                       >
                         Preview calendar event
@@ -299,7 +298,7 @@ const AutomationsModal = ({
           <Button type="submit" isLoading={isUpdating} disabled={isUpdating}>
             Save
           </Button>
-          <Button type="button" onClick={onExit} variant="inverse">
+          <Button type="button" onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

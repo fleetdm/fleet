@@ -160,7 +160,14 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
     expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "When the end user navigates to this URL, the enrollment profile will download in their browser. End users will have to install the profile to enroll to Fleet."
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders enroll url input for android if android mdm is enabled", async () => {
@@ -186,6 +193,15 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
     expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "When the end user navigates to this URL, the enrollment profile will download in their browser. End users will have to install the profile to enroll to Fleet."
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {

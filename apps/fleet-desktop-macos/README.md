@@ -16,7 +16,7 @@ It also embeds the **Fleet Platform SSO (PSSO) extension** (`FleetPSSOExtension.
 - **Loading screen** with Fleet logo while the portal loads
 - **File download support** for `.mobileconfig` profiles and other files served by Fleet
 - **Dark/light mode** respects the user's system appearance
-- **`fleet://` URL scheme** for deep linking to Self-service, Policies, and triggering refetches
+- **`fleet://` URL scheme** for deep linking to Self-service, Policies, triggering refetches, and Update/Install all
 - **MDM required** — both the app and installer enforce MDM enrollment
 - **Code signed and notarized** for secure distribution via `.pkg` installer
 
@@ -152,16 +152,7 @@ open "build/Fleet Desktop.app"
 ./build-pkg.sh
 ```
 
-Local builds are unsigned. Signing and notarization happen in CI with Fleet's Developer ID certificates and provisioning profiles. You can ad-hoc sign locally to sanity-check the bundle layout (the restricted entitlements won't be honored without a real profile):
-
-```bash
-codesign --force --options runtime --sign - \
-  --entitlements FleetPSSOExtension/FleetPSSOExtension.entitlements \
-  "build/Fleet Desktop.app/Contents/PlugIns/FleetPSSOExtension.appex"
-codesign --force --options runtime --sign - \
-  --entitlements FleetDesktop/FleetDesktop.entitlements "build/Fleet Desktop.app"
-codesign --verify --deep --strict "build/Fleet Desktop.app"
-```
+To test end to end locally (a dev-signed app/extension against your local Fleet server), `build.sh` accepts `TEAM_ID`, `APP_BUNDLE_ID`, `EXT_BUNDLE_ID`, `SIGNING_IDENTITY`, `APP_PROFILE`, and `EXT_PROFILE`, and `build-pkg.sh` accepts `APP_BUNDLE_ID` and `INSTALLER_SIGNING_IDENTITY` — together they build and sign the app + `.pkg` under a non-production Fleet dev team. See the [Local development: Apple Platform SSO](../../docs/Contributing/guides/platform-sso-local-development.md) guide for the full walkthrough (signing assets, AASA override, tunnel, profile, and logs).
 
 ### Environment Variables
 
@@ -189,13 +180,19 @@ Fleet Desktop registers the `fleet://` URL scheme, allowing other tools and scri
 | `fleet://policies` | Opens the Policies tab |
 | `fleet://refetch` | Triggers a device refetch and opens the app |
 | `fleet://update_all` | Opens Self-service and clicks "Update all" |
+| `fleet://install_all` | Opens Self-service and clicks "Install all" |
+| `fleet://install_all?category_id=##` | Opens Self-service filtered to a category and clicks "Install all" |
 | `fleet://anything-else` | Brings the app to the foreground |
+
+Both `_` and `-` separators are accepted (e.g. `fleet://install_all` and `fleet://install-all` are equivalent).
 
 Example usage from a script or terminal:
 
 ```bash
 open fleet://self-service
 open fleet://refetch
+open fleet://install_all
+open "fleet://install_all?category_id=5"
 ```
 
 ## CI/CD
@@ -246,6 +243,22 @@ Under Fleet's Apple Developer team (`8VBZ3948LU`, the team that owns the pinned 
    ```
 
 Re-encode and update the secrets when a profile expires or the signing certificate is rotated. To inspect a profile — its entitlements and, crucially, the certs it authorizes — dump it with `security cms -D -i <profile>.provisionprofile`; the `DeveloperCertificates` array must contain the CI signing cert above.
+
+## Releasing
+
+[`.github/workflows/release-fleet-desktop-macos.yml`](../../.github/workflows/release-fleet-desktop-macos.yml) publishes a tagged, signed, notarized build to `https://download.fleetdm.com/fleet-desktop-macos/v<version>/`. Releases are immutable — a version that already exists on download.fleetdm.com cannot be overwritten. No GitHub Release is created; the git tag is the release marker.
+
+1. Bump `CFBundleShortVersionString` (and `CFBundleVersion`) in `FleetDesktop/Info.plist` and merge to `main`.
+2. Tag the commit and push the tag:
+   ```bash
+   git tag fleet-desktop-macos-v<version>
+   git push origin fleet-desktop-macos-v<version>
+   ```
+3. In the Actions tab, run **Release Fleet Desktop (macOS)**, selecting the tag in the "Use workflow from" dropdown.
+
+The workflow fails before building if the selected ref isn't a `fleet-desktop-macos-v*` tag on `main`, if the tag version doesn't match `Info.plist`, or if that version is already uploaded. It builds via the CI workflow above, uploads the pkg plus a `meta.json` (`version`, `fleet_desktop_pkg_sha256`, `fleet_desktop_pkg_url`), then downloads the pkg back from the public URL and verifies its SHA256 before succeeding. The checksum and URLs are written to the run summary.
+
+The `testing` input uploads to `download-testing.fleetdm.com` instead of production — use it for the first run after changing the workflow.
 
 ## License
 

@@ -12,6 +12,7 @@ import {
   isWindowsDiskEncryptionStatus,
   MdmDDMProfileStatus,
   MdmProfileStatus,
+  ProfilePlatform,
 } from "interfaces/mdm";
 import { isDDMProfile } from "services/entities/mdm";
 import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
@@ -21,9 +22,11 @@ import OSSettingStatusCell from "./OSSettingStatusCell";
 import OSSettingsResendCell from "./OSSettingsResendCell";
 
 import {
+  generateHostNameSettingIfEligible,
   generateLinuxDiskEncryptionSetting,
   generateRecoveryLockPasswordSetting,
   generateWinDiskEncryptionSetting,
+  HOST_NAME_SYNTHETIC_PROFILE_UUID,
   REC_LOCK_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
@@ -51,7 +54,9 @@ const generateTableConfig = (
   onProfileResent: () => void,
   resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>,
   canRotateRecoveryLockPassword?: boolean,
-  rotateRecoveryLockPassword?: () => Promise<void>
+  rotateRecoveryLockPassword?: () => Promise<void>,
+  canResendHostNameTemplate?: boolean,
+  resendHostNameTemplate?: () => Promise<void>
 ): ITableColumnConfig[] => {
   return [
     {
@@ -110,6 +115,10 @@ const generateTableConfig = (
           cellProps.row.original.profile_uuid ===
           REC_LOCK_SYNTHETIC_PROFILE_UUID;
 
+        const isHostNameRow =
+          cellProps.row.original.profile_uuid ===
+          HOST_NAME_SYNTHETIC_PROFILE_UUID;
+
         return (
           <OSSettingsResendCell
             canResendProfiles={
@@ -121,10 +130,14 @@ const generateTableConfig = (
             canRotateRecoveryLockPassword={
               isRecoveryLockRow && canRotateRecoveryLockPassword
             }
+            canResendHostNameTemplate={
+              isHostNameRow && canResendHostNameTemplate
+            }
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
             rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+            resendHostNameTemplate={resendHostNameTemplate}
             onProfileResent={onProfileResent}
           />
         );
@@ -216,6 +229,40 @@ const makeDarwinRows = ({
     ];
   }
 
+  const hostNameRow = generateHostNameSettingIfEligible(
+    "darwin",
+    enrollment_status,
+    os_settings
+  );
+  if (hostNameRow) {
+    rows = [...rows, hostNameRow];
+  }
+
+  return rows;
+};
+
+// iOS/iPadOS hosts don't surface disk-encryption or recovery-lock rows, but they
+// do get the synthetic "Host name" row when a template is enforced. They can also
+// have regular configuration profiles.
+const makeAppleMobileRows = (
+  { profiles, os_settings, enrollment_status }: IHostMdmData,
+  platform: ProfilePlatform
+) => {
+  const rows: IHostMdmProfileWithAddedStatus[] = profiles ? [...profiles] : [];
+
+  const hostNameRow = generateHostNameSettingIfEligible(
+    platform,
+    enrollment_status,
+    os_settings
+  );
+  if (hostNameRow) {
+    rows.push(hostNameRow);
+  }
+
+  if (rows.length === 0 && !profiles) {
+    return null;
+  }
+
   return rows;
 };
 
@@ -236,6 +283,7 @@ export const generateTableData = (
       return makeLinuxRows(hostMDMData);
     case "ios":
     case "ipados":
+      return makeAppleMobileRows(hostMDMData, platform);
     case "android":
       return hostMDMData.profiles;
     default:

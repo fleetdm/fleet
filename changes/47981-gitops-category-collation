@@ -1,1 +1,0 @@
-- Fixed GitOps runs failing with a `software_categories` duplicate-entry error when a software category's name differed only by characters MySQL's collation treats as equal (such as the Unicode variation selector in default categories like "🖥️ Productivity").

@@ -1,0 +1,262 @@
+name: Release Fleet Desktop (macOS)
+
+# Publishes a tagged build of the native macOS Fleet Desktop app
+# (apps/fleet-desktop-macos/) to download.fleetdm.com.
+#
+# Run manually from the Actions tab, selecting a fleet-desktop-macos-v* tag in
+# the "Use workflow from" dropdown. The workflow:
+# 1. Fails fast unless the ref is a fleet-desktop-macos-v<x>.<y>.<z> tag whose
+#    commit is on main, the tag version matches the app's
+#    CFBundleShortVersionString, and that version is not already uploaded
+#    (releases are immutable).
+# 2. Builds, signs, and notarizes the pkg via fleet-desktop-macos-build.yml.
+# 3. Uploads to R2:
+#    - fleet-desktop-macos/v<version>/fleet_desktop-v<version>.pkg
+#    - fleet-desktop-macos/v<version>/meta.json (version, fleet_desktop_pkg_sha256, fleet_desktop_pkg_url)
+# 4. Downloads the pkg back from the public URL and verifies its SHA256
+#    matches the built artifact, then writes the checksum to the run summary.
+#
+# No GitHub Release is created; the git tag is the release marker.
+
+on:
+  workflow_dispatch:
+    inputs:
+      testing:
+        description: "Upload to download-testing.fleetdm.com instead of production."
+        required: false
+        default: false
+        type: boolean
+
+# Serialize releases so two runs can't race past the already-released check.
+# Never cancel a release mid-upload; queue instead.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_ACCESS_KEY_ID: ${{ inputs.testing && secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_ID || secrets.R2_DOWNLOAD_ACCESS_KEY_ID }}
+  R2_ACCESS_KEY_SECRET: ${{ inputs.testing && secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET || secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }}
+  R2_BUCKET: ${{ inputs.testing && 'download-testing' || 'download' }}
+  BASE_URL: ${{ inputs.testing && 'https://download-testing.fleetdm.com' || 'https://download.fleetdm.com' }}
+  RELEASE_PREFIX: fleet-desktop-macos
+
+jobs:
+  checks:
+    name: Pre-release checks
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Verify ref is a release tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::This workflow must be dispatched from a fleet-desktop-macos-v* tag, not a $GITHUB_REF_TYPE ('$GITHUB_REF_NAME'). Select the release tag in the 'Use workflow from' dropdown."
+            exit 1
+          fi
+          if [[ ! "$GITHUB_REF_NAME" =~ ^fleet-desktop-macos-v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' does not match fleet-desktop-macos-v<major>.<minor>.<patch>."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify tagged commit is on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tagged commit $GITHUB_SHA is not on main."
+            exit 1
+          fi
+
+      - name: Verify tag version matches the app version
+        id: version
+        run: |
+          tag_version="${GITHUB_REF_NAME#fleet-desktop-macos-v}"
+          app_version=$(python3 -c 'import plistlib; print(plistlib.load(open("apps/fleet-desktop-macos/FleetDesktop/Info.plist", "rb"))["CFBundleShortVersionString"])')
+          if [ "$tag_version" != "$app_version" ]; then
+            echo "::error::Tag version ($tag_version) does not match CFBundleShortVersionString ($app_version) in apps/fleet-desktop-macos/FleetDesktop/Info.plist."
+            exit 1
+          fi
+          echo "version=$app_version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version is not already released
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_REGION: auto
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ env.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ env.R2_ACCESS_KEY_SECRET }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ env.R2_ENDPOINT }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sudo .github/scripts/rclone-install.sh
+          : # Check via the R2 API rather than the public URL: it's authoritative,
+          : # and a pre-upload GET of the URL could prime the CDN with a cached 404
+          : # that the post-upload verification then trips over.
+          : # Surface broken credentials/endpoint as their own failure before the
+          : # exit-code handling below.
+          rclone lsf "r2:${R2_BUCKET}" --max-depth 1 > /dev/null
+          rc=0
+          existing=$(rclone lsf "r2:${R2_BUCKET}/${RELEASE_PREFIX}/v${VERSION}/" 2>rclone-stderr.log) || rc=$?
+          : # rclone exit 3 = directory not found, i.e. this version was never
+          : # uploaded. Any other failure means we could not check; fail rather
+          : # than risk overwriting an existing release.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then
+            cat rclone-stderr.log >&2
+            echo "::error::Could not determine whether v${VERSION} is already released (rclone exit code $rc)."
+            exit 1
+          fi
+          if [ -n "$existing" ]; then
+            echo "::error::${RELEASE_PREFIX}/v${VERSION}/ already exists at ${BASE_URL}. Releases are immutable; bump the version to publish a new build."
+            exit 1
+          fi
+
+  build:
+    name: Build, sign, and notarize
+    needs: checks
+    permissions:
+      contents: read
+    uses: ./.github/workflows/fleet-desktop-macos-build.yml
+    secrets:
+      APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+      APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+      APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+      APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_FLEET_DESKTOP_APP_PROFILE_B64: ${{ secrets.APPLE_FLEET_DESKTOP_APP_PROFILE_B64 }}
+      APPLE_PSSO_EXT_PROFILE_B64: ${{ secrets.APPLE_PSSO_EXT_PROFILE_B64 }}
+      APPLE_USERNAME: ${{ secrets.APPLE_USERNAME }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  upload:
+    name: Upload pkg to R2
+    needs: [checks, build]
+    runs-on: ubuntu-latest
+    outputs:
+      pkg_sha256: ${{ steps.prepare.outputs.pkg_sha256 }}
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code needed for R2 upload
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          sparse-checkout: |
+            .github/actions/r2-upload/action.yml
+            .github/scripts/rclone-install.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Download built pkg artifact
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          name: fleet_desktop-pkg
+
+      - name: Prepare files for R2 upload
+        id: prepare
+        run: |
+          PKG_NAME="fleet_desktop-v${VERSION}.pkg"
+          if [ ! -f "$PKG_NAME" ]; then
+            echo "::error::Build artifact does not contain $PKG_NAME; the built app version disagrees with the tag."
+            ls -la
+            exit 1
+          fi
+          pkg_sha256=$(shasum -a 256 "$PKG_NAME" | cut -d ' ' -f 1)
+          RELEASE_DIR="${RELEASE_PREFIX}/v${VERSION}"
+          mkdir -p "$RELEASE_DIR"
+          mv "$PKG_NAME" "$RELEASE_DIR/"
+          echo "{
+            \"fleet_desktop_pkg_url\": \"${BASE_URL}/${RELEASE_DIR}/${PKG_NAME}\",
+            \"fleet_desktop_pkg_sha256\": \"${pkg_sha256}\",
+            \"version\": \"${VERSION}\"
+          }" > "$RELEASE_DIR/meta.json"
+          : # Check that meta.json is valid
+          jq -e . "$RELEASE_DIR/meta.json" > /dev/null
+          echo "pkg_sha256=$pkg_sha256" >> "$GITHUB_OUTPUT"
+          echo "upload_filenames=${RELEASE_DIR}/${PKG_NAME},${RELEASE_DIR}/meta.json" >> "$GITHUB_OUTPUT"
+
+      - name: Upload package
+        uses: ./.github/actions/r2-upload
+        with:
+          filenames: ${{ steps.prepare.outputs.upload_filenames }}
+
+  verify:
+    name: Verify uploaded package
+    needs: [checks, upload]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.checks.outputs.version }}
+      EXPECTED_SHA256: ${{ needs.upload.outputs.pkg_sha256 }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Download release and verify checksum
+        run: |
+          RELEASE_DIR="${RELEASE_PREFIX}/v${VERSION}"
+          PKG_URL="${BASE_URL}/${RELEASE_DIR}/fleet_desktop-v${VERSION}.pkg"
+
+          : # Retry to ride out CDN/object propagation right after upload.
+          downloaded=false
+          for attempt in $(seq 1 10); do
+            if curl -fsSL -o downloaded.pkg "$PKG_URL"; then
+              downloaded=true
+              break
+            fi
+            echo "Attempt $attempt: $PKG_URL not available yet, retrying in 30s..."
+            sleep 30
+          done
+          if [ "$downloaded" != "true" ]; then
+            echo "::error::Could not download $PKG_URL after 10 attempts."
+            exit 1
+          fi
+
+          actual_sha256=$(shasum -a 256 downloaded.pkg | cut -d ' ' -f 1)
+          echo "Expected SHA256: $EXPECTED_SHA256"
+          echo "Actual SHA256:   $actual_sha256"
+          if [ "$actual_sha256" != "$EXPECTED_SHA256" ]; then
+            echo "::error::Checksum mismatch for $PKG_URL."
+            exit 1
+          fi
+
+          curl -fsS -o meta.json "${BASE_URL}/${RELEASE_DIR}/meta.json"
+          if [ "$(jq -r '.fleet_desktop_pkg_sha256' meta.json)" != "$EXPECTED_SHA256" ]; then
+            echo "::error::meta.json sha256 does not match the built package."
+            exit 1
+          fi
+
+      - name: Write release summary
+        run: |
+          RELEASE_DIR="${RELEASE_PREFIX}/v${VERSION}"
+          {
+            echo "## Fleet Desktop (macOS) v${VERSION} released"
+            echo ""
+            echo "- Package: ${BASE_URL}/${RELEASE_DIR}/fleet_desktop-v${VERSION}.pkg"
+            echo "- meta.json: ${BASE_URL}/${RELEASE_DIR}/meta.json"
+            echo "- SHA256: \`${EXPECTED_SHA256}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

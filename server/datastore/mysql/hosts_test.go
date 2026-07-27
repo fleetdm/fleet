@@ -9501,6 +9501,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
+          VALUES (?, 'pending')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid)
           VALUES (?, uuid())
 	`, host.UUID)
@@ -9520,6 +9526,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_enrollment_permissions (host_uuid)
+          VALUES (?)
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_apple_device_names (host_uuid)
           VALUES (?)
 	`, host.UUID)
 	require.NoError(t, err)
@@ -9584,7 +9596,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Add a setup experience status result
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
 	require.NoError(t, err)
 
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, host.UUID, 0)
@@ -9615,7 +9627,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Create a SCIM user and link it to host
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
-	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID))
+	_, err = associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID)
+	require.NoError(t, err)
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",
@@ -9726,6 +9739,17 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	err = ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, host.ID)
+	require.NoError(t, err)
+
+	// Insert into host_custom_host_vitals table (no host FK, cleaned up via hostRefs).
+	vitalRes, err := ds.writer(context.Background()).Exec(`INSERT INTO custom_host_vitals (name) VALUES (?)`, "delete-host-vital")
+	require.NoError(t, err)
+	vitalID, err := vitalRes.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(
+		`INSERT INTO host_custom_host_vitals (host_id, custom_host_vital_id, value) VALUES (?, ?, ?)`,
+		host.ID, vitalID, "engineering",
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

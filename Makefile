@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble help
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner check-no-testing-in-prod dibble tidy-tool-modules help
 
 export GO111MODULE=on
 
@@ -149,6 +149,19 @@ fdm:
 	@echo "Builds the dibble test-data seeder (binary lands at tools/dibble/dibble)"
 dibble:
 	cd tools/dibble && go build -o dibble ./cmd/dibble
+
+.help-short--tidy-tool-modules:
+	@echo "Re-tidy tool modules that pin the parent fleet module (run after bumping the root go.mod)"
+# Tool modules under tools/ that pin the parent via `replace github.com/fleetdm/fleet/v4 => ../..`
+# mirror the root module's transitive dependency graph, so a root go.mod/go.sum bump leaves their
+# go.mod/go.sum out of sync. This discovers those modules and re-tidies each one.
+tidy-tool-modules:
+	@mods=$$(grep -rlF --include=go.mod 'replace github.com/fleetdm/fleet/v4 =>' tools); \
+	for mod in $$mods; do \
+		dir=$$(dirname $$mod); \
+		echo "==> go mod tidy in $$dir"; \
+		(cd $$dir && go mod tidy) || exit 1; \
+	done
 
 .help-short--serve:
 	@echo "Start the fleet server"
@@ -1064,7 +1077,8 @@ UPDATE_GO_MODS := \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
 	./cmd/fleet-mcp/go.mod \
-	./tools/dibble/go.mod
+	./tools/dibble/go.mod \
+	./tools/upgrade/go.mod
 update-go:
 	@test $(version) || (echo "Missing 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
 	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \

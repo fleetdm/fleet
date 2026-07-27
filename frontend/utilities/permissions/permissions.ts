@@ -208,6 +208,25 @@ export const canWriteSoftware = (
   );
 };
 
+// Mirrors backend READ on `installable_entity` (rego: admin | maintainer |
+// technician | gitops). Use to gate the installer-download affordance — the
+// backend rejects observers with 403, so the button shouldn't be surfaced to
+// them.
+export const canDownloadSoftwareInstaller = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  if (!user) return false;
+  return (
+    isGlobalAdmin(user) ||
+    isGlobalMaintainer(user) ||
+    isGlobalTechnician(user) ||
+    isTeamAdmin(user, teamId) ||
+    isTeamMaintainer(user, teamId) ||
+    isTeamTechnician(user, teamId)
+  );
+};
+
 export default {
   isSandboxMode,
   isFreeTier,
@@ -236,4 +255,5 @@ export default {
   isObserverPlus,
   isNoAccess,
   canWriteSoftware,
+  canDownloadSoftwareInstaller,
 };

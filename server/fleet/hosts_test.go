@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -507,4 +508,19 @@ func TestIsPlaceholderHardwareSerial(t *testing.T) {
 			assert.Equal(t, tc.want, IsPlaceholderHardwareSerial(tc.serial))
 		})
 	}
+}
+
+func TestHostMDMHostNameSettingJSON(t *testing.T) {
+	// Omitted entirely when there is no enforcement (host_name is a nil pointer
+	// with omitempty), matching the recovery-lock treatment for ineligible hosts.
+	b, err := json.Marshal(HostMDMOSSettings{})
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "host_name")
+
+	// Present with the fleets-forward status/detail contract the frontend consumes.
+	b, err = json.Marshal(HostMDMOSSettings{
+		HostName: &HostMDMHostNameSetting{Status: HostNameSettingFailed, Detail: "boom"},
+	})
+	require.NoError(t, err)
+	require.Contains(t, string(b), `"host_name":{"status":"failed","detail":"boom"}`)
 }

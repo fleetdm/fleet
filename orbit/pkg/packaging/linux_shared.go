@@ -393,6 +393,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
 {{ if .FleetManagedHostIdentityCertificate }}ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE=true{{ end }}
 {{ if .DisableSetupExperience }}ORBIT_DISABLE_SETUP_EXPERIENCE=true{{ end }}
+{{ if .BypassEndUserAuth }}ORBIT_BYPASS_END_USER_AUTH=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

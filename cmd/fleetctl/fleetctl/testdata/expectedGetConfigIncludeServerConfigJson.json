@@ -80,6 +80,7 @@
       "enabled_and_configured": false,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "name_template": null,
       "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
       "windows_entra_tenant_ids": null,
@@ -231,8 +232,7 @@
     },
     "license": {
       "tier": "free",
-      "expiration": "0001-01-01T00:00:00Z",
-      "managed_cloud": false
+      "expiration": "0001-01-01T00:00:00Z"
     },
     "logging": {
       "debug": true,

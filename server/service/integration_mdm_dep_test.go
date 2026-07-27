@@ -2335,7 +2335,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.enableABM(t.Name())
 
 	latestMacOSVersion := "14.6.1" // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
-	latestMacOSBuild := "23G93"    // this is the latest version in our test data (see ../mdm/apple/gdmf/testdata/gdmf.json)
 	deadline := "2023-12-31"
 	scepChallenge := "scepcha/><llenge"
 	scepURL := s.server.URL + "/mdm/apple/scep"
@@ -2668,8 +2667,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				SoftwareUpdateDeviceID:      "J516sAP",
 			},
 			updateRequired: &fleet.MDMAppleSoftwareUpdateRequiredDetails{
-				OSVersion:    latestMacOSVersion,
-				BuildVersion: latestMacOSBuild,
+				OSVersion: latestMacOSVersion,
 			},
 		},
 		{

@@ -1,1 +1,0 @@
-- Added support for pre-install query, post-install script, and uninstall script on script-only packages (`.sh` and `.ps1`) via the UI, REST API, and GitOps.

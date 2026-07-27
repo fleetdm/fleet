@@ -1250,3 +1250,47 @@ func TestRecordWindowsSCEPProxyFailure(t *testing.T) {
 		})
 	}
 }
+
+func TestNDESChallengeErrorToDetail(t *testing.T) {
+	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
+
+	for _, tc := range []struct {
+		name            string
+		err             error
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:         "invalid credentials points to Certificate enrollment",
+			err:          NewNDESInvalidError("invalid admin URL or credentials"),
+			wantContains: []string{"Invalid NDES admin credentials", varName, "Settings > Integrations > Certificate enrollment."},
+			// Regression guard: must not point to the renamed/removed UI location (#46380).
+			wantNotContains: []string{"Mobile Device Management", "Simple Certificate Enrollment Protocol", "Certificate authorities"},
+		},
+		{
+			name:         "password cache full",
+			err:          NewNDESPasswordCacheFullError("the password cache is full"),
+			wantContains: []string{"The NDES password cache is full", varName, "increase the number of cached passwords"},
+		},
+		{
+			name:         "insufficient permissions",
+			err:          NewNDESInsufficientPermissionsError("account lacks permissions"),
+			wantContains: []string{"does not have sufficient permissions to enroll with SCEP", varName, "NDES SCEP enroll permissions"},
+		},
+		{
+			name:         "unknown error falls through to default",
+			err:          errors.New("some unexpected failure"),
+			wantContains: []string{varName, "some unexpected failure"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			detail := NDESChallengeErrorToDetail(tc.err)
+			for _, want := range tc.wantContains {
+				assert.Contains(t, detail, want)
+			}
+			for _, notWant := range tc.wantNotContains {
+				assert.NotContains(t, detail, notWant)
+			}
+		})
+	}
+}

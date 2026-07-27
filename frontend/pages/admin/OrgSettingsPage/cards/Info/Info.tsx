@@ -86,12 +86,12 @@ const LogoCard = ({
             tipOffset={4}
             renderChildren={(disableChildren) => (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onEdit}
                 disabled={disableChildren}
                 title="Replace logo"
               >
-                <Icon name="pencil" color="core-fleet-green" />
+                <Icon name="pencil" />
               </Button>
             )}
           />
@@ -100,12 +100,12 @@ const LogoCard = ({
             tipOffset={4}
             renderChildren={(disableChildren) => (
               <Button
-                variant="icon"
+                variant="subdued"
                 onClick={onDelete}
                 disabled={disableChildren || !hasCustomLogo}
                 title="Remove logo"
               >
-                <Icon name="trash" color="core-fleet-green" />
+                <Icon name="trash" />
               </Button>
             )}
           />

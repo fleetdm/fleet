@@ -47,7 +47,8 @@ The `--type` flag is used to specify the fleetd installer type.
 - macOS: `pkg`
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: `msi`
-  - Generating a .msi on Windows, macOS, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
+  - Generating a .msi on Apple Silicon Macs requires [Docker](https://docs.docker.com/get-docker) to be installed. If you need to continue using Wine, see [WineHQ wiki](https://gitlab.winehq.org/wine/wine/-/wikis/MacOS).
 - Linux: `deb`, `rpm`, or `pkg.tar.zst`
   - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
   - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
@@ -248,48 +249,11 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 macOS does not allow applications to access all system files by default. 
 
-If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, you can deploy a "Privacy Preferences Policy Control" policy to grant fleetd or osquery that level of access. 
+If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, deploy this ["Privacy Preferences Policy Control" configuration profile](https://github.com/fleetdm/fleet/blob/4f8677de3c005e6e971977dc5d86a9dec9e01e48/it-and-security/lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig). It grants Fleet's agent (fleetd) the required level of access. 
 
 This is required to find files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
 
-##### Obtaining identifiers
-
-If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
-
-On a system with osquery installed via Fleet's agent (fleetd), obtain the
-`CodeRequirement` of fleetd by running:
-
-```sh
-codesign -dr - /opt/orbit/bin/orbit/macos/stable/orbit
-```
-
-The output should be similar or identical to:
-
-```sh
-Executable=/opt/orbit/bin/orbit/macos/edge/orbit
-designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
-```
-
-Note down the **executable path** and the entire **identifier**.
-
-Osqueryd will inherit the privileges from Orbit and does not need explicit permissions.
-
-##### Creating the profile
-
-Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
-
-1. Configure the identifier type to “path.”
-2. Paste the full path to Orbit as the identifier.
-3. Paste the full code signing identifier into the Code requirement field. 
-4. Allow “Access all files.” Access to Downloads, Documents, etc., is inherited from this.
-
-If your MDM solution does not have built-in support for privacy preferences profiles, you can use
-[PPPC-Utility](https://github.com/jamf/PPPC-Utility) to create a profile with those values, then upload it to
-your MDM as a custom profile.
-
-##### Test the profile
-Link the profile to a test group that contains at least one Mac.
 Once the computer has received the profile, which you can verify by looking at *Profiles* in *System
 Preferences*, run this report from Fleet:
 
@@ -297,12 +261,9 @@ Preferences*, run this report from Fleet:
 SELECT * FROM file WHERE path LIKE '/Users/%/Downloads/%%';
 ```
 
-If this report returns files, the profile was applied, as **Downloads** is a
-protected location. You can now enjoy the benefits of osquery on all system files and start
-using the **es_process_events** table!
+If this report returns files, the profile was applied, as **Downloads** is a protected location.
 
-If this report does not return data, you can look at operating system logs to confirm whether or not full disk
-access has been applied.
+If this report does not return data, you can look at operating system logs to confirm whether or not full disk access has been applied.
 
 See the last hour of logs related to TCC permissions with this command:
 

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.6.2",
+      "version": "3.6.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient' AND version_compare(bundle_short_version, '3.6.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.GitHubClient' AND version_compare(bundle_short_version, '3.6.3') < 0);"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.6.2-57f0b637/GitHubDesktop-arm64.zip",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.6.3-931da4a1/GitHubDesktop-arm64.zip",
       "install_script_ref": "c91ea2b5",
       "uninstall_script_ref": "642b60ca",
-      "sha256": "d0f0e30d5191846581c89c7719dc49f20599184488e8dab64d15fd66d644007c",
+      "sha256": "23c11babf2eb13f16047dd89f6009ef2b56bfcec751293bdaaa9bb0f30e2ade2",
       "default_categories": [
         "Developer tools"
       ]

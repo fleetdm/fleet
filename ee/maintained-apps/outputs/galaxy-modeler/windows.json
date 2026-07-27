@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "12.6.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Galaxy Modeler' AND publisher = 'Ideamerit';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Galaxy Modeler' AND publisher = 'Ideamerit' AND version_compare(version, '12.6.2') < 0);"
+      },
+      "installer_url": "https://www.datensen.com/downloads/Galaxy%20Modeler-12.6.2-x64.exe",
+      "install_script_ref": "44443700",
+      "uninstall_script_ref": "5719b9f7",
+      "sha256": "c82fc58b557d629c46206f898f23aa103aac5cb08831d8aa17e4a3728bb917a6",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "44443700": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Galaxy Modeler is an electron-builder (NSIS) installer; /S runs silent and\n# /allusers forces the machine-wide install per the winget machine-scope switch.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/S /allusers\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "5719b9f7": "# Uninstalls Galaxy Modeler. Locates the electron-builder NSIS uninstaller from\n# the registry by DisplayName and runs it with /allusers /S after stopping the app.\n\n$softwareNameLike = \"Galaxy Modeler*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\nforeach ($p in @(\"Galaxy Modeler\")) {\n    Stop-Process -Name $p -Force -ErrorAction SilentlyContinue\n}\nStart-Sleep -Seconds 2\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# electron-builder NSIS uninstaller: /allusers matches the machine install, /S is silent.\nif ($exeArgs -notmatch '(?i)(^|\\s)/allusers(\\s|$)') { $exeArgs = \"$exeArgs /allusers\".Trim() }\nif ($exeArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') { $exeArgs = \"$exeArgs /S\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

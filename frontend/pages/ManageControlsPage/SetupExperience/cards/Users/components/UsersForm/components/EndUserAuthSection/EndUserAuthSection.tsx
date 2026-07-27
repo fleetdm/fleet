@@ -104,7 +104,7 @@ const EndUserAuthSection = ({
               helpText={
                 <span>
                   Prevents macOS users from editing{" "}
-                  <strong>Account Name</strong> and <strong>Full name</strong>
+                  <strong>Account Name</strong> and <strong>Full name</strong>{" "}
                   in Setup Assistant. These fields will be locked to IdP values.
                 </span>
               }

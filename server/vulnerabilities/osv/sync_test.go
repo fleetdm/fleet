@@ -476,6 +476,31 @@ func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
 	require.Contains(t, result.Failed, "2404")
 }
 
+// TestIsOSVReleaseAsset guards getLatestRelease's asset filter. Android assets
+// were silently dropped because the filter only matched Ubuntu and RHEL
+// prefixes, so RefreshAndroid could never find an asset to download.
+func TestIsOSVReleaseAsset(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"osv-ubuntu-2204-2026-07-14.json.gz", true},
+		{"osv-rhel-9-2026-07-14.json.gz", true},
+		{"osv-android-16-2026-07-14.json.gz", true},
+		{"osv-android-8.1-2026-07-14.json.gz", true},
+		// delta artifacts are excluded.
+		{"osv-ubuntu-2204-delta-2026-07-14.json.gz", false},
+		{"osv-android-16-delta-2026-07-14.json.gz", false},
+		// unrelated assets are excluded.
+		{"osv-2026-07-14.json.gz", false},
+		{"some-other-file.json.gz", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		require.Equalf(t, tt.want, isOSVReleaseAsset(tt.name), "isOSVReleaseAsset(%q)", tt.name)
+	}
+}
+
 func TestVersionsFromRelease(t *testing.T) {
 	release := &ReleaseInfo{
 		TagName: "cve-202604270000",
@@ -484,19 +509,23 @@ func TestVersionsFromRelease(t *testing.T) {
 			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
 			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
 			"osv-rhel-9-2026-04-27.json.gz":      {Name: "osv-rhel-9-2026-04-27.json.gz"},
+			"osv-android-15-2026-04-27.json.gz":  {Name: "osv-android-15-2026-04-27.json.gz"},
+			"osv-android-16-2026-04-27.json.gz":  {Name: "osv-android-16-2026-04-27.json.gz"},
 		},
 	}
 
-	ubuntu, rhel := versionsFromRelease(release)
+	ubuntu, rhel, android := versionsFromRelease(release)
 	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
 	require.ElementsMatch(t, []string{"8", "9"}, rhel)
+	require.ElementsMatch(t, []string{"15", "16"}, android)
 }
 
 func TestVersionsFromReleaseEmpty(t *testing.T) {
 	release := &ReleaseInfo{TagName: "cve-202604270000", Assets: map[string]*AssetInfo{}}
-	ubuntu, rhel := versionsFromRelease(release)
+	ubuntu, rhel, android := versionsFromRelease(release)
 	require.Empty(t, ubuntu)
 	require.Empty(t, rhel)
+	require.Empty(t, android)
 }
 
 func TestVersionFromAssetName(t *testing.T) {
@@ -533,6 +562,192 @@ func TestReleaseDateFromAssets(t *testing.T) {
 	emptyRelease := &ReleaseInfo{Assets: map[string]*AssetInfo{}}
 	_, ok = releaseDateFromAssets(emptyRelease)
 	require.False(t, ok)
+}
+
+func TestRemoveOldAndroidOSVArtifacts(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-android-16-2026-07-15.json.gz",  // today — keep
+		"osv-android-16-2026-07-14.json.gz",  // yesterday — remove
+		"osv-android-15-2026-07-14.json.gz",  // yesterday, different version, not in successful — keep
+		"osv-rhel-9-2026-07-14.json.gz",      // rhel — not touched
+		"osv-ubuntu-2204-2026-07-14.json.gz", // ubuntu — not touched
+		"some-other-file.json",               // unrelated — not touched
+	}
+
+	for _, file := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
+	}
+
+	err := removeOldAndroidOSVArtifacts(today, tmpDir, []string{"16"})
+	require.NoError(t, err)
+
+	// Today's Android 16 — kept
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-15.json.gz"))
+	require.NoError(t, err)
+
+	// Yesterday's Android 16 — removed (successfully downloaded today)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-16-2026-07-14.json.gz"))
+	require.True(t, os.IsNotExist(err))
+
+	// Yesterday's Android 15 — kept (not in successful list)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-android-15-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// RHEL artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// Ubuntu artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-07-14.json.gz"))
+	require.NoError(t, err)
+
+	// Other file — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
+	require.NoError(t, err)
+}
+
+// TestRefreshAndroidUsesReleaseDate guards the regression where RefreshAndroid
+// built artifact filenames from the cron execution time instead of the release
+// date. When the two differ (the cron runs on any day after the release was
+// cut), filenames derived from "now" don't match the release assets, so nothing
+// downloads — and the cleanup would delete a release-dated artifact that was
+// downloaded. This exercises the sync + cleanup path RefreshAndroid delegates to.
+func TestRefreshAndroidUsesReleaseDate(t *testing.T) {
+	releaseDate := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC)
+
+	assetName := androidOSVFilename("16", releaseDate)
+	release := &ReleaseInfo{
+		TagName: "cve-202607140000",
+		Assets: map[string]*AssetInfo{
+			assetName: {Name: assetName, ID: 1},
+		},
+	}
+
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		return os.WriteFile(dstPath, []byte("ok"), 0o644)
+	}
+
+	// Using the release date finds the asset and downloads it.
+	dir := t.TempDir()
+	result, err := syncOSVWithDownloader(context.Background(), dir, []string{"16"}, releaseDate, release, mockDownload, androidOSVFilename)
+	require.NoError(t, err)
+	require.Contains(t, result.Downloaded, "16")
+	require.Empty(t, result.NotInRelease)
+
+	// Using "now" (different from the release date) misses the asset entirely.
+	nowDir := t.TempDir()
+	nowResult, err := syncOSVWithDownloader(context.Background(), nowDir, []string{"16"}, now, release, mockDownload, androidOSVFilename)
+	require.NoError(t, err)
+	require.Contains(t, nowResult.NotInRelease, "16")
+	require.Empty(t, nowResult.Downloaded)
+
+	// Cleanup with the release date preserves the just-downloaded artifact...
+	require.NoError(t, removeOldAndroidOSVArtifacts(releaseDate, dir, []string{"16"}))
+	_, err = os.Stat(filepath.Join(dir, assetName))
+	require.NoError(t, err, "release-dated artifact must be preserved")
+
+	// ...whereas cleaning up with "now" would delete it, since its date suffix
+	// doesn't match and version 16 is in the successful set.
+	require.NoError(t, removeOldAndroidOSVArtifacts(now, dir, []string{"16"}))
+	_, err = os.Stat(filepath.Join(dir, assetName))
+	require.True(t, os.IsNotExist(err), "cleanup keyed on now wrongly deletes the release-dated artifact")
+}
+
+func TestGetNeededAndroidVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		oses     []fleet.OperatingSystem
+		expected []string
+	}{
+		{
+			name:     "empty",
+			oses:     nil,
+			expected: nil,
+		},
+		{
+			name: "non-android ignored",
+			oses: []fleet.OperatingSystem{
+				{Name: "Ubuntu", Version: "22.04", Platform: "ubuntu"},
+				{Name: "Windows", Version: "10.0.19042", Platform: "windows"},
+			},
+			expected: nil,
+		},
+		{
+			name: "bare versions",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "16", Platform: "android"},
+				{Name: "Android", Version: "14", Platform: "android"},
+			},
+			expected: []string{"16", "14"},
+		},
+		{
+			name: "versions with SPL deduplicated",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "16 (2026-01-01)", Platform: "android"},
+				{Name: "Android", Version: "16 (2026-05-01)", Platform: "android"},
+				{Name: "Android", Version: "14 (2025-03-01)", Platform: "android"},
+			},
+			expected: []string{"16", "14"},
+		},
+		{
+			name: "empty version skipped",
+			oses: []fleet.OperatingSystem{
+				{Name: "Android", Version: "", Platform: "android"},
+				{Name: "Android", Version: "16", Platform: "android"},
+			},
+			expected: []string{"16"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getNeededAndroidVersions(tt.oses)
+			require.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAndroidOSVFilename(t *testing.T) {
+	date := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"16", "osv-android-16-2026-07-15.json.gz"},
+		{"14", "osv-android-14-2026-07-15.json.gz"},
+		{"8.1", "osv-android-8.1-2026-07-15.json.gz"},
+		{"12L", "osv-android-12L-2026-07-15.json.gz"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, androidOSVFilename(tt.version, date))
+		})
+	}
+}
+
+func TestExtractAndroidMajorVersion(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"16 (2026-05-01)", "16"},
+		{"14", "14"},
+		{"8.1 (2021-01-01)", "8.1"},
+		{"12L (2022-12-01)", "12L"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, extractAndroidMajorVersion(tt.version))
+		})
+	}
 }
 
 func TestDateFromAssetName(t *testing.T) {

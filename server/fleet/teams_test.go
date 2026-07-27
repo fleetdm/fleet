@@ -302,6 +302,16 @@ func TestTeamMDMCopy(t *testing.T) {
 		)
 		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
+
+	t.Run("copy HostNameTemplate", func(t *testing.T) {
+		tm := &TeamMDM{HostNameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		clone := tm.Copy()
+		require.Equal(t, tm.HostNameTemplate, clone.HostNameTemplate)
+
+		// mutating the copy must not affect the original (plain-string value copy)
+		clone.HostNameTemplate = "changed"
+		require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", tm.HostNameTemplate)
+	})
 }
 
 func TestTeamConfigCopy(t *testing.T) {

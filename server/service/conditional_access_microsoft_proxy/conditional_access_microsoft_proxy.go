@@ -18,20 +18,18 @@ import (
 // Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
 type Proxy struct {
 	uri          string
-	apiKey       string
 	originGetter func() (string, error)
 
 	c *http.Client
 }
 
-// New creates a Proxy that will use the given URI and API key.
-func New(uri string, apiKey string, originGetter func() (string, error)) (*Proxy, error) {
+// New creates a Proxy that will use the given URI.
+func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
 	if _, err := url.Parse(uri); err != nil {
 		return nil, fmt.Errorf("parse uri: %w", err)
 	}
 	return &Proxy{
-		uri:    uri,
-		apiKey: apiKey,
+		uri: uri,
 
 		originGetter: originGetter,
 
@@ -339,7 +337,6 @@ func (p *Proxy) setHeaders(r *http.Request) error {
 	if origin == "" {
 		return fmt.Errorf("missing origin: %w", err)
 	}
-	r.Header.Add("MS-API-Key", p.apiKey)
 	r.Header.Add("Origin", origin)
 	return nil
 }

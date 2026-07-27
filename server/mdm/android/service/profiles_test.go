@@ -180,7 +180,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	// profile gets delivered to both hosts
@@ -221,11 +221,11 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 
 	// add an android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	// add another one that overrides the first one
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "c"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to both hosts, but p1 is failed
@@ -274,13 +274,13 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	// and insert in different order than the names to verify that name ordering
 	// is applied.
 	p3 := androidProfileWithPayloadForTest("p3", `{"key1": "c", "key2": "c", "key3": "c", "key4": "c"}`)
-	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3, nil)
 	require.NoError(t, err)
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a", "key2": "a"}`)
-	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "b", "key3": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to h1 only
@@ -321,7 +321,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	for i := range 3 {
@@ -357,7 +357,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// add a new profile that "resets" the set of profiles to send, so will retry
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// and this time make it succeed
@@ -400,7 +400,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a first android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
@@ -467,7 +467,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a second android profile
 	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "4"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 	p2Checksum := getAndroidProfileChecksum(t, ds, p2.ProfileUUID)
 
@@ -582,19 +582,19 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// create profiles based on each label, and one with no label
 	pNoLabel := androidProfileWithPayloadForTest("pNoLabel", `{"maximumTimeToLock": "1"}`)
 	pNoLabel.TeamID = &tm.ID
-	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel)
+	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel, nil)
 	require.NoError(t, err)
 	pInclAny := androidProfileWithPayloadForTest("pInclAny", `{"maximumTimeToLock": "2"}`, linclAny)
 	pInclAny.TeamID = &tm.ID
-	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny)
+	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny, nil)
 	require.NoError(t, err)
 	pInclAll := androidProfileWithPayloadForTest("pInclAll", `{"maximumTimeToLock": "3"}`, linclAll)
 	pInclAll.TeamID = &tm.ID
-	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll)
+	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll, nil)
 	require.NoError(t, err)
 	pExclAny := androidProfileWithPayloadForTest("pExclAny", `{"maximumTimeToLock": "4"}`, lexclAny)
 	pExclAny.TeamID = &tm.ID
-	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny)
+	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny, nil)
 	require.NoError(t, err)
 
 	// mock and control the version number, and validate the expected MaximumTimeToLock value
@@ -1305,13 +1305,13 @@ func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *
 		}
 	}`, certTemplate.Name))
 	oncProfile.TeamID = &team.ID
-	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile)
+	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile, nil)
 	require.NoError(t, err)
 
 	// Create a non-ONC profile (should always be applied)
 	nonONCProfile := androidProfileForTest("camera-policy")
 	nonONCProfile.TeamID = &team.ID
-	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile)
+	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile, nil)
 	require.NoError(t, err)
 
 	// --- Phase 1: cert is pending, ONC should be withheld, non-ONC applied ---
@@ -1436,7 +1436,7 @@ func testUnresolvableFleetVarMarksProfileFailed(t *testing.T, ds fleet.Datastore
 
 	// Create a profile that references an IDP variable the host can't resolve.
 	p1 := androidProfileWithPayloadForTest("wifi-eap", `{"name": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	// Reconcile — should NOT call AMAPI (no policy to patch) but should

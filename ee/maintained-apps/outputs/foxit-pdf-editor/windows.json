@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "14.0.5.33580",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Foxit PDF Editor' AND publisher = 'Foxit Software Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Editor' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '14.0.5.33580') < 0);"
+      },
+      "installer_url": "https://cdn01.foxitsoftware.com/product/phantomPDF/desktop/win/14.0.5/FoxitPDFEditor1405_L10N_Setup_x64.exe",
+      "install_script_ref": "a6208245",
+      "uninstall_script_ref": "5d55608a",
+      "sha256": "764aa7ca2679c568539ada4dfa4b1f7de91f9c006fdb8fb98489dea0bce354f7",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "5d55608a": "# Uninstalls Foxit PDF Editor.\n#\n# Foxit PDF Editor is a Foxit WiX MultiLangBootstrapper install that runs an auto-updater\n# service; its visible ARP entry is the inner MSI (its UninstallString uses\n# \"MsiExec.exe /I{ProductCode}\", the maintenance/repair form). We stop the\n# Foxit services/processes first so files aren't locked, then resolve the\n# ProductCode GUID and run a clean \"msiexec /x {ProductCode} /qn /norestart\"\n# (never reuse the /I from the registry string). The ARP entry lives in the\n# WOW6432Node (32-bit) hive even on x64.\n\n$softwareName = \"Foxit PDF Editor\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$successCodes = @(0, 3010, 1641)\n$exitCode = $null\n\ntry {\n\nforeach ($svc in @(\"FoxitPhantomPDFUpdateService\")) {\n    Stop-Service -Name $svc -Force -ErrorAction SilentlyContinue\n}\nforeach ($p in @(\"FoxitPDFEditor\", \"FoxitPhantomPDF\", \"FoxitUpdater\")) {\n    Stop-Process -Name $p -Force -ErrorAction SilentlyContinue\n}\nStart-Sleep -Seconds 3\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName } | Select-Object -First 1\nif (-not $selected) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\n# ProductCode: prefer the ARP key name (it is the MSI ProductCode), else pull\n# the first GUID out of the UninstallString. Never carry over its /I switch.\n$productCode = $selected.PSChildName\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    $raw = $selected.UninstallString\n    if ($raw -match '(\\{[0-9A-Fa-f-]+\\})') { $productCode = $matches[1] }\n}\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    Write-Host \"Could not determine ProductCode for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstalling product code: $productCode\"\n$process = Start-Process msiexec.exe `\n    -ArgumentList \"/x $productCode /qn /norestart\" `\n    -NoNewWindow -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($successCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n",
+    "a6208245": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Foxit PDF Editor ships as a Foxit WiX MultiLangBootstrapper EXE. /quiet /norestart\n# performs a silent per-machine install.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/quiet\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n\n    # 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\n    if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n"
+  }
+}

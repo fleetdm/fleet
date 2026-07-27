@@ -6,6 +6,7 @@ import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   ProfileOperationType,
 } from "interfaces/mdm";
+import { HOST_NAME_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 
 describe("OS setting status cell", () => {
@@ -195,6 +196,97 @@ describe("OS setting status cell", () => {
       expect(
         screen.getByText(/The host is running the command/)
       ).toBeInTheDocument();
+    });
+  });
+
+  // Host name template synthetic row
+  describe("host name template row", () => {
+    it("displays 'Enforcing' for pending status", async () => {
+      const customRender = createCustomRenderer();
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="pending"
+          operationType={null}
+          hostPlatform="darwin"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      const statusText = screen.getByText("Enforcing");
+      expect(statusText).toBeInTheDocument();
+
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Fleet is enforcing this fleet's host name template/)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("displays 'Verifying' for verifying status", () => {
+      render(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="verifying"
+          operationType={null}
+          hostPlatform="ios"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      expect(screen.getByText("Verifying")).toBeInTheDocument();
+    });
+
+    it("displays 'Verified' for verified status", () => {
+      render(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="verified"
+          operationType={null}
+          hostPlatform="ipados"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+        />
+      );
+
+      expect(screen.getByText("Verified")).toBeInTheDocument();
+    });
+
+    it("displays 'Failed' and shows the profile detail in the tooltip", async () => {
+      const customRender = createCustomRenderer();
+
+      const detail =
+        "Host was renamed on the device and no longer matches the fleet's naming template.";
+      const profile = createMockHostMdmProfile({
+        profile_uuid: HOST_NAME_SYNTHETIC_PROFILE_UUID,
+        name: "Host name",
+        platform: "darwin",
+        operation_type: null,
+        status: "failed",
+        detail,
+      });
+
+      const { user } = customRender(
+        <OSSettingStatusCell
+          profileName="Host name"
+          status="failed"
+          operationType={null}
+          hostPlatform="darwin"
+          profileUUID={HOST_NAME_SYNTHETIC_PROFILE_UUID}
+          profile={profile}
+        />
+      );
+
+      const statusText = screen.getByText("Failed");
+      expect(statusText).toBeInTheDocument();
+
+      // With a null failed tooltip config, the cell falls through to the
+      // detail-based error tooltip (generateErrorTooltip).
+      await user.hover(statusText);
+      await waitFor(() => {
+        expect(screen.getByText(detail)).toBeInTheDocument();
+      });
     });
   });
 });

@@ -51,6 +51,7 @@ const AdvancedOptionsForm = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+        variant="secondary"
       />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>

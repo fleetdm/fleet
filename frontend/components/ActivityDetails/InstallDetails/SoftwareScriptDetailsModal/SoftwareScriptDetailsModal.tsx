@@ -1,5 +1,5 @@
 /** This component is intentionally separate from SoftwareInstallDetailsModal
- * because it handles script-only package installs (e.g. sh_packages or ps1_packages)
+ * because it handles script-only package installs (e.g. sh_packages, ps1_packages, or py_packages)
  *
  * Key differences from SoftwareInstallDetailsModal:
  * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
@@ -167,7 +167,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRerun}>
@@ -241,6 +241,7 @@ export const SoftwareScriptDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleInstallDetails}
+            variant="secondary"
           />
         )}
         {showInstallDetails && swInstallResult?.output && (

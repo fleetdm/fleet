@@ -57,6 +57,19 @@ func (svc *Service) AddFleetMaintainedApp(
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return 0, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
@@ -120,6 +133,12 @@ func (svc *Service) AddFleetMaintainedApp(
 				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
 			}
 		}
+	}
+
+	// validate the effective scripts, after empty inputs were defaulted from
+	// the maintained-app manifest above
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
+		return 0, err
 	}
 
 	maintainedAppID := &app.ID

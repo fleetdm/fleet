@@ -22,6 +22,7 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import commandAPI from "services/entities/command";
 
 import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -141,15 +142,17 @@ import {
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { getErrorMessage } from "./helpers";
+import { canShowMyDeviceButton, getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import HostHeader from "../cards/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
 import LocationModal from "../modals/LocationModal";
+import EditHostVitalModal from "../modals/EditHostVitalModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import ClearPasscodeModal from "./modals/ClearPasscodeModal";
+import ReleaseFromABModal from "./components/ReleaseFromABModal";
 
 const baseClass = "host-details";
 
@@ -256,6 +259,12 @@ const HostDetailsPage = ({
   }, [location.query.show_mdm_status]);
 
   const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+  const [showReleaseFromABModal, setShowReleaseFromABModal] = useState(false);
+
+  const [
+    editingCustomHostVital,
+    setEditingCustomHostVital,
+  ] = useState<IHostCustomVital | null>(null);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -462,7 +471,7 @@ const HostDetailsPage = ({
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
               notify.error(
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
               );
               resetHostRefetchStates();
             }
@@ -800,6 +809,13 @@ const HostDetailsPage = ({
     return hostAPI.rotateRecoveryLockPassword(host.id);
   }, [host?.id]);
 
+  const resendHostNameTemplate = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return Promise.resolve();
+    }
+    return hostAPI.resendNameTemplate(host.id);
+  }, [host?.id]);
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -1017,6 +1033,9 @@ const HostDetailsPage = ({
       case "managedAccount":
         setShowManagedAccountModal(true);
         break;
+      case "releaseFromAB":
+        setShowReleaseFromABModal(true);
+        break;
       case "mdmOff":
         toggleUnenrollMdmModal();
         break;
@@ -1069,6 +1088,7 @@ const HostDetailsPage = ({
           !!host.mdm.encryption_key_archived
         }
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
+        isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
         isRecoveryLockPasswordEnabled={
           mdmConfig?.enable_recovery_lock_password ?? false
@@ -1305,10 +1325,15 @@ const HostDetailsPage = ({
 
   // "My device" link points to that host's end-user My device page. The URL
   // embeds the device auth token so it acts as a credential, hence global
-  // admin only. The endpoint guarantees a valid link on every fetch — it
-  // refreshes an expired token or generates one for a host that has never
-  // had one — so we don't gate visibility on orbit/MDM state.
-  const canViewMyDeviceLink = isGlobalAdmin;
+  // admin only. Also hide it on hosts that have no live end-user surface —
+  // no Fleet Desktop (so no token, and no page to load) or wiped.
+  const canViewMyDeviceLink = isGlobalAdmin && canShowMyDeviceButton(host);
+
+  const canEditCustomHostVitals =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const showSoftwareLibraryTab = isPremiumTier;
   const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
@@ -1508,6 +1533,12 @@ const HostDetailsPage = ({
                   )}
                   toggleLocationModal={toggleLocationModal}
                   toggleMDMStatusModal={toggleMDMStatusModal}
+                  customHostVitals={host.custom_host_vitals}
+                  onEditCustomHostVital={
+                    canEditCustomHostVitals
+                      ? setEditingCustomHostVital
+                      : undefined
+                  }
                 />
                 <ActivityCard
                   className={
@@ -1730,6 +1761,16 @@ const HostDetailsPage = ({
               policy={selectedPolicy}
             />
           )}
+          {!!host && showReleaseFromABModal && (
+            <ReleaseFromABModal
+              host={{ display_name: host.display_name, id: host.id }}
+              onExit={() => setShowReleaseFromABModal(false)}
+              onRelease={() => {
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+            />
+          )}
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={canResendProfiles}
@@ -1739,12 +1780,14 @@ const HostDetailsPage = ({
                 isHostTeamAdmin ||
                 isHostTeamMaintainer
               }
+              canResendHostNameTemplate={canResendProfiles}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
               resendRequest={resendProfile}
               resendCertificateRequest={resendCertificate}
               rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+              resendHostNameTemplate={resendHostNameTemplate}
               onProfileResent={refetchHostDetails}
             />
           )}
@@ -2008,6 +2051,18 @@ const HostDetailsPage = ({
               setShowLocationModal(undefined);
             }}
             detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {editingCustomHostVital && (
+          <EditHostVitalModal
+            hostId={host.id}
+            vital={editingCustomHostVital}
+            onCancel={() => setEditingCustomHostVital(null)}
+            onSave={() => {
+              refetchHostDetails();
+              refetchPastActivities();
+              setEditingCustomHostVital(null);
+            }}
           />
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (

@@ -27,7 +27,7 @@ const AppleAutomaticEnrollmentCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={viewDetails} variant="inverse">
+        <Button onClick={viewDetails} variant="subdued">
           <Icon name="pencil" />
           Edit
         </Button>

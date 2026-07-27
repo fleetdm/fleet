@@ -230,7 +230,7 @@ const Certificates = ({
                   <ActionsDropdown
                     options={certActions}
                     placeholder="Actions"
-                    variant="small-button"
+                    variant="secondary"
                     menuAlign="right"
                     menuPlacement="auto"
                     onChange={(action) => onSelectCertAction(action, listItem)}

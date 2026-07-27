@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.5.0",
+      "version": "6.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force' AND version_compare(version, '6.5.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Kelvin' AND publisher = 'Creative Force' AND version_compare(version, '6.6.0') < 0);"
       },
-      "installer_url": "https://download.creativeforce.io/released-files.042024/prod/kelvin/win/Kelvin-6.5.0-win.msi",
+      "installer_url": "https://download.creativeforce.io/released-files.042024/prod/kelvin/win/Kelvin-6.6.0-win.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "afce06ed",
-      "sha256": "e3c89b7fc3af69aa2a5c4afeed7d2133f24a28340693d7fe47a014bdf971f42f",
+      "sha256": "a65473fc49c433f8445e9545c4299b67b48d7c916a03d7ec52b97cb748db29ea",
       "default_categories": [
         "Productivity"
       ],
