@@ -7474,7 +7474,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
         "id": 1
        }
       ],
-      "activation": "activation.json"
+      "activation": "eyJldmVudCI6..."
     },
     {
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
@@ -7547,7 +7547,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
       "id": 2
     }
   ],
-  "activation": "activation.json"
+  "activation": "eyJldmVudCI6..."
 }
 ```
 
@@ -7691,7 +7691,7 @@ For each `profile`, `labels_exclude_any` can be combined with either `labels_inc
     {
       "profile": "<base64-encoded DDM profile>",
       "display_name": "Passcode Settings",
-      "activation": "activation.json"
+      "activation": "eyJldmVudCI6..."
     }
   ]
 }
