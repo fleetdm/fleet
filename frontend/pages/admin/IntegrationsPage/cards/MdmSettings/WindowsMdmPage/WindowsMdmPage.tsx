@@ -49,7 +49,10 @@ const useSetWindowsMdm = ({
           enable_turn_on_windows_mdm_manually:
             enableMdm && !turnOnProgrammatically,
           windows_enabled_and_configured: enableMdm,
-          windows_migration_enabled: enableAutoMigration,
+          // Migration only applies when MDM is on and enrollment is programmatic (the checkbox is
+          // hidden otherwise), so derive the value to avoid re-saving a stale "enabled" state.
+          windows_migration_enabled:
+            enableMdm && turnOnProgrammatically && enableAutoMigration,
           // The default fleet for user-driven enrollment is Premium only; the
           // backend rejects it otherwise.
           ...(isPremiumTier && {

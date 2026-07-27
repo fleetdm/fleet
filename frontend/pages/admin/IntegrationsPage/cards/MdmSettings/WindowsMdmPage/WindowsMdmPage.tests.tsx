@@ -151,4 +151,35 @@ describe("WindowsMdmPage", () => {
       true
     );
   });
+
+  it("does not re-save a stale migration setting when enrollment is manual", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
+    // Inconsistent server state (settable via the API or GitOps): migration
+    // enabled while enrollment is manual, so the Migration checkbox is hidden.
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          config: createMockConfig({
+            mdm: createMockMdmConfig({
+              windows_enabled_and_configured: true,
+              enable_turn_on_windows_mdm_manually: true,
+              windows_migration_enabled: true,
+              windows_entra_tenant_ids: ["tenant-1"],
+            }),
+          }),
+        },
+      },
+    });
+
+    const { user } = render(<WindowsMdmPage router={createMockRouter()} />);
+
+    expect(screen.queryByText("Migration")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ windows_migration_enabled: false }),
+      true
+    );
+  });
 });
