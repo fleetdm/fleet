@@ -1851,4 +1851,15 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 	})
+
+	// The setting check only decides whether to warn, so a failure to read it must never cost the
+	// password: the account already exists on the device and this is the only chance to record it.
+	t.Run("stores the password even when the setting cannot be read", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error { return nil }
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return nil, errors.New("transient db failure") }
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
+		require.NoError(t, err)
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	})
 }

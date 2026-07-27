@@ -1541,8 +1541,9 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return newOsqueryError("internal error: missing host from request context")
 	}
 
-	// Eligibility is verified via the host's Windows MDM enrollment, not host.Platform, which can be
-	// empty during early OOBE before osquery has reported.
+	// Eligibility is the host's Windows MDM enrollment rather than host.Platform, because enrollment
+	// is what the notification that produced this password was gated on. Checking the same signal
+	// here means a device can only escrow a password the server actually asked it to create.
 	if _, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID); err != nil {
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{Message: "managed local account escrow is only supported for Windows MDM hosts"}
@@ -1573,22 +1574,22 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return &fleet.BadRequestError{Message: "managed local account password is too long"}
 	}
 
-	// The setting or license may have changed between the notification and this escrow. The account
-	// already exists on the device, so rejecting would orphan it with an unrecoverable password. Store
-	// the password regardless and only log a warning when the setting is no longer enabled.
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "load app config for managed local account escrow")
-	}
-	if enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig); err != nil {
-		return ctxerr.Wrap(ctx, err, "check windows managed local account setting for escrow")
-	} else if !enabled {
-		svc.logger.WarnContext(ctx, "escrowing windows managed local account password although the setting is disabled",
-			"host_id", host.ID, "host_uuid", host.UUID)
-	}
-
+	// Store the password before anything else can fail. The account already exists on the device, so
+	// any path that returns without storing orphans it with a password nobody can recover.
 	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password); err != nil {
 		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
+	}
+
+	// The setting or license may have changed between the notification and this escrow. That does not
+	// change what we store, only whether it is worth flagging, so this check is best-effort: a failure
+	// to read the config must not turn a stored password into an error response.
+	if appConfig, err := svc.ds.AppConfig(ctx); err != nil {
+		svc.logger.ErrorContext(ctx, "load app config to check managed local account setting after escrow", "err", err)
+	} else if enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig); err != nil {
+		svc.logger.ErrorContext(ctx, "check windows managed local account setting after escrow", "err", err)
+	} else if !enabled {
+		svc.logger.WarnContext(ctx, "escrowed windows managed local account password although the setting is disabled",
+			"host_id", host.ID, "host_uuid", host.UUID)
 	}
 
 	if err := svc.NewActivity(
