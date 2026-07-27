@@ -34881,3 +34881,68 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageFleetVariables() {
 	require.NoError(t, err)
 	require.Equal(t, updatedContents, meta.InstallScript)
 }
+
+// TestBatchSetSoftwareInstallersFMARebuildSameVersion reproduces #49811: an FMA
+// rebuilt under the same version string (new bytes, new installer filename, new
+// install script) must advance the cached installer's filename, hash, and script
+// together. The old scripts-only update path rewrote the script over the old
+// build's stored bytes, so the install script referenced a file never downloaded.
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuildSameVersion() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team_" + t.Name()})
+	require.NoError(t, err)
+
+	// Build A: version 1.0.
+	states := map[string]*fmaTestState{
+		"/zoom/windows.json": {
+			version:        "1.0",
+			installerBytes: []byte("zoom-build-a"),
+			installerPath:  "/zoom-a.msi",
+			installScript:  "install zoom-a.msi",
+		},
+	}
+	startFMAServers(t, s.ds, states)
+
+	var resp batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp, "team_name", team.Name,
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	var listResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprintf("%d", team.ID), "available_for_install", "true")
+	require.Len(t, listResp.SoftwareTitles, 1)
+	titleID := listResp.SoftwareTitles[0].ID
+
+	// Build A is cached coherently: filename, hash, and script all agree.
+	metaA, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "zoom-a.msi", metaA.Name)
+	require.Equal(t, states["/zoom/windows.json"].sha256, metaA.StorageID)
+	require.Equal(t, "install zoom-a.msi", metaA.InstallScript)
+
+	// Build B: rebuilt under the SAME version 1.0 (the collision), with new bytes,
+	// filename, and install script. Recompute the manifest hash for the new bytes.
+	rebuild := states["/zoom/windows.json"]
+	rebuild.installerBytes = []byte("zoom-build-b")
+	rebuild.installerPath = "/zoom-b.msi"
+	rebuild.installScript = "install zoom-b.msi"
+	rebuild.ComputeSHA(rebuild.installerBytes)
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
+		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("zoom/windows")}}, TeamName: team.Name},
+		http.StatusAccepted, &resp, "team_name", team.Name,
+	)
+	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
+
+	// The rebuild must advance filename, hash, and script together — no skew.
+	metaB, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "1.0", metaB.Version)
+	require.Equal(t, "zoom-b.msi", metaB.Name)
+	require.Equal(t, rebuild.sha256, metaB.StorageID)
+	require.Equal(t, "install zoom-b.msi", metaB.InstallScript)
+}

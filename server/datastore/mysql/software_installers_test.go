@@ -62,6 +62,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"AddSoftwareTitleToMatchingSoftware", testAddSoftwareTitleToMatchingSoftware},
 		{"FleetMaintainedAppInstallerUpdates", testFleetMaintainedAppInstallerUpdates},
 		{"ListFleetMaintainedAppActiveInstallers", testListFleetMaintainedAppActiveInstallers},
+		{"HasFMAInstallerVersion", testHasFMAInstallerVersion},
 		{"InsertFleetMaintainedAppVersion", testInsertFleetMaintainedAppVersion},
 		{"InsertFleetMaintainedAppVersionProtectsLiveActive", testInsertFleetMaintainedAppVersionProtectsLiveActive},
 		{"InsertFleetMaintainedAppVersionClonesLiveActive", testInsertFleetMaintainedAppVersionClonesLiveActive},
@@ -7220,4 +7221,48 @@ func testDeleteSoftwareInstallerRepointsPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, got.SoftwareInstallerID)
 	require.Equal(t, installerB, *got.SoftwareInstallerID)
+}
+
+func testHasFMAInstallerVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-has-version"})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-fma-has-version-other"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Maintained1", Slug: "maintained1", Platform: "darwin", UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("v1"), t.TempDir)
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title: "FooFMA", Source: "apps", Platform: "darwin",
+		InstallScript: "echo install", UninstallScript: "echo uninstall",
+		InstallerFile: tfr, StorageID: "sha-v1", Filename: "foo-1.0.pkg", Extension: "pkg",
+		Version: "1.0", UserID: user.ID, TeamID: &team.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintainedApp.ID),
+	})
+	require.NoError(t, err)
+
+	// Cached version returns its stored hash.
+	versionExists, storageID, err := ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "1.0")
+	require.NoError(t, err)
+	require.True(t, versionExists)
+	require.Equal(t, "sha-v1", storageID)
+
+	// A version string that isn't cached returns no hash.
+	versionExists, storageID, err = ds.HasFMAInstallerVersion(ctx, &team.ID, maintainedApp.ID, "2.0")
+	require.NoError(t, err)
+	require.False(t, versionExists)
+	require.Empty(t, storageID)
+
+	// The cache is scoped per team.
+	versionExists, storageID, err = ds.HasFMAInstallerVersion(ctx, &otherTeam.ID, maintainedApp.ID, "1.0")
+	require.NoError(t, err)
+	require.False(t, versionExists)
+	require.Empty(t, storageID)
 }
