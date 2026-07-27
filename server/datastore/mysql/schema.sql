@@ -3557,8 +3557,8 @@ CREATE TABLE `vulnerability_host_counts` (
 CREATE TABLE `windows_enrollment_config` (
   `id` int unsigned NOT NULL,
   `team_id` int unsigned DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `fk_windows_enrollment_config_team_id` (`team_id`),
   CONSTRAINT `fk_windows_enrollment_config_team_id` FOREIGN KEY (`team_id`) REFERENCES `teams` (`id`) ON DELETE SET NULL
