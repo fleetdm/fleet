@@ -11047,7 +11047,7 @@ func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
 
 	// Apple host: raw model plus the mapped marketing name.
 	require.Equal(t, "MacBookPro18,1", byHostname[mapped.Hostname][1])
-	require.Equal(t, fleet.AppleHardwareModels["MacBookPro18,1"], byHostname[mapped.Hostname][2])
+	require.Equal(t, fleet.AppleHardwareModelsToMarketingNames["MacBookPro18,1"], byHostname[mapped.Hostname][2])
 
 	// Non-Apple host: raw model, empty marketing name.
 	require.Equal(t, "Standard PC", byHostname[unmapped.Hostname][1])

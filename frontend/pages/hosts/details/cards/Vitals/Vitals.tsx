@@ -6,7 +6,6 @@ import { IHostCustomVital } from "interfaces/custom_host_vitals";
 import { IHostMdmData, IMunkiData } from "interfaces/host";
 import {
   isAndroid,
-  isAppleDevice,
   isIPadOrIPhone,
   isChrome,
   platformSupportsDiskEncryption,
@@ -24,7 +23,7 @@ import {
   removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
-import { getHardwareModelTooltip } from "pages/hosts/helpers";
+import { getHardwareModelDisplay } from "pages/hosts/helpers";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -349,24 +348,11 @@ const Vitals = ({
     }
 
     // Hardware model
-    // Apple devices with a known marketing name (e.g. "MacBook Pro (16-inch,
-    // 2021)") show it in place of the raw model, and reveal the raw model on
-    // hover. When there's no marketing name, show the raw hardware model with
-    // no supplemental tooltip.
-    // `vitalsData` is run through normalizeEmptyValues, so an empty field comes
-    // through as DEFAULT_EMPTY_CELL_VALUE ("---"), not "". Treat a "---" (or
-    // model-echoing) marketing name as "no mapping" and show the raw model.
-    const marketingName =
-      isAppleDevice(vitalsData.platform) &&
-      vitalsData.hardware_marketing_name !== DEFAULT_EMPTY_CELL_VALUE
-        ? vitalsData.hardware_marketing_name
-        : "";
-    // Only reveal the raw model on hover when we're actually showing a distinct
-    // marketing name in its place.
-    const showModelTooltip =
-      !!marketingName &&
-      vitalsData.hardware_model !== DEFAULT_EMPTY_CELL_VALUE &&
-      marketingName !== vitalsData.hardware_model;
+    const hardwareModelDisplay = getHardwareModelDisplay(
+      vitalsData.platform,
+      vitalsData.hardware_model,
+      vitalsData.hardware_marketing_name
+    );
     vitals.push({
       sortKey: "Hardware model",
       element: (
@@ -375,16 +361,9 @@ const Vitals = ({
           title="Hardware model"
           value={
             <TooltipTruncatedText
-              value={marketingName || vitalsData.hardware_model}
-              tooltip={
-                showModelTooltip
-                  ? getHardwareModelTooltip(
-                      vitalsData.hardware_model,
-                      marketingName
-                    )
-                  : undefined
-              }
-              alwaysShowTooltip={showModelTooltip}
+              value={hardwareModelDisplay.value}
+              tooltip={hardwareModelDisplay.tooltip}
+              alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
             />
           }
         />

@@ -3101,11 +3101,7 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 	var outRows [][]string
 	if returnAll {
-		// gocsv appends hardware_marketing_name after all Host columns because
-		// it's a HostResponse field, but the documented report places it right
-		// after hardware_model, so reorder the columns to match. The filtered
-		// path below already emits columns in the requested order.
-		reorderCSVColumnAfter(recs, "hardware_marketing_name", "hardware_model")
+		applyCSVColumnPlacements(recs)
 		outRows = recs
 	} else if len(recs) > 0 {
 		// map the header names to their field index
@@ -3139,6 +3135,20 @@ func (r hostsReportResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
 		logging.WithErr(ctx, err)
+	}
+}
+
+// csvColumnPlacements forces the ordering of columns in the full (unfiltered)
+// hosts report CSV. gocsv appends HostResponse fields after all Host columns,
+// so columns whose documented position is elsewhere must be moved explicitly.
+// The filtered path already emits columns in the requested order.
+var csvColumnPlacements = []struct{ col, after string }{
+	{"hardware_marketing_name", "hardware_model"},
+}
+
+func applyCSVColumnPlacements(recs [][]string) {
+	for _, p := range csvColumnPlacements {
+		reorderCSVColumnAfter(recs, p.col, p.after)
 	}
 }
 

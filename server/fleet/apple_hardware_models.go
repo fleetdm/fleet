@@ -1,13 +1,11 @@
 package fleet
 
-// AppleHardwareModels maps Apple hardware model identifiers to their marketing
-// names.
-//
-// Names are primarily sourced from SOFA's device identifier data:
+// AppleHardwareModelsToMarketingNames' names are primarily sourced from SOFA's
+// device identifier data:
 // https://github.com/macadmins/sofa/blob/5a4fe284215d666a08d6ea9f66a554c90226b57c/data/models/device_identifiers.json.
 //
 // Add new entries here as Apple releases new devices.
-var AppleHardwareModels = map[string]string{
+var AppleHardwareModelsToMarketingNames = map[string]string{
 	"AppleTV1,1":        "Apple TV (1st generation)",
 	"AppleTV11,1":       "Apple TV 4K (2nd generation)",
 	"AppleTV14,1":       "Apple TV 4K (3rd generation)",

@@ -1088,7 +1088,7 @@ func (h *Host) DisplayName() string {
 // mapping, so a missing mapping entry can be told apart from the raw model.
 func (h *Host) HardwareMarketingName() string {
 	if IsApplePlatform(h.Platform) {
-		if name, ok := AppleHardwareModels[h.HardwareModel]; ok {
+		if name, ok := AppleHardwareModelsToMarketingNames[h.HardwareModel]; ok {
 			return name
 		}
 	}

@@ -40,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { getHardwareModelTooltip, getHostStatusTooltipText } from "../helpers";
+import { getHardwareModelDisplay, getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -190,29 +190,16 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     accessor: "hardware_model",
     id: "hardware_model",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      // Apple devices with a known marketing name (e.g. "MacBook Pro (16-inch,
-      // 2021)") show it in place of the raw model, and reveal the raw model on
-      // hover. When there's no marketing name, show the raw hardware model with
-      // no supplemental tooltip.
-      const marketingName = isAppleDevice(cellProps.row.original.platform)
-        ? cellProps.row.original.hardware_marketing_name
-        : "";
-      const rawModel = cellProps.cell.value;
-      // Only reveal the raw model on hover when we're actually showing a
-      // distinct marketing name in its place. When there's no mapping the
-      // marketing name is empty (or echoes the raw model), so we show the raw
-      // model plainly with no tooltip.
-      const showModelTooltip =
-        !!marketingName && !!rawModel && marketingName !== rawModel;
+      const { value, tooltip, alwaysShowTooltip } = getHardwareModelDisplay(
+        cellProps.row.original.platform,
+        cellProps.cell.value,
+        cellProps.row.original.hardware_marketing_name
+      );
       return (
         <TooltipTruncatedTextCell
-          value={marketingName || rawModel}
-          tooltip={
-            showModelTooltip
-              ? getHardwareModelTooltip(rawModel, marketingName)
-              : undefined
-          }
-          alwaysShowTooltip={showModelTooltip}
+          value={value}
+          tooltip={tooltip}
+          alwaysShowTooltip={alwaysShowTooltip}
           className="w250"
         />
       );
