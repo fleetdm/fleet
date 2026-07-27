@@ -7473,7 +7473,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
         "name": "Label name 1",
         "id": 1
        }
-      ]
+      ],
+      "activation": "activation.json"
     },
     {
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
@@ -7545,7 +7546,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
       "name": "Label name 2",
       "id": 2
     }
-  ]
+  ],
 }
 ```
 
@@ -7667,7 +7668,7 @@ For requests with 100+ profiles, requests will take 5+ seconds.
 | labels_include_any      | array   | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any      | array   | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
 | display_name            | string  | Required for Windows and declaration (DDM) profiles. It's not supported for .mobileconfig profiles. Instead, the profiles `PayloadDisplayName` is used. |
-| activation              | file    | body | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. |
+| activation              | file    | _Available in Fleet Premium_. The activation criteria for the profile as a JSON file. Only supported for declaration (DDM) profiles. |
 
 For each `profile`, `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If neither is set, all hosts on the specified platform are targeted.
 
