@@ -1908,7 +1908,9 @@ type Datastore interface {
 
 	// SaveHostManagedLocalAccountFromEscrow encrypts and stores a device-generated managed local account password (Windows).
 	// windowsMDMDeviceID records the enrollment it belongs to, so a re-enrolled host is asked to create the account again.
-	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error
+	// Returns whether the account was created for an enrollment that did not already have one, so a re-sent escrow does not
+	// log the created activity twice.
+	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) (created bool, err error)
 
 	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account
 	// (Windows), marking the row failed and storing the error. Any previously stored password is preserved.

@@ -1182,7 +1182,7 @@ type ReconcileHostDeviceNamesForHostsFunc func(ctx context.Context, hostIDs []ui
 
 type SaveHostManagedLocalAccountFunc func(ctx context.Context, hostUUID string, plaintextPassword string, commandUUID string) error
 
-type SaveHostManagedLocalAccountFromEscrowFunc func(ctx context.Context, hostUUID string, plaintextPassword string, windowsMDMDeviceID string) error
+type SaveHostManagedLocalAccountFromEscrowFunc func(ctx context.Context, hostUUID string, plaintextPassword string, windowsMDMDeviceID string) (created bool, err error)
 
 type ReportManagedLocalAccountEscrowErrorFunc func(ctx context.Context, hostUUID string, clientError string) error
 
@@ -9641,7 +9641,7 @@ func (s *DataStore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID st
 	return s.SaveHostManagedLocalAccountFunc(ctx, hostUUID, plaintextPassword, commandUUID)
 }
 
-func (s *DataStore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID string, plaintextPassword string, windowsMDMDeviceID string) error {
+func (s *DataStore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID string, plaintextPassword string, windowsMDMDeviceID string) (created bool, err error) {
 	s.mu.Lock()
 	s.SaveHostManagedLocalAccountFromEscrowFuncInvoked = true
 	s.mu.Unlock()

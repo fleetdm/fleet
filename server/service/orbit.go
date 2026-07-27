@@ -1571,7 +1571,8 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 	}
 
 	// Store the password before anything else can fail.
-	if err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password, enrolledDevice.MDMDeviceID); err != nil {
+	created, err := svc.ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, password, enrolledDevice.MDMDeviceID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save windows managed local account password")
 	}
 
@@ -1586,6 +1587,11 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 			"host_id", host.ID, "host_uuid", host.UUID)
 	}
 
+	// We only want to record the activity if an account was actually created. A device that re-sends an
+	// escrow it already made must not claim a second account.
+	if !created {
+		return nil
+	}
 	if err := svc.NewActivity(
 		ctx,
 		nil,

@@ -234,7 +234,8 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 
 	// A managed local account escrowed under the outgoing enrollment. The password is kept, but the
 	// enrollment marker must be cleared so the re-enrolled device is asked to create the account again.
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS", cleanupDevice.MDMDeviceID))
+	_, err = ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS", cleanupDevice.MDMDeviceID)
+	require.NoError(t, err)
 
 	// Sanity-check pre-population.
 	var profCount, resultCount, activityCount int

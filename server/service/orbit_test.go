@@ -1791,8 +1791,8 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
 		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
-		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error {
-			return nil
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) (bool, error) {
+			return true, nil
 		}
 		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
 		return ds, svc, ctx, opts
@@ -1858,9 +1858,9 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 	t.Run("successful escrow stores the password and logs the created activity once", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		var savedPassword string
-		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) error {
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword, windowsMDMDeviceID string) (bool, error) {
 			savedPassword = plaintextPassword
-			return nil
+			return true, nil
 		}
 		activityCount := 0
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
