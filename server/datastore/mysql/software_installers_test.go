@@ -1674,6 +1674,66 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
+
+	// A rebuilt FMA (new hash under the same version) must update filename, storage,
+	// and install script together so they stay consistent.
+	rebuildTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-fma-rebuild"})
+	require.NoError(t, err)
+	fmaBuild := func(storage string, installScript string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(bytes.NewReader([]byte(storage)), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			Title: "RebuildFMA", Source: "apps", Platform: "darwin", BundleIdentifier: "com.example.rebuildfma",
+			InstallScript: installScript, UninstallScript: "uninstall",
+			InstallerFile: tfr, StorageID: storage, Filename: storage + ".pkg",
+			Version: "1.0", UserID: user1.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: new(maintainedApp.ID),
+		}
+	}
+
+	// build A cached correctly
+	err = ds.BatchSetSoftwareInstallers(ctx, &rebuildTeam.ID, []*fleet.UploadSoftwareInstallerPayload{fmaBuild("fma-build-a", "install fma-build-a")})
+	require.NoError(t, err)
+	var fmaTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &fmaTitleID, `SELECT id FROM software_titles WHERE name = ? AND source = ?`, "RebuildFMA", "apps")
+	})
+	fmaMeta := func() *fleet.SoftwareInstaller {
+		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &rebuildTeam.ID, fmaTitleID, true)
+		require.NoError(t, err)
+		return meta
+	}
+	metaA := fmaMeta()
+	require.Equal(t, "1.0", metaA.Version)
+	require.Equal(t, "fma-build-a", metaA.StorageID)
+	require.Equal(t, "fma-build-a.pkg", metaA.Name)
+	require.Equal(t, "install fma-build-a", metaA.InstallScript)
+
+	// Same version and build with a new script: the script updates, storage stays put,
+	// and no new row is created.
+	err = ds.BatchSetSoftwareInstallers(ctx, &rebuildTeam.ID, []*fleet.UploadSoftwareInstallerPayload{fmaBuild("fma-build-a", "install fma-build-a v2")})
+	require.NoError(t, err)
+	metaSameBuild := fmaMeta()
+	require.Equal(t, metaA.InstallerID, metaSameBuild.InstallerID)
+	require.Equal(t, "fma-build-a", metaSameBuild.StorageID)
+	require.Equal(t, "install fma-build-a v2", metaSameBuild.InstallScript)
+	fmaPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &rebuildTeam.ID, fmaTitleID)
+	require.NoError(t, err)
+	require.Len(t, fmaPkgs, 1)
+
+	// Same version but a new build (new hash): filename, storage, and script all
+	// advance together, and no new row is created.
+	err = ds.BatchSetSoftwareInstallers(ctx, &rebuildTeam.ID, []*fleet.UploadSoftwareInstallerPayload{fmaBuild("fma-build-b", "install fma-build-b")})
+	require.NoError(t, err)
+	metaB := fmaMeta()
+	require.Equal(t, "1.0", metaB.Version)
+	require.Equal(t, "fma-build-b", metaB.StorageID)
+	require.Equal(t, "fma-build-b.pkg", metaB.Name)
+	require.Equal(t, "install fma-build-b", metaB.InstallScript)
+	fmaPkgs, err = ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &rebuildTeam.ID, fmaTitleID)
+	require.NoError(t, err)
+	require.Len(t, fmaPkgs, 1)
 }
 
 func testBatchSetSoftwareInstallersMultipleCustomPackages(t *testing.T, ds *Datastore) {
