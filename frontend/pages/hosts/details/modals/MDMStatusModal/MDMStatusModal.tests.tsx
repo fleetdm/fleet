@@ -175,14 +175,16 @@ describe("MDMStatusModal - component", () => {
       />
     );
 
-    // Wait for the query to settle (the section stays visible with a spinner
+    // Wait for the section to disappear once the query settles (it's shown
     // while loading, since a DEP host wouldn't be distinguishable from a
-    // non-DEP host until the response comes back).
+    // non-DEP host until the response comes back -- the section then hides
+    // itself once host_dep_assignment resolves to null). Waiting on this
+    // directly, rather than on the spinner's absence, since the spinner's
+    // anti-flash delay means it may never render at all for a fast-resolving
+    // mock, making its absence a false signal that the query has settled.
     await waitFor(() => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
     });
-
-    expect(screen.queryByText("Profile assignment")).not.toBeInTheDocument();
   });
 
   it("shows spinner while DEP assignment is loading", async () => {
