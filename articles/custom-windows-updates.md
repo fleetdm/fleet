@@ -8,7 +8,7 @@ This guide covers the policies worth knowing, the ones worth skipping, and how t
 
 There are a few different types of updates in Windows that are important to know. Let's take a look at each of them and what they do.
 
-**Feature updates:** These are released annually and contain new features and functionality. For example, **26H1** became generally available on February 10, 2026. Microsoft states 36 months of support for Enterprise and Education editions.
+**Feature updates:** These are released annually and contain new features and functionality. For example, **25H2** became generally available on September 30, 2025. Microsoft states 36 months of support for Enterprise and Education editions.
 
 **Quality updates:** These updates deliver both security and non-security fixes, including security updates, critical updates, servicing stack updates, and driver updates. They're typically released on the second Tuesday of each month, though they can be released at any time. The second-Tuesday releases (the infamous "Patch Tuesday") are the ones that primarily focus on security updates.
 
@@ -68,7 +68,7 @@ Patch Tuesday lands on your testing ring the same day. If a week passes without 
 
 ## Pin the release you actually want
 
-Windows Update will eventually offer devices the next feature release. If you'd rather move to Windows 11 26H1 when all the testing is complete and your devices are ready on your schedule, pin it.
+Windows Update will eventually offer devices the next feature release. If you'd rather move to when all the testing is complete and your devices are ready on your schedule, pin it.
 
 - `ProductVersion` — the product to stay on or move to. Supported value type is a string containing a Windows product, for example, "Windows 11" or "11" or "Windows 10".
 - `TargetReleaseVersion` — the specific release (e.g., `24H2` or `25H2`).
