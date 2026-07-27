@@ -80,13 +80,13 @@ func newSyncRecorder(appConfig *fleet.AppConfig, existingUsers []fleet.ScimUser,
 		r.createdUsers = append(r.createdUsers, user)
 		return nextID, nil
 	}
-	r.ds.ReplaceScimUserFunc = func(_ context.Context, user *fleet.ScimUser) error {
+	r.ds.ReplaceScimUserFunc = func(_ context.Context, user *fleet.ScimUser) ([]fleet.ActivityTypeResentCertificate, error) {
 		r.replacedUsers = append(r.replacedUsers, user)
-		return nil
+		return nil, nil
 	}
-	r.ds.DeleteScimUserFunc = func(_ context.Context, id uint) error {
+	r.ds.DeleteScimUserFunc = func(_ context.Context, id uint) ([]fleet.ActivityTypeResentCertificate, error) {
 		r.deletedUsers = append(r.deletedUsers, id)
-		return nil
+		return nil, nil
 	}
 	r.ds.CreateScimGroupFunc = func(_ context.Context, group *fleet.ScimGroup) (uint, error) {
 		nextID++

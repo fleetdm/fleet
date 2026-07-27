@@ -94,6 +94,48 @@ describe("AddHostsModal", () => {
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
   });
 
+  it("renders enroll url input for macOS if mac mdm is enabled", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "macOS" }));
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Send this to your end users:/i)
+    ).toBeInTheDocument();
+
+    // Company-owned is selected by default — URL has no byod param
+    const urlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}$`)
+    );
+    expect(urlInput).toBeInTheDocument();
+
+    // Switching to Personal (BYOD) appends byod=true
+    await user.click(screen.getByLabelText("Personal (BYOD)"));
+    const byodUrlInput = screen.getByDisplayValue(
+      new RegExp(`/enroll\\?enroll_secret=${ENROLL_SECRET}&byod=true`)
+    );
+    expect(byodUrlInput).toBeInTheDocument();
+  });
+
   it("renders enroll url input for ios & ipadOS if mac mdm is enabled", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -118,7 +160,14 @@ describe("AddHostsModal", () => {
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
     expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Company-owned")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "When the end user navigates to this URL, the enrollment profile will download in their browser. End users will have to install the profile to enroll to Fleet."
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders enroll url input for android if android mdm is enabled", async () => {
@@ -144,6 +193,15 @@ describe("AddHostsModal", () => {
 
     await user.click(screen.getByRole("tab", { name: "Android" }));
     expect(screen.queryByText(/Enrollment instructions:/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Personal (BYOD)")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Company-owned (fully-managed)")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "When the end user navigates to this URL, the enrollment profile will download in their browser. End users will have to install the profile to enroll to Fleet."
+      )
+    ).toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {

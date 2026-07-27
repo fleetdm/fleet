@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.16.2",
+      "version": "3.16.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac' AND version_compare(bundle_short_version, '3.16.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.soulver.mac' AND version_compare(bundle_short_version, '3.16.3') < 0);"
       },
-      "installer_url": "https://soulver.app/mac/sparkle/soulver-3.16.2-522.zip",
+      "installer_url": "https://soulver.app/mac/sparkle/soulver-3.16.3-541.zip",
       "install_script_ref": "a6197abf",
       "uninstall_script_ref": "458e3330",
-      "sha256": "4b93991a8d81b2811b65ce5e1960c528719154fe17e4f3547a199576115521bd",
+      "sha256": "5412bb0f5aecf456b2c767ae9ce19e0a34ccaa9c3c0c1d9fe217749eef799d9c",
       "default_categories": [
         "Productivity"
       ]

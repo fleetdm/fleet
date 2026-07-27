@@ -431,9 +431,26 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
-	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	p.MFAEnabled = new(invite.MFAEnabled)
 	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
 	p.InviteID = &invite.ID
+	p.SSOEnabled = new(invite.SSOEnabled)
+	p.SSOInvite = new(invite.SSOEnabled)
+	if invite.SSOEnabled {
+		// SSO invites must not create local password credentials. Reject the
+		// payload if it carries a password field at all, even an empty one.
+		if p.Password != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
+		}
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
+	}
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -476,6 +493,22 @@ func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	return resp, nil
 }
 
+// filterUserTeamsToRequesterScope returns the subset of teams that the
+// requester is permitted to see. A requester with any global role sees all
+// teams unchanged; a team-scoped requester sees only teams they have a role in.
+func filterUserTeamsToRequesterScope(teams []fleet.UserTeam, requester *fleet.User) []fleet.UserTeam {
+	if requester.HasAnyGlobalRole() {
+		return teams
+	}
+	filtered := make([]fleet.UserTeam, 0, len(teams))
+	for _, t := range teams {
+		if requester.HasAnyRoleInTeam(t.ID) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	user := &fleet.User{}
 	if opt.TeamID != 0 {
@@ -485,7 +518,26 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	users, err := svc.ds.ListUsers(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// The datastore loads each user's full team membership. A team-scoped
+	// requester is only authorized to list users of a team they administer, so
+	// strip any team memberships (IDs/names/roles) for teams the requester has
+	// no role in before returning them. Global roles are authorized to see all
+	// teams and are left untouched.
+	for _, user := range users {
+		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
+	}
+
+	return users, nil
 }
 
 func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
@@ -1486,10 +1538,25 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
-	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password, true)
-	if err != nil {
-		return fleet.NewInvalidArgumentError("new_password", err.Error())
+	// Hash the new password before touching the database. Hashing is the only step that
+	// can reject the password (bcrypt rejects passwords longer than its limit), and it is
+	// CPU-bound, so it must run before — and outside of — the reset transaction. Doing it
+	// here also guarantees a rejected password never consumes the token.
+	if err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
+
+	// Consume the token and apply the password change atomically. Within a single
+	// transaction this consumes the token, saves the new password, and invalidates the
+	// user's other reset links and sessions. It enforces one-time-use semantics (exactly
+	// one concurrent request can consume a given token) and, because it is transactional,
+	// a failure in any step rolls back the token consumption so the reset link stays
+	// usable.
+	if err := svc.ds.ResetPassword(ctx, token, user); err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewAuthFailedError("invalid password reset token"), "password reset token already used")
+		}
+		return ctxerr.Wrap(ctx, err, "resetting password")
 	}
 
 	return nil

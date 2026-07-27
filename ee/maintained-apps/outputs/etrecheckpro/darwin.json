@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.8.14",
+      "version": "6.8.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.etresoft.EtreCheck4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.etresoft.EtreCheck4' AND version_compare(bundle_short_version, '6.8.14') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.etresoft.EtreCheck4' AND version_compare(bundle_short_version, '6.8.15') < 0);"
       },
       "installer_url": "https://cdn.etrecheck.com/EtreCheckPro.zip",
       "install_script_ref": "30eb1ca9",

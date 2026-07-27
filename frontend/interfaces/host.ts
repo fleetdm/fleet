@@ -12,8 +12,10 @@ import {
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
   DiskEncryptionStatus,
+  HostNameSettingStatus,
 } from "./mdm";
 import { HostPlatform } from "./platform";
+import { IHostCustomVital } from "./custom_host_vitals";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -118,6 +120,11 @@ export type RecoveryLockPasswordStatus =
   | "pending"
   | "failed";
 
+export interface IHostMdmHostNameSetting {
+  status: HostNameSettingStatus;
+  detail: string;
+}
+
 // Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
@@ -129,6 +136,7 @@ export interface IOSSettings {
     detail: string;
     password_available: boolean;
   };
+  host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
     password_available: boolean;
@@ -386,8 +394,10 @@ export interface IHost {
   device_mapping: IDeviceUser[] | null;
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
+  custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
+  dep_assigned_to_fleet: boolean;
 }
 
 /*

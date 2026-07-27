@@ -1,15 +1,26 @@
 # Managing Linux desktops with GitOps
 
-GitOps brings development best practices to infrastructure management. Server administrators, DevOps teams, and site reliability engineers have adopted GitOps practices due to its numerous benefits. These include faster work cycles, consistent environment state, and infrastructure resiliency.
+*Your servers are already managed as reviewed, version-controlled code. This walks through bringing that same discipline to the Linux desktops your MDM still manages by clicking through a UI.*
 
-While there isn't a single definition of GitOps, there are some generally accepted characteristics:
+## Key takeaways
 
-- Infrastructure and Configuration as Code (IaC)
+- **Device configuration becomes reviewable, revertible code.** Managing endpoints with GitOps gives IT teams the same wins server and DevOps teams already have: faster changes, no configuration drift, and a full history you can roll back to when something breaks.
+- **ClickOps is the real bottleneck, not your team's skills.** Traditional MDM tools are console-first by design, so changes go unreviewed, rollbacks are painful, and audit logs record who changed what but never why.
+- **Changes ship through pull requests instead of console clicks.** An engineer writes the change as code, teammates review it in a PR, and merging deploys it automatically to every managed device, with a revert one click away.
+- **Fleet is built for GitOps, not just scriptable through an API.** Declarative YAML, the `fleetctl gitops` command, a dedicated GitOps user role, a read-only GitOps mode, and migration tooling together go beyond what a raw API or CLI offers.
+- **A complete policy fits in a handful of files.** The worked example enforces an internal CA certificate on Ubuntu hosts using a label, a policy, and a remediation script, each defined as reusable code in the starter repository.
+- **Extending coverage is a one-branch change.** Adding Fedora to the same policy is a new label and a target edit; Fleet dry-runs the change in the pull request so reviewers see the impact before it deploys.
+
+<a purpose="cta-button" href="/infrastructure-as-code">See how GitOps works in Fleet</a>
+
+GitOps brings development best practices to infrastructure management, and the payoff is real: faster work cycles, a consistent environment state, and resilient infrastructure. Server administrators, DevOps teams, and site reliability engineers adopted it for exactly those reasons. While there isn't a single agreed definition, most implementations share a few characteristics:
+
+- Infrastructure and configuration as code (IaC)
 - Code versioning, using a system like Git
 - Code review through pull or merge requests
 - Automated linting, testing, and deployment
 
-These practices have been standard in the development world for many years, but they have only recently gained traction in the infrastructure space. Infrastructure teams are adopting GitOps to provide real benefits for their internal customers and the infrastructure engineers themselves.
+These practices have been standard in software development for years and have only recently reached the infrastructure space. They've reached desktop and MDM management even more rarely. This article shows how to bring them to your Linux desktops with Fleet, starting with why the GitOps model is worth adopting in the first place.
 
 ## Why GitOps
 
@@ -17,10 +28,10 @@ Infrastructure has traditionally been managed through graphical interfaces, such
 
 GitOps allows engineers to apply development best practices to infrastructure management. Adopting these practices brings tangible benefits to infrastructure management:
 
-- **GitOps allows infrastructure teams to respond faster** — By codifying infrastructure using repeatable best practices, building new infrastructure is only a matter of adjusting code. This contrasts with traditional practices that use manual steps in a UI or CLI, commonly called "ClickOps".
-- **GitOps reduces errors** — Code can be automatically checked as part of a CI/CD pipeline, using code linters and test suites. Changes can be further reviewed by other engineers during the pull request process. Since traditional manual changes are not subject to this level of rigorous review, GitOps reduces the chances of configuration mistakes.
-- **GitOps reduces drift** — Drift is an enemy of resilient infrastructure, and it's easy to introduce in complex environments. GitOps avoids unapproved changes. The code repository is the single source of truth. Continuous deployment ensures that the environment state always matches the desired state expressed in code.
-- **GitOps provides historical context** — Infrastructure and configuration change over time. Traditional ticketing systems and change management workflows fail to provide context and rich change history. Most importantly, they don't provide a way to revert bad changes. Versioned code maintains a history. The discussion around changes, preserved in pull requests, provides context for those changes. Changes can be rolled back to a previous version if they fail.
+- **GitOps allows infrastructure teams to respond faster:** By codifying infrastructure using repeatable best practices, building new infrastructure is only a matter of adjusting code. This contrasts with traditional practices that use manual steps in a UI or CLI, commonly called "ClickOps".
+- **GitOps reduces errors:** Code can be automatically checked as part of a CI/CD pipeline, using code linters and test suites. Changes can be further reviewed by other engineers during the pull request process. Since traditional manual changes are not subject to this level of rigorous review, GitOps reduces the chances of configuration mistakes.
+- **GitOps reduces drift:** Drift is an enemy of resilient infrastructure, and it's easy to introduce in complex environments. GitOps avoids unapproved changes. The code repository is the single source of truth. Continuous deployment ensures that the environment state always matches the desired state expressed in code.
+- **GitOps provides historical context:** Infrastructure and configuration change over time. Traditional ticketing systems and change management workflows fail to provide context and rich change history. Most importantly, they don't provide a way to revert bad changes. Versioned code maintains a history. The discussion around changes, preserved in pull requests, provides context for those changes. Changes can be rolled back to a previous version if they fail.
 
 ## MDM and GitOps
 
@@ -43,25 +54,19 @@ Implementing GitOps for MDM solves the challenges of traditional ClickOps. It al
 4. The change is merged and automatically deployed to the MDM platform. There is less risk of human error because the code has been carefully reviewed. A human doesn't have to click through multiple UI pages to implement their change.
 5. All managed devices pull the changes and implement them. This contrasts with a ClickOps approach, where an administrator may have to click each host in the UI to apply a change.
 
-It's easy to see how this approach solves many of the challenges with traditional ClickOps MDM workflows:
-
-- Writing code is faster than clicking through a UI, especially when code can be modularized and reused.
-- The pull request approach automatically checks code for correctness and preserves a history of change context.
-- The deployment process removes a human operator from the loop and quickly deploys changes. It's easy to roll back this change if anything goes wrong: simply revert the pull request.
-
-These benefits, long enjoyed by software developers and infrastructure teams, can also be realized by workstation management teams. But first, you must select tools and approaches that enable a GitOps approach.
+This directly answers the ClickOps problems above: writing modular code is faster than clicking through a UI, the pull request checks correctness and preserves the "why," and deployment removes the human operator from the loop while keeping rollback one revert away. These benefits, long enjoyed by software developers and infrastructure teams, are within reach for workstation management teams too, once you pick tools that enable a GitOps approach.
 
 ## GitOps workflows in Fleet
 
-Fleet has a friendly UI and CLI to support traditional MDM workflows. Both of these interfaces build on Fleet's REST API. Many platforms have an API or CLI. However, Fleet's unique combination of features makes it the only platform with native GitOps capabilities:
+Fleet has a friendly UI and CLI to support traditional MDM workflows, and both build on Fleet's REST API. Many platforms expose an API or CLI you can script against. What sets Fleet apart is a combination of features purpose-built for a native GitOps workflow, rather than scripting bolted onto a console:
 
-- **Declarative YAML configuration** — Every aspect of Fleet's configuration can be declaratively expressed as YAML. Fleet reconciles its current configuration to match this codified configuration. Defined resources are created, and undefined resources are removed or reset to default values.
-- **Vendor-agnostic workflow tooling** — The `fleetctl gitops` command deploys configuration to the Fleet instance. Since this is a native CLI command, this approach is supported on any CI/CD tool or workflow engine. The `fleetctl gitops` command also provides a dry-run option for pull or merge requests.
-- **Starter GitOps repository with CI/CD pipelines** — Fleet provides [a GitOps template repository](https://github.com/fleetdm/fleet-gitops) with everything that you need to get started. The repository contains the necessary CI/CD scripts for GitHub Actions and GitLab CI/CD pipelines. It also ships with a recommended directory structure to enable organized and reusable code. This lets you get started quickly with GitOps best practices.
-- **Dedicated GitOps user role** — Fleet has a purpose-built GitOps role for API-only users. This role has specific authorization rules that enable configuration management. However, it can't access the Fleet UI. This ensures separation of concerns between human operators and automation.
-- **GitOps Mode** — One of the biggest challenges with GitOps is avoiding configuration drift or manual changes. Fleet's UI can be placed into read-only mode to prevent any changes that don't go through your code repository.
-- **Migration tooling** — The `fleetctl generate-gitops` command exports your current configuration into GitOps-ready YAML files. This allows you to quickly adopt GitOps without redefining your entire configuration. Migrating an existing Fleet environment involves running a single command.
-- **Environment variable and secret support** — Fleet's YAML configuration supports environment variable interpolation. You can store sensitive values as CI/CD secrets, and they will be applied to your configuration without extra effort.
+- **Declarative YAML configuration:** Every aspect of Fleet's configuration can be declaratively expressed as YAML. Fleet reconciles its current configuration to match this codified configuration. Defined resources are created, and undefined resources are removed or reset to default values.
+- **Vendor-agnostic workflow tooling:** The `fleetctl gitops` command deploys configuration to the Fleet instance. Since this is a native CLI command, this approach is supported on any CI/CD tool or workflow engine. The `fleetctl gitops` command also provides a dry-run option for pull or merge requests.
+- **Starter GitOps repository with CI/CD pipelines:** Fleet provides [a GitOps template repository](https://github.com/fleetdm/fleet-gitops) with everything that you need to get started. The repository contains the necessary CI/CD scripts for GitHub Actions and GitLab CI/CD pipelines. It also ships with a recommended directory structure to enable organized and reusable code. This lets you get started quickly with GitOps best practices.
+- **Dedicated GitOps user role:** Fleet has a purpose-built GitOps role for API-only users. This role has specific authorization rules that enable configuration management. However, it can't access the Fleet UI. This ensures separation of concerns between human operators and automation.
+- **GitOps mode:** One of the biggest challenges with GitOps is avoiding configuration drift or manual changes. Fleet's UI can be placed into read-only mode to prevent any changes that don't go through your code repository.
+- **Migration tooling:** The `fleetctl generate-gitops` command exports your current configuration into GitOps-ready YAML files. This allows you to quickly adopt GitOps without redefining your entire configuration. Migrating an existing Fleet environment involves running a single command.
+- **Environment variable and secret support:** Fleet's YAML configuration supports environment variable interpolation. You can store sensitive values as CI/CD secrets, and they will be applied to your configuration without extra effort.
 
 Let's take a look at a concrete example of using GitOps to manage hosts in your environment.
 
@@ -141,10 +146,10 @@ Implementing this policy requires labels, a policy definition, and a control. Ea
 
 Add or modify each of the files below to implement the policy:
 
-- `default.yml` — This file contains default settings that apply across fleets. This is where we define labels.
-- `fleets/workstations.yml` — This file contains configuration for the "Workstations" fleet. This is where we reference the policy and the control script. We can reference these from the `lib/` directory, which allows us to develop clean, reusable code. This code can be reused in other fleets.
-- `lib/linux/policies/internal-certificate.yml` — This file contains the policy definition and supporting query. The YAML keys will look familiar, since they are nearly identical to the fields in the web interface.
-- `lib/linux/scripts/install-internal-ca.sh` — This is a simple, distribution-agnostic script to remediate policy violations. It deploys the certificate on a host and updates the host's certificate store.
+- `default.yml`: This file contains default settings that apply across fleets. This is where we define labels.
+- `fleets/workstations.yml`: This file contains configuration for the "Workstations" fleet. This is where we reference the policy and the control script. We can reference these from the `lib/` directory, which allows us to develop clean, reusable code. This code can be reused in other fleets.
+- `lib/linux/policies/internal-certificate.yml`: This file contains the policy definition and supporting query. The YAML keys will look familiar, since they are nearly identical to the fields in the web interface.
+- `lib/linux/scripts/install-internal-ca.sh`: This is a simple, distribution-agnostic script to remediate policy violations. It deploys the certificate on a host and updates the host's certificate store.
 
 Each configuration file is shown below.
 
@@ -376,11 +381,9 @@ You now have the basic building blocks of a GitOps workflow. This is a solid fou
 
 Legacy ClickOps workflows are no longer sufficient for managing devices. They are slow, error-prone, and difficult to revert when something goes wrong. GitOps solves these problems by maintaining a single source of truth about the desired environment state.
 
-GitOps provides a management interface that is familiar to Linux teams. Linux server administrators frequently manage configuration as code. Their automation systems are based on a repository as the single source of truth. Linux end-users are also well-versed in many GitOps approaches, from file-based configuration to source code management.
+This model is especially natural for Linux teams. Server administrators already manage configuration as code, with a repository as the single source of truth, and Linux end-users are well-versed in file-based configuration and source control. GitOps for the desktop simply extends a discipline they already trust.
 
-Fleet is the only MDM platform with native GitOps capabilities. Fleet provides capabilities beyond an API or CLI. It provides an entire suite of features to fast-track your adoption of GitOps. This includes declarative configuration, a suite of automation and migration tools, dedicated API-only users, and the ability to prevent configuration drift with a read-only UI. These capabilities provide a complete GitOps experience that exceeds simple API calls or command-line scripts.
-
-GitOps best practices have long been accepted by development and server infrastructure teams. Now, IT management teams can enjoy these same benefits when managing end-user devices with Fleet.
+That's where Fleet's native GitOps support does more than expose an API you can script against: declarative configuration, automation and migration tooling, dedicated API-only users, and a read-only UI that holds the line against drift add up to a workflow rather than a set of scripts. GitOps best practices have long been accepted by development and server infrastructure teams; now IT management teams can bring them to end-user devices with Fleet.
 
 To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
 

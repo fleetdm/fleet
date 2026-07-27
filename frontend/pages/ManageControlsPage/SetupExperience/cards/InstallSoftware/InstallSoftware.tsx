@@ -227,9 +227,9 @@ const InstallSoftware = ({
       <PageDescription
         variant="right-panel"
         content={
-          selectedPlatform === "windows" || selectedPlatform === "linux"
-            ? "Install software on hosts that enroll to Fleet."
-            : "Install software on hosts that automatically enroll to Fleet."
+          selectedPlatform === "macos"
+            ? "Install software on hosts that automatically enroll to Fleet."
+            : "Install software on hosts that enroll to Fleet."
         }
       />
       <SetupExperienceContentContainer>

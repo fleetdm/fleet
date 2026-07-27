@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -134,6 +135,23 @@ func TestNewTeamNameValidation(t *testing.T) {
 			teamName: ptr.String("Engineering"),
 			wantName: "Engineering",
 		},
+		{
+			name:     "name at max length is accepted",
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("a", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "name over max length is rejected",
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
+			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
+		},
+		{
+			// Guards against regressing to byte-based length checks, which
+			// would reject multibyte names that fit within the character cap.
+			name:     "multibyte name at max character length is accepted",
+			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -257,6 +275,21 @@ func TestModifyTeamNameValidation(t *testing.T) {
 			teamName: ptr.String("my team"),
 			wantName: "my team",
 		},
+		{
+			name:     "name at max length is accepted",
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("a", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "name over max length is rejected",
+			teamName: new(strings.Repeat("a", fleet.MaxTeamNameLength+1)),
+			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "multibyte name at max character length is accepted",
+			teamName: new(strings.Repeat("日", fleet.MaxTeamNameLength)),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
+		},
 	}
 
 	for _, tc := range testCases {
@@ -366,6 +399,21 @@ func TestApplyTeamSpecsNameValidation(t *testing.T) {
 			name:     "leading and trailing spaces are trimmed",
 			teamName: "  Engineering  ",
 			wantName: "Engineering",
+		},
+		{
+			name:     "name at max length is accepted",
+			teamName: strings.Repeat("a", fleet.MaxTeamNameLength),
+			wantName: strings.Repeat("a", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "name over max length is rejected",
+			teamName: strings.Repeat("a", fleet.MaxTeamNameLength+1),
+			wantErr:  fmt.Sprintf("may not exceed %d characters", fleet.MaxTeamNameLength),
+		},
+		{
+			name:     "multibyte name at max character length is accepted",
+			teamName: strings.Repeat("日", fleet.MaxTeamNameLength),
+			wantName: strings.Repeat("日", fleet.MaxTeamNameLength),
 		},
 	}
 
@@ -914,6 +962,64 @@ func TestObfuscateSecrets(t *testing.T) {
 				for _, s := range team.Secrets {
 					require.Equal(t, fleet.MaskedPassword, s.Secret)
 				}
+			}
+		}
+	})
+
+	t.Run("user is global gitops", func(t *testing.T) {
+		// gitops can write teams but is not allowed to read enroll secrets, so
+		// the secrets must be masked even in write responses.
+		user := &fleet.User{GlobalRole: new(fleet.RoleGitOps)}
+		teams := buildTeams(3)
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for _, team := range teams {
+			for _, s := range team.Secrets {
+				require.Equal(t, fleet.MaskedPassword, s.Secret)
+			}
+		}
+	})
+
+	t.Run("user is global maintainer", func(t *testing.T) {
+		user := &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}
+		teams := buildTeams(3)
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for _, team := range teams {
+			for _, s := range team.Secrets {
+				require.NotEqual(t, fleet.MaskedPassword, s.Secret)
+			}
+		}
+	})
+
+	t.Run("user is gitops/maintainer in some teams", func(t *testing.T) {
+		teams := buildTeams(3)
+
+		// Team gitops can modify the team but must not read its enroll secrets,
+		// while team maintainer can. The user is not a member of team 0.
+		user := &fleet.User{Teams: []fleet.UserTeam{
+			{
+				Team: *teams[1],
+				Role: fleet.RoleGitOps,
+			},
+			{
+				Team: *teams[2],
+				Role: fleet.RoleMaintainer,
+			},
+		}}
+
+		err := obfuscateSecrets(user, teams)
+		require.NoError(t, err)
+
+		for i, team := range teams {
+			for _, s := range team.Secrets {
+				// Only team 2 (maintainer) should be visible; team 0 (no
+				// membership) and team 1 (gitops) must be masked.
+				require.Equal(t, fleet.MaskedPassword == s.Secret, i == 0 || i == 1)
 			}
 		}
 	})

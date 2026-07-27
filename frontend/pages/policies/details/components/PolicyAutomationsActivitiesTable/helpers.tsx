@@ -69,5 +69,14 @@ export const getDetailOutputText = (
   if (activity.status === "error" && activity.details?.error_response) {
     return activity.details.error_response;
   }
-  return activity.output ?? "";
+  // For software installs, the install-script output is the primary preview, but
+  // a failure at the pre-install query or post-install script stage leaves it
+  // empty — fall back to those so the row still shows the failing stage's output.
+  // Other activity types have null pre/post output, so this is just `output`.
+  return (
+    activity.output ||
+    activity.post_install_output ||
+    activity.pre_install_output ||
+    ""
+  );
 };

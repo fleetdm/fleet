@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.3",
+      "version": "3.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.SpamSieve';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.SpamSieve' AND version_compare(bundle_short_version, '3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.SpamSieve' AND version_compare(bundle_short_version, '3.3.1') < 0);"
       },
-      "installer_url": "https://c-command.com/downloads/SpamSieve-3.3.dmg",
+      "installer_url": "https://c-command.com/downloads/SpamSieve-3.3.1.dmg",
       "install_script_ref": "6a5849eb",
       "uninstall_script_ref": "e50636cd",
-      "sha256": "f0d42efafe6c0dced578e5421e797495b90700aeba6519548516bb11017685c9",
+      "sha256": "a3f6a5d1b0ca309d39210a4717554e96d7ccd55fa37b667f90ced2a8b9517b2c",
       "default_categories": [
         "Productivity"
       ]

@@ -154,29 +154,17 @@ $max-width: 2560px;
   text-decoration: none;
 
   &:hover {
-    color: $ui-fleet-black-75-over;
-    cursor: pointer;
+    color: $core-fleet-black;
   }
 
   &:focus-visible {
+    color: $core-fleet-black;
     outline-color: $core-focused-outline;
-    outline-offset: 3px;
+    outline-offset: 1px;
     outline-style: solid;
     outline-width: 1px;
-    border-radius: 2px;
-  }
-}
-
-@mixin table-link {
-  display: inline-flex;
-  align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
-  gap: $pad-small;
-  white-space: nowrap;
-  @include link;
-
-  &:hover {
-    text-decoration: underline;
+    border-radius: 4px;
+    text-decoration: none;
   }
 }
 
@@ -192,30 +180,6 @@ $max-width: 2560px;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: $max-width;
-}
-
-@mixin bordered-icon-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
-  background-color: $core-fleet-white;
-  cursor: pointer;
-  padding: 0;
-  color: $core-fleet-black;
-  transition: border-color 100ms;
-
-  &:hover:not(:disabled) {
-    border-color: $ui-fleet-black-75-over;
-  }
-
-  &:focus-visible {
-    outline: 2px solid $ui-fleet-black-75-down;
-    outline-offset: 1px;
-  }
 }
 
 @mixin color-contrasted-sections {
@@ -271,6 +235,12 @@ $max-width: 2560px;
   display: flex;
   flex-direction: column;
   gap: $pad-medium;
+}
+
+@mixin flex-column-8px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
 }
 
 @mixin vertical-form-layout {
@@ -495,62 +465,46 @@ $max-width: 2560px;
   }
 }
 
-@mixin bottom-border(
-  $active-color: $core-fleet-black,
-  $inactive-color: $ui-fleet-black-25
-) {
-  // Light underline always visible
-  &::before {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 1px;
-    width: 100%;
-    background: $inactive-color;
-    pointer-events: none;
-    transform: scaleX(1);
-    transform-origin: right;
-    transition: transform 0.3s ease;
-    pointer-events: none;
-  }
-
-  // Dark underline, animates in
-  &::after {
-    content: "";
-    display: block;
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    height: 1px;
-    width: 100%;
-    background: $active-color;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.2s ease;
-    pointer-events: none;
-  }
-}
-
-// Caution: LinkCell depends on this to have animation only under text and not icons etc
-@mixin animated-bottom-border(
-  $active-color: $core-fleet-black,
-  $inactive-color: $ui-fleet-black-25
-) {
-  position: relative;
-
-  @include bottom-border($active-color, $inactive-color);
-
-  &:hover::after,
-  &:focus::after {
-    transform: scaleX(1);
-  }
-}
-
 @mixin gradient-background {
-  background-image: linear-gradient(180deg, $gradient-background 0%, $core-fleet-white 100%);
+  background-image: linear-gradient(
+    180deg,
+    $gradient-background 0%,
+    $core-fleet-white 100%
+  );
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
   background-color: $core-fleet-white; // area below gradient — transitionable
+}
+
+// Shared styling for a search input rendered inside a dropdown menu (icon on
+// the left, 36px tall, Fleet-black-10 border). Used by FleetsDropdown,
+// CategoryFilter, and ActivityTypeDropdown.
+// TODO: extend Fleet's SearchField / InputFieldWithIcon to cover this
+// pattern — out of scope for the FleetsDropdown rework.
+@mixin menu-search-input {
+  width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 9.5px 12px 9.5px 36px;
+  line-height: $line-height;
+  font-family: "Inter", sans-serif;
+  font-size: $x-small;
+  color: $core-fleet-black;
+  background-color: $core-fleet-white;
+  border: solid 1px $ui-fleet-black-10;
+  border-radius: $border-radius;
+
+  &::placeholder {
+    color: $ui-fleet-black-50;
+  }
+
+  &:hover,
+  &:focus {
+    outline: none;
+    border-color: $ui-fleet-black-75;
+
+    + .icon svg path {
+      fill: $ui-fleet-black-75;
+    }
+  }
 }

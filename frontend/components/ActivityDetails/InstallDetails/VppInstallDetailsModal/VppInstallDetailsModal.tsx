@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import commandAPI, {
   IGetCommandResultsResponse,
@@ -96,7 +96,7 @@ export const getStatusMessage = ({
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
     commandUpdatedAt
-      ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+      ? ` (${timeAgo(new Date(commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -292,7 +292,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -535,6 +535,7 @@ export const VppInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <>
@@ -568,6 +569,7 @@ export const VppInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <Textarea label="Error details:" variant="code">

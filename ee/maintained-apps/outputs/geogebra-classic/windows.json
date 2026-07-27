@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "6.0.920",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GeoGebra Classic' AND publisher = 'International GeoGebra Institute' AND version_compare(version, '6.0.920') < 0);"
+      },
+      "installer_url": "https://download.geogebra.org/installers/6.0/GeoGebra-Windows-Installer-6-0-920-0.msi",
+      "install_script_ref": "ebe19da8",
+      "uninstall_script_ref": "2d02bc56",
+      "sha256": "65a63d49cc15d64a459338d622c4dde34a2b811ec5dddefe9e4e9c3f7d830ae7",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "2d02bc56": "# Uninstalls GeoGebra Classic (machine-wide WiX MSI). Resolve the ProductCode\n# from the registry by DisplayName and uninstall via msiexec.\n\n$softwareName = \"GeoGebra Classic\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$successCodes = @(0, 3010, 1641)\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys | Where-Object { $_.DisplayName -eq $softwareName } | Select-Object -First 1\nif (-not $selected) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\n$productCode = $selected.PSChildName\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    $raw = $selected.UninstallString\n    if ($raw -match '(\\{[0-9A-Fa-f-]+\\})') { $productCode = $matches[1] }\n}\nif ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n    Write-Host \"Could not determine ProductCode for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstalling product code: $productCode\"\n$process = Start-Process msiexec.exe `\n    -ArgumentList \"/x $productCode /qn /norestart\" -NoNewWindow -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($successCodes -contains $exitCode) { Exit 0 }\nExit $exitCode\n",
+    "ebe19da8": "# Learn more about install scripts:\n# http://fleetdm.com/learn-more-about/install-scripts\n#\n# GeoGebra Classic's winget manifest declares Scope: user at the top level, but\n# its WiX MSI installer is machine-wide (installs to Program Files (x86)). We run\n# the MSI silently; ALLUSERS is set inside the package, so it lands per-machine.\n\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nif ($installProcess.ExitCode -eq 3010 -or $installProcess.ExitCode -eq 1641) { Exit 0 }\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

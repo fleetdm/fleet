@@ -160,6 +160,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]strin
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	Assets	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
@@ -194,6 +195,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraClientIDs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	HostNameTemplate	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableRecoveryLockPassword	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsSettings	fleet.WindowsSettings
@@ -218,6 +220,10 @@ github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleAccountProvisioning	fleet.AppleAccountProvisioning
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPTokenURL	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientID	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/AppleAccountProvisioning	OAuthIdPClientSecret	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string

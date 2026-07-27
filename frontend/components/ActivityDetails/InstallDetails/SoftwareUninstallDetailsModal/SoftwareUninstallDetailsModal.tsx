@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { AxiosError } from "axios";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 
 import deviceUserAPI from "services/entities/device_user";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
@@ -54,7 +54,7 @@ export const StatusMessage = ({
   const isPending = isPendingStatus(status);
   const displayTimeStamp =
     !isPending && timestamp
-      ? ` (${formatDistanceToNow(new Date(timestamp), {
+      ? ` (${timeAgo(new Date(timestamp), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -125,7 +125,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -248,6 +248,7 @@ const SoftwareUninstallDetailsModal = ({
             hideText="Details"
             caretPosition="after"
             onClick={toggleDetails}
+            variant="secondary"
           />
         )}
         {showDetails && uninstallResult?.script_contents && (

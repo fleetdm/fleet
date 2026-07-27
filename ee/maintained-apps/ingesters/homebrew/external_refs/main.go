@@ -43,6 +43,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"logitune/darwin":               {LogiTunePKGInstaller},
 	"anka-virtualization/darwin":    {AnkaVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
+	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
 	"sonos/darwin":                  {SonosVersionTransformer},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
 }

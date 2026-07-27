@@ -31,7 +31,7 @@ Apple published [support article 126655 ("Prepare your network environment for s
 
 ## New and migrated declarative configurations
 
-> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.89](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
+> Enable the [`mdm.allow​_all​_declarations` feature flag](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box.
 
 Apple keeps expanding what DDM can express. Here's what's new in OS 27.
 
@@ -46,6 +46,8 @@ Notable controls: `AllowGenmoji`, `AllowImagePlayground`, `AllowWritingTools`, `
 **Content caching (macOS 27):** The `com.apple.configuration.content-cache.settings` configuration replaces the `com.apple.AssetCache.managed` profile. New status items for cache info, parents, and peers. Custom HTTPS reporting endpoints are supported. If you run content caches, plan the migration.
 
 **Configuration profiles as declarative assets:** Legacy profiles can be delivered as declarative assets via the new `ProfileAssetReference` key in `com.apple.configuration.legacy`. Integrity verification is built in. This is a useful bridge for teams partway through the DDM transition.
+
+**Managed Migration Assistant (macOS 26.4):** The new `com.apple.configuration.migration-assistant.settings` configuration turns Mac-to-Mac migration into a policy you control, and deploying it is what keeps a hardware refresh from breaking the new Mac's MDM enrollment. See [Managed Migration Assistant: Mac-to-Mac migration with Fleet](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet).
 
 ## App management changes
 
@@ -81,7 +83,7 @@ macOS 26 (Tahoe) was the last release with full Intel Mac support. macOS 27 (Gol
 
 Apple will provide three more years of security updates for Intel Macs, putting the end of that window at roughly fall 2028. Rosetta continues through macOS 27, and there's a new `allowRosettaUsageAwareness` MDM key to suppress the deprecation notice for users.
 
-If your fleet still includes Intel hardware, the refresh conversation with leadership and procurement needs to start now. Three years sounds like runway until you're doing it all at once.
+If your fleet still includes Intel hardware, the refresh conversation with leadership and procurement needs to start now. Three years sounds like runway until you're doing it all at once. A supported, governed migration path makes that refresh an easier sell to reluctant users than "we'll wipe your machine and you'll rebuild from scratch." [Managed Migration Assistant](https://fleetdm.com/guides/managed-migration-assistant-mac-to-mac-migration-with-fleet) on macOS 26.4 is how you deliver it.
 
 ## What the AI changes mean for policy
 
@@ -110,5 +112,5 @@ _All configuration keys and features discussed here are pre-release. Apple flags
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
 <meta name="publishedOn" value="2026-06-09">
-<meta name="category" value="guides">
+<meta name="category" value="articles">
 <meta name="description" value="WWDC 2026 delivers sweeping device management changes. Here's what IT admins need to prioritize before OS 27 ships this fall.">

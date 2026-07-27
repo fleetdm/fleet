@@ -3,10 +3,9 @@
 
   form {
     .card {
-      // The generic `.card` is content-box (only `.info-banner` gets the global
-      // border-box override), so its `width: 100%` plus padding/border renders
-      // ~50px wider than the section, overflowing past the InfoBanner above.
-      // border-box makes its total width equal the section width, like the banner.
+      // The generic `.card` is content-box, so its `width: 100%` plus
+      // padding/border renders ~50px wider than the section and overflows.
+      // border-box makes its total width equal the section width.
       box-sizing: border-box;
 
       // Stack the fields with consistent vertical spacing so each field's help

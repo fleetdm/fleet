@@ -1,0 +1,5 @@
+.edit-host-vital-modal {
+  &__form {
+    @include vertical-modal-layout;
+  }
+}

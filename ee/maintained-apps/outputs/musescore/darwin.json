@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.7.3.260608135",
+      "version": "4.7.4.260706075",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore' AND version_compare(bundle_short_version, '4.7.3.260608135') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore' AND version_compare(bundle_short_version, '4.7.4.260706075') < 0);"
       },
-      "installer_url": "https://github.com/musescore/MuseScore/releases/download/v4.7.3/MuseScore-Studio-4.7.3.260608135.dmg",
+      "installer_url": "https://github.com/musescore/MuseScore/releases/download/v4.7.4/MuseScore-Studio-4.7.4.260706075.dmg",
       "install_script_ref": "bfe0e8d6",
       "uninstall_script_ref": "608c93fa",
-      "sha256": "1e9749f9268714f5b62e1f7c31201540f2c6d18275f0760e0600a5c01c1aea85",
+      "sha256": "e3596e27da0806a3384cab67d52f8478ad21ed2bd6fc96d7cb874d840b016fac",
       "default_categories": [
         "Productivity"
       ]

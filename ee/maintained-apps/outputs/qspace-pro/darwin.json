@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.2.2",
+      "version": "6.3.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jinghaoshe.qspace.pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jinghaoshe.qspace.pro' AND version_compare(bundle_short_version, '6.2.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jinghaoshe.qspace.pro' AND version_compare(bundle_short_version, '6.3.2') < 0);"
       },
-      "installer_url": "https://cdn.awehunt.com/qs/rel/QSpace%20Pro_V6.2.2.dmg",
+      "installer_url": "https://cdn.awehunt.com/qs/rel/QSpace%20Pro_V6.3.2.dmg",
       "install_script_ref": "22ff5cd0",
       "uninstall_script_ref": "6ddba27e",
-      "sha256": "bb7943dea8e6b668d69067de07f984c80553a6f821a3c8bc961e1fd7d1971cf9",
+      "sha256": "542dc46e729db2c0ad0ff1507d990220c78111a87535f240bd38f7c99c739bdd",
       "default_categories": [
         "Productivity"
       ]

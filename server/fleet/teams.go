@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.
@@ -96,7 +101,8 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup *MacOSSetup `json:"macos_setup"`
+	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
+	HostNameTemplate optjson.String `json:"name_template"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -335,6 +341,10 @@ type TeamMDM struct {
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	AndroidSettings AndroidSettings `json:"android_settings"`
+
+	// HostNameTemplate is the template used to compute a host's display name from
+	// host-identity Fleet variables (e.g. $FLEET_VAR_HOST_HARDWARE_SERIAL).
+	HostNameTemplate string `json:"name_template"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -420,7 +430,8 @@ type TeamSpecMDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
-	AndroidSettings AndroidSettings `json:"android_settings"`
+	AndroidSettings  AndroidSettings `json:"android_settings"`
+	HostNameTemplate optjson.String  `json:"name_template"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }

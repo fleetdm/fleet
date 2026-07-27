@@ -86,15 +86,8 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 	}
 
 	licChecker, _ := license.FromContext(ctx)
-	// Type assert to get the concrete type for modification and return
+	// Type assert to get the concrete type to return.
 	lic, _ := licChecker.(*fleet.LicenseInfo)
-
-	// Currently we use the presence of Microsoft Compliance Partner settings
-	// (only configured in cloud instances) to determine if a Fleet instance
-	// is a cloud managed instance.
-	if lic != nil && svc.config.MicrosoftCompliancePartner.IsSet() {
-		lic.ManagedCloud = true
-	}
 
 	return lic, nil
 }
@@ -233,6 +226,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					ResultSubject: conf.Nats.ResultSubject,
 					AuditSubject:  conf.Nats.AuditSubject,
 					Server:        conf.Nats.Server,
+				},
+			}
+		case "splunk":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "splunk",
+				Config: fleet.SplunkConfig{
+					URL:        conf.Splunk.URL,
+					Index:      conf.Splunk.Index,
+					Source:     conf.Splunk.Source,
+					SourceType: conf.Splunk.SourceType,
 				},
 			}
 		default:

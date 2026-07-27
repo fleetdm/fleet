@@ -1650,7 +1650,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[9].Name, LabelID: labels[9].ID},
 			}
 		}
-		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp, nil)
 		require.NoError(t, err)
 
 		gcp = fleet.MDMAndroidConfigProfile{ // H N and T
@@ -1664,7 +1664,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				{LabelName: labels[11].Name, LabelID: labels[11].ID},
 			}
 		}
-		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp, nil)
 		require.NoError(t, err)
 	}
 	// null label references to simulate profiles D, E and G being broken
@@ -3412,6 +3412,9 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	checkSummaryWindows := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		// GetMDMWindowsProfilesSummary reads the maintained host_mdm_windows_profiles_status rollup; this test seeds
+		// host_mdm_windows_profiles directly, so reconcile it first.
+		require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 		ps, err := ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 		require.NoError(t, err)
 		require.NotNil(t, ps)

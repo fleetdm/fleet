@@ -18,6 +18,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_updates:
         update_new_hosts: null
@@ -76,6 +77,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_updates:
         update_new_hosts: null
@@ -147,6 +149,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      name_template: null
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
@@ -206,6 +209,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      name_template: null
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"

@@ -54,7 +54,7 @@ const RefetchButton = ({
             className={classNames}
             disabled={isDisabled || isFetching}
             onClick={onRefetchHost}
-            variant="inverse"
+            variant="secondary"
           >
             <Icon name="refresh" color="ui-fleet-black-75" size="small" />
             {buttonText}

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.4.4",
+      "version": "2.4.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v2' AND version_compare(bundle_short_version, '2.4.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.versionsapp.v2' AND version_compare(bundle_short_version, '2.4.5') < 0);"
       },
-      "installer_url": "https://updates.versionsapp.com/v2/prod/Versions-2.4.4-2040.zip",
+      "installer_url": "https://updates.versionsapp.com/v2/prod/Versions-2.4.5-2042.zip",
       "install_script_ref": "4baad7da",
       "uninstall_script_ref": "503c2dfc",
-      "sha256": "e2b91a4d8921fce230d5713ec60cad7dfd95c560af691533e125d99c7ffd013b",
+      "sha256": "38cd533eff8669046f9d4a886c5ebabfdb93e8c51f9bb94e43fa5f3d31af9ae4",
       "default_categories": [
         "Productivity"
       ]

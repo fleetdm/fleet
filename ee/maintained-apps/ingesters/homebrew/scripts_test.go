@@ -66,3 +66,42 @@ func TestUninstallScriptEscapesApostrophe(t *testing.T) {
 	require.Contains(t, script, `trash $LOGGED_IN_USER '~/Library/Application Support/Cycling '\''74'`)
 	require.NotContains(t, script, `Cycling '74'`)
 }
+
+// TestUninstallScriptExpandsLaunchctlWildcard guards against a regression where
+// a cask zap/uninstall launchctl label containing a wildcard (e.g.
+// "com.elgato.StreamDeck*") was passed straight to `launchctl list` and used as
+// a plist filename, neither of which supports wildcards, so the matching
+// launchd job and plist were never removed. The generated helper must expand
+// the wildcard against the loaded services before removing.
+func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Zap: []*brewUninstall{
+					{
+						LaunchCtl: optjson.StringOr[[]string]{
+							String: "com.elgato.StreamDeck*",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `remove_launchctl_service 'com.elgato.StreamDeck*'`)
+	// The helper must expand a wildcard label before touching launchctl.
+	require.Contains(t, script, `if [[ "$service" == *"*"* ]]; then`)
+	require.Contains(t, script, `regex=$(printf '%s' "$service" | sed -e 's/[][(){}.^$+?|\\]/\\&/g' -e 's/\*/.*/g')`)
+	require.Contains(t, script, `[[ "$id" =~ $regex ]] && services+=("$id")`)
+	// The regex must be anchored so a wildcard label matches the full label and
+	// not a substring (e.g. "ai.krisp.krispMac*" must not match
+	// "x.ai.krisp.krispMac.helper").
+	require.Contains(t, script, `regex="^${regex}$"`)
+	// launchctl list reports loaded-but-not-running jobs with a "-" (or 0) PID,
+	// so the helper must match on the label regardless of PID. Guard against a
+	// regression that filters those jobs out.
+	require.Contains(t, script, `while read -r _ _ id; do`)
+	require.NotContains(t, script, `[[ "$pid" =~ ^[0-9]+$ ]]`)
+	require.NotContains(t, script, `(( pid != 0 ))`)
+}

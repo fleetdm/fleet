@@ -1,0 +1,14 @@
+{
+  "name": "GeoGebra Classic",
+  "slug": "geogebra-classic/windows",
+  "package_identifier": "GeoGebra.Classic",
+  "unique_identifier": "GeoGebra Classic",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "user",
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/geogebra-classic_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/geogebra-classic_uninstall.ps1"
+}

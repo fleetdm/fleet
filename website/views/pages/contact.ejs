@@ -16,10 +16,12 @@
         <h2 class="mb-3">Request a workshop</h2>
         <p style="margin-bottom: 32px;">Fill out the form below to request a workshop in your area.</p>
       </div>
-      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="!userHasPremiumSubscription && !['apply', 'gitops-workshop-request'].includes(formToDisplay)">
+      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="(!userHasPremiumSubscription && !['apply', 'gitops-workshop-request'].includes(formToDisplay)) && !onlyShowTalkToUsForm">
         <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Get a demo</div>
         <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
         <div purpose="switch" :class="formToDisplay+'-selected'"></div>
+      </div>
+      <div purpose="contact-form-switch" style="border: none;" v-else>
       </div>
       <div v-if="formToDisplay === 'contact'">
 
@@ -146,7 +148,7 @@
          </cloud-error>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <div class="form-group btn-container">
-            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Talk to an engineer</ajax-button>
+            <ajax-button type="submit" purpose="submit-button" syncing-message="Looking up availability…" :syncing="syncing" class="btn btn-primary">Talk to an engineer</ajax-button>
           </div>
         </ajax-form>
       </div>

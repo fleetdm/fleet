@@ -1,4 +1,0 @@
-- Added the ability to run a policy check before installing Windows and Linux setup experience software. When a team policy's
-  install-software automation points at a setup experience installer, Fleet runs that policy during setup and skips the install
-  when it passes (the software is already installed and up to date), speeding up the end user setup experience. When the policy
-  fails, the software is installed as part of setup experience.

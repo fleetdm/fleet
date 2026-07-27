@@ -220,6 +220,18 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 			wantErr:   true,
 			errSubstr: "Invalid JSON payload",
 		},
+		{
+			name:      "custom host vital is not supported on Android",
+			rawJSON:   `{"name": "$FLEET_HOST_VITAL_7"}`,
+			wantErr:   true,
+			errSubstr: "Custom host vitals aren't supported in Android configuration profiles",
+		},
+		{
+			name:      "custom host vital rejected even alongside a supported variable",
+			rawJSON:   `{"name": "$FLEET_VAR_HOST_UUID $FLEET_HOST_VITAL_7"}`,
+			wantErr:   true,
+			errSubstr: "Custom host vitals aren't supported in Android configuration profiles",
+		},
 	}
 
 	for _, tt := range tests {

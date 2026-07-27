@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.1.02",
+      "version": "2.1.03",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(bundle_short_version, '2.1.02') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.LightBurnSoftware.LightBurn' AND version_compare(bundle_short_version, '2.1.03') < 0);"
       },
-      "installer_url": "https://release.lightburnsoftware.com/LightBurn/Release/LightBurn-v2.1.02/LightBurn.V2.1.02.dmg",
+      "installer_url": "https://release.lightburnsoftware.com/LightBurn/Release/LightBurn-v2.1.03/LightBurn.V2.1.03.dmg",
       "install_script_ref": "15575bc6",
       "uninstall_script_ref": "d7300b4b",
-      "sha256": "2beec7e5fa9816ee5ea674d3b2631a24b874dc7c5dd1bccfc4c84a1e2205e459",
+      "sha256": "18bf0b4882cd40704593cc60c04e76b0407213826b7c5923e15a602d306a674c",
       "default_categories": [
         "Productivity"
       ]

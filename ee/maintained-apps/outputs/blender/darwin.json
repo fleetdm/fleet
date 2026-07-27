@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.1.2",
+      "version": "5.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender' AND version_compare(bundle_short_version, '5.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.blenderfoundation.blender' AND version_compare(bundle_short_version, '5.2.0') < 0);"
       },
-      "installer_url": "https://download.blender.org/release/Blender5.1/blender-5.1.2-macos-arm64.dmg",
+      "installer_url": "https://download.blender.org/release/Blender5.2/blender-5.2.0-macos-arm64.dmg",
       "install_script_ref": "8ed70711",
       "uninstall_script_ref": "46f9b939",
-      "sha256": "f104ffee2ba6aee32328e5c203b7e4608d8a1745f7bbcf2766f3b9777e8fbe17",
+      "sha256": "ed4d8390166dec5ea0a2813a03db6221f206ce016442be7f59f41d760972568a",
       "default_categories": [
         "Productivity"
       ]

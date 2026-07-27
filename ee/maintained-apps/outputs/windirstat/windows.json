@@ -1,17 +1,17 @@
 {
   "versions": [
     {
-      "version": "2.6.2",
+      "version": "2.7.0",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'WinDirStat' AND publisher = 'The WinDirStat Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WinDirStat' AND publisher = 'The WinDirStat Team' AND version_compare(version, '2.6.2') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinDirStat %' AND publisher = 'WinDirStat Team';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinDirStat %' AND publisher = 'WinDirStat Team' AND version_compare(version, '2.7.0') < 0);"
       },
-      "installer_url": "https://github.com/windirstat/windirstat/releases/download/release/v2.6.2/WinDirStat-x64.msi",
+      "installer_url": "https://github.com/windirstat/windirstat/releases/download/release/v2.7.0/WinDirStat-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "dbd2c315",
-      "sha256": "cde821cdddd143f60aa0c3c953894a31b3b13edf3ba9d61315eab553d411aee3",
+      "sha256": "66643671d6b4e09eaffbe28e0d89cc9bca06d94495225a20020822b40536ccc4",
       "default_categories": [
-        "Productivity"
+        "Utilities"
       ],
       "upgrade_code": "{46F106C9-090C-43D0-8815-D03BA9FA55A9}"
     }

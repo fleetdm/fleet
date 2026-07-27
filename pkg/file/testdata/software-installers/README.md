@@ -1,1 +1,3 @@
 - `hello-world-installer.exe` is an installer with a text file. It was created using [Inno Setup](https://jrsoftware.org/isinfo.php) on Windows.
+- `ipa_test.ipa` is an in-house app installer for a hello world app.
+- `msix_test.msix` is a minimal MSIX package (`TestWindows.msix`) from Microsoft's MIT-licensed [msix-packaging](https://github.com/microsoft/msix-packaging) SDK test data.

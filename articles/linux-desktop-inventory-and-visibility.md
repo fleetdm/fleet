@@ -1,53 +1,60 @@
 # Linux desktop inventory and visibility
 
-The first step in any desktop management strategy is to understand your infrastructure. What hosts do you have? What operating systems and software versions are they running? How are they currently configured, and how does this compare with your organization's policies and rules?
+*You can't manage a Linux desktop you can't see. Here's how to build a live inventory of every host and query its real state, without adding a separate tool for every distribution.*
 
-Taking stock of your current environment isn't easy. Modern environments are heterogeneous and dynamic. This is especially true in the Linux desktop ecosystem, where choices result in a growing management burden.
+## Key takeaways
 
-In this article, we will discuss the importance of inventory and visibility when managing Linux desktops. Inventory and visibility involve more than simply keeping track of your hosts. Modern environments are dynamic, and they come with unique management challenges.
+- **Visibility comes before management.** Setting policy, spotting drift, and remediating misconfigurations all depend on a continuously updated picture of your hosts, and Linux's mix of kernels, distributions, and configurations makes that picture harder to hold.
+- **Group hosts by business logic, not by operating system.** Fleets let you organize Windows, Mac, and Linux hosts together around real requirements instead of splitting them across separate tools that drift apart.
+- **Labels keep themselves current.** Dynamic labels apply automatically based on live host state, so a group like "workstations running Docker" stays accurate as the environment changes.
+- **One SQL dialect answers static and live questions.** Query OS versions and installed packages alongside running processes and open ports, using the same cross-platform syntax on every distribution, with no per-platform tooling to learn.
+- **Ad-hoc, scheduled, and continuous checks share one workflow.** Run a one-off report during an incident, schedule a monthly disk-space report, or continuously evaluate a compliance policy, all defined the same way.
+- **A failed check can trigger a fix.** Policies answer yes-or-no compliance questions and can run a script, install software, or fire a webhook when a host falls out of line, turning noncompliance into an action instead of a ticket.
+
+<a purpose="cta-button" href="/linux-management">See Linux management in Fleet</a>
+
+The first step in any desktop management strategy is understanding your infrastructure: what hosts you have, what operating systems and software versions they run, and how their real configuration compares to your organization's policies. Taking that inventory is hard, because modern environments are both heterogeneous and constantly changing, and nowhere more so than on the Linux desktop, where the range of choices creates a growing management burden.
+
+This article covers why inventory and visibility matter for Linux desktops and how Fleet delivers both. It starts with a simple premise: you can't manage what you can't see.
 
 ## Background
 
-You can't manage any type of infrastructure without an accurate picture of your environment. Developing policy, identifying drift, remediating misconfigurations, and enforcing security controls all rely on continuous visibility.
+You can't manage any infrastructure without an accurate picture of your environment. Developing policy, identifying drift, remediating misconfigurations, and enforcing security controls all rely on continuous visibility.
 
-Managing Linux devices adds unique challenges to your device management approach. The heterogeneous nature of Linux devices means that you must deal with different kernels, distributions, and configurations. To do this, you must consider how to track and gain visibility into your hosts.
+Linux adds its own challenges. The heterogeneous nature of Linux devices means dealing with different kernels, distributions, and configurations, so you have to think carefully about how you track your hosts and gain visibility into them.
 
 ## Tracking inventory
 
-Modern environments are dynamic. Users switch roles, IT policies change, and devices aren't always connected to your network. An MDM platform must maintain an accurate host inventory despite constant change.
+Modern environments are dynamic. Users switch roles, IT policies change, and devices aren't always connected to your network. A management platform has to maintain an accurate host inventory despite constant change.
 
-An ideal Linux desktop MDM will also track all of your devices (not just a subset) in one location. IT administrators don't need another tool to log into. They need a unified experience that provides visibility into their Windows, Mac, and Linux hosts from one location. They also need a common language to query devices across this heterogeneous desktop ecosystem.
+An ideal Linux desktop management platform tracks all of your devices, not just a subset, in one location. IT administrators don't need yet another tool to log into. They need a unified experience that provides visibility into their Windows, Mac, and Linux hosts from one place, along with a common language to query devices across that heterogeneous ecosystem.
 
-A desktop management solution must also group and label hosts for visibility and management. For example, some hosts may have restrictive security requirements based on the data they access. Grouping and labeling hosts should be based on dynamic, continuously updated device state. This helps the MDM respond to the constantly changing environment that IT teams are expected to support.
+A management platform also has to group and label hosts for visibility and control. Some hosts may carry restrictive security requirements based on the data they access, and grouping should reflect dynamic, continuously updated device state rather than a static snapshot. That's what lets the platform keep up with the constantly changing environment IT teams are expected to support.
 
-Consider the following questions when evaluating a solution to see if it meets your MDM needs:
+Consider the following questions when evaluating whether a platform meets your needs:
 
-1. Can you manage all devices (Windows, Mac, and Linux) from a single location, or do you need to use multiple tools?
-2. Does the tool support devices, such as end-user workstations, that often disconnect and reconnect to the network?
-3. Can you group hosts or label them in ways that make sense for your organization? Does the system impose rigid restrictions around these groupings?
-4. How difficult is it to add a new host to the system? Can this be easily automated?
+1. Can you manage all devices (Windows, Mac, and Linux) from a single location, or do you need multiple tools?
+2. Does the tool support devices, such as end-user workstations, that frequently disconnect and reconnect to the network?
+3. Can you group or label hosts in ways that make sense for your organization, or does the system impose rigid restrictions around those groupings?
+4. How difficult is it to add a new host, and can that be easily automated?
 
 ## Visibility
 
-Once you have an accurate inventory of your environment, you need visibility into host configuration and state. This visibility must be comprehensive. It should include static and configured information about a system. This includes OS versions, installed packages, and configured users. However, it must also include dynamic information about a system, such as running processes and open ports.
+Once you have an accurate inventory, you need visibility into host configuration and state, and that visibility has to be comprehensive. It should include static, configured information such as OS versions, installed packages, and configured users, but it must also include dynamic information such as running processes and open ports.
 
-A good management platform must let you query your environment on a scheduled and as-needed basis. Not every aspect of your environment needs to be continuously monitored. Sometimes, you have a specific question that you only need answered once or on a scheduled basis. Ad-hoc and scheduled reporting give you this ability.
+A good platform lets you query your environment on both a scheduled and an as-needed basis. Not every aspect of your environment needs continuous monitoring. Sometimes you have a specific question you need answered once, or on a schedule. A common example is a newly discovered software vulnerability: you need to query your environment, find vulnerable hosts, and take action, which means executing an ad-hoc query across everything you manage. Other needs are recurring, like determining free disk space every month so you can proactively upgrade hosts before they run out.
 
-A common example is a newly discovered software vulnerability. You need to query your environment, find vulnerable hosts, and take action. You must be able to execute an ad-hoc query across your entire environment.
+Policy-based requirements are different. They need regular, ongoing visibility to confirm systems keep meeting external or organizational rules. For example, you may have a security requirement that forbids any workstation from running a listening service on ports 80 or 443. Your platform should confirm the policy is met, tell you which hosts are failing it, and, ideally, remediate automatically. Unlike ad-hoc or scheduled reports, policy-based requirements must be continuously monitored to ensure compliance.
 
-Similarly, you likely have occasional reporting needs. For example, you may want to determine free disk space across your environment every month. You may use this data to identify hosts with low disk space and proactively upgrade them.
-
-Policy-based requirements require regular visibility into systems to ensure they are meeting external or organizational policies. For example, you may have a security requirement that forbids any workstation from running a listening service on ports 80 or 443. Your management system should ensure this policy is met and provide you with information about hosts failing the policy. A highly capable platform will also enable automatic remediation. Unlike ad-hoc or scheduled reports, policy-based requirements must be continuously monitored to ensure compliance.
-
-Consider the following questions when evaluating the visibility features of an MDM solution:
+Consider the following questions when evaluating a platform's visibility features:
 
 1. Can the system provide visibility into static characteristics, configuration, and dynamic elements of your hosts?
-2. Does the system support continuous policy evaluation, ad-hoc, and scheduled reports? Can these be configured using consistent tooling, or do they each require very different approaches?
-3. Can you query heterogeneous systems, such as Windows, Mac, and different Linux distributions, using a consistent language and framework?
+2. Does the system support continuous policy evaluation as well as ad-hoc and scheduled reports, using consistent tooling rather than a different approach for each?
+3. Can you query heterogeneous systems (Windows, Mac, and different Linux distributions) using a consistent language and framework?
 
-## Using osquery
+## One query language for every host
 
-The osquery utility is a cross-platform tool that exposes information about your systems as a SQL database. This provides a common, consistent language for inventory and visibility into the devices in your environment. It has a rich schema that exposes hundreds of tables and thousands of attributes about your devices.
+Fleet's agent is built on osquery, a cross-platform tool that exposes information about your systems as a SQL database. That gives you a common, consistent language for inventory and visibility across your environment, with a rich schema that exposes hundreds of tables and thousands of attributes about your devices.
 
 For example, the query below looks for any users named "docker" on a system. It works equally well across Windows, Mac, and Linux.
 
@@ -55,38 +62,36 @@ For example, the query below looks for any users named "docker" on a system. It 
 SELECT uid, uuid, gid, username FROM users WHERE username = 'docker';
 ```
 
-Using osquery is uniquely appropriate for visibility in heterogeneous environments. It uses platform-agnostic SQL query syntax to provide a consistent interface for querying your devices. This avoids the need to learn multiple tools for different platforms. It features an extensive set of data tables, many of which are cross-platform. This allows you to determine virtually anything about the hosts in your environment.
+This approach is uniquely suited to heterogeneous environments. Platform-agnostic SQL gives you a single interface for querying every device, so you don't have to learn a different tool for each operating system, and the extensive set of tables, many of them cross-platform, lets you determine virtually anything about your hosts.
 
-The osquery project has been around for over a decade. It is a mature, actively maintained, open-source project with over 23,000 stars on GitHub. The osquery binary runs in a very lightweight footprint on your hosts and imposes minimal overhead. However, osquery enables you to get information about one host at a time.
+osquery is a mature, actively maintained open-source project that has been around for over a decade and has more than 20,000 stars on GitHub. It runs in a lightweight footprint and imposes minimal overhead, but on its own it reports on one host at a time. Fleet is what scales that visibility to your whole environment.
 
 ## Inventory and visibility in Fleet
 
 ### Host inventory
 
-Fleet makes it easy to track host inventory over time and across tens, hundreds, or thousands of hosts. The Fleet agent, which includes osquery, is a lightweight software package that is installed on every device in your environment. Fleet provides packages for Windows, Mac, and Linux. The agent has a very small footprint, and it communicates with your Fleet server over TLS.
+Fleet makes it easy to track host inventory over time and across tens, hundreds, or thousands of hosts. Fleet's agent is a lightweight software package installed on every device in your environment, with packages for Windows, Mac, and Linux. It has a very small footprint and communicates with your Fleet server over TLS.
 
-Once a host is connected with your Fleet environment, you can begin managing it. Fleet provides two key features for tracking host inventory: Fleets and Labels. Let's take a closer look at each.
+Once a host is connected to your Fleet environment, you can begin managing it. Fleet provides two key features for tracking host inventory: fleets and labels.
 
 #### Fleets
 
-Fleets allow you to organize hosts into groups that you can report on, apply policies to, and configure. Fleets are tailored to your organization's specific tasks and compliance requirements. Since Fleet is cross-platform, you can manage Windows, Mac, and Linux workstations within a single fleet.
+Fleets let you organize hosts into groups that you can report on, apply policies to, and configure. They're tailored to your organization's specific tasks and compliance requirements, and because Fleet is cross-platform, you can manage Windows, Mac, and Linux workstations within a single fleet.
 
-This approach allows you to define fleets based on business logic rather than arbitrary technical requirements. For example, you can have a fleet for all your workstations, another fleet for employee-owned devices, and a third fleet for company-issued mobile devices.
+This lets you define fleets around business logic rather than arbitrary technical requirements. You might have one fleet for all your workstations, another for employee-owned devices, and a third for company-issued mobile devices. It contrasts with tools that require you to separate devices by operating system, an approach that leads to duplicated effort and configuration drift. Fleet lets you manage all of your systems in one place.
 
-This contrasts with other tools that may require you to separate devices based on their operating system. This approach leads to duplication of effort and configuration drift. Fleet lets you manage all of your systems in one place.
-
-Manage fleets by clicking on your user icon in the top-right corner and navigating to **Settings > Fleets**. New hosts can be added to a fleet automatically based on their enrollment secret, or you can manually move hosts between fleets by clicking the host and selecting **Actions > Transfer**. Move multiple hosts between fleets by navigating to the **Hosts** page, selecting all the desired hosts, and clicking **Transfer**.
+Manage fleets by clicking your user icon in the top-right corner and navigating to **Settings > Fleets**. New hosts can be added to a fleet automatically based on their enrollment secret, or you can manually move hosts between fleets by clicking a host and selecting **Actions > Transfer**. To move several at once, go to the **Hosts** page, select the hosts you want, and click **Transfer**.
 
 ![Hosts in a Workstations fleet](../website/assets/images/articles/linux-desktop-inventory-and-visibility-1-947x269@2x.png)
-*Hosts in a Workstations team*
+*Hosts in a Workstations fleet*
 
 #### Labels
 
-Fleet also provides a mechanism for labeling hosts. Labels provide a method for targeted reporting and policy enforcement. For example, you can apply a "Docker" label to all of your workstations with Docker installed on them. This label can be used to target reports or policies (e.g., Ensure that all workstations running Docker have the latest version from your internal repositories).
+Fleet also lets you label hosts for targeted reporting and policy enforcement. For example, you can apply a "Docker" label to every workstation that has Docker installed, then target reports or policies at that label (for instance, ensuring all Docker workstations run the latest version from your internal repositories).
 
-Administrators can statically apply labels to a host, but their true power lies in dynamic labeling. Labels can be automatically applied based on reports. Since Fleet is built on osquery, you can easily apply labels based on virtually any system characteristic. For example, you could automatically label hosts with SSH enabled and running.
+Administrators can apply labels statically, but their real power is dynamic labeling: labels applied automatically based on report results. Because Fleet's agent can inspect virtually any system characteristic, you can label hosts on almost anything, such as automatically labeling every host with SSH enabled and running.
 
-You create new labels by clicking on your user icon in the top-right corner and navigating to **Labels**. Click **Add label** to add a new label. Labels can be dynamic based on reports or IdP group, or they can be manual. A manual group allows you to add specific hosts, while dynamic groups provide the flexibility of report-based labeling.
+Create new labels by clicking your user icon in the top-right corner and navigating to **Labels**, then clicking **Add label**. A manual label lets you add specific hosts, while a dynamic label applies automatically based on a report, giving you the flexibility of report-based grouping.
 
 ![Labels can be dynamically applied to hosts based on reports](../website/assets/images/articles/linux-desktop-inventory-and-visibility-2-955x306@2x.png)
 *Labels can be dynamically applied to hosts based on reports*
@@ -95,50 +100,44 @@ You create new labels by clicking on your user icon in the top-right corner and 
 
 #### Reports
 
-Fleet's reporting capabilities are built on osquery. They allow you to quickly query your environment using a common language. Fleet lets you define reports to run on an as-needed or scheduled basis. You can also run ad-hoc reports directly against your environment without saving the reports for later use.
+Fleet's reporting runs on the same agent, so you can query your environment using one common language. You can define reports to run on demand or on a schedule, or run ad-hoc reports directly against your environment without saving them for later.
 
-Since Fleet is built on osquery, you can easily write reports to learn virtually anything about your environment. These reports can target static system information, such as the operating system version. They can also target dynamic runtime information, such as running processes or open ports.
+Reports can target static system information, such as the operating system version, and dynamic runtime information, such as running processes or open ports. Because the query language is cross-platform, one report can work across your Windows, Mac, and Linux devices, which reduces the cognitive burden of a heterogeneous environment and lets you build standardized reports across different systems.
 
-Since osquery is cross-platform, you can write reports that work across your Windows, Mac, and Linux devices. This reduces the cognitive burden of managing a heterogeneous environment. It also lets you build standardized reports across different systems.
-
-Navigate to **Reports > Add report** to define a new report. The **New report** window prompts you for a report to run against your environment. It contains a helpful reference for osquery table information and will automatically check your report for operating system compatibility.
+Navigate to **Reports > Add report** to define a new report. The **New report** window prompts you for a report to run against your environment, offers a helpful reference for table information, and automatically checks your report for operating system compatibility.
 
 ![Creating a new report in Fleet](../website/assets/images/articles/linux-desktop-inventory-and-visibility-3-684x238@2x.png)
 
-You can **Save** the report for later use. The **Save report** window allows you to specify an interval to run the report on a scheduled basis. You can specify **Never** to prevent the report from executing automatically. This is useful for reports that you want to manually run. You can always select and run a saved report from the **Reports** page. Click on its Name and choose **Live report**.
+You can **Save** the report for later use. The **Save report** window lets you set an interval to run it on a schedule, or you can specify **Never** to keep it manual and run it yourself when needed from the **Reports** page by clicking its name and choosing **Live report**.
 
-You don't have to save the report for later use. You can use a **Live report** to immediately execute your report against your environment without saving it. This is useful for exploratory or ad-hoc reports that you don't plan on reusing.
+You don't have to save a report at all. A **Live report** runs immediately against your environment without saving, which is useful for exploratory or ad-hoc work you don't plan to reuse.
 
 #### Policies
 
-Policies are similar to reports (they both use osquery), but they are designed to answer "yes" or "no" questions about your environment. A regular report returns detailed information, but a Policy returns True or False. This allows you to define organizational policies and identify when hosts are failing those policies.
+Policies are similar to reports, and both are just queries, but a policy is designed to answer a yes-or-no question about your environment. A regular report returns detailed information, while a policy returns pass or fail. That lets you define organizational policies and identify when hosts are failing them.
 
-Fleet continuously monitors policy compliance and can take action if a violation occurs. For example, Fleet can run a script, install software, block single-sign-on, or trigger a webhook when a Policy violation is detected.
+Fleet continuously monitors policy compliance and can take action when a violation occurs. For example, Fleet can run a script, install software, block single sign-on, or trigger a webhook when a policy fails.
 
 ![Fleet policies allow you to monitor compliance with organizational rules](../website/assets/images/articles/linux-desktop-inventory-and-visibility-4-1024x256@2x.png)
 *Fleet policies allow you to monitor compliance with organizational rules*
 
-Defining a policy is similar to defining a report. Navigate to **Policies > Add policy**. The **New policy** window is nearly identical to the **New report** window. It allows you to define a report for the policy that you want to enforce.
-
-Reports for policies are treated differently from regular reports. If a policy report returns any result, then the policy is considered passing. If the report doesn't return a result, then the policy is considered failing. You will often see policy reports start with `SELECT 1…` to ensure they return a result if the report is successful.
+Defining a policy is much like defining a report. Navigate to **Policies > Add policy**; the **New policy** window is nearly identical to the **New report** window. Policy queries are evaluated differently from regular reports: if the query returns any result, the policy passes, and if it returns no result, the policy fails. You'll often see policy queries start with `SELECT 1…` to ensure they return a result when the check succeeds.
 
 ![Saving a policy in Fleet](../website/assets/images/articles/linux-desktop-inventory-and-visibility-5-1020x247@2x.png)
 
-Once you have refined your report, you can **Save** the policy. The **Save Policy** window prompts you for a policy name, description, and resolution. The description and resolution are helpful information for someone who is investigating a policy compliance issue. You can even use Fleet's AI capabilities to automatically generate a description and resolution based on the defined report.
+Once you've refined the query, you can **Save** the policy. The **Save policy** window prompts you for a name, description, and resolution; the description and resolution help whoever later investigates a compliance issue. You can even use Fleet's AI capabilities to generate a description and resolution automatically from the query. This is also where you specify which hosts the policy applies to, and because Fleet combines inventory and visibility, you can target policies by operating system or by dynamic label.
 
-The **Save Policy** window is also where you specify the hosts that the policy applies to. Fleet combines inventory and visibility, allowing you to target policies at hosts based on their operating system or dynamic labels.
-
-Policies are a versatile concept in Fleet. You can use policies to automatically take actions, such as running a script or triggering a webhook, based on compliance. This allows your IT teams to automate common management workflows and quickly address noncompliance with organizational rules.
+Policies are versatile. Tying an action such as running a script or triggering a webhook to a compliance result lets your IT teams automate common workflows and address noncompliance quickly.
 
 ## Wrapping up
 
-The very first step in managing an environment is understanding it. Nowhere is this more true than in Linux desktop management, where a heterogeneous environment introduces unique challenges.
+The first step in managing an environment is understanding it, and nowhere is that more true than in Linux desktop management, where a heterogeneous environment introduces unique challenges.
 
-Robust Linux desktop management requires a complete inventory of your hosts and visibility into their current state. You must be able to report on a variety of system characteristics and determine when your hosts aren't meeting your organization's policies. Ideally, you need to do this using a common language and framework that doesn't force your IT teams to learn another tool.
+Robust Linux desktop management requires a complete inventory of your hosts and visibility into their current state. You need to report on a range of system characteristics, know when hosts aren't meeting your policies, and do it all through a common language and framework that doesn't force your IT teams to learn yet another tool. Fleet's cross-platform agent provides exactly that depth of insight.
 
-Fleet provides a cross-platform approach, built on osquery, that enables deep insight into your hosts. Inventory and visibility are only the first step in a complete Linux management strategy. The following chapters will build on these foundational concepts to enable drift management, automated software installation, and automatic remediation.
+Inventory and visibility are only the first step in a complete Linux management strategy. Later articles build on these foundations to cover drift management, automated software installation, and automatic remediation.
 
-To learn more about Fleet or to get a demo [contact us](https://fleetdm.com/contact).
+To learn more about Fleet or to get a demo, [contact us](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="Linux desktop inventory and visibility">
 <meta name="authorFullName" value="Anthony Critelli">

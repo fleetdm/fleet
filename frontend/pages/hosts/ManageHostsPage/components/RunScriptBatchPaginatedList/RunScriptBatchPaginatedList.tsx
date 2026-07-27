@@ -79,8 +79,7 @@ const RunScriptBatchPaginatedList = ({
     <>
       <a>{script.name}</a>
       <Button
-        variant="inverse"
-        iconStroke={!script.hasRun}
+        variant="secondary"
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
           onRunScript(script, onChange);

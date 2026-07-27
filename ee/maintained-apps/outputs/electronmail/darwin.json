@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.3.7",
+      "version": "5.3.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'github.comvladimiryElectronMail';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'github.comvladimiryElectronMail' AND version_compare(bundle_short_version, '5.3.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'github.comvladimiryElectronMail' AND version_compare(bundle_short_version, '5.3.8') < 0);"
       },
-      "installer_url": "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.7/electron-mail-5.3.7-mac-arm64.dmg",
+      "installer_url": "https://github.com/vladimiry/ElectronMail/releases/download/v5.3.8/electron-mail-5.3.8-mac-arm64.dmg",
       "install_script_ref": "06383b51",
       "uninstall_script_ref": "315a25ff",
-      "sha256": "ba507e765a7a64185c04988b63893e13fa045b2f57488b88cdde6b4f312af7ee",
+      "sha256": "577d968b4a0253d74b7f3ab183739db1e8882d7ef03e2046373ecab86d2f9596",
       "default_categories": [
         "Productivity"
       ]

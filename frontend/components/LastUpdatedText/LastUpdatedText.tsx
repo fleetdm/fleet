@@ -1,5 +1,5 @@
 import React from "react";
-import { formatDistanceToNowStrict } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -31,8 +31,9 @@ const LastUpdatedText = ({
     lastUpdatedAt = "never";
   } else {
     lastUpdatedAt = abbreviateTimeUnits(
-      formatDistanceToNowStrict(new Date(lastUpdatedAt), {
+      timeAgo(new Date(lastUpdatedAt), {
         addSuffix: true,
+        strict: true,
       })
     );
   }

@@ -52,6 +52,26 @@ describe("VulnerabilitiesCard", () => {
     expect(screen.getByText("Unavailable")).toBeInTheDocument(); // No created_at date
   });
 
+  it("renders vulnerability table for Android versions", () => {
+    render(
+      <VulnerabilitiesCard
+        osVersion={createMockOSVersion({
+          name: "Android 16 (2026-05-01)",
+          name_only: "Android",
+          version: "16 (2026-05-01)",
+          platform: "android",
+        })}
+        isLoading={false}
+        router={mockRouter}
+        teamIdForApi={1}
+      />
+    );
+
+    expect(screen.getByText("Vulnerabilities")).toBeInTheDocument();
+    expect(screen.getByText("Detected")).toBeInTheDocument();
+    expect(screen.getByText("CVE-2020-0001")).toBeInTheDocument();
+  });
+
   it("renders 'not supported' empty state if platform doesn't support vulns", () => {
     render(
       <VulnerabilitiesCard

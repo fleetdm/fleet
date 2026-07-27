@@ -130,7 +130,6 @@ module.exports.custom = {
     'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
-    'docs/Contributing/rituals': 'lukeheath',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // Fleet's internal IT and security (+dogfooding)
@@ -371,7 +370,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -516,8 +515,6 @@ module.exports.custom = {
   // Microsoft compliance proxy
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
-  // cloudCustomerCompliancePartnerSharedSecret: '…',
-  // alternateCompliancePartnerSharedSecret: '…',
 
 
   // Android proxy

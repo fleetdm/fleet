@@ -553,6 +553,23 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 		}
 	}
 
+	// NVD lists ollama as vulnerable through (and including) v0.12.3 via versionEndIncluding with no
+	// versionEndExcluding, so resolved_in_version comes back empty. The fix shipped in the next
+	// release, v0.12.4. Supply versionEndExcluding here so Fleet reports the resolved version.
+	// See https://github.com/fleetdm/fleet/issues/44800.
+	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2025-63389" {
+		for configID := range item.CVE.Configurations {
+			for nodeID := range item.CVE.Configurations[configID].Nodes {
+				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
+					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
+					if strings.Contains(match.Criteria, ":ollama:ollama:") && match.VersionEndExcluding == nil {
+						match.VersionEndExcluding = new("0.12.4")
+					}
+				}
+			}
+		}
+	}
+
 	return item
 }
 

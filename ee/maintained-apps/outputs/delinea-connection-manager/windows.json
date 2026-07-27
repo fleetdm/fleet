@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "2.8.3.7",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Delinea Connection Manager' AND publisher = 'Delinea Inc..';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Delinea Connection Manager' AND publisher = 'Delinea Inc..' AND version_compare(version, '2.8.3.7') < 0);"
+      },
+      "installer_url": "https://downloads.cm.thycotic.com/Delinea.ConnectionManager.WindowsInstaller.msi",
+      "install_script_ref": "d3f438be",
+      "uninstall_script_ref": "66b98917",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ],
+      "upgrade_code": "{2C9B6482-0E2E-4584-83F0-432A62B05822}"
+    }
+  ],
+  "refs": {
+    "66b98917": "# Uninstalls Delinea Connection Manager.\n# The unversioned installer URL means the MSI ProductCode can change between\n# releases, so we look the product up in the registry by its exact DisplayName\n# and uninstall via msiexec.\n\n$softwareName = \"Delinea Connection Manager\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $productCode = $key.PSChildName\n        if ($productCode -notmatch '^\\{[0-9A-Fa-f-]+\\}$') {\n            Write-Host \"Unexpected uninstall key name (not a ProductCode GUID): $productCode\"\n            continue\n        }\n        Write-Host \"Uninstalling product code: $productCode\"\n        $process = Start-Process -FilePath \"msiexec.exe\" `\n            -ArgumentList \"/x $productCode /qn /norestart\" `\n            -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "d3f438be": "# Learn more about install scripts:\n# http://fleetdm.com/learn-more-about/install-scripts\n#\n# The Delinea Connection Manager MSI is a dual-purpose package: its Property\n# table sets ALLUSERS=2 + MSIINSTALLPERUSER=1, so a plain silent install under\n# Fleet's SYSTEM context lands per-user (in the SYSTEM profile) despite the\n# winget manifest's machine scope. Force a true per-machine install by setting\n# ALLUSERS=1 and clearing MSIINSTALLPERUSER.\n\n$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} ALLUSERS=1 MSIINSTALLPERUSER=`\"`\" /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($installProcess.ExitCode -eq 3010 -or $installProcess.ExitCode -eq 1641) {\n  Exit 0\n}\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

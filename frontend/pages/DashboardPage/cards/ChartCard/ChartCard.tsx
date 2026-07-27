@@ -9,7 +9,7 @@ import chartsAPI, {
   IChartQueryKey,
 } from "services/entities/charts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import stringUtils from "utilities/strings/stringUtils";
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -48,17 +48,9 @@ const baseClass = "chart-card";
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
 
-// Mobile platforms (iOS, iPadOS, Android) are excluded from the chart by
-// default by seeding the platform filter with only the non-mobile platforms.
-// This is intentionally hard-coded to this chart for now rather than a general
-// per-chart "default filters" config. Because the platform filter is
-// inclusion-based, a non-empty default both excludes mobile and makes the
-// "Filtered" badge appear on load. Users can opt mobile back in via the filter.
-const DEFAULT_CHART_PLATFORMS = ["darwin", "windows", "linux", "chrome"];
-
 const DEFAULT_CHART_FILTERS: IChartFilterState = {
   labelIDs: [],
-  platforms: DEFAULT_CHART_PLATFORMS,
+  platforms: [],
   hostFilterMode: "none",
   selectedHosts: [],
   softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
@@ -118,23 +110,20 @@ const hasActiveSoftwareFilters = (filters: IChartFilterState): boolean =>
   isEpssActive(filters.epssMin, filters.epssMax) ||
   filters.excludeCVEs.length > 0;
 
-// Human-readable "a, b, and c".
+// Human-readable "a, b, and c". Items must already be correctly cased —
+// don't force-capitalize here or branded names like "macOS"/"iOS" break.
 const formatList = (items: string[]): string => {
-  items = items.map(stringUtils.capitalize);
   if (items.length <= 1) return items.join("");
   if (items.length === 2) return `${items[0]} and ${items[1]}`;
   return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
 };
 
-// Maps platform filter values to their display names for the tooltip.
-const PLATFORM_LABELS: Record<string, string> = {
-  darwin: "macOS",
-  windows: "Windows",
-  linux: "Linux",
-  chrome: "ChromeOS",
-};
+// A string-indexable view of the display-name map. Platform filter values are
+// arbitrary strings, so an unknown one indexes to undefined and we fall back to
+// the raw value below.
+const PLATFORM_LABELS: Record<string, string> = PLATFORM_DISPLAY_NAMES;
 
-const hostFilterLines = (filters: IChartFilterState): string[] => {
+export const hostFilterLines = (filters: IChartFilterState): string[] => {
   const lines: string[] = [];
   if (filters.platforms.length > 0) {
     lines.push(
@@ -246,9 +235,10 @@ const ChartCard = ({
           given hour.
           <br />
           <br />
-          iOS, iPadOS, and Android hosts are excluded by default; include them
-          in the filter settings. Locked iOS and iPadOS hosts count as online as
-          long as they have power and an internet connection.
+          iOS/iPadOS hosts are online anytime they have power and an internet
+          connection (including locked). macOS, Windows, and Linux hosts can be
+          online when locked (lid closed), but less frequently than when the lid
+          is open. Android hosts are never online when locked.
         </>
       ),
       tooltipFormatter: ({ value }: { value: number }) =>
@@ -407,7 +397,7 @@ const ChartCard = ({
       );
     }
     if (isLoading) {
-      return <Spinner includeContainer={false} verticalPadding="small" />;
+      return <Spinner verticalPadding="small" />;
     }
     if (error) {
       return <DataError />;
@@ -492,7 +482,7 @@ const ChartCard = ({
         <div className={`${baseClass}__header-right`}>
           <Button
             type="button"
-            variant="inverse"
+            variant="subdued"
             className={`${baseClass}__settings-btn`}
             ariaLabel="Configure chart filters"
             onClick={() => openFilterModal()}

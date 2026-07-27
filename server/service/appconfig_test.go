@@ -25,6 +25,7 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -605,13 +606,13 @@ func TestSSOProviderSettingsOverwriteMDM(t *testing.T) {
 
 	t.Run("REST PATCH preserves partial-update behavior", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, false /* overwrite */)
+		validateSSOProviderSettings(&incomingMissingMetadata, existing, invalid, false /* overwrite */)
 		assert.False(t, invalid.HasErrors())
 	})
 
 	t.Run("GitOps overwrite rejects empty metadata", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOProviderSettings(incomingMissingMetadata, existing, invalid, true /* overwrite */)
+		validateSSOProviderSettings(&incomingMissingMetadata, existing, invalid, true /* overwrite */)
 		require.True(t, invalid.HasErrors())
 		assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 	})
@@ -1007,6 +1008,99 @@ func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	}
 }
 
+// TestModifyAppConfigHostNameTemplateDowngrade verifies that a host name
+// template stored while premium is cleared on a Free-tier ModifyAppConfig (so
+// the cron, which enforces on MDM.EnabledAndConfigured rather than the license,
+// stops applying it) and preserved on Premium.
+func TestModifyAppConfigHostNameTemplateDowngrade(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	for _, tt := range []struct {
+		name        string
+		licenseTier string
+		expected    string
+	}{
+		{"cleared on Free", fleet.TierFree, ""},
+		{"preserved on Premium", fleet.TierPremium, "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			}
+			// Seed a template as though it had been set while premium.
+			dsAppConfig.MDM.HostNameTemplate = optjson.SetString("iPad $FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+			// A benign change that doesn't touch the template: the downgrade reset,
+			// not validation, is what clears it.
+			modified, err := svc.ModifyAppConfig(ctx, []byte(`{"org_info": {"org_name": "Test2"}}`), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, modified.MDM.HostNameTemplate.Value)
+			require.Equal(t, tt.expected, dsAppConfig.MDM.HostNameTemplate.Value)
+		})
+	}
+}
+
+// TestModifyAppConfigHostNameTemplateSecretErrors verifies that when the "No team"
+// host name template references a secret variable, a missing secret is reported as
+// invalid input (422) while a datastore failure propagates as a server error rather
+// than being misclassified as invalid input.
+func TestModifyAppConfigHostNameTemplateSecretErrors(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	newSvc := func(t *testing.T, validateErr error) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error { *dsAppConfig = *conf; return nil }
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return validateErr }
+		return svc, ctx, ds
+	}
+
+	// A change to a template that references a secret, so validation runs.
+	body := []byte(`{"mdm":{"name_template":"WS-$FLEET_SECRET_TOKEN"}}`)
+
+	t.Run("missing secret is invalid input (422)", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, &fleet.MissingSecretsError{MissingSecrets: []string{"TOKEN"}})
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &argErr)
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("datastore error propagates as a server error, not 422", func(t *testing.T) {
+		svc, ctx, ds := newSvc(t, errors.New("database is down"))
+		_, err := svc.ModifyAppConfig(ctx, body, fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		var argErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &argErr, "a datastore error must not be reported as invalid input")
+		require.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+}
+
 // TestTransparencyURLDowngradeLicense tests scenarios where a transparency url value has previously
 // been stored (for example, if a licensee downgraded without manually resetting the transparency url)
 func TestTransparencyURLDowngradeLicense(t *testing.T) {
@@ -1105,6 +1199,50 @@ func TestMDMConfig(t *testing.T) {
 	}))
 	t.Cleanup(depSrv.Close)
 
+	defaultMDMAppConfig := func(changes ...func(*fleet.MDM)) fleet.MDM {
+		mdm := fleet.MDM{
+			HostNameTemplate: optjson.String{Set: true},
+			AppleAccountProvisioning: fleet.AppleAccountProvisioning{
+				OAuthIdPTokenURL: optjson.String{Set: true},
+				OAuthIdPClientID: optjson.String{Set: true},
+			},
+			AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+			DeprecatedAppleBMDefaultTeam: "",
+			MacOSSetup: fleet.MacOSSetup{
+				BootstrapPackage:            optjson.String{Set: true},
+				MacOSSetupAssistant:         optjson.String{Set: true},
+				EnableReleaseDeviceManually: optjson.SetBool(false),
+				EnableManagedLocalAccount:   optjson.SetBool(false),
+				EndUserLocalAccountType:     optjson.SetString("admin"),
+				LockEndUserInfo:             optjson.SetBool(false),
+				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				Script:                      optjson.String{Set: true},
+				ManualAgentInstall:          optjson.Bool{Set: true},
+			},
+			MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+			IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+			IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+			VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+			WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+			WindowsSettings: fleet.WindowsSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+			},
+			AndroidSettings: fleet.AndroidSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+			},
+			RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+			EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+			WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+			WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+		}
+
+		for _, change := range changes {
+			change(&mdm)
+		}
+		return mdm
+	}
+
 	const licenseErr = "missing or invalid license"
 	const notFoundErr = "not found"
 	testCases := []struct {
@@ -1119,36 +1257,7 @@ func TestMDMConfig(t *testing.T) {
 		{
 			name:        "nochange",
 			licenseTier: "free",
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(),
 		},
 		{
 			name:          "newDefaultTeamNoLicense",
@@ -1174,37 +1283,9 @@ func TestMDMConfig(t *testing.T) {
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
 		},
 		{
 			name:        "foundEdit",
@@ -1212,37 +1293,9 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				DeprecatedAppleBMDefaultTeam: "foobar",
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
 		},
 		{
 			name:          "ssoFree",
@@ -1257,37 +1310,9 @@ func TestMDMConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager:  optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{EntityID: "foo"}
+			}),
 		},
 		{
 			name:        "ssoAllFields",
@@ -1298,41 +1323,13 @@ func TestMDMConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
 					EntityID:    "fleet",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
-				}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+				}
+			}),
 		},
 		{
 			name:        "ssoShortEntityID",
@@ -1343,41 +1340,13 @@ func TestMDMConfig(t *testing.T) {
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
 					EntityID:    "f",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
-				}},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+				}
+			}),
 		},
 		{
 			name:        "ssoMissingMetadata",
@@ -1417,37 +1386,9 @@ func TestMDMConfig(t *testing.T) {
 			newMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.SetBool(false),
 			},
-			expectedMDM: fleet.MDM{
-				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup: fleet.MacOSSetup{
-					BootstrapPackage:            optjson.String{Set: true},
-					MacOSSetupAssistant:         optjson.String{Set: true},
-					EnableReleaseDeviceManually: optjson.SetBool(false),
-					EnableManagedLocalAccount:   optjson.SetBool(false),
-					EndUserLocalAccountType:     optjson.SetString("admin"),
-					LockEndUserInfo:             optjson.SetBool(false),
-					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
-					Script:                      optjson.String{Set: true},
-					ManualAgentInstall:          optjson.Bool{Set: true},
-				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
-				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
-				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				WindowsSettings: fleet.WindowsSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-				},
-				AndroidSettings: fleet.AndroidSettings{
-					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
-					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
-				},
-				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
-				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
-				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-				WindowsEntraClientIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
-			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EnableDiskEncryption = optjson.SetBool(false)
+			}),
 		},
 		{
 			name:        "try to disable disk encryption with TPM PIN enabled",
@@ -1597,6 +1538,26 @@ func TestMDMConfig(t *testing.T) {
 			},
 			expectedError: `is required to be enabled when using "none" for the end_user_local_account_type`,
 		},
+		{
+			name:        "end user auth fields strips leading and trailing whitespace",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "  fleet  ",
+						Metadata: "  not-empty\r\n",
+						IDPName:  "  onelogin  ",
+					},
+				},
+			},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+					EntityID: "fleet",
+					Metadata: "not-empty",
+					IDPName:  "onelogin",
+				}
+			}),
+		},
 	}
 
 	for _, tt := range testCases {
@@ -1729,6 +1690,268 @@ func TestModifyAppConfigWindowsEntraClientIDNormalization(t *testing.T) {
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, want, saved.MDM.WindowsEntraClientIDs.Value)
 	require.Equal(t, want, modified.MDM.WindowsEntraClientIDs.Value)
+}
+
+func TestModifyAppConfigAppleAccountProvisioning(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	const (
+		tokenURL  = "https://idp.example.com/oauth2/v1/token"   //nolint:gosec // G101: test URL, not a credential
+		tokenURL2 = "https://other.example.com/oauth2/v1/token" //nolint:gosec // G101: test URL, not a credential
+		clientID  = "client-id"
+		secret    = "super-secret" //nolint:gosec // G101: test value, not a real credential
+	)
+
+	// configuredAAP returns a stored AppConfig section as it looks once the
+	// feature is configured: public fields present, secret stripped (it lives in
+	// mdm_config_assets, never in the JSON).
+	configuredAAP := func() fleet.AppleAccountProvisioning {
+		return fleet.AppleAccountProvisioning{
+			OAuthIdPTokenURL: optjson.SetString(tokenURL),
+			OAuthIdPClientID: optjson.SetString(clientID),
+		}
+	}
+
+	type asserts struct {
+		insertedSecret *string // non-nil => InsertOrReplace expected with this value
+		deleted        bool    // DeleteMDMConfigAssetsByName expected
+		wantErr        string  // non-empty => ModifyAppConfig should fail containing this
+		wantMasked     bool    // response secret should be the masked placeholder
+		wantActivity   bool    // edited_account_provisioning activity expected
+	}
+
+	type trackers struct {
+		insertedSecret *string
+		deleted        bool
+		saved          *fleet.AppConfig
+		activityFired  bool
+	}
+
+	setup := func(t *testing.T, tier string, stored fleet.AppleAccountProvisioning) (fleet.Service, context.Context, *mock.Store, *trackers) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.Server.PrivateKey = "test-private-key-not-used-by-mock"
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: tier}}
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		tr := &trackers{}
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			MDM:            fleet.MDM{AppleAccountProvisioning: stored},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			// Snapshot at save time: the mock hands back the same pointer that
+			// ModifyAppConfig mutates (and later obfuscates) in place, unlike a
+			// real DB read which returns a fresh copy.
+			tr.saved = conf.Copy()
+			*dsAppConfig = *conf
+			return nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+
+		// A configured feature implies a stored secret; report it as `secret` so
+		// resending that value is detected as unchanged.
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			if !stored.Configured() {
+				return nil, newNotFoundError()
+			}
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetAppleAccountProvisioningIdPClientSecret: {Name: fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, Value: []byte(secret)},
+			}, nil
+		}
+		ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+			require.Equal(t, fleet.MDMAssetAppleAccountProvisioningIdPClientSecret, asset.Name)
+			v := string(asset.Value)
+			tr.insertedSecret = &v
+			return nil
+		}
+		// Configuring the feature triggers bootstrapPSSOAssets, which mints and
+		// inserts the PSSO signing key + CA. The secret assertions don't touch
+		// these, so a no-op stub is enough to keep the bootstrap from panicking.
+		ds.InsertMDMConfigAssetsFunc = func(ctx context.Context, _ []fleet.MDMConfigAsset, _ sqlx.ExtContext) error {
+			return nil
+		}
+		ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
+			require.Equal(t, []fleet.MDMAssetName{fleet.MDMAssetAppleAccountProvisioningIdPClientSecret}, names)
+			tr.deleted = true
+			return nil
+		}
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			if _, ok := act.(fleet.ActivityTypeEditedAccountProvisioning); ok {
+				tr.activityFired = true
+			}
+			return nil
+		}
+		return svc, ctx, ds, tr
+	}
+
+	cases := []struct {
+		name      string
+		tier      string
+		stored    fleet.AppleAccountProvisioning
+		body      string
+		overwrite bool // GitOps (overwrite) mode rather than a PATCH
+		want      asserts
+	}{
+		{
+			name: "configure stores secret and masks response",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name: "free tier rejected",
+			tier: fleet.TierFree,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want: asserts{wantErr: ErrMissingLicense.Error()},
+		},
+		{
+			name: "invalid token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"not-a-url","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name: "http token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"http://idp.example.com/oauth2/v1/token","oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, clientID, secret),
+			want: asserts{wantErr: "must be a valid https URL"},
+		},
+		{
+			name:   "changing token url without new secret rejected",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, fleet.MaskedPassword),
+			want:   asserts{wantErr: "must be provided when changing oauth_idp_token_url"},
+		},
+		{
+			name:   "changing token url with new secret replaces",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL2, clientID, "rotated-secret"),
+			want:   asserts{insertedSecret: new("rotated-secret"), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:   "masked secret preserved on unrelated change",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"new-client-id","oauth_idp_client_secret":%q}}}`, tokenURL, fleet.MaskedPassword),
+			want:   asserts{wantMasked: true, wantActivity: true}, // client_id changed; secret preserved (neither insert nor delete)
+		},
+		{
+			name:   "clearing config soft-deletes secret",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   `{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`,
+			want:   asserts{deleted: true, wantActivity: true},
+		},
+		{
+			name: "public fields without secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, tokenURL, clientID),
+			want: asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name: "only token url rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":"","oauth_idp_client_secret":""}}}`, tokenURL),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only client id rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":%q,"oauth_idp_client_secret":""}}}`, clientID),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name: "only secret rejected",
+			tier: fleet.TierPremium,
+			body: fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":"","oauth_idp_client_id":"","oauth_idp_client_secret":%q}}}`, secret),
+			want: asserts{wantErr: "must all be set together, or all be empty"},
+		},
+		{
+			name:      "gitops with all fields stores secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:      asserts{insertedSecret: new(secret), wantMasked: true, wantActivity: true},
+		},
+		{
+			name:      "gitops public fields without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			// GitOps is declarative: an already-stored secret does NOT satisfy the
+			// requirement; the secret must be present in the config itself.
+			name:      "gitops reapply without secret rejected",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q}}}`, tokenURL, clientID),
+			want:      asserts{wantErr: "must be set together with oauth_idp_token_url and oauth_idp_client_id"},
+		},
+		{
+			name:      "gitops omitting section clears secret",
+			tier:      fleet.TierPremium,
+			overwrite: true,
+			stored:    configuredAAP(),
+			body:      `{"mdm":{}}`,
+			want:      asserts{deleted: true, wantActivity: true},
+		},
+		{
+			// No actual change: same public fields and same secret value. The
+			// stored secret is left untouched and no activity is emitted.
+			name:   "reapply identical config emits no activity",
+			tier:   fleet.TierPremium,
+			stored: configuredAAP(),
+			body:   fmt.Sprintf(`{"mdm":{"apple_account_provisioning":{"oauth_idp_token_url":%q,"oauth_idp_client_id":%q,"oauth_idp_client_secret":%q}}}`, tokenURL, clientID, secret),
+			want:   asserts{wantMasked: true}, // no insert, no delete, no activity
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ctx, ds, tr := setup(t, tc.tier, tc.stored)
+
+			modified, err := svc.ModifyAppConfig(ctx, []byte(tc.body), fleet.ApplySpecOptions{Overwrite: tc.overwrite})
+			if tc.want.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.want.wantErr)
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+				require.False(t, ds.DeleteMDMConfigAssetsByNameFuncInvoked)
+				require.False(t, tr.activityFired)
+				return
+			}
+			require.NoError(t, err)
+
+			if tc.want.insertedSecret != nil {
+				require.NotNil(t, tr.insertedSecret)
+				require.Equal(t, *tc.want.insertedSecret, *tr.insertedSecret)
+			} else {
+				require.False(t, ds.InsertOrReplaceMDMConfigAssetFuncInvoked)
+			}
+			require.Equal(t, tc.want.deleted, tr.deleted)
+
+			// The secret must never be persisted in the AppConfig JSON.
+			require.True(t, ds.SaveAppConfigFuncInvoked)
+			require.Empty(t, tr.saved.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+
+			if tc.want.wantMasked {
+				require.Equal(t, fleet.MaskedPassword, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			} else {
+				require.Empty(t, modified.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value)
+			}
+
+			require.Equal(t, tc.want.wantActivity, tr.activityFired)
+		})
+	}
 }
 
 // TestValidateMDMEndUserAuthScope exercises the GitOps (overwrite) MDM

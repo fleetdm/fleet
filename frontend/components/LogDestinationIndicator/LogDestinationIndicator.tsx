@@ -46,6 +46,8 @@ const LogDestinationIndicator = ({
         return "Apache Kafka";
       case "nats":
         return "NATS";
+      case "splunk":
+        return "Splunk";
       case "stdout":
         return "Standard output (stdout)";
       case "webhook":
@@ -105,6 +107,12 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a report runs, the data <br /> is sent to NATS.
+          </>
+        );
+      case "splunk":
+        return (
+          <>
+            Each time a report runs, the data <br /> is sent to Splunk.
           </>
         );
       case "stdout":

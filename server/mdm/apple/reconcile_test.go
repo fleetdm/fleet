@@ -348,10 +348,11 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 	declsWithBrokenLabel := map[string]struct{}{}
 
 	t.Run("desired but not present -> install diff", func(t *testing.T) {
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, nil, declsByTeam, declsWithBrokenLabel,
 		)
-		require.ElementsMatch(t, []string{"uuid-A"}, changed)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
 		require.Equal(t, "aDeclGlobal", rows[0].DeclarationUUID)
@@ -367,10 +368,11 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 				Status:          new(fleet.MDMDeliveryPending),
 			}},
 		}
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
-		require.Empty(t, changed)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
 		require.Empty(t, rows)
 	})
 
@@ -384,12 +386,205 @@ func TestComputeDeclarationDeltas(t *testing.T) {
 				Status:          new(fleet.MDMDeliveryVerified),
 			}},
 		}
-		changed, rows := ComputeDeclarationDeltas(
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
 			[]*fleet.AppleHostReconcileInfo{hostA}, nil, current, declsByTeam, declsWithBrokenLabel,
 		)
-		require.ElementsMatch(t, []string{"uuid-A"}, changed)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Empty(t, changedUser)
 		require.Len(t, rows, 1)
 		require.Equal(t, "tok1", rows[0].Token)
+	})
+}
+
+func TestComputeDeclarationDeltasScope(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	deviceDecl := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeviceDecl", DeclarationIdentifier: "com.example.device", DeclarationName: "Device",
+		TeamID: 0, Token: []byte("tokD"), Scope: fleet.PayloadScopeSystem, IncludeMode: fleet.AppleProfileIncludeNone,
+	}
+	userDecl := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aUserDecl", DeclarationIdentifier: "com.example.user", DeclarationName: "User",
+		TeamID: 0, Token: []byte("tokU"), Scope: fleet.PayloadScopeUser, IncludeMode: fleet.AppleProfileIncludeNone,
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	scopeByUUID := func(rows []*fleet.MDMAppleHostDeclaration) map[string]fleet.PayloadScope {
+		m := make(map[string]fleet.PayloadScope, len(rows))
+		for _, r := range rows {
+			m[r.DeclarationUUID] = r.Scope
+		}
+		return m
+	}
+
+	t.Run("user-scoped install pokes only the user channel", func(t *testing.T) {
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {userDecl}}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Equal(t, fleet.PayloadScopeUser, scopeByUUID(rows)["aUserDecl"])
+	})
+
+	t.Run("device- and user-scoped changes poke both channels", func(t *testing.T) {
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {deviceDecl, userDecl}}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		byUUID := scopeByUUID(rows)
+		require.Equal(t, fleet.PayloadScopeSystem, byUUID["aDeviceDecl"])
+		require.Equal(t, fleet.PayloadScopeUser, byUUID["aUserDecl"])
+	})
+
+	t.Run("scope flip pokes both the old and new channel", func(t *testing.T) {
+		// The declaration is currently installed as System on the host but is now
+		// desired as User: the new (user) channel installs it and the old (device)
+		// channel must drop it, so both channels are poked.
+		flipped := &fleet.AppleDeclarationForReconcile{
+			DeclarationUUID: "aFlip", DeclarationIdentifier: "com.example.flip", DeclarationName: "Flip",
+			TeamID: 0, Token: []byte("tokF"), Scope: fleet.PayloadScopeUser, IncludeMode: fleet.AppleProfileIncludeNone,
+		}
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {flipped}}
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID: "uuid-A", DeclarationUUID: "aFlip", Token: "tokF",
+				OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+				Scope: fleet.PayloadScopeSystem,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.PayloadScopeUser, rows[0].Scope)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+	})
+
+	t.Run("user-scoped removal pokes the user channel", func(t *testing.T) {
+		// No longer desired; currently installed on the user channel.
+		declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {}}
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID: "uuid-A", DeclarationUUID: "aUserDecl", Token: "tokU",
+				OperationType: fleet.MDMOperationTypeInstall, Status: new(fleet.MDMDeliveryVerified),
+				Scope: fleet.PayloadScopeUser,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedUser)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeRemove, rows[0].OperationType)
+		require.Equal(t, fleet.PayloadScopeUser, rows[0].Scope)
+	})
+}
+
+func TestComputeDeclarationDeltasAssets(t *testing.T) {
+	host := &fleet.AppleHostReconcileInfo{
+		HostID: 1, UUID: "uuid-A", TeamID: nil, Platform: "darwin",
+		LabelUpdatedAt: time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	}
+	declsWithBrokenLabel := map[string]struct{}{}
+
+	assetsUpdatedAt := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	newerAssetsUpdatedAt := assetsUpdatedAt.Add(time.Hour)
+
+	// Declaration references an asset; content/token unchanged from what the host
+	// already has, but the referenced asset's latest uploaded_at is carried in
+	// AssetsUpdatedAt.
+	declWithAsset := &fleet.AppleDeclarationForReconcile{
+		DeclarationUUID: "aDeclAsset", DeclarationIdentifier: "com.example.asset", DeclarationName: "AssetDecl",
+		TeamID: 0, Token: []byte("tokA"), IncludeMode: fleet.AppleProfileIncludeNone,
+		AssetsUpdatedAt: &assetsUpdatedAt,
+	}
+	declsByTeam := map[uint][]*fleet.AppleDeclarationForReconcile{0: {declWithAsset}}
+
+	t.Run("first install stamps assets_updated_at", func(t *testing.T) {
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, nil, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, assetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+
+	t.Run("asset unchanged since last delivery -> no diff", func(t *testing.T) {
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: &assetsUpdatedAt,
+			}},
+		}
+		changedDevice, changedUser, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.Empty(t, changedDevice)
+		require.Empty(t, changedUser)
+		require.Empty(t, rows)
+	})
+
+	t.Run("asset updated (newer uploaded_at) pokes even though token is unchanged", func(t *testing.T) {
+		// Host already has the declaration verified with the OLD assets_updated_at
+		// and the SAME static token. Only the referenced asset changed.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: &assetsUpdatedAt,
+			}},
+		}
+		declNewerAsset := *declWithAsset
+		declNewerAsset.AssetsUpdatedAt = &newerAssetsUpdatedAt
+		declsByTeamNewer := map[uint][]*fleet.AppleDeclarationForReconcile{0: {&declNewerAsset}}
+
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeamNewer, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.Equal(t, fleet.MDMOperationTypeInstall, rows[0].OperationType)
+		require.Equal(t, "tokA", rows[0].Token)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, newerAssetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
+	})
+
+	t.Run("host missing assets_updated_at but declaration references an asset -> poke", func(t *testing.T) {
+		// Simulates a declaration that gained an asset reference: the host row has
+		// no assets_updated_at yet, so it must be re-delivered.
+		current := map[string][]*fleet.MDMAppleHostDeclaration{
+			"uuid-A": {{
+				HostUUID:        "uuid-A",
+				DeclarationUUID: "aDeclAsset",
+				Token:           "tokA",
+				OperationType:   fleet.MDMOperationTypeInstall,
+				Status:          new(fleet.MDMDeliveryVerified),
+				AssetsUpdatedAt: nil,
+			}},
+		}
+		changedDevice, _, rows := ComputeDeclarationDeltas(
+			[]*fleet.AppleHostReconcileInfo{host}, nil, current, declsByTeam, declsWithBrokenLabel,
+		)
+		require.ElementsMatch(t, []string{"uuid-A"}, changedDevice)
+		require.Len(t, rows, 1)
+		require.NotNil(t, rows[0].AssetsUpdatedAt)
+		require.True(t, assetsUpdatedAt.Equal(*rows[0].AssetsUpdatedAt))
 	})
 }
 
@@ -1120,6 +1315,89 @@ func TestMDMAppleExecuteReconcileBatch(t *testing.T) {
 		// Check that individual updates were not done (bulk update should be done)
 		checkAndReset(t, false, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	})
+}
+
+func TestMDMAppleExecuteReconcileBatchDedupesEnrollmentIDs(t *testing.T) {
+	// Backstop: even if ComputeReconcileDeltas hands ExecuteReconcileBatch two
+	// payloads for the same profile+host UUID (as duplicate host rows sharing a
+	// UUID produce), the enrollment ID must reach the enqueue exactly once — a
+	// repeated ID collides on the nano_enrollment_queue (id, command_uuid) PK.
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	ds := new(mock.Store)
+	kv := new(mock.AdvancedKVStore)
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	const hostUUID = "DUP-UUID"
+	profUUID := "a" + uuid.NewString()
+	toInstall := []*fleet.MDMAppleProfilePayload{
+		{ProfileUUID: profUUID, ProfileIdentifier: "com.dup.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+		{ProfileUUID: profUUID, ProfileIdentifier: "com.dup.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+	}
+
+	kv.MGetFunc = func(ctx context.Context, keys []string) (map[string]*string, error) {
+		return map[string]*string{}, nil
+	}
+	ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, profileUUIDs []string) (map[string]mobileconfig.Mobileconfig, error) {
+		return map[string]mobileconfig.Mobileconfig{profUUID: []byte("dup-content")}, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		return nil
+	}
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		return nil
+	}
+
+	var mu sync.Mutex
+	var enqueuedIDs [][]string
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		mu.Lock()
+		enqueuedIDs = append(enqueuedIDs, append([]string(nil), id...))
+		mu.Unlock()
+		return nil, nil
+	}
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push, len(tokens))
+		for _, tok := range tokens {
+			res[tok] = &mdm.Push{Token: []byte(tok)}
+		}
+		return res, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+	mdmStorage.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		certPEM, err := os.ReadFile("../../service/testdata/server.pem")
+		require.NoError(t, err)
+		keyPEM, err := os.ReadFile("../../service/testdata/server.key")
+		require.NoError(t, err)
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert: {Value: certPEM},
+			fleet.MDMAssetCAKey:  {Value: keyPEM},
+		}, nil
+	}
+
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+
+	succeeded, err := ExecuteReconcileBatch(ctx, ds, cmdr, kv, slog.New(slog.DiscardHandler), appCfg, 0, toInstall, nil)
+	require.NoError(t, err)
+	require.Len(t, succeeded, 1)
+
+	require.Len(t, enqueuedIDs, 1)
+	require.Equal(t, []string{hostUUID}, enqueuedIDs[0])
 }
 
 func TestMDMAppleExecuteReconcileBatchCAThrottle(t *testing.T) {

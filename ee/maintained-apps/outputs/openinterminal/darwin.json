@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.3.8",
+      "version": "2.3.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'wang.jianing.app.OpenInTerminal';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'wang.jianing.app.OpenInTerminal' AND version_compare(bundle_short_version, '2.3.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'wang.jianing.app.OpenInTerminal' AND version_compare(bundle_short_version, '2.3.9') < 0);"
       },
-      "installer_url": "https://github.com/Ji4n1ng/OpenInTerminal/releases/download/v2.3.8/OpenInTerminal.zip",
+      "installer_url": "https://github.com/Ji4n1ng/OpenInTerminal/releases/download/v2.3.9/OpenInTerminal.zip",
       "install_script_ref": "2efa544e",
       "uninstall_script_ref": "61b109e1",
-      "sha256": "da9eeb6cdd5db3de963e6f6a49d9d3cbff11f72cd3d56eeb6a657c88fae0aa6f",
+      "sha256": "14df8720783492fb430237e221604ac332f1025b1d51019e230b796daa387765",
       "default_categories": [
         "Productivity"
       ]

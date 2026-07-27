@@ -72,6 +72,9 @@ type windowsProfileValidator struct {
 	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
 	locURIHasContent bool
 
+	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected.
+	allowCustomDiskEncryption bool
+
 	// The decoder which is used for reading the XML tokens.
 	decoder *xml.Decoder
 }
@@ -98,7 +101,7 @@ var validTopLevelElements = map[string]struct{}{
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption bool) error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
 	}
@@ -107,7 +110,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	validator := newWindowsProfileValidator(m.SyncML)
+	validator := newWindowsProfileValidator(m.SyncML, allowCustomDiskEncryption)
 	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
 	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
 	// acceptable.
@@ -115,15 +118,16 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	return validator.validate()
 }
 
-func newWindowsProfileValidator(syncML []byte) *windowsProfileValidator {
+func newWindowsProfileValidator(syncML []byte, allowCustomDiskEncryption bool) *windowsProfileValidator {
 	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
 	return &windowsProfileValidator{
-		scepValidator: newWindowsSCEPProfileValidator(),
-		decoder:       dec,
+		scepValidator:             newWindowsSCEPProfileValidator(),
+		decoder:                   dec,
+		allowCustomDiskEncryption: allowCustomDiskEncryption,
 	}
 }
 
@@ -240,7 +244,7 @@ func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
 
 	// Surface Fleet-reserved URI errors (BitLocker, Windows updates) before the generic format check so users get the more
 	// specific message.
-	if err := validateFleetProvidedLocURI(locURI); err != nil {
+	if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
 		return err
 	}
 
@@ -299,11 +303,13 @@ var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
 }
 
-func validateFleetProvidedLocURI(locURI string) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
+func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) error {
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
-		if strings.Contains(sanitizedLocURI, fleetLocURI) {
+		if LocURITargetsReservedNode(locURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				if allowCustomDiskEncryption {
+					continue
+				}
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
 			if len(errHints) == 2 {
@@ -399,9 +405,9 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 }
 
 func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
-	trimmed := strings.TrimSpace(locURI)
+	normalized := canonicalizeSCEPScope(locURI)
 	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
-	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+	return strings.ReplaceAll(normalized, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
 }
 
 func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
@@ -501,6 +507,22 @@ func IsWindowsSCEPLocURI(locURI string) bool {
 		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
 }
 
+// canonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
+// (which key off the "./Device/"/"./User/" prefix) can't be bypassed by a scope-less spelling. Non-SCEP LocURIs are returned unchanged.
+func canonicalizeSCEPScope(locURI string) string {
+	// CanonicalLocURI strips the device scope to the bare "Vendor/MSFT/..." form and preserves explicit user scope as
+	// "User/Vendor/MSFT/...".
+	canon := CanonicalLocURI(locURI)
+	switch {
+	case strings.HasPrefix(canon, scepInstallLocURINode+"/"):
+		return "./Device/" + canon
+	case strings.HasPrefix(canon, "User/"+scepInstallLocURINode+"/"):
+		return "./" + canon
+	default:
+		return locURI
+	}
+}
+
 func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 	if !v.isSCEPProfile() {
 		// Cheeky validation here, to only allow Exec elements in SCEP profiles.
@@ -556,6 +578,22 @@ type MDMWindowsProfilePayload struct {
 	Retries          int                `db:"retries"`
 	Checksum         []byte             `db:"checksum"`
 	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
+	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
+	// install is triggered because the profile content changed (a modify, not a fresh install).
+	PreviousInstalledChecksum []byte `db:"-"`
+}
+
+// MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
+type MDMWindowsProfileVersionKey struct {
+	ProfileUUID string
+	Checksum    []byte
+}
+
+// MDMWindowsProfilePriorContent is the retained syncml of a prior version of a Windows config profile (the version a host still has).
+type MDMWindowsProfilePriorContent struct {
+	ProfileUUID string `db:"profile_uuid"`
+	Checksum    []byte `db:"checksum"`
+	SyncML      []byte `db:"syncml"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {

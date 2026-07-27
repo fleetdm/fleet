@@ -3,8 +3,8 @@
   flex-direction: column;
   gap: $pad-small;
 
-  .data-set dd {
-    white-space: initial;
+  dt {
+    white-space: nowrap;
   }
 
   &__versions {
@@ -20,7 +20,20 @@
   }
   &__row {
     display: flex;
+    flex-wrap: wrap;
     gap: $pad-xxlarge;
+  }
+
+  // Fill the row so TruncatedTextList has a bounded width to measure against.
+  &__vulnerabilities {
+    flex: 1;
+    min-width: 0;
+
+    // dd is display:flex, so TruncatedTextList's outer div would size to its
+    // content by default and truncate too early. Stretch it to fill.
+    .truncated-text-list {
+      min-width: 100%;
+    }
   }
 
   &__sig-info {

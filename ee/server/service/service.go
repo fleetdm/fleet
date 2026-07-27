@@ -18,6 +18,15 @@ import (
 type Service struct {
 	fleet.Service
 
+	// pssoState is the lazily-initialized cache of the PSSO signing key.
+	// Constructed on first use of a PSSO method.
+	pssoState pssoServiceState
+
+	// pssoNonceStore backs the single-use nonces issued and consumed by the
+	// PSSO nonce/token flows. Redis-backed in production; may be nil in
+	// deployments/tests that never exercise PSSO.
+	pssoNonceStore fleet.PSSONonceStore
+
 	ds                     fleet.Datastore
 	logger                 *slog.Logger
 	config                 config.FleetConfig
@@ -59,6 +68,7 @@ func NewService(
 	digiCertService fleet.DigiCertService,
 	androidService android.Service,
 	estService fleet.ESTService,
+	pssoNonceStore fleet.PSSONonceStore,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,6 +96,7 @@ func NewService(
 		digiCertService:        digiCertService,
 		androidModule:          androidService,
 		estService:             estService,
+		pssoNonceStore:         pssoNonceStore,
 	}
 
 	// Override methods that can't be easily overriden via
@@ -94,6 +105,8 @@ func NewService(
 		HostFeatures:                      eeservice.HostFeatures,
 		TeamByIDOrName:                    eeservice.teamByIDOrName,
 		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
+		UpdateTeamMDMHostNameTemplate:     eeservice.updateTeamMDMHostNameTemplate,
+		ApplyHostNameTemplateChange:       eeservice.applyHostNameTemplateChange,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,

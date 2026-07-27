@@ -32,3 +32,9 @@ services:
     environment: *default-environment
     cap_add: *default-caps
     restart: unless-stopped
+  cachyos-fleetd:
+    image: "fleetd-cachyos"
+    platform: *default-platform
+    environment: *default-environment
+    cap_add: *default-caps
+    restart: unless-stopped

@@ -3,8 +3,8 @@
     {
       "version": "8.0.492.9",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE with Hotspot 8%' AND publisher = 'Eclipse Adoptium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE with Hotspot 8%' AND publisher = 'Eclipse Adoptium' AND version_compare(version, '8.0.492.9') < 0);"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '8.%';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Eclipse Temurin JRE%' AND publisher = 'Eclipse Adoptium' AND version LIKE '8.%' AND version_compare(version, '8.0.492.9') < 0);"
       },
       "installer_url": "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u492-b09/OpenJDK8U-jre_x64_windows_hotspot_8u492b09.msi",
       "install_script_ref": "8959087b",

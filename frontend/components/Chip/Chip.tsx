@@ -60,6 +60,7 @@ const Chip = ({
       position="top"
       underline={false}
       showArrow
+      tipOffset={8}
     >
       {chip}
     </TooltipWrapper>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -16,6 +16,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import DropdownOptionTooltipWrapper from "components/forms/fields/Dropdown/DropdownOptionTooltipWrapper";
+import TableLayoutContext from "components/TableContainer/TableLayoutContext";
 
 const baseClass = "actions-dropdown";
 
@@ -28,12 +29,18 @@ interface IActionsDropdownProps {
   className?: string;
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
-  variant?: "button" | "brand-button" | "small-button";
+  /** Mirrors Fleet's Primary/Secondary/Subdued button styles — see #35329.
+   *  Default: "subdued" */
+  variant?: "primary" | "secondary" | "subdued";
   buttonLabel?: string;
 }
 
 const getOptionBackgroundColor = (state: { isFocused: boolean }) => {
   return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
+};
+
+const getControlBackgroundColor = (variant: string | undefined) => {
+  return variant === "secondary" ? COLORS["ui-off-white"] : "initial";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -62,13 +69,15 @@ const CustomDropdownIndicator = (
   props: DropdownIndicatorProps<IDropdownOption, false>
 ) => {
   const { isFocused, selectProps } = props;
-  const variant = (selectProps as { variant?: "button" }).variant;
+  const variant = (selectProps as {
+    variant?: "primary" | "secondary" | "subdued";
+  }).variant;
 
   const color =
     isFocused ||
     selectProps.menuIsOpen ||
-    variant === "button" ||
-    variant === "small-button"
+    variant === "subdued" ||
+    variant === "secondary"
       ? "ui-fleet-black-75"
       : "core-fleet-black";
 
@@ -77,6 +86,7 @@ const CustomDropdownIndicator = (
       <Icon
         name="chevron-down"
         color={color}
+        size={variant === "secondary" ? "small" : undefined}
         className={`${baseClass}__icon`}
       />
     </components.DropdownIndicator>
@@ -89,6 +99,7 @@ const CustomOption: React.FC<OptionProps<IDropdownOption, false>> = (props) => {
   const optionContent = (
     <div
       className={`${baseClass}__option`}
+      data-testid="dropdown-option"
       ref={innerRef}
       tabIndex={isDisabled ? -1 : 0} // Tabbing skipped when disabled
       aria-disabled={isDisabled}
@@ -122,27 +133,67 @@ const ActionsDropdown = ({
   className,
   menuAlign = "default",
   menuPlacement = "bottom",
-  variant,
+  variant = "subdued",
   buttonLabel,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
-  // Used for brand Action button
+  // Portal the menu only when rendered inside a TableContainer's data-table
+  // block, where .data-table__wrapper's overflow-x: auto would otherwise clip
+  // the menu vertically. The primary variant nulls out react-select's
+  // Control, and MenuPortal bails when controlElement is missing — so don't
+  // use primary inside a table cell.
+  const { insideTable } = useContext(TableLayoutContext);
+
+  // Used for the primary Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
   const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // react-select's hidden input always matches :focus-visible, even on a
+  // mouse click (browsers treat text inputs specially), so CSS alone can't
+  // tell a Tab-focus apart from a click. Track the last input method
+  // ourselves — same approach as UserMenu.tsx — so the focus ring only
+  // shows up for keyboard tabbing.
+  const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Tab") {
+        setIsKeyboardFocus(true);
+      }
+    };
+
+    const handleMouseDown = () => {
+      setIsKeyboardFocus(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, []);
+
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // If click was outside wrapper, close menu
+      if (!menuIsOpen || !wrapperRef.current) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      // Trigger button (wrapper) or portaled menu both count as "inside" —
+      // since menuPortalTarget renders the menu in document.body, a contains()
+      // check on wrapperRef alone would treat option clicks as outside.
+      if (wrapperRef.current.contains(target)) return;
       if (
-        menuIsOpen &&
-        wrapperRef.current &&
-        !wrapperRef.current.contains(event.target as Node)
+        target instanceof Element &&
+        target.closest(`.${baseClass}-select__menu-portal`)
       ) {
-        setMenuIsOpen(false);
+        return;
       }
+      setMenuIsOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -150,11 +201,11 @@ const ActionsDropdown = ({
     };
   }, [menuIsOpen]);
 
-  const isBrandButton = variant === "brand-button";
+  const isPrimary = variant === "primary";
 
   // CustomControl rerenders on state change, preventing arrow animation
-  // Render brand button outside of CustomControl instead
-  const renderBrandButton = () => (
+  // Render primary button outside of CustomControl instead
+  const renderPrimaryButton = () => (
     <Button
       type="button"
       onClick={() => setMenuIsOpen((v) => !v)}
@@ -188,10 +239,14 @@ const ActionsDropdown = ({
       flexDirection: "row",
       width: "max-content",
       // Need minHeight to override default
-      minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
-      padding: variant === "small-button" ? "4px" : "8px", // Match button padding
-      backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
-      border: 0,
+      minHeight: variant === "secondary" ? "28px" : "32px", // Match button height
+      padding: variant === "secondary" ? "4px 8px" : "8px", // Match button padding
+      backgroundColor: getControlBackgroundColor(variant),
+      border:
+        variant === "secondary"
+          ? `1px solid ${COLORS["ui-fleet-black-25"]}` // Match secondary button border — see #35329
+          : 0,
+      boxSizing: "border-box",
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
@@ -205,33 +260,37 @@ const ActionsDropdown = ({
         },
       },
       "&:active": {
-        background: COLORS["ui-fleet-black-5"], // Match button hover
+        background:
+          variant === "secondary"
+            ? COLORS["ui-fleet-black-10"] // Match secondary button active — see #35329
+            : COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator path": {
           stroke: COLORS["ui-fleet-black-75-down"],
         },
       },
-      // TODO: Figure out a way to apply separate &:focus-visible styling
-      // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         background: COLORS["ui-fleet-black-5"], // Match button hover
-        ".actions-dropdown-select__indicators": {
-          height: "20px",
-        },
         ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
         },
       }),
+      // Same ring Button's :focus-visible draws — only for keyboard tabbing,
+      // never a mouse click (see isKeyboardFocus above).
+      ...(state.isFocused &&
+        isKeyboardFocus && {
+          boxShadow: `0 0 0 1px ${COLORS["core-fleet-black"]}`,
+        }),
     }),
     placeholder: (provided, state) => ({
       ...provided,
       color:
-        state.isFocused || variant === "button" || variant === "small-button"
+        state.isFocused || variant === "subdued" || variant === "secondary"
           ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
       fontSize: "14px",
       fontWeight:
-        variant === "button" || variant === "small-button" ? "600" : undefined,
+        variant === "subdued" || variant === "secondary" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
@@ -255,17 +314,24 @@ const ActionsDropdown = ({
     menu: (provided) => ({
       ...provided,
       backgroundColor: COLORS["core-fleet-white"],
-      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--dropdown-menu-outline, transparent)`,
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
-      marginTop: isBrandButton ? "20px" : "0",
+      marginTop: isPrimary ? "20px" : "0",
       width: "auto",
       minWidth: "100%",
       position: "absolute",
       left: getLeftMenuAlign(menuAlign),
       right: getRightMenuAlign(menuAlign),
       animation: "fade-in 150ms ease-out",
+    }),
+    // zIndex 999 (document-portal tier) so the portaled menu clears
+    // .site-nav-container and Modal — ActionsDropdown can render inside a
+    // TableContainer that lives inside a modal (e.g. ScriptDetailsModal).
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 999,
     }),
     menuList: (provided) => ({
       ...provided,
@@ -302,25 +368,25 @@ const ActionsDropdown = ({
 
   return (
     <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
-      {isBrandButton && renderBrandButton()}
+      {isPrimary && renderPrimaryButton()}
       <Select<IDropdownOption, false>
         ref={selectRef}
         options={options}
-        placeholder={isBrandButton ? "" : placeholder}
+        placeholder={isPrimary ? "" : placeholder}
         onChange={handleChange}
         isDisabled={disabled}
         isSearchable={isSearchable}
         styles={customStyles}
         menuIsOpen={menuIsOpen}
-        onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for brand-action button
-        onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for brand-action-button
+        onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for the primary Action button
+        onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for the primary Action button
         components={{
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
-          ...(isBrandButton && { Control: () => null }), // Remove Control entirely and renderBrandButton instead
+          ...(isPrimary && { Control: () => null }), // Remove Control entirely and renderPrimaryButton instead
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
@@ -329,7 +395,8 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
-        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
+        menuPortalTarget={insideTable ? document.body : undefined}
+        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "subdued"
       />
     </div>
   );

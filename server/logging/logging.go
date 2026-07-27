@@ -88,6 +88,15 @@ type NatsConfig struct {
 	Timeout time.Duration
 }
 
+type SplunkConfig struct {
+	URL                string
+	Token              string
+	Index              string
+	Source             string
+	SourceType         string
+	InsecureSkipVerify bool
+}
+
 type Config struct {
 	Plugin string
 
@@ -99,6 +108,7 @@ type Config struct {
 	PubSub     PubSubConfig
 	KafkaREST  KafkaRESTConfig
 	Nats       NatsConfig
+	Splunk     SplunkConfig
 }
 
 func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog.Logger) (fleet.JSONLogger, error) {
@@ -218,6 +228,26 @@ func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create nats %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "splunk":
+		if config.Splunk.URL == "" {
+			return nil, fmt.Errorf("splunk %s logger: URL must not be empty", name)
+		}
+		if config.Splunk.Token == "" {
+			return nil, fmt.Errorf("splunk %s logger: HEC token must not be empty", name)
+		}
+		writer, err := NewSplunkLogWriter(
+			config.Splunk.URL,
+			config.Splunk.Token,
+			config.Splunk.Index,
+			config.Splunk.Source,
+			config.Splunk.SourceType,
+			config.Splunk.InsecureSkipVerify,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create splunk %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	default:

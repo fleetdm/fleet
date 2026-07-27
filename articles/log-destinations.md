@@ -36,7 +36,30 @@ Snowflake provides instructions on setting up the destination tables and IAM rol
 
 ## Splunk
 
-How to send logs to Splunk:
+Logs are sent directly to [Splunk](https://www.splunk.com/) via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
+
+- Plugin name: `splunk`
+- Flag namespace: [splunk](https://fleetdm.com/docs/deploying/configuration#splunk)
+
+Events are batched up to 1MB before sending. Events over 1MB are dropped, with a notification sent to the Fleet server logs. Fleet retries on transient errors (HTTP 503) with exponential backoff.
+
+To use this destination, enable HEC on your Splunk instance and create an HEC token. Then configure Fleet with the HEC URL and token:
+
+```yaml
+osquery:
+  status_log_plugin: splunk
+  result_log_plugin: splunk
+splunk:
+  url: https://splunk.example.com:8088
+  token: your-hec-token
+  index: main
+  source: fleet
+  source_type: fleet:json
+```
+
+### Splunk via Firehose (alternative)
+
+You can also send logs to Splunk indirectly through Amazon Kinesis Data Firehose:
 
 1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare Splunk for Firehose data.
 

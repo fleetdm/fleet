@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "8.0.0.3",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'digiSeal reader' AND publisher = 'secrypt GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'digiSeal reader' AND publisher = 'secrypt GmbH' AND version_compare(version, '8.0.0.3') < 0);"
+      },
+      "installer_url": "https://www.secrypt.de/downloads/setup_digiSeal_reader.exe",
+      "install_script_ref": "76c7506c",
+      "uninstall_script_ref": "f380dd29",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "76c7506c": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# digiSeal reader is a secrypt self-extracting installer; -silent runs it\n# unattended and installs machine-wide (ARP written to HKLM).\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"-silent\"\n  PassThru = $true\n  Wait = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "f380dd29": "# Uninstalls digiSeal reader.\n#\n# The setup registers an HKLM ARP entry (DisplayName \"digiSeal reader\") whose\n# UninstallString points at the shipped \"uninstall digiSeal reader.exe\". That\n# uninstaller supports a -silent switch for unattended removal.\n\n$softwareName = \"digiSeal reader\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -eq $softwareName) {\n        $raw = $key.QuietUninstallString\n        if (-not $raw) { $raw = $key.UninstallString }\n        if (-not $raw) { continue }\n\n        # Parse into executable + args, handling quoted/unquoted/bare shapes.\n        if ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n            $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n        } else {\n            $exe = $raw; $exeArgs = \"\"\n        }\n\n        if ($exeArgs -notmatch '(?i)-silent') { $exeArgs = \"$exeArgs -silent\".Trim() }\n\n        Write-Host \"Uninstall command: $exe\"\n        Write-Host \"Uninstall args: $exeArgs\"\n        $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait\n        $exitCode = $process.ExitCode\n        break\n    }\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($null -eq $exitCode) {\n    Write-Host \"Uninstall entry not found for '$softwareName'.\"\n    Exit 1\n}\n\nWrite-Host \"Uninstall exit code: $exitCode\"\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

@@ -3,8 +3,11 @@ import { AxiosResponse } from "axios";
 
 import { IApiError } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import { LabelTargetMode, TargetType } from "components/TargetLabelSelector";
+import { listNamesFromSelectedLabels } from "services/entities/labels";
 
 import CustomLink from "components/CustomLink";
+import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
 
 export interface IParseFileResult {
   name: string;
@@ -38,21 +41,64 @@ export const parseFile = async (file: File): Promise<IParseFileResult> => {
   }
 };
 
+interface IGenerateCustomTargetLabelKeyArgs {
+  targetType: TargetType;
+  includeMode: LabelTargetMode;
+  includeLabels: Record<string, boolean>;
+  excludeLabels: Record<string, boolean>;
+}
+
+export const generateCustomTargetLabelKey = ({
+  targetType,
+  includeMode,
+  includeLabels,
+  excludeLabels,
+}: IGenerateCustomTargetLabelKeyArgs) => {
+  if (targetType !== "Custom") {
+    return {};
+  }
+
+  const result: Record<string, string[]> = {};
+  const includeNames = listNamesFromSelectedLabels(includeLabels);
+  const excludeNames = listNamesFromSelectedLabels(excludeLabels);
+  if (includeNames.length) {
+    result[
+      includeMode === "all" ? "labelsIncludeAll" : "labelsIncludeAny"
+    ] = includeNames;
+  }
+  if (excludeNames.length) {
+    result.labelsExcludeAny = excludeNames;
+  }
+  return result;
+};
+
 export const DEFAULT_ERROR_MESSAGE =
   "Couldn't add configuration profile. Please try again.";
+export const DEFAULT_EDIT_ERROR_MESSAGE =
+  "Couldn't edit configuration profile. Please try again.";
 
-const generateUnsupportedVariableErrMsg = (errMsg: string) => {
+export type ProfileErrorAction = "add" | "edit";
+
+const generateUnsupportedVariableErrMsg = (
+  errMsg: string,
+  couldnt: string,
+  defaultMessage: string
+) => {
   const regex = /\$[A-Z0-9_]+/;
   const varName = errMsg.match(regex);
   return varName
-    ? `Couldn't add. Variable "${varName[0]}" doesn't exist.`
-    : DEFAULT_ERROR_MESSAGE;
+    ? `${couldnt} Variable "${varName[0]}" doesn't exist.`
+    : defaultMessage;
 };
 
-const generateSCEPLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
+const generateSCEPLearnMoreErrMsg = (
+  errMsg: string,
+  learnMoreUrl: string,
+  couldnt: string
+) => {
   return (
     <>
-      Couldn&apos;t add. {errMsg}{" "}
+      {couldnt} {errMsg}{" "}
       <CustomLink
         url={learnMoreUrl}
         text="Learn more"
@@ -63,54 +109,36 @@ const generateSCEPLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
   );
 };
 
-/**
- * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
- */
-const generateGenericLearnMoreErrMsg = (errMsg: string) => {
-  if (errMsg.includes(" Learn more: https://")) {
-    const message = errMsg.substring(
-      0,
-      errMsg.indexOf(" Learn more: https://")
-    );
-    const link = errMsg.substring(errMsg.indexOf("https://"));
-    return (
-      <>
-        {message}{" "}
-        <CustomLink
-          url={link}
-          text="Learn more"
-          variant="flash-message-link"
-          newTab
-        />
-      </>
-    );
-  }
-  return errMsg;
-};
-
-/** We want to add some additional messageing to some of the error messages so
+/** We want to add some additional messaging to some of the error messages so
  * we add them in this function. Otherwise, we'll just return the error message from the
- * API.
+ * API. Pass `action: "edit"` when the error came from editing an existing
+ * profile so the added messaging reads "Couldn't edit." instead of
+ * "Couldn't add.".
  */
-// eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
-  const apiReason = err?.data?.errors?.[0]?.reason;
+export const getErrorMessage = (
+  err: AxiosResponse<IApiError>,
+  action: ProfileErrorAction = "add"
+) => {
+  const apiReason = err?.data?.errors?.[0]?.reason ?? "";
+  const couldnt = action === "edit" ? "Couldn't edit." : "Couldn't add.";
+  const defaultMessage =
+    action === "edit" ? DEFAULT_EDIT_ERROR_MESSAGE : DEFAULT_ERROR_MESSAGE;
 
   if (apiReason.includes("should include valid JSON")) {
-    return "Couldn't add. The profile should include valid JSON.";
+    return `${couldnt} The profile should include valid JSON.`;
   }
 
   if (apiReason.includes("JSON is empty")) {
-    return "Couldn't add. The JSON file doesn't include any fields.";
+    return `${couldnt} The JSON file doesn't include any fields.`;
   }
 
   if (apiReason.includes("Keys in declaration (DDM) profile")) {
     return (
       <div className="upload-profile-invalid-keys-error">
         <span>
-          Couldn&apos;t add. Keys in declaration (DDM) profile must contain only
-          letters and start with a uppercase letter. Keys in Android profile
-          must contain only letters and start with a lowercase letter.{" "}
+          {couldnt} Keys in declaration (DDM) profile must contain only letters
+          and start with an uppercase letter. Keys in Android profile must
+          contain only letters and start with a lowercase letter.{" "}
         </span>
         <CustomLink
           text="Learn more"
@@ -126,7 +154,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     apiReason.includes("apple declaration missing Type") ||
     apiReason.includes("apple declaration missing Payload")
   ) {
-    return 'Couldn\'t add. Declaration (DDM) profile must include "Type" and "Payload" fields.';
+    return `${couldnt} Declaration (DDM) profile must include "Type" and "Payload" fields.`;
   }
 
   if (
@@ -137,7 +165,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     return (
       <>
         <span>
-          Couldn&apos;t add. Android configuration profile can&apos;t include
+          {couldnt} Android configuration profile can&apos;t include
           {'"statusReportingSettings"'} setting. To see host vitals, go to{" "}
           <b>Host details</b>.
         </span>
@@ -152,9 +180,8 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return (
       <span>
-        Couldn&apos;t add. The configuration profile can&apos;t include
-        BitLocker settings. To control these settings, go to{" "}
-        <b>Disk encryption</b>.
+        {couldnt} The configuration profile can&apos;t include BitLocker
+        settings. To control these settings, go to <b>Disk encryption</b>.
       </span>
     );
   }
@@ -166,9 +193,8 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return (
       <span>
-        Couldn&apos;t add. The configuration profile can&apos;t include
-        FileVault settings. To control these settings, go to{" "}
-        <b>Disk encryption</b>.
+        {couldnt} The configuration profile can&apos;t include FileVault
+        settings. To control these settings, go to <b>Disk encryption</b>.
       </span>
     );
   }
@@ -185,6 +211,40 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     );
   }
 
+  // profile mismatch errors only occur on the edit flow (checked before the
+  // plain "Identifier" match because it is a substring of "PayloadIdentifier")
+  if (
+    apiReason.includes(
+      "The new profile's PayloadIdentifier must match the existing profile's."
+    )
+  ) {
+    return "Couldn't edit. The uploaded profile must have the same PayloadIdentifier as the original profile.";
+  }
+
+  if (
+    apiReason.includes(
+      "The new profile's Identifier must match the existing profile's."
+    )
+  ) {
+    return "Couldn't edit. The uploaded profile must have the same identifier as the original profile.";
+  }
+
+  if (
+    apiReason.includes(
+      "The new profile's name must match the existing profile's name."
+    )
+  ) {
+    return "Couldn't edit. The uploaded profile must have the same name as the original profile.";
+  }
+
+  if (apiReason.includes("OS updates are already configured")) {
+    // the backend message is phrased for the add flow ("Couldn't add
+    // profile. ..."), so rephrase the prefix for edits.
+    return action === "edit"
+      ? "Couldn't edit profile. OS updates are already configured. Remove the OS updates settings first."
+      : apiReason;
+  }
+
   if (apiReason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   }
@@ -193,7 +253,11 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     apiReason.includes("Fleet variable") &&
     apiReason.includes("not supported in configuration profiles")
   ) {
-    return generateUnsupportedVariableErrMsg(apiReason);
+    return generateUnsupportedVariableErrMsg(
+      apiReason,
+      couldnt,
+      defaultMessage
+    );
   }
 
   if (
@@ -203,7 +267,8 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return generateSCEPLearnMoreErrMsg(
       apiReason,
-      "https://fleetdm.com/learn-more-about/certificate-authorities"
+      "https://fleetdm.com/learn-more-about/certificate-authorities",
+      couldnt
     );
   }
 
@@ -214,7 +279,8 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return generateSCEPLearnMoreErrMsg(
       apiReason,
-      "https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
+      "https://fleetdm.com/learn-more-about/custom-scep-configuration-profile",
+      couldnt
     );
   }
 
@@ -225,7 +291,8 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return generateSCEPLearnMoreErrMsg(
       apiReason,
-      "https://fleetdm.com/learn-more-about/ndes-scep-configuration-profile"
+      "https://fleetdm.com/learn-more-about/ndes-scep-configuration-profile",
+      couldnt
     );
   }
 
@@ -243,5 +310,5 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   //   return generateGenericLearnMoreErrMsg(apiReason);
   // }
 
-  return `${apiReason}` || DEFAULT_ERROR_MESSAGE;
+  return apiReason || defaultMessage;
 };

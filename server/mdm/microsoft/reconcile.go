@@ -43,6 +43,9 @@ func ComputeWindowsReconcileDeltas(
 		for profUUID, p := range desired {
 			c, present := currentByProfile[profUUID]
 			needsInstall := false
+			// previousInstalledChecksum is set only when the install is triggered by a content change (a modify): it is the version
+			// the host currently has, which the cron uses to look up the LocURIs the edit removed so it can <Delete> them.
+			var previousInstalledChecksum []byte
 			switch {
 			case !present:
 				// profile in desired (A) but not in current (B).
@@ -50,6 +53,7 @@ func ComputeWindowsReconcileDeltas(
 			case !bytes.Equal(c.Checksum, p.Checksum):
 				// profile content changed (hmwp.checksum != ds.checksum).
 				needsInstall = true
+				previousInstalledChecksum = c.Checksum
 			case p.SecretsUpdatedAt != nil && c.SecretsUpdatedAt != nil && c.SecretsUpdatedAt.Before(*p.SecretsUpdatedAt):
 				// secret variables updated. Matches
 				// IFNULL(hmwp.secrets_updated_at < ds.secrets_updated_at, FALSE):
@@ -69,11 +73,12 @@ func ComputeWindowsReconcileDeltas(
 			}
 
 			toInstall = append(toInstall, &fleet.MDMWindowsProfilePayload{
-				ProfileUUID:      p.ProfileUUID,
-				ProfileName:      p.ProfileName,
-				HostUUID:         host.UUID,
-				Checksum:         p.Checksum,
-				SecretsUpdatedAt: p.SecretsUpdatedAt,
+				ProfileUUID:               p.ProfileUUID,
+				ProfileName:               p.ProfileName,
+				HostUUID:                  host.UUID,
+				Checksum:                  p.Checksum,
+				SecretsUpdatedAt:          p.SecretsUpdatedAt,
+				PreviousInstalledChecksum: previousInstalledChecksum,
 			})
 		}
 
@@ -99,6 +104,10 @@ func ComputeWindowsReconcileDeltas(
 				Detail:        c.Detail,
 				Status:        c.Status,
 				CommandUUID:   c.CommandUUID,
+				// The version the host has installed. The reconciler builds this host's <Delete> from this exact version's retained
+				// content when available, and writing it to the remove row keeps that retained version alive (reference-counted GC)
+				// until the remove resolves.
+				Checksum: c.Checksum,
 			})
 		}
 	}

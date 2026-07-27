@@ -38,8 +38,8 @@ locals {
       FLEET_FILESYSTEM_STATUS_LOG_FILE           = "/dev/null"
       FLEET_OSQUERY_RESULT_LOG_PLUGIN            = "filesystem"
       FLEET_FILESYSTEM_RESULT_LOG_FILE           = "/dev/null"
-      FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
-      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
+      FLEET_MYSQL_MAX_OPEN_CONNS                 = tostring(var.mysql_max_open_conns)
+      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = tostring(var.mysql_max_open_conns)
       # 30 min: recycle connections often enough that pooled reader connections re-spread across replicas after a
       # replica reboot/failover, and proactively drop bad idles.
       FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"

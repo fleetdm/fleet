@@ -44,7 +44,7 @@ parasails.registerPage('app-details', {
 
           for(let keywordInExample of columnNamesToHighlight) {
             let regexForThisExample = new RegExp(keywordInExample, 'g');
-            replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+_.trim(keywordInExample)+'</span>');
+            replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr-column">'+_.trim(keywordInExample)+'</span>');
           }
           $(block).html(replacementHMTL);
           window.hljs.highlightElement(block);

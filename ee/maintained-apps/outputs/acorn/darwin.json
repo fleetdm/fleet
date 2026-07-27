@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.6",
+      "version": "8.6.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8' AND version_compare(bundle_short_version, '8.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8' AND version_compare(bundle_short_version, '8.6.1') < 0);"
       },
-      "installer_url": "https://flyingmeat.com/download/Acorn-8.6.zip",
+      "installer_url": "https://flyingmeat.com/download/Acorn-8.6.1.zip",
       "install_script_ref": "299f47da",
       "uninstall_script_ref": "d8d84d04",
-      "sha256": "9dc6541b417ac48f0328eecac6d8cf256d4cf90365bfa7baefc6473c6dac30e3",
+      "sha256": "8784aa59f29e7451776054ee21ec69dbe433298195bfc21ca47574f50573ecf4",
       "default_categories": [
         "Productivity"
       ]

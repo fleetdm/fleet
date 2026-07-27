@@ -1,0 +1,14 @@
+{
+  "name": "Galaxy Modeler",
+  "slug": "galaxy-modeler/windows",
+  "package_identifier": "Ideamerit.GalaxyModeler",
+  "unique_identifier": "Galaxy Modeler",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/galaxy-modeler_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/galaxy-modeler_uninstall.ps1",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

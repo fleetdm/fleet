@@ -63,7 +63,7 @@ Time management for the CEO is essential.  The Executive Assistant processes the
 
 ### Check LinkedIn for new activity 
 
-Once a day the Executive Assistant will check LinkedIn for unread messages and pending connect request. 
+Once a day the Executive Assistant will check LinkedIn for unread messages and pending connect requests. 
 
   1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
   2. Filter out all read messages by clicking "filter" and then "Unread".
@@ -165,6 +165,8 @@ Use the following steps to schedule an interview between a candidate and the CEO
 5. Schedule a 30-minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
 6. In the hiring channel for the position, apply the "green-check-mark" (✅) emoji to the CEO interview request to confirm the request has been processed.
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
+
+The CEO interview should be scheduled within 2 business days of the request being made. If the CEO's schedule is blocking a hire for more than 2 business days, the EA adds a "DISCUSS" item to the CEO roundup to resolve the scheduling blocker.
 
 
 ### Schedule analyst briefing
