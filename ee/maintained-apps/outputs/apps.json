@@ -3866,6 +3866,13 @@
       "description": "Google Earth Pro is a virtual globe."
     },
     {
+      "name": "Google Earth Pro",
+      "slug": "google-earth-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Earth Pro",
+      "description": "Google Earth Pro is a virtual globe."
+    },
+    {
       "name": "Google Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
