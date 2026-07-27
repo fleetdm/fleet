@@ -442,7 +442,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
-// delivery statuses are reset for the new enrollment.
+// delivery statuses are reset for the new enrollment, and clears the managed
+// local account's escrowing enrollment so the account is recreated.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
@@ -456,6 +457,10 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 			JOIN hosts h ON ser.host_uuid = h.osquery_host_id OR ser.host_uuid = h.uuid
 			WHERE h.uuid = ?`
 		delUpcomingStmt = `DELETE ua FROM upcoming_activities ua JOIN hosts h ON h.id = ua.host_id WHERE h.uuid = ?`
+		// The password itself is kept: it is the only copy, and the account may still exist on a device
+		// that merely re-enrolled rather than being wiped. Only the enrollment marker is cleared.
+		clearManagedLocalAccountStmt = `UPDATE host_managed_local_account_passwords
+			SET windows_mdm_device_id = NULL WHERE host_uuid = ?`
 	)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -483,6 +488,12 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Co
 				// Clear ALL stale upcoming activities (any activity_type) so they don't block new activities on re-enrollment.
 				if _, err := tx.ExecContext(ctx, delUpcomingStmt, hostUUID.String); err != nil {
 					return ctxerr.Wrap(ctx, err, "delete upcoming_activities for host")
+				}
+				// Clear the enrollment that escrowed the managed local account password, so the new
+				// enrollment is asked to create the account again. A device that re-enrolls may have been
+				// wiped, in which case the account is gone and the stored password is unusable.
+				if _, err := tx.ExecContext(ctx, clearManagedLocalAccountStmt, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "clear managed local account enrollment for host")
 				}
 			}
 

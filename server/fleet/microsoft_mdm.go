@@ -907,17 +907,20 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
-	// MDMDeviceID identifies the current enrollment. Unlike the enrollment row itself, which is reused across re-enrollments of the same
-	// hardware, this value rotates each time the device enrolls.
+	// MDMDeviceID identifies the device to its current enrollment, as reported in the enrollment request alongside a hardware ID that is
+	// stable for the life of the machine.
 	MDMDeviceID string
-	// ManagedLocalAccountDeviceID is the MDMDeviceID that escrowed the host's stored managed local account password, or nil when no password
-	// is stored. It differing from MDMDeviceID means the stored password belongs to a previous enrollment and the account must be recreated.
+	// ManagedLocalAccountDeviceID is the MDMDeviceID that escrowed the host's stored managed local account password, or nil when no usable
+	// password is stored. Re-enrollment sets it back to nil (MDMWindowsDeleteEnrolledDeviceOnReenrollment), which is what marks a stored
+	// password as belonging to a machine state that may no longer exist.
 	ManagedLocalAccountDeviceID *string
 }
 
 // HasEscrowedManagedLocalAccountForCurrentEnrollment reports whether the host has already escrowed a managed local account password for the
-// enrollment it is currently on. A host that escrowed under a previous enrollment (it was wiped and re-enrolled) counts as not having one:
-// the account no longer exists on the machine, so the stored password is stale and must be replaced.
+// enrollment it is currently on, in which case it must not be asked to create the account again. Re-enrollment clears the escrowing
+// enrollment, so a host that was wiped and re-enrolled counts as not having one: the account is gone and the stored password is unusable.
+// The device ID comparison additionally covers a stored password whose enrollment marker survived, which the re-enrollment cleanup should
+// have cleared.
 func (s MDMWindowsHostConfigState) HasEscrowedManagedLocalAccountForCurrentEnrollment() bool {
 	return s.ManagedLocalAccountDeviceID != nil && *s.ManagedLocalAccountDeviceID == s.MDMDeviceID
 }

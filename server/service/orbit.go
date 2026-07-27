@@ -611,15 +611,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 
 			// Ask a capable premium fleetd to create and escrow the Windows managed local admin account when the host's fleet has the
-			// setting enabled. This is not scoped to the setup experience: enabling the setting provisions every Windows MDM host, the
-			// way BitLocker enforcement does, so an existing fleet is covered and the enrollment path a host happened to take does not
-			// decide whether it gets an account.
+			// setting enabled.
 			//
-			// The request stops once the host escrows a password for this enrollment. Comparing the escrowing enrollment's device ID
-			// against the current one is what makes that idempotent without stranding a re-imaged device: mdm_windows_enrollments rows
-			// survive a wipe (they are keyed by hardware ID), so a host that re-enrolls carries its old password row, and only the
-			// rotated device ID reveals that the stored password no longer matches the machine. A host that reported a failure keeps
-			// being asked, so a transient failure self-heals on the next poll.
+			// The request stops once the host escrows a password for this enrollment, which is what keeps this from recreating the
+			// account and re-logging its activity on every poll. Re-enrollment clears the escrowing enrollment
+			// (MDMWindowsDeleteEnrolledDeviceOnReenrollment, alongside the profile and setup-experience resets), so a device that was
+			// wiped is asked to create the account again rather than being left with a stored password it no longer has. Comparing the
+			// device IDs also covers the case where that cleanup did not run. A host that reported a failure keeps being asked, so a
+			// transient failure self-heals on the next poll.
 			if mlaCapable && !state.HasEscrowedManagedLocalAccountForCurrentEnrollment() {
 				if lic, _ := license.FromContext(ctx); lic != nil && lic.IsPremium() {
 					enabled, err := svc.windowsManagedLocalAccountEnabled(ctx, host, appConfig)
@@ -858,8 +857,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}, nil
 }
 
-// windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled
-// for the host's team, or for No team (from the global config) when the host has no team.
+// windowsManagedLocalAccountEnabled reports whether the managed local account setting is enabled for the host's team.
 func (svc *Service) windowsManagedLocalAccountEnabled(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (bool, error) {
 	if host.TeamID == nil {
 		return appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value, nil

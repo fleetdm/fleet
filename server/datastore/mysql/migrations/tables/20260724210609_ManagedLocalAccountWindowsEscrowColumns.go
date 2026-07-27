@@ -22,9 +22,8 @@ func init() {
 //   - client_error is added to record the device-reported reason the account could not be created,
 //     mirroring host_disk_encryption_keys.client_error.
 //   - windows_mdm_device_id is added to record which Windows MDM enrollment escrowed the password.
-//     mdm_windows_enrollments rows are reused across re-enrollments (they are unique on
-//     mdm_hardware_id), but the device ID rotates, so comparing it is how the server knows a stored
-//     password belongs to the current enrollment and not to a wiped-and-re-imaged predecessor.
+//     Re-enrollment clears it, so the server can tell a password it can still trust from one that may
+//     belong to a machine that has since been wiped, and ask the device to create the account again.
 func Up_20260724210609(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE host_managed_local_account_passwords " +
