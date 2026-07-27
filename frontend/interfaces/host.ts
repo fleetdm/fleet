@@ -139,6 +139,7 @@ export interface IOSSettings {
   host_name?: IHostMdmHostNameSetting;
   managed_local_account?: {
     status: string | null;
+    detail: string;
     password_available: boolean;
     auto_rotate_at?: string;
     pending_rotation?: boolean;

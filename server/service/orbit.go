@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -1527,8 +1528,9 @@ func postOrbitManagedLocalAccountEndpoint(ctx context.Context, request any, svc 
 // 32-character passwords; the ceiling only guards against a malformed or malicious request.
 const managedLocalAccountMaxPasswordLength = 256
 
-// managedLocalAccountMaxClientErrorLength bounds the logged length of the device-reported error.
-const managedLocalAccountMaxClientErrorLength = 512
+// managedLocalAccountMaxClientErrorLength bounds the device-reported error to the width of the
+// client_error column it is stored in.
+const managedLocalAccountMaxClientErrorLength = 255
 
 func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error {
 	// this is not a user-authenticated endpoint
@@ -1548,14 +1550,19 @@ func (svc *Service) EscrowWindowsManagedLocalAccountPassword(ctx context.Context
 		return ctxerr.Wrap(ctx, err, "verify windows mdm enrollment for managed local account escrow")
 	}
 
-	// A device-side failure is logged and nothing is recorded. clientError is untrusted input from
-	// fleetd, so truncate it before logging to bound log volume.
+	// A device-side failure marks the account failed and records the reason, the same way BitLocker
+	// and LUKS escrow errors are persisted, so it surfaces on the host instead of only in the logs.
+	// clientError is untrusted input from fleetd: truncate by rune (not byte, which could split a
+	// multi-byte character) so it always fits the column and stays valid UTF-8.
 	if clientError != "" {
-		if len(clientError) > managedLocalAccountMaxClientErrorLength {
-			clientError = clientError[:managedLocalAccountMaxClientErrorLength]
+		if utf8.RuneCountInString(clientError) > managedLocalAccountMaxClientErrorLength {
+			clientError = string([]rune(clientError)[:managedLocalAccountMaxClientErrorLength])
 		}
 		svc.logger.WarnContext(ctx, "fleetd reported an error creating the windows managed local account",
 			"host_id", host.ID, "host_uuid", host.UUID, "client_error", clientError)
+		if err := svc.ds.ReportManagedLocalAccountEscrowError(ctx, host.UUID, clientError); err != nil {
+			return ctxerr.Wrap(ctx, err, "report windows managed local account escrow error")
+		}
 		return nil
 	}
 

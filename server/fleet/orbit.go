@@ -55,9 +55,8 @@ type OrbitConfigNotifications struct {
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
-	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed
-	// local admin account and escrow its password. Only set during the OOBE setup phase for
-	// hosts whose fleetd advertises CapabilityWindowsManagedLocalAccount.
+	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed local admin account and
+	// escrow its password. Only set during the OOBE setup phase for hosts whose fleetd advertises CapabilityWindowsManagedLocalAccount.
 	CreateWindowsManagedLocalAccount bool `json:"create_windows_managed_local_account,omitempty"`
 
 	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk

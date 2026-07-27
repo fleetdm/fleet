@@ -1911,6 +1911,11 @@ type Datastore interface {
 	// password and clearing the pending/rotation columns.
 	SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error
 
+	// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed
+	// local account (Windows), marking the row failed and storing the error. Any previously stored
+	// password is preserved.
+	ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error
+
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
 	// password for the given host UUID. Returns notFoundError if no record exists.
 	GetHostManagedLocalAccountPassword(ctx context.Context, hostUUID string) (*HostManagedLocalAccountPassword, error)

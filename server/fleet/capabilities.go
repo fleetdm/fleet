@@ -109,8 +109,7 @@ const (
 	// signals that the host has queued Windows MDM commands. This lets the server relax the aggressive Windows MDM poll while keeping command
 	// latency low.
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
-	// CapabilityWindowsManagedLocalAccount is set when fleetd can create and hide the Windows
-	// managed local admin account and escrow its password.
+	// CapabilityWindowsManagedLocalAccount is set when fleetd can create and hide the Windows managed local admin account and escrow its password.
 	CapabilityWindowsManagedLocalAccount Capability = "windows_managed_local_account"
 )
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -1762,6 +1763,7 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		appCfg.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(settingEnabled)
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return appCfg, nil }
 		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error { return nil }
+		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error { return nil }
 		return ds, svc, ctx, opts
 	}
 
@@ -1788,17 +1790,38 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 	})
 
-	t.Run("client error is logged and nothing is stored", func(t *testing.T) {
+	t.Run("client error is recorded and no password is stored", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		activityLogged := false
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
 			activityLogged = true
 			return nil
 		}
+		var reportedError string
+		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error {
+			reportedError = clientError
+			return nil
+		}
 		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "netapi32 add failed")
 		require.NoError(t, err)
+		require.True(t, ds.ReportManagedLocalAccountEscrowErrorFuncInvoked)
+		require.Equal(t, "netapi32 add failed", reportedError)
 		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 		require.False(t, activityLogged)
+	})
+
+	t.Run("client error is truncated by rune to fit the column", func(t *testing.T) {
+		ds, svc, ctx, _ := setup(t, true, true)
+		var reportedError string
+		ds.ReportManagedLocalAccountEscrowErrorFunc = func(ctx context.Context, hostUUID, clientError string) error {
+			reportedError = clientError
+			return nil
+		}
+		// Multi-byte runes so a byte-wise truncation would produce invalid UTF-8.
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", strings.Repeat("é", 400))
+		require.NoError(t, err)
+		require.Equal(t, 255, utf8.RuneCountInString(reportedError))
+		require.True(t, utf8.ValidString(reportedError))
 	})
 
 	t.Run("successful escrow stores the password and logs the created activity once", func(t *testing.T) {

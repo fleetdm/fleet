@@ -483,9 +483,8 @@ type Service interface {
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string, keyType string) error
 
-	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows
-	// fleetd escrows after creating the managed local admin account. When clientError is set it logs
-	// the device-side failure and records nothing.
+	// EscrowWindowsManagedLocalAccountPassword stores the device-generated password that Windows fleetd escrows after
+	// creating the managed local admin account. When clientError is set it logs the device-side failure and records nothing.
 	EscrowWindowsManagedLocalAccountPassword(ctx context.Context, password string, clientError string) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
