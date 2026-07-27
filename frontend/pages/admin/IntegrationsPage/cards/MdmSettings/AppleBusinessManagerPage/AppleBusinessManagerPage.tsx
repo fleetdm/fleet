@@ -129,26 +129,34 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   }, []);
 
   const onRenewed = useCallback(async () => {
-    const renewedOrgName = selectedToken.current?.org_name;
+    const renewedTokenId = selectedToken.current?.id;
     selectedToken.current = null;
     setShowRenewModal(false);
 
     const { data: refetchedTokens } = await refetch();
 
-    // Override just the renewed org's invalid status on top of the refetch,
-    // rather than waiting on a reload to reflect it. A successful renewal is
-    // itself proof the new token is valid, even though the refetch above may
-    // still show it as invalid (the persisted flag isn't cleared until the
-    // next regular DEP cron tick, up to a minute later). Must run after the
-    // refetch resolves, and not before, since the refetch's own onSuccess
-    // otherwise clobbers an earlier optimistic update with this same stale
-    // data.
-    if (renewedOrgName && refetchedTokens) {
-      const invalidAbmTokenOrgNames = refetchedTokens
-        .filter(
-          (token) => token.token_invalid && token.org_name !== renewedOrgName
+    // Override just the renewed token's invalid status on top of the
+    // refetch, rather than waiting on a reload to reflect it. A successful
+    // renewal is itself proof the new token is valid, even though the
+    // refetch above may still show it as invalid (the persisted flag isn't
+    // cleared until the next regular DEP cron tick, up to a minute later).
+    // Must run after the refetch resolves, and not before, since the
+    // refetch's own onSuccess otherwise clobbers an earlier optimistic
+    // update with this same stale data.
+    //
+    // Matched by id (not org_name) since that's the token's actual unique
+    // identifier -- org_name is unique in practice today (enforced by a DB
+    // constraint), but id doesn't depend on that holding.
+    if (renewedTokenId !== undefined && refetchedTokens?.length) {
+      const invalidAbmTokenOrgNames = Array.from(
+        new Set(
+          refetchedTokens
+            .filter(
+              (token) => token.token_invalid && token.id !== renewedTokenId
+            )
+            .map((token) => token.org_name)
         )
-        .map((token) => token.org_name);
+      );
       setABMExpiry({
         earliestExpiry: getEarliestExpiry(refetchedTokens),
         needsAbmTermsRenewal: refetchedTokens.some(
