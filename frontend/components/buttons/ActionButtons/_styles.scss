@@ -1,9 +1,6 @@
 .action-buttons {
   display: flex;
-
-  button {
-    margin-left: $pad-medium;
-  }
+  gap: $pad-small;
 
   &__secondary-buttons {
     display: none;
