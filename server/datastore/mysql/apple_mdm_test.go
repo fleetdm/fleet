@@ -99,6 +99,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"GetHostDEPAssignmentsByHostIDs", testGetHostDEPAssignmentsByHostIDs},
 		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
@@ -110,6 +111,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
@@ -5364,7 +5366,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, depHostID, getHostResp.ID)
 		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is created when DEP device is ingested
 		depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
@@ -5395,7 +5396,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is reported for load host by Orbit node key and by device token
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5416,7 +5416,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5445,7 +5444,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
 		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5466,7 +5464,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5490,7 +5487,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
 		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5530,7 +5526,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, depHostID, getHostResp.ID)
 		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is created when DEP device is ingested
 		depAssignment, err := ds.GetHostDEPAssignment(ctx, depHostID)
@@ -5561,7 +5556,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "Pending", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment is reported for load host by Orbit node key and by device token
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5582,7 +5576,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5620,7 +5613,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
 		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// host DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5641,7 +5633,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, testHost.ID, getHostResp.ID)
 		require.Equal(t, "On (automatic)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5665,7 +5656,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, "Off", *getHostResp.MDM.EnrollmentStatus)
 		require.Empty(t, getHostResp.MDM.ServerURL)
 		require.Empty(t, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// DEP assignment doesn't change
 		h, err = ds.LoadHostByOrbitNodeKey(ctx, depOrbitNodeKey)
@@ -5703,7 +5693,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, manualHostID, getHostResp.ID)
 		require.Equal(t, "On (manual)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		// check host DEP assignment not created for non-DEP host
 		hdepa, err := ds.GetHostDEPAssignment(ctx, manualHostID)
@@ -5730,7 +5719,6 @@ func TestHostDEPAssignments(t *testing.T) {
 		require.Equal(t, manualHostID, getHostResp.ID)
 		require.Equal(t, "On (manual)", *getHostResp.MDM.EnrollmentStatus)
 		require.Equal(t, fleet.WellKnownMDMFleet, getHostResp.MDM.Name)
-		require.Nil(t, getHostResp.DEPAssignedToFleet) // always nil for get host
 
 		h, err := ds.LoadHostByOrbitNodeKey(ctx, manualOrbitNodeKey)
 		require.NoError(t, err)
@@ -6641,6 +6629,8 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, host1.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 	nanoEnroll(t, ds, host1, true)
 
 	require.NoError(t, service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, ds.logger))
@@ -6984,6 +6974,8 @@ func testDeleteMDMAppleDeclarationWithPendingInstalls(t *testing.T, ds *Datastor
 		TeamID:        nil,
 		Platform:      "darwin",
 	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, true)
 
@@ -7637,6 +7629,50 @@ func testMDMAppleDEPAssignmentUpdates(t *testing.T, ds *Datastore) {
 	require.Equal(t, fleet.DEPAssignProfileResponseFailed, *assignment.AssignProfileResponse)
 }
 
+func testGetHostDEPAssignmentsByHostIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	n := t.Name()
+
+	newHost := func(suffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       fmt.Sprintf("%s-%s", n, suffix),
+			OsqueryHostID:  new(fmt.Sprintf("osquery-%s-%s", n, suffix)),
+			NodeKey:        new(fmt.Sprintf("nodekey-%s-%s", n, suffix)),
+			UUID:           fmt.Sprintf("uuid-%s-%s", n, suffix),
+			Platform:       "darwin",
+			HardwareSerial: fmt.Sprintf("serial-%s-%s", n, suffix),
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	assigned := newHost("assigned")
+	deleted := newHost("deleted")
+	unassigned := newHost("unassigned")
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: n, EncryptedToken: []byte(uuid.NewString()), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*assigned, *deleted}, abmToken.ID, make(map[uint]time.Time)))
+	// Soft-delete one assignment so we can confirm it is excluded.
+	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmToken.ID, []string{deleted.HardwareSerial}))
+
+	// No matching host IDs returns an empty result, not an error.
+	res, err := ds.GetHostDEPAssignmentsByHostIDs(ctx, []uint{unassigned.ID})
+	require.NoError(t, err)
+	require.Empty(t, res)
+
+	// Only the live assignment is returned, with its token and serial populated.
+	res, err = ds.GetHostDEPAssignmentsByHostIDs(ctx, []uint{assigned.ID, deleted.ID, unassigned.ID})
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Equal(t, assigned.ID, res[0].HostID)
+	require.Equal(t, assigned.HardwareSerial, res[0].HardwareSerial)
+	require.NotNil(t, res[0].ABMTokenID)
+	require.Equal(t, abmToken.ID, *res[0].ABMTokenID)
+	require.Nil(t, res[0].DeletedAt)
+}
+
 func createRawAppleCmd(reqType, cmdUUID string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -8259,6 +8295,8 @@ func testReconcileAppleProfilesDuplicateHostUUID(t *testing.T, ds *Datastore) {
 	hLow := test.NewHost(t, ds, "dup-low", "1.1.1.1", "dup-key-low", sharedUUID, now)
 	hHigh := test.NewHost(t, ds, "dup-high", "1.1.1.2", "dup-key-high", sharedUUID, now)
 	require.Greater(t, hHigh.ID, hLow.ID)
+	err := ds.SetOrUpdateMDMData(ctx, hHigh.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 	nanoEnroll(t, ds, hHigh, false)
 
 	// Source dedup: the reconcile snapshot must surface the UUID exactly once,
@@ -8987,6 +9025,85 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, count)
 }
 
+func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a couple of tokens
+	encTok1 := uuid.NewString()
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	encTok2 := uuid.NewString()
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+
+	// neither token is invalid yet
+	got, err := ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err := ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// set t1 invalid
+	was, err := ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was) // previous value was false
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, invalid)
+
+	// t2 is unaffected
+	got, err = ds.GetABMTokenByOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting t1 invalid again is a no-op, previous value was already true
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// clear t1
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, false)
+	require.NoError(t, err)
+	require.True(t, was) // previous value was true
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting the invalid flag of a non-existing token always returns as if it
+	// did not update (which is fine, it will only be called after a DEP API
+	// call that used this token, so if the token does not exist it would fail
+	// the call).
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", false)
+	require.NoError(t, err)
+	require.False(t, was)
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// reading the invalid flag of a non-existing token is a not-found error
+	_, err = ds.IsABMTokenInvalidForOrgName(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+}
+
 func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -9533,18 +9650,20 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 		Platform:       "macos",
 		HardwareSerial: "non-dep-serial",
 	})
+	require.NoError(t, err)
 
-	// non-DEP host should return not found
+	// non-DEP host should return a not-found error (so callers can skip the
+	// OS updates check and allow enrollment to proceed)
 	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), "non-dep-serial")
-	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
 
-	// deleted DEP host should return not found
+	// deleted DEP host should return a not-found error
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), "UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?", hostIDsByKey["macos"])
 		return err
 	})
 	_, _, err = ds.GetMDMAppleOSUpdatesSettingsByHostSerial(context.Background(), devicesByKey["macos"].SerialNumber)
-	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.True(t, fleet.IsNotFound(err), "expected not found error, got %v", err)
 }
 
 func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {

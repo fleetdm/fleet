@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "23.8",
+      "version": "23.9",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon' AND version_compare(version, '23.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Advanced Installer %' AND publisher = 'Caphyon' AND version_compare(version, '23.9') < 0);"
       },
-      "installer_url": "https://storage.advancedupdater.cloud/downloads/23.8/advinst.msi",
+      "installer_url": "https://storage.advancedupdater.cloud/downloads/23.9/advinst.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "ea7b55e3",
-      "sha256": "f8facdd9335ea389181a8d387d87cb13e642623a4839b95df332ca8eeb6c8feb",
+      "sha256": "07526888339024ca944cf5053ab57d9454dd9470da5aaab91766dcfcaa5e16c8",
       "default_categories": [
         "Developer tools"
       ],

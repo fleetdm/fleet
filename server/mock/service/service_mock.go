@@ -486,7 +486,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error)
 
-type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamID *uint) (name string, displayName string, err error)
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
@@ -578,7 +578,7 @@ type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloa
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
-type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
+type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, fleet.DEPDeviceErrorType, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error)
 
@@ -981,6 +981,8 @@ type CreateAppleDDMAssetFunc func(ctx context.Context, teamID *uint, name string
 type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 
 type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -2425,6 +2427,9 @@ type Service struct {
 
 	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
 	BatchSetAppleDDMAssetsFuncInvoked bool
+
+	ReleaseABDevicesFunc        ReleaseABDevicesFunc
+	ReleaseABDevicesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4060,11 +4065,11 @@ func (s *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) 
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID)
 }
 
-func (s *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+func (s *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name string, displayName string, err error) {
 	s.mu.Lock()
 	s.SoftwareTitleNameForHostFilterFuncInvoked = true
 	s.mu.Unlock()
-	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id, teamID)
 }
 
 func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
@@ -4382,7 +4387,7 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	return s.GetHostDEPAssignmentFunc(ctx, host)
 }
 
-func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, fleet.DEPDeviceErrorType, error) {
 	s.mu.Lock()
 	s.GetHostDEPAssignmentDetailsFuncInvoked = true
 	s.mu.Unlock()
@@ -5794,4 +5799,11 @@ func (s *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, team
 	s.BatchSetAppleDDMAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, teamName, assets, dryRun)
+}
+
+func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	s.mu.Lock()
+	s.ReleaseABDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReleaseABDevicesFunc(ctx, hostIDs)
 }

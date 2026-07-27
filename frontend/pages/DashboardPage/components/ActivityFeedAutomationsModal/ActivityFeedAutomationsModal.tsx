@@ -171,6 +171,7 @@ const ActivityFeedAutomationsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
+          variant="secondary"
         />
         {showExamplePayload && renderExamplePayload()}
         <div className="modal-cta-wrap">
@@ -183,7 +184,7 @@ const ActivityFeedAutomationsModal = ({
           >
             Save
           </Button>
-          <Button onClick={onExit} variant="inverse">
+          <Button onClick={onExit} variant="secondary">
             Cancel
           </Button>
         </div>

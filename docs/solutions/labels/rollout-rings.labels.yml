@@ -1,4 +1,4 @@
-# Rollout rings. Cumulative model.
+# Rollout rings. Cumulative model. One entry set per OS.
 # Reference from default.yml with:
 #   labels:
 #     - path: ./labels/rollout-rings.labels.yml
@@ -6,48 +6,169 @@
 # Shard = ((hex@pos10 nibble) * 16) + (hex@pos25 nibble) → 0-255.
 # Positions chosen to avoid RFC 4122 version (15) and variant (20) digits,
 # and Apple/Dell/HP vendor-prefix clustering near the start of the UUID.
-
-- name: Ring 1 - Canary (1%)
-  description: "Cumulative ~1% shard. First to receive new versions."
+#
+# Each label carries a `platform:` filter, so a macOS host never evaluates
+# the Windows/Linux queries and vice versa. Ring names are OS-prefixed
+# because label names must be unique across the whole file. "Ring 1" alone
+# would collide across platforms. Only running one OS? Delete the other two
+# platforms' blocks below; nothing else in this file depends on them.
+#
+# `platform` choices are `darwin`, `windows`, `ubuntu`, `centos`. There is
+# no bare "linux" value, so Linux rings list `ubuntu,centos` to cover both
+# distro families in one label.
+ 
+# ---- macOS --------------------------------------------------------------
+ 
+- name: macOS - Ring 1 - Canary (1%)
+  description: "Cumulative ~1% shard. macOS only. First to receive new versions."
   label_membership_type: dynamic
+  platform: darwin
   query: |
     SELECT 1 FROM system_info
     WHERE (
         (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
       + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
     ) < 3;
-
-- name: Ring 2 - Early (5%)
-  description: "Cumulative. Includes all hosts in Ring 1."
+ 
+- name: macOS - Ring 2 - Early (5%)
+  description: "Cumulative. macOS only. Includes all hosts in macOS Ring 1."
   label_membership_type: dynamic
+  platform: darwin
   query: |
     SELECT 1 FROM system_info
     WHERE (
         (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
       + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
     ) < 13;
-
-- name: Ring 3 - Pilot (25%)
-  description: "Cumulative. Includes all hosts in Rings 1-2."
+ 
+- name: macOS - Ring 3 - Pilot (25%)
+  description: "Cumulative. macOS only. Includes all hosts in macOS Rings 1-2."
   label_membership_type: dynamic
+  platform: darwin
   query: |
     SELECT 1 FROM system_info
     WHERE (
         (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
       + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
     ) < 64;
-
-- name: Ring 4 - Broad (75%)
-  description: "Cumulative. Includes all hosts in Rings 1-3."
+ 
+- name: macOS - Ring 4 - Broad (75%)
+  description: "Cumulative. macOS only. Includes all hosts in macOS Rings 1-3."
   label_membership_type: dynamic
+  platform: darwin
   query: |
     SELECT 1 FROM system_info
     WHERE (
         (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
       + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
     ) < 192;
-
-- name: Ring 5 - All (100%)
-  description: "Equivalent to All hosts. Kept for promotion-target symmetry."
+ 
+- name: macOS - Ring 5 - All (100%)
+  description: "All macOS hosts. Kept for promotion-target symmetry."
   label_membership_type: dynamic
+  platform: darwin
+  query: SELECT 1 FROM system_info;
+ 
+# ---- Windows --------------------------------------------------------------
+ 
+- name: Windows - Ring 1 - Canary (1%)
+  description: "Cumulative ~1% shard. Windows only. First to receive new versions."
+  label_membership_type: dynamic
+  platform: windows
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 3;
+ 
+- name: Windows - Ring 2 - Early (5%)
+  description: "Cumulative. Windows only. Includes all hosts in Windows Ring 1."
+  label_membership_type: dynamic
+  platform: windows
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 13;
+ 
+- name: Windows - Ring 3 - Pilot (25%)
+  description: "Cumulative. Windows only. Includes all hosts in Windows Rings 1-2."
+  label_membership_type: dynamic
+  platform: windows
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 64;
+ 
+- name: Windows - Ring 4 - Broad (75%)
+  description: "Cumulative. Windows only. Includes all hosts in Windows Rings 1-3."
+  label_membership_type: dynamic
+  platform: windows
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 192;
+ 
+- name: Windows - Ring 5 - All (100%)
+  description: "All Windows hosts. Kept for promotion-target symmetry."
+  label_membership_type: dynamic
+  platform: windows
+  query: SELECT 1 FROM system_info;
+ 
+# ---- Linux --------------------------------------------------------------
+ 
+- name: Linux - Ring 1 - Canary (1%)
+  description: "Cumulative ~1% shard. Linux only. First to receive new versions."
+  label_membership_type: dynamic
+  platform: ubuntu,centos
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 3;
+ 
+- name: Linux - Ring 2 - Early (5%)
+  description: "Cumulative. Linux only. Includes all hosts in Linux Ring 1."
+  label_membership_type: dynamic
+  platform: ubuntu,centos
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 13;
+ 
+- name: Linux - Ring 3 - Pilot (25%)
+  description: "Cumulative. Linux only. Includes all hosts in Linux Rings 1-2."
+  label_membership_type: dynamic
+  platform: ubuntu,centos
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 64;
+ 
+- name: Linux - Ring 4 - Broad (75%)
+  description: "Cumulative. Linux only. Includes all hosts in Linux Rings 1-3."
+  label_membership_type: dynamic
+  platform: ubuntu,centos
+  query: |
+    SELECT 1 FROM system_info
+    WHERE (
+        (instr('0123456789abcdef', lower(substr(uuid, 10, 1))) - 1) * 16
+      + (instr('0123456789abcdef', lower(substr(uuid, 25, 1))) - 1)
+    ) < 192;
+ 
+- name: Linux - Ring 5 - All (100%)
+  description: "All Linux hosts. Kept for promotion-target symmetry."
+  label_membership_type: dynamic
+  platform: ubuntu,centos
   query: SELECT 1 FROM system_info;

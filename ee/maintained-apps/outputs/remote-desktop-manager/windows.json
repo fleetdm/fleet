@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2.14.0",
+      "version": "2026.2.16.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Remote Desktop Manager' AND publisher = 'Devolutions inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Desktop Manager' AND publisher = 'Devolutions inc.' AND version_compare(version, '2026.2.14.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Remote Desktop Manager' AND publisher = 'Devolutions inc.' AND version_compare(version, '2026.2.16.0') < 0);"
       },
-      "installer_url": "https://cdn.devolutions.net/download/Setup.RemoteDesktopManager.win-x64.2026.2.14.0.msi",
+      "installer_url": "https://cdn.devolutions.net/download/Setup.RemoteDesktopManager.win-x64.2026.2.16.0.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "df5e7f6c",
-      "sha256": "96c855f8941eefeba9893f33b1d71c3191e67f76db901e8fd69fa943996542b2",
+      "sha256": "8caa52f37bda1a03f984f89b80af54154b6cb501f27951ff9f669ebd27090f5e",
       "default_categories": [
         "Productivity"
       ],

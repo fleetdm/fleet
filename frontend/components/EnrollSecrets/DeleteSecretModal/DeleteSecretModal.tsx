@@ -44,7 +44,7 @@ const DeleteSecretModal = ({
           >
             Delete
           </Button>
-          <Button onClick={toggleDeleteSecretModal} variant="inverse-alert">
+          <Button onClick={toggleDeleteSecretModal} variant="secondary">
             Cancel
           </Button>
         </div>

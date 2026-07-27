@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.122.0",
+      "version": "1.123.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop' AND version_compare(bundle_short_version, '1.122.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop' AND version_compare(bundle_short_version, '1.123.0') < 0);"
       },
-      "installer_url": "https://desktop-release.canva.com/Canva-1.122.0-universal.dmg",
+      "installer_url": "https://desktop-release.canva.com/Canva-1.123.0-universal.dmg",
       "install_script_ref": "09fd302e",
       "uninstall_script_ref": "8588c4f7",
-      "sha256": "8580657c74bca6d88b5d2acd51538b7c35b630b39950ff24d20d0b2404701f86",
+      "sha256": "a457864d1f34b7d0ff4591063602f50c47ab908be52dc97321e015fc8b6ba6e8",
       "default_categories": [
         "Productivity"
       ]

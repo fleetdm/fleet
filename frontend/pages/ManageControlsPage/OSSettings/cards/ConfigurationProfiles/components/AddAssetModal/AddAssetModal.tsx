@@ -38,12 +38,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
       </span>
       <Button
         className={`${baseClass}__upload-button`}
-        variant="brand-inverse-icon"
+        variant="secondary"
         isLoading={isLoading}
         onClick={() => inputRef.current?.click()}
       >
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </Button>
       <input
@@ -153,7 +153,7 @@ const AddAssetModal = ({
           >
             Add asset
           </Button>
-          <Button variant="inverse" onClick={onDone}>
+          <Button variant="secondary" onClick={onDone}>
             Cancel
           </Button>
         </div>

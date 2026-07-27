@@ -315,17 +315,9 @@ describe("Custom variables", () => {
           expect(saveButton).toBeDisabled();
         });
       });
-      it("does not allow saving very long name", async () => {
-        const { nameInput, valueInput, saveButton } = await getAddVariableUI();
-        await user.type(nameInput, new Array(256).fill("A").join("")); // Invalid name
-        await user.type(valueInput, "a value");
-        await user.click(saveButton);
-        await waitFor(() => {
-          expect(
-            screen.getByText("Name may not exceed 255 characters")
-          ).toBeInTheDocument();
-          expect(saveButton).toBeDisabled();
-        });
+      it("caps the name input at 255 characters (matches DB varchar(255))", async () => {
+        const { nameInput } = await getAddVariableUI();
+        expect((nameInput as HTMLInputElement).maxLength).toBe(255);
       });
     });
 

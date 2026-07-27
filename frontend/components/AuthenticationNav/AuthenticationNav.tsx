@@ -42,7 +42,7 @@ const AuthenticationNav = ({
       <Button
         onClick={onClick}
         className={`${baseClass}__back-link`}
-        variant="inverse"
+        variant="subdued"
       >
         <Icon name="close" color="core-fleet-black" />
       </Button>

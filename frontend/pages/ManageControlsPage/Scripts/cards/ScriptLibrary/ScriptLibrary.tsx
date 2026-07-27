@@ -24,6 +24,7 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -209,6 +210,10 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Library" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content="A collection of scripts for configuring and remediating hosts."
+      />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       {!isLoading && !isError && currentPage === 0 && !scripts?.length && (

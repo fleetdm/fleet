@@ -22,7 +22,7 @@ import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
-import TeamsDropdown from "components/TeamsDropdown";
+import FleetsDropdown from "components/FleetsDropdown";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
 
@@ -143,12 +143,12 @@ const SelfServiceCategoriesPage = ({
       <BackButton text="Back to software library" path={backToLibraryPath} />
       {isPremiumTier && !isPrimoMode ? (
         <div className={`${baseClass}__fleet-row`}>
-          <TeamsDropdown
-            currentUserTeams={userTeams ?? []}
-            selectedTeamId={currentTeamId}
+          <FleetsDropdown
+            currentUserFleets={userTeams ?? []}
+            selectedFleetId={currentTeamId}
             onChange={handleTeamChange}
-            includeAllTeams={false}
-            includeNoTeams
+            includeAllFleets={false}
+            includeUnassigned
           />
         </div>
       ) : (
@@ -221,7 +221,7 @@ const SelfServiceCategoriesPage = ({
               Self-service categories
             </span>
             {canManage && (
-              <Button variant="inverse" onClick={() => setShowAddModal(true)}>
+              <Button variant="secondary" onClick={() => setShowAddModal(true)}>
                 <Icon name="plus" />
                 Add category
               </Button>
@@ -236,7 +236,7 @@ const SelfServiceCategoriesPage = ({
             {canManage && (
               <div className={`${baseClass}__row-actions`}>
                 <Button
-                  variant="icon"
+                  variant="subdued"
                   onClick={() => setCategoryToEdit(listItem)}
                   ariaLabel={`Edit ${listItem.name}`}
                   title="Edit"
@@ -244,7 +244,7 @@ const SelfServiceCategoriesPage = ({
                   <Icon name="pencil" />
                 </Button>
                 <Button
-                  variant="icon"
+                  variant="subdued"
                   onClick={() => setCategoryToDelete(listItem)}
                   ariaLabel={`Delete ${listItem.name}`}
                   title="Delete"

@@ -89,10 +89,10 @@ describe("SelfServiceCategoriesPage", () => {
     expect(
       screen.getByText("This feature is included in Fleet Premium.")
     ).toBeInTheDocument();
-    // Fleet Free has no concept of teams — the dropdown must be hidden, and
+    // Fleet Free has no concept of fleets — the dropdown must be hidden, and
     // a static page title takes its place.
     expect(
-      container.querySelector(".team-dropdown-wrapper")
+      container.querySelector(".fleet-dropdown-wrapper")
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Self-service categories" })
