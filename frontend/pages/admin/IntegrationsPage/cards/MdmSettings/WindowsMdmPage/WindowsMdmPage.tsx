@@ -131,7 +131,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
 
   const fleetOptions: CustomOptionType[] = [
     { label: "Unassigned", value: UNASSIGNED_FLEET },
-    // Exclude the synthetic "All teams" (-1) and "No team" (0) context entries;
+    // Exclude the synthetic "All fleets" (-1) and "Unassigned" (0) context entries;
     // "Unassigned" above is the explicit no-fleet choice.
     ...(availableTeams ?? [])
       .filter((t) => t.id > 0)

@@ -2127,7 +2127,7 @@ type WindowsSettings struct {
 // WindowsEnrollment are settings for new user-driven Windows MDM enrollments.
 type WindowsEnrollment struct {
 	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
-	// Empty means no default: new hosts stay in "No team".
+	// Empty means no default: new hosts stay Unassigned.
 	DefaultFleet string `json:"default_fleet"`
 }
 

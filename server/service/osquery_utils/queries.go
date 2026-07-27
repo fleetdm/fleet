@@ -3236,14 +3236,14 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 		return nil
 	}
 	if host.CreatedAt.Before(device.CreatedAt.Add(-windowsEnrollmentNewHostGrace)) {
-		// The host existed before this MDM enrollment: keep its fleet ("No team" included).
+		// The host existed before this MDM enrollment: keep its fleet (Unassigned included).
 		return nil
 	}
 	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
 		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
 	}
 	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately;
-	// without it the host keeps No team's profile set until something else triggers a recalc.
+	// without it the host keeps the Unassigned profile set until something else triggers a recalc.
 	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}

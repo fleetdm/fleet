@@ -4553,7 +4553,7 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 			expectTransfer: true,
 		},
 		{
-			name:           "pre-existing host in No team stays put",
+			name:           "pre-existing Unassigned host stays put",
 			defaultTeamID:  &defaultTeamID,
 			hostCreatedAt:  enrollmentCreatedAt.Add(-24 * time.Hour),
 			expectTransfer: false,
