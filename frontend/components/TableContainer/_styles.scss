@@ -120,13 +120,6 @@
     }
   }
 
-  // Compound selector (not just &__table-action-button) so this reliably
-  // beats the base .button class's own padding regardless of SCSS compile
-  // order — a tie at equal specificity bit us before (Scripts row gap).
-  &__table-action-button.button {
-    padding: $pad-small;
-  }
-
   &__header-left {
     display: flex;
     width: 100%;

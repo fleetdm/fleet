@@ -277,9 +277,17 @@ const ActionsDropdown = ({
       }),
       // Same ring Button's :focus-visible draws — only for keyboard tabbing,
       // never a mouse click (see isKeyboardFocus above).
+      //
+      // Drawn INSIDE the control (via outline + negative offset) rather than
+      // as an outset box-shadow. An outset shadow renders as a full-contrast
+      // 1px halo on the page background, and for the bordered `secondary`
+      // variant it stacks against the existing 1px grey border → reads as a
+      // ~2px band. Sitting inside the box overlays the border pixel and
+      // matches Button's own `::after` focus ring visual weight.
       ...(state.isFocused &&
         isKeyboardFocus && {
-          boxShadow: `0 0 0 1px ${COLORS["core-fleet-black"]}`,
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "-1px",
         }),
     }),
     placeholder: (provided, state) => ({
