@@ -7547,6 +7547,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
       "id": 2
     }
   ],
+  "activation": "activation.json"
 }
 ```
 
