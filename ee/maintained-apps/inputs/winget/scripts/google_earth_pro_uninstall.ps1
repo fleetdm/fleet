@@ -1,17 +1,8 @@
 $softwareName = "Google Earth Pro"
-# Require the publisher as well as the name, mirroring the manifest's exists
-# query. Besides guarding against uninstalling a different product that shares
-# the DisplayName, this makes CI exercise the publisher value: the validator's
-# appExists looks up by name only, so a wrong exists-query publisher would ship
-# undetected (cf. the Spyder finding in #50016). Verified as "Google" against the
-# Manufacturer property of the MSI embedded in the installer.
 $softwarePublisher = "Google"
 
-# Google Earth Pro's EXE installer wraps a WiX MSI, so the ARP UninstallString is
-# an MsiExec.exe /X{ProductCode} command with no quiet switch. Running it verbatim
-# from a SYSTEM-context script pops an invisible confirmation dialog in session 0,
-# so the uninstall silently no-ops and the app is still present afterwards. Detect
-# the msiexec form and re-run it with /quiet /norestart instead.
+# The ARP UninstallString is "MsiExec.exe /X{ProductCode}" with no quiet switch,
+# which would stall on an invisible dialog, so re-run msiexec with /quiet.
 $exeArgs = ""
 
 $machineKey = `
@@ -42,9 +33,6 @@ try {
 
         Write-Host "Uninstall string: $uninstallString"
 
-        # Prefer the MSI product code: for MSI-installed products the registry key
-        # name is the product code, which sidesteps the UninstallString parsing
-        # quirks handled in the fallback below.
         $productCode = $null
         if ($uninstallString -match '(?i)msiexec(\.exe)?.*?[/-][xi]\s*(\{[0-9A-Fa-f\-]+\})') {
             $productCode = $Matches[2]
@@ -58,8 +46,8 @@ try {
                 -ArgumentList "/x", $productCode, "/quiet", "/norestart" `
                 -PassThru -NoNewWindow
         } else {
-            # Fall back to running the uninstaller executable directly, handling
-            # quoted and unquoted paths (including paths containing spaces).
+            # Fall back to the uninstaller executable, handling quoted and
+            # unquoted paths.
             $uninstallCommand = $uninstallString
             if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
                 $uninstallCommand = $Matches[1]
@@ -81,8 +69,7 @@ try {
             $process = Start-Process @processOptions
         }
 
-        # Touch .Handle so the exit code is still readable after the process ends:
-        # Start-Process -PassThru otherwise returns $null for .ExitCode.
+        # Keeps .ExitCode readable after the process ends.
         $null = $process.Handle
 
         if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
@@ -96,8 +83,6 @@ try {
         break
     }
 
-    # Nothing to remove is not a failure: uninstall scripts are idempotent here, as
-    # in nordpass_uninstall.ps1 and windsurf_uninstall.ps1.
     if (-not $foundUninstaller) {
         Write-Host "Uninstall entry not found for '$softwareName'."
         Exit 0
@@ -108,8 +93,7 @@ try {
     Exit 1
 }
 
-# The MSI hands off to child msiexec processes; wait for them to drain so the
-# registry reflects the removal before software inventory is re-queried.
+# The MSI hands off to child msiexec processes; wait for them to drain.
 $elapsed = 0
 while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapsed -lt 120)) {
     Start-Sleep -Seconds 2
@@ -117,8 +101,7 @@ while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapse
     Write-Host "Waiting for msiexec to complete... ($elapsed seconds)"
 }
 
-# 3010 (reboot required) and 1641 (reboot initiated) are successful uninstalls.
-# 1605 and 1614 mean the product is not installed, which is the state we wanted.
+# 3010/1641 = reboot needed; 1605/1614 = already gone. All are success.
 if ($exitCode -eq 3010 -or $exitCode -eq 1641 -or $exitCode -eq 1605 -or $exitCode -eq 1614) { Exit 0 }
 
 Exit $exitCode
