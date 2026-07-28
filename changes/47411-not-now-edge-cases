@@ -1,0 +1,1 @@
+- Fixed a few edge cases for Apple profile reconciliation when devices responds with NotNow in certain scenarios.
