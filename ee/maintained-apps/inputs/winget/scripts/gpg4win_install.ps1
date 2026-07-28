@@ -33,6 +33,25 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 # the installer resolves to current-user mode.
 $userKey = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
+# Collect the installer process and everything descended from it, so a dialog
+# owned by a child (rather than the installer itself) is still visible to us.
+function Get-InstallerTree([int]$rootId) {
+    $all = @{}
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        ForEach-Object { $all[[int]$_.ProcessId] = [int]$_.ParentProcessId }
+
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+    $null = $ids.Add($rootId)
+    # Walk down a bounded number of generations; the tree here is shallow.
+    for ($depth = 0; $depth -lt 5; $depth++) {
+        foreach ($procId in @($all.Keys)) {
+            if ($ids.Contains($all[$procId])) { $null = $ids.Add($procId) }
+        }
+    }
+
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $ids.Contains($_.Id) }
+}
+
 function Test-Gpg4winRegistered {
     $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64, $userKey) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
@@ -55,16 +74,26 @@ while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
   $process.Refresh()
   if ($process.HasExited) { break }
 
-  $children = @(Get-Process -Name $leftovers -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty Name -Unique)
+  # Look at the whole process tree, not just the installer: the previous attempt
+  # showed the installer itself never owns a window, so whatever is waiting for a
+  # click belongs to a child it spawned (regsvr32 registering the GpgEX shell
+  # extension is the likely one).
+  $tree = Get-InstallerTree $process.Id
+  $names = @($tree | Select-Object -ExpandProperty ProcessName -Unique)
   $windowTitle = ""
   try { $windowTitle = $process.MainWindowTitle } catch { }
+  $childWindows = @($tree | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } |
+    ForEach-Object { "$($_.ProcessName): '$($_.MainWindowTitle)'" })
 
-  Write-Host "Installing... ($elapsed seconds, registered: $(Test-Gpg4winRegistered), window: '$windowTitle', children: $($children -join ', '))"
+  Write-Host "Installing... ($elapsed seconds, registered: $(Test-Gpg4winRegistered), window: '$windowTitle', tree: $($names -join ', '), child windows: $($childWindows -join ' | '))"
 
-  if ($elapsed -ge $graceSeconds -and $process.MainWindowHandle -ne [IntPtr]::Zero) {
-    Write-Host "Installer is showing a window ('$windowTitle'); closing it so the install can continue."
-    $null = $process.CloseMainWindow()
+  if ($elapsed -ge $graceSeconds) {
+    foreach ($p in $tree) {
+      if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+        Write-Host "Closing window owned by $($p.ProcessName) ('$($p.MainWindowTitle)') so the install can continue."
+        $null = $p.CloseMainWindow()
+      }
+    }
   }
 }
 
