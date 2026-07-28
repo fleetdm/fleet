@@ -18,10 +18,7 @@ func init() {
 //     mirroring host_disk_encryption_keys.client_error.
 //
 // It also adds mdm_windows_enrollments.managed_local_account_escrowed, which records that the device
-// has escrowed a password for its current enrollment so the server stops asking it to create the
-// account. It lives on the enrollment rather than the password because it is per-enrollment state,
-// like fleetd_sync_capable next to it: the enrollment row is deleted when a device re-enrolls, so a
-// re-imaged machine is asked again without any explicit cleanup.
+// has escrowed a password for its current enrollment.
 func Up_20260724210609(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE host_managed_local_account_passwords " +
