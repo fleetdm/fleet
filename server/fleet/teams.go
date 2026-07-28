@@ -189,6 +189,16 @@ func (t Team) MarshalJSON() ([]byte, error) {
 		Secrets:     t.Secrets,
 	}
 
+	// Fall back to defaults when these keys are missing from the stored config
+	// (e.g. a team created before they existed), so the serialized team matches
+	// what AppConfig.MarshalJSON serves for the global config.
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+
 	return json.Marshal(x)
 }
 

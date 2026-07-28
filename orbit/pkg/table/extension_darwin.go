@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/apple_hardware_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
@@ -54,6 +55,13 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		adobe_plugins.TablePlugin(log.Logger),
+		table.NewPlugin(
+			"apple_hardware_info",
+			apple_hardware_info.Columns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return apple_hardware_info.Generate(ctx, queryContext, opts.Socket)
+			},
+		),
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
 		table.NewPlugin("pwd_policy", pwd_policy.Columns(), pwd_policy.Generate),
