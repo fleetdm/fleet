@@ -597,32 +597,8 @@ describe("Last restarted vital", () => {
   );
 });
 
-describe("Not supported vital safeguard", () => {
-  it("omits the Agent vital when its resolved value is the literal 'Not supported' string", () => {
-    const mockHost = createMockHost({
-      platform: "darwin",
-      orbit_version: DEFAULT_EMPTY_CELL_VALUE,
-      osquery_version: "Not supported",
-    });
-
-    render(<Vitals vitalsData={mockHost} />);
-
-    expect(screen.queryByText("Agent")).not.toBeInTheDocument();
-    expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
-  });
-
-  it("omits the Munki version vital when its resolved value is the literal 'Not supported' string", () => {
-    const mockHost = createMockHost({ platform: "darwin" });
-
-    render(
-      <Vitals vitalsData={mockHost} munki={{ version: "Not supported" }} />
-    );
-
-    expect(screen.queryByText("Munki version")).not.toBeInTheDocument();
-    expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
-  });
-
-  it("still renders the Munki version vital when its value is a normal version string", () => {
+describe("Munki version vital", () => {
+  it("renders the Munki version vital when its value is a normal version string", () => {
     const mockHost = createMockHost({ platform: "darwin" });
 
     render(<Vitals vitalsData={mockHost} munki={{ version: "5.5.1" }} />);

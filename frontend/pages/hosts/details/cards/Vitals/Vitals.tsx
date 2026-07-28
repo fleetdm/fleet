@@ -30,7 +30,6 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
-import NotSupported from "components/NotSupported";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
@@ -669,16 +668,10 @@ const Vitals = ({
       });
     });
 
-    // Omit any vital whose value is "Not supported" rather than displaying it.
-    const isNotSupportedVital = ({ element }: VitalForSort) =>
-      React.isValidElement(element) &&
-      [NotSupported, "Not supported"].includes(element.props.value);
-
     // Sort alphabetically by title and render
     return (
       <>
         {vitals
-          .filter((vitalForSort) => !isNotSupportedVital(vitalForSort))
           .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
           .map((vitalForSort) => vitalForSort.element)}
       </>
