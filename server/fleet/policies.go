@@ -554,6 +554,62 @@ type HostPolicy struct {
 	Response string `json:"response" db:"response"`
 }
 
+// DevicePolicy is a device-safe representation of a policy in the context of
+// a host, for device-authenticated ("My device") endpoints. It intentionally
+// omits fields that must not be exposed to end users holding only a device
+// token, such as the policy author's name and email and the raw SQL query.
+type DevicePolicy struct {
+	// ID is the unique ID of the policy.
+	ID uint `json:"id"`
+	// Name is the name of the policy.
+	Name string `json:"name"`
+	// Description describes the policy.
+	Description string `json:"description"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `json:"resolution,omitempty"`
+	// Platform is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platform string `json:"platform"`
+	// Critical marks the policy as high impact.
+	Critical bool `json:"critical"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for
+	// conditional access.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Response can be one of the following values:
+	//	- "pass": if the policy was executed and passed.
+	//	- "fail": if the policy was executed and did not pass.
+	//	- "": if the policy did not run yet.
+	Response string `json:"response"`
+}
+
+// ToDevicePolicy returns the device-safe representation of the host policy.
+func (p *HostPolicy) ToDevicePolicy() *DevicePolicy {
+	return &DevicePolicy{
+		ID:                       p.ID,
+		Name:                     p.Name,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		Critical:                 p.Critical,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
+		Response:                 p.Response,
+	}
+}
+
+// HostPoliciesToDevicePolicies converts host policies to their device-safe
+// representation for device-authenticated endpoints.
+func HostPoliciesToDevicePolicies(policies []*HostPolicy) []*DevicePolicy {
+	if policies == nil {
+		return nil
+	}
+	devicePolicies := make([]*DevicePolicy, 0, len(policies))
+	for _, p := range policies {
+		devicePolicies = append(devicePolicies, p.ToDevicePolicy())
+	}
+	return devicePolicies
+}
+
 // PolicySpec is used to hold policy data to apply policy specs.
 //
 // Policies are currently identified by name (unique).

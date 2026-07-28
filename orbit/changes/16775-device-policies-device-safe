@@ -1,0 +1,1 @@
+* Updated client response type for the `GET /api/latest/fleet/device/{token}/policies` endpoint for consistency with the server response type (`fleet.DevicePolicy`).
