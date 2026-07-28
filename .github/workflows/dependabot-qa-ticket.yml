@@ -55,12 +55,28 @@ jobs:
             }
 
             const ecosystem = branch.includes('go_modules') ? 'Go' : 'npm';
+            const issueTitle = `QA: ${pr.title}`;
+
+            // Idempotency: check if a QA issue already exists for this PR
+            // (guards against duplicate tickets on workflow re-runs).
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'dependabot',
+              state: 'open',
+              per_page: 100,
+            });
+            const duplicate = existing.data.find(i => i.title === issueTitle);
+            if (duplicate) {
+              console.log(`QA issue already exists: #${duplicate.number} — skipping.`);
+              return;
+            }
 
             // Create the QA tracking issue.
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `QA: ${pr.title}`,
+              title: issueTitle,
               body: [
                 `## Dependabot dependency update — QA review needed`,
                 ``,
