@@ -462,8 +462,12 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	user.ID = idUint
 
 	// Username is unique, so we must check if another user already exists with that username to return a clear error
-	// We also use this to get the previous active state when the username isn't changing
+	// We also use this to get the previous active state when the username isn't changing.
+	// prePatchUser captures the persisted (pre-replace) record so deactivation
+	// resolves the matching Fleet user from durable state rather than the incoming
+	// (mutated) userName/emails, which a client could clear to evade deprovisioning.
 	var previousActive *bool
+	var prePatchUser *fleet.ScimUser
 	userWithSameUsername, err := u.ds.ScimUserByUserName(ctx, user.UserName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
@@ -475,6 +479,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	case err == nil && user.ID == userWithSameUsername.ID:
 		// Same user, username not changing - use this for previous active state
 		previousActive = userWithSameUsername.Active
+		prePatchUser = userWithSameUsername
 	case fleet.IsNotFound(err):
 		// Username is being changed - need to fetch existing user by ID for previous active state
 		existingUser, err := u.ds.ScimUserByID(ctx, idUint)
@@ -487,6 +492,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 			return scim.Resource{}, err
 		}
 		previousActive = existingUser.Active
+		prePatchUser = existingUser
 	}
 
 	resentCerts, err := u.ds.ReplaceScimUser(ctx, user)
@@ -511,7 +517,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 
 	// Check if user was deactivated and delete matching Fleet user if so
 	if wasDeactivated(previousActive, user.Active) {
-		if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+		if err := u.deleteMatchingFleetUser(ctx, prePatchUser); err != nil {
 			u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
 		}
 	}
@@ -576,6 +582,11 @@ func wasDeactivated(previous, current *bool) bool {
 	return previous == nil || *previous
 }
 
+// deleteMatchingFleetUser deletes the SSO Fleet user matching the given SCIM
+// user. Callers MUST pass the SCIM record's persisted (pre-mutation) state:
+// resolving from mutated PATCH/PUT state would let a client evade
+// deprovisioning by clearing userName/emails in the same request that sets
+// active=false.
 func (u *UserHandler) deleteMatchingFleetUser(ctx context.Context, scimUser *fleet.ScimUser) error {
 	// Collect unique emails from SCIM user (userName is often the email in many IdP configurations, e.g. Okta).
 	// userName is added first so it's checked first when looking up Fleet users.
@@ -678,8 +689,15 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
-	// Store previous active state before applying patches
+	// Store the previous active state and a copy of the persisted identifiers
+	// before applying patches. The operations below mutate `user` in place, so
+	// the matching Fleet user on deactivation must be resolved from this
+	// pre-patch snapshot — otherwise a client could evade deprovisioning by
+	// clearing userName/emails in the same PATCH that sets active=false. Emails
+	// is cloned because patch operations mutate its elements in place.
 	previousActive := user.Active
+	prePatchUser := *user
+	prePatchUser.Emails = slices.Clone(user.Emails)
 
 	allUnknown := true
 	for _, op := range operations {
@@ -793,7 +811,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		// least one recognized op was applied; if every op was unrecognized,
 		// user.Active equals previousActive and no deactivation can have occurred.
 		if wasDeactivated(previousActive, user.Active) {
-			if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
+			if err := u.deleteMatchingFleetUser(ctx, &prePatchUser); err != nil {
 				u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
 			}
 		}

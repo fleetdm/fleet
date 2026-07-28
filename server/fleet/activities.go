@@ -305,6 +305,15 @@ func (a ActivityTypeUserFailedLogin) ActivityName() string {
 	return "user_failed_login"
 }
 
+type ActivityTypeUserMFARequested struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserMFARequested) ActivityName() string {
+	return "user_mfa_requested"
+}
+
 type ActivityTypeCreatedUser struct {
 	UserID    uint   `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -412,6 +421,10 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 type ActivityTypeMDMEnrolled struct {
+	// HostID is omitted when zero so Windows enrollments (which don't set it;
+	// see #47874) keep their existing activity payload. It is always set for
+	// Apple enrollments.
+	HostID           uint    `json:"host_id,omitempty"`
 	HostSerial       *string `json:"host_serial"`
 	HostDisplayName  string  `json:"host_display_name"`
 	InstalledFromDEP bool    `json:"installed_from_dep"`
@@ -423,6 +436,16 @@ type ActivityTypeMDMEnrolled struct {
 
 func (a ActivityTypeMDMEnrolled) ActivityName() string {
 	return "mdm_enrolled"
+}
+
+// HostIDs links this activity to the host on the host details timeline. Returns nil when the host
+// is unknown (eg the enrollment is being processed before the host record exists) so the global
+// activity is still recorded but no activity_host_past row is inserted.
+func (a ActivityTypeMDMEnrolled) HostIDs() []uint {
+	if a.HostID == 0 {
+		return nil
+	}
+	return []uint{a.HostID}
 }
 
 // TODO(BMAA): Should we add enrollment_id for BYOD unenrollments?
@@ -575,6 +598,10 @@ func (a ActivityTypeDeletedMacosProfile) ActivityName() string {
 type ActivityTypeEditedMacosProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName and ProfileIdentifier are set only when a single profile
+	// was edited in place; fleetctl/GitOps batch edits omit them.
+	ProfileName       string `json:"profile_name,omitempty"`
+	ProfileIdentifier string `json:"profile_identifier,omitempty"`
 }
 
 func (a ActivityTypeEditedMacosProfile) ActivityName() string {
@@ -949,6 +976,9 @@ func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
 type ActivityTypeEditedWindowsProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName is set only when a single profile was edited in place;
+	// fleetctl/GitOps batch edits omit it.
+	ProfileName string `json:"profile_name,omitempty"`
 }
 
 func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
@@ -1105,6 +1135,10 @@ func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
 type ActivityTypeEditedDeclarationProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName and ProfileIdentifier are set only when a single
+	// declaration was edited in place; fleetctl/GitOps batch edits omit them.
+	ProfileName       string `json:"profile_name,omitempty"`
+	ProfileIdentifier string `json:"profile_identifier,omitempty"`
 }
 
 func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
@@ -1924,6 +1958,28 @@ func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 	return "edited_setup_experience_software"
 }
 
+// These activities are new, so they use the fleet_id/fleet_name field names directly rather than
+// the team_id/team_name + renameto pattern the older team-scoped activities keep for back-compat.
+type ActivityCreatedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityCreatedSetupExperienceScript) ActivityName() string {
+	return "created_setup_experience_script"
+}
+
+type ActivityDeletedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityDeletedSetupExperienceScript) ActivityName() string {
+	return "deleted_setup_experience_script"
+}
+
 type ActivityTypeCreatedAndroidProfile struct {
 	ProfileName string  `json:"profile_name"`
 	TeamID      *uint   `json:"team_id" renameto:"fleet_id"`
@@ -1947,6 +2003,9 @@ func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
 type ActivityTypeEditedAndroidProfile struct {
 	TeamID   *uint   `json:"team_id" renameto:"fleet_id"`
 	TeamName *string `json:"team_name" renameto:"fleet_name"`
+	// ProfileName is set only when a single profile was edited in place;
+	// fleetctl/GitOps batch edits omit it.
+	ProfileName string `json:"profile_name,omitempty"`
 }
 
 func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
@@ -2373,4 +2432,18 @@ func (a ActivityTypeRanAutomationConditionalAccess) HostIDs() []uint {
 
 func (a ActivityTypeRanAutomationConditionalAccess) WasFromAutomation() bool {
 	return true
+}
+
+type ActivityTypeReleasedDeviceFromAB struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostSerial      string `json:"host_serial"`
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) ActivityName() string {
+	return "released_from_ab"
+}
+
+func (a ActivityTypeReleasedDeviceFromAB) HostIDs() []uint {
+	return []uint{a.HostID}
 }

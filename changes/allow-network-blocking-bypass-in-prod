@@ -1,0 +1,1 @@
+* Added a `server_bypass_network_blocking` server config option to allow disabling all outbound network blocking protections for integration HTTP requests in production, for environments where egress is already constrained by external infrastructure.

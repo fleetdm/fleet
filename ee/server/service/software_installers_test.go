@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -2640,4 +2641,42 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 			assert.Equal(t, c.want, got)
 		})
 	}
+}
+
+func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
+	premiumCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	freeCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+
+	good := "echo $FLEET_VAR_HOST_UUID and ${FLEET_VAR_HOST_END_USER_IDP_USERNAME}"
+	bad := "echo $FLEET_VAR_NONEXISTENT"
+	plain := "echo hello"
+
+	t.Run("no variables passes on both tiers", func(t *testing.T) {
+		for _, ctx := range []context.Context{premiumCtx, freeCtx} {
+			require.NoError(t, validateFleetVariablesOnInstallerScripts(ctx, &plain, nil, &plain))
+		}
+	})
+
+	t.Run("supported variables pass on premium", func(t *testing.T) {
+		require.NoError(t, validateFleetVariablesOnInstallerScripts(premiumCtx, &good, &good, &good))
+	})
+
+	t.Run("unsupported variable names the script", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(premiumCtx, &plain, &bad, nil)
+		require.ErrorContains(t, err, "post-install script")
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.")
+
+		err = validateFleetVariablesOnInstallerScripts(premiumCtx, &bad, nil, &bad)
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae)
+		invalid := iae.Invalid()
+		require.Len(t, invalid, 2)
+		require.Equal(t, "install script", invalid[0]["name"])
+		require.Equal(t, "uninstall script", invalid[1]["name"])
+	})
+
+	t.Run("any variable on free returns license error", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(freeCtx, &plain, nil, &good)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
 }

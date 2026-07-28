@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "25.13.7.1",
+      "version": "25.14.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%' AND version_compare(version, '25.13.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%' AND version_compare(version, '25.14.2.1') < 0);"
       },
-      "installer_url": "https://packages.chef.io/files/stable/chef-workstation/25.13.7/windows/10/chef-workstation-25.13.7-1-x64.msi",
+      "installer_url": "https://packages.chef.io/files/stable/chef-workstation/25.14.2/windows/10/chef-workstation-25.14.2-1-x64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "c136f86e",
-      "sha256": "fd6dea9b5983510402851b6166848e0275c2cc45890b91e835e5028c9f394aa1",
+      "sha256": "5096a806ffc1fd8a6218abfffb13741732217c740c7db408ae341d03d0ff3bfc",
       "default_categories": [
         "Developer tools"
       ],

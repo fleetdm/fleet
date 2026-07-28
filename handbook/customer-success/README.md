@@ -191,6 +191,7 @@ Document the completion of a customer promise through the following steps:
 
 ### Submit a feature request for CSA review (For CSMs)
 
+Note: This is for cases where the customer in question does not have an assigned CSA. CSAs will submit feature requests for accounts that they are assigned to.
 Submit a feature request to the CSA team for review following these steps:
 - Navigate to the help-customers board in GitHub
 - Press "Add item" under the "New requests" column
@@ -622,6 +623,14 @@ If assistance is needed for research or solutioning by a CSA, create an issue us
 
 This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
 
+
+### Update premium usage stats
+
+Every month, the VP of Customer Success creates a new tab in the [usage stats Google Sheet](https://docs.google.com/spreadsheets/d/1ZcWXIShQyhHNXdaJ927_ykHcPk6DuZQewfk4egbM0bw/edit?gid=889119618#gid=889119618).
+
+The Google sheet exists for historical purposes (e.g. how many hosts has a customer had enrolled on average over the course of 1 quarter) and to track customers with multiple Fleet environments.
+
+A Grafana dashboard is [coming soon](https://github.com/fleetdm/confidential/issues/15810).
 
 ## Rituals
 

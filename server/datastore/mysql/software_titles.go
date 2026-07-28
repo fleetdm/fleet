@@ -132,31 +132,62 @@ GROUP BY
 	return &title, nil
 }
 
-// SoftwareTitleNameForHostFilter returns the name and display_name
-// of a software title by ID without applying team-scoped inventory auth.
-// This intentionally allows callers to discover the title name and display_name
-// even if the title is not present on their team.
-//
-// Only use this for host list filters and similar UX helpers where
-// exposing the existence of a title is acceptable. Not for endpoints
-// that return team-scoped inventory data.
-func (ds *Datastore) SoftwareTitleNameForHostFilter(
-	ctx context.Context,
-	id uint,
-) (name, displayName string, err error) {
-	const stmt = `
+// SoftwareTitleNameForHostFilter confirms a software title's presence via a
+// live host/software join, instead of the software_titles_host_counts
+// aggregate SoftwareTitleByID relies on. It returns either the team's
+// display_name override or the title's name -- never both, the unused
+// return is always "". A nil teamID is scoped to every team tmFilter's
+// user can access (the same boundary whereFilterHostsByTeams applies
+// elsewhere), never to any team at all, so it can't disclose a title
+// outside that boundary; both branches return NotFound instead of
+// revealing which team(s) hold the title.
+func (ds *Datastore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name, displayName string, err error) {
+	// "No team" hosts have hosts.team_id IS NULL, never a literal 0.
+	hostTeamFilter := "h.team_id IS NULL"
+	switch {
+	case teamID != nil && *teamID != 0:
+		hostTeamFilter = "h.team_id = ?"
+	case teamID == nil:
+		hostTeamFilter = ds.whereFilterHostsByTeams(tmFilter, "h")
+	}
+
+	// Display name is per-team; skip it entirely when no team is given.
+	displayNameJoinCond := "FALSE"
+	if teamID != nil {
+		displayNameJoinCond = "stdn.team_id = ?"
+	}
+
+	stmt := fmt.Sprintf(`
     SELECT
-	    name,
-		display_name
-	FROM software_titles
-		LEFT JOIN software_title_display_names ON software_titles.id = software_title_display_names.software_title_id
-   	WHERE software_titles.id = ?
-  `
+	    st.name,
+		stdn.display_name
+	FROM software_titles st
+		LEFT JOIN software_title_display_names stdn
+			ON stdn.software_title_id = st.id AND %s
+   	WHERE st.id = ?
+	AND EXISTS (
+		SELECT 1
+		FROM host_software hs
+		INNER JOIN software sw ON sw.id = hs.software_id
+		INNER JOIN hosts h ON h.id = hs.host_id
+		WHERE sw.title_id = st.id AND %s
+	)
+  `, displayNameJoinCond, hostTeamFilter)
+
+	var allArgs []any
+	if teamID != nil {
+		allArgs = append(allArgs, *teamID)
+	}
+	allArgs = append(allArgs, id)
+	if teamID != nil && *teamID != 0 {
+		allArgs = append(allArgs, *teamID)
+	}
+
 	var results struct {
 		Name        string  `db:"name"`
 		DisplayName *string `db:"display_name"`
 	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, allArgs...); err != nil {
 		if err == sql.ErrNoRows {
 			return "", "", notFound("SoftwareTitle").WithID(id)
 		}

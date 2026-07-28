@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.4.2",
+      "version": "6.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip' AND version_compare(bundle_short_version, '5.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macitbetter.betterzip' AND version_compare(bundle_short_version, '6.0.2') < 0);"
       },
-      "installer_url": "https://macitbetter.com/dl/BetterZip-5.4.2.zip",
+      "installer_url": "https://macitbetter.com/dl/BetterZip-6.0.2.zip",
       "install_script_ref": "89374a40",
       "uninstall_script_ref": "84dca76c",
-      "sha256": "1009e2283222fd5cfdf527b5e78559addf143c54902001b678dd38135cebca64",
+      "sha256": "054517c7be150b21d60094d347cb666cd4dc160df8a8b38b88845a2c7f656644",
       "default_categories": [
         "Productivity"
       ]

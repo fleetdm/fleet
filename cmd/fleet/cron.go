@@ -1456,6 +1456,13 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			// Self-healing safety net for the per-host Windows profile status rollup. This reconciles any drift and removes orphan rows.
+			"windows_profiles_status_reconcile",
+			func(ctx context.Context) error {
+				return ds.ReconcileWindowsProfilesStatus(ctx)
+			},
+		),
+		schedule.WithJob(
 			"increment_policy_violation_days",
 			func(ctx context.Context) error {
 				return ds.IncrementPolicyViolationDays(ctx)

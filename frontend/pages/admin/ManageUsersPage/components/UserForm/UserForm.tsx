@@ -738,7 +738,7 @@ const UserForm = ({
     <ModalFooter
       primaryButtons={
         <>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
           <Button

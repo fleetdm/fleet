@@ -82,4 +82,5 @@ module.exports.policies = {
   'view-download': true,
   'view-visibility-and-reporting': true,
   'view-security-and-control': true,
+  'view-ai-in-it': true,
 };

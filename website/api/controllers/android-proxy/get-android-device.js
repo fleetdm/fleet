@@ -26,6 +26,7 @@ module.exports = {
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
+    deviceNotFound: {description: 'The specified device does not exist in this Android enterprise', responseType: 'notFound'}
   },
 
 
@@ -55,23 +56,18 @@ module.exports = {
       throw 'unauthorized';
     }
 
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Get the device for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
     let getDeviceResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      google.options({ auth: authClient });
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Devices.html#get
-      let getDeviceResult = await androidmanagement.enterprises.devices.get({
+      let getDeviceResult = await androidManagementConnection.enterprises.devices.get({
         name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
       });
       return getDeviceResult.data;
@@ -82,6 +78,9 @@ module.exports = {
     }).intercept({status: 403}, ()=>{
       // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
       return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
+    }).intercept({status: 404}, ()=>{
+      // If the Android management API returns a 404 response, return a deviceNotFound (notFound) response to the Fleet server.
+      return 'deviceNotFound';
     }).intercept((err)=>{
       let errorString = err.toString();
       if (errorString.includes('Device is no longer being managed')) {

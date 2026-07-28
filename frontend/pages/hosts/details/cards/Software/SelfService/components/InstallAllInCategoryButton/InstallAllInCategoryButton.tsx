@@ -73,7 +73,7 @@ const InstallAllInCategoryButton = ({
     <>
       <Button
         className={baseClass}
-        variant="inverse"
+        variant="secondary"
         onClick={() => setShowModal(true)}
         disabled={isDisabled}
       >

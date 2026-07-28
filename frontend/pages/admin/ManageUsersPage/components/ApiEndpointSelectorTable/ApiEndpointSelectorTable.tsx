@@ -35,6 +35,37 @@ interface IApiEndpointRow extends IApiEndpoint {
 const normalizePath = (s: string) =>
   s.toLowerCase().replace(/:[a-z0-9_]+/g, ":_");
 
+/** Split on path separators, whitespace, and word-boundary punctuation so
+ * both names ("List hosts") and paths ("/api/v1/fleet/hosts") can be
+ * compared word-by-word. */
+const WORD_SPLIT_RE = /[\s/_-]+/;
+
+/** Score how well a single field matches the query: exact match ranks
+ * highest, then prefix match, then whole-word match, then any substring
+ * match. Returns 0 when there's no match at all. */
+const scoreField = (field: string, query: string): number => {
+  if (!field || !query) return 0;
+  if (field === query) return 100;
+  if (field.startsWith(query)) return 90;
+  if (field.split(WORD_SPLIT_RE).filter(Boolean).includes(query)) return 70;
+  if (field.includes(query)) return 50;
+  return 0;
+};
+
+/** An endpoint's relevance is the strongest match across its name and path —
+ * a strong hit on one field can outrank a weak hit on the other. Method
+ * matches (e.g. searching "post") are ranked below any name/path match. */
+const scoreEndpoint = (ep: IApiEndpointRow, query: string): number =>
+  Math.max(
+    scoreField(ep.display_name.toLowerCase(), query),
+    scoreField(normalizePath(ep.path), query),
+    ep.method.toLowerCase().includes(query) ? 10 : 0
+  );
+
+/** Fewer path segments = a broader, higher-level endpoint. Used to break
+ * score ties so e.g. `/hosts` sorts before `/hosts/:id/software`. */
+const pathDepth = (path: string) => path.split("/").filter(Boolean).length;
+
 interface IApiEndpointSelectorTableProps {
   selectedEndpoints: IApiEndpointRef[];
   onSelectionChange: (endpoints: IApiEndpointRef[]) => void;
@@ -91,7 +122,7 @@ const generateSelectedTableHeaders = (
     id: "delete",
     Header: "",
     Cell: (cellProps: { row: Row<IApiEndpointRow> }) => (
-      <Button onClick={() => handleRemove(cellProps.row)} variant="icon">
+      <Button onClick={() => handleRemove(cellProps.row)} variant="subdued">
         <Icon name="close-filled" />
       </Button>
     ),
@@ -122,20 +153,23 @@ const ApiEndpointSelectorTable = ({
     [apiEndpoints]
   );
 
-  // Filter search results: match search text and exclude already-selected.
+  // Filter search results: match search text and exclude already-selected,
+  // then rank by relevance (best match across name/path first, broader
+  // paths breaking ties) rather than leaving them in catalog order.
   // Path parameter names (e.g. `:id`, `:host_id`) are normalized so searching
   // "/hosts/:id/report" matches "/hosts/:host_id/report".
   const searchResults: IApiEndpointRow[] = useMemo(() => {
     if (isEmpty(searchText)) return [];
     const query = normalizePath(searchText);
-    return allRows.filter((ep) => {
-      if (selectedEndpoints.some((s) => endpointKey(s) === ep.id)) return false;
-      return (
-        ep.display_name.toLowerCase().includes(query) ||
-        normalizePath(ep.path).includes(query) ||
-        ep.method.toLowerCase().includes(query)
-      );
-    });
+    return allRows
+      .filter((ep) => !selectedEndpoints.some((s) => endpointKey(s) === ep.id))
+      .map((ep) => ({ ep, score: scoreEndpoint(ep, query) }))
+      .filter(({ score }) => score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score || pathDepth(a.ep.path) - pathDepth(b.ep.path)
+      )
+      .map(({ ep }) => ep);
   }, [allRows, searchText, selectedEndpoints]);
 
   const selectedRows: IApiEndpointRow[] = useMemo(
@@ -240,8 +274,12 @@ const ApiEndpointSelectorTable = ({
             isAllPagesSelected={false}
             disableCount
             disableMultiRowSelect
-            isClientSidePagination
-            pageSize={10}
+            disablePagination
+            // Without this, TableContainer's default sort (by a "name"
+            // column that doesn't exist here) silently re-shuffles rows via
+            // react-table's built-in sorting, discarding the relevance
+            // order computed above.
+            manualSortBy
             onClickRow={handleRowSelect}
           />
         </div>

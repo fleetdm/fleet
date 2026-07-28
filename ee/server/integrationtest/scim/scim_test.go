@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/elimity-com/scim/errors"
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -32,6 +31,7 @@ func TestSCIM(t *testing.T) {
 		{"CreateUserAssociatesAllMatchingHosts", testCreateUserAssociatesAllMatchingHosts},
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
+		{"DeactivationDeprovisionsMutatedUser", testDeactivationDeprovisionsMutatedUser},
 		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserEmails", testPatchUserEmails},
 		{"PatchUserAttributes", testPatchUserAttributes},
@@ -78,14 +78,13 @@ func testAuth(t *testing.T, s *Suite) {
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
-	// Make sure unauthorized response WAS saved as the last SCIM request
+	// Make sure the forbidden response wasn't saved as the last SCIM request. An
+	// authenticated-but-unauthorized user must not be able to overwrite the
+	// admin-visible SCIM telemetry with their rejected attempts.
 	s.Token = s.GetTestAdminToken(t)
 	scimDetails = contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
-	require.NotNil(t, scimDetails.LastRequest)
-	assert.Equal(t, "error", scimDetails.LastRequest.Status)
-	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
-	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
+	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for forbidden requests")
 
 	// Unauthorized (maintainer - no longer allowed)
 	resp = nil
@@ -235,6 +234,49 @@ func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string
 	assert.NotEmpty(t, userID)
 
 	return userID, createResp
+}
+
+// testDeactivationDeprovisionsMutatedUser verifies that a SCIM PATCH which
+// mutates userName/emails in the same request that sets active=false still
+// deprovisions the matching Fleet user, resolving it from the persisted
+// (pre-patch) identifiers rather than the mutated state.
+func testDeactivationDeprovisionsMutatedUser(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	// Create an SSO-enabled Fleet user that SCIM deactivation should deprovision.
+	email := "deprovision_target@example.com"
+	role := fleet.RoleObserver
+	_, err := s.DS.NewUser(ctx, &fleet.User{
+		Password:   []byte("garbage"),
+		Salt:       "garbage",
+		Name:       "Deprovision Target",
+		Email:      email,
+		GlobalRole: &role,
+		SSOEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Create a matching SCIM user (userName and email set to the same address).
+	userID, _ := createTestUser(t, s, email)
+
+	// Deactivate while mutating identifiers in the same PATCH: rename userName to a
+	// non-email value and drop emails before setting active=false.
+	patchPayload := map[string]any{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]any{
+			{"op": "replace", "path": "userName", "value": "nondomain_user_bypass"},
+			{"op": "remove", "path": "emails"},
+			{"op": "replace", "path": "active", "value": false},
+		},
+	}
+	var patchResp map[string]any
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &patchResp)
+	assert.Equal(t, false, patchResp["active"])
+
+	// The Fleet user must have been deprovisioned despite the mutated identifiers.
+	_, err = s.DS.UserByEmail(ctx, email)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected Fleet user to be deleted, got: %v", err)
 }
 
 func testUsersBasicCRUD(t *testing.T, s *Suite) {

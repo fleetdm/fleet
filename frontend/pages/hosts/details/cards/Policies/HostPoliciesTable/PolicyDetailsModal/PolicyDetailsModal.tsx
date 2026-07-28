@@ -58,7 +58,7 @@ const PolicyDetailsModal = ({
           {policy?.conditional_access_enabled &&
             policy.response === "fail" &&
             onResolveLater && (
-              <Button onClick={onResolveLater} variant="inverse">
+              <Button onClick={onResolveLater} variant="secondary">
                 Resolve later
               </Button>
             )}
