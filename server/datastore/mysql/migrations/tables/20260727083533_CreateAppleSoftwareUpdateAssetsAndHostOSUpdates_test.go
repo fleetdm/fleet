@@ -22,18 +22,21 @@ func TestUp_20260727083533(t *testing.T) {
 			('macos', '15.1', '24B83', '2026-01-01', NULL, '["J123AP"]')`)
 	require.NotZero(t, assetID)
 
-	// expiration_date is nullable; first_seen_at is populated by its default.
+	// expiration_date is nullable; first_seen_at and updated_at are populated by
+	// their defaults.
 	var (
 		gotExpirationDate *time.Time
 		gotFirstSeenAt    time.Time
+		gotUpdatedAt      time.Time
 	)
 	err := db.QueryRow(`
-		SELECT expiration_date, first_seen_at
+		SELECT expiration_date, first_seen_at, updated_at
 		FROM apple_software_update_assets WHERE id = ?`, assetID,
-	).Scan(&gotExpirationDate, &gotFirstSeenAt)
+	).Scan(&gotExpirationDate, &gotFirstSeenAt, &gotUpdatedAt)
 	require.NoError(t, err)
 	require.Nil(t, gotExpirationDate)
 	require.False(t, gotFirstSeenAt.IsZero())
+	require.False(t, gotUpdatedAt.IsZero())
 
 	_, err = db.Exec(`
 		INSERT INTO apple_software_update_assets
@@ -41,6 +44,33 @@ func TestUp_20260727083533(t *testing.T) {
 		VALUES
 			('macos', '15.1', '24B83', '["J123AP"]')`)
 	require.Error(t, err, "duplicate (class, product_version, build) should be rejected")
+
+	// An upsert on the same (class, product_version, build) — the shape the GDMF
+	// refresh uses — keeps first_seen_at from the original insert while
+	// updated_at advances. posting_date is changed so the row is a real update:
+	// MySQL leaves updated_at alone when no column value actually changes.
+	execNoErr(t, db, `
+		INSERT INTO apple_software_update_assets
+			(class, product_version, build, posting_date, supported_devices)
+		VALUES
+			('macos', '15.1', '24B83', '2026-01-02', '["J123AP","J456AP"]')
+		ON DUPLICATE KEY UPDATE
+			posting_date = VALUES(posting_date),
+			supported_devices = VALUES(supported_devices)`)
+
+	var (
+		gotFirstSeenAtAfterUpsert time.Time
+		gotUpdatedAtAfterUpsert   time.Time
+	)
+	err = db.QueryRow(`
+		SELECT first_seen_at, updated_at
+		FROM apple_software_update_assets WHERE id = ?`, assetID,
+	).Scan(&gotFirstSeenAtAfterUpsert, &gotUpdatedAtAfterUpsert)
+	require.NoError(t, err)
+	require.True(t, gotFirstSeenAt.Equal(gotFirstSeenAtAfterUpsert),
+		"first_seen_at must not change on upsert")
+	require.True(t, gotUpdatedAtAfterUpsert.After(gotUpdatedAt),
+		"updated_at must advance on upsert")
 
 	// A different build for the same class/version is allowed.
 	execNoErr(t, db, `
