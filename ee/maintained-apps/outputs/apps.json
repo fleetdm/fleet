@@ -4951,6 +4951,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logitech Unifying Software",
+      "slug": "logitech-unifying-software/windows",
+      "platform": "windows",
+      "unique_identifier": "Logitech Unifying Software",
+      "description": "Logitech Unifying Software is a tool for pairing and removing devices that use a Logitech Unifying receiver."
+    },
+    {
       "name": "Logi Tune",
       "slug": "logitune/darwin",
       "platform": "darwin",
