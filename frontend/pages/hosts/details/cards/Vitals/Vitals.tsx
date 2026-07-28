@@ -371,7 +371,7 @@ const Vitals = ({
     });
 
     // Last restarted
-    if (!isIosOrIpadosHost && !isAndroidHost) {
+    if (!isIosOrIpadosHost && !isAndroidHost && !isChromeHost) {
       vitals.push({
         sortKey: "Last restarted",
         element: (
