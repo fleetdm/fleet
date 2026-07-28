@@ -919,6 +919,13 @@
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
+      "name": "Azure Data Studio",
+      "slug": "azure-data-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Azure Data Studio",
+      "description": "Azure Data Studio is a cross-platform database tool for querying and managing SQL Server, Azure SQL, and PostgreSQL."
+    },
+    {
       "name": "Azure Functions Core Tools",
       "slug": "azure-functions-core-tools/windows",
       "platform": "windows",
