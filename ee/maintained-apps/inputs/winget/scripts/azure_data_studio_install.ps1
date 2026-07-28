@@ -3,18 +3,10 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# Azure Data Studio is a Visual Studio Code fork, so it ships the same Inno Setup
-# script -- including the "runcode" task, which launches the app once the install
-# finishes. PowerShell's "Start-Process -Wait" waits for the process *and all of
-# its descendants*, so the launched app kept the install script blocked
-# indefinitely. "/MERGETASKS=!runcode" suppresses the launch (the same switch
-# vscode_install.ps1 and vscodium_install.ps1 use); waiting on the installer
-# process alone, then stopping any stray app process, covers the rest.
-# Budget: the caller kills the whole script at 10 minutes
-# (cmd/maintained-apps/validate/windows.go), so the worst case here -- full install
-# wait, then the registration wait, plus process overhead -- has to stay under
-# that. 420 + 120 leaves headroom; 600 + 120 would have been killed mid-recovery,
-# in exactly the case this script exists to handle.
+# ADS is a VS Code fork with the same Inno script, including the "runcode" task
+# that launches the app after install. -Wait waits on descendants, so that would
+# block forever; "/MERGETASKS=!runcode" suppresses the launch, as in
+# vscode_install.ps1. Timeouts are sized to stay under the caller's 10-minute cap.
 $installTimeoutSeconds = 420
 $registrationTimeoutSeconds = 120
 
@@ -33,16 +25,14 @@ try {
 $process = Start-Process -FilePath "$exeFilePath" `
   -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /MERGETASKS=!runcode" `
   -PassThru
-# Touch .Handle so the exit code is still readable after the process ends:
-# Start-Process -PassThru otherwise returns $null for .ExitCode.
+# Keeps .ExitCode readable after the process ends.
 $null = $process.Handle
 
 $killed = $false
 if (-not $process.WaitForExit($installTimeoutSeconds * 1000)) {
   Write-Host "Installer process did not exit within ${installTimeoutSeconds}s, stopping it."
   Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-  # Wait for the kill to land: reading .ExitCode while the process is still alive
-  # throws, which would fail the script even though the install may have succeeded.
+  # Reading .ExitCode while the process is alive would throw.
   $null = $process.WaitForExit(30 * 1000)
   $killed = $true
 }
@@ -55,8 +45,7 @@ if ($process.HasExited) {
   Write-Host "Installer process could not be stopped; falling back to the registration check."
 }
 
-# The installer can return before the Add/Remove Programs entry is written; wait
-# for it so software inventory sees a complete install.
+# The installer can return before the ARP entry is written.
 $elapsed = 0
 while (-not (Test-AzureDataStudioRegistered) -and ($elapsed -lt $registrationTimeoutSeconds)) {
   Start-Sleep -Seconds 5
@@ -64,7 +53,7 @@ while (-not (Test-AzureDataStudioRegistered) -and ($elapsed -lt $registrationTim
   Write-Host "Waiting for Azure Data Studio to register... ($elapsed seconds)"
 }
 
-# Belt and braces in case a future build ignores !runcode.
+# In case a future build ignores !runcode.
 Stop-Process -Name "azuredatastudio" -Force -ErrorAction SilentlyContinue
 
 if (-not (Test-AzureDataStudioRegistered)) {
@@ -72,8 +61,7 @@ if (-not (Test-AzureDataStudioRegistered)) {
   Exit 1
 }
 
-# Registration is the authoritative success signal above. If the installer had to
-# be killed, or never reported a code, don't fail on a code that means nothing.
+# Registration above is the success signal; a killed process's code means nothing.
 if ($killed -or $null -eq $exitCode) { Exit 0 }
 
 # 3010 (reboot required) and 1641 (reboot initiated) are successful installs.
