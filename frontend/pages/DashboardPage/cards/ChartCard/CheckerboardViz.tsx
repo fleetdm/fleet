@@ -41,15 +41,16 @@ interface ICheckerboardVizProps {
   relativeScale?: boolean;
 }
 
-// These are calculated at a chart width of 580px and columns.
+// Baseline cell size, tuned around a 580px scroll-wrapper. Cells grow past
+// this to fill the wrapper (so the grid's right edge lines up with the card's
+// right padding on wide dashboards) but never exceed CELL_MAX_SCALE — with
+// few-column views (7 / 14 days) the alternative would be oversized cells on
+// wide layouts.
 const CELL_W = 16.75;
 const CELL_H = 19;
+const CELL_MAX_SCALE = 2;
 const CELL_GAP = 2;
 const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
-// When cards stack to full-width (below $break-md), the container gets wider
-// than this threshold and we scale cells up by WIDE_MULTIPLIER.
-const WIDE_THRESHOLD = 700;
-const WIDE_MULTIPLIER = 1.5;
 
 const CheckerboardViz = ({
   data,
@@ -60,7 +61,7 @@ const CheckerboardViz = ({
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollWrapperRef = useRef<HTMLDivElement>(null);
-  const [isWide, setIsWide] = useState(false);
+  const [wrapperWidth, setWrapperWidth] = useState(0);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
@@ -101,20 +102,6 @@ const CheckerboardViz = ({
       return Math.min(5, Math.ceil(scaled)) || 1;
     };
   }
-
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node) return undefined;
-    setIsWide(node.getBoundingClientRect().width >= WIDE_THRESHOLD);
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) {
-        setIsWide(entry.contentRect.width >= WIDE_THRESHOLD);
-      }
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
 
   // Hours per slot: 3 for 30-day, 2 for 7/14-day, 1 for 24-hour
   const is24h = selectedDays === 1;
@@ -238,28 +225,35 @@ const CheckerboardViz = ({
   const numCols = is24h ? hourRows : numDays;
   const numRows = is24h ? 1 : hourRows;
 
-  const scale = isWide ? WIDE_MULTIPLIER : 1;
-  const cellW = CELL_W * scale;
-  const cellH = CELL_H * scale;
+  // Grow cells to fill the scroll-wrapper exactly, so the last column aligns
+  // with the wrapper's (and therefore the card's) right edge on wide layouts.
+  // Clamped between the baseline and CELL_MAX_SCALE × baseline: below the
+  // baseline, cells would be unreadable and the grid should horizontally
+  // scroll instead; above the cap, few-column views (7 / 14 days) would
+  // balloon into cells much larger than the design intent. Fall back to the
+  // baseline before the first ResizeObserver callback lands (wrapperWidth
+  // === 0) so the initial render matches the previous narrow default.
+  const idealCellW =
+    wrapperWidth > 0 && numCols > 0
+      ? (wrapperWidth - CELL_GAP * (numCols - 1)) / numCols
+      : CELL_W;
+  const cellW = Math.max(CELL_W, Math.min(idealCellW, CELL_W * CELL_MAX_SCALE));
+  const cellH = cellW * (CELL_H / CELL_W);
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
 
-  // Scroll the grid to the far right so the most recent data is visible by
-  // default. Re-runs when the grid resizes (e.g. when the card crosses the
-  // wide breakpoint and cells scale up, growing scrollWidth).
-  useEffect(() => {
-    const el = scrollWrapperRef.current;
-    if (el) {
-      el.scrollLeft = el.scrollWidth;
-    }
-  }, [gridWidth]);
-
-  // Also snap to the right edge whenever the wrapper resizes while the
-  // grid is clipped, so a window resize keeps the most recent data in view.
+  // Track the scroll-wrapper's width so cellW can size against it (above),
+  // and keep the most recent data pinned to the right whenever the wrapper
+  // resizes with the grid clipped — a window resize shouldn't leave the
+  // viewer looking at a stale historical slot.
   useEffect(() => {
     const el = scrollWrapperRef.current;
     if (!el) return undefined;
-    const observer = new ResizeObserver(() => {
+    setWrapperWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setWrapperWidth(entry.contentRect.width);
       if (el.scrollWidth > el.clientWidth) {
         el.scrollLeft = el.scrollWidth;
       }
@@ -267,6 +261,15 @@ const CheckerboardViz = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Also snap to the right edge whenever the grid grows past the wrapper
+  // (e.g. dataset switch producing more columns).
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el && el.scrollWidth > el.clientWidth) {
+      el.scrollLeft = el.scrollWidth;
+    }
+  }, [gridWidth]);
 
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
