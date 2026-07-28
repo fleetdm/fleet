@@ -53,7 +53,7 @@ func TestDirectoryEndpointOverride(t *testing.T) {
 		}},
 	}
 
-	dir, err := NewDirectory(t.Context(), intg, slog.New(slog.DiscardHandler))
+	dir, err := NewDirectory(t.Context(), intg, slog.New(slog.DiscardHandler), Limits{})
 	require.NoError(t, err)
 
 	users, err := dir.ListUsers(t.Context())

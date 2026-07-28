@@ -347,7 +347,13 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register google workspace sync schedule", func() (fleet.CronSchedule, error) {
-		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, googleworkspace.NewDirectory, deps.logger)
+		factory := googleworkspace.NewDirectoryFactory(googleworkspace.Limits{
+			MaxUsers:            deps.config.GoogleWorkspace.MaxUsers,
+			MaxGroups:           deps.config.GoogleWorkspace.MaxGroups,
+			MaxGroupMembers:     deps.config.GoogleWorkspace.MaxGroupMembers,
+			MaxGroupMemberships: deps.config.GoogleWorkspace.MaxGroupMemberships,
+		})
+		return cron.NewGoogleWorkspaceSchedule(ctx, deps.instanceID, deps.ds, factory, deps.logger)
 	})
 }
 

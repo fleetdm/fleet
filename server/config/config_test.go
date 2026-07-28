@@ -824,6 +824,75 @@ func TestAndroidBatchSizeValidate(t *testing.T) {
 	})
 }
 
+func TestGoogleWorkspaceConfig(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    GoogleWorkspaceConfig
+	}{
+		{
+			desc: "defaults",
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            DefaultGoogleWorkspaceMaxUsers,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+google_workspace:
+  max_users: 10
+  max_groups: 20
+  max_group_members: 30
+  max_group_memberships: 40`,
+			want: GoogleWorkspaceConfig{MaxUsers: 10, MaxGroups: 20, MaxGroupMembers: 30, MaxGroupMemberships: 40},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_GOOGLE_WORKSPACE_MAX_USERS=1",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUPS=2",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERS=3",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERSHIPS=4",
+			},
+			want: GoogleWorkspaceConfig{MaxUsers: 1, MaxGroups: 2, MaxGroupMembers: 3, MaxGroupMemberships: 4},
+		},
+		{
+			desc:    "zero disables a limit",
+			envVars: []string{"FLEET_GOOGLE_WORKSPACE_MAX_USERS=0"},
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            0,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			require.Equal(t, c.want, man.LoadConfig().GoogleWorkspace)
+		})
+	}
+}
+
 func TestServerConfigWithH2C(t *testing.T) {
 	ctx := context.Background()
 
