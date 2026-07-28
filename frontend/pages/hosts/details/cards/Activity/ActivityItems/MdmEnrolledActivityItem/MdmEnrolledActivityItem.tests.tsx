@@ -24,7 +24,7 @@ describe("MdmEnrolledActivityItem", () => {
   const cases: Array<[Platform, string, RegExp]> = [
     ["ios", "Admin User", /told Fleet to enroll this host/i],
     ["android", "Admin User", /told Fleet to enroll this host/i],
-    ["android", "", /This host is enrolled in Fleet/i],
+    ["android", "", /This host enrolled to Fleet/i],
     [
       "darwin",
       "Admin User",
