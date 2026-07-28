@@ -50,9 +50,11 @@ try {
     } else {
         # InstallShield uninstaller: parse the executable path, handling quoted
         # paths, unquoted paths containing spaces, and bare tokens, then pass the
-        # documented silent switch.
+        # documented silent switch. "/S" is InstallShield's silent switch and what
+        # ManageEngine's DDPM reference documents for uninstall as well; the winget
+        # manifest's "/Silent" is not recognised by this installer.
         $uninstallCommand = $uninstallString
-        $uninstallArgs = "/Silent"
+        $uninstallArgs = "/S"
         if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
             $uninstallCommand = $Matches[1]
             if ($Matches[2]) { $uninstallArgs = "$($Matches[2]) $uninstallArgs".Trim() }

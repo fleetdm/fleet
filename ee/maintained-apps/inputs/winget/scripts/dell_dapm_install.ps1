@@ -10,16 +10,33 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 # the installer process alone, poll for the Add/Remove Programs entry (the
 # hand-off means the parent can exit before the install is finished), then stop
 # what the installer left running.
-# "/Silent" is the documented machine-scope Silent switch from the winget manifest.
+# Switch choice: the winget manifest lists "/Silent", but that produced exit code
+# -2147213312 (0x80042000) with nothing installed. This is an InstallShield setup,
+# whose actual silent switch is "/S" -- which is also what ManageEngine's silent
+# install reference documents for DDPM 2.2.2.8. "/CreateDebugLog" is Dell's own
+# logging switch, so a future failure is diagnosable from the CI log.
 $installTimeoutSeconds = 480
 $pollSeconds = 15
 $leftovers = @("DDPM", "DellDisplayManager", "DisplayManager")
 
+$dellLog = Join-Path $env:TEMP "ddpm-install.log"
+
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$userKey = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+
+function Write-DellLog {
+    if (Test-Path $dellLog) {
+        Write-Host "--- DDPM install log (last 60 lines) ---"
+        Get-Content $dellLog -Tail 60 | ForEach-Object { Write-Host $_ }
+        Write-Host "--- end of DDPM install log ---"
+    } else {
+        Write-Host "No DDPM install log was written at $dellLog."
+    }
+}
 
 function Test-DdpmRegistered {
-    $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+    $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64, $userKey) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
         Where-Object { $_.DisplayName -like "Dell Display and Peripheral Manager*" } |
         Select-Object -First 1)
@@ -27,7 +44,9 @@ function Test-DdpmRegistered {
 
 try {
 
-$process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/Silent" -PassThru
+$process = Start-Process -FilePath "$exeFilePath" `
+  -ArgumentList "/S /CreateDebugLog=`"$dellLog`"" `
+  -PassThru
 # Touch .Handle so the exit code is still readable after the process ends:
 # Start-Process -PassThru otherwise returns $null for .ExitCode.
 $null = $process.Handle
@@ -51,6 +70,7 @@ if (-not $process.HasExited) {
   }
 
   Write-Host "Installer did not finish within ${installTimeoutSeconds}s and DDPM is not registered."
+  Write-DellLog
   Exit 1
 }
 
@@ -70,6 +90,7 @@ foreach ($name in $leftovers) { Stop-Process -Name $name -Force -ErrorAction Sil
 
 if (-not (Test-DdpmRegistered)) {
   Write-Host "Dell Display and Peripheral Manager did not register in Add/Remove Programs."
+  Write-DellLog
   Exit 1
 }
 
