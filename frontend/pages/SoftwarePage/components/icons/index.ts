@@ -17,6 +17,7 @@ import Adguard from "./Adguard";
 import Adlock from "./Adlock";
 import AdobeDigitalEditions45 from "./AdobeDigitalEditions45";
 import AdobeDngConverter from "./AdobeDngConverter";
+import AdobePlugin from "./AdobePlugin";
 import AdvancedInstaller from "./AdvancedInstaller";
 import AdvancedRenamer from "./AdvancedRenamer";
 import Affinity from "./Affinity";
@@ -2317,6 +2318,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   pkg_packages: Package,
   vscode_extensions: Extension,
   jetbrains_plugins: Extension,
+  adobe_plugins: AdobePlugin,
 } as const;
 
 /**
