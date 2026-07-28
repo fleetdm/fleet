@@ -3,12 +3,9 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# Rtools uses Inno Setup and unpacks a large toolchain (a ~460 MB installer) to
-# C:\rtools45, not Program Files. Two things made the previous script hang:
-# PowerShell's "Start-Process -Wait" waits for the process *and all of its
-# descendants*, and the unpack itself is slow. Wait on the installer process
-# alone, with a cap below the budget the caller allows, and log progress so a
-# slow unpack is distinguishable from a stuck one.
+# Rtools unpacks a large toolchain (~460 MB) to C:\rtools45, not Program Files.
+# -Wait waits on descendants, so wait on the installer process alone and log
+# progress to tell a slow unpack apart from a stuck one.
 $installTimeoutSeconds = 480
 $pollSeconds = 15
 
@@ -27,8 +24,7 @@ try {
 $process = Start-Process -FilePath "$exeFilePath" `
   -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART" `
   -PassThru
-# Touch .Handle so the exit code is still readable after the process ends:
-# Start-Process -PassThru otherwise returns $null for .ExitCode.
+# Keeps .ExitCode readable after the process ends.
 $null = $process.Handle
 
 $elapsed = 0
@@ -39,10 +35,7 @@ while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
 }
 
 if (-not $process.HasExited) {
-  # The installer is still running at the cap. If Rtools has already registered
-  # in Add/Remove Programs the install itself finished and what is left is a
-  # lingering child, so stopping it is safe; otherwise the unpack genuinely did
-  # not finish in time and this is a real failure.
+  # Registered means the install finished and only a lingering child remains.
   if (Test-RtoolsRegistered) {
     Write-Host "Installer still running after ${installTimeoutSeconds}s but Rtools is registered; stopping the lingering process."
     Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
@@ -58,9 +51,7 @@ if (-not $process.HasExited) {
 $exitCode = $process.ExitCode
 Write-Host "Install exit code: $exitCode"
 
-# The parent can exit while a descendant is still finishing the unpack and writing
-# the ARP entry -- the same hand-off that makes -Wait block. Give registration a
-# bounded window to appear rather than checking once.
+# The parent can exit while a descendant is still writing the ARP entry.
 $settle = 0
 while (-not (Test-RtoolsRegistered) -and ($settle -lt 90)) {
   Start-Sleep -Seconds $pollSeconds
