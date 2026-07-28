@@ -863,6 +863,7 @@ import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
 import Rsyncui from "./Rsyncui";
+import Rtools from "./Rtools";
 import RubyMine from "./RubyMine";
 import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
@@ -2016,6 +2017,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
+  rtools: Rtools,
   rubymine: RubyMine,
   runjs: Runjs,
   rustdesk: RustDesk,
