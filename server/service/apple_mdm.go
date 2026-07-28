@@ -6237,6 +6237,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
 
+	// A failure here is logged rather than returned: the refetch results are
+	// already persisted above, this is a non-critical write the next refetch
+	// will redo, and aborting would skip the MDM-enrollment-status and
+	// lost-mode reconciliation below. Mirrors UpdateHostDeviceNameStatusFromReport
+	// just below.
+	vitals := parseMDMAppleDeviceVitals(queryResponses)
+	if err := svc.ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals); err != nil {
+		svc.logger.ErrorContext(ctx, "update host mdm apple device vitals from refetch", "host_uuid", host.UUID, "err", err)
+	}
+
 	if deviceNameOK && deviceName != "" && fleet.IsAppleMobilePlatform(host.Platform) {
 		// Reconcile the host-name enforcement row (if any) against the name the
 		// device reported: confirms a rename (verifying → verified) or records
