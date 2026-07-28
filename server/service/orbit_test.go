@@ -1258,6 +1258,11 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 	require.NoError(t, err)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
+	// patch_when_closed is only valid on a team policy, never global: it forces continuous
+	// automations and a title-bound patch policy, both rejected on "All fleets".
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "patch-when-closed-team"})
+	require.NoError(t, err)
+
 	installerPayload := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:   "echo 'installing'",
 		Filename:        "test_installer.pkg",
@@ -1267,7 +1272,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 		Source:          "apps",
 		Platform:        "darwin",
 		UserID:          user.ID,
-		TeamID:          nil,
+		TeamID:          &team.ID,
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	}
 	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installerPayload)
@@ -1279,10 +1284,10 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
 	})
 
-	// createFailingPolicy makes a global policy (optionally patch-when-closed) and marks it failing
-	// for the host so a retry would be eligible.
+	// createFailingPolicy makes a failing team policy for the host (optionally patch-when-closed) so a
+	// retry would be eligible. patch_when_closed isn't settable via the create path yet, so set it directly.
 	createFailingPolicy := func(t *testing.T, host *fleet.Host, patchWhenClosed bool) uint {
-		policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Name:  "policy-" + uuid.NewString(),
 			Query: "SELECT 1;",
 		})
@@ -1334,6 +1339,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 
 	t.Run("app open -> skip, no attempt consumed, no retry, activity flagged", func(t *testing.T) {
 		host := test.NewHost(t, ds, "skip-host", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, true))
 
 		result := &fleet.HostSoftwareInstallResultPayload{
@@ -1358,6 +1364,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 
 	t.Run("regression: ordinary empty pre_install_query fails, counts, and retries", func(t *testing.T) {
 		host := test.NewHost(t, ds, "regress-host", "10.0.0.2", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 		installUUID := insertPendingInstall(t, host, createFailingPolicy(t, host, false))
 
 		result := &fleet.HostSoftwareInstallResultPayload{
@@ -1382,6 +1389,7 @@ func TestSaveHostSoftwareInstallResultAppOpenSkip(t *testing.T) {
 
 	t.Run("many consecutive app-open runs never hit the retry cap", func(t *testing.T) {
 		host := test.NewHost(t, ds, "many-runs-host", "10.0.0.3", uuid.NewString(), uuid.NewString(), time.Now())
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 		policyID := createFailingPolicy(t, host, true)
 
 		// More consecutive runs than the retry cap; each is a fresh install the app-open query skips.
