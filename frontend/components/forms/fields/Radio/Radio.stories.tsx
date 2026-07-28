@@ -25,3 +25,9 @@ export default meta;
 type Story = StoryObj<typeof Radio>;
 
 export const Default: Story = {};
+
+export const WithHelpText: Story = {
+  args: {
+    helpText: "This is some helper text that should align with the label.",
+  },
+};

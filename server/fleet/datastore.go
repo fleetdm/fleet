@@ -2223,6 +2223,18 @@ type Datastore interface {
 	// flagged with the Apple BM terms expired.
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
 
+	// SetABMTokenInvalidForOrgName is a specialized method to set only the
+	// token_invalid flag of the ABM token identified by the organization name.
+	// It returns whether that flag was previously set for this token.
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+
+	// IsABMTokenInvalidForOrgName returns the current value of the
+	// token_invalid flag for the ABM token identified by the organization
+	// name, read from a replica. Used to avoid an unnecessary write via
+	// SetABMTokenInvalidForOrgName when the flag already has the desired
+	// value.
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
+
 	// InsertABMToken inserts a new ABM token into the datastore.
 	InsertABMToken(ctx context.Context, tok *ABMToken) (*ABMToken, error)
 

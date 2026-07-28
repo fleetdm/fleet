@@ -1,0 +1,16 @@
+{
+  "name": "iMazing HEIC Converter",
+  "slug": "imazing-heic-converter/windows",
+  "package_identifier": "DigiDNA.iMazingHEICConverter",
+  "unique_identifier": "iMazing HEIC Converter",
+  "fuzzy_match_name": "iMazing HEIC Converter%",
+  "program_publisher": "DigiDNA",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing-heic-converter_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/imazing-heic-converter_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

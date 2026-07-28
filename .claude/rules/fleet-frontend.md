@@ -103,6 +103,7 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
+- **Row hover-reveal actions** (a button/dropdown that only appears when the containing row is hovered): add `className="row-hover-button"` to the element. The fade + `:focus-visible` reveal is defined for `tr` in `frontend/components/TableContainer/_styles.scss` and for `.paginated-list__row` in `frontend/components/PaginatedList/_styles.scss` — don't hand-roll a local `opacity: 0` / `:hover { opacity: 1 }` per-consumer. Never fade only `.children-wrapper` — bordered/filled `Button` variants (e.g. `secondary`) leave an empty button frame behind.
 
 ## Forms
 Cap free-text inputs' `maxLength` to the backend column length (check `server/datastore/mysql/schema.sql`, don't guess) via `inputOptions={{ maxLength: NAME_MAX_LENGTH }}` on `InputField`, using a local constant.

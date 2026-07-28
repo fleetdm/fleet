@@ -1395,14 +1395,21 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	listPastResp = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
 	require.GreaterOrEqual(t, len(listPastResp.Activities), 2)
+	// mdm_unenrolled is emitted last in the unenroll flow, so it heads the (descending) feed.
 	require.Equal(t, fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), listPastResp.Activities[0].Type)
-	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
-	require.Contains(t, string(*listPastResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
-	require.Contains(t, string(*listPastResp.Activities[1].Details), `"status": "failed_install"`)
-	if len(listPastResp.Activities) > 2 {
-		// the third activity should not be the cancellation of the second app
-		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[2].Type)
+	// Only the first VPP app was activated, so exactly one installed_app_store_app cancellation
+	// should appear (the second app was never activated). Filter by type, since the feed also
+	// includes the host's mdm_enrolled activity.
+	appStoreType := fleet.ActivityInstalledAppStoreApp{}.ActivityName()
+	var appStoreActs []*fleet.Activity
+	for _, act := range listPastResp.Activities {
+		if act.Type == appStoreType {
+			appStoreActs = append(appStoreActs, act)
+		}
 	}
+	require.Len(t, appStoreActs, 1)
+	require.Contains(t, string(*appStoreActs[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Contains(t, string(*appStoreActs[0].Details), `"status": "failed_install"`)
 
 	// listing the host's software available for install shows the cancelled app as failed
 	getHostSw = getHostSoftwareResponse{}
@@ -1890,10 +1897,18 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", iosHost.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 0)
 
-	// host has the past activity for the installed app
+	// host has the past activity for the installed app (the feed also includes the host's
+	// mdm_enrolled activity, so filter by type).
 	var listPastResp listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", iosHost.ID), nil, http.StatusOK, &listPastResp)
-	require.Len(t, listPastResp.Activities, 1)
+	installedSoftwareType := fleet.ActivityTypeInstalledSoftware{}.ActivityName()
+	installedCount := 0
+	for _, act := range listPastResp.Activities {
+		if act.Type == installedSoftwareType {
+			installedCount++
+		}
+	}
+	require.Equal(t, 1, installedCount)
 
 	// update the app to have a label condition
 	clr := fleet.CreateLabelResponse{}

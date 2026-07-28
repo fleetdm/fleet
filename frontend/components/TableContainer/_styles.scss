@@ -258,6 +258,10 @@
   tr {
     .row-hover-button {
       opacity: 0;
+      // Suppress pointer events while hidden so the invisible button can't
+      // intercept clicks meant for the row. Tab navigation still works —
+      // pointer-events only gates mouse/touch, not keyboard focus.
+      pointer-events: none;
       transition: 250ms;
       text-overflow: none;
 
@@ -265,12 +269,16 @@
       // otherwise tabbing directly to a hidden row-hover button never shows it.
       &:focus-visible {
         opacity: 1;
+        pointer-events: auto;
       }
 
       // React-select's dropdown opacity must be controlled at input level for keyboard nav
       // So must be controlled at input level here as well
       &.actions-dropdown {
         opacity: 1;
+        // React-select handles its own keyboard nav; keep it hit-testable
+        // so focus/blur bookkeeping continues to work even before row hover.
+        pointer-events: auto;
         .actions-dropdown-select__control {
           opacity: 0;
 
@@ -285,6 +293,7 @@
     &:focus-visible {
       .row-hover-button {
         opacity: 1;
+        pointer-events: auto;
       }
       .row-hover-button.actions-dropdown {
         .actions-dropdown-select__control {

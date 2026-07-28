@@ -198,6 +198,16 @@ func (t Team) MarshalJSON() ([]byte, error) {
 		Secrets:     t.Secrets,
 	}
 
+	// Fall back to defaults when these keys are missing from the stored config
+	// (e.g. a team created before they existed), so the serialized team matches
+	// what AppConfig.MarshalJSON serves for the global config.
+	if !x.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		x.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !x.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		x.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+
 	return json.Marshal(x)
 }
 
@@ -766,6 +776,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	// assets are only present in ToMap for GitOps request validation; they are
+	// not stored on the team config, so keep them out of the generated spec.
+	delete(mdmSpec.MacOSSettings, "assets")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
