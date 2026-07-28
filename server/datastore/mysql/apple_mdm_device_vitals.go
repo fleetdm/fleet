@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"reflect"
 	"time"
@@ -269,5 +270,98 @@ func replaceHostMDMAppleServiceSubscriptions(ctx context.Context, tx sqlx.ExtCon
 			}
 		}
 	}
+	return nil
+}
+
+const deviceVitalsSelectStmt = `
+	SELECT
+		host_uuid, udid, model_number, modem_firmware_version, supplemental_build_version,
+		supplemental_os_version_extra, bluetooth_mac, wifi_mac, eas_device_identifier,
+		itunes_store_account_hash, push_token, battery_level, cellular_technology,
+		app_analytics_enabled, awaiting_configuration, data_roaming_enabled,
+		diagnostic_submission_enabled, is_cloud_backup_enabled, is_device_locator_service_enabled,
+		is_do_not_disturb_in_effect, is_mdm_lost_mode_enabled, is_network_tethered,
+		itunes_store_account_is_active, personal_hotspot_enabled, last_cloud_backup_date,
+		accessibility_settings, organization_info, mdm_options, device_properties_attestation
+	FROM host_mdm_apple_device_vitals
+	WHERE host_uuid = ?`
+
+const serviceSubscriptionsSelectStmt = `
+	SELECT
+		host_uuid, slot, carrier_settings_version, current_carrier_network, current_mcc, current_mnc,
+		eid, iccid, imei, is_data_preferred, is_roaming, is_voice_preferred, label, label_id, meid,
+		phone_number, subscriber_carrier_network
+	FROM host_mdm_apple_service_subscriptions
+	WHERE host_uuid = ?
+	ORDER BY slot`
+
+func (ds *Datastore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *fleet.Host) error {
+	var row deviceVitalsRow
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, deviceVitalsSelectStmt, host.UUID)
+	switch err {
+	case nil:
+		host.UDID = row.UDID
+		host.ModelNumber = row.ModelNumber
+		host.ModemFirmwareVersion = row.ModemFirmwareVersion
+		host.SupplementalBuildVersion = row.SupplementalBuildVersion
+		host.SupplementalOSVersionExtra = row.SupplementalOSVersionExtra
+		host.BluetoothMAC = row.BluetoothMAC
+		host.WiFiMAC = row.WiFiMAC
+		host.EASDeviceIdentifier = row.EASDeviceIdentifier
+		host.ITunesStoreAccountHash = row.ITunesStoreAccountHash
+		host.PushToken = row.PushToken
+		host.BatteryLevel = row.BatteryLevel
+		host.CellularTechnology = row.CellularTechnology
+		host.AppAnalyticsEnabled = row.AppAnalyticsEnabled
+		host.AwaitingConfiguration = row.AwaitingConfiguration
+		host.DataRoamingEnabled = row.DataRoamingEnabled
+		host.DiagnosticSubmissionEnabled = row.DiagnosticSubmissionEnabled
+		host.IsCloudBackupEnabled = row.IsCloudBackupEnabled
+		host.IsDeviceLocatorServiceEnabled = row.IsDeviceLocatorServiceEnabled
+		host.IsDoNotDisturbInEffect = row.IsDoNotDisturbInEffect
+		host.IsMDMLostModeEnabled = row.IsMDMLostModeEnabled
+		host.IsNetworkTethered = row.IsNetworkTethered
+		host.ITunesStoreAccountIsActive = row.ITunesStoreAccountIsActive
+		host.PersonalHotspotEnabled = row.PersonalHotspotEnabled
+		host.LastCloudBackupDate = row.LastCloudBackupDate
+
+		if row.AccessibilitySettings != nil {
+			var v fleet.MDMAppleAccessibilitySettings
+			if err := json.Unmarshal(row.AccessibilitySettings, &v); err != nil {
+				return ctxerr.Wrap(ctx, err, "unmarshal host accessibility settings")
+			}
+			host.AccessibilitySettings = &v
+		}
+		if row.OrganizationInfo != nil {
+			var v fleet.MDMAppleOrganizationInfo
+			if err := json.Unmarshal(row.OrganizationInfo, &v); err != nil {
+				return ctxerr.Wrap(ctx, err, "unmarshal host organization info")
+			}
+			host.OrganizationInfo = &v
+		}
+		if row.MDMOptions != nil {
+			var v fleet.MDMAppleDeviceVitalsMDMOptions
+			if err := json.Unmarshal(row.MDMOptions, &v); err != nil {
+				return ctxerr.Wrap(ctx, err, "unmarshal host mdm options")
+			}
+			host.MDMOptions = &v
+		}
+		if row.DevicePropertiesAttestation != nil {
+			if err := json.Unmarshal(row.DevicePropertiesAttestation, &host.DevicePropertiesAttestation); err != nil {
+				return ctxerr.Wrap(ctx, err, "unmarshal host device properties attestation")
+			}
+		}
+	case sql.ErrNoRows:
+		// no vitals collected yet for this host; leave fields nil.
+	default:
+		return ctxerr.Wrap(ctx, err, "get host mdm apple device vitals")
+	}
+
+	var subs []fleet.MDMAppleServiceSubscription
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &subs, serviceSubscriptionsSelectStmt, host.UUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host mdm apple service subscriptions")
+	}
+	host.ServiceSubscriptions = subs
+
 	return nil
 }

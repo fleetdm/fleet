@@ -19,6 +19,9 @@ func TestHostMDMAppleDeviceVitals(t *testing.T) {
 		{"InsertThenUpdate", testHostMDMAppleDeviceVitalsInsertThenUpdate},
 		{"NullHandling", testHostMDMAppleDeviceVitalsNullHandling},
 		{"ServiceSubscriptionsReplace", testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace},
+		{"Load", testLoadHostMDMAppleDeviceVitalsDB},
+		{"LoadPartial", testLoadHostMDMAppleDeviceVitalsDBPartial},
+		{"LoadNoRow", testLoadHostMDMAppleDeviceVitalsDBNoRow},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -128,4 +131,136 @@ func testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace(t *testing.T, ds *D
 	require.NoError(t, ds.writer(ctx).Get(&iccid, `SELECT iccid FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ? AND slot = ?`,
 		host.UUID, "CTSubscriptionSlotOne"))
 	require.Equal(t, "iccid-1-updated", iccid)
+}
+
+func testLoadHostMDMAppleDeviceVitalsDB(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-load-host", "1.1.1.4", "vitals-load-host-key", "vitals-load-host-uuid", time.Now(), test.WithPlatform("ios"))
+
+	lastBackup := time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:                          new("00008030-AAA"),
+		ModelNumber:                   new("MNEP3LL/A"),
+		ModemFirmwareVersion:          new("2.01.00"),
+		SupplementalBuildVersion:      new("21E236"),
+		SupplementalOSVersionExtra:    new("a"),
+		BluetoothMAC:                  new("a4:83:e7:12:34:57"),
+		WiFiMAC:                       new("a4:83:e7:12:34:58"),
+		EASDeviceIdentifier:           new("3E2A1F9C"),
+		ITunesStoreAccountHash:        new("a1b2c3"),
+		PushToken:                     []byte("push-token-bytes"),
+		BatteryLevel:                  new(0.87),
+		CellularTechnology:            new(int64(1)),
+		AppAnalyticsEnabled:           new(true),
+		AwaitingConfiguration:         new(false),
+		DataRoamingEnabled:            new(false),
+		DiagnosticSubmissionEnabled:   new(true),
+		IsCloudBackupEnabled:          new(true),
+		IsDeviceLocatorServiceEnabled: new(true),
+		IsDoNotDisturbInEffect:        new(false),
+		IsMDMLostModeEnabled:          new(false),
+		IsNetworkTethered:             new(false),
+		ITunesStoreAccountIsActive:    new(true),
+		PersonalHotspotEnabled:        new(false),
+		LastCloudBackupDate:           &lastBackup,
+		AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
+			VoiceOverEnabled: new(true),
+			GrayscaleEnabled: new(false),
+		},
+		OrganizationInfo: &fleet.MDMAppleOrganizationInfo{
+			OrganizationName: new("Acme Corp"),
+		},
+		MDMOptions: &fleet.MDMAppleDeviceVitalsMDMOptions{
+			BootstrapTokenAllowed: new(true),
+		},
+		DevicePropertiesAttestation: [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")},
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
+			{Slot: "CTSubscriptionSlotTwo", EID: new("eid-2")},
+		},
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+
+	loaded := fleet.Host{UUID: host.UUID}
+	require.NoError(t, ds.LoadHostMDMAppleDeviceVitals(ctx, &loaded))
+
+	require.Equal(t, "00008030-AAA", *loaded.UDID)
+	require.Equal(t, "MNEP3LL/A", *loaded.ModelNumber)
+	require.Equal(t, "2.01.00", *loaded.ModemFirmwareVersion)
+	require.Equal(t, "21E236", *loaded.SupplementalBuildVersion)
+	require.Equal(t, "a", *loaded.SupplementalOSVersionExtra)
+	require.Equal(t, "a4:83:e7:12:34:57", *loaded.BluetoothMAC)
+	require.Equal(t, "a4:83:e7:12:34:58", *loaded.WiFiMAC)
+	require.Equal(t, "3E2A1F9C", *loaded.EASDeviceIdentifier)
+	require.Equal(t, "a1b2c3", *loaded.ITunesStoreAccountHash)
+	require.Equal(t, []byte("push-token-bytes"), loaded.PushToken)
+	require.InDelta(t, 0.87, *loaded.BatteryLevel, 0.001)
+	require.EqualValues(t, 1, *loaded.CellularTechnology)
+	require.True(t, *loaded.AppAnalyticsEnabled)
+	require.False(t, *loaded.AwaitingConfiguration)
+	require.False(t, *loaded.DataRoamingEnabled)
+	require.True(t, *loaded.DiagnosticSubmissionEnabled)
+	require.True(t, *loaded.IsCloudBackupEnabled)
+	require.True(t, *loaded.IsDeviceLocatorServiceEnabled)
+	require.False(t, *loaded.IsDoNotDisturbInEffect)
+	require.False(t, *loaded.IsMDMLostModeEnabled)
+	require.False(t, *loaded.IsNetworkTethered)
+	require.True(t, *loaded.ITunesStoreAccountIsActive)
+	require.False(t, *loaded.PersonalHotspotEnabled)
+	require.WithinDuration(t, lastBackup, *loaded.LastCloudBackupDate, time.Second)
+
+	require.NotNil(t, loaded.AccessibilitySettings)
+	require.True(t, *loaded.AccessibilitySettings.VoiceOverEnabled)
+	require.False(t, *loaded.AccessibilitySettings.GrayscaleEnabled)
+	require.NotNil(t, loaded.OrganizationInfo)
+	require.Equal(t, "Acme Corp", *loaded.OrganizationInfo.OrganizationName)
+	require.NotNil(t, loaded.MDMOptions)
+	require.True(t, *loaded.MDMOptions.BootstrapTokenAllowed)
+	require.Equal(t, [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")}, loaded.DevicePropertiesAttestation)
+
+	require.Len(t, loaded.ServiceSubscriptions, 2)
+	require.Equal(t, "CTSubscriptionSlotOne", loaded.ServiceSubscriptions[0].Slot)
+	require.Equal(t, "iccid-1", *loaded.ServiceSubscriptions[0].ICCID)
+	require.Equal(t, "CTSubscriptionSlotTwo", loaded.ServiceSubscriptions[1].Slot)
+	require.Equal(t, "eid-2", *loaded.ServiceSubscriptions[1].EID)
+}
+
+func testLoadHostMDMAppleDeviceVitalsDBPartial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-partial-host", "1.1.1.5", "vitals-partial-host-key", "vitals-partial-host-uuid", time.Now(), test.WithPlatform("ipados"))
+
+	// Simulates an enrollment method that doesn't support every key: only a
+	// subset of fields present in the ack, the rest absent from the table row.
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new("00008030-CCC"),
+		BatteryLevel: new(0.5),
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+
+	loaded := fleet.Host{UUID: host.UUID}
+	require.NoError(t, ds.LoadHostMDMAppleDeviceVitals(ctx, &loaded))
+
+	require.Equal(t, "00008030-CCC", *loaded.UDID)
+	require.InDelta(t, 0.5, *loaded.BatteryLevel, 0.001)
+	require.Nil(t, loaded.ModelNumber)
+	require.Nil(t, loaded.AccessibilitySettings)
+	require.Nil(t, loaded.OrganizationInfo)
+	require.Nil(t, loaded.MDMOptions)
+	require.Nil(t, loaded.DevicePropertiesAttestation)
+	require.Empty(t, loaded.ServiceSubscriptions)
+}
+
+func testLoadHostMDMAppleDeviceVitalsDBNoRow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-no-row-host", "1.1.1.6", "vitals-no-row-host-key", "vitals-no-row-host-uuid", time.Now(), test.WithPlatform("ios"))
+
+	// No refetch has happened yet since this shipped: no row at all in
+	// host_mdm_apple_device_vitals for this host.
+	loaded := fleet.Host{UUID: host.UUID}
+	require.NoError(t, ds.LoadHostMDMAppleDeviceVitals(ctx, &loaded))
+
+	require.Nil(t, loaded.UDID)
+	require.Nil(t, loaded.BatteryLevel)
+	require.Nil(t, loaded.AccessibilitySettings)
+	require.Empty(t, loaded.ServiceSubscriptions)
 }
