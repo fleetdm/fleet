@@ -634,6 +634,22 @@ func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint
 // recomputing it: the triggering STATUS_REPORT payload may omit Ownership, which
 // would otherwise misclassify a COBO (company-owned) host as personal.
 func (ds *Datastore) SetAndroidHostEnrolled(ctx context.Context, hostID uint) (bool, error) {
+	// Fast path: this is called on every STATUS_REPORT, but almost always the host is
+	// already enrolled and there is nothing to do. Check that with a cheap read before
+	// opening a write transaction. The transaction below re-reads authoritatively, so a
+	// stale replica read here at worst causes a redundant (still-correct) transaction or
+	// defers recovery to the next report.
+	var enrolled bool
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &enrolled,
+		`SELECT enrolled FROM host_mdm WHERE host_id = ?`, hostID); {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "check android host_mdm enrolled state")
+	case enrolled:
+		return false, nil
+	}
+
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "set android host enrolled get app config")

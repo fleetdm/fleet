@@ -257,14 +257,6 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: set host_mdm unenrolled")
 	}
 
-	// Advance the dedup event time to the wipe notification's publish time. This is the
-	// authoritative COBO unenroll signal (AMAPI does not reliably send DELETED for a
-	// factory-reset device), and the COMMAND envelope carries no device timestamp. Recording
-	// it here means a STATUS_REPORT published before the wipe but delivered afterwards (Pub/Sub
-	// is unordered) is dropped as stale by handlePubSubStatusReport, so it cannot re-enroll a
-	// device that was just wiped.
-	svc.recordPubSubProcessed(ctx, ah.Host.ID, messageID, pubSubEventTime("", publishTime))
-
 	if !didUnenroll {
 		// Already unenrolled (e.g. the API wrapper for BYO Unenroll already ran, a prior DELETED
 		// notification beat us, or a prior delivery flipped state and is now retrying). No state
@@ -272,8 +264,20 @@ func (svc *Service) handleAndroidWipeAckUnenroll(ctx context.Context, cmd *andro
 		// the tradeoff is no duplicate activity rows after a successful first delivery, at the cost
 		// of losing the activity in the rare "flip succeeded then activity failed" race. The state
 		// flip is what matters; the activity loss is detectable via logs.
+		//
+		// We also do NOT re-record dedup state here: a redelivery of an already-terminal wipe must
+		// not move last_pubsub_event_time backwards to the (older) wipe publish time if a newer
+		// notification has since been recorded.
 		return nil
 	}
+
+	// Advance the dedup event time to the wipe notification's publish time. This is the
+	// authoritative COBO unenroll signal (AMAPI does not reliably send DELETED for a
+	// factory-reset device), and the COMMAND envelope carries no device timestamp. Recording
+	// it here means a STATUS_REPORT published before the wipe but delivered afterwards (Pub/Sub
+	// is unordered) is dropped as stale by handlePubSubStatusReport, so it cannot re-enroll a
+	// device that was just wiped. Only done when this delivery actually flipped state.
+	svc.recordPubSubProcessed(ctx, ah.Host.ID, messageID, pubSubEventTime("", publishTime))
 
 	displayName := ""
 	if hosts, herr := svc.fleetDS.ListHostsLiteByIDs(ctx, []uint{ah.Host.ID}); herr == nil && len(hosts) == 1 && hosts[0] != nil {
@@ -350,6 +354,12 @@ func googleStatusCode(code int64) string {
 // usually, ENROLLMENT device payloads) and falls back to the Pub/Sub envelope
 // publishTime. Returns nil when neither is a parseable RFC3339 timestamp, in which
 // case the staleness check is skipped and only messageId dedup applies.
+//
+// Caveat: the two sources are different Google clocks (device status time vs.
+// Pub/Sub publish time). ENROLLMENT payloads often omit LastStatusReportTime, so a
+// comparison may end up device-time vs. publish-time. Both are Google-side and close
+// in practice, so the risk of misordering is low, but callers should not assume
+// same-clock semantics.
 func pubSubEventTime(deviceTime, publishTime string) *time.Time {
 	for _, ts := range []string{deviceTime, publishTime} {
 		if ts == "" {
@@ -398,7 +408,10 @@ func (svc *Service) isDuplicateOrStalePubSub(ctx context.Context, hostID uint, m
 // redelivery window.
 func (svc *Service) recordPubSubProcessed(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) {
 	if err := svc.ds.SetAndroidPubSubDedupState(ctx, hostID, messageID, eventTime); err != nil {
-		svc.logger.ErrorContext(ctx, "failed to record Android PubSub dedup state",
+		// Logged at Warn, not Error: a NotFound here means the android_devices row was deleted
+		// between resolving the host and this write (a benign host-deletion race), not a fault
+		// that needs alerting.
+		svc.logger.WarnContext(ctx, "failed to record Android PubSub dedup state",
 			"host_id", hostID, "message_id", messageID, "err", err)
 	}
 }

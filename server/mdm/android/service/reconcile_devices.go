@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -88,6 +89,16 @@ func ReconcileAndroidDevices(ctx context.Context, ds fleet.Datastore, logger *sl
 			if _, derr := ds.SetAndroidHostUnenrolled(ctx, dev.HostID); derr != nil {
 				logger.ErrorContext(ctx, "failed to mark android host unenrolled during reconcile", "host_id", dev.HostID, "err", derr)
 				continue
+			}
+			// Advance the dedup event time so a STATUS_REPORT that was already in the Pub/Sub
+			// queue before the AMAPI deletion, delivered afterwards, is dropped as stale by
+			// handlePubSubStatusReport instead of reverting this unenroll (SetAndroidHostEnrolled
+			// would otherwise re-enroll the host, causing a flip-flop and a duplicate
+			// mdm_unenrolled activity on the next reconcile). Best-effort: a missed record only
+			// weakens dedup for the redelivery window, so log and continue.
+			now := time.Now().UTC()
+			if derr := ds.SetAndroidPubSubDedupState(ctx, dev.HostID, "", &now); derr != nil {
+				logger.WarnContext(ctx, "failed to record android pubsub dedup state during reconcile", "host_id", dev.HostID, "err", derr)
 			}
 			// Emit system activity to mirror Pub/Sub DELETED handling.
 			var displayName, serial string
