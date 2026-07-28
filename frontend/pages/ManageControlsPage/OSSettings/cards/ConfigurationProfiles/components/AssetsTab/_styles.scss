@@ -1,4 +1,13 @@
 .assets-tab {
+  @include vertical-page-tab-panel-layout;
+
+  &__tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
+
   .empty-assets {
     display: flex;
     justify-content: center;

@@ -37,7 +37,17 @@
     margin: px-to-rem(32) 0 0;
     max-width: none;
   }
+}
 
+.profiles-tab {
+  @include vertical-page-tab-panel-layout;
+
+  &__tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
 }
 
 // this is used to format the long error message when uploading invalid keys

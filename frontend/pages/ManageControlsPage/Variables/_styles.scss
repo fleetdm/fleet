@@ -6,6 +6,13 @@
 .global-variables {
   @include vertical-card-layout;
 
+  &__tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
+
   &__token {
     display: flex;
     align-items: center;
@@ -27,6 +34,13 @@
 
 .custom-host-vitals-tab {
   @include vertical-card-layout;
+
+  &__tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
 
   &__token {
     display: flex;
