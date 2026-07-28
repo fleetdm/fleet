@@ -5,36 +5,42 @@ import "time"
 // MDMAppleAccessibilitySettings is the accessibility settings currently set
 // on an iOS/iPadOS device, as reported by the AccessibilitySettings key of a
 // DeviceInformation command ack.
+// csv:"-" on every field below because gocsv flattens nested struct fields
+// into the List Hosts CSV report regardless of the csv tag on the outer
+// fleet.Host field that holds the pointer to this struct; the outer tag
+// alone doesn't stop it from being flattened in CSV (only List Hosts, not
+// GET a single host, exports CSV, and this data isn't loaded for that
+// endpoint anyway).
 type MDMAppleAccessibilitySettings struct {
-	BoldTextEnabled            *bool  `json:"bold_text_enabled,omitempty"`
-	GrayscaleEnabled           *bool  `json:"grayscale_enabled,omitempty"`
-	IncreaseContrastEnabled    *bool  `json:"increase_contrast_enabled,omitempty"`
-	ReduceMotionEnabled        *bool  `json:"reduce_motion_enabled,omitempty"`
-	ReduceTransparencyEnabled  *bool  `json:"reduce_transparency_enabled,omitempty"`
-	TextSize                   *int64 `json:"text_size,omitempty"`
-	TouchAccommodationsEnabled *bool  `json:"touch_accommodations_enabled,omitempty"`
-	VoiceOverEnabled           *bool  `json:"voice_over_enabled,omitempty"`
-	ZoomEnabled                *bool  `json:"zoom_enabled,omitempty"`
+	BoldTextEnabled            *bool  `json:"bold_text_enabled,omitempty" csv:"-"`
+	GrayscaleEnabled           *bool  `json:"grayscale_enabled,omitempty" csv:"-"`
+	IncreaseContrastEnabled    *bool  `json:"increase_contrast_enabled,omitempty" csv:"-"`
+	ReduceMotionEnabled        *bool  `json:"reduce_motion_enabled,omitempty" csv:"-"`
+	ReduceTransparencyEnabled  *bool  `json:"reduce_transparency_enabled,omitempty" csv:"-"`
+	TextSize                   *int64 `json:"text_size,omitempty" csv:"-"`
+	TouchAccommodationsEnabled *bool  `json:"touch_accommodations_enabled,omitempty" csv:"-"`
+	VoiceOverEnabled           *bool  `json:"voice_over_enabled,omitempty" csv:"-"`
+	ZoomEnabled                *bool  `json:"zoom_enabled,omitempty" csv:"-"`
 }
 
 // MDMAppleOrganizationInfo is the MDM server's organization info as reported
 // back by the device via the OrganizationInfo key of a DeviceInformation
 // command ack.
 type MDMAppleOrganizationInfo struct {
-	OrganizationName    *string `json:"organization_name,omitempty"`
-	OrganizationAddress *string `json:"organization_address,omitempty"`
-	OrganizationPhone   *string `json:"organization_phone,omitempty"`
-	OrganizationEmail   *string `json:"organization_email,omitempty"`
-	OrganizationMagic   *string `json:"organization_magic,omitempty"`
+	OrganizationName    *string `json:"organization_name,omitempty" csv:"-"`
+	OrganizationAddress *string `json:"organization_address,omitempty" csv:"-"`
+	OrganizationPhone   *string `json:"organization_phone,omitempty" csv:"-"`
+	OrganizationEmail   *string `json:"organization_email,omitempty" csv:"-"`
+	OrganizationMagic   *string `json:"organization_magic,omitempty" csv:"-"`
 }
 
 // MDMAppleDeviceVitalsMDMOptions is the device's view of MDM options
 // currently in effect, as reported by the MDMOptions key of a
 // DeviceInformation command ack.
 type MDMAppleDeviceVitalsMDMOptions struct {
-	ActivationLockAllowedWhileSupervised             *bool `json:"activation_lock_allowed_while_supervised,omitempty"`
-	BootstrapTokenAllowed                            *bool `json:"bootstrap_token_allowed,omitempty"`
-	PromptUserToAllowBootstrapTokenForAuthentication *bool `json:"prompt_user_to_allow_bootstrap_token_for_authentication,omitempty"`
+	ActivationLockAllowedWhileSupervised             *bool `json:"activation_lock_allowed_while_supervised,omitempty" csv:"-"`
+	BootstrapTokenAllowed                            *bool `json:"bootstrap_token_allowed,omitempty" csv:"-"`
+	PromptUserToAllowBootstrapTokenForAuthentication *bool `json:"prompt_user_to_allow_bootstrap_token_for_authentication,omitempty" csv:"-"`
 }
 
 // MDMAppleServiceSubscription is a single cellular service subscription
@@ -120,4 +126,56 @@ type MDMAppleDeviceVitals struct {
 	DevicePropertiesAttestation [][]byte `db:"-"`
 
 	ServiceSubscriptions []MDMAppleServiceSubscription `db:"-"`
+}
+
+// HostMDMAppleDeviceVitals is MDMAppleDeviceVitals reshaped for the GET host
+// API response: json-tagged instead of db-tagged, and without HostUUID
+// (redundant with Host.UUID). fleet.Host embeds this anonymously so its
+// fields flatten into the top-level host JSON response.
+//
+// Every field is tagged db:"-" because these are loaded via a separate query
+// for iOS/iPadOS hosts only (see loadHostMDMAppleDeviceVitalsDB), not the
+// main hosts SELECT, and csv:"-" because gocsv flattens embedded struct
+// fields into the List Hosts CSV export regardless of any tag on the
+// embedding field itself — only a tag on each individual field here stops
+// that (that endpoint doesn't load this data anyway, only GET a single host
+// does).
+type HostMDMAppleDeviceVitals struct {
+	UDID                       *string `json:"udid,omitempty" db:"-" csv:"-"`
+	ModelNumber                *string `json:"model_number,omitempty" db:"-" csv:"-"`
+	ModemFirmwareVersion       *string `json:"modem_firmware_version,omitempty" db:"-" csv:"-"`
+	SupplementalBuildVersion   *string `json:"supplemental_build_version,omitempty" db:"-" csv:"-"`
+	SupplementalOSVersionExtra *string `json:"supplemental_os_version_extra,omitempty" db:"-" csv:"-"`
+	BluetoothMAC               *string `json:"bluetooth_mac,omitempty" db:"-" csv:"-"`
+	WiFiMAC                    *string `json:"wifi_mac,omitempty" db:"-" csv:"-"`
+	EASDeviceIdentifier        *string `json:"eas_device_identifier,omitempty" db:"-" csv:"-"`
+	ITunesStoreAccountHash     *string `json:"itunes_store_account_hash,omitempty" db:"-" csv:"-"`
+	PushToken                  []byte  `json:"push_token,omitempty" db:"-" csv:"-"`
+
+	BatteryLevel       *float64 `json:"battery_level,omitempty" db:"-" csv:"-"`
+	CellularTechnology *int64   `json:"cellular_technology,omitempty" db:"-" csv:"-"`
+
+	AppAnalyticsEnabled           *bool `json:"app_analytics_enabled,omitempty" db:"-" csv:"-"`
+	AwaitingConfiguration         *bool `json:"awaiting_configuration,omitempty" db:"-" csv:"-"`
+	DataRoamingEnabled            *bool `json:"data_roaming_enabled,omitempty" db:"-" csv:"-"`
+	DiagnosticSubmissionEnabled   *bool `json:"diagnostic_submission_enabled,omitempty" db:"-" csv:"-"`
+	IsCloudBackupEnabled          *bool `json:"is_cloud_backup_enabled,omitempty" db:"-" csv:"-"`
+	IsDeviceLocatorServiceEnabled *bool `json:"is_device_locator_service_enabled,omitempty" db:"-" csv:"-"`
+	IsDoNotDisturbInEffect        *bool `json:"is_do_not_disturb_in_effect,omitempty" db:"-" csv:"-"`
+	IsMDMLostModeEnabled          *bool `json:"is_mdm_lost_mode_enabled,omitempty" db:"-" csv:"-"`
+	IsNetworkTethered             *bool `json:"is_network_tethered,omitempty" db:"-" csv:"-"`
+	ITunesStoreAccountIsActive    *bool `json:"itunes_store_account_is_active,omitempty" db:"-" csv:"-"`
+	PersonalHotspotEnabled        *bool `json:"personal_hotspot_enabled,omitempty" db:"-" csv:"-"`
+
+	LastCloudBackupDate *time.Time `json:"last_cloud_backup_date,omitempty" db:"-" csv:"-"`
+
+	AccessibilitySettings *MDMAppleAccessibilitySettings  `json:"accessibility_settings,omitempty" db:"-" csv:"-"`
+	OrganizationInfo      *MDMAppleOrganizationInfo       `json:"organization_info,omitempty" db:"-" csv:"-"`
+	MDMOptions            *MDMAppleDeviceVitalsMDMOptions `json:"mdm_options,omitempty" db:"-" csv:"-"`
+	// DevicePropertiesAttestation is the raw DER certificate chain Apple
+	// returns (base64-encoded once marshaled to JSON), not a boolean/status
+	// object. See MDMAppleDeviceVitals.DevicePropertiesAttestation.
+	DevicePropertiesAttestation [][]byte `json:"device_properties_attestation,omitempty" db:"-" csv:"-"`
+
+	ServiceSubscriptions []MDMAppleServiceSubscription `json:"service_subscriptions,omitempty" db:"-" csv:"-"`
 }

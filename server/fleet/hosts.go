@@ -472,6 +472,17 @@ type Host struct {
 	// true -> at least one non-revoked cert exists
 	// false -> we know there is no cert
 	HasHostIdentityCert *bool `json:"-" db:"has_host_identity_cert" csv:"-"`
+
+	// HostMDMAppleDeviceVitals holds additional iOS/iPadOS vitals collected
+	// via the DeviceInformation MDM command and persisted to
+	// host_mdm_apple_device_vitals / host_mdm_apple_service_subscriptions
+	// (see HostMDMAppleDeviceVitals and MDMAppleDeviceVitals, same package).
+	// Embedded anonymously so its fields flatten into the top-level host
+	// JSON response. Only populated for iOS/iPadOS hosts, via a separate
+	// query (loadHostMDMAppleDeviceVitalsDB) — every field is omitted (not
+	// null) for every other platform, or when a given field wasn't returned
+	// by a particular enrollment.
+	HostMDMAppleDeviceVitals
 }
 
 type HostForeignVitalGroup struct {
