@@ -40,7 +40,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical,
 	p.calendar_events_enabled, p.software_installer_id, p.script_id,
 	p.vpp_apps_teams_id, p.conditional_access_enabled, p.type,
-	p.patch_software_title_id, p.continuous_automations_enabled
+	p.patch_software_title_id, p.continuous_automations_enabled, p.patch_when_closed
 `
 
 const (
@@ -418,12 +418,12 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger *slog.Logger, p 
 			SET name = ?, query = ?, description = ?, resolution = ?,
 			platforms = ?, critical = ?, calendar_events_enabled = ?,
 			software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?,
-			conditional_access_enabled = ?, continuous_automations_enabled = ?,
+			conditional_access_enabled = ?, continuous_automations_enabled = ?, patch_when_closed = ?,
 			checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := db.ExecContext(
-		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, p.ID,
+		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ConditionalAccessEnabled, p.ContinuousAutomationsEnabled, p.PatchWhenClosed, p.ID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
@@ -1410,13 +1410,13 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 				name, query, description, team_id, resolution, author_id,
 				platforms, critical, calendar_events_enabled, software_installer_id,
 				script_id, vpp_apps_teams_id, conditional_access_enabled, checksum,
-				type, patch_software_title_id, continuous_automations_enabled
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)`,
+				type, patch_software_title_id, continuous_automations_enabled, patch_when_closed
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
 		args.CalendarEventsEnabled, args.SoftwareInstallerID, args.ScriptID, args.VPPAppsTeamsID,
-		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled,
+		args.ConditionalAccessEnabled, args.Type, args.PatchSoftwareTitleID, args.ContinuousAutomationsEnabled, args.PatchWhenClosed,
 	)
 	switch {
 	case err == nil:
@@ -1727,8 +1727,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			checksum,
 			type,
 			patch_software_title_id,
-			continuous_automations_enabled
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?)
+			continuous_automations_enabled,
+			patch_when_closed
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, %s, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
@@ -1743,7 +1744,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			conditional_access_enabled = VALUES(conditional_access_enabled),
 			type = VALUES(type),
 			patch_software_title_id = VALUES(patch_software_title_id),
-			continuous_automations_enabled = VALUES(continuous_automations_enabled)
+			continuous_automations_enabled = VALUES(continuous_automations_enabled),
+			patch_when_closed = VALUES(patch_when_closed)
 		`, policiesChecksumComputedColumn(),
 		)
 		for teamID, teamPolicySpecs := range teamIDToPolicies {
@@ -1804,12 +1806,18 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					patchSoftwareTitleIDArg = fmaTitleID
 				}
 
+				// Continuous automations must be enabled so the patch policy keeps retrying the
+				// install until the app is closed.
+				if spec.PatchWhenClosed {
+					spec.ContinuousAutomationsEnabled = true
+				}
+
 				res, err := tx.ExecContext(
 					ctx,
 					query,
 					spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, teamID, spec.Platform, spec.Critical,
 					spec.CalendarEventsEnabled, softwareInstallerID, vppAppsTeamsID, scriptID, spec.ConditionalAccessEnabled,
-					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled,
+					spec.Type, patchSoftwareTitleIDArg, spec.ContinuousAutomationsEnabled, spec.PatchWhenClosed,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
@@ -2979,7 +2987,7 @@ func (ds *Datastore) getPatchPolicyInstaller(ctx context.Context, teamID uint, t
 }
 
 func (ds *Datastore) GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*fleet.PatchPolicyData, error) {
-	query := `SELECT id, name FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
+	query := `SELECT id, name, patch_when_closed FROM policies WHERE team_id = ? AND patch_software_title_id = ?`
 	var policy fleet.PatchPolicyData
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy, query, ptr.ValOrZero(teamID), titleID)

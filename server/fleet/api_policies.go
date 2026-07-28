@@ -187,6 +187,7 @@ type TeamPolicyRequest struct {
 	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
+	PatchWhenClosed              bool     `json:"patch_when_closed" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`
 }

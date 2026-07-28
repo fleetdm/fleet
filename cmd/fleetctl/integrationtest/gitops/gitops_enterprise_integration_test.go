@@ -3870,6 +3870,112 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slu
 	return slug, installerServer.URL
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsPatchWhenClosed() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	slug, installer := s.setupDarwinFMA(t)
+	teamName := uuid.NewString()
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/"+slug+".json" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installer + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check", // See ma.noCheckHash
+			}},
+			Refs: map[string]string{"fooscript": "echo hello"},
+		})
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	const globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+	globalFile := filepath.Join(t.TempDir(), "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+	teamFile := filepath.Join(t.TempDir(), "team.yml")
+
+	teamCfg := func(policyBody string) string {
+		return fmt.Sprintf(`
+controls:
+software:
+  fleet_maintained_apps:
+    - slug: %s
+policies:
+%s
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, slug, policyBody, teamName)
+	}
+	apply := func(policyBody string) {
+		require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(policyBody)), 0o644))
+		s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		}))
+	}
+
+	// patch_when_closed with continuous_automations omitted: applies and auto-sets it on.
+	pwcOmittedCA := fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    patch_when_closed: true`, slug)
+	apply(pwcOmittedCA)
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, "patch-policy", pols[0].Name)
+	require.True(t, pols[0].PatchWhenClosed, "patch_when_closed should persist")
+	require.True(t, pols[0].ContinuousAutomationsEnabled, "continuous automations should be auto-set on")
+	firstID := pols[0].ID
+
+	// Re-applying the same config is a no-op: the policy keeps its ID and flags.
+	apply(pwcOmittedCA)
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, pols, 1)
+	require.Equal(t, firstID, pols[0].ID, "re-apply should be a no-op")
+	require.True(t, pols[0].PatchWhenClosed)
+	require.True(t, pols[0].ContinuousAutomationsEnabled)
+
+	// An explicit continuous_automations_enabled: false is rejected end-to-end.
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg(fmt.Sprintf(`  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    continuous_automations_enabled: false
+    patch_when_closed: true`, slug))), 0o644))
+	fleetctltest.RunAppCheckErr(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	}, `"continuous_automations_enabled" must be true when "patch_when_closed" is true`)
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
 	t := s.T()
 	ctx := context.Background()

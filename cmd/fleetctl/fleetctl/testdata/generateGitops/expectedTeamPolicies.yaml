@@ -17,6 +17,7 @@
   critical: false
   description: This is a team patch policy
   name: Team patch policy
+  patch_when_closed: true
   platform: linux,windows
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing

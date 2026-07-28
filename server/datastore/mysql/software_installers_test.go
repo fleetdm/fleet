@@ -51,6 +51,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"SoftwareInstallerAppOpenQueryRoundTrip", testSoftwareInstallerAppOpenQueryRoundTrip},
+		{"GetSoftwareInstallDetailsPatchWhenClosed", testGetSoftwareInstallDetailsPatchWhenClosed},
 		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
@@ -7171,6 +7172,95 @@ func testDeleteSoftwareInstallerRepointsPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, got.SoftwareInstallerID)
 	require.Equal(t, installerB, *got.SoftwareInstallerID)
+}
+
+func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Author", "author-pwc@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pwc-team"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "pwc-host", "pwc-1", "pwc-key", "pwc-uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+	const userQuery = "SELECT 1 FROM user_configured_query;"
+	const managedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.example.pwc');"
+
+	// A Fleet-maintained-app-backed installer carries both the user pre-install query and the
+	// Fleet-managed app_open_query.
+	newInstaller := func(t *testing.T, slug string) (uint, uint) {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             slug,
+			Slug:             slug,
+			Platform:         "darwin",
+			UniqueIdentifier: "com.example." + slug,
+		})
+		require.NoError(t, err)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:        "echo install",
+			UninstallScript:      "echo uninstall",
+			PreInstallQuery:      userQuery,
+			AppOpenQuery:         managedQuery,
+			InstallerFile:        tfr,
+			StorageID:            slug,
+			Filename:             slug,
+			Title:                slug,
+			Version:              "1.0",
+			Source:               "apps",
+			Platform:             "darwin",
+			TeamID:               &team.ID,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: new(app.ID),
+		})
+		require.NoError(t, err)
+		return installerID, titleID
+	}
+
+	patchPolicy := func(t *testing.T, titleID uint, patchWhenClosed bool) *fleet.Policy {
+		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Type:                 fleet.PolicyTypePatch,
+			PatchSoftwareTitleID: &titleID,
+			PatchWhenClosed:      patchWhenClosed,
+		})
+		require.NoError(t, err)
+		require.Equal(t, patchWhenClosed, p.PatchWhenClosed)
+		return p
+	}
+
+	// Patch policy with patch_when_closed: the policy-triggered install gets the managed query.
+	closedInstaller, closedTitle := newInstaller(t, "pwc-closed")
+	closedPol := patchPolicy(t, closedTitle, true)
+	closedExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &closedPol.ID})
+	require.NoError(t, err)
+	closedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
+	require.NoError(t, err)
+	require.Equal(t, managedQuery, closedDetails.PreInstallCondition)
+
+	// Activating the install moves it into host_software_installs, exercising the other UNION
+	// branch of the query, which must resolve the managed query the same way.
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	activatedDetails, err := ds.GetSoftwareInstallDetails(ctx, closedExec)
+	require.NoError(t, err)
+	require.Equal(t, managedQuery, activatedDetails.PreInstallCondition)
+
+	// Same installer, but a manual (non-policy) install falls back to the user query.
+	manualExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, closedInstaller, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	manualDetails, err := ds.GetSoftwareInstallDetails(ctx, manualExec)
+	require.NoError(t, err)
+	require.Equal(t, userQuery, manualDetails.PreInstallCondition)
+
+	// A patch policy without patch_when_closed keeps the user query on the policy path.
+	forceInstaller, forceTitle := newInstaller(t, "pwc-force")
+	forcePol := patchPolicy(t, forceTitle, false)
+	forceExec, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, forceInstaller, fleet.HostSoftwareInstallOptions{PolicyID: &forcePol.ID})
+	require.NoError(t, err)
+	forceDetails, err := ds.GetSoftwareInstallDetails(ctx, forceExec)
+	require.NoError(t, err)
+	require.Equal(t, userQuery, forceDetails.PreInstallCondition)
 }
 
 func testSoftwareInstallerAppOpenQueryRoundTrip(t *testing.T, ds *Datastore) {

@@ -1728,6 +1728,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				return nil, err
 			}
 			policySpec["fleet_maintained_app_slug"] = fma.Slug
+			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type

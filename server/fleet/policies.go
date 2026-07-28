@@ -150,6 +150,7 @@ var (
 	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
 	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
 	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
+	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -160,6 +161,9 @@ const MaxPolicyAutomationRetries = 3
 
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
 	if p.Type == PolicyTypePatch {
 		if p.QueryID != nil {
 			return errPolicyPatchAndQuerySet
@@ -360,6 +364,9 @@ type ModifyPolicyPayload struct {
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
 			if err := verifyPolicyName(*p.Name); err != nil {
@@ -607,6 +614,8 @@ type PolicySpec struct {
 	//
 	// Only applies to team policies.
 	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -662,6 +671,9 @@ func (p PolicySpec) Verify() error {
 	}
 	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
 		return errPolicyFMASlugRequiresPatch
+	}
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
 	}
 	return p.VerifyLabelScopes()
 }

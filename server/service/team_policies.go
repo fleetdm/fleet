@@ -42,6 +42,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsExcludeAll:             req.LabelsExcludeAll,
 		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
 		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
+		PatchWhenClosed:              req.PatchWhenClosed,
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 	})
@@ -301,6 +302,13 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if err != nil {
 		return fleet.PolicyPayload{}, err
 	}
+
+	// Continuous automations must be enabled so the patch policy keeps retrying until the app is closed.
+	continuousAutomationsEnabled := p.ContinuousAutomationsEnabled
+	if p.PatchWhenClosed {
+		continuousAutomationsEnabled = true
+	}
+
 	return fleet.PolicyPayload{
 		QueryID:                      p.QueryID,
 		Name:                         p.Name,
@@ -318,7 +326,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:             p.LabelsExcludeAny,
 		LabelsExcludeAll:             p.LabelsExcludeAll,
 		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
-		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
+		ContinuousAutomationsEnabled: continuousAutomationsEnabled,
+		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 	}, nil
@@ -700,6 +709,19 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.ContinuousAutomationsEnabled != nil {
 		policy.ContinuousAutomationsEnabled = *p.ContinuousAutomationsEnabled
 	}
+	patchWhenClosed := policy.PatchWhenClosed
+	if p.PatchWhenClosed != nil {
+		patchWhenClosed = *p.PatchWhenClosed
+	}
+	if patchWhenClosed && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPatchWhenClosedRequiresContinuousAutomations),
+		})
+	}
+	if patchWhenClosed {
+		policy.ContinuousAutomationsEnabled = true
+	}
+	policy.PatchWhenClosed = patchWhenClosed
 	if removeStats {
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
