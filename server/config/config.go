@@ -1010,8 +1010,9 @@ func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
 //
 //   - Users: Google publishes no per-account cap; 500,000 (1,000 pages of 500) is
 //     far above the largest directory Fleet expects to sync.
-//   - Groups: also uncapped by Google. 100,000 doubles as the fan-out guard, since
-//     members are fetched one group at a time.
+//   - Groups: also uncapped by Google. 100,000 also bounds the per-group member
+//     fan-out, since members are fetched one group at a time (it does not bound how
+//     long a pass takes: 100,000 sequential member listings is already a long sync).
 //   - Members per group: Google itself enforces a hard limit of 50,000 direct
 //     members per group, so 60,000 sits just above a ceiling Google won't exceed.
 //   - Total memberships: every group's members are held until the pull is
@@ -1032,6 +1033,22 @@ type GoogleWorkspaceConfig struct {
 	MaxGroups           int `yaml:"max_groups"`
 	MaxGroupMembers     int `yaml:"max_group_members"`
 	MaxGroupMemberships int `yaml:"max_group_memberships"`
+}
+
+// Validate checks that the sync limits are non-negative, so a typo can't silently
+// disable a safety rail.
+func (g GoogleWorkspaceConfig) Validate(initFatal func(err error, msg string)) {
+	for setting, value := range map[string]int{
+		"google_workspace.max_users":             g.MaxUsers,
+		"google_workspace.max_groups":            g.MaxGroups,
+		"google_workspace.max_group_members":     g.MaxGroupMembers,
+		"google_workspace.max_group_memberships": g.MaxGroupMemberships,
+	} {
+		if value < 0 {
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit)", setting),
+				"Google Workspace configuration")
+		}
+	}
 }
 
 type x509KeyPairConfig struct {

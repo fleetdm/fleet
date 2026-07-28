@@ -893,6 +893,33 @@ google_workspace:
 	}
 }
 
+func TestGoogleWorkspaceConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when zero or positive", func(t *testing.T) {
+		cfg := GoogleWorkspaceConfig{MaxUsers: 0, MaxGroups: 1, MaxGroupMembers: 2, MaxGroupMemberships: 3}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	// A negative value would silently disable the limit, so it must be rejected at
+	// startup rather than removing a safety rail.
+	for _, tc := range []struct {
+		name string
+		cfg  GoogleWorkspaceConfig
+	}{
+		{"negative max users", GoogleWorkspaceConfig{MaxUsers: -1}},
+		{"negative max groups", GoogleWorkspaceConfig{MaxGroups: -1}},
+		{"negative max group members", GoogleWorkspaceConfig{MaxGroupMembers: -1}},
+		{"negative max group memberships", GoogleWorkspaceConfig{MaxGroupMemberships: -1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			tc.cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
+}
+
 func TestServerConfigWithH2C(t *testing.T) {
 	ctx := context.Background()
 

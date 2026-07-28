@@ -7,7 +7,6 @@ package googleworkspace
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -47,11 +46,20 @@ var directoryScopes = []string{
 	directory.AdminDirectoryGroupMemberReadonlyScope,
 }
 
-// Limits bound how much of a directory a single sync pass pulls. They are safety
-// rails, not tuning knobs: no real Google Workspace tenant is expected to reach
-// them. They guard against runaway pagination (a malformed response or a proxy can
-// keep handing out page tokens indefinitely) and against holding an unbounded
-// directory in memory. A zero or negative value means unlimited.
+// maxPagesPerListing bounds page iteration for every listing, regardless of the
+// configured Limits. It catches what a record limit cannot: a malformed response or
+// a proxy that keeps returning a next-page token with empty (or barely filled)
+// pages never grows the result set, so only a page count stops it. It is
+// deliberately far above what a real listing needs — the default user limit is
+// reached in 1,000 pages — so it never fails a sync that would otherwise complete.
+// It is a var only so tests can lower it and exercise the guard cheaply.
+var maxPagesPerListing = 10_000
+
+// Limits bound how much of a directory a single sync pass pulls, guarding against
+// holding an unbounded directory in memory. They are safety rails, not tuning
+// knobs: no real Google Workspace tenant is expected to reach them. Defaults and
+// their rationale live with the configuration in server/config. A zero or negative
+// value disables the limit; maxPagesPerListing still applies.
 //
 // Exceeding a limit fails the sync rather than truncating the pull: reconciliation
 // treats the pull as authoritative and deletes any scim user/group missing from it,
@@ -181,7 +189,7 @@ func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGro
 		// the running total, not just each group.
 		memberships += len(memberIDs)
 		if d.limits.MaxGroupMemberships > 0 && memberships > d.limits.MaxGroupMemberships {
-			return nil, ctxerr.Errorf(ctx, "google workspace directory exceeded the limit of %d total group memberships; raise %s to sync this domain",
+			return nil, ctxerr.Errorf(ctx, "exceeded the limit of %d total group memberships; raise %s to sync this domain",
 				d.limits.MaxGroupMemberships, maxGroupMembershipsSetting)
 		}
 		d.log().DebugContext(ctx, "ingested google workspace group",
@@ -383,31 +391,22 @@ func newGoogleAPI(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, l
 	return &googleAPI{service: service, limits: limits}, nil
 }
 
-// maxPages bounds page iteration independently of the record limit. A malformed
-// response or a misbehaving proxy can return empty pages with a next-page token
-// forever, which a record limit alone never catches because the result set never
-// grows. Allowing twice the pages a completely full result set needs leaves room
-// for the partially filled pages the Directory API may return.
-func maxPages(recordLimit, pageSize int) int {
-	return (recordLimit/pageSize + 1) * 2
-}
-
-// checkPageLimits aborts pagination once a list call has collected more than
-// recordLimit records or iterated past the page limit derived from it. Returning an
-// error from a Pages callback stops iteration and surfaces the error to the caller,
-// which fails the sync — the alternative, a truncated pull, would make
-// reconciliation delete every record past the limit.
-func checkPageLimits(ctx context.Context, records, pages, recordLimit, pageSize int, resource, setting string) error {
-	if recordLimit <= 0 {
-		return nil
-	}
-	if records > recordLimit {
-		return ctxerr.Errorf(ctx, "google workspace directory exceeded the limit of %d %s; raise %s to sync this domain",
+// checkListLimits aborts pagination once a list call has collected more than
+// recordLimit records, or has iterated past maxPagesPerListing however it is
+// configured. Returning an error from a Pages callback stops iteration and surfaces
+// the error to the caller, which fails the sync — the alternative, a truncated pull,
+// would make reconciliation delete every record past the limit.
+// The messages stay terse because they end up in the 255-character sync status
+// column, and the setting name is the part an operator needs; the caller's error
+// wrapping already says this is Google Workspace.
+func checkListLimits(ctx context.Context, records, pages, recordLimit int, resource, setting string) error {
+	if recordLimit > 0 && records > recordLimit {
+		return ctxerr.Errorf(ctx, "exceeded the limit of %d %s; raise %s to sync this domain",
 			recordLimit, resource, setting)
 	}
-	if limit := maxPages(recordLimit, pageSize); pages > limit {
-		return ctxerr.Errorf(ctx, "google workspace %s listing did not complete within %d pages; raise %s if the domain is that large",
-			resource, limit, setting)
+	if pages > maxPagesPerListing {
+		return ctxerr.Errorf(ctx, "%s listing stopped after %d pages without completing; the API kept returning next-page tokens",
+			resource, maxPagesPerListing)
 	}
 	return nil
 }
@@ -418,7 +417,7 @@ func (a *googleAPI) ListUsers(ctx context.Context, domain string) ([]*directory.
 	err := a.service.Users.List().Domain(domain).MaxResults(usersPageSize).Pages(ctx, func(page *directory.Users) error {
 		users = append(users, page.Users...)
 		pages++
-		return checkPageLimits(ctx, len(users), pages, a.limits.MaxUsers, usersPageSize, "users", maxUsersSetting)
+		return checkListLimits(ctx, len(users), pages, a.limits.MaxUsers, "users", maxUsersSetting)
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "google workspace users.list")
@@ -432,7 +431,7 @@ func (a *googleAPI) ListGroups(ctx context.Context, domain string) ([]*directory
 	err := a.service.Groups.List().Domain(domain).MaxResults(groupsPageSize).Pages(ctx, func(page *directory.Groups) error {
 		groups = append(groups, page.Groups...)
 		pages++
-		return checkPageLimits(ctx, len(groups), pages, a.limits.MaxGroups, groupsPageSize, "groups", maxGroupsSetting)
+		return checkListLimits(ctx, len(groups), pages, a.limits.MaxGroups, "groups", maxGroupsSetting)
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "google workspace groups.list")
@@ -443,11 +442,12 @@ func (a *googleAPI) ListGroups(ctx context.Context, domain string) ([]*directory
 func (a *googleAPI) ListGroupMembers(ctx context.Context, groupKey string) ([]*directory.Member, error) {
 	var members []*directory.Member
 	pages := 0
-	resource := fmt.Sprintf("members of group %s", groupKey)
+	// The group is named by the caller's error wrapping, and the sync status column
+	// this error lands in is only 255 characters, so don't repeat it here.
 	err := a.service.Members.List(groupKey).MaxResults(membersPageSize).Pages(ctx, func(page *directory.Members) error {
 		members = append(members, page.Members...)
 		pages++
-		return checkPageLimits(ctx, len(members), pages, a.limits.MaxGroupMembers, membersPageSize, resource, maxGroupMembersSetting)
+		return checkListLimits(ctx, len(members), pages, a.limits.MaxGroupMembers, "group members", maxGroupMembersSetting)
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "google workspace members.list")
