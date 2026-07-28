@@ -111,6 +111,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
 		{"ABMTokensTermsExpired", testMDMAppleABMTokensTermsExpired},
+		{"ABMTokensTokenInvalid", testMDMAppleABMTokensTokenInvalid},
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
@@ -9022,6 +9023,85 @@ func testMDMAppleABMTokensTermsExpired(t *testing.T, ds *Datastore) {
 	count, err = ds.CountABMTokensWithTermsExpired(ctx)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, count)
+}
+
+func testMDMAppleABMTokensTokenInvalid(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a couple of tokens
+	encTok1 := uuid.NewString()
+	t1, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm1", EncryptedToken: []byte(encTok1), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t1.ID)
+	encTok2 := uuid.NewString()
+	t2, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "abm2", EncryptedToken: []byte(encTok2), RenewAt: time.Now().Add(365 * 24 * time.Hour)})
+	require.NoError(t, err)
+	require.NotEmpty(t, t2.ID)
+
+	// neither token is invalid yet
+	got, err := ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err := ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// set t1 invalid
+	was, err := ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.False(t, was) // previous value was false
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.True(t, invalid)
+
+	// t2 is unaffected
+	got, err = ds.GetABMTokenByOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t2.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting t1 invalid again is a no-op, previous value was already true
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// clear t1
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, t1.OrganizationName, false)
+	require.NoError(t, err)
+	require.True(t, was) // previous value was true
+
+	got, err = ds.GetABMTokenByOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, got.TokenInvalid)
+
+	invalid, err = ds.IsABMTokenInvalidForOrgName(ctx, t1.OrganizationName)
+	require.NoError(t, err)
+	require.False(t, invalid)
+
+	// setting the invalid flag of a non-existing token always returns as if it
+	// did not update (which is fine, it will only be called after a DEP API
+	// call that used this token, so if the token does not exist it would fail
+	// the call).
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", false)
+	require.NoError(t, err)
+	require.False(t, was)
+	was, err = ds.SetABMTokenInvalidForOrgName(ctx, "no-such-token", true)
+	require.NoError(t, err)
+	require.True(t, was)
+
+	// reading the invalid flag of a non-existing token is a not-found error
+	_, err = ds.IsABMTokenInvalidForOrgName(ctx, "no-such-token")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }
 
 func testMDMGetABMTokenOrgNamesAssociatedWithTeam(t *testing.T, ds *Datastore) {

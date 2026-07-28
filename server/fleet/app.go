@@ -503,7 +503,8 @@ type MacOSSettings struct {
 	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
 	// spec: this field is only populated while parsing a GitOps file so the
 	// assets can be applied via their own batch endpoint. It is intentionally
-	// omitted from ToMap/FromMap.
+	// omitted from FromMap; ToMap includes it only so the key passes the team
+	// spec's strict key validation (see applyTeamSpecsRequest.DecodeBody).
 	Assets []MDMProfileSpec `json:"assets,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
@@ -517,6 +518,7 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"assets":                 s.Assets,
 	}
 }
 

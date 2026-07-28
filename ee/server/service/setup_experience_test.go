@@ -12,6 +12,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -333,6 +334,29 @@ func TestSetupExperienceScriptRejectsUnknownCustomHostVital(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Custom host vital")
 	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
+}
+
+func TestSetupExperienceScriptFleetVariables(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) { return true, nil }
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error { return nil }
+
+	err := svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_VAR_NONEXISTENT")))
+	require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.")
+	require.False(t, ds.SetSetupExperienceScriptFuncInvoked)
+
+	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", bytes.NewReader([]byte("echo $FLEET_VAR_HOST_UUID")))
+	require.NoError(t, err)
+	require.True(t, ds.SetSetupExperienceScriptFuncInvoked)
 }
 
 func TestSetupExperienceScriptCustomHostVitalInfraErrorPropagates(t *testing.T) {

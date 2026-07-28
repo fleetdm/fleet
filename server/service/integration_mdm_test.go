@@ -1855,13 +1855,17 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	mdmDeviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
+	hostA, err := s.ds.HostByIdentifier(context.Background(), mdmDeviceA.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, hostA.ID, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
+	hostB, err := s.ds.HostByIdentifier(context.Background(), mdmDeviceB.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "darwin"}`, hostB.ID, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -16235,8 +16239,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, iPhoneMdmDevice.Enroll())
 	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
+	iPhoneHost, err := s.ds.HostByIdentifier(context.Background(), iPhoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, iPhoneHost.ID, iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.EnrollmentID(), iPhoneMdmDevice.Model, iPhoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err := s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPhoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -16270,8 +16276,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, iPadMdmDevice.Enroll())
 	assert.Equal(t, "sso_user2@example.com", iPadMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
+	iPadHost, err := s.ds.HostByIdentifier(context.Background(), iPadMdmDevice.EnrollmentID())
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ipados"}`, iPadHost.ID, iPadMdmDevice.EnrollmentID(), iPadMdmDevice.EnrollmentID(), iPadMdmDevice.Model, iPadMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -16285,8 +16293,10 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NoError(t, oldUrlIphoneMdmDevice.Enroll())
 	assert.Equal(t, "sso_user2@example.com", oldUrlIphoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
+	oldUrlIphoneHost, err := s.ds.HostByIdentifier(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
+	require.NoError(t, err)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
-		fmt.Sprintf(`{"host_serial": null, "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.Model, oldUrlIphoneMdmDevice.EnrollmentID()), 0)
+		fmt.Sprintf(`{"host_id": %d, "host_serial": "%s", "enrollment_id": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple", "platform": "ios"}`, oldUrlIphoneHost.ID, oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.EnrollmentID(), oldUrlIphoneMdmDevice.Model, oldUrlIphoneMdmDevice.EnrollmentID()), 0)
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), oldUrlIphoneMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
@@ -25364,6 +25374,7 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
 	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
 }
+
 func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 	t := s.T()
 	ctx := context.Background()

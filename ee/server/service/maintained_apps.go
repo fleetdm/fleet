@@ -135,6 +135,12 @@ func (svc *Service) AddFleetMaintainedApp(
 		}
 	}
 
+	// validate the effective scripts, after empty inputs were defaulted from
+	// the maintained-app manifest above
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
+		return 0, err
+	}
+
 	maintainedAppID := &app.ID
 	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
 		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {

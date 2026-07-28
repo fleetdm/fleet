@@ -98,4 +98,12 @@ software:
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+    - slug: claude/darwin # Claude for macOS
+      self_service: true  
     # Windows apps
