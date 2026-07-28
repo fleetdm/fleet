@@ -116,7 +116,7 @@ jobs:
               body: `QA ticket created: #${issue.data.number}`,
             });
 
-            // --- Project board: add to #g-orchestration and set status to "Awaiting QA" ---
+            // --- Project board: add to #g-orchestration and set status to "Inbox" ---
             // Requires a PAT stored as FLEET_GITHUB_TOKEN_PROJECTS with
             // read/write access to organization projects.
             const projectToken = process.env.PROJECT_TOKEN;
@@ -134,7 +134,7 @@ jobs:
 
             const PROJECT_ID    = 'PVT_kwDOBDAnic4A4BEx';        // #g-orchestration (#71)
             const STATUS_FIELD  = 'PVTSSF_lADOBDAnic4A4BExzgtDlHw';
-            const AWAITING_QA   = 'fb6643ee';
+            const INBOX         = 'f33a1ec5';
 
             // Add the issue to the project.
             const addResult = await projectOctokit.graphql(`
@@ -151,7 +151,7 @@ jobs:
             const itemId = addResult.addProjectV2ItemById.item.id;
             console.log(`Added to #g-orchestration board (item ${itemId})`);
 
-            // Set status to "Awaiting QA".
+            // Set status to "Inbox".
             await projectOctokit.graphql(`
               mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
                 updateProjectV2ItemFieldValue(input: {
@@ -167,7 +167,7 @@ jobs:
               projectId: PROJECT_ID,
               itemId: itemId,
               fieldId: STATUS_FIELD,
-              optionId: AWAITING_QA,
+              optionId: INBOX,
             });
 
-            console.log('Status set to "Awaiting QA"');
+            console.log('Status set to "Inbox"');
