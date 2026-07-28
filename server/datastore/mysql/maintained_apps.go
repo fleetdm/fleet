@@ -142,23 +142,16 @@ func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 		return ctxerr.Wrap(ctx, err, "get windows FMA names for reconcile")
 	}
 
-	// matchWindowsFMAName resolves a reported name to a canonical name, so two FMAs
-	// sharing that name but owning different titles would both claim the same stale
-	// titles and the last one processed would win. Drop those rather than let the
-	// outcome depend on iteration order.
-	titlesByName := make(map[string]map[uint]struct{}, len(fmaNames))
-	for _, fma := range fmaNames {
-		if titlesByName[fma.Name] == nil {
-			titlesByName[fma.Name] = make(map[uint]struct{}, 1)
-		}
-		titlesByName[fma.Name][fma.TitleID] = struct{}{}
-	}
-
+	// Two FMA rows can resolve to the same destination title (an app listed under two
+	// slugs, say), in which case merging it twice is harmless. Processing the same
+	// destination more than once is still wasted work, so collapse them.
 	allPrefixes := windowsFMAPrefixes(fmaNames)
+	seen := make(map[uint]struct{}, len(fmaNames))
 	for _, fma := range fmaNames {
-		if len(titlesByName[fma.Name]) > 1 {
+		if _, ok := seen[fma.TitleID]; ok {
 			continue
 		}
+		seen[fma.TitleID] = struct{}{}
 		if err := ds.mergeWindowsFMATitle(ctx, fma, allPrefixes); err != nil {
 			return ctxerr.Wrapf(ctx, err, "merge windows FMA title %q", fma.Name)
 		}
@@ -174,29 +167,30 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 	}
 
 	// Narrow the scan to names that could plausibly belong to this FMA. The final
-	// decision is made in Go by matchWindowsFMAName so that prefix precedence and the
+	// decision is made in Go by matchWindowsFMATitle so that prefix precedence and the
 	// ambiguity rule match the ingestion path exactly.
 	var nameConds []string
-	args := []any{fma.Name}
+	args := []any{fma.TitleID}
 	for _, prefix := range prefixes {
-		// Escape LIKE wildcards so a name containing % or _ can't widen the match.
+		// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
+		// ESCAPE clause below is stated explicitly rather than relying on the default.
 		escaped := prefix
 		for _, c := range []string{`\`, `%`, `_`} {
 			escaped = strings.ReplaceAll(escaped, c, `\`+c)
 		}
-		nameConds = append(nameConds, "st.name = ? OR st.name LIKE ?")
+		nameConds = append(nameConds, `st.name = ? OR st.name LIKE ? ESCAPE '\\'`)
 		args = append(args, prefix, escaped+" %")
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Inventory-only versioned titles. Exclude the canonical name, titles with an
-		// upgrade code (those join through it instead), and titles owned by an
+		// Inventory-only versioned titles. Exclude the destination itself, titles with
+		// an upgrade code (those join through it instead), and titles owned by an
 		// installer/VPP/in-house app, whose links are the authoritative mapping.
 		staleStmt := `
 			SELECT st.id, st.name
 			FROM software_titles st
 			WHERE st.source = 'programs' AND st.extension_for = ''
-				AND st.name <> ?
+				AND st.id <> ?
 				AND (` + strings.Join(nameConds, " OR ") + `)
 				AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
 				AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)
@@ -212,7 +206,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 
 		var staleIDs []uint
 		for _, c := range candidates {
-			if canonical, ok := matchWindowsFMAName(c.Name, allPrefixes); ok && canonical == fma.Name {
+			if match, ok := matchWindowsFMATitle(c.Name, allPrefixes); ok && match.titleID == fma.TitleID {
 				staleIDs = append(staleIDs, c.ID)
 			}
 		}
@@ -520,10 +514,11 @@ func (ds *Datastore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMA
 	// spanning several is ambiguous and excluded rather than guessed at, matching how
 	// the darwin passes above handle a bundle identifier shared by multiple FMAs.
 	query := `
-		SELECT fma.name, fma.unique_identifier, MIN(si.title_id) AS title_id
+		SELECT fma.name, fma.unique_identifier, MIN(si.title_id) AS title_id, MIN(st.name) AS title_name
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
+		JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
 		GROUP BY fma.id, fma.name, fma.unique_identifier
 		HAVING COUNT(DISTINCT si.title_id) = 1`

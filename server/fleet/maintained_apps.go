@@ -36,21 +36,26 @@ type MaintainedApp struct {
 type WindowsFMAName struct {
 	Name             string `db:"name"`
 	UniqueIdentifier string `db:"unique_identifier"`
-	// TitleID is the software title the app's installer owns, resolved through
-	// software_installers.fleet_maintained_app_id. It is the merge destination, and
-	// is deliberately not re-derived from Name: a Windows FMA's title is never
-	// renamed when the catalog name changes (the darwin reconcile passes are
-	// platform-scoped, and the installer only renames when an upgrade code is
-	// present), so looking the title up by the current catalog name could miss the
-	// installer's title entirely and merge software onto an unowned one.
-	TitleID uint `db:"title_id"`
+	// TitleID and TitleName describe the software title the app's installer owns,
+	// resolved through software_installers.fleet_maintained_app_id. Together they are
+	// the merge destination, and are deliberately not re-derived from Name: a Windows
+	// FMA's title is never renamed when the catalog name changes (the darwin reconcile
+	// passes are platform-scoped, and the installer only renames when an upgrade code
+	// is present), so deriving the destination from the current catalog name could
+	// land software on a title no installer owns.
+	TitleID   uint   `db:"title_id"`
+	TitleName string `db:"title_name"`
 }
 
 // MatchPrefixes returns the candidate program-name prefixes for this FMA, longest
 // first so the most specific match wins, deduplicated and without blanks.
+//
+// The installer's title name is a candidate alongside the catalog name and identifier:
+// when the two have drifted, it is the name inventory most likely reports under, since
+// it is what the app was called when it was added.
 func (w WindowsFMAName) MatchPrefixes() []string {
-	prefixes := make([]string, 0, 2)
-	for _, c := range []string{w.UniqueIdentifier, w.Name} {
+	prefixes := make([]string, 0, 3)
+	for _, c := range []string{w.UniqueIdentifier, w.Name, w.TitleName} {
 		if c == "" || slices.Contains(prefixes, c) {
 			continue
 		}

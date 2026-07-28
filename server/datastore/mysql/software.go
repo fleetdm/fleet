@@ -989,58 +989,77 @@ func longestCommonPrefix(strs []string) string {
 	}
 }
 
-// windowsFMAPrefix is one candidate program-name prefix, lowercased for comparison,
-// and the canonical software title name it maps to.
+// windowsFMAPrefix is one candidate program-name prefix, normalized for comparison,
+// paired with the software title it resolves to.
+//
+// The prefix and the destination are deliberately separate. Matching considers every
+// name an app may report under, but the destination is always the title the app's
+// installer owns: a Windows FMA's title is never renamed when the catalog name
+// changes, so resolving the destination from the catalog name could land software on a
+// title no installer owns, leaving the uninstall action hidden and the reconcile pass
+// unable to repair it.
 type windowsFMAPrefix struct {
-	prefix string
-	name   string
+	prefix    string
+	titleName string
+	titleID   uint
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
 // once per ingestion batch so the per-software-row match stays allocation-free.
 func windowsFMAPrefixes(fmas []fleet.WindowsFMAName) []windowsFMAPrefix {
-	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*2)
+	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*3)
 	for _, f := range fmas {
 		for _, p := range f.MatchPrefixes() {
-			prefixes = append(prefixes, windowsFMAPrefix{prefix: strings.ToLower(p), name: f.Name})
+			prefixes = append(prefixes, windowsFMAPrefix{
+				prefix:    normalizeSoftwareNameForMatch(p),
+				titleName: f.TitleName,
+				titleID:   f.TitleID,
+			})
 		}
 	}
 	return prefixes
 }
 
-// matchWindowsFMAName returns the canonical software title name for a reported
-// Windows program name, or false when it matches no Fleet-maintained app.
+// normalizeSoftwareNameForMatch lowercases and strips the Unicode format and control
+// characters that MySQL's utf8mb4_unicode_ci collation ignores, so a Go-side name
+// comparison agrees with the collation the software_titles unique index uses.
+func normalizeSoftwareNameForMatch(s string) string {
+	return strings.ToLower(normalizeForCollation(s))
+}
+
+// matchWindowsFMATitle returns the software title a reported Windows program name
+// belongs to, or false when it matches no Fleet-maintained app.
 //
 // A candidate matches when the reported name equals it or begins with
 // "<candidate> " — the trailing space is what keeps "Zoombie 5.0" away from the
 // "Zoom" FMA. The longest matching candidate wins so a more specific app is
-// preferred, and a tie between FMAs that disagree on the canonical name is treated
-// as no match: there is no principled winner, and renaming to the wrong app is worse
+// preferred, and a tie between candidates resolving to different titles is treated as
+// no match: there is no principled winner, and merging into the wrong app is worse
 // than leaving the title alone. This mirrors the rule the darwin reconcile passes
 // apply to a bundle identifier shared by more than one FMA.
-func matchWindowsFMAName(name string, prefixes []windowsFMAPrefix) (string, bool) {
-	lowerName := strings.ToLower(name)
+func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAPrefix, bool) {
+	normalized := normalizeSoftwareNameForMatch(name)
 
-	var best string
+	var best windowsFMAPrefix
 	var bestLen int
 	ambiguous := false
 	for _, p := range prefixes {
 		if len(p.prefix) < bestLen {
 			continue
 		}
-		if lowerName != p.prefix && !strings.HasPrefix(lowerName, p.prefix+" ") {
+		if normalized != p.prefix && !strings.HasPrefix(normalized, p.prefix+" ") {
 			continue
 		}
 		switch {
 		case len(p.prefix) > bestLen:
-			best, bestLen, ambiguous = p.name, len(p.prefix), false
-		case !strings.EqualFold(p.name, best):
+			best, bestLen, ambiguous = p, len(p.prefix), false
+		case p.titleID != best.titleID:
 			ambiguous = true
 		}
 	}
 
-	if ambiguous || best == "" {
-		return "", false
+	if ambiguous || bestLen == 0 {
+		return windowsFMAPrefix{}, false
 	}
 	return best, true
 }
@@ -1180,8 +1199,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					// reports one would create a second title under the canonical name with
 					// a different unique_identifier: a duplicate in the UI, and still not the
 					// title the installer owns. Those programs already match by upgrade code.
-					if fmaName, ok := matchWindowsFMAName(sw.Name, winFMAPrefixes); ok {
-						newTitleName = fmaName
+					if match, ok := matchWindowsFMATitle(sw.Name, winFMAPrefixes); ok {
+						newTitleName = match.titleName
 					}
 				}
 

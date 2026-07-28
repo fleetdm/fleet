@@ -41,6 +41,12 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAReconcileKeepsTitleReferences", testWindowsFMAReconcileKeepsTitleReferences},
 		{"WindowsFMAReconcileSameNameUpgradeCodeTitle", testWindowsFMAReconcileSameNameUpgradeCodeTitle},
 		{"WindowsFMAReconcileAfterCatalogRename", testWindowsFMAReconcileAfterCatalogRename},
+		{"WindowsFMAIngestAfterCatalogRename", testWindowsFMAIngestAfterCatalogRename},
+		{"WindowsFMAUninstallActionAvailable", testWindowsFMAUninstallActionAvailable},
+		{"WindowsFMAMultiTeamInstallersShareTitle", testWindowsFMAMultiTeamInstallersShareTitle},
+		{"WindowsFMAExcludedWhenSpanningTitles", testWindowsFMAExcludedWhenSpanningTitles},
+		{"WindowsFMAIgnoresInstallerWithoutTitle", testWindowsFMAIgnoresInstallerWithoutTitle},
+		{"WindowsFMANameWithLikeWildcards", testWindowsFMANameWithLikeWildcards},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1646,6 +1652,216 @@ func testWindowsFMAReconcileAfterCatalogRename(t *testing.T, ds *Datastore) {
 		"software must merge onto the installer's title, not one named after the new catalog name")
 	require.Zero(t, countTitlesNamed(t, ds, "Zoom Workplace"),
 		"no title should be invented for the renamed catalog entry")
+}
+
+// testWindowsFMAIngestAfterCatalogRename: the ingestion path must resolve the
+// destination the same way the reconcile pass does, through the installer link. Using
+// the current catalog name instead would create a title no installer owns, and the
+// reconcile pass could not repair it because the stale-title scan skips the
+// destination itself.
+func testWindowsFMAIngestAfterCatalogRename(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	installerTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Zoom", "Zoom", "zoom/windows")
+
+	// A later catalog sync renames the app; the installer's title keeps the old name.
+	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Zoom Workplace",
+		Slug:             "zoom/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Zoom",
+	})
+	require.NoError(t, err)
+
+	// Inventory arrives after the rename, so it goes through ingestion, not reconcile.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Zoom 6.1.0", Version: "6.1.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Zoom 6.1.0'`)
+	})
+	require.Equal(t, installerTitleID, gotTitleID,
+		"ingestion must land on the installer's title, not one named after the new catalog name")
+	require.Zero(t, countTitlesNamed(t, ds, "Zoom Workplace"),
+		"no title should be invented for the renamed catalog entry")
+}
+
+// testWindowsFMAUninstallActionAvailable asserts the outcome the fix exists for: the
+// host's software resolves an installer, which is what surfaces the uninstall action.
+// The other tests check title_id values; this one checks the join those values feed.
+func testWindowsFMAUninstallActionAvailable(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host))
+
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 50},
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+
+	var found *fleet.HostSoftwareWithInstaller
+	for _, s := range sw {
+		if s.Name == "Granola" {
+			found = s
+			break
+		}
+	}
+	require.NotNil(t, found, "the host's Granola software should roll up under the installer's title")
+	require.NotNil(t, found.SoftwarePackage,
+		"an installer must resolve for the title, which is what surfaces the uninstall action")
+}
+
+// testWindowsFMAMultiTeamInstallersShareTitle: an app added to several teams has one
+// installer row per team, all pointing at the same title. Those rows must collapse to
+// a single entry rather than fanning out or tripping the ambiguity guard.
+func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	titleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	// Same app on a second team, reusing the same title.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team A"})
+	require.NoError(t, err)
+	app, err := ds.GetMaintainedAppBySlug(ctx, "granola/windows", nil)
+	require.NoError(t, err)
+	_, teamTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID:               &team.ID,
+		Title:                "Granola",
+		Source:               "programs",
+		StorageID:            "storageid-granola-team",
+		Filename:             "granola.exe",
+		Extension:            "exe",
+		Platform:             "windows",
+		Version:              "1.0.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(app.ID),
+	})
+	require.NoError(t, err)
+	require.Equal(t, titleID, teamTitleID, "both teams' installers should share one title")
+
+	names, err := ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1, "per-team installer rows must collapse to one entry")
+	require.Equal(t, titleID, names[0].TitleID)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 7.373.2"))
+}
+
+// testWindowsFMAExcludedWhenSpanningTitles: an app whose installers somehow point at
+// different titles has no single destination, so it is excluded rather than guessed at.
+func testWindowsFMAExcludedWhenSpanningTitles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	names, err := ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 1)
+
+	// Point a second installer row for the same app at a different title.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for, upgrade_code)
+			 VALUES ('Granola Other', 'programs', '', '')`)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_installers
+			   (global_or_team_id, title_id, storage_id, filename, extension, version,
+			    install_script_content_id, platform, fleet_maintained_app_id, package_ids,
+			    uninstall_script_content_id, patch_query)
+			 SELECT 7, (SELECT id FROM software_titles WHERE name = 'Granola Other'), 'sid-other', 'g2.exe', 'exe', '2.0',
+			        si.install_script_content_id, 'windows', si.fleet_maintained_app_id, '',
+			        si.uninstall_script_content_id, si.patch_query
+			 FROM software_installers si LIMIT 1`)
+		return err
+	})
+
+	names, err = ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	require.Empty(t, names, "an app spanning two titles has no unambiguous destination")
+}
+
+// testWindowsFMAIgnoresInstallerWithoutTitle: software_installers.title_id is nullable
+// (ON DELETE SET NULL), so an installer whose title was removed must not yield a
+// zero-valued destination.
+func testWindowsFMAIgnoresInstallerWithoutTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET title_id = NULL`)
+		return err
+	})
+
+	names, err := ds.GetWindowsFMANames(ctx)
+	require.NoError(t, err)
+	require.Empty(t, names, "an installer with no title cannot be a merge destination")
+
+	// And the reconcile pass stays a no-op rather than merging onto title 0.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+}
+
+// testWindowsFMANameWithLikeWildcards: an FMA name containing LIKE metacharacters must
+// be matched literally, not as a wildcard pattern.
+func testWindowsFMANameWithLikeWildcards(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first so the titles below are stale candidates for the reconcile pass.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "C_C 1.0", Version: "1.0", Source: "programs"},
+		{Name: "CXC 2.0", Version: "2.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	installerTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "C_C", "C_C", "c-c/windows")
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	// "C_C 1.0" merges; "CXC 2.0" must not, since _ is a literal here.
+	var cUnderscoreTitle, cxcTitle uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cUnderscoreTitle, `SELECT title_id FROM software WHERE name = 'C_C 1.0'`)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cxcTitle, `SELECT title_id FROM software WHERE name = 'CXC 2.0'`)
+	})
+	require.Equal(t, installerTitleID, cUnderscoreTitle)
+	require.NotEqual(t, installerTitleID, cxcTitle, "_ must not act as a wildcard")
 }
 
 // addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the
