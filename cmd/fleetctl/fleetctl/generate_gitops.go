@@ -1376,8 +1376,10 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
 			}
-			// emit the managed local account toggle only when enabled
-			// Product guidance (2026/07/24): we generally do not output all settings, only what's configured
+			// Emit the managed local account toggle only when it is enabled. Omitting it is lossless because false is
+			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
+			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
+			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
 			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
 				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
 					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,

@@ -2477,7 +2477,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		return ctxerr.Wrap(ctx, err, "fetch app config")
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSManagedLocalAccount bool
 
 	if payload.EnableEndUserAuthentication != nil {
 		if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
@@ -2552,7 +2552,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 	if payload.EnableManagedLocalAccount != nil {
 		if !tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
 			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
-			didUpdateManagedLocalAccount = true
+			didUpdateMacOSManagedLocalAccount = true
 			didUpdate = true
 		}
 	}
@@ -2572,7 +2572,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 				return err
 			}
 		}
-		if didUpdateManagedLocalAccount {
+		if didUpdateMacOSManagedLocalAccount {
 			if err := svc.logEnableManagedLocalAccountActivity(ctx, tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", &tm.ID, &tm.Name); err != nil {
 				return err
 			}
