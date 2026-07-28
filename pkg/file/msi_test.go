@@ -10,8 +10,6 @@ import (
 )
 
 func TestDecodeStringsMemoryAmplification(t *testing.T) {
-	t.Parallel()
-
 	// Build a _StringPool that claims a single string of 64 MB.
 	// The pool format is: 4-byte header (codepage + unknown), then 4-byte entries (size uint16 + refcount uint16).
 	var pool bytes.Buffer
@@ -24,7 +22,7 @@ func TestDecodeStringsMemoryAmplification(t *testing.T) {
 	// when Size==0 and RefCount!=0, then reads a uint32 for the actual size.
 	require.NoError(t, binary.Write(&pool, binary.LittleEndian, uint16(0))) // Size=0 triggers large-string path
 	require.NoError(t, binary.Write(&pool, binary.LittleEndian, uint16(1))) // RefCount!=0
-	const claimedSize = 64 * 1024 * 1024                                   // 64 MB
+	const claimedSize = 64 * 1024 * 1024                                    // 64 MB
 	require.NoError(t, binary.Write(&pool, binary.LittleEndian, uint32(claimedSize)))
 
 	// _StringData is empty: zero actual bytes of string data.
@@ -42,7 +40,6 @@ func TestDecodeStringsMemoryAmplification(t *testing.T) {
 
 	// Measure memory after
 	var after runtime.MemStats
-	runtime.GC()
 	runtime.ReadMemStats(&after)
 
 	// With the fix, TotalAlloc should increase by well under 1 MB.
