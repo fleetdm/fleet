@@ -34,10 +34,7 @@ func (ds *Datastore) SaveHostManagedLocalAccount(ctx context.Context, hostUUID, 
 	return nil
 }
 
-// SaveHostManagedLocalAccountFromEscrow stores a device-generated password for hosts where fleetd
-// creates the account (Windows). command_uuid stays NULL and status is set directly to verified:
-// there is no MDM command to acknowledge. Re-escrow (retry or re-enrollment) replaces the password
-// and clears the pending/rotation columns so a Windows row can never be selected for auto-rotation.
+// SaveHostManagedLocalAccountFromEscrow stores a device-generated password for hosts where fleetd creates the account (Windows).
 func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, hostUUID, plaintextPassword string) error {
 	encrypted, err := encrypt([]byte(plaintextPassword), ds.serverPrivateKey)
 	if err != nil {
@@ -64,12 +61,8 @@ func (ds *Datastore) SaveHostManagedLocalAccountFromEscrow(ctx context.Context, 
 	return nil
 }
 
-// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed
-// local account, mirroring ReportEscrowError for disk encryption keys. The row is marked failed so
-// the API stops offering a password that may no longer match the device, and any previously stored
-// password is left in place rather than destroyed: a later successful escrow overwrites it and
-// clears the error. A first failure inserts a row with a NULL password, meaning "no password", not
-// an empty one.
+// ReportManagedLocalAccountEscrowError records a device-reported failure to create the managed local account, mirroring
+// ReportEscrowError for disk encryption keys.
 func (ds *Datastore) ReportManagedLocalAccountEscrowError(ctx context.Context, hostUUID, clientError string) error {
 	const stmt = `
 		INSERT INTO host_managed_local_account_passwords
@@ -100,9 +93,7 @@ func (ds *Datastore) GetHostManagedLocalAccountPassword(ctx context.Context, hos
 		return nil, ctxerr.Wrap(ctx, err, "getting managed local account password")
 	}
 
-	// A row created by ReportManagedLocalAccountEscrowError holds a NULL password. Callers gate on
-	// PasswordAvailable, but decrypt would panic slicing a nonce out of a zero-length blob, so treat
-	// a missing password as no record at all.
+	// Treat a missing password as no record at all.
 	if len(row.EncryptedPassword) == 0 {
 		return nil, ctxerr.Wrap(ctx, notFound("HostManagedLocalAccountPassword").
 			WithMessage(fmt.Sprintf("for host %s", hostUUID)))

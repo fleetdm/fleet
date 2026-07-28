@@ -907,9 +907,7 @@ type MDMWindowsHostConfigState struct {
 	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
 	// reads it to gate poll relaxation.
 	FleetdSyncCapable bool
-	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment, which is what
-	// stops the server asking it to create the account again. It is per-enrollment state: re-enrolling deletes the enrollment row, so a
-	// device that was wiped and re-enrolled starts false again and is asked to recreate the account.
+	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
 	ManagedLocalAccountEscrowed bool
 }
 

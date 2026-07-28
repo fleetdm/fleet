@@ -132,10 +132,8 @@ func (ds *Datastore) SetMDMWindowsEnrollmentFleetdSyncCapable(ctx context.Contex
 	return nil
 }
 
-// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local
-// account password for its current enrollment. It reports whether the value actually changed, so the
-// caller can log the created activity only when an account was really created and not every time a
-// device re-sends an escrow it already made.
+// SetMDMWindowsManagedLocalAccountEscrowed records whether the host has escrowed a managed local account password for
+// its current enrollment. It reports whether the value actually changed.
 func (ds *Datastore) SetMDMWindowsManagedLocalAccountEscrowed(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE mdm_windows_enrollments SET managed_local_account_escrowed = ?
@@ -453,9 +451,7 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling. It also cleans up host_mdm_windows_profiles so profile
-// delivery statuses are reset for the new enrollment. Per-enrollment flags on
-// the enrollment row itself (managed_local_account_escrowed, for one) need no
-// explicit reset: they are deleted along with the row.
+// delivery statuses are reset for the new enrollment.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
 	const (
 		delStmt         = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
