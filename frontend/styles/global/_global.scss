@@ -138,12 +138,12 @@ form,
   .button-wrap {
     margin: 0;
     display: flex;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
 
     &--center {
       margin: 0;
       display: flex;
-      gap: $pad-medium;
+      gap: $gap-action-elements;
       justify-content: center;
     }
   }
