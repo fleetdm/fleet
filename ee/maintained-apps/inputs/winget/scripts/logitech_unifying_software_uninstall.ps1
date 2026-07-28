@@ -15,6 +15,13 @@ function Get-UnifyingUninstallKey {
         Select-Object -First 1
 }
 
+# Stop anything Logitech left running: it holds file locks, and because
+# "Start-Process -Wait" waits for descendants as well as the process itself, a
+# resident helper would block this script.
+foreach ($name in @("LogiUnify", "Unifying", "UnifyingUnInstaller", "DJCUHost")) {
+    Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
+}
+
 try {
     $key = Get-UnifyingUninstallKey
     if (-not $key) {
@@ -36,15 +43,13 @@ try {
         $uninstallCommand = $Matches[1]
     }
 
-    # This is an NSIS uninstaller. By default it copies itself to %TEMP% and
-    # relaunches, so the process we start exits within a second or two while the
-    # real uninstall is still running -- the app is still registered when software
-    # inventory is re-queried. NSIS's undocumented "_?=<dir>" switch runs the
-    # uninstaller in place instead, which makes it synchronous. It must be the last
-    # argument and must not be quoted, so build one argument string rather than an
-    # array (PowerShell would quote an element containing spaces).
-    $installDir = Split-Path -Parent $uninstallCommand
-    $uninstallArgs = "/S _?=$installDir"
+    # UnifyingUnInstaller.exe is an NSIS uninstaller, but it is a vendor-built one
+    # that rejects NSIS's in-place "_?=<dir>" switch with exit code 10, so pass the
+    # plain silent switch. It returns within a couple of seconds while the real
+    # removal continues in a detached child, which is why the app was still
+    # registered when inventory was re-queried; the poll at the end of this script
+    # is what waits for the removal to actually land.
+    $uninstallArgs = "/S"
 
     Write-Host "Uninstall command: $uninstallCommand"
     Write-Host "Uninstall args: $uninstallArgs"
@@ -73,7 +78,7 @@ try {
 # Belt and braces: if the uninstaller still detached despite "_?=", wait for the
 # ARP entry to disappear before returning so inventory sees a clean state.
 $elapsed = 0
-while ((Get-UnifyingUninstallKey) -and ($elapsed -lt 120)) {
+while ((Get-UnifyingUninstallKey) -and ($elapsed -lt 240)) {
     Start-Sleep -Seconds 5
     $elapsed += 5
     Write-Host "Waiting for the uninstall to finish... ($elapsed seconds)"
