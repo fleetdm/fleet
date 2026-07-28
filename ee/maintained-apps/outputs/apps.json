@@ -723,6 +723,13 @@
       "description": "Appium Inspector GUI is a GUI inspector for mobile apps."
     },
     {
+      "name": "iTunes",
+      "slug": "apple-itunes/windows",
+      "platform": "windows",
+      "unique_identifier": "iTunes",
+      "description": "iTunes is a media player and library for music, video, and podcasts that also syncs and backs up iPhone, iPad, and iPod devices."
+    },
+    {
       "name": "Applite",
       "slug": "applite/darwin",
       "platform": "darwin",

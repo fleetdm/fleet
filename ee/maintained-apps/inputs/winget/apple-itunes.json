@@ -1,0 +1,13 @@
+{
+  "name": "iTunes",
+  "slug": "apple-itunes/windows",
+  "package_identifier": "Apple.iTunes",
+  "unique_identifier": "iTunes",
+  "program_publisher": "Apple Inc.",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/apple_itunes_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/apple_itunes_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}
