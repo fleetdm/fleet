@@ -87,11 +87,23 @@ func (r *Receiver) attempt() {
 		return
 	}
 	go func() {
+		// Deferred LIFO, so the mutex is released first, then the panic is contained, then the
+		// completion is signalled. Signalling before unlocking would let a waiter start the next attempt
+		// while TryLock still fails, silently dropping it.
+		defer func() {
+			// A panic in a goroutine takes down the whole process, and this one drives raw Windows
+			// syscalls. Provisioning a local account must not be able to kill osquery reporting, MDM, and
+			// every other orbit subsystem; the next poll retries. Same reasoning as the recover in
+			// orbit/pkg/table/ai_tools.
+			if p := recover(); p != nil {
+				log.Error().Interface("panic", p).Msg("managed local account: recovered from panic while provisioning")
+			}
+			if r.done != nil {
+				close(r.done)
+			}
+		}()
 		defer r.mu.Unlock()
 		r.createAndEscrow()
-		if r.done != nil {
-			close(r.done)
-		}
 	}()
 }
 

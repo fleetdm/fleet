@@ -129,6 +129,32 @@ func TestReceiverRun(t *testing.T) {
 		assert.Equal(t, 2, provisions, "the second notification must re-run provisioning")
 	})
 
+	// A panic in this goroutine would otherwise terminate the whole orbit process, taking osquery
+	// reporting and MDM down with it. The mutex must still be released so the next poll can retry.
+	t.Run("a panic while provisioning does not escape the goroutine", func(t *testing.T) {
+		esc := &mockEscrower{}
+		r, done := newTestReceiver(t, esc, func(string, string) error {
+			panic("simulated syscall failure")
+		})
+
+		require.NoError(t, r.Run(notification(true)))
+		<-done
+
+		calls, _, _ := esc.snapshot()
+		assert.Zero(t, calls, "nothing should be escrowed when provisioning panics")
+
+		// The lock was released, so a later notification is still acted on.
+		var provisioned bool
+		r.provision = func(string, string) error {
+			provisioned = true
+			return nil
+		}
+		r.done = make(chan struct{})
+		require.NoError(t, r.Run(notification(true)))
+		<-r.done
+		assert.True(t, provisioned, "a panic must not wedge the single-flight lock")
+	})
+
 	t.Run("only one attempt runs at a time", func(t *testing.T) {
 		esc := &mockEscrower{}
 		release := make(chan struct{})
