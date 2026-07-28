@@ -133,8 +133,7 @@ func IsBadRequestError(err error) bool {
 // IsNotFoundError reports whether the AMAPI error indicates that the requested
 // resource does not exist.
 func IsNotFoundError(err error) bool {
-	var ae *googleapi.Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusNotFound
 	}
 	return false
@@ -143,8 +142,7 @@ func IsNotFoundError(err error) bool {
 // IsTooManyRequestsError reports whether the AMAPI error indicates that we
 // exceeded the project's request quota.
 func IsTooManyRequestsError(err error) bool {
-	var ae *googleapi.Error
-	if errors.As(err, &ae) {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
 		return ae.Code == http.StatusTooManyRequests
 	}
 	return false
