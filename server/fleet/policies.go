@@ -605,6 +605,9 @@ func HostPoliciesToDevicePolicies(policies []*HostPolicy) []*DevicePolicy {
 	}
 	devicePolicies := make([]*DevicePolicy, 0, len(policies))
 	for _, p := range policies {
+		if p == nil {
+			continue
+		}
 		devicePolicies = append(devicePolicies, p.ToDevicePolicy())
 	}
 	return devicePolicies
