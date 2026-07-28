@@ -18,9 +18,14 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 # InitializeSetup eventually times out and aborts the whole install -- which is
 # why nothing ever landed in Program Files and nothing was ever registered.
 #
-# Stopping that child while the installer waits lets InitializeSetup return and
-# the install proceed. The same kill also covers the post-install "run" task, and
-# waiting on the installer process alone matters regardless: "Start-Process -Wait"
+# Killing that child does not help -- InitializeSetup needs it to *succeed*, so a
+# killed child aborts the install just as fast. What it is stuck on is a window
+# waiting for input, so close the window instead and let the child exit cleanly.
+# (The same approach fixed the GnuPG and Gpg4win installers in this batch.) Child
+# window titles are logged, so if this still aborts the CI log will say what the
+# dialog was.
+#
+# Waiting on the installer process alone matters regardless: "Start-Process -Wait"
 # waits for the process *and all of its descendants*. Inno's /LOG is kept so any
 # future stall is diagnosable straight from the CI log.
 $installTimeoutSeconds = 420
@@ -33,6 +38,25 @@ $innoLog = Join-Path $env:TEMP "treesize-free-install.log"
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $userKey = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+
+# Collect the installer process and everything descended from it, so a dialog
+# owned by a child (rather than the installer itself) is still visible to us.
+function Get-InstallerTree([int]$rootId) {
+    $all = @{}
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        ForEach-Object { $all[[int]$_.ProcessId] = [int]$_.ParentProcessId }
+
+    $ids = New-Object System.Collections.Generic.HashSet[int]
+    $null = $ids.Add($rootId)
+    # Walk down a bounded number of generations; the tree here is shallow.
+    for ($depth = 0; $depth -lt 5; $depth++) {
+        foreach ($procId in @($all.Keys)) {
+            if ($ids.Contains($all[$procId])) { $null = $ids.Add($procId) }
+        }
+    }
+
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $ids.Contains($_.Id) }
+}
 
 function Test-TreeSizeRegistered {
     $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64, $userKey) -ErrorAction SilentlyContinue |
@@ -67,25 +91,22 @@ while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
   $process.Refresh()
   if ($process.HasExited) { break }
 
-  $children = @(Get-Process -Name $leftovers -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty Name -Unique)
-  $windowTitle = ""
-  try { $windowTitle = $process.MainWindowTitle } catch { }
+  $tree = Get-InstallerTree $process.Id
+  $names = @($tree | Select-Object -ExpandProperty ProcessName -Unique)
+  $windows = @($tree | Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } |
+    ForEach-Object { "$($_.ProcessName): '$($_.MainWindowTitle)'" })
 
-  Write-Host "Installing... ($elapsed seconds, registered: $(Test-TreeSizeRegistered), window: '$windowTitle', children: $($children -join ', '))"
+  Write-Host "Installing... ($elapsed seconds, registered: $(Test-TreeSizeRegistered), tree: $($names -join ', '), windows: $($windows -join ' | '))"
 
   if ($elapsed -ge $graceSeconds) {
-    # Release InitializeSetup: it is blocked waiting on the TreeSizeFree.exe it
-    # extracted to %TEMP%, which never exits without an interactive desktop.
-    if ($children.Count -gt 0) {
-      Write-Host "Stopping the installer's child process(es) [$($children -join ', ')] so InitializeSetup can continue."
-      foreach ($name in $children) {
-        Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
+    # Release InitializeSetup by dismissing whatever the extracted TreeSizeFree.exe
+    # is waiting on, so it can exit on its own. Killing it instead makes
+    # InitializeSetup return False and abort the install.
+    foreach ($p in $tree) {
+      if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+        Write-Host "Closing window owned by $($p.ProcessName) ('$($p.MainWindowTitle)') so the install can continue."
+        $null = $p.CloseMainWindow()
       }
-    }
-    if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
-      Write-Host "Installer is showing a window ('$windowTitle'); closing it so the install can continue."
-      $null = $process.CloseMainWindow()
     }
   }
 }
