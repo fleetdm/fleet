@@ -79,6 +79,7 @@ const RunScriptBatchPaginatedList = ({
     <>
       <a>{script.name}</a>
       <Button
+        className="row-hover-button"
         variant="secondary"
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();

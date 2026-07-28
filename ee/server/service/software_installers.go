@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -37,6 +38,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -130,6 +132,10 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, argErr
 		}
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
+
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+		return nil, err
 	}
 
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
@@ -415,6 +421,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
 	}
 
+	if err := validateFleetVariablesOnInstallerScripts(ctx, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript); err != nil {
+		return nil, err
+	}
+
 	// get software by ID, fail if it does not exist or does not have an existing installer
 	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
@@ -618,8 +628,13 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			dirty["Package"] = true
 
 			// For script packages the uploaded file's contents are the install
-			// script, so replacing the file must update install_script too.
+			// script, so replacing the file must update install_script too. The
+			// file's contents were not among the payload fields validated above,
+			// so validate them here.
 			if fleet.IsScriptPackage(existingInstaller.Extension) {
+				if err := validateFleetVariablesOnInstallerScripts(ctx, &payloadForNewInstallerFile.InstallScript, nil, nil); err != nil {
+					return nil, err
+				}
 				payload.InstallScript = &payloadForNewInstallerFile.InstallScript
 				if payloadForNewInstallerFile.InstallScript != existingInstaller.InstallScript {
 					dirty["InstallScript"] = true
@@ -953,6 +968,45 @@ func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptN
 		}
 	}
 	return argErr
+}
+
+// validateFleetVariablesOnInstallerScripts validates $FLEET_VAR_* usage on the
+// installer's scripts, naming the offending script in the error. Nil scripts
+// are skipped (update payloads only carry the scripts that changed).
+func validateFleetVariablesOnInstallerScripts(ctx context.Context, installScript, postInstallScript, uninstallScript *string) error {
+	isPremium := license.IsPremium(ctx)
+	var argErr *fleet.InvalidArgumentError
+	for _, s := range []struct {
+		name     string
+		contents *string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if s.contents == nil {
+			continue
+		}
+		fleetVars := variables.Find(*s.contents)
+		if len(fleetVars) == 0 {
+			continue
+		}
+		if !isPremium {
+			return fleet.ErrMissingLicense
+		}
+		if v := fleet.FindUnsupportedScriptFleetVar(fleetVars); v != "" {
+			msg := fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v)
+			if argErr != nil {
+				argErr.Append(s.name, msg)
+			} else {
+				argErr = fleet.NewInvalidArgumentError(s.name, msg)
+			}
+		}
+	}
+	if argErr != nil {
+		return argErr
+	}
+	return nil
 }
 
 // validateReferencedCustomHostVitalsOnScript mirrors validateEmbeddedSecretsOnScript
@@ -2706,6 +2760,12 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			payload.ValidatedLabels = validatedLabels
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+
+		// static check, so unlike the secrets validation below it also runs on
+		// gitops dry runs
+		if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+			return "", err
+		}
 
 		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validating software categories")
