@@ -1,4 +1,11 @@
 $softwareName = "Google Earth Pro"
+# Require the publisher as well as the name, mirroring the manifest's exists
+# query. Besides guarding against uninstalling a different product that shares
+# the DisplayName, this makes CI exercise the publisher value: the validator's
+# appExists looks up by name only, so a wrong exists-query publisher would ship
+# undetected (cf. the Spyder finding in #50016). Verified as "Google" against the
+# Manufacturer property of the MSI embedded in the installer.
+$softwarePublisher = "Google"
 
 # Google Earth Pro's EXE installer wraps a WiX MSI, so the ARP UninstallString is
 # an MsiExec.exe /X{ProductCode} command with no quiet switch. Running it verbatim
@@ -20,11 +27,11 @@ try {
     [array]$uninstallKeys = Get-ChildItem `
         -Path @($machineKey, $machineKey32on64) `
         -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ItemProperty $_.PSPath }
+            ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }
 
     $foundUninstaller = $false
     foreach ($key in $uninstallKeys) {
-        if ($key.DisplayName -ne $softwareName) { continue }
+        if ($key.DisplayName -ne $softwareName -or $key.Publisher -ne $softwarePublisher) { continue }
 
         $foundUninstaller = $true
         $uninstallString = if ($key.QuietUninstallString) {
@@ -89,9 +96,11 @@ try {
         break
     }
 
+    # Nothing to remove is not a failure: uninstall scripts are idempotent here, as
+    # in nordpass_uninstall.ps1 and windsurf_uninstall.ps1.
     if (-not $foundUninstaller) {
-        Write-Host "Uninstaller for '$softwareName' not found."
-        Exit 1
+        Write-Host "Uninstall entry not found for '$softwareName'."
+        Exit 0
     }
 
 } catch {
@@ -109,6 +118,7 @@ while ((Get-Process -Name "msiexec" -ErrorAction SilentlyContinue) -and ($elapse
 }
 
 # 3010 (reboot required) and 1641 (reboot initiated) are successful uninstalls.
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
+# 1605 and 1614 mean the product is not installed, which is the state we wanted.
+if ($exitCode -eq 3010 -or $exitCode -eq 1641 -or $exitCode -eq 1605 -or $exitCode -eq 1614) { Exit 0 }
 
 Exit $exitCode
