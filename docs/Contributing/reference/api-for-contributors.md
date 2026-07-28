@@ -3840,7 +3840,7 @@ Gets the result of a uninstall performed on a host, viewed from the My device pa
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device. Policies are returned in a device-safe representation that excludes the policy author's identity and the raw SQL query.
+Lists the policies applied to the current device.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
@@ -3863,31 +3863,29 @@ Lists the policies applied to the current device. Policies are returned in a dev
   "policies": [
     {
       "id": 1,
-      "name": "SomePolicy",
-      "description": "this is a policy",
+      "name": "SomeQuery",
+      "query": "SELECT * FROM foo;",
+      "description": "this is a query",
       "resolution": "fix with these steps...",
       "platform": "windows,linux",
-      "critical": false,
-      "conditional_access_enabled": false,
       "response": "pass"
     },
     {
       "id": 2,
-      "name": "SomePolicy2",
-      "description": "this is another policy",
+      "name": "SomeQuery2",
+      "query": "SELECT * FROM bar;",
+      "description": "this is another query",
       "resolution": "fix with these other steps...",
       "platform": "darwin",
-      "critical": true,
-      "conditional_access_enabled": false,
       "response": "fail"
     },
     {
       "id": 3,
-      "name": "SomePolicy3",
+      "name": "SomeQuery3",
+      "query": "SELECT * FROM baz;",
       "description": "",
+      "resolution": "",
       "platform": "",
-      "critical": false,
-      "conditional_access_enabled": false,
       "response": ""
     }
   ]
