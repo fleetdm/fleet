@@ -1,5 +1,6 @@
 $softwareName = "Spyder"
 $softwareNameLike = "*$softwareName*"
+$publisher = "Spyder Project Contributors and others"
 $uninstallArgs = "/S"
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -12,7 +13,7 @@ try {
 
     $foundUninstaller = $false
     foreach ($key in $uninstallKeys) {
-        if ($key.DisplayName -like $softwareNameLike) {
+        if ($key.DisplayName -like $softwareNameLike -and $key.Publisher -eq $publisher) {
             $foundUninstaller = $true
             $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
             if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
