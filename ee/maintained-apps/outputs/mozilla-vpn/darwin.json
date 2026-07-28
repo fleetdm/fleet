@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.38.0",
+      "version": "2.39.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.macos.FirefoxVPN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.macos.FirefoxVPN' AND version_compare(bundle_short_version, '2.38.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.macos.FirefoxVPN' AND version_compare(bundle_short_version, '2.39.0') < 0);"
       },
-      "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.38.0/mac/MozillaVPN.pkg",
+      "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.39.0/mac/MozillaVPN.pkg",
       "install_script_ref": "751cc04c",
       "uninstall_script_ref": "c4f6b4ee",
-      "sha256": "2803d4b4fa5bfc9ac3beb3c248aecf7185ef8aec83c169b4d0a566926723cda0",
+      "sha256": "ce0e3fa6fec75c8e67dae656d523c4879fe2003be8fdb4ce012cb3a8015826ab",
       "default_categories": [
         "Security"
       ]

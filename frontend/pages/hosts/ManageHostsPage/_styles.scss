@@ -101,6 +101,12 @@
         display: flex;
         align-items: center;
 
+        .manage-hosts__table-actions {
+          display: flex;
+          align-items: center;
+          gap: $pad-medium; // grouping secondary buttons
+        }
+
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
@@ -244,4 +250,10 @@
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
   }
+}
+
+// The tooltip renders in a portal outside .manage-hosts, so this can't be
+// nested under that selector.
+.host-table-header-tooltip {
+  text-align: left;
 }

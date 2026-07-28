@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -808,10 +810,12 @@ func TestGitOpsWindowsEntraIDs(t *testing.T) {
 	)
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
-	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	writeGlobalFile := func(extraControls string) string {
+		f, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = f.WriteString(fmt.Sprintf(`
 controls:
+%s
   windows_enabled_and_configured: true
   android_enabled_and_configured: true
   windows_entra_tenant_ids:
@@ -834,10 +838,18 @@ org_settings:
   secrets:
     - secret: globalSecret
 software:
-`, fleetServerURL, orgName))
-	require.NoError(t, err)
+`, extraControls, fleetServerURL, orgName))
+		require.NoError(t, err)
+		require.NoError(t, f.Close())
+		return f.Name()
+	}
 
-	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name()})
+	// include the Windows managed local account toggle in the applied controls
+	globalFile := writeGlobalFile(`  windows_settings:
+    managed_local_account_settings:
+      enabled: true`)
+
+	_ = runAppForTest(t, []string{"gitops", "-f", globalFile})
 
 	require.True(t, ds.SaveAppConfigFuncInvoked)
 	require.Equal(t, []string{"1a86b496-e2a4-43ef-ba00-20004e29b13b"}, (*savedAppConfigPtr).MDM.WindowsEntraTenantIDs.Value)
@@ -845,6 +857,11 @@ software:
 	require.Equal(t,
 		[]string{"abcdef12-3456-7890-abcd-ef1234567890", "11111111-2222-3333-4444-555555555555"},
 		(*savedAppConfigPtr).MDM.WindowsEntraClientIDs.Value)
+	require.True(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
+
+	// gitops is declarative for the managed local account toggle: re-applying without the key disables it
+	_ = runAppForTest(t, []string{"gitops", "-f", writeGlobalFile("")})
+	require.False(t, (*savedAppConfigPtr).MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value)
 }
 
 func TestGitOpsExceptionEnforcement(t *testing.T) {
@@ -2489,8 +2506,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
@@ -3462,6 +3479,86 @@ software:
 		require.Len(t, enrolledTeamSecrets, 1)
 		assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 	})
+}
+
+// TestGitOpsDDMAssetsNotAppliedOnFreeTier verifies that applying a GitOps
+// config that manages Apple DDM assets never calls the premium-only assets
+// batch endpoint on Fleet Free.
+func TestGitOpsDDMAssetsNotAppliedOnFreeTier(t *testing.T) {
+	// Cannot run t.Parallel() because runServerWithMockedDS sets environment variables.
+
+	server, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// "No team" apply reads/writes the default team config and looks up team 0.
+	defaultTeamConfig := &fleet.TeamConfig{}
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return defaultTeamConfig, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		defaultTeamConfig = config
+		return nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: 0, Name: fleet.ReservedNameNoTeam, Config: defaultTeamConfig.ToLite()}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		job.ID = 1
+		return job, nil
+	}
+
+	// Count requests reaching the premium-only DDM assets batch endpoint.
+	var assetsBatchCalls atomic.Int32
+	base := server.Config.Handler
+	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/fleet/assets/batch") {
+			assetsBatchCalls.Add(1)
+		}
+		base.ServeHTTP(w, r)
+	})
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+
+	// A global config that manages macos_settings and declares a DDM asset. A
+	// non-empty asset set forces the client down the (premium-gated) apply path.
+	dir := t.TempDir()
+	assetPath := filepath.Join(dir, "asset.json")
+	require.NoError(t, os.WriteFile(assetPath, []byte(`{
+  "Type": "com.apple.asset.credential.userpassword",
+  "Identifier": "com.fleetdm.asset.example",
+  "Payload": {"UserName": "admin"}
+}`), 0o600))
+
+	globalFilePath := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(globalFilePath, fmt.Appendf(nil, `
+controls:
+  macos_settings:
+    assets:
+      - path: ./asset.json
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: %s
+  secrets:
+software:
+`, fleetServerURL, orgName), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", globalFilePath})
+	require.NoError(t, err, "free-tier GitOps with DDM assets must succeed; a non-zero call count means the premium-only batch endpoint was hit")
+	assert.Zero(t, assetsBatchCalls.Load(), "DDM assets batch endpoint must never be called on Fleet Free")
 }
 
 func createTeamFileBasic(t *testing.T, secret string) *os.File {

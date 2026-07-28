@@ -130,7 +130,6 @@ The Roles table covers day-to-day responsibilities. Use this section to determin
 - When to escalate a blocker outside the group, and to whom.
 
 **Product Designer**
-- Whether a new issue takes the **full draft** or **fast draft** lane.
 - Whether a story has enough definition to move to **Ready**.
 - Product scope of a story: what is in, what is out, and what is deferred.
 - When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) on product or design ambiguity.
@@ -166,8 +165,7 @@ Each product group runs its own GitHub project board with the following columns,
 | Column | What it means |
 |:---|:---|
 | 📨 Inbox | Any issue labeled with the product group's `#g-*` label lands here. |
-| 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the product group board until drafting is complete. |
-| 🪿 Fast draft | The team hasn't looked at the issue together yet. Drafting happens in-place on the issue, often during standup or async in the group's Slack channel. |
+| 🦢 Drafting | The PD, or another contributor, is [drafting](https://fleetdm.com/handbook/product-design#drafting) the issue. |
 | 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Try to resolve async first; otherwise raise at the next standup. |
 | 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
 | 🐣 In progress | An engineer is actively implementing the change. |
@@ -178,25 +176,18 @@ Each product group runs its own GitHub project board with the following columns,
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
 
-### Drafting tracks: full draft vs. fast draft
-
-The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making skills.
-
-**Full draft** is typically reserved for customer promises and activation blockers, where design ambiguity or customer-facing risk is highest. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist), including a [t-shirt size](#t-shirt-sizing-capacity-planning). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next standup or planning meeting where it moves to **Ready**.
-
-**Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. The PD and EM are responsible for escalating to the HPD and/or CTO if needed. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
-
 ### Estimation
 
-Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) is part of **full draft** and happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing — full draft (and the estimation that comes with it) is reserved for customer promises, activation blockers, and other high-risk work.
+Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing. It's reserved for customer promises, activation blockers, and other high-risk work.
 
 ### How issues move
 
-- **Inbox → Fast draft or Full draft**: every issue moves into a drafting lane. The PD picks the lane (see above). Bugs and priority issues (P2 or greater) are triaged at the daily standup; stories are triaged at the weekly planning meeting.
-- **Fast draft → Ready**: stories move to **Ready** only during weekly planning, or during standup if they are a priority story (P2 or greater) or if there is nothing else for the group to work on. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
-- **Full draft → Ready**: when the PD completes drafting, they bring the issue to the next standup or planning meeting where it moves to **Ready**.
+- **Inbox → Ready**: Engineering Manager (EM) moves bugs and reliability issues to **Ready** during standup.
+- **Inbox → Drafting**: Product Designer (PD) adds stories and moves them to **Drafting**. During standup, Engineering Manager moves bugs to **Drafting** that need product design input.
+- **Drafting → Ready**: When drafting is complete, the PD assigns the EM to the story. During weekly planning, the EM reviews the story with the team, moves it to **Ready**, and assigns an engineer up to the team's capacity for the following week. If there's no capacity, the issue stays assigned to the EM in the **Drafting** column.
 - **Ready → In progress → Ready for review → Awaiting QA**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 - **Awaiting QA → Ready for release**: the QA Engineer is responsible for moving the issue from **Awaiting QA** to **Ready for release** once they have verified the change.
+- **Ready for release → Confirm & celebrate → Done**: [learn more](https://fleetdm.com/handbook/engineering/releases#conclude-current-milestone).
 
 ### Working the board
 
@@ -207,11 +198,19 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 
 ### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). ["Full draft" user stories](https://fleetdm.com/handbook/company/product-groups#drafting-tracks-full-draft-vs-fast-draft) that were approved at design review are reviewed. 
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
 
 ### Weekly planning (1 hour, Monday)
 
 The product group walks the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged during this meeting and either moved straight to **Ready** or assigned a drafting lane.
+
+### User story reviews
+
+User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), Tech Lead (TL) and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "User story review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
+
+The purpose of the review is to familiarize the EM, TL, and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
+
+The purpose of the user story review is to align product, engineering, and QA on functionality and implementation details. Wireframe reviews occur daily during [design reviews](https://fleetdm.com/handbook/company/product-groups#design-reviews) where contributors are welcome to join and provide design feedback in the agenda document. However, sometimes there are design changes needed if a gap is discovered or an implementation issue is raised during user story review. If there are design changes, the user story is moved back to the "In progress" column for additional drafting. If there are no design changes, the story remains with the Engineering DRI to [complete the drafting process](#defining-done) before bringing to estimation. If no Engineering DRI is assigned, the ticket is assigned to the Engineering Manager.
 
 ### Release demo (every 3 weeks)
 
@@ -360,7 +359,7 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the relevant [product group label](https://fleetdm.com/handbook/company/product-groups#current-product-groups), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the relevant [product group label](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
@@ -593,6 +592,20 @@ Any fleetie can follow the process below to add a priority label to an issue.
 4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
+### Notify stakeholders when a user story is pushed to the next release
+
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. 
+
+When the Product Designers (PD) knows a user story in drafting will be pushed, it is the PD's responsibility to notify stakeholders.
+
+When an Engineering Manager (EM) knows a user story being built will be pushed, it is the EM's responsibility to notify stakeholders.
+
+1. If the story is being built, send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+
+> Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
+
+
 ## Scaling Fleet
 
 Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. However, there are some specific gotchas to be aware of when implementing new features. Visit our [scaling Fleet page](https://fleetdm.com/handbook/engineering/scaling-fleet) for tips on scaling Fleet as efficiently and effectively as possible.
@@ -750,7 +763,7 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
+At this state, the QA Manager is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 
 Then, it's the product groups Engineering Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 
@@ -771,7 +784,7 @@ The bug has been confirmed it's a bug but not reproduced.
 
 Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
 
-At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
+At this state, the QA Manager is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. The QA Manager has **1 business day** to assign the bug to a QA Engineer or respond to the Engineering Manager.
 
 
 #### Reproduced
@@ -781,8 +794,7 @@ The bug has been confirmed and reproduced.
 Take the following actions:
 
 1. Remove the `:reproduce` label and add the `~released bug` label if the bug is in a published version of Fleet or `~unreleased bug` if it is not yet published.
-2. If this is a `~released bug`, add the `:product` label to place the bug on the product drafting board and move the bug to the "Ready to estimate" column.
-3. If this is an `~unreleased bug`, add the `:release` label and add the bug to the product group's release board so it is fixed before the next release.
+2. If this is an `~unreleased bug`, add the bug to the product group's release board so it is fixed before the next release.
 
 > **Fast for Fleeties:** Fleeties do not have to wait for additional reproduction. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 

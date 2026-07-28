@@ -62,11 +62,11 @@ export const DownloadCSR = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="inverse"
+      variant="secondary"
       onClick={handleDownload}
     >
       <label htmlFor="request-csr">
-        <Icon name="download" color="core-fleet-black" size="medium" />
+        <Icon name="download" size="medium" />
         <span>Download CSR</span>
       </label>
     </Button>

@@ -16,4 +16,14 @@
     overflow: hidden;
     white-space: nowrap;
   }
+
+  // When a supplemental tooltip is available, underline the value to signal it.
+  // The dashed border sits on the text value itself (not the wrapper element)
+  // so it isn't clipped by truncating (`overflow: hidden`) parents such as the
+  // DataSet `dd`.
+  &--underline &__text-value {
+    display: inline-block;
+    max-width: 100%;
+    border-bottom: 1px dashed $ui-fleet-black-50;
+  }
 }

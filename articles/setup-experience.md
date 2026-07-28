@@ -103,7 +103,7 @@ To enable managed local accounts:
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
-> The managed account is hidden from the macOS login window. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
+> The managed account is hidden from the macOS login window. Apple's MDM protocol only supports creating hidden accounts during Automated Device Enrollment (ADE), which is why this feature requires hosts to enroll via Apple Business and go through Setup Assistant. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
 
 > The managed account does not have a Secure Token. To access a FileVault-encrypted disk, first unlock it using the [escrowed recovery key](https://fleetdm.com/guides/macos-mdm-setup#disk-encryption), then log in as `_fleetadmin` at the login window.
 
@@ -133,7 +133,9 @@ A manual rotation cancels any active auto-rotation timer for that host.
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience). 
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+
+> Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 

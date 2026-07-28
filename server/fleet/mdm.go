@@ -41,6 +41,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -187,6 +188,7 @@ type ABMToken struct {
 	OrganizationName    string    `db:"organization_name" json:"org_name"`
 	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
 	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid        bool      `db:"token_invalid" json:"token_invalid"`
 	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
 	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
 	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
@@ -231,14 +233,17 @@ func (a AppleCSR) AuthzType() string {
 }
 
 // ABMTermsUpdater is the minimal interface required to get and update the
-// AppConfig, and set an ABM token's terms_expired flag as required to handle
-// the DEP API errors to indicate that Apple's terms have changed and must be
-// accepted. The Fleet Datastore satisfies this interface.
+// AppConfig, and set an ABM token's terms_expired and token_invalid flags as
+// required to handle the DEP API errors to indicate that Apple's terms have
+// changed and must be accepted, or that the token itself was rejected.
+// The Fleet Datastore satisfies this interface.
 type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be

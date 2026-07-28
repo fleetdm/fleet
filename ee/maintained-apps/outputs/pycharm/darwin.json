@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.2",
+      "version": "2026.2.0.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm' AND version_compare(bundle_short_version, '2026.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.jetbrains.pycharm' AND version_compare(bundle_short_version, '2026.2.0.1') < 0);"
       },
-      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2026.2-aarch64.dmg",
+      "installer_url": "https://download.jetbrains.com/python/pycharm-professional-2026.2.0.1-aarch64.dmg",
       "install_script_ref": "739657b9",
       "uninstall_script_ref": "10f65fea",
-      "sha256": "c223902127ecbc19e5a637b2cc03d75097d73b0630ad9f271a889146f4386146",
+      "sha256": "5f760fea6b4a901bc1a765284167f05f90237a7c30c0a4d298ff465044950dd4",
       "default_categories": [
         "Developer tools"
       ]

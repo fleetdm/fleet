@@ -767,7 +767,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label.Name = "changed name"
 	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
 	saved.Name = label.Name
-	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, filter)
+	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, nil, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved2.Name)
 	assert.Equal(t, label.Description, saved2.Description)
@@ -1192,7 +1192,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	_, _, err = db.SaveLabel(context.Background(), label, filter)
+	_, _, err = db.SaveLabel(context.Background(), label, nil, filter)
 	require.NoError(t, err)
 	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.NoError(t, err)

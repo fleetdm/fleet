@@ -877,6 +877,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
 	}
 
+	// windows_settings.managed_local_account_settings.enabled: like EnableDiskEncryption above, an explicit JSON null
+	// means "not provided": keep the old value rather than persisting an invalid optjson state.
+	if !oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Valid {
+		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = newAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+	} else {
+		appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled = oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled
+	}
+
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
 			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
@@ -1540,12 +1551,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value != appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
 		var act fleet.ActivityDetails
 		if appConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Value {
-			act = fleet.ActivityTypeEnabledManagedLocalAccount{}
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "darwin"}
 		} else {
-			act = fleet.ActivityTypeDisabledManagedLocalAccount{}
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "darwin"}
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		}
+	}
+
+	if oldAppConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+			act = fleet.ActivityTypeEnabledManagedLocalAccount{Platform: "windows"}
+		} else {
+			act = fleet.ActivityTypeDisabledManagedLocalAccount{Platform: "windows"}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for windows enable managed local account change")
 		}
 	}
 
@@ -1881,6 +1904,10 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !lic.IsPremium() {
 		invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
 	}
+	if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
+		mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value != oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value && !lic.IsPremium() {
+		invalid.Append("windows_settings.managed_local_account_settings.enabled", ErrMissingLicense.Error())
+	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
 	}
@@ -1949,7 +1976,13 @@ func (svc *Service) validateMDM(
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.configuration_profiles",
-				`Couldn’t edit windows_settings.configuration_profiles. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+				"Couldn’t edit windows_settings.configuration_profiles. "+fleet.WindowsMDMNotTurnedOnMessage)
+		}
+
+		if mdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value &&
+			!oldMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+			invalid.Append("windows_settings.managed_local_account_settings.enabled",
+				"Couldn’t enable windows_settings.managed_local_account_settings. "+fleet.WindowsMDMNotTurnedOnMessage)
 		}
 	}
 	fleet.ValidateMDMProfileSpecs(invalid, "windows", mdm.WindowsSettings.CustomSettings.Value)
@@ -2061,7 +2094,7 @@ func (svc *Service) validateMDM(
 		// TODO: look into blocking the case of a user-created API call that clears required EUA
 		// settings while a team still has EUA enabled.
 		euaStrict := overwrite && mdm.MacOSSetup.EnableEndUserAuthentication
-		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
+		validateSSOProviderSettings(&mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid, euaStrict)
 	}
 
 	// MacOSSetup validation
@@ -2378,7 +2411,13 @@ func (svc *Service) validateVPPAssignments(
 // If this is a GitOps run (overwrite=true), all required fields must be present.
 // Otherwise we're doing a patch, so it's ok for fields to be missing as long
 // as we have persisted values for them.
-func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+func validateSSOProviderSettings(incoming *fleet.SSOProviderSettings, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError, overwrite bool) {
+	// trim whitespace from the incoming values so that we don't persist them with leading/trailing whitespace
+	incoming.Metadata = strings.TrimSpace(incoming.Metadata)
+	incoming.MetadataURL = strings.TrimSpace(incoming.MetadataURL)
+	incoming.EntityID = strings.TrimSpace(incoming.EntityID)
+	incoming.IDPName = strings.TrimSpace(incoming.IDPName)
+
 	if incoming.Metadata == "" && incoming.MetadataURL == "" {
 		if overwrite || (existing.Metadata == "" && existing.MetadataURL == "") {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
@@ -2411,7 +2450,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 		if existing.SSOSettings != nil {
 			existingSSOProviderSettings = existing.SSOSettings.SSOProviderSettings
 		}
-		validateSSOProviderSettings(p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
+		validateSSOProviderSettings(&p.SSOSettings.SSOProviderSettings, existingSSOProviderSettings, invalid, overwrite)
 
 		if !lic.IsPremium() {
 			if p.SSOSettings.EnableJITProvisioning {
