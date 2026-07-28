@@ -3670,6 +3670,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git Extensions",
+      "slug": "git-extensions/windows",
+      "platform": "windows",
+      "unique_identifier": "Git Extensions",
+      "description": "Git Extensions is a graphical user interface for Git that integrates with Windows Explorer and Visual Studio."
+    },
+    {
       "name": "Git",
       "slug": "git/windows",
       "platform": "windows",
@@ -5847,13 +5854,6 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
-      "name": "Nocturnal",
-      "slug": "nocturnal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.harshilshah.nocturnal",
-      "description": "Nocturnal is a simple app to toggle dark mode with one click."
-    },
-    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -7793,6 +7793,13 @@
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
     },
     {
+      "name": "SonicWall NetExtender",
+      "slug": "sonicwall-netextender/windows",
+      "platform": "windows",
+      "unique_identifier": "SonicWall NetExtender",
+      "description": "SonicWall NetExtender is an SSL VPN client that provides secure remote access to SonicWall-protected networks."
+    },
+    {
       "name": "SonoBus",
       "slug": "sonobus/darwin",
       "platform": "darwin",
@@ -7938,6 +7945,13 @@
       "platform": "darwin",
       "unique_identifier": "org.spyder-ide.Spyder-6",
       "description": "Spyder is a scientific Python IDE."
+    },
+    {
+      "name": "Spyder",
+      "slug": "spyder/windows",
+      "platform": "windows",
+      "unique_identifier": "Spyder",
+      "description": "Spyder is a scientific Python development environment with advanced editing, interactive testing, and debugging."
     },
     {
       "name": "SQL Server Management Studio",
@@ -8484,6 +8498,13 @@
       "platform": "darwin",
       "unique_identifier": "com.tidal.desktop",
       "description": "TIDAL is a music streaming service with high fidelity sound and hi-def video quality."
+    },
+    {
+      "name": "TightVNC",
+      "slug": "tightvnc/windows",
+      "platform": "windows",
+      "unique_identifier": "TightVNC",
+      "description": "TightVNC is a remote desktop software solution for viewing and controlling remote computers over a network."
     },
     {
       "name": "Sempliva Tiles",
@@ -9438,6 +9459,13 @@
       "description": "YACReader is a comic reader."
     },
     {
+      "name": "Yarn",
+      "slug": "yarn/windows",
+      "platform": "windows",
+      "unique_identifier": "Yarn",
+      "description": "Yarn is a fast, reliable, and secure JavaScript package manager compatible with the npm registry."
+    },
+    {
       "name": "Yattee",
       "slug": "yattee/darwin",
       "platform": "darwin",
@@ -9548,6 +9576,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linebreak.CloudAppMacOSX",
       "description": "Zight is a visual communication platform."
+    },
+    {
+      "name": "Zoom Outlook Plugin",
+      "slug": "zoom-outlook-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Outlook Plugin",
+      "description": "Zoom Outlook Plugin adds Zoom meeting scheduling and join buttons directly into Microsoft Outlook."
     },
     {
       "name": "Zoom Rooms",

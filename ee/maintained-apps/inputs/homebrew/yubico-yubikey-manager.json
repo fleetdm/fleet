@@ -4,5 +4,6 @@
   "unique_identifier": "com.yubico.ykman",
   "token": "yubico-yubikey-manager",
   "installer_format": "pkg",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

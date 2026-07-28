@@ -103,7 +103,7 @@ To enable managed local accounts:
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
-> The managed account is hidden from the macOS login window. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
+> The managed account is hidden from the macOS login window. Apple's MDM protocol only supports creating hidden accounts during Automated Device Enrollment (ADE), which is why this feature requires hosts to enroll via Apple Business and go through Setup Assistant. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
 
 > The managed account does not have a Secure Token. To access a FileVault-encrypted disk, first unlock it using the [escrowed recovery key](https://fleetdm.com/guides/macos-mdm-setup#disk-encryption), then log in as `_fleetadmin` at the login window.
 
