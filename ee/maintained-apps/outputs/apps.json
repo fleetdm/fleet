@@ -8626,6 +8626,13 @@
       "description": "Transmit is a file transfer application."
     },
     {
+      "name": "TreeSize Free",
+      "slug": "treesize-free/windows",
+      "platform": "windows",
+      "unique_identifier": "TreeSize Free",
+      "description": "TreeSize Free is a disk space manager that shows the size of folders and drives."
+    },
+    {
       "name": "TRex",
       "slug": "trex/darwin",
       "platform": "darwin",
