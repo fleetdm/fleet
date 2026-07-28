@@ -1129,3 +1129,51 @@ func TestMDMAppleCommanderPassesCommandName(t *testing.T) {
 		require.Equal(t, "Secret Profile", gotName)
 	})
 }
+
+func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
+	ctx := t.Context()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUIDs := []string{"A"}
+	mdmStorage.RetrievePushInfoFunc = func(p0 context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, uuid := range targetUUIDs {
+			pushes[uuid] = &mdm.Push{PushMagic: "magic" + uuid, Token: []byte("token" + uuid), Topic: "topic" + uuid}
+		}
+		return pushes, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	var gotCommand struct {
+		Command struct {
+			Queries     []string `plist:"Queries"`
+			RequestType string   `plist:"RequestType"`
+		} `plist:"Command"`
+	}
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &gotCommand))
+		return nil, nil
+	}
+
+	cmdUUID := uuid.New().String()
+	err := cmdr.DeviceInformation(ctx, hostUUIDs, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+
+	require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
+	require.Equal(t, DeviceInformationQueryKeys, gotCommand.Command.Queries)
+}

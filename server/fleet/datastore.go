@@ -1265,6 +1265,11 @@ type Datastore interface {
 	// fields for a host. gigs_all_disk_space should should only be non-nil for Linux hosts
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error
 
+	// SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
+	// from a DeviceInformation command ack into host_mdm_apple_device_vitals
+	// and host_mdm_apple_service_subscriptions.
+	SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals MDMAppleDeviceVitals) error
+
 	GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (DiskEncryptionConfig, error)
 	SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool, bitlockerProtectionStatus *int) error
