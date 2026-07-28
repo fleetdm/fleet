@@ -72,6 +72,7 @@ usage() {
     echo "Options:"
     echo "  -a, --and_cherry_pick      This is a minor release and cherry pick. Used for unscheduled minor releases that are patches + a specific feature"
     echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
+    echo "  -C, --continue_from_changelogs Resume an interrupted release after the rc branch was created and pushed: removes all changelog branches for this release and continues from the changelog step."
     echo "  -d, --dry_run              Perform a trial run with no changes made"
     echo "  -f, --force                Skip all confirmations"
     echo "  -h, --help                 Display this help message and exit"
@@ -110,6 +111,7 @@ usage() {
 # Initialize variables for the options
 minor_cherry_pick=false
 cherry_pick_resolved=false
+continue_from_changelogs=false
 dry_run=false
 force=false
 minor=false
@@ -133,6 +135,7 @@ for arg in "$@"; do
   case "$arg" in
     "--and_cherry_pick") set -- "$@" "-a" ;;
     "--cherry_pick_resolved") set -- "$@" "-c" ;;
+    "--continue_from_changelogs") set -- "$@" "-C" ;;
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
     "--help") set -- "$@" "-h" ;;
@@ -155,10 +158,11 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "acdfhgkmMno:pQqrs:t:uv:w" opt; do
+while getopts "aCcdfhgkmMno:pQqrs:t:uv:w" opt; do
     case "$opt" in
         a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
+        C) continue_from_changelogs=true ;;
         d) dry_run=true ;;
         f) force=true ;;
         h) usage; exit 0 ;;
@@ -377,6 +381,26 @@ changelog_and_versions() {
         gh workflow run goreleaser-snapshot-fleet.yaml --ref $source_branch # Manually trigger workflow run
     else
         echo "DRYRUN: Would have created Changelog / verison pr from $branch_for_changelog to $source_branch"
+    fi
+}
+
+# Remove all changelog branches for this release (local and remote) so the
+# changelog step can recreate them cleanly. Deleting a remote branch also closes
+# any open PR opened from it. Scoped to this release's milestone to avoid
+# touching changelog branches for other releases.
+remove_changelog_branches() {
+    local pattern="update-changelog-prepare-$target_milestone"
+    if [ "$dry_run" = "false" ]; then
+        for b in $(git branch --format='%(refname:short)' | $GREP_CMD "^$pattern"); do
+            echo "Deleting local changelog branch $b"
+            git branch -D "$b" || true
+        done
+        for b in $(git branch -r --format='%(refname:short)' | $GREP_CMD "^origin/$pattern" | sed 's#^origin/##'); do
+            echo "Deleting remote changelog branch origin/$b"
+            git push origin --delete "$b" || true
+        done
+    else
+        echo "DRYRUN: Would have removed changelog branches matching '$pattern' (local and remote)"
     fi
 }
 
@@ -604,12 +628,37 @@ publish() {
 
             if [ "$(node -e "console.log(require('compare-versions').compareVersions('${latest_local}', '${latest_npm}'))")" = "-1" ]; then
                 # We're publishing a patch to an older version
-                cd tools/fleetctl-npm && npm publish "--tag=last-patched-version"
+                publish_tag="last-patched-version"
+                publish_cmd="npm publish --tag=last-patched-version"
             else
                 # We're publishing the latest version
-                cd tools/fleetctl-npm && npm publish
+                publish_tag="latest"
+                publish_cmd="npm publish"
             fi
 
+            # npm publish requires an interactive login, so it's done by hand in a
+            # separate terminal rather than from this script. Outline the steps, then
+            # poll the registry until the version we expect shows up on the right
+            # dist-tag before continuing.
+            echo
+            echo "================================================================"
+            echo "MANUAL STEP: publish the fleetctl npm package"
+            echo "================================================================"
+            echo "In ANOTHER terminal, from the repo root, run:"
+            echo
+            echo "  npm login"
+            echo "  cd tools/fleetctl-npm && $publish_cmd"
+            echo
+            echo "This publishes fleetctl@$latest_local under the '$publish_tag' dist-tag."
+            echo "================================================================"
+            echo
+            echo "Waiting for fleetctl@$latest_local to appear on the '$publish_tag' dist-tag (checking every 10s, Ctrl-C to abort)..."
+            until [ "$(npm view fleetctl --json | jq -r ".\"dist-tags\".\"$publish_tag\"" | sed -e 's/^v//')" = "$latest_local" ]; do
+                printf '.'
+                sleep 10
+            done
+            echo
+            echo "fleetctl@$latest_local is now published on the '$publish_tag' dist-tag. Continuing..."
 
             close_milestone_issues fleetdm/fleet
             close_milestone_issues fleetdm/confidential
@@ -774,7 +823,21 @@ fi
 # Start of script unless running after cherry pick step a second time
 # ======================================
 
-if [ "$cherry_pick_resolved" = "false" ]; then
+if [ "$continue_from_changelogs" = "true" ]; then
+    # Resume an interrupted release: the rc branch was already created and pushed,
+    # but the changelog step failed. Skip cherry-picking, check out the existing rc
+    # branch, wipe the changelog branches, and fall through to the changelog / QA /
+    # announce steps below.
+    if [ "$dry_run" = "false" ]; then
+        ask "About to switch to '$target_branch' to resume. Make sure your working tree is clean first (uncommitted changes from a previous perl/version run can block the checkout). Continue? [y/N] "
+        git fetch
+        git checkout $target_branch
+        git pull origin $target_branch
+    else
+        echo "DRYRUN: Would have checked out existing $target_branch"
+    fi
+    remove_changelog_branches
+elif [ "$cherry_pick_resolved" = "false" ]; then
     # TODO Fail if not found
     if [ "$dry_run" = "false" ]; then
         git fetch
@@ -917,7 +980,7 @@ fi
 # ======================================
 
 if [[ "$failed" == "false" ]]; then
-    if [ "$dry_run" = "false" ]; then
+    if [ "$dry_run" = "false" ] && [ "$continue_from_changelogs" = "false" ]; then
         # have to push so we can make the PR's back
         git push origin $target_branch
         ask "Did git push work? [y/n]"
