@@ -2412,16 +2412,15 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         mode: { kind: "port", port: pythonPort },
       },
       {
-        // We run perf as `go run ./agent.go --server_url … --os_templates …`
+        // We run perf as `go run . --server_url … --os_templates …`
         // from cmd/osquery-perf. That spawns TWO processes — the `go run`
-        // wrapper and the compiled binary in ~/Library/Caches/go-build/…/agent
-        // — and NEITHER command line contains the string "osquery-perf"
-        // (the cwd does, but pgrep -f matches the command line, not cwd).
-        // The `--os_templates` flag is the distinctive token present in
-        // both, and every run passes it (Start is gated on ≥1 OS), so it
-        // reliably catches the wrapper and the worker without matching
-        // the dozens of macOS "*Agent" system processes that a bare
-        // "agent" pattern would.
+        // wrapper and the compiled binary in ~/Library/Caches/go-build/…
+        // (named "osquery-perf" after the package dir). We match on the
+        // `--os_templates` flag rather than the binary name: it's the
+        // distinctive token present in BOTH command lines, and every run
+        // passes it (Start is gated on ≥1 OS), so it reliably catches the
+        // wrapper and the worker without matching the dozens of macOS
+        // "*Agent" system processes that a bare "agent" pattern would.
         id: "osquery-perf",
         title: "osquery-perf",
         subtitle: "perf agents (matches --os_templates on the command line)",

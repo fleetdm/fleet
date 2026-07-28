@@ -336,7 +336,11 @@ export function OsqueryPerfTab({
         label: name,
         cwd: perfDir,
         program: "go",
-        args: ["run", "./agent.go", ...args],
+        // `go run .` builds the whole package. `go run ./agent.go` would
+        // compile only that one file and fail to resolve the symbols that
+        // now live in its siblings (certificates.go, ddm.go,
+        // android_agent.go). cwd is perfDir, so `.` is cmd/osquery-perf.
+        args: ["run", ".", ...args],
         // No log_channel: perf output is ephemeral. The mini-log on the
         // run card subscribes to the `proc:log` event (always emitted)
         // and the 60-line recent_log tail still populates for failure
@@ -1453,7 +1457,7 @@ function NewRunPanel({
               className="dim mono"
               style={{ fontSize: "var(--fs-xxx-small)" }}
             >
-              go run ./agent.go
+              go run .
             </span>
           )}
         </div>
@@ -2018,7 +2022,7 @@ function CommandPreview({ args }: { args: string[] }) {
       }}
     >
       <span className="dim">$ </span>
-      go run ./agent.go{" "}
+      go run .{" "}
       {args.map((a, i) => (
         <span key={i}>
           {a.startsWith("--") ? (
@@ -2079,7 +2083,7 @@ function SmallField({
   );
 }
 
-/// Builds the argv tail (after `agent.go`). Kept here so the preview
+/// Builds the argv tail (after `go run .`). Kept here so the preview
 /// and spawn always come out of the same function — preview can never
 /// drift from what's actually run.
 export function perfArgsFor(form: PerfFormConfig): string[] {
