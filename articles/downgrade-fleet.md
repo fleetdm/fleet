@@ -32,7 +32,7 @@ Scripts are configured per fleet and won't be accessible after your fleets are d
 3. Select **Unassigned** in the top dropdown, then select **Add script** and upload each script you saved.
 4. **Optional:** Delete each script that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
 
-## Move all fleet-level configuration profiles to "Unassigned"
+## Move all fleet-level configuration profiles and assets to "Unassigned"
 
 Configuration profiles are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
 
