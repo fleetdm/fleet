@@ -139,7 +139,7 @@ func (c *Client) ApplyTeamSoftwareInstallers(
 		return nil, nil, nil, err
 	}
 	query.Add("fleet_name", tmName)
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, tmName, logFn)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, logFn)
 }
 
 func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, []string, error) {

@@ -91,21 +91,19 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 func (c *Client) ApplyNoTeamSoftwareInstallers(
 	softwareInstallers []fleet.SoftwareInstallerPayload,
 	opts fleet.ApplySpecOptions,
-	fleetName string,
 	logFn func(format string, args ...any),
 ) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, fleetName, logFn)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, logFn)
 }
 
 func (c *Client) applySoftwareInstallers(
 	softwareInstallers []fleet.SoftwareInstallerPayload,
 	query url.Values,
 	dryRun bool,
-	fleetName string,
 	logFn func(format string, args ...any),
 ) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	path := "/api/latest/fleet/software/batch"
@@ -117,27 +115,34 @@ func (c *Client) applySoftwareInstallers(
 		return nil, nil, nil, nil
 	}
 
-	// The batch uploads packages one at a time in the background, so each poll reports the
-	// packages it has started and finished downloading so far. A package stays in the
-	// report for the rest of the batch, so track what's been printed to print each line
-	// once. A dry run downloads packages too, but its output stays as it was before.
+	// Assumes the server downloads packages one by one, so each "downloading" line prints
+	// right before its own "downloaded" line. Concurrent downloads would break this.
 	printedDownloading := make(map[string]struct{})
-	printedDownloaded := make(map[string]struct{})
+	printedResult := make(map[string]struct{})
 	logDownloadProgress := func(downloadProgress []fleet.SoftwarePackageDownloadProgress) {
-		if dryRun {
-			return
-		}
-		for _, pkg := range downloadProgress {
-			if pkg.Name == "" {
+		for _, packageProgress := range downloadProgress {
+			// A package the batch hasn't started downloading has no name yet.
+			if packageProgress.Name == "" {
 				continue
 			}
-			if _, printed := printedDownloading[pkg.Name]; !printed {
-				printedDownloading[pkg.Name] = struct{}{}
-				logFn(downloadingSoftwareFormat, pkg.Name)
+
+			_, printedStart := printedDownloading[packageProgress.Name]
+			if !printedStart {
+				printedDownloading[packageProgress.Name] = struct{}{}
+				logFn(downloadingSoftwareFormat, packageProgress.Name)
 			}
-			if _, printed := printedDownloaded[pkg.Name]; pkg.Finished && !printed {
-				printedDownloaded[pkg.Name] = struct{}{}
-				logFn(downloadedSoftwareFormat, fleetName, pkg.Name)
+
+			_, printedFinish := printedResult[packageProgress.Name]
+			if printedFinish {
+				continue
+			}
+			switch {
+			case packageProgress.Failed:
+				printedResult[packageProgress.Name] = struct{}{}
+				logFn(failedSoftwareFormat, packageProgress.Name)
+			case packageProgress.Finished:
+				printedResult[packageProgress.Name] = struct{}{}
+				logFn(downloadedSoftwareFormat, packageProgress.Name)
 			}
 		}
 	}
@@ -149,6 +154,7 @@ func (c *Client) applySoftwareInstallers(
 			return nil, nil, nil, err
 		}
 		logDownloadProgress(resp.DownloadProgress)
+
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)

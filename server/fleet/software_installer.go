@@ -219,6 +219,7 @@ type SoftwarePackageDownloadProgress struct {
 	Name string `json:"name"`
 	// Finished means the download finished, not that the package was applied.
 	Finished bool `json:"finished"`
+	Failed   bool `json:"failed"`
 }
 
 // BatchSetSoftwareInstallersResult is the status of a software batch started by

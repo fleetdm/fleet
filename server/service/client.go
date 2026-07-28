@@ -560,7 +560,8 @@ const (
 	dryRunAppliedTeamFormat = "[+] would've applied %s for fleet %s\n"
 
 	downloadingSoftwareFormat = "[+] downloading software package - %s ...\n"
-	downloadedSoftwareFormat  = "[+] downloaded software package for fleet %s - %s\n"
+	downloadedSoftwareFormat  = "[+] downloaded software package - %s\n"
+	failedSoftwareFormat      = "[!] failed to download software package - %s\n"
 )
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -3125,7 +3126,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	logFn(format, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'Unassigned'")
-	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun}, "'Unassigned'", logFn)
+	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun}, logFn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}

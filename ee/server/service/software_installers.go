@@ -3018,12 +3018,11 @@ func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string
 	if downloadURL == "" {
 		return payload.SHA256
 	}
-	parsedURL, err := url.Parse(downloadURL)
-	if err != nil {
-		return downloadURL
-	}
-	filename := path.Base(parsedURL.Path)
-	if filename == "" || filename == "." || filename == "/" {
+	filename := file.ExtractFilenameFromURLPath(downloadURL, "")
+	// The extension is only known once the package is downloaded, so a url path without
+	// one comes back with a trailing dot.
+	filename = strings.TrimSuffix(filename, ".")
+	if filename == "" {
 		return downloadURL
 	}
 	return filename
@@ -3148,6 +3147,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
+	// Raising this limit interleaves the per-package progress a gitops run prints.
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
 	// the reason for this struct with extra installers support is that:
@@ -3174,16 +3174,34 @@ func (svc *Service) softwareBatchUpload(
 	//
 	// The whole slice is read on every write, so unlike the slices above, writing only to
 	// your own index isn't enough to stay safe if the goroutine limit is ever raised.
+	type downloadState int
+	const (
+		downloadStarted downloadState = iota
+		downloadFinished
+		downloadFailed
+	)
+
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
-	setDownloadProgress := func(payloadIndex int, finished bool) {
+	setDownloadProgress := func(payloadIndex int, state downloadState) {
 		downloadProgressMutex.Lock()
 		defer downloadProgressMutex.Unlock()
 
-		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
-			Name:     softwarePackageProgressName(payloads[payloadIndex]),
-			Finished: finished,
+		progress := fleet.SoftwarePackageDownloadProgress{
+			Name: softwarePackageProgressName(payloads[payloadIndex]),
 		}
+		switch state {
+		case downloadFinished:
+			progress.Finished = true
+		case downloadFailed:
+			// The package either never started downloading or already finished, so the
+			// error that got us here isn't a download failure.
+			if downloadProgress[payloadIndex].Name == "" || downloadProgress[payloadIndex].Finished {
+				return
+			}
+			progress.Failed = true
+		}
+		downloadProgress[payloadIndex] = progress
 
 		progressJSON, err := json.Marshal(downloadProgress)
 		if err != nil {
@@ -3199,7 +3217,13 @@ func (svc *Service) softwareBatchUpload(
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() error {
+		g.Go(func() (err error) {
+			defer func() {
+				if err != nil {
+					setDownloadProgress(i, downloadFailed)
+				}
+			}()
+
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers are collected in toBeClosedTFRs and will have their Close
@@ -3342,9 +3366,6 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
-			// A cached package never downloads, so it reports started and finished back to back.
-			setDownloadProgress(i, false)
-
 			// no accessible matching installer was found, so attempt to download it from URL.
 			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
@@ -3376,6 +3397,8 @@ func (svc *Service) softwareBatchUpload(
 					toBeClosedTFRs[i] = tfr
 					installer.Filename = filename
 				} else {
+					setDownloadProgress(i, downloadStarted)
+
 					// Conditional GET (default behavior, disabled by always_download: true).
 					// Look up existing installer by URL for its ETag, only when
 					// we're about to download (avoids wasted DB queries).
@@ -3477,6 +3500,8 @@ func (svc *Service) softwareBatchUpload(
 							installer.PreInstallQuery = ""
 						}
 					}
+
+					setDownloadProgress(i, downloadFinished)
 				}
 			}
 
@@ -3671,9 +3696,6 @@ func (svc *Service) softwareBatchUpload(
 				UploadSoftwareInstallerPayload: installer,
 				ExtraInstallers:                extraInstallers,
 			}
-
-			// Downloaded doesn't mean applied, which is only known once the batch finishes.
-			setDownloadProgress(i, true)
 
 			return nil
 		})
@@ -3992,30 +4014,27 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return teamID, nil
 	}
 
+	teamID, err := authorizeSoftwareWrite()
+	if err != nil {
+		return nil, err
+	}
+
 	switch {
 	case *result == batchSetCompleted:
 		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		if _, err := authorizeSoftwareWrite(); err != nil {
-			return nil, err
-		}
 		return &fleet.BatchSetSoftwareInstallersResult{
 			Status:           fleet.BatchSetSoftwareInstallersStatusProcessing,
 			DownloadProgress: getDownloadProgress(),
 		}, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
-		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
 		return &fleet.BatchSetSoftwareInstallersResult{
-			Status:  fleet.BatchSetSoftwareInstallersStatusFailed,
-			Message: message,
+			Status:           fleet.BatchSetSoftwareInstallersStatusFailed,
+			Message:          strings.TrimPrefix(*result, batchSetFailedPrefix),
+			DownloadProgress: getDownloadProgress(),
 		}, nil
 	default:
 		return nil, ctxerr.New(ctx, "invalid status")
-	}
-
-	teamID, err := authorizeSoftwareWrite()
-	if err != nil {
-		return nil, err
 	}
 
 	deletedPackages, err := getDeletedPackages()
