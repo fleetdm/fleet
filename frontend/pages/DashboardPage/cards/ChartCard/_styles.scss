@@ -125,21 +125,6 @@
     }
   }
 
-  &__settings-btn {
-    // Button variant="subdued" applies a 36px height that would make the
-    // chart-card header taller than HostsEnrolledCard's bare h2 next door.
-    // Shrink to content height so headers match.
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: $ui-fleet-black-75;
-    height: auto !important;
-    padding: 0 !important;
-  }
-
   &__chart-container {
     min-height: 280px;
     display: flex;
