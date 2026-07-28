@@ -27,9 +27,9 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package: null
-        enable_create_local_admin_account: null
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
-        end_user_local_account_type: null
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         apple_setup_assistant: null
         macos_manual_agent_install: null
@@ -87,8 +87,8 @@ spec:
       macos_setup:
         bootstrap_package: null
         enable_end_user_authentication: false
-        enable_managed_local_account: null
-        end_user_local_account_type: null
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         macos_setup_assistant: null
         manual_agent_install: null
