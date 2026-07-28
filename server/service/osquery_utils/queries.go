@@ -1184,6 +1184,30 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// softwareAdobePlugins collects Adobe plugins (CEP and UXP extensions) reported by
+// fleetd's adobe_plugins table. The table emits one row per plugin, including a user
+// column for per-user installs, so there's no need to join with cached_users.
+//
+// The default (standard) scan level is used, which covers CEP and UXP extensions. The
+// deep scan level additionally reports native plug-ins, which have no manifest and thus
+// no version.
+var softwareAdobePlugins = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  bundle_id AS bundle_identifier,
+  '' AS extension_id,
+  host_application AS extension_for,
+  'adobe_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM adobe_plugins`,
+	Platforms: []string{"darwin", "windows"},
+	Discovery: discoveryTable("adobe_plugins"),
+}
+
 var scheduledQueryStats = DetailQuery{
 	Query: `
 			SELECT *,
@@ -3466,6 +3490,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {

@@ -1239,6 +1239,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
 		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
+		hostDetailQueryPrefix + "software_adobe_plugins":                  {},
 		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_go_binaries":                    {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
@@ -4212,6 +4213,28 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"last_opened_at":    "",
 		"installed_path":    "/some/zoobar/path",
 	}
+	artisanAdobePlugin := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "com.vendorx.artisanprox",
+		"extension_id":      "",
+		"extension_for":     "Photoshop",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	colorizerAdobePlugin := map[string]string{
+		"name":              "Colorizer",
+		"version":           "2.0.1",
+		"bundle_identifier": "com.vendory.colorizer",
+		"extension_id":      "",
+		"extension_for":     "Premiere Pro",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorY",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
 	someRow := map[string]string{
 		"1": "1",
 	}
@@ -4345,6 +4368,75 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					zoobarApp,
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
+				},
+			},
+		},
+		{
+			name: "software query works and there are adobe plugins in extra",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+					colorizerAdobePlugin,
+				},
+			},
+		},
+		{
+			name: "windows software query works and there are adobe plugins in extra",
+			host: &fleet.Host{ID: 1, Platform: "windows"},
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_windows":       fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{
+					artisanAdobePlugin,
+				},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_windows": []map[string]string{
+					foobarApp,
+					artisanAdobePlugin,
+				},
+			},
+		},
+		{
+			name: "software query works, but adobe_plugins table doesn't exist",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_adobe_plugins": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_adobe_plugins": []map[string]string{},
+			},
+
+			resultsExpected: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
 				},
 			},
 		},
@@ -4772,6 +4864,17 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
+	}
+}
+
+func TestDetailQueriesAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud only runs on macOS and Windows, so the query must not be
+	// sent anywhere else.
+	for _, platform := range []string{"darwin", "windows"} {
+		require.Contains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
+	}
+	for _, platform := range append(fleet.HostLinuxOSs, "chrome") {
+		require.NotContains(t, expectedDetailQueriesForPlatform(platform), "software_adobe_plugins")
 	}
 }
 

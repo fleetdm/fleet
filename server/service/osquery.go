@@ -1632,6 +1632,9 @@ func preProcessSoftwareResults(
 	jetbrainsPluginsExtraQuery := hostDetailQueryPrefix + "software_jetbrains_plugins"
 	preProcessSoftwareExtraResults(ctx, jetbrainsPluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	adobePluginsExtraQuery := hostDetailQueryPrefix + "software_adobe_plugins"
+	preProcessSoftwareExtraResults(ctx, adobePluginsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	goBinariesExtraQuery := hostDetailQueryPrefix + "software_go_binaries"
 	preProcessSoftwareExtraResults(ctx, goBinariesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 

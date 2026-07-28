@@ -582,7 +582,7 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
@@ -3810,6 +3810,126 @@ func TestWindowsLastOpenedAt(t *testing.T) {
 		if software["name"] == "Mozilla Firefox (x64 en-US)" {
 			assert.Equal(t, "1751755087", software["last_opened_at"])
 		}
+	}
+}
+
+// adobePluginsColumns are the columns the software_adobe_plugins query reports, which
+// are also the row keys the software ingestion reads.
+var adobePluginsColumns = []string{
+	"name", "version", "bundle_identifier", "extension_id", "extension_for",
+	"source", "vendor", "last_opened_at", "installed_path",
+}
+
+// selectedColumns returns the output column names of a single-table SELECT query: the
+// alias when the item has one, the column name otherwise.
+func selectedColumns(t *testing.T, query string) []string {
+	t.Helper()
+	var columns []string
+	for line := range strings.SplitSeq(query, "\n") {
+		item := strings.TrimSuffix(strings.TrimSpace(line), ",")
+		if item == "" || strings.EqualFold(item, "SELECT") || strings.HasPrefix(strings.ToUpper(item), "FROM ") {
+			continue
+		}
+		if _, alias, ok := strings.Cut(item, " AS "); ok {
+			item = alias
+		}
+		columns = append(columns, strings.TrimSpace(item))
+	}
+	require.NotEmpty(t, columns, "no columns parsed out of query")
+	return columns
+}
+
+func TestSoftwareAdobePlugins(t *testing.T) {
+	// Adobe Creative Cloud doesn't run on Linux, and the adobe_plugins table only
+	// exists on fleetd builds that ship it.
+	require.Equal(t, []string{"darwin", "windows"}, softwareAdobePlugins.Platforms)
+	require.Equal(t, discoveryTable("adobe_plugins"), softwareAdobePlugins.Discovery)
+
+	// The results of this query are appended to the main software queries, so it
+	// must not ingest anything on its own.
+	require.Nil(t, softwareAdobePlugins.IngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectIngestFunc)
+	require.Nil(t, softwareAdobePlugins.DirectTaskIngestFunc)
+
+	// The query reports exactly the columns the software ingestion reads, so a renamed
+	// or dropped alias (e.g. bundle_id not aliased to bundle_identifier) fails here
+	// instead of silently ingesting an empty field.
+	require.Equal(t, adobePluginsColumns, selectedColumns(t, softwareAdobePlugins.Query))
+	require.Contains(t, softwareAdobePlugins.Query, "FROM adobe_plugins")
+
+	// The fleetd table emits its own rows, one per plugin, including a user column, so
+	// there is no cached_users join.
+	require.NotContains(t, strings.ToUpper(softwareAdobePlugins.Query), "JOIN")
+	// No scan_level constraint, so the table's default (standard) scan level is used.
+	require.NotContains(t, softwareAdobePlugins.Query, "scan_level")
+}
+
+func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
+	ds := new(mock.Store)
+	host := fleet.Host{ID: 1, Platform: "darwin"}
+
+	// Rows as the adobe_plugins table reports them: one plugin with a manifest, and one
+	// whose manifest is missing or unparseable, for which fleetd falls back to the
+	// extension's directory name and leaves the other fields empty.
+	withManifest := map[string]string{
+		"name":              "Artisan Pro X",
+		"version":           "1.3.3",
+		"bundle_identifier": "com.vendorx.artisanprox",
+		"extension_id":      "",
+		"extension_for":     "Photoshop",
+		"source":            "adobe_plugins",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/CEP/extensions/com.vendorx.artisanprox",
+	}
+	withoutManifest := map[string]string{
+		"name":              "com.vendory.colorizer",
+		"version":           "",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"extension_for":     "",
+		"source":            "adobe_plugins",
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    "/Library/Application Support/Adobe/UXP/extensions/com.vendory.colorizer",
+	}
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.ElementsMatch(t, adobePluginsColumns, maps.Keys(row))
+	}
+
+	var gotSoftware []fleet.Software
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		gotSoftware = software
+		return nil, nil
+	}
+	var gotPaths []string
+	ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+		gotPaths = maps.Keys(sPaths)
+		return nil
+	}
+
+	require.NoError(t, directIngestSoftware(t.Context(), slog.New(slog.DiscardHandler), &host, ds,
+		[]map[string]string{withManifest, withoutManifest}))
+
+	require.Equal(t, []fleet.Software{
+		{
+			Name:             "Artisan Pro X",
+			Version:          "1.3.3",
+			Source:           "adobe_plugins",
+			Vendor:           "VendorX",
+			BundleIdentifier: "com.vendorx.artisanprox",
+			ExtensionFor:     "Photoshop",
+		},
+		{
+			Name:   "com.vendory.colorizer",
+			Source: "adobe_plugins",
+		},
+	}, gotSoftware)
+
+	require.Len(t, gotPaths, 2)
+	for _, row := range []map[string]string{withManifest, withoutManifest} {
+		require.Contains(t, strings.Join(gotPaths, " "),
+			row["installed_path"]+fleet.SoftwareFieldSeparator)
 	}
 }
 
