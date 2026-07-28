@@ -359,7 +359,7 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the relevant [product group label](https://fleetdm.com/handbook/company/product-groups#current-product-groups), the `:release` label, and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the relevant [product group label](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and notify the product group's Engineering Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
@@ -592,6 +592,20 @@ Any fleetie can follow the process below to add a priority label to an issue.
 4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
+### Notify stakeholders when a user story is pushed to the next release
+
+[User stories](https://fleetdm.com/handbook/company/product-groups#work-items) are intended to be [drafted](#drafting) in a single release cycle and built in the following single, often but not always, release cycle. 
+
+When the Product Designers (PD) knows a user story in drafting will be pushed, it is the PD's responsibility to notify stakeholders.
+
+When an Engineering Manager (EM) knows a user story being built will be pushed, it is the EM's responsibility to notify stakeholders.
+
+1. If the story is being built, send a Slack message in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel and at-mention the product group's Product Designer.
+2. If `~activation-blocker`, `~customer promise`, or both a `customer-*` and a `P*` label are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the relevant [product group's](https://fleetdm.com/handbook/company/product-groups#current-product-groups) Slack channel.
+
+> Instead of waiting until the end of the release cycle, notify stakeholders as soon as you know the story is being pushed.
+
+
 ## Scaling Fleet
 
 Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. However, there are some specific gotchas to be aware of when implementing new features. Visit our [scaling Fleet page](https://fleetdm.com/handbook/engineering/scaling-fleet) for tips on scaling Fleet as efficiently and effectively as possible.
@@ -749,7 +763,7 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 Quickly confirming and reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report template](https://github.com/fleetdm/fleet/issues/new?template=bug-report.md), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
-At this state, the Head of Product Design is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
+At this state, the QA Manager is responsible for going through the inbox and adding the correct product group label. This moves the bug to the inbox on the product group's board. 
 
 Then, it's the product groups Engineering Manager's (EM) responsibility to review bugs during standup. It's up to the Product Designer to decide if it's a bug and specify the expected behavior.
 
@@ -770,7 +784,7 @@ The bug has been confirmed it's a bug but not reproduced.
 
 Take the following action: Add the `:reproduce` label so that the bug is added to the :help-qa board.
 
-At this state, the bug review DRI (QA) is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. QA has **1 business day** to move the bug to the [reproduced state](#reproduced) or ask for guidance.
+At this state, the QA Manager is responsible for reproducing the bug and documenting reproduction steps or asking the product group's Product Designer for more guidance. The QA Manager has **1 business day** to assign the bug to a QA Engineer or respond to the Engineering Manager.
 
 
 #### Reproduced
@@ -780,8 +794,7 @@ The bug has been confirmed and reproduced.
 Take the following actions:
 
 1. Remove the `:reproduce` label and add the `~released bug` label if the bug is in a published version of Fleet or `~unreleased bug` if it is not yet published.
-2. If this is a `~released bug`, add the `:product` label to place the bug on the product drafting board and move the bug to the "Ready to estimate" column.
-3. If this is an `~unreleased bug`, add the `:release` label and add the bug to the product group's release board so it is fixed before the next release.
+2. If this is an `~unreleased bug`, add the bug to the product group's release board so it is fixed before the next release.
 
 > **Fast for Fleeties:** Fleeties do not have to wait for additional reproduction. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 

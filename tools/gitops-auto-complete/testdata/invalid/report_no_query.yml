@@ -1,0 +1,3 @@
+# A report must set name AND query; this one omits query.
+reports:
+  - name: My Report

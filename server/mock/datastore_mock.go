@@ -1340,6 +1340,10 @@ type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName str
 
 type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
 
+type SetABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+
+type IsABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string) (bool, error)
+
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
@@ -4226,6 +4230,12 @@ type DataStore struct {
 
 	CountABMTokensWithTermsExpiredFunc        CountABMTokensWithTermsExpiredFunc
 	CountABMTokensWithTermsExpiredFuncInvoked bool
+
+	SetABMTokenInvalidForOrgNameFunc        SetABMTokenInvalidForOrgNameFunc
+	SetABMTokenInvalidForOrgNameFuncInvoked bool
+
+	IsABMTokenInvalidForOrgNameFunc        IsABMTokenInvalidForOrgNameFunc
+	IsABMTokenInvalidForOrgNameFuncInvoked bool
 
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
@@ -10202,6 +10212,20 @@ func (s *DataStore) CountABMTokensWithTermsExpired(ctx context.Context) (int, er
 	s.CountABMTokensWithTermsExpiredFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountABMTokensWithTermsExpiredFunc(ctx)
+}
+
+func (s *DataStore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetABMTokenInvalidForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenInvalidForOrgNameFunc(ctx, orgName, invalid)
+}
+
+func (s *DataStore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error) {
+	s.mu.Lock()
+	s.IsABMTokenInvalidForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsABMTokenInvalidForOrgNameFunc(ctx, orgName)
 }
 
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {

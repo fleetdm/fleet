@@ -58,6 +58,12 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 		return nil, nil, nil
 	}
+	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
+		return &fleet.MDMAppleDDMAssetsBatchChanges{}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 	var users []*fleet.User
 	var admin *fleet.User
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {

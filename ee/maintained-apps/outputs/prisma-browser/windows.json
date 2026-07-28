@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "150.49.7.182",
+      "version": "150.49.8.187",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Prisma Access Browser' AND publisher = 'Palo Alto Networks Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Prisma Access Browser' AND publisher = 'Palo Alto Networks Inc' AND version_compare(version, '150.49.7.182') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Prisma Access Browser' AND publisher = 'Palo Alto Networks Inc' AND version_compare(version, '150.49.8.187') < 0);"
       },
-      "installer_url": "https://updates.talon-sec.com/releases/Prisma%20Access%20Browser/win/packaged/x64/crx_signed_o4_stable_prisma_access_browser_installer_150_49_7_182-150.49.7.182-2b00cc7c.msi",
+      "installer_url": "https://updates.talon-sec.com/releases/Prisma%20Access%20Browser/win/packaged/x64/crx_signed_o4_stable_prisma_access_browser_installer_150_49_8_187-150.49.8.187-0b42f71b.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "84194ed8",
-      "sha256": "404765ce9bdacef7904c3fef0e64dab8a4db274edef0a56994f99e3aec1724a6",
+      "sha256": "7b35365820cb1d0ead66c36d71a0d8543ca08ac6a89573772d5ebefcd66f52ae",
       "default_categories": [
         "Browsers"
       ],

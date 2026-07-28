@@ -216,6 +216,7 @@ export type IHostPastActivityType =
   | ActivityType.WipedHost
   | ActivityType.FailedWipe
   | ActivityType.MdmUnenrolled
+  | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
   | ActivityType.ViewedHostRecoveryLockPassword
