@@ -3901,6 +3901,13 @@
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {
+      "name": "Gpg4win",
+      "slug": "gpg4win/windows",
+      "platform": "windows",
+      "unique_identifier": "Gpg4win",
+      "description": "Gpg4win is an email and file encryption suite for Windows that bundles GnuPG with the Kleopatra certificate manager."
+    },
+    {
       "name": "gPodder",
       "slug": "gpodder/darwin",
       "platform": "darwin",
