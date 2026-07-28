@@ -39,7 +39,7 @@ Configuration profiles and assets are configured per fleet and won't be applied 
 1. Head to the **Controls > OS settings > Configuration profiles** page in the Fleet UI. Select either **Profiles** or **Assets** in the menu, and select a fleet from the dropdown at the top of the page.
 2. For each configuration profile or assset that belongs to a fleet, select the download icon to save a copy.
 3. Select **Unassigned** in the top dropdown, then upload each configuration profile you saved.
-4. **Optional:** Delete each configuration profile that belongs to a fleet because they will no longer be applied following the downgrade process.
+4. **Optional:** Delete each configuration profile and asset that belongs to a fleet because they will no longer be applied following the downgrade process.
 
 ## Back up your fleets
 
