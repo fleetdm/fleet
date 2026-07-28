@@ -19,6 +19,10 @@ interface ITooltipTruncatedTextCellProps {
   /** When `true`, suppress the tooltip even if the text is truncated. Useful
    * when a parent surface owns the hover tooltip. */
   disableTooltip?: boolean;
+  /** When `true`, show the tooltip even when the text is not truncated. Use
+   * when the tooltip carries supplemental info (e.g. a raw identifier behind a
+   * friendlier display value) rather than just the truncated text. */
+  alwaysShowTooltip?: boolean;
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -31,18 +35,30 @@ const TooltipTruncatedText = ({
   isMobileView = false,
   fixedPositionStrategy = false,
   disableTooltip = false,
+  alwaysShowTooltip = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
-  const classNames = classnames(baseClass, className);
-
-  // Tooltip visibility logic: Enable only when text is truncated
+  // Tooltip visibility logic: Enable when text is truncated, or always when
+  // `alwaysShowTooltip` is set (supplemental info tooltip).
   const ref = useRef<HTMLInputElement>(null);
   const isTruncated = useCheckTruncatedElement(ref);
+
+  const showTooltip = !disableTooltip && (isTruncated || alwaysShowTooltip);
+  // Underline the value to signal a supplemental tooltip is available.
+  // Truncation-only tooltips are not underlined.
+  const underline = showTooltip && alwaysShowTooltip;
+
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}--underline`]: underline,
+  });
 
   // TODO: RachelPerkins unreleased bug refactor to include mobile tapping/click
   return (
     <TooltipWrapper
       className={classNames}
-      disableTooltip={disableTooltip || !isTruncated}
+      disableTooltip={!showTooltip}
+      // The underline is applied on the text value via `--underline` (see
+      // _styles.scss) instead of TooltipWrapper's own underline, whose
+      // negative margin gets clipped by truncating (`overflow: hidden`) parents.
       underline={false}
       position={tooltipPosition}
       showArrow
