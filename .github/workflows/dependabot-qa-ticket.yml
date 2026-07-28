@@ -38,17 +38,24 @@ jobs:
 
             // Only process code dependency updates (Go modules, npm root).
             // Skip: github-actions, docker, website npm, slackbot npm.
-            const isGomod = branch.startsWith('dependabot/gomod/');
-            const isNpm = branch.startsWith('dependabot/npm_and_yarn/')
+            // Dependabot uses slashes for single-package updates and dashes for grouped updates:
+            //   single:  dependabot/go_modules/golang.org/x/crypto-0.35.0
+            //   grouped: dependabot-go_modules-google.golang.org-grpc-1.82.1
+            const isGomod = branch.startsWith('dependabot/go_modules/')
+              || branch.startsWith('dependabot-go_modules-');
+            const isNpm = (branch.startsWith('dependabot/npm_and_yarn/')
+                || branch.startsWith('dependabot-npm_and_yarn-'))
               && !branch.includes('/website/')
-              && !branch.includes('/fleet-slackbot/');
+              && !branch.includes('/fleet-slackbot/')
+              && !branch.includes('-website-')
+              && !branch.includes('-fleet-slackbot-');
 
             if (!isGomod && !isNpm) {
               console.log(`Skipping non-code dependency PR (branch: ${branch})`);
               return;
             }
 
-            const ecosystem = isGomod ? 'Go' : 'npm';
+            const ecosystem = branch.includes('go_modules') ? 'Go' : 'npm';
 
             // Create the QA tracking issue.
             const issue = await github.rest.issues.create({
@@ -94,7 +101,7 @@ jobs:
               body: `QA ticket created: #${issue.data.number}`,
             });
 
-            // --- Project board: add to :help-qa and set status to "Awaiting QA" ---
+            // --- Project board: add to :help-qa and set status to "Ready" ---
             // Requires a PAT stored as FLEET_GITHUB_TOKEN_PROJECTS with
             // read/write access to organization projects.
             const projectToken = process.env.PROJECT_TOKEN;
@@ -112,7 +119,7 @@ jobs:
 
             const PROJECT_ID    = 'PVT_kwDOBDAnic4A5q11';        // :help-qa (#85)
             const STATUS_FIELD  = 'PVTSSF_lADOBDAnic4A5q11zgubZ6Y';
-            const AWAITING_QA   = 'f75ad846';
+            const READY         = 'f75ad846';
 
             // Add the issue to the project.
             const addResult = await projectOctokit.graphql(`
@@ -129,7 +136,7 @@ jobs:
             const itemId = addResult.addProjectV2ItemById.item.id;
             console.log(`Added to :help-qa board (item ${itemId})`);
 
-            // Set status to "Awaiting QA".
+            // Set status to "Ready".
             await projectOctokit.graphql(`
               mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
                 updateProjectV2ItemFieldValue(input: {
@@ -145,7 +152,7 @@ jobs:
               projectId: PROJECT_ID,
               itemId: itemId,
               fieldId: STATUS_FIELD,
-              optionId: AWAITING_QA,
+              optionId: READY,
             });
 
-            console.log('Status set to "Awaiting QA"');
+            console.log('Status set to "Ready"');
