@@ -689,7 +689,6 @@ import Nextcloud from "./Nextcloud";
 import NextcloudTalk from "./NextcloudTalk";
 import Nightfall from "./Nightfall";
 import NitroPdfPro from "./NitroPdfPro";
-import Nocturnal from "./Nocturnal";
 import Nodejs from "./Nodejs";
 import Nordlayer from "./Nordlayer";
 import Nordpass from "./Nordpass";
@@ -1839,7 +1838,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nextcloud talk desktop": NextcloudTalk,
   nightfall: Nightfall,
   "nitro pdf pro": NitroPdfPro,
-  nocturnal: Nocturnal,
   "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordlayer: Nordlayer,
