@@ -247,7 +247,7 @@ const ApiEndpointSelectorTable = ({
       <span className="form-field__help-text">
         You can find this information in the{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/rest-api/rest-api"
+          url="https://fleetdm.com/docs/api/rest-api"
           text="REST API docs"
           newTab
         />

@@ -88,7 +88,7 @@ const ScriptModalGroup = ({
   );
 
   // Note: Script metadata and script content require two separate API calls
-  // Source: https://fleetdm.com/docs/rest-api/rest-api#example-get-script
+  // Source: https://fleetdm.com/docs/api/rest-api#example-get-script
   // So to get script name, we pass it into this modal instead of another API call
   // If in future iterations we want more script metadata, call scriptAPI.getScript()
   // and consider refactoring .getScript to return script content as well

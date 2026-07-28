@@ -2,7 +2,7 @@
 
 Agent configuration (agent options) updates the settings of the [Fleet agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
 
-You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
+You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 
 ## config 
 
@@ -321,7 +321,7 @@ To learn where to find fleetd logs on each platform, see [Finding fleetd logs](h
 
 When `true`, orbit runs at debug log level and passes `--verbose` and `--tls_dump` to osqueryd on every host in the team (or globally, if set on no-team agent options). Unlike `command_line_flags`, toggling this does **not** require an orbit restart: the change is applied on each host's next config poll (up to 30 seconds). Default: `false`.
 
-Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/rest-api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
+Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
 
 #### Example
 

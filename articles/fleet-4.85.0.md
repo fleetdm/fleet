@@ -44,7 +44,7 @@ GitHub issue: [#37141](https://github.com/fleetdm/fleet/issues/37141)
 
 ### Scoped API-only users
 
-Fleet Premium now supports scoped API-only users, letting us restrict a token to a specified list of allowed API endpoints. If a token leaks, the blast radius is limited to those endpoints. Scoped API-only users can be created via the Fleet UI, [`fleetctl`](https://fleetdm.com/articles/fleetctl), or the [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+Fleet Premium now supports scoped API-only users, letting us restrict a token to a specified list of allowed API endpoints. If a token leaks, the blast radius is limited to those endpoints. Scoped API-only users can be created via the Fleet UI, [`fleetctl`](https://fleetdm.com/articles/fleetctl), or the [REST API](https://fleetdm.com/docs/api/rest-api).
 
 GitHub issue: [#38044](https://github.com/fleetdm/fleet/issues/38044)
 

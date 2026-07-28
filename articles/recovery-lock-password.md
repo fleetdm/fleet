@@ -79,7 +79,7 @@ This action is logged as a activities visible on the host's and the global activ
 
 ### API
 
-Use the [Get host's Recovery Lock password](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-recovery-lock-password) endpoint.
+Use the [Get host's Recovery Lock password](https://fleetdm.com/docs/api/rest-api#get-hosts-recovery-lock-password) endpoint.
 
 
 ## Rotate the password
@@ -104,7 +104,7 @@ Requires maintainer role or higher.
 
 ### API
 
-Use the [Rotate host's Recovery Lock password API](https://fleetdm.com/docs/rest-api/rest-api#rotate-hosts-recovery-lock-password) endpoint.
+Use the [Rotate host's Recovery Lock password API](https://fleetdm.com/docs/api/rest-api#rotate-hosts-recovery-lock-password) endpoint.
 
 
 ## Status tracking

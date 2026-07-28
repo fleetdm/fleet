@@ -535,7 +535,7 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 The following steps show how to deploy [Hydrant](https://www.hidglobal.com/solutions/pki-service) certificates.
 
 The flow for Hydrant differs from the other certificate authorities (CA's). While other CAs in Fleet use a configuration profile to request a certificate, Hydrant uses:
-- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint. 
+- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/api/rest-api#request-certificate) API endpoint. 
 - A custom policy that triggers the script on hosts that don't have a certificate.
 
 ### Step 1: Create a Hydrant user and obtain its API credentials
@@ -558,11 +558,11 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Whil
 
 To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
 
-This custom script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
+This custom script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/api/rest-api#request-certificate).
 
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
-3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
+3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
 4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
 Example script:
@@ -880,7 +880,7 @@ How does this work? Fleet installs the "Fleet" Android app on each host. Every 1
 The following steps show how to deploy certificates from any certificate authority (CA) that supports the [EST protocol](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport).
 
 The flow for EST is similar to Hydrant, and differs from the other certificate authorities. While other CAs in Fleet use a configuration profile to request a certificate, EST uses:
-- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint.
+- A custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/api/rest-api#request-certificate) API endpoint.
 - A custom policy that triggers the script on hosts that don't have a certificate.
 
 ### Step 1: Obtain API credentials
@@ -900,11 +900,11 @@ This step will vary between providers. EST servers require a `username` and `pas
 
 To deploy certificates automatically to Linux hosts at enrollment, create a script that writes the certificate to the filesystem. Use a policy to trigger this script on any host that doesn’t have a certificate.
 
-The script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
+The script will create a certificate signing request (CSR) and make a request to Fleet's ["Request certificate" API endpoint](https://fleetdm.com/docs/api/rest-api#request-certificate).
 
 1. Create an API-only user with the global maintainer role. Learn how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
 2. In Fleet, head to **Controls > Variables** and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script. Optionally, you can use HTTP signatures instead of an API token. [Learn more](#http-signatures).
-3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your EST CA. You'll use this `id` in your script.
+3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/api/rest-api#list-certificate-authorities-cas) to get the `id` for your EST CA. You'll use this `id` in your script.
 4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
 
 Example script:
@@ -983,7 +983,7 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 >
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
-> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile).
+> If automatic renewal fails, you can resend the configuration profile manually on the host's **Host details** page, the end user's **Fleet Desktop > My Device** page, or via [Fleet's API](https://fleetdm.com/docs/api/rest-api#resend-configuration-profile).
 
 ## Advanced
 
@@ -1005,7 +1005,7 @@ When you edit a certificate configuration profile for Apple hosts, via GitOps, a
 
 ### HTTP signatures
 
-If you're deploying certificates from an [EST](#any-est-enrollment-over-secure-transport-ca) certificate authority, you can use HTTP signatures instead of a Fleet API token to authenticate requests to Fleet's ["Request certificate" endpoint](https://fleetdm.com/docs/rest-api/rest-api#request-certificate).
+If you're deploying certificates from an [EST](#any-est-enrollment-over-secure-transport-ca) certificate authority, you can use HTTP signatures instead of a Fleet API token to authenticate requests to Fleet's ["Request certificate" endpoint](https://fleetdm.com/docs/api/rest-api#request-certificate).
 
 This is only supported on Linux hosts with TPM (Trusted Platform Module) hardware that enroll to Fleet using a Fleet agent generated (`fleetctl package`) with the `--fleet-managed-host-identity-certificate` flag.
 

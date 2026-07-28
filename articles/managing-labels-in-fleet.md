@@ -35,7 +35,7 @@ A label's scope is set based on where it's created, not by its name:
 
 To add or edit a label in Fleet, select the avatar on the right side of the top navigation and select **Labels**.
 
-You can also manage labels via [Fleet's API](https://fleetdm.com/docs/rest-api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
+You can also manage labels via [Fleet's API](https://fleetdm.com/docs/api/rest-api#labels) or [best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#labels).
 
 ## Target configuration profiles with labels
 
@@ -83,7 +83,7 @@ controls:
 
 If no label targeting is specified, the profile is delivered to all hosts on the specified platform.
 
-You can also set label targets through the Fleet UI when adding or editing a configuration profile under **Controls > OS settings > Configuration profiles**, or via the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+You can also set label targets through the Fleet UI when adding or editing a configuration profile under **Controls > OS settings > Configuration profiles**, or via the [REST API](https://fleetdm.com/docs/api/rest-api#create-configuration-profile).
 
 
 

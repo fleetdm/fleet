@@ -654,7 +654,7 @@ Because traces are head-sampled, the tracing backend receives only the sampled s
 
 #### Adjusting sampling at runtime
 
-The two sample rates and a full-sampling override can be changed at runtime through an admin-only debug endpoint, without restarting the server. This is useful for opening a temporary high-resolution window while reproducing an issue. See [Adjust trace sampling](https://fleetdm.com/docs/rest-api/rest-api#adjust-trace-sampling) in the REST API reference.
+The two sample rates and a full-sampling override can be changed at runtime through an admin-only debug endpoint, without restarting the server. This is useful for opening a temporary high-resolution window while reproducing an issue. See [Adjust trace sampling](https://fleetdm.com/docs/api/rest-api#adjust-trace-sampling) in the REST API reference.
 
 For example, to capture every span for a short debugging window:
 

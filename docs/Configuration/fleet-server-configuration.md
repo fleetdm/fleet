@@ -669,7 +669,7 @@ The TLS key to use when terminating TLS.
 
 ### server_default_max_request_body_size
 
-The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/rest-api/rest-api).
+The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/api/rest-api).
 
 - Default value: `1MiB`
 - Environment variable: `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE`
@@ -968,7 +968,7 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
 
 ### auth_sso_rate_limit_per_minute
 
-The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
+The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
 
 - Default value: 10
 - Environment variable: `FLEET_AUTH_SSO_RATE_LIMIT_PER_MINUTE`
@@ -3652,7 +3652,7 @@ The number of requests per minute allowed to [Initiate SSO during DEP enrollment
 
 The best practice is to set this to 3x the number of employees onboarding simultaneously (e.g., 300 for 100 end users). This gives breathing room to prevent issues from multiple setup requests while limiting exposure to unauthorized access attempts.
 
-- Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
+- Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
 - Config file format:
   ```yaml

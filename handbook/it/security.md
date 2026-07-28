@@ -2020,7 +2020,7 @@ Researchers who discover vulnerabilities in Fleet can disclose them through Flee
 
 In addition to the public VDP, Fleet operates a private bug bounty program for invited security researchers.
 
-The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/rest-api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope.
+The VDP scope covers the Fleet product source ([github.com/fleetdm/fleet](https://github.com/fleetdm/fleet)) and the [REST API](https://fleetdm.com/docs/api/rest-api). Marketing pages on fleetdm.com, third-party hosted services, and theoretical findings without a demonstrated exploit are out of scope.
 
 If Fleet confirms the vulnerability:
 

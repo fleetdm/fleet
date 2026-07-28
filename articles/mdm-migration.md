@@ -90,7 +90,7 @@ Fleet UI:
 Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See [configuration docs](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended sizes for logos.
 5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
 
-Fleet API: MDM migration settings are configured via the [`mdm.macos_migration`](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration) field on the [Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
+Fleet API: MDM migration settings are configured via the [`mdm.macos_migration`](https://fleetdm.com/docs/api/rest-api#mdm-macos-migration) field on the [Modify configuration API endpoint](https://fleetdm.com/docs/api/rest-api#modify-configuration).
 
 GitOps:
   - To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
