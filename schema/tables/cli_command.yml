@@ -5,7 +5,7 @@ platforms:
   - linux
 description: Allows querying devices using CLI commands.
 examples: |-
-  Get a host's version of the fleetctl command line tool.
+  Get a host's version of a command line only tool.
 
   ```
   SELECT cli_command_output FROM cli_command WHERE cli_command_input = "fleetctl -version | awk 'NR==1{print $4}'";
