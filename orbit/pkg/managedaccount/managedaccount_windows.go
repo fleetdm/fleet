@@ -33,6 +33,13 @@ const (
 // screen and from Settings > Accounts. There is no MDM CSP for this, which is why fleetd does it.
 const logonUIHiddenAccountsKey = `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList`
 
+// fleetAccountComment is written as the account's description at creation, and is load-bearing: it is
+// how a later run tells an account Fleet created from an unrelated account that happens to share the
+// name. Without that check, enabling the feature on a host where "_fleetadmin" already existed would
+// reset someone else's password and silently grant it hidden administrator rights. Windows LAPS marks
+// the accounts it manages with a description for the same reason. Do not change this string.
+const fleetAccountComment = "Fleet-managed local administrator account."
+
 var (
 	netapi32                 = windows.NewLazySystemDLL("netapi32.dll")
 	procNetUserAdd           = netapi32.NewProc("NetUserAdd")
@@ -96,12 +103,20 @@ func ensureUser(username, password string) error {
 		return fmt.Errorf("converting password: %w", err)
 	}
 
-	flags, exists, err := userFlags(namePtr)
+	existing, err := lookupUser(namePtr)
 	if err != nil {
 		return err
 	}
 
-	if exists {
+	if existing != nil {
+		// Only adopt an account Fleet created. Anything else with this name belongs to someone else, and
+		// resetting its password and elevating it would be destructive; report it instead so it surfaces
+		// on the host rather than silently changing an account we do not own.
+		if existing.comment != fleetAccountComment {
+			return fmt.Errorf(
+				"an account named %s already exists and was not created by Fleet, refusing to take it over", username)
+		}
+
 		info := userInfo1003{Password: passwordPtr}
 		ret, _, _ := procNetUserSetInfo.Call(
 			0, // servername: NULL means the local machine
@@ -117,10 +132,10 @@ func ensureUser(username, password string) error {
 		// locked out, or had its never-expire flag removed after we created it, Fleet would escrow a
 		// password that cannot actually log in, which defeats the purpose of a break-glass account.
 		// Only the flags we own are touched, so anything else set on the account is preserved.
-		return normalizeUserFlags(namePtr, username, flags)
+		return normalizeUserFlags(namePtr, username, existing.flags)
 	}
 
-	comment, err := windows.UTF16PtrFromString("Fleet-managed local administrator account.")
+	comment, err := windows.UTF16PtrFromString(fleetAccountComment)
 	if err != nil {
 		return fmt.Errorf("converting comment: %w", err)
 	}
@@ -143,9 +158,15 @@ func ensureUser(username, password string) error {
 	return nil
 }
 
-// userFlags reports whether the account exists and, if so, its current flags, so the caller can tell
-// an account that is merely present from one that is present but unusable.
-func userFlags(namePtr *uint16) (flags uint32, exists bool, err error) {
+// existingAccount is the subset of USER_INFO_1 the caller needs: the flags say whether a present
+// account is actually usable, and the comment says whether it is ours to manage.
+type existingAccount struct {
+	flags   uint32
+	comment string
+}
+
+// lookupUser returns the account, or nil when no account with that name exists.
+func lookupUser(namePtr *uint16) (*existingAccount, error) {
 	// buf is a real pointer rather than a uintptr so the garbage collector tracks the buffer netapi32
 	// allocates for us; converting a uintptr back into a pointer is not safe.
 	var buf *byte
@@ -158,16 +179,19 @@ func userFlags(namePtr *uint16) (flags uint32, exists bool, err error) {
 	switch ret {
 	case 0:
 		if buf == nil {
-			return 0, false, errors.New("looking up account: NetUserGetInfo returned no data")
+			return nil, errors.New("looking up account: NetUserGetInfo returned no data")
 		}
 		//nolint:errcheck // freeing the buffer cannot meaningfully fail here
 		defer procNetAPIBufferFree.Call(uintptr(unsafe.Pointer(buf)))
 		info := (*userInfo1)(unsafe.Pointer(buf))
-		return info.Flags, true, nil
+		return &existingAccount{
+			flags:   info.Flags,
+			comment: windows.UTF16PtrToString(info.Comment),
+		}, nil
 	case nerrUserNotFound:
-		return 0, false, nil
+		return nil, nil
 	default:
-		return 0, false, fmt.Errorf("looking up account: %w", windows.Errno(ret))
+		return nil, fmt.Errorf("looking up account: %w", windows.Errno(ret))
 	}
 }
 
