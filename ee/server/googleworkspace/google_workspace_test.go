@@ -19,8 +19,20 @@ type fakeAPI struct {
 	memberErr error
 }
 
-func (f *fakeAPI) ListUsers(_ context.Context, _ string) ([]*directory.User, error) {
-	return f.users, f.usersErr
+// ListUsers delivers the fake's users in two pages when there is more than one, so
+// callers are exercised across page boundaries.
+func (f *fakeAPI) ListUsers(_ context.Context, _ string, forEachPage func([]*directory.User) error) error {
+	if f.usersErr != nil {
+		return f.usersErr
+	}
+	if len(f.users) < 2 {
+		return forEachPage(f.users)
+	}
+	split := len(f.users) / 2
+	if err := forEachPage(f.users[:split]); err != nil {
+		return err
+	}
+	return forEachPage(f.users[split:])
 }
 
 func (f *fakeAPI) ListGroups(_ context.Context, _ string) ([]*directory.Group, error) {

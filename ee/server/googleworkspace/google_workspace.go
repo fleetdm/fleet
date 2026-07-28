@@ -87,8 +87,16 @@ const (
 
 // lowLevelAPI is the minimal Admin SDK Directory API surface the Directory needs.
 // It exists so tests can supply a fake implementation without hitting Google.
+//
+// ListUsers hands over one page at a time so the caller can map each page and let it
+// go: a raw *directory.User costs around 2 KB, mostly map[string]any overhead for the
+// fields the Admin SDK types as `any`, which is four times what Fleet's mapped
+// ScimUser costs. Accumulating them all was the largest term in a sync's memory use.
+// Groups and members are returned whole — their raw objects are a tenth the size, and
+// streaming groups would mean issuing a members.list for every group in the middle of
+// an in-flight groups.list pagination.
 type lowLevelAPI interface {
-	ListUsers(ctx context.Context, domain string) ([]*directory.User, error)
+	ListUsers(ctx context.Context, domain string, forEachPage func(users []*directory.User) error) error
 	ListGroups(ctx context.Context, domain string) ([]*directory.Group, error)
 	ListGroupMembers(ctx context.Context, groupKey string) ([]*directory.Member, error)
 }
@@ -126,33 +134,38 @@ func (d *Directory) log() *slog.Logger {
 	return d.logger
 }
 
-// ListUsers returns every user in the configured domain mapped to a ScimUser.
+// ListUsers returns every user in the configured domain mapped to a ScimUser. Each
+// page is mapped as it arrives so the raw Directory objects can be collected.
 func (d *Directory) ListUsers(ctx context.Context) ([]*fleet.ScimUser, error) {
-	users, err := d.api.ListUsers(ctx, d.domain)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list google workspace users")
-	}
 	logger := d.log()
-	out := make([]*fleet.ScimUser, 0, len(users))
-	for _, u := range users {
-		// A user with no ID or primary email cannot be linked to a host, so skip it.
-		if u.Id == "" || u.PrimaryEmail == "" {
-			logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
-				"id", u.Id, "primary_email", u.PrimaryEmail)
-			continue
+	var out []*fleet.ScimUser
+	err := d.api.ListUsers(ctx, d.domain, func(users []*directory.User) error {
+		for _, u := range users {
+			// A user with no ID or primary email cannot be linked to a host, so skip it.
+			if u.Id == "" || u.PrimaryEmail == "" {
+				logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
+					"id", u.Id, "primary_email", u.PrimaryEmail)
+				continue
+			}
+			su := mapUser(u)
+			logger.DebugContext(ctx, "ingested google workspace user",
+				"external_id", u.Id,
+				"user_name", su.UserName,
+				"active", derefBool(su.Active),
+				"department", derefString(su.Department),
+				"num_emails", len(su.Emails),
+				// Raw organizations as returned by the Directory API, to diagnose
+				// missing department values (empty/absent means the API returned none).
+				"raw_organizations", rawJSON(u.Organizations),
+			)
+			out = append(out, su)
 		}
-		su := mapUser(u)
-		logger.DebugContext(ctx, "ingested google workspace user",
-			"external_id", u.Id,
-			"user_name", su.UserName,
-			"active", derefBool(su.Active),
-			"department", derefString(su.Department),
-			"num_emails", len(su.Emails),
-			// Raw organizations as returned by the Directory API, to diagnose
-			// missing department values (empty/absent means the API returned none).
-			"raw_organizations", rawJSON(u.Organizations),
-		)
-		out = append(out, su)
+		return nil
+	})
+	if err != nil {
+		// Never return what was mapped before the failure: the sync deletes every
+		// scim user missing from the pull.
+		return nil, ctxerr.Wrap(ctx, err, "list google workspace users")
 	}
 	return out, nil
 }
@@ -411,18 +424,21 @@ func checkListLimits(ctx context.Context, records, pages, recordLimit int, resou
 	return nil
 }
 
-func (a *googleAPI) ListUsers(ctx context.Context, domain string) ([]*directory.User, error) {
-	var users []*directory.User
-	pages := 0
+func (a *googleAPI) ListUsers(ctx context.Context, domain string, forEachPage func(users []*directory.User) error) error {
+	pages, records := 0, 0
 	err := a.service.Users.List().Domain(domain).MaxResults(usersPageSize).Pages(ctx, func(page *directory.Users) error {
-		users = append(users, page.Users...)
 		pages++
-		return checkListLimits(ctx, len(users), pages, a.limits.MaxUsers, "users", maxUsersSetting)
+		records += len(page.Users)
+		// Check before handing the page over, so an over-limit page isn't mapped.
+		if err := checkListLimits(ctx, records, pages, a.limits.MaxUsers, "users", maxUsersSetting); err != nil {
+			return err
+		}
+		return forEachPage(page.Users)
 	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "google workspace users.list")
+		return ctxerr.Wrap(ctx, err, "google workspace users.list")
 	}
-	return users, nil
+	return nil
 }
 
 func (a *googleAPI) ListGroups(ctx context.Context, domain string) ([]*directory.Group, error) {
