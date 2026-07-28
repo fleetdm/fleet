@@ -1,6 +1,8 @@
 $softwareName = "Spyder"
 $softwareNameLike = "*$softwareName*"
-$publisher = "Spyder Project Contributors and others"
+# Registry publisher from the winget manifest's AppsAndFeaturesEntries, which
+# differs from the package Publisher ("Spyder Project Contributors and others").
+$publisher = "Spyder-IDE"
 $uninstallArgs = "/S"
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'

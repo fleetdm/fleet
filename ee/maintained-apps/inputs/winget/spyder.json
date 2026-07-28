@@ -4,7 +4,7 @@
   "package_identifier": "Spyder.Spyder",
   "unique_identifier": "Spyder",
   "fuzzy_match_name": true,
-  "program_publisher": "Spyder Project Contributors and others",
+  "program_publisher": "Spyder-IDE",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/spyder_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/spyder_uninstall.ps1",
   "installer_arch": "x64",
