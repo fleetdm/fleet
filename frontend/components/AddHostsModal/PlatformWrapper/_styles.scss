@@ -30,9 +30,12 @@
     }
   }
 
+  &__advanced--fleet-certificate {
+    @include flex-column-8px-gap;
+  }
+
   &__certificate-loading {
     color: $ui-fleet-black-50;
-    padding-top: $pad-xsmall;
   }
 
   &__certificate-error {

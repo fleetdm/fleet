@@ -555,20 +555,11 @@ const DataTable = ({
             </div>
             {toggleAllPagesSelected && renderAreAllSelected()}
             {shouldRenderToggleAllPages && (
-              <Button
-                onClick={onToggleAllPagesClick}
-                variant="inverse"
-                className="light-text"
-                size="small"
-              >
+              <Button onClick={onToggleAllPagesClick} variant="link">
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button
-              onClick={onClearSelectionClick}
-              variant="inverse"
-              size="small"
-            >
+            <Button onClick={onClearSelectionClick} variant="link">
               Clear selection
             </Button>
           </div>

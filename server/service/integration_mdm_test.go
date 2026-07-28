@@ -11328,6 +11328,11 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 }
 
 func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
+	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
+	// reading.
+	require.NoError(t, s.ds.ReconcileWindowsProfilesStatus(t.Context()))
+
 	var queryParams []string
 	if teamID != nil {
 		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))

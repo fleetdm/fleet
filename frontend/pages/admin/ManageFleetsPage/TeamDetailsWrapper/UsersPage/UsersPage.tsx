@@ -398,7 +398,9 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           actionButton={{
             name: "add user",
             buttonText: isGlobalAdmin ? "Add users" : "Add user",
-            variant: "default",
+            variant: "secondary",
+            iconSvg: "plus",
+            iconPosition: "left",
             onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}

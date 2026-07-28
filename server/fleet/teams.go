@@ -34,6 +34,11 @@ const (
 	DisplayNameAllTeams = "All fleets"
 )
 
+// MaxTeamNameLength matches the varchar(255) size of teams.name in MySQL.
+// Enforce this before insert/update so callers get an InvalidArgumentError
+// instead of a raw "Data too long" MySQL error.
+const MaxTeamNameLength = 255
+
 // IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
 // Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
 // are reserved to prevent creating teams with any of these names.
@@ -752,6 +757,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsUpdates = t.Config.MDM.WindowsUpdates
 	mdmSpec.MacOSSettings = t.Config.MDM.MacOSSettings.ToMap()
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
+	// assets are only present in ToMap for GitOps request validation; they are
+	// not stored on the team config, so keep them out of the generated spec.
+	delete(mdmSpec.MacOSSettings, "assets")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)

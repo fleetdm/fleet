@@ -35,5 +35,16 @@
 
   &__profile-assignment {
     @include vertical-data-set-layout;
+
+    &--not-accessible {
+      border: 1px solid $ui-fleet-black-10;
+      border-radius: 8px;
+      padding: $pad-large;
+
+      .data-error__header--single-line {
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+    }
   }
 }

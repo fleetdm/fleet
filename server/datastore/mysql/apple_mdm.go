@@ -2171,6 +2171,13 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 		}
 	}
 
+	// The host's Windows profile rows are gone, so drop its now-orphaned per-host profile status rollup.
+	if platform == "windows" {
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{uuid}, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup for host")
+		}
+	}
+
 	return nil
 }
 
@@ -6229,6 +6236,7 @@ SELECT
 	abt.organization_name,
 	abt.apple_id,
 	abt.terms_expired,
+	abt.token_invalid,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6338,6 +6346,7 @@ SELECT
 	abt.organization_name,
 	abt.apple_id,
 	abt.terms_expired,
+	abt.token_invalid,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6463,6 +6472,38 @@ func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgN
 		wasSet = expired
 	}
 	return wasSet, nil
+}
+
+func (ds *Datastore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+	const stmt = `UPDATE abm_tokens SET token_invalid = ? WHERE organization_name = ? AND token_invalid != ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, orgName, invalid)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update abm_tokens token_invalid")
+	}
+	affRows, _ := res.RowsAffected()
+
+	if affRows > 0 {
+		// if it did update the row, then the previous value was the opposite of
+		// invalid
+		wasSet = !invalid
+	} else {
+		// if it did not update any row, then the previous value was the same
+		wasSet = invalid
+	}
+	return wasSet, nil
+}
+
+func (ds *Datastore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error) {
+	const stmt = `SELECT token_invalid FROM abm_tokens WHERE organization_name = ?`
+
+	var invalid bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &invalid, stmt, orgName); err != nil {
+		if err == sql.ErrNoRows {
+			return false, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+		return false, ctxerr.Wrap(ctx, err, "get abm_tokens token_invalid")
+	}
+	return invalid, nil
 }
 
 func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {

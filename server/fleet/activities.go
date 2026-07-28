@@ -305,6 +305,15 @@ func (a ActivityTypeUserFailedLogin) ActivityName() string {
 	return "user_failed_login"
 }
 
+type ActivityTypeUserMFARequested struct {
+	Email    string `json:"email"`
+	PublicIP string `json:"public_ip"`
+}
+
+func (a ActivityTypeUserMFARequested) ActivityName() string {
+	return "user_mfa_requested"
+}
+
 type ActivityTypeCreatedUser struct {
 	UserID    uint   `json:"user_id"`
 	UserName  string `json:"user_name"`
@@ -1933,6 +1942,28 @@ type ActivityEditedSetupExperienceSoftware struct {
 
 func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 	return "edited_setup_experience_software"
+}
+
+// These activities are new, so they use the fleet_id/fleet_name field names directly rather than
+// the team_id/team_name + renameto pattern the older team-scoped activities keep for back-compat.
+type ActivityCreatedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityCreatedSetupExperienceScript) ActivityName() string {
+	return "created_setup_experience_script"
+}
+
+type ActivityDeletedSetupExperienceScript struct {
+	FleetID    *uint   `json:"fleet_id"`
+	FleetName  *string `json:"fleet_name"`
+	ScriptName string  `json:"script_name"`
+}
+
+func (a ActivityDeletedSetupExperienceScript) ActivityName() string {
+	return "deleted_setup_experience_script"
 }
 
 type ActivityTypeCreatedAndroidProfile struct {

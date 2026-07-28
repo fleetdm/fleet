@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.76.3",
+      "version": "3.77.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front' AND version_compare(bundle_short_version, '3.76.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.frontapp.Front' AND version_compare(bundle_short_version, '3.77.0') < 0);"
       },
-      "installer_url": "https://dl.frontapp.com/desktop/builds/3.76.3/Front-3.76.3-arm64.zip",
+      "installer_url": "https://dl.frontapp.com/desktop/builds/3.77.0/Front-3.77.0-arm64.zip",
       "install_script_ref": "42b34fcd",
       "uninstall_script_ref": "e3bc7035",
-      "sha256": "ec0964c226a252d4342fcc3cec5d653dc54c131cf3c1e5c68ad4810838089a1a",
+      "sha256": "e8fb367c9746626f08afe7a7d0f40fb458097d028281daa1b65d3ba29d2f6af8",
       "default_categories": [
         "Communication"
       ]
