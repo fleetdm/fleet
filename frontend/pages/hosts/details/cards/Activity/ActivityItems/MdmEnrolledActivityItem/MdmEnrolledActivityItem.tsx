@@ -21,7 +21,7 @@ const MdmEnrolledActivityItem = ({
         <b>{actor_full_name}</b> told Fleet to enroll this host.
       </>
     ) : (
-      <>This host is enrolled in Fleet.</>
+      <>This host enrolled to Fleet.</>
     );
   } else {
     content = actor_full_name ? (
