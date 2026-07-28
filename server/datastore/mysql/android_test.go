@@ -3241,9 +3241,12 @@ func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
 	require.Equal(t, "msg-3", messageID)
 	require.Nil(t, eventTime)
 
-	// Unknown host -> NotFound.
+	// Unknown host -> NotFound (both get and set).
 	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)
 	require.True(t, fleet.IsNotFound(err), "expected NotFound for unknown host, got %v", err)
+
+	err = ds.SetAndroidPubSubDedupState(testCtx(), 999999, "msg-x", &t2)
+	require.True(t, fleet.IsNotFound(err), "set on a missing android_devices row must surface NotFound, got %v", err)
 }
 
 func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {

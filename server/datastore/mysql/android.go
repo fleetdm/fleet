@@ -580,7 +580,9 @@ UPDATE host_mdm
 // GetAndroidPubSubDedupState returns the last-processed Google Pub/Sub messageId
 // and AMAPI event timestamp recorded for the host, used by the AMAPI notification
 // handler to drop duplicate (same messageId) and stale (older timestamp)
-// deliveries. Both values are nil/empty when nothing has been recorded yet.
+// deliveries. When the android_devices row exists but nothing has been recorded
+// yet, it returns an empty messageId and nil eventTime with no error. When no
+// android_devices row exists for the host, it returns a NotFound error.
 func (ds *Datastore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint) (messageID string, eventTime *time.Time, err error) {
 	var state struct {
 		MessageID *string    `db:"last_pubsub_message_id"`
@@ -600,13 +602,22 @@ func (ds *Datastore) GetAndroidPubSubDedupState(ctx context.Context, hostID uint
 // SetAndroidPubSubDedupState records the last-processed Google Pub/Sub messageId
 // and AMAPI event timestamp for the host after a notification is handled
 // successfully. eventTime may be nil when the notification carried no usable
-// timestamp; the column is left NULL in that case.
+// timestamp; the column is left NULL in that case. Returns a NotFound error when
+// no android_devices row matches hostID, so a missing row surfaces (via the
+// caller's log) instead of silently dropping dedup state.
 func (ds *Datastore) SetAndroidPubSubDedupState(ctx context.Context, hostID uint, messageID string, eventTime *time.Time) error {
-	_, err := ds.writer(ctx).ExecContext(ctx,
+	result, err := ds.writer(ctx).ExecContext(ctx,
 		`UPDATE android_devices SET last_pubsub_message_id = ?, last_pubsub_event_time = ? WHERE host_id = ?`,
 		messageID, eventTime, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set android pubsub dedup state")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get rows affected for set android pubsub dedup state")
+	}
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("AndroidDevice").WithID(hostID), "set android pubsub dedup state")
 	}
 	return nil
 }

@@ -66,7 +66,7 @@ func wireDedupHost(t *testing.T, mockDS *AndroidMockDS, hostID uint, hostUUID st
 
 // makeEnrollmentEnvelope builds an ENROLLMENT PubSub message for a fixed device
 // with the given Google envelope messageId/publishTime.
-func makeEnrollmentEnvelope(t *testing.T, esID, messageID, publishTime string) *android.PubSubMessage {
+func makeEnrollmentEnvelope(t *testing.T, messageID, publishTime string) *android.PubSubMessage {
 	msg := createEnrollmentMessage(t, androidmanagement.Device{
 		Name:                createAndroidDeviceId("dedup"),
 		EnrollmentTokenData: `{"enroll_secret":"global"}`,
@@ -115,7 +115,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 			return "msg-dup", nil, nil
 		}
 
-		msg := makeEnrollmentEnvelope(t, hostUUID, "msg-dup", "2026-07-22T10:00:00Z")
+		msg := makeEnrollmentEnvelope(t, "msg-dup", "2026-07-22T10:00:00Z")
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
 
 		require.False(t, mockDS.UpdateAndroidHostFuncInvoked, "duplicate enrollment must not re-run updateHost")
@@ -132,7 +132,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 		}
 
 		// publishTime older than the stored event time -> stale.
-		msg := makeEnrollmentEnvelope(t, hostUUID, "msg-new", "2020-01-01T00:00:00Z")
+		msg := makeEnrollmentEnvelope(t, "msg-new", "2020-01-01T00:00:00Z")
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
 
 		require.False(t, mockDS.UpdateAndroidHostFuncInvoked, "stale enrollment must not re-run updateHost")
@@ -153,7 +153,7 @@ func TestPubSubDedupAndStaleness(t *testing.T) {
 			return nil
 		}
 
-		msg := makeEnrollmentEnvelope(t, hostUUID, "msg-reenroll", "2026-07-22T10:00:00Z")
+		msg := makeEnrollmentEnvelope(t, "msg-reenroll", "2026-07-22T10:00:00Z")
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), dedupToken, msg))
 
 		require.True(t, mockDS.UpdateAndroidHostFuncInvoked, "a non-duplicate re-enrollment must run updateHost")
