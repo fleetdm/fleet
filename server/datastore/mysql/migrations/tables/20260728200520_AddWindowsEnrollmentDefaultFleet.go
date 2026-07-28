@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260724191920, Down_20260724191920)
+	MigrationClient.AddMigration(Up_20260728200520, Down_20260728200520)
 }
 
-func Up_20260724191920(tx *sql.Tx) error {
+func Up_20260728200520(tx *sql.Tx) error {
 	// Single-row config table holding the default team (fleet) that new user-driven Windows MDM enrollments are assigned to. team_id
 	// is NULL when no default is configured; the row is deleted or nulled when the referenced team is deleted (ON DELETE SET NULL).
 	_, err := tx.Exec(`
@@ -40,6 +40,6 @@ func Up_20260724191920(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260724191920(tx *sql.Tx) error {
+func Down_20260728200520(tx *sql.Tx) error {
 	return nil
 }
