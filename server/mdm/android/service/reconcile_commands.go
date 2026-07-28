@@ -130,7 +130,7 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 			// independent, and this row is retried on the next run.
 			logger.ErrorContext(ctx, "failed to get android command operation from AMAPI",
 				"command_uuid", cmd.CommandUUID, "operation_name", cmd.OperationName, "err", err)
-			ctxerr.Handle(ctx, err)
+			ctxerr.Handle(ctx, ctxerr.Wrap(ctx, err, "get android command operation from AMAPI"))
 
 		case !op.Done:
 			// Still queued at AMAPI (e.g. the device has not come online yet). Leave it pending.

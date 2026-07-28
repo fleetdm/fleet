@@ -2613,7 +2613,11 @@ func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "enterprises/E1/devices/D1/operations/"+oldest, cmds[0].OperationName)
 		assert.Equal(t, string(android.MDMAndroidCommandTypeLock), cmds[0].CommandType)
 		assert.Equal(t, string(android.MDMAndroidCommandStatusPending), cmds[0].Status)
-		assert.WithinDuration(t, time.Now().Add(-72*time.Hour), cmds[0].CreatedAt, time.Minute)
+		// created_at drives the not-found grace period in the reconciler, so it has to come back
+		// populated. Only assert it predates the cutoff -- an exact age would be at the mercy of clock
+		// skew between the app and the database.
+		assert.False(t, cmds[0].CreatedAt.IsZero())
+		assert.True(t, cmds[0].CreatedAt.Before(time.Now().Add(-24*time.Hour)))
 	})
 
 	t.Run("no matching rows returns an empty slice", func(t *testing.T) {
