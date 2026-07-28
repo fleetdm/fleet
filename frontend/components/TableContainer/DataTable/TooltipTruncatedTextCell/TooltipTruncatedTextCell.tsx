@@ -19,6 +19,10 @@ interface ITooltipTruncatedTextCellProps {
   prefix?: React.ReactNode;
   /** Content does not get truncated */
   suffix?: React.ReactNode;
+  /** When `true`, show the tooltip even when the text is not truncated. Use
+   * when the tooltip carries supplemental info (e.g. a raw identifier behind a
+   * friendlier display value) rather than just the truncated text. */
+  alwaysShowTooltip?: boolean;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -30,6 +34,7 @@ const TooltipTruncatedTextCell = ({
   className,
   prefix,
   suffix,
+  alwaysShowTooltip = false,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -62,7 +67,9 @@ const TooltipTruncatedTextCell = ({
         className="data-table__tooltip-truncated-text-container"
         data-tip
         data-for={tooltipId}
-        data-tip-disable={isDefaultValue || tooltipDisabled}
+        data-tip-disable={
+          isDefaultValue || (tooltipDisabled && !alwaysShowTooltip)
+        }
       >
         <span
           ref={ref}
