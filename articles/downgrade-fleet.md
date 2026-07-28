@@ -32,15 +32,6 @@ Scripts are configured per fleet and won't be accessible after your fleets are d
 3. Select **Unassigned** in the top dropdown, then select **Add script** and upload each script you saved.
 4. **Optional:** Delete each script that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
 
-## Move all fleet-level configuration profiles to "Unassigned"
-
-Configuration profiles are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
-
-1. Head to the **Controls > OS settings > Configuration profiles** page in the Fleet UI and select a fleet from the dropdown at the top of the page.
-2. For each configuration profile that belongs to a fleet, select the download icon to save a copy.
-3. Select **Unassigned** in the top dropdown, then upload each configuration profile you saved.
-4. **Optional:** Delete each configuration profile that belongs to a fleet because they will no longer be applied following the downgrade process.
-
 ## Back up your fleets
 
 1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so you can restore your fleets if you upgrade again later.
