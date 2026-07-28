@@ -1363,25 +1363,49 @@ var appleSiliconMajorThreshold = map[string]int{
 	"iMac": 21,
 }
 
-// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
-// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
-// devices like AppleTV will return an error.
-func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+func IsMacIdentifier(modelIdentifier string) (bool, string, int, error) {
 	if strings.HasPrefix(modelIdentifier, "iPhone") ||
 		strings.HasPrefix(modelIdentifier, "iPod") ||
 		strings.HasPrefix(modelIdentifier, "iPad") {
 		// If the model identifier starts with iPhone, iPod, or iPad, we'll return false with no
 		// error; however, other non-Mac Apple devices like AppleTV will return an error
-		return false, nil
+		return false, "", 0, nil
 	}
 
 	matches := macProductRe.FindStringSubmatch(modelIdentifier)
 	if matches == nil {
-		return false, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
+		return false, "", 0, fmt.Errorf("unrecognized product identifier format: %q", modelIdentifier)
 	}
 
 	family := matches[1]
 	major, _ := strconv.Atoi(matches[2])
+
+	if family == "Mac" ||
+		family == "VirtualMac" ||
+		family == "MacBook" ||
+		family == "MacBookAir" ||
+		family == "MacBookPro" ||
+		family == "Macmini" ||
+		family == "iMac" ||
+		family == "iMacPro" ||
+		family == "MacPro" {
+		return true, family, major, nil
+	}
+
+	return false, "", 0, fmt.Errorf("failed to detect if model identifier (%q) was mac", modelIdentifier)
+}
+
+// IsMacAppleSilicon determines whether the device is an Apple Silicon Mac. If the model identifier
+// starts with iPhone, iPod, or iPad, it returns false with no error; however, other non-Mac Apple
+// devices like AppleTV will return an error.
+func IsMacAppleSilicon(modelIdentifier string) (bool, error) {
+	isMac, family, major, err := IsMacIdentifier(modelIdentifier)
+	if err != nil {
+		return false, err
+	}
+	if !isMac {
+		return false, nil
+	}
 
 	// Model identifiers starting with "Mac" immediately followed by a digit (e.g. "Mac13,1")
 	// represent the unified naming scheme Apple adopted for Apple Silicon products such as the

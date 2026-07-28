@@ -2743,6 +2743,14 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
+	// Once we return the enrollment profile, we capture and store the software device id for macOS hosts.
+	if isMac, _, _, err := fleet.IsMacIdentifier(machineInfo.Product); isMac && err == nil {
+		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, machineInfo.UDID, machineInfo.SoftwareUpdateDeviceID); err != nil {
+			// TODO: Do we want to fail gracefully cathing it with the osquery query?
+			return nil, ctxerr.Wrap(ctx, err, "inserting macOS software update device id")
+		}
+	}
+
 	return signed, nil
 }
 
@@ -8004,6 +8012,14 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	// Once we return the enrollment profile, we capture and store the software device id for macOS hosts.
+	if isMac, _, _, err := fleet.IsMacIdentifier(deviceInfo.Product); isMac && err == nil {
+		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, deviceInfo.UDID, deviceInfo.SoftwareUpdateDeviceID); err != nil {
+			// TODO: Do we want to fail gracefully cathing it with the osquery query?
+			return nil, ctxerr.Wrap(ctx, err, "inserting macOS software update device id")
+		}
 	}
 
 	return signed, nil

@@ -2268,6 +2268,8 @@ type GetAppleDDMAssetsReferencedByDeclarationsFunc func(ctx context.Context, dec
 
 type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error)
 
+type InsertMacOSSoftwareUpdateDeviceIDFunc func(ctx context.Context, hostUUID string, updateDeviceID string) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5634,6 +5636,9 @@ type DataStore struct {
 
 	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
 	BatchSetAppleDDMAssetsFuncInvoked bool
+
+	InsertMacOSSoftwareUpdateDeviceIDFunc        InsertMacOSSoftwareUpdateDeviceIDFunc
+	InsertMacOSSoftwareUpdateDeviceIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -13490,4 +13495,11 @@ func (s *DataStore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, as
 	s.BatchSetAppleDDMAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, assets)
+}
+
+func (s *DataStore) InsertMacOSSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+	s.mu.Lock()
+	s.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertMacOSSoftwareUpdateDeviceIDFunc(ctx, hostUUID, updateDeviceID)
 }
