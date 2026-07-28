@@ -8,7 +8,7 @@ import (
 
 // The migration only relaxes nullability and adds columns, so the risk worth testing is that it runs
 // against populated tables and leaves existing rows intact with the documented defaults.
-func TestUp_20260724210609(t *testing.T) {
+func TestUp_20260728171642(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	const hostUUID = "existing-host"
