@@ -58,6 +58,16 @@ if (-not $process.HasExited) {
 $exitCode = $process.ExitCode
 Write-Host "Install exit code: $exitCode"
 
+# The parent can exit while a descendant is still finishing the unpack and writing
+# the ARP entry -- the same hand-off that makes -Wait block. Give registration a
+# bounded window to appear rather than checking once.
+$settle = 0
+while (-not (Test-RtoolsRegistered) -and ($settle -lt 90)) {
+  Start-Sleep -Seconds $pollSeconds
+  $settle += $pollSeconds
+  Write-Host "Waiting for Rtools to register... ($settle seconds)"
+}
+
 if (-not (Test-RtoolsRegistered)) {
   Write-Host "Rtools did not register in Add/Remove Programs."
   Exit 1
