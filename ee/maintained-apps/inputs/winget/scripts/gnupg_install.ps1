@@ -3,34 +3,17 @@
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 
-# The GnuPG installer process does not exit on its own on a headless machine, and
-# killing it is not enough: its NSIS script writes the Add/Remove Programs entry
-# in the very last, hidden section (inst.nsi -> DisplayName "GNU Privacy Guard"
-# under ...\Uninstall\GnuPG), so an installer stopped part-way leaves files on
-# disk with no registry entry and nothing for inventory to match.
-#
-# What stalls it is a modal dialog. inst.nsi has several MessageBox calls with no
-# /SD default -- most relevantly the GpgEX shell-extension registration failure
-# ("regsvr32 /s gpgex6.dll"), which is exactly the kind of thing that fails with
-# no interactive desktop. With nobody to click OK, the installer waits forever.
-#
-# So: leave the installer's children alone (killing regsvr32 would *guarantee*
-# that dialog), and instead close any window the installer puts up. Closing an
-# MB_OK dialog is equivalent to acknowledging it, and the install then runs on to
-# the section that writes the registry entry. Each poll also logs what is on
-# screen and which children are alive, so a future failure is diagnosable from
-# the CI log alone.
+# The installer stalls on a modal dialog with no interactive desktop and never
+# exits. Closing its window lets it run through to the section that writes the
+# Add/Remove Programs entry; killing it instead would leave a partial install.
 $daemons = @("gpg-agent", "dirmngr", "keyboxd", "scdaemon", "gpg-connect-agent", "gpgconf", "gpa", "launch-gpa")
 $installTimeoutSeconds = 420
 $pollSeconds = 10
-# Let the installer get on with it before we start closing windows, so a dialog
-# that is genuinely transient isn't dismissed prematurely.
 $graceSeconds = 30
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-# inst.nsi writes the uninstall info with SHCTX, so check the per-user hive too in
-# case the installer resolves to current-user mode.
+# Uninstall info is written with SHCTX, so it can land per-user.
 $userKey = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
 function Test-GnuPGRegistered {
@@ -42,10 +25,8 @@ function Test-GnuPGRegistered {
 
 try {
 
-# GnuPG uses an NSIS installer.
 $process = Start-Process -FilePath "$exeFilePath" -ArgumentList "/S" -PassThru
-# Touch .Handle so the exit code is still readable after the process ends:
-# Start-Process -PassThru otherwise returns $null for .ExitCode.
+# Keeps .ExitCode readable after the process ends.
 $null = $process.Handle
 
 $elapsed = 0
@@ -76,14 +57,12 @@ if (-not $process.HasExited) {
   Write-Host "Install exit code: $($process.ExitCode)"
 }
 
-# Stop the resident daemons the installer started. Leaving them running holds
-# file locks that make a later uninstall fail.
+# Stop the resident daemons; they hold file locks the uninstall needs released.
 foreach ($name in $daemons) {
   Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
 }
 
-# Registration is the success signal, not the exit code: on the timeout path the
-# installer was killed, so its exit code says nothing about the install.
+# Registration is the success signal: a killed installer's exit code says nothing.
 if (-not (Test-GnuPGRegistered)) {
   Write-Host "GnuPG did not register in Add/Remove Programs."
   Exit 1
