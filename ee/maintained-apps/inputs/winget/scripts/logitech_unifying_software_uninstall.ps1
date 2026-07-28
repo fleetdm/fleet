@@ -20,6 +20,19 @@ $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion
 $exitCode = 0
 $timeoutSeconds = 300
 
+# Print every matching entry with its publisher, so a publisher mismatch names the
+# correct value instead of just failing.
+function Write-UnifyingCandidates {
+    Write-Host "Registry entries matching '$softwareNameLike':"
+    $found = Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
+        Where-Object { $_.DisplayName -like $softwareNameLike }
+    if (-not $found) { Write-Host "  (none)" ; return }
+    foreach ($f in $found) {
+        Write-Host "  DisplayName='$($f.DisplayName)' Publisher='$($f.Publisher)' Version='$($f.DisplayVersion)'"
+    }
+}
+
 function Get-UnifyingUninstallKey {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
@@ -39,7 +52,8 @@ try {
     if (-not $key) {
         # Nothing to remove is not a failure: uninstall scripts are idempotent here,
         # as in nordpass_uninstall.ps1 and windsurf_uninstall.ps1.
-        Write-Host "Uninstall entry not found for '$softwareName'."
+        Write-UnifyingCandidates
+        Write-Host "Uninstall entry not found for '$softwareName' with publisher '$softwarePublisher'."
         Exit 0
     }
 
@@ -102,6 +116,7 @@ while ((Get-UnifyingUninstallKey) -and ($elapsed -lt 240)) {
 }
 
 if (Get-UnifyingUninstallKey) {
+    Write-UnifyingCandidates
     Write-Host "'$softwareName' is still registered after the uninstall."
     Exit 1
 }
