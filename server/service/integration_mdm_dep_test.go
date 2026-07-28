@@ -1175,11 +1175,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
+			depHost, err := s.ds.HostByIdentifier(context.Background(), devices[0].SerialNumber)
+			require.NoError(t, err)
 			require.JSONEq(
 				t,
 				fmt.Sprintf(
-					`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
-					devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
+					`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
+					depHost.ID, devices[0].SerialNumber, devices[0].Model, devices[0].SerialNumber,
 				),
 				string(*activity.Details),
 			)
@@ -1408,11 +1410,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.awaitRunAppleMDMWorkerSchedule()
 
 	// The last activity should have `installed_from_dep=true`.
+	depReenrollHost, err := s.ds.HostByIdentifier(context.Background(), mdmDevice.SerialNumber)
+	require.NoError(t, err)
 	s.lastActivityMatches(
 		"mdm_enrolled",
 		fmt.Sprintf(
-			`{"host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
-			mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
+			`{"host_id": %d, "host_serial": "%s", "enrollment_id": null, "host_display_name": "%s (%s)", "installed_from_dep": true, "mdm_platform": "apple", "platform": "darwin"}`,
+			depReenrollHost.ID, mdmDevice.SerialNumber, mdmDevice.Model, mdmDevice.SerialNumber,
 		),
 		0,
 	)

@@ -127,6 +127,11 @@ $base-class: "button";
     opacity: 0;
   }
 
+  // Wraps children so the loading spinner can swap in without a layout shift.
+  // Do NOT hide-then-reveal buttons by fading `.children-wrapper` alone —
+  // bordered/filled variants (`secondary` etc.) will leave an empty button
+  // box behind. Fade the whole button, or use `.row-hover-button`
+  // (see PaginatedList / TableContainer styles).
   .children-wrapper {
     display: flex;
     flex-direction: row;
