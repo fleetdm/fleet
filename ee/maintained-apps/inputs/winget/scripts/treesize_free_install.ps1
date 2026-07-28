@@ -7,20 +7,25 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 # "Silent" switches from the winget manifest; /SP- additionally suppresses the
 # "This will install..." prompt.
 #
-# On a headless machine the installer process sits doing nothing and never
-# registers in Add/Remove Programs, which is the signature of a modal dialog
-# waiting for input that nobody can give. So rather than only waiting it out:
-#   * close any window the installer puts up, which acknowledges an OK-style
-#     dialog and lets the install continue;
-#   * pass Inno's /LOG so the install's own log can be printed if it still fails,
-#     which says exactly which step stalled;
-#   * log the window title and live child processes on every poll.
-# Wait on the installer process alone, too: "Start-Process -Wait" waits for the
-# process *and all of its descendants*, so an Inno post-install "run" task
-# launching TreeSize would block regardless.
+# The install stalls before it starts. Inno's own log shows why:
+#
+#   Extracting temporary file: ...\is-XXXXX.tmp\TreeSizeFree.exe
+#   (seven minutes pass)
+#   InitializeSetup returned False; aborting.
+#
+# InitializeSetup extracts TreeSizeFree.exe and runs it, then blocks waiting for
+# it to exit. On a machine with no interactive desktop that child never exits, so
+# InitializeSetup eventually times out and aborts the whole install -- which is
+# why nothing ever landed in Program Files and nothing was ever registered.
+#
+# Stopping that child while the installer waits lets InitializeSetup return and
+# the install proceed. The same kill also covers the post-install "run" task, and
+# waiting on the installer process alone matters regardless: "Start-Process -Wait"
+# waits for the process *and all of its descendants*. Inno's /LOG is kept so any
+# future stall is diagnosable straight from the CI log.
 $installTimeoutSeconds = 420
 $pollSeconds = 15
-$graceSeconds = 30
+$graceSeconds = 20
 $leftovers = @("TreeSize", "TreeSizeFree")
 
 $innoLog = Join-Path $env:TEMP "treesize-free-install.log"
@@ -69,9 +74,19 @@ while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
 
   Write-Host "Installing... ($elapsed seconds, registered: $(Test-TreeSizeRegistered), window: '$windowTitle', children: $($children -join ', '))"
 
-  if ($elapsed -ge $graceSeconds -and $process.MainWindowHandle -ne [IntPtr]::Zero) {
-    Write-Host "Installer is showing a window ('$windowTitle'); closing it so the install can continue."
-    $null = $process.CloseMainWindow()
+  if ($elapsed -ge $graceSeconds) {
+    # Release InitializeSetup: it is blocked waiting on the TreeSizeFree.exe it
+    # extracted to %TEMP%, which never exits without an interactive desktop.
+    if ($children.Count -gt 0) {
+      Write-Host "Stopping the installer's child process(es) [$($children -join ', ')] so InitializeSetup can continue."
+      foreach ($name in $children) {
+        Stop-Process -Name $name -Force -ErrorAction SilentlyContinue
+      }
+    }
+    if ($process.MainWindowHandle -ne [IntPtr]::Zero) {
+      Write-Host "Installer is showing a window ('$windowTitle'); closing it so the install can continue."
+      $null = $process.CloseMainWindow()
+    }
   }
 }
 
