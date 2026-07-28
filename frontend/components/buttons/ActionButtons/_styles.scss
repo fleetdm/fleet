@@ -6,6 +6,7 @@
     display: none;
     @media (min-width: $break-md) {
       display: flex;
+      gap: $pad-small;
     }
   }
 
