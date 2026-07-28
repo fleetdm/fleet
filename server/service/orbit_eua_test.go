@@ -392,7 +392,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return device, nil
 		}
-		ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+		ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 			return &defaultTeamID, "Workstations", nil
 		}
 		ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {

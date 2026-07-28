@@ -294,10 +294,10 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 	return &winMDMDevice, nil
 }
 
-// GetWindowsEnrollmentDefaultTeam returns the configured default team for new user-driven Windows MDM enrollments.
-// Returns (nil, "") when no default is configured (including when the referenced team was deleted, which nulls the
+// GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
+// Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the
 // FK).
-func (ds *Datastore) GetWindowsEnrollmentDefaultTeam(ctx context.Context) (*uint, string, error) {
+func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
 	var row struct {
 		TeamID   *uint   `db:"team_id"`
 		TeamName *string `db:"team_name"`
@@ -311,7 +311,7 @@ func (ds *Datastore) GetWindowsEnrollmentDefaultTeam(ctx context.Context) (*uint
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, "", nil
 		}
-		return nil, "", ctxerr.Wrap(ctx, err, "get windows enrollment default team")
+		return nil, "", ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
 	if row.TeamID == nil || row.TeamName == nil {
 		return nil, "", nil
@@ -319,13 +319,13 @@ func (ds *Datastore) GetWindowsEnrollmentDefaultTeam(ctx context.Context) (*uint
 	return row.TeamID, *row.TeamName, nil
 }
 
-// SetWindowsEnrollmentDefaultTeam sets (or clears, with nil) the default team for new user-driven Windows MDM
+// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM
 // enrollments.
-func (ds *Datastore) SetWindowsEnrollmentDefaultTeam(ctx context.Context, teamID *uint) error {
+func (ds *Datastore) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO windows_enrollment_config (id, team_id) VALUES (1, ?)
-		ON DUPLICATE KEY UPDATE team_id = VALUES(team_id)`, teamID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set windows enrollment default team")
+		ON DUPLICATE KEY UPDATE team_id = VALUES(team_id)`, fleetID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set windows enrollment default fleet")
 	}
 	return nil
 }

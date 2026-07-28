@@ -3205,9 +3205,10 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 
 // windowsEnrollmentNewHostGrace is how much earlier than its Windows MDM enrollment row a host row
 // may have been created and still count as "new in this enrollment cycle" for default fleet
-// assignment. It covers fleetd being installed moments before the user completes an Entra
-// enrollment, plus sub-second insert ordering. Hosts older than this kept their fleet on purpose.
-const windowsEnrollmentNewHostGrace = 5 * time.Minute
+// assignment. It covers the fleetd-first setup ordering: fleetd installed manually (or preinstalled
+// in an image), then the user completes the Entra enrollment after downloads, reboots, and the
+// Settings flow. Hosts older than this kept their fleet on purpose.
+const windowsEnrollmentNewHostGrace = 30 * time.Minute
 
 // maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment
 // default fleet iff all of: the linked enrollment is user-driven (LinkWindowsHostMDMEnrollment
@@ -3221,7 +3222,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	// permanently lose the assignment, either by missing a just-configured default fleet or by a
 	// NotFound on a hosts row that orbit enroll inserted seconds ago.
 	ctx = ctxdb.RequirePrimary(ctx, true)
-	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}

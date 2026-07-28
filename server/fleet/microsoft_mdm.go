@@ -939,8 +939,7 @@ type MDMWindowsEnrolledDevice struct {
 	// writer-side statements.
 	HasPendingCommands bool `db:"has_pending_commands"`
 	// HardwareSerial is the SMBIOS serial the device reported over OMA-DM (DevDetail), persisted while the enrollment
-	// is still unlinked so the orbit enrollment path can reverse-link it. Nil until the device answers the DevDetail
-	// query; placeholder serials are never stored.
+	// is still unlinked so the orbit enrollment path can reverse-link it.
 	HardwareSerial *string   `db:"hardware_serial"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`

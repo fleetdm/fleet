@@ -88,7 +88,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
-		{"TestWindowsEnrollmentDefaultTeam", testWindowsEnrollmentDefaultTeam},
+		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 	}
 
 	for _, c := range cases {
@@ -8080,11 +8080,11 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 }
 
-func testWindowsEnrollmentDefaultTeam(t *testing.T, ds *Datastore) {
+func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// Unset: nil team id, empty name.
-	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	require.NoError(t, err)
 	require.Nil(t, teamID)
 	require.Empty(t, teamName)
@@ -8092,24 +8092,24 @@ func testWindowsEnrollmentDefaultTeam(t *testing.T, ds *Datastore) {
 	// Set to an existing team.
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Windows Workstations"})
 	require.NoError(t, err)
-	require.NoError(t, ds.SetWindowsEnrollmentDefaultTeam(ctx, &team.ID))
-	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &team.ID))
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, teamID)
 	require.Equal(t, team.ID, *teamID)
 	require.Equal(t, "Windows Workstations", teamName)
 
 	// Clear with nil.
-	require.NoError(t, ds.SetWindowsEnrollmentDefaultTeam(ctx, nil))
-	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	require.NoError(t, err)
 	require.Nil(t, teamID)
 	require.Empty(t, teamName)
 
 	// Set again, then delete the team: the FK nulls the reference.
-	require.NoError(t, ds.SetWindowsEnrollmentDefaultTeam(ctx, &team.ID))
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, &team.ID))
 	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
-	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	require.NoError(t, err)
 	require.Nil(t, teamID)
 	require.Empty(t, teamName)

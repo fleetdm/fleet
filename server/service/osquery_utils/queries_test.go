@@ -2712,7 +2712,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	}
 	// No Windows enrollment default fleet configured; assignment is exercised in
 	// TestMaybeAssignWindowsEnrollmentDefaultFleet.
-	ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
 
@@ -4547,10 +4547,16 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 			expectTransfer: true,
 		},
 		{
-			name:           "host created just before enrollment is within grace",
+			name:           "host created just inside the grace window gets the default fleet",
 			defaultTeamID:  &defaultTeamID,
-			hostCreatedAt:  enrollmentCreatedAt.Add(-time.Minute),
+			hostCreatedAt:  enrollmentCreatedAt.Add(-windowsEnrollmentNewHostGrace + time.Minute),
 			expectTransfer: true,
+		},
+		{
+			name:           "host created just outside the grace window stays put",
+			defaultTeamID:  &defaultTeamID,
+			hostCreatedAt:  enrollmentCreatedAt.Add(-windowsEnrollmentNewHostGrace - time.Minute),
+			expectTransfer: false,
 		},
 		{
 			name:           "pre-existing Unassigned host stays put",
@@ -4570,7 +4576,7 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				return tc.defaultTeamID, "Workstations", nil
 			}
 			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {

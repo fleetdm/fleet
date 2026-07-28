@@ -1398,9 +1398,9 @@ type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
 
-type GetWindowsEnrollmentDefaultTeamFunc func(ctx context.Context) (teamID *uint, teamName string, err error)
+type GetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context) (fleetID *uint, fleetName string, err error)
 
-type SetWindowsEnrollmentDefaultTeamFunc func(ctx context.Context, teamID *uint) error
+type SetWindowsEnrollmentDefaultFleetFunc func(ctx context.Context, fleetID *uint) error
 
 type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) error
 
@@ -4314,11 +4314,11 @@ type DataStore struct {
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
 
-	GetWindowsEnrollmentDefaultTeamFunc        GetWindowsEnrollmentDefaultTeamFunc
-	GetWindowsEnrollmentDefaultTeamFuncInvoked bool
+	GetWindowsEnrollmentDefaultFleetFunc        GetWindowsEnrollmentDefaultFleetFunc
+	GetWindowsEnrollmentDefaultFleetFuncInvoked bool
 
-	SetWindowsEnrollmentDefaultTeamFunc        SetWindowsEnrollmentDefaultTeamFunc
-	SetWindowsEnrollmentDefaultTeamFuncInvoked bool
+	SetWindowsEnrollmentDefaultFleetFunc        SetWindowsEnrollmentDefaultFleetFunc
+	SetWindowsEnrollmentDefaultFleetFuncInvoked bool
 
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc        MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsDeleteEnrolledDeviceWithDeviceIDFuncInvoked bool
@@ -10407,18 +10407,18 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
 }
 
-func (s *DataStore) GetWindowsEnrollmentDefaultTeam(ctx context.Context) (teamID *uint, teamName string, err error) {
+func (s *DataStore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (fleetID *uint, fleetName string, err error) {
 	s.mu.Lock()
-	s.GetWindowsEnrollmentDefaultTeamFuncInvoked = true
+	s.GetWindowsEnrollmentDefaultFleetFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetWindowsEnrollmentDefaultTeamFunc(ctx)
+	return s.GetWindowsEnrollmentDefaultFleetFunc(ctx)
 }
 
-func (s *DataStore) SetWindowsEnrollmentDefaultTeam(ctx context.Context, teamID *uint) error {
+func (s *DataStore) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
 	s.mu.Lock()
-	s.SetWindowsEnrollmentDefaultTeamFuncInvoked = true
+	s.SetWindowsEnrollmentDefaultFleetFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetWindowsEnrollmentDefaultTeamFunc(ctx, teamID)
+	return s.SetWindowsEnrollmentDefaultFleetFunc(ctx, fleetID)
 }
 
 func (s *DataStore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) error {

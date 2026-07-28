@@ -4751,7 +4751,7 @@ software:
 			// Track the persisted default fleet, overriding the helper's stateful default so the
 			// test can assert on it directly.
 			var defaultTeamID *uint
-			ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				if defaultTeamID == nil {
 					return nil, "", nil
 				}
@@ -4762,7 +4762,7 @@ software:
 				}
 				return nil, "", nil
 			}
-			ds.SetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context, teamID *uint) error {
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
 				defaultTeamID = teamID
 				return nil
 			}

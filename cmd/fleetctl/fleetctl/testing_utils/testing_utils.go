@@ -96,7 +96,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	}
 	// AppConfigObfuscated hydrates the Windows enrollment default fleet from its config row on
 	// every config read, so default to "not configured" for tests that don't care about it.
-	ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -517,7 +517,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	// Stateful default for the Windows enrollment default fleet config row: config reads hydrate
 	// from it on every GET /config, so all gitops runs touch it. Tests can override.
 	var windowsEnrollmentDefaultTeamID *uint
-	ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		if windowsEnrollmentDefaultTeamID == nil {
 			return nil, "", nil
 		}
@@ -528,7 +528,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, "", nil
 	}
-	ds.SetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context, teamID *uint) error {
+	ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
 		windowsEnrollmentDefaultTeamID = teamID
 		return nil
 	}

@@ -3237,14 +3237,14 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 				}
 				return nil, newNotFoundError()
 			}
-			ds.GetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context) (*uint, string, error) {
+			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				if tc.currentTeamID != nil {
 					return tc.currentTeamID, "Workstations", nil
 				}
 				return nil, "", nil
 			}
 			var setTo *uint
-			ds.SetWindowsEnrollmentDefaultTeamFunc = func(ctx context.Context, id *uint) error {
+			ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, id *uint) error {
 				setTo = id
 				return nil
 			}
@@ -3257,7 +3257,7 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tc.expectSet, ds.SetWindowsEnrollmentDefaultTeamFuncInvoked)
+			require.Equal(t, tc.expectSet, ds.SetWindowsEnrollmentDefaultFleetFuncInvoked)
 			if tc.expectSet {
 				require.Equal(t, tc.expectSetTo, setTo)
 			}

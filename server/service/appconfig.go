@@ -288,7 +288,7 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	// disagrees with the name stored in the app config JSON (team renamed or deleted since the
 	// last write). Otherwise leave the field's stored shape untouched so configs round-trip
 	// unchanged.
-	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
 	}
@@ -1326,12 +1326,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// Persist the Windows enrollment default fleet to its config row and log the change. Only when
 	// the payload provided the section (omitted key is a no-op) and the value actually changed.
 	if windowsEnrollmentDefined {
-		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get current windows enrollment default fleet")
 		}
 		if !ptr.Equal(oldWindowsEnrollmentTeamID, windowsEnrollmentTeamID) {
-			if err := svc.ds.SetWindowsEnrollmentDefaultTeam(ctx, windowsEnrollmentTeamID); err != nil {
+			if err := svc.ds.SetWindowsEnrollmentDefaultFleet(ctx, windowsEnrollmentTeamID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving windows enrollment default fleet")
 			}
 			var fleetName *string
@@ -2280,7 +2280,7 @@ func (svc *Service) validateWindowsEnrollment(
 		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported
 		// config after a license downgrade); only reject attempts to change it. Mirrors the
 		// apple_bm_default_team behavior, and keeps a lapsed license from failing every apply.
-		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultTeam(ctx)
+		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 		if dsErr != nil {
 			return true, nil, "", ctxerr.Wrap(ctx, dsErr, "get current windows enrollment default fleet")
 		}
