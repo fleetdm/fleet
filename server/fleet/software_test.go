@@ -129,6 +129,28 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "patch-when-closed empty pre-install output shows app-was-open copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				PreInstallQueryOutput: new(""),
+				PatchWhenClosed:       true,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerAppOpenCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-managed empty pre-install output shows generic query-fail copy",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				PreInstallQueryOutput: new(""),
+				PatchWhenClosed:       false,
+			},
+			expectedPreInstallQueryOutput:   new(SoftwareInstallerQueryFailCopy),
+			expectedOutput:                  nil,
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-pending status with non-empty PreInstallQueryOutput",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstalled,
