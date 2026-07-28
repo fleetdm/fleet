@@ -25364,6 +25364,7 @@ func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesAct
 	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
 	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
 }
+
 func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 	t := s.T()
 	ctx := context.Background()
