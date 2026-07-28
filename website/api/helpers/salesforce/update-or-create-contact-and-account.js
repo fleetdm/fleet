@@ -55,7 +55,7 @@ module.exports = {
         'Website - Contact forms',
         'Website - Contact forms - Demo - ICP',
         'Website - Contact forms - Demo',
-        'Website - GitOps',
+        'Website - Workshop request',
         'Website - Newsletter',
         'Website - Sign up',
         'Website - Swag request',
