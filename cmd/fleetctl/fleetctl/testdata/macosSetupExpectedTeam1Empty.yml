@@ -55,6 +55,8 @@ spec:
         grace_period_days: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
     scripts: null
     secrets: null
     webhook_settings:
@@ -114,6 +116,8 @@ spec:
         grace_period_days: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
     scripts: null
     secrets: null
     webhook_settings:
