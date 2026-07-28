@@ -1787,14 +1787,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				}
 			}
 
-			// populate managed local account status for Windows hosts. The account is created by
-			// fleetd and escrowed, so a row only exists once the host has reported one.
-			acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get host managed local account status")
-			}
-			if acct != nil {
-				host.MDM.OSSettings.ManagedLocalAccount = *acct
+			if err := svc.populateManagedLocalAccountStatus(ctx, host); err != nil {
+				return nil, err
 			}
 
 			profs, err := svc.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
@@ -1875,12 +1869,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 						host.MDM.OSSettings.RecoveryLockPassword = *rlpStatus
 					}
 
-					acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
-					if err != nil && !fleet.IsNotFound(err) {
-						return nil, ctxerr.Wrap(ctx, err, "get host local managed account status")
-					}
-					if acct != nil {
-						host.MDM.OSSettings.ManagedLocalAccount = *acct
+					if err := svc.populateManagedLocalAccountStatus(ctx, host); err != nil {
+						return nil, err
 					}
 				}
 
@@ -2016,6 +2006,18 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		MDMEnrollmentHardwareAttested: mdmHardwareAttested,
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
 	}, nil
+}
+
+// populateManagedLocalAccountStatus fills in host.MDM.OSSettings.ManagedLocalAccount.
+func (svc *Service) populateManagedLocalAccountStatus(ctx context.Context, host *fleet.Host) error {
+	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get host managed local account status")
+	}
+	if acct != nil {
+		host.MDM.OSSettings.ManagedLocalAccount = *acct
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

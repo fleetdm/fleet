@@ -1317,6 +1317,10 @@ func IsAndroidPlatform(hostPlatform string) bool {
 	return hostPlatform == "android"
 }
 
+func IsWindowsPlatform(hostPlatform string) bool {
+	return hostPlatform == "windows"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")

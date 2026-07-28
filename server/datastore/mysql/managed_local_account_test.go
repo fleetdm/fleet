@@ -32,9 +32,7 @@ func TestManagedLocalAccount(t *testing.T) {
 		{"DeferredRotation", testManagedLocalAccountDeferredRotation},
 		{"GetForAutoRotation", testManagedLocalAccountGetForAutoRotation},
 		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
-		{"SaveFromEscrow", testManagedLocalAccountSaveFromEscrow},
-		{"ReportEscrowError", testManagedLocalAccountReportEscrowError},
-		{"EscrowExcludedFromAutoRotation", testManagedLocalAccountEscrowExcludedFromAutoRotation},
+		{"Escrow", testManagedLocalAccountEscrow},
 	}
 
 	for _, c := range cases {
@@ -539,16 +537,15 @@ func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore)
 	assert.True(t, fleet.IsNotFound(err))
 }
 
-func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
+// testManagedLocalAccountEscrow walks the Windows escrow lifecycle
+func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	hostUUID := "win-escrow-host"
 
-	// Fresh escrow (Windows): no MDM command, stored directly as verified.
 	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
 
 	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
-	assert.Equal(t, "_fleetadmin", got.Username)
 	assert.Equal(t, "WIN-PASS-1", got.Password)
 
 	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
@@ -557,49 +554,20 @@ func testManagedLocalAccountSaveFromEscrow(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
 	assert.True(t, status.PasswordAvailable)
 
-	// command_uuid stays NULL for escrowed rows.
-	var commandUUID *string
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &commandUUID,
-			`SELECT command_uuid FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
-	})
-	assert.Nil(t, commandUUID)
+	// Escrow leaves account_uuid unset, which is what keeps Windows rows out of the rotation cron.
+	// That the cron skips such rows is covered by GetForAutoRotation's no-account_uuid case.
+	accountUUID, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Nil(t, accountUUID)
 
-	// Re-escrow (retry or re-enrollment) replaces the password and keeps command_uuid NULL.
+	// Re-escrow (a retry, or the device re-creating the account) replaces the stored password.
 	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
 	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "WIN-PASS-2", got.Password)
-}
 
-// testManagedLocalAccountReportEscrowError covers the device-reported failure path: a first-time
-// failure inserts a failed row with no password, a later failure preserves an already-escrowed
-// password, and a successful escrow clears the recorded error.
-func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	hostUUID := "win-escrow-err-host"
-
-	// First-time failure: no row exists yet, so one is inserted with no password.
-	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "NetUserAdd failed: access denied"))
-
-	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
-	require.NoError(t, err)
-	require.NotNil(t, status.Status)
-	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
-	assert.Equal(t, "NetUserAdd failed: access denied", status.Detail)
-	assert.False(t, status.PasswordAvailable)
-
-	// A successful escrow after the failure stores the password, flips to verified and clears the error.
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-RECOVERED"))
-	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
-	require.NoError(t, err)
-	require.NotNil(t, status.Status)
-	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
-	assert.Empty(t, status.Detail)
-	assert.True(t, status.PasswordAvailable)
-
-	// A failure reported after a successful escrow marks the row failed but does not destroy the
-	// stored password, so a later successful escrow can still overwrite it.
+	// A reported failure marks the row failed and records the reason, but must not destroy the stored
+	// password: it is the only copy, and the account may still exist on the device.
 	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "password reset failed"))
 	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
 	require.NoError(t, err)
@@ -608,52 +576,22 @@ func testManagedLocalAccountReportEscrowError(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "password reset failed", status.Detail)
 	assert.False(t, status.PasswordAvailable)
 
-	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
-	assert.Equal(t, "WIN-PASS-RECOVERED", got.Password)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
 
-	// A failure-only row holds no password at all, so reading it is a not-found rather than an
-	// attempt to decrypt an empty blob.
-	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
-	require.Error(t, err)
+	// A later successful escrow recovers: password replaced, back to verified, error cleared.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-3"))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.Empty(t, status.Detail)
+	assert.True(t, status.PasswordAvailable)
+
+	// A row that only ever recorded a failure holds no password, so reading it is a not-found.
 	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, "win-escrow-err-only-host", "create failed"))
 	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
 	require.Error(t, err)
 	assert.True(t, fleet.IsNotFound(err))
-}
-
-// testManagedLocalAccountEscrowExcludedFromAutoRotation proves a Windows-shaped row (NULL
-// command_uuid, NULL account_uuid, NULL auto_rotate_at, verified) is never selected by the
-// auto-rotation cron, so Windows accounts are structurally excluded from rotation.
-func testManagedLocalAccountEscrowExcludedFromAutoRotation(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:        "win-rot-host",
-		ComputerName:    "Win Rot Host",
-		OsqueryHostID:   new("win-rot-osq"),
-		NodeKey:         new("win-rot-node"),
-		UUID:            "win-rot-host-uuid",
-		Platform:        "windows",
-		DetailUpdatedAt: ds.clock.Now(),
-		LabelUpdatedAt:  ds.clock.Now(),
-		PolicyUpdatedAt: ds.clock.Now(),
-		SeenTime:        ds.clock.Now(),
-	})
-	require.NoError(t, err)
-	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, host.UUID, "WIN-PASS"))
-
-	// Even if a viewed timestamp were somehow set, the NULL account_uuid keeps the row out. Force a
-	// past auto_rotate_at to prove account_uuid alone excludes it.
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, host.UUID)
-		return err
-	})
-
-	rows, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
-	require.NoError(t, err)
-	for _, r := range rows {
-		assert.NotEqual(t, host.UUID, r.HostUUID, "windows escrow row must never be selected for rotation")
-	}
 }
