@@ -254,6 +254,13 @@ func TestTruncateRunes(t *testing.T) {
 			maxRunes: 4,
 			expected: strings.Repeat("é", 4),
 		},
+		{
+			// An exported helper must not panic on a nonsensical limit from a caller.
+			name:     "non-positive limit yields an empty string",
+			input:    "hello",
+			maxRunes: -1,
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {

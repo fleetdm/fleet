@@ -3,6 +3,7 @@
 package managedaccount
 
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -17,12 +18,15 @@ const (
 	ufScript           = 0x0001
 	ufNormalAccount    = 0x0200
 	ufDontExpirePasswd = 0x10000
+	ufAccountDisable   = 0x0002 // UF_ACCOUNTDISABLE: the account exists but cannot log in.
+	ufLockout          = 0x0010 // UF_LOCKOUT: locked out by failed logons. Can be cleared, not set.
 
 	usePrivUser = 1 // USER_PRIV_USER: a plain user; group membership grants admin rights.
 
 	nerrUserNotFound     = 2221 // NERR_UserNotFound
 	errorMemberInAlias   = 1378 // ERROR_MEMBER_IN_ALIAS: already a group member.
 	userInfoPasswordOnly = 1003 // USER_INFO_1003: password-only update level.
+	userInfoFlagsOnly    = 1008 // USER_INFO_1008: flags-only update level.
 )
 
 // logonUIHiddenAccountsKey holds a DWORD per account name; 0 hides the account from the sign-in
@@ -53,6 +57,11 @@ type userInfo1 struct {
 // userInfo1003 mirrors USER_INFO_1003, which sets only the password.
 type userInfo1003 struct {
 	Password *uint16
+}
+
+// userInfo1008 mirrors USER_INFO_1008, which sets only the account flags.
+type userInfo1008 struct {
+	Flags uint32
 }
 
 // localGroupMembersInfo3 mirrors LOCALGROUP_MEMBERS_INFO_3, which identifies a member by name
@@ -87,7 +96,7 @@ func ensureUser(username, password string) error {
 		return fmt.Errorf("converting password: %w", err)
 	}
 
-	exists, err := userExists(namePtr)
+	flags, exists, err := userFlags(namePtr)
 	if err != nil {
 		return err
 	}
@@ -104,7 +113,11 @@ func ensureUser(username, password string) error {
 		if ret != 0 {
 			return fmt.Errorf("resetting password for %s: %w", username, windows.Errno(ret))
 		}
-		return nil
+		// Resetting the password is not enough to make the account usable again. If it was disabled,
+		// locked out, or had its never-expire flag removed after we created it, Fleet would escrow a
+		// password that cannot actually log in, which defeats the purpose of a break-glass account.
+		// Only the flags we own are touched, so anything else set on the account is preserved.
+		return normalizeUserFlags(namePtr, username, flags)
 	}
 
 	comment, err := windows.UTF16PtrFromString("Fleet-managed local administrator account.")
@@ -130,26 +143,56 @@ func ensureUser(username, password string) error {
 	return nil
 }
 
-func userExists(namePtr *uint16) (bool, error) {
-	var buf uintptr
+// userFlags reports whether the account exists and, if so, its current flags, so the caller can tell
+// an account that is merely present from one that is present but unusable.
+func userFlags(namePtr *uint16) (flags uint32, exists bool, err error) {
+	// buf is a real pointer rather than a uintptr so the garbage collector tracks the buffer netapi32
+	// allocates for us; converting a uintptr back into a pointer is not safe.
+	var buf *byte
 	ret, _, _ := procNetUserGetInfo.Call(
 		0, // servername
 		uintptr(unsafe.Pointer(namePtr)),
-		0, // level 0: name only, all we need is presence
+		1, // level 1: USER_INFO_1, which carries Flags
 		uintptr(unsafe.Pointer(&buf)),
 	)
 	switch ret {
 	case 0:
-		if buf != 0 {
-			//nolint:errcheck // freeing the buffer cannot meaningfully fail here
-			procNetAPIBufferFree.Call(buf)
+		if buf == nil {
+			return 0, false, errors.New("looking up account: NetUserGetInfo returned no data")
 		}
-		return true, nil
+		//nolint:errcheck // freeing the buffer cannot meaningfully fail here
+		defer procNetAPIBufferFree.Call(uintptr(unsafe.Pointer(buf)))
+		info := (*userInfo1)(unsafe.Pointer(buf))
+		return info.Flags, true, nil
 	case nerrUserNotFound:
-		return false, nil
+		return 0, false, nil
 	default:
-		return false, fmt.Errorf("looking up account: %w", windows.Errno(ret))
+		return 0, false, fmt.Errorf("looking up account: %w", windows.Errno(ret))
 	}
+}
+
+// normalizeUserFlags re-applies the flags Fleet depends on to an account that already existed:
+// enabled, not locked out, and password never expires. Other flags are left untouched.
+func normalizeUserFlags(namePtr *uint16, username string, current uint32) error {
+	desired := (current &^ (ufAccountDisable | ufLockout)) | ufDontExpirePasswd
+	if desired == current {
+		return nil
+	}
+
+	info := userInfo1008{Flags: desired}
+	ret, _, _ := procNetUserSetInfo.Call(
+		0, // servername
+		uintptr(unsafe.Pointer(namePtr)),
+		userInfoFlagsOnly,
+		uintptr(unsafe.Pointer(&info)),
+		0, // parm_err
+	)
+	if ret != 0 {
+		return fmt.Errorf("restoring account flags for %s: %w", username, windows.Errno(ret))
+	}
+	log.Debug().Str("username", username).Uint32("from", current).Uint32("to", desired).
+		Msg("managed local account: restored account flags")
+	return nil
 }
 
 // addToAdministrators adds the account to the local Administrators group. The group name is resolved

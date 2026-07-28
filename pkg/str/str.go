@@ -28,6 +28,9 @@ func TruncateErrorResponse(s string) string {
 // storing device- or user-supplied text in a column: utf8mb4 VARCHAR(N) in MySQL counts characters (runes), not bytes,
 // so slicing on runes both matches the column constraint and cannot cut a multi-byte character in half and produce invalid UTF-8.
 func TruncateRunes(s string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
 	if len(s) <= maxRunes {
 		// Fast path: a string of at most maxRunes bytes cannot exceed maxRunes characters.
 		return s
