@@ -1,7 +1,7 @@
 .table-container {
   display: flex;
   flex-direction: column;
-  gap: $gap-table-elements;
+  gap: $gap-page-component-inner;
 
   // Container is responsive design used when customControl is rendered
   .container {

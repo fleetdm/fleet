@@ -231,7 +231,7 @@ $shadow-transition-width: 16px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: $pad-small;
+        gap: $gap-table-elements;
 
         p {
           margin: 0;
@@ -247,7 +247,7 @@ $shadow-transition-width: 16px;
       &__inner-right {
         display: flex;
         align-items: center;
-        gap: $pad-small;
+        gap: $gap-table-elements;
       }
     }
 

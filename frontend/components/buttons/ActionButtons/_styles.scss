@@ -1,12 +1,12 @@
 .action-buttons {
   display: flex;
-  gap: $pad-small;
+  gap: $gap-action-elements;
 
   &__secondary-buttons {
     display: none;
     @media (min-width: $break-md) {
       display: flex;
-      gap: $pad-small;
+      gap: $gap-action-elements;
     }
   }
 

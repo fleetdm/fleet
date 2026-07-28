@@ -237,6 +237,7 @@ const ActionsDropdown = ({
       ...provided,
       display: "flex",
       flexDirection: "row",
+      gap: "8px",
       width: "max-content",
       // Need minHeight to override default
       minHeight: variant === "secondary" ? "28px" : "32px", // Match button height
@@ -301,7 +302,7 @@ const ActionsDropdown = ({
         variant === "subdued" || variant === "secondary" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
-      marginTop: "1px",
+      margin: 0,
       ...(state.isDisabled && {
         filter: "grayscale(0.5)",
         opacity: 0.5,
