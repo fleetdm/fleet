@@ -10,7 +10,12 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 # indefinitely. "/MERGETASKS=!runcode" suppresses the launch (the same switch
 # vscode_install.ps1 and vscodium_install.ps1 use); waiting on the installer
 # process alone, then stopping any stray app process, covers the rest.
-$installTimeoutSeconds = 600
+# Budget: the caller kills the whole script at 10 minutes
+# (cmd/maintained-apps/validate/windows.go), so the worst case here -- full install
+# wait, then the registration wait, plus process overhead -- has to stay under
+# that. 420 + 120 leaves headroom; 600 + 120 would have been killed mid-recovery,
+# in exactly the case this script exists to handle.
+$installTimeoutSeconds = 420
 $registrationTimeoutSeconds = 120
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -32,14 +37,23 @@ $process = Start-Process -FilePath "$exeFilePath" `
 # Start-Process -PassThru otherwise returns $null for .ExitCode.
 $null = $process.Handle
 
+$killed = $false
 if (-not $process.WaitForExit($installTimeoutSeconds * 1000)) {
   Write-Host "Installer process did not exit within ${installTimeoutSeconds}s, stopping it."
   Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 2
+  # Wait for the kill to land: reading .ExitCode while the process is still alive
+  # throws, which would fail the script even though the install may have succeeded.
+  $null = $process.WaitForExit(30 * 1000)
+  $killed = $true
 }
 
-$exitCode = $process.ExitCode
-Write-Host "Install exit code: $exitCode"
+$exitCode = $null
+if ($process.HasExited) {
+  $exitCode = $process.ExitCode
+  Write-Host "Install exit code: $exitCode"
+} else {
+  Write-Host "Installer process could not be stopped; falling back to the registration check."
+}
 
 # The installer can return before the Add/Remove Programs entry is written; wait
 # for it so software inventory sees a complete install.
@@ -57,6 +71,10 @@ if (-not (Test-AzureDataStudioRegistered)) {
   Write-Host "Azure Data Studio did not register in Add/Remove Programs."
   Exit 1
 }
+
+# Registration is the authoritative success signal above. If the installer had to
+# be killed, or never reported a code, don't fail on a code that means nothing.
+if ($killed -or $null -eq $exitCode) { Exit 0 }
 
 # 3010 (reboot required) and 1641 (reboot initiated) are successful installs.
 if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
