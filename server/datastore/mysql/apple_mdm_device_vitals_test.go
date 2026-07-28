@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ func TestHostMDMAppleDeviceVitals(t *testing.T) {
 		{"InsertThenUpdate", testHostMDMAppleDeviceVitalsInsertThenUpdate},
 		{"NullHandling", testHostMDMAppleDeviceVitalsNullHandling},
 		{"ServiceSubscriptionsReplace", testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace},
+		{"ResubmitIdenticalPayload", testHostMDMAppleDeviceVitalsResubmitIdenticalPayload},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -39,16 +41,23 @@ func testHostMDMAppleDeviceVitalsInsertThenUpdate(t *testing.T, ds *Datastore) {
 		AccessibilitySettings: &fleet.MDMAppleAccessibilitySettings{
 			VoiceOverEnabled: new(true),
 		},
+		DevicePropertiesAttestation: [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")},
 	}
 	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
 
 	var row struct {
-		UDID         *string  `db:"udid"`
-		BatteryLevel *float64 `db:"battery_level"`
+		UDID                        *string  `db:"udid"`
+		BatteryLevel                *float64 `db:"battery_level"`
+		DevicePropertiesAttestation []byte   `db:"device_properties_attestation"`
 	}
-	require.NoError(t, ds.writer(ctx).Get(&row, `SELECT udid, battery_level FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
+	require.NoError(t, ds.writer(ctx).Get(&row, `SELECT udid, battery_level, device_properties_attestation FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
 	require.Equal(t, "00008030-AAA", *row.UDID)
 	require.InDelta(t, 0.75, *row.BatteryLevel, 0.001)
+
+	// Round-trip the JSON column back into the same Go type used to write it.
+	var gotAttestation [][]byte
+	require.NoError(t, json.Unmarshal(row.DevicePropertiesAttestation, &gotAttestation))
+	require.Equal(t, [][]byte{[]byte("leaf-cert"), []byte("intermediate-cert")}, gotAttestation)
 
 	var count int
 	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
@@ -128,4 +137,30 @@ func testHostMDMAppleDeviceVitalsServiceSubscriptionsReplace(t *testing.T, ds *D
 	require.NoError(t, ds.writer(ctx).Get(&iccid, `SELECT iccid FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ? AND slot = ?`,
 		host.UUID, "CTSubscriptionSlotOne"))
 	require.Equal(t, "iccid-1-updated", iccid)
+}
+
+func testHostMDMAppleDeviceVitalsResubmitIdenticalPayload(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "vitals-idempotent-host", "1.1.1.9", "vitals-idempotent-host-key", "vitals-idempotent-host-uuid", time.Now(), test.WithPlatform("ios"))
+
+	vitals := fleet.MDMAppleDeviceVitals{
+		UDID:         new("00008030-CCC"),
+		BatteryLevel: new(0.5),
+		ServiceSubscriptions: []fleet.MDMAppleServiceSubscription{
+			{Slot: "CTSubscriptionSlotOne", ICCID: new("iccid-1")},
+		},
+	}
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+	// Resubmitting the exact same values (main row and subscription slot) must
+	// not error. Relies on clientFoundRows=true in the connection DSN so
+	// RowsAffected reflects rows matched, not rows changed -- otherwise the
+	// no-op UPDATE would report 0 affected and the fallback INSERT would hit a
+	// duplicate key.
+	require.NoError(t, ds.SetOrUpdateHostMDMAppleDeviceVitals(ctx, host.UUID, vitals))
+
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_device_vitals WHERE host_uuid = ?`, host.UUID))
+	require.Equal(t, 1, count)
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_mdm_apple_service_subscriptions WHERE host_uuid = ?`, host.UUID))
+	require.Equal(t, 1, count)
 }
