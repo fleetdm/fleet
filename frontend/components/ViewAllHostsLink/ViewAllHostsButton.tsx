@@ -62,7 +62,7 @@ const ViewAllHostsButton = ({
     <Button
       className={viewAllHostsButtonClass}
       onClick={onClick}
-      variant="inverse"
+      variant="subdued"
       size="small"
     >
       {!condensed && (
@@ -77,6 +77,7 @@ const ViewAllHostsButton = ({
           name="chevron-right"
           className={`${baseClass}__icon`}
           color="ui-fleet-black-75"
+          size="small"
         />
       )}
     </Button>

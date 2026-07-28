@@ -292,7 +292,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -535,6 +535,7 @@ export const VppInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <>
@@ -568,6 +569,7 @@ export const VppInstallDetailsModal = ({
           hideText="Details"
           caretPosition="after"
           onClick={toggleInstallDetails}
+          variant="secondary"
         />
         {showInstallDetails && (
           <Textarea label="Error details:" variant="code">

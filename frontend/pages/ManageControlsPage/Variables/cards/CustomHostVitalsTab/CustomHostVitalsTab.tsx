@@ -155,17 +155,17 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   // search as the search-empty case.
   const isEmpty = !isLoading && count === 0 && !isSearching;
 
-  const renderAddButton = (variant: "inverse" | "default") =>
+  const renderAddButton = (variant: "secondary" | "default") =>
     canEdit ? (
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
-            variant={variant === "inverse" ? "inverse" : undefined}
-            size={variant === "inverse" ? "small" : undefined}
+            variant={variant === "secondary" ? "secondary" : undefined}
+            size={variant === "secondary" ? "small" : undefined}
             onClick={onClickAdd}
             disabled={disableChildren}
           >
-            {variant === "inverse" && <Icon name="plus" />}
+            {variant === "secondary" && <Icon name="plus" />}
             <span>Add vital</span>
           </Button>
         )}
@@ -230,7 +230,7 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
       <SectionHeader
         title="Custom host vitals"
         alignLeftHeaderVertically
-        details={renderAddButton("inverse")}
+        details={renderAddButton("secondary")}
       />
       <PageDescription
         variant="tab-panel"

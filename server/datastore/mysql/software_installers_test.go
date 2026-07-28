@@ -53,6 +53,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 		{"MatchOrCreateSoftwareInstallerDuplicateHash", testMatchOrCreateSoftwareInstallerDuplicateHash},
+		{"MatchOrCreateSoftwareInstallerConflictingFMA", testMatchOrCreateSoftwareInstallerConflictingFMA},
 		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -5007,6 +5008,55 @@ func testMatchOrCreateSoftwareInstallerDuplicateHash(t *testing.T, ds *Datastore
 	// Same title and hash on the same team → rejected by the within-title hash check
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkPayload(&teamA.ID, "a.sh", "title-a"))
 	require.ErrorContains(t, err, "same SHA-256 hash")
+}
+
+func testMatchOrCreateSoftwareInstallerConflictingFMA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Firefox and Firefox ESR are distinct FMAs sharing bundle id org.mozilla.firefox, so one title.
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox", Slug: "firefox", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	firefoxESR, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox ESR", Slug: "firefox@esr", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(appID uint, title, storage, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			Extension:            "pkg",
+			StorageID:            storage,
+			Filename:             storage + ".pkg",
+			Title:                title,
+			Version:              version,
+			Source:               "apps",
+			Platform:             "darwin",
+			BundleIdentifier:     "org.mozilla.firefox",
+			FleetMaintainedAppID: new(appID),
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &team.ID,
+		}
+	}
+
+	// Add Firefox (GA) → success.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(firefox.ID, "Mozilla Firefox", "ff-153", "153.0"))
+	require.NoError(t, err)
+
+	// Adding Firefox ESR (a different FMA on the same title) → rejected with the specific message.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(firefoxESR.ID, "Mozilla Firefox ESR", "ffesr-140", "140.13.0"))
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet")
+
+	// A new version of the SAME FMA must still be allowed (version pinning must not regress).
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, mkFMA(firefox.ID, "Mozilla Firefox", "ff-154", "154.0"))
+	require.NoError(t, err)
 }
 
 func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {

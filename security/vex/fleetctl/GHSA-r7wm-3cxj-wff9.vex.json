@@ -1,0 +1,26 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://openvex.dev/docs/public/vex-066f14886591a434e2a46cb63375e0811651ea79d10f23114768655df40a35b5",
+  "author": "@lucasmrod",
+  "timestamp": "2026-07-27T14:10:31-03:00",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "GHSA-r7wm-3cxj-wff9"
+      },
+      "timestamp": "2026-07-27T14:10:31-03:00",
+      "products": [
+        {
+          "@id": "fleetctl"
+        },
+        {
+          "@id": "pkg:maven/com.fasterxml.jackson.core/jackson-core"
+        }
+      ],
+      "status": "not_affected",
+      "status_notes": "Incomplete fix for GHSA-72hv-8253-57qq; like the parent advisory, it only affects Java/JVM services that feed attacker-controlled chunked input to Jackson's asynchronous (non-blocking) JSON parser. jackson-core is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted streamed JSON.",
+      "justification": "vulnerable_code_not_in_execute_path"
+    }
+  ]
+}

@@ -397,6 +397,7 @@ export interface IHost {
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
   mdm_enrollment_hardware_attested?: boolean;
+  dep_assigned_to_fleet: boolean;
 }
 
 /*

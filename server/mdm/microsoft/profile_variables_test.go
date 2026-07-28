@@ -269,6 +269,45 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			},
 		},
 		{
+			name:            "custom scep proxy challenge with character windows doesn't support",
+			hostUUID:        "test-host-1234-uuid",
+			profileContents: `<Replace><Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectError:     true,
+			processingError: fmt.Sprintf(scepChallengeInvalidCharsDetail, "CERTIFICATE"),
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      new("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       new("https://scep.proxy.url/scep"),
+							Challenge: new("super_secret"),
+						},
+					}, nil
+				}
+			},
+		},
+		{
+			name:             "custom scep proxy challenge with leading and trailing spaces preserved",
+			hostUUID:         "test-host-1234-uuid",
+			profileContents:  `<Replace><Data>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CERTIFICATE</Data></Replace>`,
+			expectedContents: `<Replace><Data> super secret </Data></Replace>`,
+			setup: func() {
+				ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+					return []*fleet.CertificateAuthority{
+						{
+							ID:        1,
+							Name:      new("CERTIFICATE"),
+							Type:      string(fleet.CATypeCustomSCEPProxy),
+							URL:       new("https://scep.proxy.url/scep"),
+							Challenge: new(" super secret "),
+						},
+					}, nil
+				}
+			},
+		},
+		{
 			name:             "all idp variables",
 			hostUUID:         "idp-host-uuid",
 			profileContents:  `<Replace><Item><Target><LocURI>./Device/Test</LocURI></Target><Data>User: $FLEET_VAR_HOST_END_USER_IDP_USERNAME - $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART - $FLEET_VAR_HOST_END_USER_IDP_GROUPS - $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT - $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME</Data></Item></Replace>`,

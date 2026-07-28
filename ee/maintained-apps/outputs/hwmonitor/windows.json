@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.65",
+      "version": "1.66",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.' AND version_compare(version, '1.65') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'CPUID HWMonitor%' AND publisher = 'CPUID, Inc.' AND version_compare(version, '1.66') < 0);"
       },
-      "installer_url": "https://download.cpuid.com/hwmonitor/hwmonitor_1.65.exe",
+      "installer_url": "https://download.cpuid.com/hwmonitor/hwmonitor_1.66.exe",
       "install_script_ref": "4424c050",
       "uninstall_script_ref": "2c66f754",
-      "sha256": "14f46de20cbd1d166608f74e5774aeb2c52c59f2dade31c23c28a67cda5b32c9",
+      "sha256": "deb283373dd1168e733a5d724403f114c58e4e807921435575663394fcb4d90c",
       "default_categories": [
         "Productivity"
       ]
