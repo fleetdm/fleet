@@ -114,7 +114,6 @@ const HostOnlineHistoryModal = ({
         selectedDays={CHART_DAYS}
         tooltipFormatter={tooltipFormatter}
         legendVariant="binary"
-        compact
       />
     );
   };
