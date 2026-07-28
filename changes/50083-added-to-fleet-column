@@ -1,0 +1,1 @@
+* Added a sortable "Added to Fleet" column to the hosts table, showing when each host last enrolled with Fleet.
