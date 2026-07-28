@@ -142,8 +142,23 @@ func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 		return ctxerr.Wrap(ctx, err, "get windows FMA names for reconcile")
 	}
 
+	// matchWindowsFMAName resolves a reported name to a canonical name, so two FMAs
+	// sharing that name but owning different titles would both claim the same stale
+	// titles and the last one processed would win. Drop those rather than let the
+	// outcome depend on iteration order.
+	titlesByName := make(map[string]map[uint]struct{}, len(fmaNames))
+	for _, fma := range fmaNames {
+		if titlesByName[fma.Name] == nil {
+			titlesByName[fma.Name] = make(map[uint]struct{}, 1)
+		}
+		titlesByName[fma.Name][fma.TitleID] = struct{}{}
+	}
+
 	allPrefixes := windowsFMAPrefixes(fmaNames)
 	for _, fma := range fmaNames {
+		if len(titlesByName[fma.Name]) > 1 {
+			continue
+		}
 		if err := ds.mergeWindowsFMATitle(ctx, fma, allPrefixes); err != nil {
 			return ctxerr.Wrapf(ctx, err, "merge windows FMA title %q", fma.Name)
 		}
@@ -205,20 +220,9 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 			return nil
 		}
 
-		// Ensure the canonical title exists (the installer normally created it).
-		if _, err := tx.ExecContext(ctx,
-			`INSERT IGNORE INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, 'programs', '', '')`,
-			fma.Name,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "ensure canonical windows title")
-		}
-		var canonicalID uint
-		if err := sqlx.GetContext(ctx, tx, &canonicalID,
-			`SELECT id FROM software_titles WHERE name = ? AND source = 'programs' AND extension_for = ''`,
-			fma.Name,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "select canonical windows title")
-		}
+		// The destination is the title the installer owns, carried on the FMA itself, so
+		// there is nothing to create or look up by name here.
+		canonicalID := fma.TitleID
 
 		// Re-point software onto the canonical title, leaving software.name unchanged so
 		// hosts still report the version they actually have installed.
@@ -502,19 +506,27 @@ func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]st
 	return result, nil
 }
 
-// GetWindowsFMANames returns each Windows FMA's canonical name and match prefix.
-// The prefix is the shorter of name and unique_identifier (LEAST), matching the
-// fleetMaintainedAppsTeamJoin convention.
+// GetWindowsFMANames returns each Windows FMA's canonical name and unique_identifier
+// unchanged. Both are returned because either can be the one that matches a reported
+// program name; choosing between them is WindowsFMAName.MatchPrefixes's job.
 func (ds *Datastore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
 	// Restricted to FMAs that are actually added somewhere, via their installer link.
 	// Prefix matching on a program name is only as precise as the name allows: the FMA
 	// manifests pair it with a publisher check, which fleet_maintained_apps does not
 	// carry, so requiring a deliberate install is what bounds the blast radius.
+	//
+	// The installer link also supplies the title to merge onto. An app's per-team
+	// installer rows normally share one title, so they collapse here; an app somehow
+	// spanning several is ambiguous and excluded rather than guessed at, matching how
+	// the darwin passes above handle a bundle identifier shared by multiple FMAs.
 	query := `
-		SELECT DISTINCT fma.name, fma.unique_identifier
+		SELECT fma.name, fma.unique_identifier, MIN(si.title_id) AS title_id
 		FROM fleet_maintained_apps fma
-		JOIN software_installers si ON si.fleet_maintained_app_id = fma.id
-		WHERE fma.platform = 'windows' AND fma.name != ''`
+		JOIN software_installers si
+			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
+		WHERE fma.platform = 'windows' AND fma.name != ''
+		GROUP BY fma.id, fma.name, fma.unique_identifier
+		HAVING COUNT(DISTINCT si.title_id) = 1`
 
 	var names []fleet.WindowsFMAName
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, query); err != nil {

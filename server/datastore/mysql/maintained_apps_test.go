@@ -39,6 +39,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
 		{"WindowsFMAReconcileKeepsTitleReferences", testWindowsFMAReconcileKeepsTitleReferences},
+		{"WindowsFMAReconcileSameNameUpgradeCodeTitle", testWindowsFMAReconcileSameNameUpgradeCodeTitle},
+		{"WindowsFMAReconcileAfterCatalogRename", testWindowsFMAReconcileAfterCatalogRename},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1553,6 +1555,97 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, titleCount("Granola"))
 	require.Equal(t, 1, titleCount("Granola 7.373.1"))
 	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.1"))
+}
+
+// testWindowsFMAReconcileSameNameUpgradeCodeTitle: (name, source, extension_for) is not
+// unique on software_titles, so a title sharing the canonical name but carrying an
+// upgrade code can coexist with the installer's. Only unique_identifier distinguishes
+// them, which is why the merge resolves the canonical title through it. Software must
+// land on the installer's title.
+func testWindowsFMAReconcileSameNameUpgradeCodeTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so only a versioned title exists and the installer below has no
+	// same-named title to reuse.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	// A second title with the same name, distinguished only by its upgrade code. Reached
+	// in practice by ingesting a program named exactly "Granola" that reports one.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for, upgrade_code)
+			 VALUES ('Granola', 'programs', '', '{22222222-2222-2222-2222-222222222222}')`)
+		return err
+	})
+
+	// Two titles share the name; exactly one carries the canonical unique_identifier,
+	// so resolving through it is unambiguous where resolving through the name is not.
+	require.Equal(t, 2, countTitlesNamed(t, ds, "Granola"))
+	var byUniqueIdentifier int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &byUniqueIdentifier,
+			`SELECT COUNT(*) FROM software_titles
+			 WHERE unique_identifier = 'Granola' AND source = 'programs' AND extension_for = ''`)
+	})
+	require.Equal(t, 1, byUniqueIdentifier)
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Granola 7.373.2'`)
+	})
+	require.Equal(t, canonicalID, gotTitleID,
+		"software must land on the installer's title, not the same-named upgrade_code title")
+}
+
+// testWindowsFMAReconcileAfterCatalogRename: a Windows FMA's software title is never
+// renamed when the catalog name changes, so the catalog name can drift from the title
+// the installer owns. The merge must follow the installer link, not the current name,
+// or it would create a title nobody owns and move software onto it.
+func testWindowsFMAReconcileAfterCatalogRename(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so a versioned title exists before the installer appears.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Zoom 6.1.0", Version: "6.1.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	installerTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Zoom", "Zoom", "zoom/windows")
+
+	// A later catalog sync renames the app; the installer's title keeps the old name.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Zoom Workplace",
+		Slug:             "zoom/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Zoom",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Zoom 6.1.0'`)
+	})
+	require.Equal(t, installerTitleID, gotTitleID,
+		"software must merge onto the installer's title, not one named after the new catalog name")
+	require.Zero(t, countTitlesNamed(t, ds, "Zoom Workplace"),
+		"no title should be invented for the renamed catalog entry")
 }
 
 // addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the

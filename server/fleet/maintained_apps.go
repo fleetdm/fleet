@@ -29,13 +29,21 @@ type MaintainedApp struct {
 // programs.name (e.g. "Granola 7.373.2"), so the reported name is matched against
 // these as prefixes to find the title the installer owns.
 //
-// Both fields are candidates because neither alone is reliable: osquery reports
+// Both name fields are candidates because neither alone is reliable: osquery reports
 // "CPUID CPU-Z ..." for the app Fleet calls "CPU-Z" (only UniqueIdentifier works),
 // while some apps.json entries carry a version-bearing identifier frozen at the
 // version current when they were added, e.g. "Notion 6.1.0" (only Name works).
 type WindowsFMAName struct {
 	Name             string `db:"name"`
 	UniqueIdentifier string `db:"unique_identifier"`
+	// TitleID is the software title the app's installer owns, resolved through
+	// software_installers.fleet_maintained_app_id. It is the merge destination, and
+	// is deliberately not re-derived from Name: a Windows FMA's title is never
+	// renamed when the catalog name changes (the darwin reconcile passes are
+	// platform-scoped, and the installer only renames when an upgrade code is
+	// present), so looking the title up by the current catalog name could miss the
+	// installer's title entirely and merge software onto an unowned one.
+	TitleID uint `db:"title_id"`
 }
 
 // MatchPrefixes returns the candidate program-name prefixes for this FMA, longest
