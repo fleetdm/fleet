@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -1314,6 +1315,7 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
