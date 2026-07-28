@@ -234,6 +234,17 @@ func (p *ProxyClient) EnterprisesDevicesIssueCommand(ctx context.Context, device
 	return op, nil
 }
 
+func (p *ProxyClient) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+	call := p.mgmt.Enterprises.Devices.Operations.Get(operationName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	op, err := call.Do()
+	if err != nil {
+		// Wrapped with %w so callers can classify the googleapi.Error (not found, quota exceeded).
+		return nil, fmt.Errorf("getting operation %s: %w", operationName, err)
+	}
+	return op, nil
+}
+
 func (p *ProxyClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
 	call := p.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name")
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)

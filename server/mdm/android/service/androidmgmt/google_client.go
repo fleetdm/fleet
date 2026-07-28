@@ -246,6 +246,15 @@ func (g *GoogleClient) EnterprisesDevicesIssueCommand(ctx context.Context, devic
 	return op, nil
 }
 
+func (g *GoogleClient) EnterprisesDevicesOperationsGet(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+	op, err := g.mgmt.Enterprises.Devices.Operations.Get(operationName).Context(ctx).Do()
+	if err != nil {
+		// Wrapped with %w so callers can classify the googleapi.Error (not found, quota exceeded).
+		return nil, fmt.Errorf("getting operation %s: %w", operationName, err)
+	}
+	return op, nil
+}
+
 func (g *GoogleClient) EnterprisesDevicesListPartial(ctx context.Context, enterpriseName string, pageToken string) (*androidmanagement.ListDevicesResponse, error) {
 	ret, err := g.mgmt.Enterprises.Devices.List(enterpriseName).Context(ctx).PageToken(pageToken).PageSize(100).Fields("nextPageToken", "devices/name").Do()
 	if err != nil {
