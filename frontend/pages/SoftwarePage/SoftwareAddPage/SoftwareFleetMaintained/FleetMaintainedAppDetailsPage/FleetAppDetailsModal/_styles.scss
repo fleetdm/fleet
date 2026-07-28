@@ -16,14 +16,6 @@
     align-items: center;
   }
 
-  // size="small" collapses the subdued CopyButton to 28×28, but that still
-  // overshoots the DataSet value's ~20px x-small line-height and pushes the
-  // row taller than its siblings. Trim 4px margin so it sits inline with the slug text.
-  .copy-button__button.button {
-    width: 20px;
-    height: 20px;
-  }
-
   dt .react-tooltip {
     min-width: 120px;
   }
