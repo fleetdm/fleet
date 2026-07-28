@@ -10206,8 +10206,8 @@ func (s *integrationMDMTestSuite) labelGateHost(t *testing.T, host *fleet.Host, 
 	return label
 }
 
-// TestProfileReconcilerCancelsInstallationWhenNotNowResponseRecorded is a regression test where when label descoping a user-scoped profile, that is pending installation
-// ensures the install command is cancelled. To avoid NotNow'ing producing an incorrect order and could leave profiles that Fleet is no longer tracking on the device.
+// TestProfileReconcilerCancelsInstallationWhenNotNowResponseRecorded is a regression test that
+// ensures a pending device-scoped InstallProfile command is cancelled when the host leaves scope after a NotNow response.
 func (s *integrationMDMTestSuite) TestProfileReconcilerCancelsInstallationWhenNotNowResponseRecorded() {
 	t := s.T()
 	ctx := t.Context()

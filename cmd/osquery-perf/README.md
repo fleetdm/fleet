@@ -156,7 +156,7 @@ go run agent.go --host_count 100 --mdm_prob 1.0 --mdm_scep_challenge <challenge>
 
 > Currently only supported for macOS and `InstallProfile` commands
 
-To force a osquery-perf agent to respond with `NotNow` once to an `InstallProfile` command, the payload has to contain `NotNow` anywhere in the profile. It will NotNow once, then acknowledge it on next check-in. To force a new `NotNow` response, you have to change the `ProfileIdentifier`.
+To force an osquery-perf agent to respond with `NotNow` once to an `InstallProfile` command, the payload has to contain `NotNow` anywhere in the profile. It will NotNow once, then acknowledge it on next check-in. To force a new `NotNow` response, you have to change the `ProfileIdentifier`.
 
 #### Forcing a certain error code and failure for InstallApplication
 

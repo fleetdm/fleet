@@ -680,6 +680,9 @@ func ExecuteReconcileBatch(
 				if err != nil {
 					return nil, err
 				}
+				if userEnrollmentID == "" {
+					continue
+				}
 				commandUUIDToHostIDsCleanupMap[hp.CommandUUID] = append(commandUUIDToHostIDsCleanupMap[hp.CommandUUID], userEnrollmentID)
 				continue
 			}
