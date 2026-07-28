@@ -34,7 +34,7 @@ Scripts are configured per fleet and won't be accessible after your fleets are d
 
 ## Move all fleet-level configuration profiles and assets to "Unassigned"
 
-Configuration profiles are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
+Configuration profiles and assets are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
 
 1. Head to the **Controls > OS settings > Configuration profiles** page in the Fleet UI and select a fleet from the dropdown at the top of the page.
 2. For each configuration profile that belongs to a fleet, select the download icon to save a copy.
