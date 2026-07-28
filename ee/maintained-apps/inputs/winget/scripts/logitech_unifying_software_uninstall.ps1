@@ -3,6 +3,18 @@
 $softwareName = "Logitech Unifying Software"
 $softwareNameLike = "$softwareName*"
 
+# Require the publisher too, mirroring the manifest's exists query
+# (name LIKE 'Logitech Unifying Software %' AND publisher = 'Logitech'). A prefix
+# match alone could select a different product sharing the prefix. This also puts
+# the publisher under test: the validator's appExists looks up by name only, so a
+# wrong exists-query publisher would otherwise ship undetected (cf. the Spyder
+# finding in #50016). That matters here in particular -- unlike the other apps in
+# this batch, this value could not be verified statically, because the installer's
+# PE version resource carries an unexpanded NSIS variable ("$Co_Name Inc.")
+# instead of a literal company name. If 'Logitech' is wrong, this uninstall fails
+# in CI rather than shipping a manifest that can never match an install.
+$softwarePublisher = "Logitech"
+
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $exitCode = 0
@@ -11,7 +23,7 @@ $timeoutSeconds = 300
 function Get-UnifyingUninstallKey {
     Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
-        Where-Object { $_.DisplayName -like $softwareNameLike } |
+        Where-Object { $_.DisplayName -like $softwareNameLike -and $_.Publisher -eq $softwarePublisher } |
         Select-Object -First 1
 }
 
@@ -25,8 +37,10 @@ foreach ($name in @("LogiUnify", "Unifying", "UnifyingUnInstaller", "DJCUHost"))
 try {
     $key = Get-UnifyingUninstallKey
     if (-not $key) {
-        Write-Host "Uninstaller for '$softwareName' not found."
-        Exit 1
+        # Nothing to remove is not a failure: uninstall scripts are idempotent here,
+        # as in nordpass_uninstall.ps1 and windsurf_uninstall.ps1.
+        Write-Host "Uninstall entry not found for '$softwareName'."
+        Exit 0
     }
 
     $uninstallString = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }
@@ -35,12 +49,13 @@ try {
     # Parse the executable path out of the uninstall string, handling quoted paths,
     # unquoted paths containing spaces, and bare tokens.
     $uninstallCommand = $uninstallString
+    $existingArgs = ""
     if ($uninstallCommand -match '^\s*"([^"]+)"\s*(.*)$') {
-        $uninstallCommand = $Matches[1]
+        $uninstallCommand = $Matches[1]; $existingArgs = $Matches[2]
     } elseif ($uninstallCommand -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
-        $uninstallCommand = $Matches[1]
+        $uninstallCommand = $Matches[1]; $existingArgs = $Matches[2]
     } elseif ($uninstallCommand -match '^\s*(\S+)\s*(.*)$') {
-        $uninstallCommand = $Matches[1]
+        $uninstallCommand = $Matches[1]; $existingArgs = $Matches[2]
     }
 
     # UnifyingUnInstaller.exe is an NSIS uninstaller, but it is a vendor-built one
@@ -49,7 +64,9 @@ try {
     # removal continues in a detached child, which is why the app was still
     # registered when inventory was re-queried; the poll at the end of this script
     # is what waits for the removal to actually land.
-    $uninstallArgs = "/S"
+    # Today the registry string is a bare path with no arguments, but keep any that
+    # appear in future versions rather than dropping them.
+    $uninstallArgs = ("$existingArgs /S").Trim()
 
     Write-Host "Uninstall command: $uninstallCommand"
     Write-Host "Uninstall args: $uninstallArgs"
@@ -75,8 +92,8 @@ try {
     Exit 1
 }
 
-# Belt and braces: if the uninstaller still detached despite "_?=", wait for the
-# ARP entry to disappear before returning so inventory sees a clean state.
+# The uninstaller returns as soon as it has handed off, so wait for the ARP entry
+# to disappear before returning and let inventory see a clean state.
 $elapsed = 0
 while ((Get-UnifyingUninstallKey) -and ($elapsed -lt 240)) {
     Start-Sleep -Seconds 5
