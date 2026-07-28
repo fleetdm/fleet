@@ -261,6 +261,17 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 			wantErr:   true,
 			errSubstr: "Invalid custom host vital reference",
 		},
+		{
+			// A vital token present in the raw upload but shadowed by a
+			// duplicate JSON key (json.Unmarshal keeps only the last value for
+			// a repeated key) ends up neither a decoded key nor a decoded
+			// string value, exercising the "not in string value" branch
+			// distinctly from the "used as a key" case above.
+			name:      "custom host vital shadowed by a duplicate JSON key is rejected",
+			rawJSON:   `{"name": "ok", "passwordRequirements": {"a": "$FLEET_HOST_VITAL_7", "a": "no-vital-here"}}`,
+			wantErr:   true,
+			errSubstr: "Custom host vital $FLEET_HOST_VITAL_7 must be inside a JSON string value",
+		},
 	}
 
 	for _, tt := range tests {

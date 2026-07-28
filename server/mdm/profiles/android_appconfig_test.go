@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
+func TestSubstituteFleetVarsAndVitalsInAndroidAppConfig(t *testing.T) {
 	ctx := t.Context()
 	host := AndroidAppConfigSubstitutionHost{
 		HostID:         42,
@@ -22,27 +22,27 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 	emptyDS := new(mock.Store)
 
 	t.Run("nil config returns nil", func(t *testing.T) {
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, nil, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, nil, host)
 		require.NoError(t, err)
 		require.Nil(t, got)
 	})
 
 	t.Run("empty config returns empty", func(t *testing.T) {
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, []byte{}, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, []byte{}, host)
 		require.NoError(t, err)
 		require.Empty(t, got)
 	})
 
 	t.Run("config without variables returns unchanged", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"key": "plain"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		require.Equal(t, cfg, got)
 	})
 
 	t.Run("HOST_UUID substituted", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "host-uuid-1")
 		require.NotContains(t, string(got), "$FLEET_VAR_HOST_UUID")
@@ -52,7 +52,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 
 	t.Run("HOST_UUID with braces substituted", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"deviceId": "${FLEET_VAR_HOST_UUID}"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "host-uuid-1")
 		require.NotContains(t, string(got), "${FLEET_VAR_HOST_UUID}")
@@ -60,7 +60,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 
 	t.Run("HOST_HARDWARE_SERIAL substituted", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "ABC123")
 	})
@@ -69,14 +69,14 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 		noSerialHost := host
 		noSerialHost.HardwareSerial = ""
 		cfg := []byte(`{"managedConfiguration": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, noSerialHost)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, noSerialHost)
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
 		require.Nil(t, got)
 	})
 
 	t.Run("HOST_PLATFORM substituted", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "android")
 	})
@@ -88,7 +88,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return []string{"user@example.com"}, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "user@example.com")
 		require.True(t, json.Valid(got))
@@ -100,7 +100,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return nil, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
 		require.Nil(t, got)
 	})
@@ -111,7 +111,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return []string{"user@example.com"}, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		s := string(got)
 		require.Contains(t, s, "host-uuid-1")
@@ -126,7 +126,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return []string{`user"with\special`}, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		require.True(t, json.Valid(got), "result must be valid JSON: %s", string(got))
 		// Parse and verify the value round-trips correctly
@@ -147,7 +147,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return nil, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "jdoe@example.com")
 		require.True(t, json.Valid(got))
@@ -165,7 +165,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return nil, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"user": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "jdoe")
 		require.NotContains(t, string(got), "@example.com")
@@ -174,7 +174,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 
 	t.Run("unsupported variable returns error", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"chal": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, emptyDS, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
 		require.Nil(t, got)
 	})
@@ -187,7 +187,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return `{"managedConfiguration": {"assetTag": "asset-123"}}`, nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_7"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		require.Contains(t, string(got), "asset-123")
 		require.True(t, ds.ExpandCustomHostVitalsFuncInvoked)
@@ -202,7 +202,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return strings.ReplaceAll(document, "$FLEET_HOST_VITAL_7", "asset-123"), nil
 		}
 		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "assetTag": "$FLEET_HOST_VITAL_7"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		require.NoError(t, err)
 		s := string(got)
 		require.Contains(t, s, "host-uuid-1")
@@ -215,7 +215,7 @@ func TestSubstituteFleetVarsInAndroidAppConfig(t *testing.T) {
 			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}}
 		}
 		cfg := []byte(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_7"}}`)
-		got, err := SubstituteFleetVarsInAndroidAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
 		var missing *fleet.MissingCustomHostVitalValueError
 		require.ErrorAs(t, err, &missing)
 		require.Nil(t, got)

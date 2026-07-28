@@ -141,25 +141,25 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	// at delivery time.
 	vitalIDs := FindCustomHostVitalIDs(contents)
 
-	found := variables.Find(contents)
-	if len(found) == 0 && len(vitalIDs) == 0 {
+	varNames := variables.Find(contents)
+	if len(varNames) == 0 && len(vitalIDs) == 0 {
 		return nil
 	}
 
-	if len(found) > 0 {
+	if len(varNames) > 0 {
 		if name := FindUnsupportedAndroidFleetVar(contents); name != "" {
-			return fmt.Errorf("Couldn't edit profile. Unsupported Fleet variable $FLEET_VAR_%s.", name)
+			return fmt.Errorf("Unsupported Fleet variable $FLEET_VAR_%s.", name)
 		}
 
 		keyVars := make(map[string]struct{})
 		stringVars := make(map[string]struct{})
 		walkJSONForVars(decoded, variables.Find, keyVars, stringVars)
-		for _, name := range found {
+		for _, name := range varNames {
 			if _, inKey := keyVars[name]; inKey {
-				return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+				return fmt.Errorf("Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
 			}
 			if _, inStr := stringVars[name]; !inStr {
-				return fmt.Errorf("Couldn't edit profile. Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
+				return fmt.Errorf("Fleet variable $FLEET_VAR_%s must be inside a JSON string value.", name)
 			}
 		}
 	}
@@ -182,9 +182,12 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	return nil
 }
 
-// findCustomHostVitalTokens returns the full $FLEET_HOST_VITAL_<id> tokens
-// (prefix included) found in s, in the same shape variables.Find returns
-// $FLEET_VAR_* names, so both can drive walkJSONForVars.
+// findCustomHostVitalTokens returns custom host vital token strings without
+// the leading '$' (e.g. "FLEET_HOST_VITAL_7"). Unlike variables.Find, which
+// strips the entire "$FLEET_VAR_" prefix down to a bare name (e.g.
+// "HOST_UUID"), this keeps the "FLEET_HOST_VITAL_" prefix in each token. It
+// matches the func(string) []string shape walkJSONForVars expects, so it can
+// drive the same walk variables.Find does for $FLEET_VAR_*.
 func findCustomHostVitalTokens(s string) []string {
 	ids := FindCustomHostVitalIDs(s)
 	tokens := make([]string, len(ids))

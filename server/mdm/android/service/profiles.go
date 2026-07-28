@@ -741,7 +741,7 @@ func substituteProfileVarsForHost(
 			result[profUUID] = content
 			continue
 		}
-		substituted, err := profiles.SubstituteFleetVarsInAndroidAppConfig(ctx, ds, content, subHost)
+		substituted, err := profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, content, subHost)
 		if err != nil {
 			return nil, err
 		}

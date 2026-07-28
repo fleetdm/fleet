@@ -46,12 +46,14 @@ type AndroidAppConfigSubstitutionHost struct {
 	Platform       string
 }
 
-// SubstituteFleetVarsInAndroidAppConfig replaces every supported $FLEET_VAR_*
-// token in config with the resolved value for the given host, returning the
-// substituted bytes. End-user IDP fields are looked up via ds.
-// Returns ErrUnresolvableAndroidAppConfigVar (wrapped) if the host can't
-// supply a referenced variable.
-func SubstituteFleetVarsInAndroidAppConfig(
+// SubstituteFleetVarsAndVitalsInAndroidAppConfig replaces every supported
+// $FLEET_VAR_* token and $FLEET_HOST_VITAL_<id> custom host vital reference in
+// config with the resolved value for the given host, returning the substituted
+// bytes. End-user IDP fields are looked up via ds.
+// Returns ErrUnresolvableAndroidAppConfigVar (wrapped) if the host can't supply
+// a referenced variable, or a *fleet.MissingCustomHostVitalValueError if a
+// referenced vital has no value set for this host.
+func SubstituteFleetVarsAndVitalsInAndroidAppConfig(
 	ctx context.Context,
 	ds fleet.Datastore,
 	config []byte,

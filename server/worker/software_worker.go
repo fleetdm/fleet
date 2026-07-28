@@ -560,7 +560,7 @@ func (v *SoftwareWorker) substituteFleetVarsInConfigs(
 
 	result := make(map[string][]byte, len(configsByAppID))
 	for appID, cfg := range configsByAppID {
-		substituted, err := profiles.SubstituteFleetVarsInAndroidAppConfig(ctx, v.Datastore, cfg, host)
+		substituted, err := profiles.SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, v.Datastore, cfg, host)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "substitute fleet vars in android app config for app %s", appID)
 		}
