@@ -53,7 +53,8 @@ describe("Vitals Card component", () => {
   it("renders Enrollment ID and Hardware model for personally enrolled iOS hosts", () => {
     const mockHost = createMockHost({
       platform: "ios",
-      hardware_model: "iPhone 12",
+      hardware_model: "iPhone12,1",
+      hardware_marketing_name: "iPhone 11",
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
@@ -66,7 +67,7 @@ describe("Vitals Card component", () => {
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("iPhone 12")).toBeInTheDocument();
+    expect(screen.getByText("iPhone 11")).toBeInTheDocument();
     expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
     expect(screen.queryByText("Private IP address")).not.toBeInTheDocument();
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
@@ -75,7 +76,8 @@ describe("Vitals Card component", () => {
   it("renders Enrollment ID and Hardware model for personally enrolled iPad hosts", () => {
     const mockHost = createMockHost({
       platform: "ipados",
-      hardware_model: "IPad Pro",
+      hardware_model: "iPad14,5",
+      hardware_marketing_name: "iPad Pro 12.9-inch (6th generation) Wi-Fi",
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
@@ -88,7 +90,9 @@ describe("Vitals Card component", () => {
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("IPad Pro")).toBeInTheDocument();
+    expect(
+      screen.getByText("iPad Pro 12.9-inch (6th generation) Wi-Fi")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Serial number")).not.toBeInTheDocument();
     expect(screen.queryByText("Private IP address")).not.toBeInTheDocument();
     expect(screen.queryByText("Public IP address")).not.toBeInTheDocument();
@@ -97,7 +101,8 @@ describe("Vitals Card component", () => {
   it("renders Serial number and Hardware model for non-personally enrolled iOS hosts", () => {
     const mockHost = createMockHost({
       platform: "ios",
-      hardware_model: "iPhone 12",
+      hardware_model: "iPhone12,1",
+      hardware_marketing_name: "iPhone 11",
       hardware_serial: "123-456-789",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
@@ -108,7 +113,7 @@ describe("Vitals Card component", () => {
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("iPhone 12")).toBeInTheDocument();
+    expect(screen.getByText("iPhone 11")).toBeInTheDocument();
     expect(screen.getByText("Serial number")).toBeInTheDocument();
     expect(screen.getAllByText("123-456-789")[0]).toBeInTheDocument();
     expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
@@ -119,7 +124,8 @@ describe("Vitals Card component", () => {
   it("renders Enrollment ID and Hardware model for non-personally enrolled iPad hosts", () => {
     const mockHost = createMockHost({
       platform: "ipados",
-      hardware_model: "IPad Pro",
+      hardware_model: "iPad14,5",
+      hardware_marketing_name: "iPad Pro 12.9-inch (6th generation) Wi-Fi",
       hardware_serial: "123-456-789",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
@@ -130,7 +136,9 @@ describe("Vitals Card component", () => {
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("IPad Pro")).toBeInTheDocument();
+    expect(
+      screen.getByText("iPad Pro 12.9-inch (6th generation) Wi-Fi")
+    ).toBeInTheDocument();
     expect(screen.getByText("Serial number")).toBeInTheDocument();
     expect(screen.getAllByText("123-456-789")[0]).toBeInTheDocument();
     expect(screen.queryByText("Enrollment ID")).not.toBeInTheDocument();
@@ -141,7 +149,8 @@ describe("Vitals Card component", () => {
   it("render Hardware model, IP addresses, and EnrollmentID for all non android and ios/ipad hosts that have enrolled their personal mdm devices", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      hardware_model: "MacBook Pro",
+      hardware_model: "MacBookPro18,1",
+      hardware_marketing_name: "MacBook Pro (16-inch, 2021)",
       hardware_serial: "",
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
@@ -156,7 +165,7 @@ describe("Vitals Card component", () => {
     expect(screen.getByText("Enrollment ID")).toBeInTheDocument();
     expect(screen.getAllByText("enrollment-id-12345")[0]).toBeInTheDocument();
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getByText("MacBook Pro (16-inch, 2021)")).toBeInTheDocument();
     expect(screen.getByText("Private IP address")).toBeInTheDocument();
     expect(screen.getAllByText("192.168.1.1")[0]).toBeInTheDocument();
     expect(screen.getByText("Public IP address")).toBeInTheDocument();
@@ -167,7 +176,8 @@ describe("Vitals Card component", () => {
   it("render Hardware model, IP addresses, and Serial number for all non android and ios/ipad hosts that have enrolled not enrolled in MDM", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      hardware_model: "MacBook Pro",
+      hardware_model: "MacBookPro18,1",
+      hardware_marketing_name: "MacBook Pro (16-inch, 2021)",
       hardware_serial: "test-serial-number",
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
@@ -178,7 +188,7 @@ describe("Vitals Card component", () => {
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getByText("MacBook Pro (16-inch, 2021)")).toBeInTheDocument();
     expect(screen.getByText("Private IP address")).toBeInTheDocument();
     expect(screen.getAllByText("192.168.1.1")[0]).toBeInTheDocument();
     expect(screen.getByText("Public IP address")).toBeInTheDocument();
@@ -191,7 +201,8 @@ describe("Vitals Card component", () => {
   it("render Hardware model, IP addresses, and Serial number for all non android and ios/ipad hosts that have manually enrolled in MDM", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      hardware_model: "MacBook Pro",
+      hardware_model: "MacBookPro18,1",
+      hardware_marketing_name: "MacBook Pro (16-inch, 2021)",
       hardware_serial: "test-serial-number",
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
@@ -204,7 +215,7 @@ describe("Vitals Card component", () => {
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getByText("MacBook Pro (16-inch, 2021)")).toBeInTheDocument();
     expect(screen.getByText("Private IP address")).toBeInTheDocument();
     expect(screen.getAllByText("192.168.1.1")[0]).toBeInTheDocument();
     expect(screen.getByText("Public IP address")).toBeInTheDocument();
@@ -217,7 +228,8 @@ describe("Vitals Card component", () => {
   it("render Hardware model, IP addresses, and Serial number for all non android and ios/ipad hosts that have automatically enrolled in MDM", () => {
     const mockHost = createMockHost({
       platform: "darwin",
-      hardware_model: "MacBook Pro",
+      hardware_model: "MacBookPro18,1",
+      hardware_marketing_name: "MacBook Pro (16-inch, 2021)",
       hardware_serial: "test-serial-number",
       primary_ip: "192.168.1.1",
       public_ip: "203.0.113.1",
@@ -230,7 +242,7 @@ describe("Vitals Card component", () => {
     render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
 
     expect(screen.getByText("Hardware model")).toBeInTheDocument();
-    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getByText("MacBook Pro (16-inch, 2021)")).toBeInTheDocument();
     expect(screen.getByText("Private IP address")).toBeInTheDocument();
     expect(screen.getAllByText("192.168.1.1")[0]).toBeInTheDocument();
     expect(screen.getByText("Public IP address")).toBeInTheDocument();

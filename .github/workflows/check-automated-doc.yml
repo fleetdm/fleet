@@ -63,11 +63,14 @@ jobs:
       - name: Verify osquery table JSON schema is up-to-date
         run: |
           cd website
-          npm install
+          # npm ci (not npm install) so npm never rewrites package-lock.json:
+          # newer npm records packages shipped inside dependency tarballs (e.g.
+          # sails-hook-grunt) as "extraneous" lockfile entries, causing spurious drift.
+          npm ci
           ./node_modules/sails/bin/sails.js run generate-merged-schema
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommitted changes"
-            echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            echo "please run 'cd website && npm ci && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
             git --no-pager diff
             exit 1
           fi

@@ -249,13 +249,18 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	// create MDM enrolled activity if not in the middle of a SCEP renewal
 	if !info.SCEPRenewalInProgress {
 		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
+			HostID:           info.HostID,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
 			Platform:         info.Platform,
 		}
 		if nanoEnroll.Type == userEnrollmentDeviceType {
-			mdmEnrolledActivity.EnrollmentID = ptr.String(opts.UserEnrollmentID)
+			// Account-driven user (BYOD) enrollments have no hardware serial, so
+			// report the enrollment ID as the serial too, keeping host_serial
+			// populated for automations regardless of enrollment type.
+			mdmEnrolledActivity.EnrollmentID = new(opts.UserEnrollmentID)
+			mdmEnrolledActivity.HostSerial = new(opts.UserEnrollmentID)
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
 		}

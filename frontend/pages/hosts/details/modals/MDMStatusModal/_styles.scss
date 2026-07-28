@@ -35,15 +35,19 @@
 
   &__profile-assignment {
     @include vertical-data-set-layout;
+  }
 
-    &--not-accessible {
-      border: 1px solid $ui-fleet-black-10;
-      border-radius: 8px;
-      padding: $pad-large;
+  &__dep-error {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    padding: 0 $pad-medium;
 
-      .data-error__header--single-line {
-        padding-top: 0;
-        padding-bottom: 0;
+    .data-error__header {
+      align-items: flex-start;
+
+      .icon {
+        align-self: flex-start;
+        margin-top: 3px;
       }
     }
   }
