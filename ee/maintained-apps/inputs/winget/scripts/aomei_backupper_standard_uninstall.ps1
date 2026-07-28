@@ -1,13 +1,5 @@
-# AOMEI unified the ARP DisplayName across editions around v7.4: the registry
-# entry reads "AOMEI Backupper", with no "Standard" suffix. Matching the catalog
-# name here finds nothing, so match the DisplayName the installer actually writes.
-#
-# Match the DisplayName exactly and require the publisher, mirroring the manifest's
-# exists query. A substring match would also select AOMEI add-ons whose DisplayName
-# merely contains this one, and uninstall the wrong product. The publisher was
-# verified against the installer's PE version resource (CompanyName) -- trailing
-# period included -- and requiring it here means CI exercises the same value the
-# exists query depends on, which the validator's name-only lookup never does.
+# The ARP DisplayName is "AOMEI Backupper" (no "Standard" suffix since ~v7.4).
+# Match name and publisher exactly so add-ons sharing the name prefix aren't hit.
 $softwareName = "AOMEI Backupper"
 $softwarePublisher = "AOMEI International Network Limited."
 $uninstallArgs = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART"
@@ -39,8 +31,6 @@ try {
             $exitCode = $process.ExitCode; Write-Host "Uninstall exit code: $exitCode"; break
         }
     }
-    # Nothing to remove is not a failure: uninstall scripts are idempotent here, as
-    # in nordpass_uninstall.ps1 and windsurf_uninstall.ps1.
     if (-not $foundUninstaller) { Write-Host "Uninstall entry not found for '$softwareName'."; Exit 0 }
 } catch { Write-Host "Error: $_"; Exit 1 }
 
