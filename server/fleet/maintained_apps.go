@@ -1,6 +1,9 @@
 package fleet
 
-import "net/http"
+import (
+	"net/http"
+	"slices"
+)
 
 // MaintainedApp represents an app in the Fleet library of maintained apps
 type MaintainedApp struct {
@@ -21,11 +24,32 @@ type MaintainedApp struct {
 	PatchQuery            string   `json:"-" db:"patch_query"`
 }
 
-// WindowsFMAName is a Windows FMA's canonical name and the prefix used to match
-// versioned program names (e.g. prefix "Granola" -> "Granola 7.373.2").
+// WindowsFMAName is a Windows FMA's canonical software title name plus the
+// identifier its inventory may report under. Windows programs embed the version in
+// programs.name (e.g. "Granola 7.373.2"), so the reported name is matched against
+// these as prefixes to find the title the installer owns.
+//
+// Both fields are candidates because neither alone is reliable: osquery reports
+// "CPUID CPU-Z ..." for the app Fleet calls "CPU-Z" (only UniqueIdentifier works),
+// while some apps.json entries carry a version-bearing identifier frozen at the
+// version current when they were added, e.g. "Notion 6.1.0" (only Name works).
 type WindowsFMAName struct {
-	Prefix string `db:"prefix"`
-	Name   string `db:"name"`
+	Name             string `db:"name"`
+	UniqueIdentifier string `db:"unique_identifier"`
+}
+
+// MatchPrefixes returns the candidate program-name prefixes for this FMA, longest
+// first so the most specific match wins, deduplicated and without blanks.
+func (w WindowsFMAName) MatchPrefixes() []string {
+	prefixes := make([]string, 0, 2)
+	for _, c := range []string{w.UniqueIdentifier, w.Name} {
+		if c == "" || slices.Contains(prefixes, c) {
+			continue
+		}
+		prefixes = append(prefixes, c)
+	}
+	slices.SortStableFunc(prefixes, func(a, b string) int { return len(b) - len(a) })
+	return prefixes
 }
 
 func (s *MaintainedApp) Source() string {

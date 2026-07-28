@@ -12056,6 +12056,54 @@ func TestUniqueSoftwareTitleStrNormalization(t *testing.T) {
 	assert.Contains(t, keyJapanese, "日本語ソフト")
 }
 
+func TestMatchWindowsFMAName(t *testing.T) {
+	granola := fleet.WindowsFMAName{Name: "Granola", UniqueIdentifier: "Granola"}
+	zoom := fleet.WindowsFMAName{Name: "Zoom", UniqueIdentifier: "Zoom"}
+	// osquery reports "CPUID CPU-Z ...", so only the identifier is a usable prefix.
+	cpuz := fleet.WindowsFMAName{Name: "CPU-Z", UniqueIdentifier: "CPUID CPU-Z"}
+	// apps.json entries are append-only, so some identifiers carry a stale version;
+	// only the name is a usable prefix here.
+	notion := fleet.WindowsFMAName{Name: "Notion", UniqueIdentifier: "Notion 6.1.0"}
+	// Two apps that report under the same identifier but disagree on the title name.
+	acmeReader := fleet.WindowsFMAName{Name: "Acme Reader", UniqueIdentifier: "Acme"}
+	acmeWriter := fleet.WindowsFMAName{Name: "Acme Writer", UniqueIdentifier: "Acme"}
+	// A more specific app whose prefix extends another's.
+	fooBar := fleet.WindowsFMAName{Name: "Foo Bar", UniqueIdentifier: "Foo Bar"}
+	foo := fleet.WindowsFMAName{Name: "Foo", UniqueIdentifier: "Foo"}
+
+	cases := []struct {
+		name     string
+		reported string
+		fmas     []fleet.WindowsFMAName
+		want     string
+		wantOK   bool
+	}{
+		{"version suffix", "Granola 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", true},
+		{"exact name", "Granola", []fleet.WindowsFMAName{granola}, "Granola", true},
+		{"case insensitive", "granola 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", true},
+		{"no separator is not a match", "Zoombie 5.0", []fleet.WindowsFMAName{zoom}, "", false},
+		{"prefix without space", "Granolabar 1.0", []fleet.WindowsFMAName{granola}, "", false},
+		{"unrelated", "Firefox 141.0", []fleet.WindowsFMAName{granola, zoom}, "", false},
+		{"matches via unique identifier", "CPUID CPU-Z 2.16", []fleet.WindowsFMAName{cpuz}, "CPU-Z", true},
+		{"matches via name when identifier is stale", "Notion 7.2.0", []fleet.WindowsFMAName{notion}, "Notion", true},
+		{"stale identifier still matches itself", "Notion 6.1.0 extra", []fleet.WindowsFMAName{notion}, "Notion", true},
+		{"longest prefix wins", "Foo Bar 1.0", []fleet.WindowsFMAName{foo, fooBar}, "Foo Bar", true},
+		{"longest prefix wins regardless of order", "Foo Bar 1.0", []fleet.WindowsFMAName{fooBar, foo}, "Foo Bar", true},
+		{"shorter prefix still matches its own app", "Foo 1.0", []fleet.WindowsFMAName{foo, fooBar}, "Foo", true},
+		{"ambiguous tie is no match", "Acme 3.0", []fleet.WindowsFMAName{acmeReader, acmeWriter}, "", false},
+		{"ambiguous tie is no match, reversed", "Acme 3.0", []fleet.WindowsFMAName{acmeWriter, acmeReader}, "", false},
+		{"no FMAs", "Granola 7.373.2", nil, "", false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, ok := matchWindowsFMAName(c.reported, windowsFMAPrefixes(c.fmas))
+			require.Equal(t, c.wantOK, ok)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
 func testHostSWPaginationWithMultipleFMAVersions(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 

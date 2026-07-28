@@ -989,18 +989,60 @@ func longestCommonPrefix(strs []string) string {
 	}
 }
 
-// matchWindowsFMAName returns the canonical FMA name when name equals a prefix or
-// begins with "<prefix> " (the space avoids matching "Zoombie" for "Zoom"). fmas
-// must be sorted longest-prefix-first so the most specific FMA wins.
-func matchWindowsFMAName(name string, fmas []fleet.WindowsFMAName) (string, bool) {
-	lowerName := strings.ToLower(name)
+// windowsFMAPrefix is one candidate program-name prefix, lowercased for comparison,
+// and the canonical software title name it maps to.
+type windowsFMAPrefix struct {
+	prefix string
+	name   string
+}
+
+// windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
+// once per ingestion batch so the per-software-row match stays allocation-free.
+func windowsFMAPrefixes(fmas []fleet.WindowsFMAName) []windowsFMAPrefix {
+	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*2)
 	for _, f := range fmas {
-		lowerPrefix := strings.ToLower(f.Prefix)
-		if lowerName == lowerPrefix || strings.HasPrefix(lowerName, lowerPrefix+" ") {
-			return f.Name, true
+		for _, p := range f.MatchPrefixes() {
+			prefixes = append(prefixes, windowsFMAPrefix{prefix: strings.ToLower(p), name: f.Name})
 		}
 	}
-	return "", false
+	return prefixes
+}
+
+// matchWindowsFMAName returns the canonical software title name for a reported
+// Windows program name, or false when it matches no Fleet-maintained app.
+//
+// A candidate matches when the reported name equals it or begins with
+// "<candidate> " — the trailing space is what keeps "Zoombie 5.0" away from the
+// "Zoom" FMA. The longest matching candidate wins so a more specific app is
+// preferred, and a tie between FMAs that disagree on the canonical name is treated
+// as no match: there is no principled winner, and renaming to the wrong app is worse
+// than leaving the title alone. This mirrors the rule the darwin reconcile passes
+// apply to a bundle identifier shared by more than one FMA.
+func matchWindowsFMAName(name string, prefixes []windowsFMAPrefix) (string, bool) {
+	lowerName := strings.ToLower(name)
+
+	var best string
+	var bestLen int
+	ambiguous := false
+	for _, p := range prefixes {
+		if len(p.prefix) < bestLen {
+			continue
+		}
+		if lowerName != p.prefix && !strings.HasPrefix(lowerName, p.prefix+" ") {
+			continue
+		}
+		switch {
+		case len(p.prefix) > bestLen:
+			best, bestLen, ambiguous = p.name, len(p.prefix), false
+		case !strings.EqualFold(p.name, best):
+			ambiguous = true
+		}
+	}
+
+	if ambiguous || best == "" {
+		return "", false
+	}
+	return best, true
 }
 
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
@@ -1098,9 +1140,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		}
 		winFMANames = nil
 	}
-	sort.Slice(winFMANames, func(i, j int) bool {
-		return len(winFMANames[i].Prefix) > len(winFMANames[j].Prefix)
-	})
+	winFMAPrefixes := windowsFMAPrefixes(winFMANames)
 
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
@@ -1130,12 +1170,18 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						if computedName, exists := bestTitleNames[key]; exists {
 							newTitleName = computedName
 						}
-					} else if sw.Source == "programs" {
-						// Use the canonical FMA name so versioned program names collapse
-						// onto the single title the FMA installer owns.
-						if fmaName, ok := matchWindowsFMAName(sw.Name, winFMANames); ok {
-							newTitleName = fmaName
-						}
+					}
+				} else if sw.Source == "programs" && (sw.UpgradeCode == nil || *sw.UpgradeCode == "") {
+					// Use the canonical FMA name so versioned program names collapse
+					// onto the single title the FMA installer owns.
+					//
+					// Only when there is no upgrade code. software_titles.unique_identifier
+					// resolves to upgrade_code ahead of name, so renaming a program that
+					// reports one would create a second title under the canonical name with
+					// a different unique_identifier: a duplicate in the UI, and still not the
+					// title the installer owns. Those programs already match by upgrade code.
+					if fmaName, ok := matchWindowsFMAName(sw.Name, winFMAPrefixes); ok {
+						newTitleName = fmaName
 					}
 				}
 

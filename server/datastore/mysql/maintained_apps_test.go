@@ -33,6 +33,12 @@ func TestMaintainedApps(t *testing.T) {
 		{"GetWindowsFMANames", testGetWindowsFMANames},
 		{"WindowsFMANameOnIngest", testWindowsFMANameOnIngest},
 		{"ReconcileWindowsSoftwareTitles", testReconcileWindowsSoftwareTitles},
+		{"WindowsFMAMatchByUniqueIdentifier", testWindowsFMAMatchByUniqueIdentifier},
+		{"WindowsFMAMatchByNameWhenIdentifierStale", testWindowsFMAMatchByNameWhenIdentifierStale},
+		{"WindowsFMANotRenamedWithUpgradeCode", testWindowsFMANotRenamedWithUpgradeCode},
+		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
+		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
+		{"WindowsFMAReconcileKeepsTitleReferences", testWindowsFMAReconcileKeepsTitleReferences},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1324,48 +1330,69 @@ func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
 func testGetWindowsFMANames(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
 	// Initially empty
 	names, err := ds.GetWindowsFMANames(ctx)
 	require.NoError(t, err)
 	require.Empty(t, names)
 
-	// Windows FMA where name == unique_identifier (the common case, e.g. Granola).
+	// A catalog entry alone is not enough: only FMAs added via an installer are
+	// returned, since that deliberate install is what bounds name-prefix matching.
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Granola",
-		Slug:             "granola/windows",
+		Name:             "Obsidian",
+		Slug:             "obsidian/windows",
 		Platform:         "windows",
-		UniqueIdentifier: "Granola",
+		UniqueIdentifier: "Obsidian",
 	})
 	require.NoError(t, err)
 
-	// Windows FMA where unique_identifier is a shorter prefix of the name (Box Drive).
-	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "Box Drive",
-		Slug:             "box-drive/windows",
-		Platform:         "windows",
-		UniqueIdentifier: "Box",
-	})
+	names, err = ds.GetWindowsFMANames(ctx)
 	require.NoError(t, err)
+	require.Empty(t, names, "catalog entry with no installer must not be returned")
 
-	// A darwin FMA must not be returned.
-	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+	// name == unique_identifier, the common case.
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	// unique_identifier differs from the name, and is what osquery reports.
+	addWindowsFMAWithInstaller(t, ds, user.ID, "CPU-Z", "CPUID CPU-Z", "cpu-z/windows")
+
+	// A darwin FMA with an installer must not be returned.
+	darwinApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Granola",
 		Slug:             "granola/darwin",
 		Platform:         "darwin",
 		UniqueIdentifier: "com.granola.app",
 	})
 	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Granola",
+		Source:               "apps",
+		StorageID:            "storageid-granola-darwin",
+		Filename:             "granola.pkg",
+		Extension:            "pkg",
+		Platform:             "darwin",
+		Version:              "1.0.0",
+		BundleIdentifier:     "com.granola.app",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(darwinApp.ID),
+	})
+	require.NoError(t, err)
 
 	names, err = ds.GetWindowsFMANames(ctx)
 	require.NoError(t, err)
-	byName := make(map[string]string, len(names))
+	byName := make(map[string]fleet.WindowsFMAName, len(names))
 	for _, n := range names {
-		byName[n.Name] = n.Prefix
+		byName[n.Name] = n
 	}
 	require.Len(t, byName, 2)
-	require.Equal(t, "Granola", byName["Granola"])
-	// prefix is the shorter of name and unique_identifier (LEAST).
-	require.Equal(t, "Box", byName["Box Drive"])
+	require.Equal(t, "Granola", byName["Granola"].UniqueIdentifier)
+	require.Equal(t, "CPUID CPU-Z", byName["CPU-Z"].UniqueIdentifier)
+
+	// Both fields are offered as match candidates, longest first.
+	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].MatchPrefixes())
+	// Deduplicated when they are the same.
+	require.Equal(t, []string{"Granola"}, byName["Granola"].MatchPrefixes())
 }
 
 // testWindowsFMANameOnIngest: with a Windows FMA present, ingesting a versioned
@@ -1453,6 +1480,7 @@ func testWindowsFMANameOnIngest(t *testing.T, ds *Datastore) {
 func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
 	// Ingest two versions BEFORE any FMA exists -> two separate versioned titles
@@ -1476,22 +1504,24 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, titleCount("Granola 7.373.1"))
 	require.Equal(t, 1, titleCount("Granola 7.373.2"))
 
-	// Now the Granola + Zoom + Widget FMAs get synced.
-	for _, app := range []*fleet.MaintainedApp{
-		{Name: "Granola", Slug: "granola/windows", Platform: "windows", UniqueIdentifier: "Granola"},
-		{Name: "Zoom", Slug: "zoom/windows", Platform: "windows", UniqueIdentifier: "Zoom"},
-		{Name: "Widget", Slug: "widget/windows", Platform: "windows", UniqueIdentifier: "Widget"},
-	} {
-		_, err = ds.UpsertMaintainedApp(ctx, app)
-		require.NoError(t, err)
-	}
+	// Now the Granola + Zoom + Widget FMAs get added, each owning a canonical title.
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Zoom", "Zoom", "zoom/windows")
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Widget", "Widget", "widget/windows")
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// The two versioned Granola titles are gone, replaced by a single "Granola" title.
-	require.Zero(t, titleCount("Granola 7.373.1"))
-	require.Zero(t, titleCount("Granola 7.373.2"))
+	// A single canonical "Granola" title now owns both versions. The emptied versioned
+	// titles are intentionally left behind rather than deleted: software_titles is
+	// referenced with ON DELETE CASCADE by patch policies, team pins and others, so
+	// deleting would discard admin configuration. They carry no software and no host
+	// counts, so they drop out of the software list.
 	require.Equal(t, 1, titleCount("Granola"))
+	require.Equal(t, 1, titleCount("Granola 7.373.1"))
+	require.Equal(t, 1, titleCount("Granola 7.373.2"))
+	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.1"))
+	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.2"))
+	require.Zero(t, hostCountRowsForTitleNamed(t, ds, "Granola 7.373.1"))
 
 	// Both Granola software rows now point at the single canonical title, keeping
 	// their versioned names.
@@ -1511,13 +1541,282 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 		require.Equal(t, canonicalID, l.TitleID, "software %q should link to canonical title", l.Name)
 	}
 
-	// Negative cases: unrelated prefix-sharing app and MSI (upgrade_code) app untouched.
+	// Negative cases. "Zoombie 5.0" only shares a prefix with the Zoom FMA and keeps its
+	// own title. "Widget 2.0" reports an upgrade code, so it is excluded from name
+	// merging and stays separate from the Widget installer's title.
 	require.Equal(t, 1, titleCount("Zoombie 5.0"))
 	require.Equal(t, 1, titleCount("Widget 2.0"))
-	require.Zero(t, titleCount("Widget"))
+	require.Equal(t, "Widget 2.0", titleNameForSoftware(t, ds, "Widget 2.0"))
 
-	// Idempotent: a second run is a no-op.
+	// Idempotent: a second run changes nothing.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, 1, titleCount("Granola"))
-	require.Zero(t, titleCount("Granola 7.373.1"))
+	require.Equal(t, 1, titleCount("Granola 7.373.1"))
+	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.1"))
+}
+
+// addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the
+// canonical title, mirroring an admin adding a Fleet-maintained app to no team.
+func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, uniqueIdentifier, slug string) uint {
+	t.Helper()
+	ctx := t.Context()
+
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             name,
+		Slug:             slug,
+		Platform:         "windows",
+		UniqueIdentifier: uniqueIdentifier,
+	})
+	require.NoError(t, err)
+
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                name,
+		Source:               "programs",
+		StorageID:            "storageid-" + slug,
+		Filename:             slug + ".exe",
+		Extension:            "exe",
+		Platform:             "windows",
+		Version:              "1.0.0",
+		UserID:               userID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(app.ID),
+	})
+	require.NoError(t, err)
+
+	return titleID
+}
+
+// titleNameForSoftware returns the name of the software title that the given
+// software row is linked to.
+func titleNameForSoftware(t *testing.T, ds *Datastore, softwareName string) string {
+	t.Helper()
+	var name string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &name,
+			`SELECT st.name FROM software_titles st JOIN software s ON s.title_id = st.id WHERE s.name = ?`,
+			softwareName)
+	})
+	return name
+}
+
+// softwareCountForTitleNamed returns how many software rows still link to the
+// 'programs' title with the given name.
+func softwareCountForTitleNamed(t *testing.T, ds *Datastore, titleName string) int {
+	t.Helper()
+	var n int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &n,
+			`SELECT COUNT(*) FROM software s JOIN software_titles st ON st.id = s.title_id
+			 WHERE st.name = ? AND st.source = 'programs'`, titleName)
+	})
+	return n
+}
+
+// hostCountRowsForTitleNamed returns how many software_titles_host_counts rows remain
+// for the 'programs' title with the given name.
+func hostCountRowsForTitleNamed(t *testing.T, ds *Datastore, titleName string) int {
+	t.Helper()
+	var n int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &n,
+			`SELECT COUNT(*) FROM software_titles_host_counts shc
+			 JOIN software_titles st ON st.id = shc.software_title_id
+			 WHERE st.name = ? AND st.source = 'programs'`, titleName)
+	})
+	return n
+}
+
+// countTitlesNamed returns how many 'programs' software titles carry the given name.
+func countTitlesNamed(t *testing.T, ds *Datastore, name string) int {
+	t.Helper()
+	var n int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &n,
+			`SELECT COUNT(*) FROM software_titles WHERE name = ? AND source = 'programs'`, name)
+	})
+	return n
+}
+
+// testWindowsFMAMatchByUniqueIdentifier: some Windows FMAs report a program name
+// built from unique_identifier rather than the FMA's display name (osquery reports
+// "CPUID CPU-Z ..." for the FMA named "CPU-Z"). The display name is not a prefix of
+// the reported name, so matching must consider unique_identifier too.
+func testWindowsFMAMatchByUniqueIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "CPU-Z", "CPUID CPU-Z", "cpu-z/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "CPUID CPU-Z 2.16", Version: "2.16", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'CPUID CPU-Z 2.16'`)
+	})
+	require.Equal(t, canonicalID, gotTitleID, "inventory should link to the installer's title")
+	require.Zero(t, countTitlesNamed(t, ds, "CPUID CPU-Z 2.16"), "no versioned title should be created")
+}
+
+// testWindowsFMAMatchByNameWhenIdentifierStale: fleet_maintained_apps.unique_identifier
+// is synced from apps.json, whose entries are only ever appended, so some Windows apps
+// carry a version-bearing identifier frozen at the version current when they were added
+// (e.g. notion/windows records "Notion 6.1.0"). Matching must still work off the name.
+func testWindowsFMAMatchByNameWhenIdentifierStale(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Notion", "Notion 6.1.0", "notion/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Notion 7.2.0", Version: "7.2.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Notion 7.2.0'`)
+	})
+	require.Equal(t, canonicalID, gotTitleID)
+	require.Zero(t, countTitlesNamed(t, ds, "Notion 7.2.0"))
+}
+
+// testWindowsFMANotRenamedWithUpgradeCode: software_titles.unique_identifier resolves to
+// upgrade_code before name, so giving a program that reports an upgrade code the canonical
+// FMA name produces a SECOND title with that name under a different unique_identifier.
+// Programs with an upgrade code already match through it and must be left alone.
+func testWindowsFMANotRenamedWithUpgradeCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, 1, countTitlesNamed(t, ds, "Granola"), "must not create a duplicate canonical title")
+	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"),
+		"software with an upgrade code keeps its own title")
+}
+
+// testWindowsFMANoCollapseWithoutInstaller: with no publisher available to scope the
+// name match, collapsing is limited to FMAs an admin actually added. A catalog entry
+// alone must not rewrite unrelated inventory titles.
+func testWindowsFMANoCollapseWithoutInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Granola",
+		Slug:             "granola/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Granola",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
+	require.Zero(t, countTitlesNamed(t, ds, "Granola"))
+
+	// The reconcile pass must leave it alone too.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
+	require.Zero(t, countTitlesNamed(t, ds, "Granola"))
+}
+
+// testWindowsFMAAmbiguousMatchIsNoOp: when a reported name matches two FMAs that
+// disagree on the canonical name, there is no principled winner, so nothing is renamed.
+// Mirrors the shared-bundle-identifier rule the darwin reconcile passes already apply.
+func testWindowsFMAAmbiguousMatchIsNoOp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Two distinct FMAs whose programs name both resolve to the same "Acme" prefix.
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Acme Reader", "Acme", "acme-reader/windows")
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Acme Writer", "Acme", "acme-writer/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Acme 3.0", Version: "3.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "Acme 3.0", titleNameForSoftware(t, ds, "Acme 3.0"),
+		"an ambiguous match must not pick a winner")
+}
+
+// testWindowsFMAReconcileKeepsTitleReferences: the reconcile pass re-points software
+// onto the canonical title but must not delete the emptied title. software_titles is
+// referenced with ON DELETE CASCADE by policies.patch_software_title_id,
+// software_title_team_pins and others, so deleting silently destroys admin
+// configuration attached to that title.
+func testWindowsFMAReconcileKeepsTitleReferences(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so a versioned title exists before the FMA installer appears.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var staleTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &staleTitleID,
+			`SELECT id FROM software_titles WHERE name = 'Granola 7.373.2' AND source = 'programs'`)
+	})
+
+	// An admin pins a version on that title.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (0, ?, '7.373.2')`,
+			staleTitleID)
+		return err
+	})
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	// Software moved onto the canonical title...
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Granola 7.373.2'`)
+	})
+	require.Equal(t, canonicalID, gotTitleID)
+
+	// ...and the emptied title, plus the pin hanging off it, still exist.
+	var staleStillThere int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &staleStillThere,
+			`SELECT COUNT(*) FROM software_titles WHERE id = ?`, staleTitleID)
+	})
+	require.Equal(t, 1, staleStillThere, "stale title must not be deleted")
+
+	var pins int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pins,
+			`SELECT COUNT(*) FROM software_title_team_pins WHERE title_id = ?`, staleTitleID)
+	})
+	require.Equal(t, 1, pins, "cascade must not destroy the admin's pinned version")
 }

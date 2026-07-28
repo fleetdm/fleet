@@ -1066,7 +1066,7 @@ func TestCachedWindowsFMANames(t *testing.T) {
 	mockedDS := new(mock.Store)
 	ds := New(mockedDS, WithWindowsFMANamesExpiration(100*time.Millisecond))
 
-	names := []fleet.WindowsFMAName{{Prefix: "Granola", Name: "Granola"}}
+	names := []fleet.WindowsFMAName{{Name: "Granola", UniqueIdentifier: "Granola"}}
 	mockedDS.GetWindowsFMANamesFunc = func(ctx context.Context) ([]fleet.WindowsFMAName, error) {
 		return append([]fleet.WindowsFMAName(nil), names...), nil
 	}
@@ -1094,7 +1094,7 @@ func TestCachedWindowsFMANames(t *testing.T) {
 		Name: "Zoom", Slug: "zoom/windows", Platform: "windows", UniqueIdentifier: "Zoom",
 	})
 	require.NoError(t, err)
-	names = append(names, fleet.WindowsFMAName{Prefix: "Zoom", Name: "Zoom"})
+	names = append(names, fleet.WindowsFMAName{Name: "Zoom", UniqueIdentifier: "Zoom"})
 
 	got, err = ds.GetWindowsFMANames(context.Background())
 	require.NoError(t, err)
