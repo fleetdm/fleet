@@ -1657,10 +1657,9 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 	}
 }
 
-// TestGetOrbitConfigWindowsManagedLocalAccount covers the CreateWindowsManagedLocalAccount
-// notification gating: it is set for any Windows MDM host (not just during the setup experience)
-// when the team or No-team setting is enabled, fleetd advertises the capability, and the license is
-// premium, and it stops once the host has escrowed a password for its current enrollment.
+// TestGetOrbitConfigWindowsManagedLocalAccount covers the CreateWindowsManagedLocalAccount notification gating: it is
+// set for any Windows MDM host (not just during the setup experience) when the team or No-team setting is enabled,
+// fleetd advertises the capability, and it stops once the host has escrowed a password for its current enrollment.
 func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	// withMLACapability returns a context whose X-Fleet-Capabilities advertise the managed local
 	// account capability, as a capable Windows fleetd would send.
@@ -1703,32 +1702,23 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 		return ds, svc, ctx
 	}
 
-	t.Run("all gates hold sets the notification", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationPending, false)
-		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
-		require.NoError(t, err)
-		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
+	// Enabling the setting provisions the whole fleet: a host long past its ESP is asked to create the account just like
+	// one that just enrolled. This guards against the notification being re-scoped to the ESP.
+	t.Run("set regardless of setup experience state", func(t *testing.T) {
+		for _, awaiting := range []fleet.WindowsMDMAwaitingConfiguration{
+			fleet.WindowsMDMAwaitingConfigurationPending,
+			fleet.WindowsMDMAwaitingConfigurationActive,
+			fleet.WindowsMDMAwaitingConfigurationNone,
+		} {
+			_, svc, ctx := setupSvc(t, fleet.TierPremium, true, awaiting, false)
+			cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
+			require.NoError(t, err)
+			assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount, "awaiting_configuration=%v", awaiting)
+		}
 	})
 
-	t.Run("awaiting=Active also sets it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationActive, false)
-		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
-		require.NoError(t, err)
-		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
-	})
-
-	// Enabling the setting provisions the existing fleet, so a host long past its setup experience is
-	// asked to create the account just like one that just enrolled.
-	t.Run("outside the setup experience (awaiting=None) also sets it", func(t *testing.T) {
-		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, false)
-		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
-		require.NoError(t, err)
-		assert.True(t, cfg.Notifications.CreateWindowsManagedLocalAccount)
-	})
-
-	// Idempotence: a host that already escrowed for this enrollment is left alone, so the account is
-	// not recreated and the created activity is not logged on every poll. A re-enrolled host has the
-	// flag reset with its enrollment row, which is covered in the datastore tests.
+	// Idempotence: a host that already escrowed for this enrollment is left alone, so the account is not recreated and
+	// the created activity is not logged on every poll.
 	t.Run("already escrowed for this enrollment does not set it", func(t *testing.T) {
 		_, svc, ctx := setupSvc(t, fleet.TierPremium, true, fleet.WindowsMDMAwaitingConfigurationNone, true)
 		cfg, err := svc.GetOrbitConfig(withMLACapability(ctx))
@@ -1759,10 +1749,9 @@ func TestGetOrbitConfigWindowsManagedLocalAccount(t *testing.T) {
 	})
 }
 
-// TestEscrowWindowsManagedLocalAccountPassword covers the orbit escrow endpoint: eligibility via
-// Windows MDM enrollment, input validation, the created activity, and the OpenSpec rule that an
-// escrow is stored even when the setting was toggled off after the notification (never orphan the
-// on-device account).
+// TestEscrowWindowsManagedLocalAccountPassword covers the orbit escrow endpoint: eligibility via Windows MDM enrollment,
+// input validation, the created activity, and that an escrow is stored even when the setting was toggled off after the
+// notification (never orphan the on-device account).
 func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 	setup := func(t *testing.T, enrolled bool, settingEnabled bool) (*mock.Store, fleet.Service, context.Context, *TestServerOpts) {
 		ds := new(mock.Store)
@@ -1797,18 +1786,18 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 	})
 
-	t.Run("empty password is rejected", func(t *testing.T) {
-		ds, svc, ctx, _ := setup(t, true, true)
-		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "")
-		require.Error(t, err)
-		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
-	})
-
-	t.Run("overlong password is rejected", func(t *testing.T) {
-		ds, svc, ctx, _ := setup(t, true, true)
-		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, strings.Repeat("a", 257), "")
-		require.Error(t, err)
-		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+	t.Run("invalid password is rejected", func(t *testing.T) {
+		for name, password := range map[string]string{
+			"empty":    "",
+			"too long": strings.Repeat("a", managedLocalAccountMaxPasswordLength+1),
+		} {
+			t.Run(name, func(t *testing.T) {
+				ds, svc, ctx, _ := setup(t, true, true)
+				err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, password, "")
+				require.Error(t, err)
+				require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+			})
+		}
 	})
 
 	t.Run("client error is recorded and no password is stored", func(t *testing.T) {
@@ -1823,12 +1812,20 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			reportedError = clientError
 			return nil
 		}
+		var escrowedFlag bool
+		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+			escrowedFlag = escrowed
+			return true, nil
+		}
 		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "", "netapi32 add failed")
 		require.NoError(t, err)
 		require.True(t, ds.ReportManagedLocalAccountEscrowErrorFuncInvoked)
 		require.Equal(t, "netapi32 add failed", reportedError)
 		require.False(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 		require.False(t, activityLogged)
+		// The flag is cleared so the host keeps being asked and a transient failure self-heals.
+		require.True(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked)
+		require.False(t, escrowedFlag)
 	})
 
 	t.Run("client error is truncated by rune to fit the column", func(t *testing.T) {
@@ -1858,11 +1855,37 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 			activityCount++
 			return nil
 		}
+		var escrowedFlag bool
+		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+			escrowedFlag = escrowed
+			return true, nil
+		}
 		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
 		require.NoError(t, err)
 		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 		require.Equal(t, "device-generated-pw", savedPassword)
 		require.Equal(t, 1, activityCount)
+		// Marking the enrollment provisioned is what stops the host being asked again.
+		require.True(t, escrowedFlag)
+	})
+
+	// A device that re-sends an escrow it already made stores the password again but must not claim a
+	// second account, mirroring how BitLocker only logs when the key was actually archived.
+	t.Run("re-sent escrow stores the password but does not log the activity again", func(t *testing.T) {
+		ds, svc, ctx, opts := setup(t, true, true)
+		activityCount := 0
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+			activityCount++
+			return nil
+		}
+		// The enrollment is already marked provisioned, so the flag does not change.
+		ds.SetMDMWindowsManagedLocalAccountEscrowedFunc = func(ctx context.Context, hostUUID string, escrowed bool) (bool, error) {
+			return false, nil
+		}
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
+		require.NoError(t, err)
+		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
+		require.Zero(t, activityCount)
 	})
 
 	t.Run("stores the password even when the setting was disabled after the notification", func(t *testing.T) {
@@ -1873,8 +1896,19 @@ func TestEscrowWindowsManagedLocalAccountPassword(t *testing.T) {
 		require.True(t, ds.SaveHostManagedLocalAccountFromEscrowFuncInvoked)
 	})
 
+	// A failed save must surface as an error rather than a silent success, and must not mark the enrollment provisioned.
+	t.Run("failed save is reported and leaves the host to be asked again", func(t *testing.T) {
+		ds, svc, ctx, _ := setup(t, true, true)
+		ds.SaveHostManagedLocalAccountFromEscrowFunc = func(ctx context.Context, hostUUID, plaintextPassword string) error {
+			return errors.New("transient db failure")
+		}
+		err := svc.EscrowWindowsManagedLocalAccountPassword(ctx, "device-generated-pw", "")
+		require.Error(t, err)
+		require.False(t, ds.SetMDMWindowsManagedLocalAccountEscrowedFuncInvoked)
+	})
+
 	// The setting check only decides whether to warn, so a failure to read it must never cost the
-	// password: the account already exists on the device and this is the only chance to record it.
+	// password: the account already exists on the device and this is the only chance to record it. (The fallback is re-creating the account.)
 	t.Run("stores the password even when the setting cannot be read", func(t *testing.T) {
 		ds, svc, ctx, opts := setup(t, true, true)
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error { return nil }
