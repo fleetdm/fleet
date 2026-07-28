@@ -292,12 +292,14 @@ func TestTeamPolicyPatchWhenClosed(t *testing.T) {
 		ds := setupDS()
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		_, err := svc.NewTeamPolicy(adminCtx(baseCtx), teamID, fleet.NewTeamPolicyPayload{
-			Name:            "dynamic policy",
-			Query:           "SELECT 1;",
-			PatchWhenClosed: true,
+			Name:  "dynamic policy",
+			Query: "SELECT 1;",
+			// Continuous automations must be on, otherwise that check rejects the payload first.
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "patch_when_closed")
+		require.ErrorContains(t, err, "only supported for patch policies")
 	})
 
 	// An explicit continuous_automations_enabled=false alongside patch_when_closed=true is rejected;

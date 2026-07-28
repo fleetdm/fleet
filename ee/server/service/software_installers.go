@@ -821,10 +821,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if err != nil {
 			return nil, err
 		}
-		if patchFlag && patchWhenClosedFlag && existingInstaller.PreInstallQuery != "" {
-			payload.PreInstallQuery = new("")
-			dirty["PreInstallQuery"] = true
-		}
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can
