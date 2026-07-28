@@ -5847,13 +5847,6 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
-      "name": "Nocturnal",
-      "slug": "nocturnal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.harshilshah.nocturnal",
-      "description": "Nocturnal is a simple app to toggle dark mode with one click."
-    },
-    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
