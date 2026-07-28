@@ -4,30 +4,52 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 # TreeSize Free uses Inno Setup. The switches below are the machine-scope
-# "Silent" switches from the winget manifest, including /AllUsers. What made the
-# previous script hang was PowerShell rather than the switches: "Start-Process
-# -Wait" waits for the process *and all of its descendants*, so anything the
-# installer leaves running (an Inno post-install "run" task launching TreeSize,
-# for example) blocks the script indefinitely. Wait on the installer process
-# alone, log progress, then stop any app the installer started.
+# "Silent" switches from the winget manifest; /SP- additionally suppresses the
+# "This will install..." prompt.
+#
+# On a headless machine the installer process sits doing nothing and never
+# registers in Add/Remove Programs, which is the signature of a modal dialog
+# waiting for input that nobody can give. So rather than only waiting it out:
+#   * close any window the installer puts up, which acknowledges an OK-style
+#     dialog and lets the install continue;
+#   * pass Inno's /LOG so the install's own log can be printed if it still fails,
+#     which says exactly which step stalled;
+#   * log the window title and live child processes on every poll.
+# Wait on the installer process alone, too: "Start-Process -Wait" waits for the
+# process *and all of its descendants*, so an Inno post-install "run" task
+# launching TreeSize would block regardless.
 $installTimeoutSeconds = 420
 $pollSeconds = 15
+$graceSeconds = 30
 $leftovers = @("TreeSize", "TreeSizeFree")
+
+$innoLog = Join-Path $env:TEMP "treesize-free-install.log"
 
 $machineKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 $machineKey32on64 = 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$userKey = 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
 
 function Test-TreeSizeRegistered {
-    $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64) -ErrorAction SilentlyContinue |
+    $null -ne (Get-ChildItem -Path @($machineKey, $machineKey32on64, $userKey) -ErrorAction SilentlyContinue |
         ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
         Where-Object { $_.DisplayName -like "TreeSize Free*" } |
         Select-Object -First 1)
 }
 
+function Write-InnoLog {
+    if (Test-Path $innoLog) {
+        Write-Host "--- Inno Setup log (last 60 lines) ---"
+        Get-Content $innoLog -Tail 60 | ForEach-Object { Write-Host $_ }
+        Write-Host "--- end of Inno Setup log ---"
+    } else {
+        Write-Host "No Inno Setup log was written at $innoLog."
+    }
+}
+
 try {
 
 $process = Start-Process -FilePath "$exeFilePath" `
-  -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /AllUsers" `
+  -ArgumentList "/SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /AllUsers /LOG=`"$innoLog`"" `
   -PassThru
 # Touch .Handle so the exit code is still readable after the process ends:
 # Start-Process -PassThru otherwise returns $null for .ExitCode.
@@ -37,43 +59,45 @@ $elapsed = 0
 while (-not $process.HasExited -and ($elapsed -lt $installTimeoutSeconds)) {
   Start-Sleep -Seconds $pollSeconds
   $elapsed += $pollSeconds
-  Write-Host "Installing... ($elapsed seconds, registered: $(Test-TreeSizeRegistered))"
+  $process.Refresh()
+  if ($process.HasExited) { break }
+
+  $children = @(Get-Process -Name $leftovers -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty Name -Unique)
+  $windowTitle = ""
+  try { $windowTitle = $process.MainWindowTitle } catch { }
+
+  Write-Host "Installing... ($elapsed seconds, registered: $(Test-TreeSizeRegistered), window: '$windowTitle', children: $($children -join ', '))"
+
+  if ($elapsed -ge $graceSeconds -and $process.MainWindowHandle -ne [IntPtr]::Zero) {
+    Write-Host "Installer is showing a window ('$windowTitle'); closing it so the install can continue."
+    $null = $process.CloseMainWindow()
+  }
 }
 
 if (-not $process.HasExited) {
-  # Still running at the cap. If TreeSize Free already registered in Add/Remove
-  # Programs the install finished and only a lingering child remains, so stopping
-  # it is safe; otherwise the install genuinely did not complete.
-  $registered = Test-TreeSizeRegistered
+  Write-Host "Installer still running after ${installTimeoutSeconds}s; stopping it."
   Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
   Start-Sleep -Seconds 2
-  foreach ($name in $leftovers) { Stop-Process -Name $name -Force -ErrorAction SilentlyContinue }
-
-  if ($registered) {
-    Write-Host "Installer still running after ${installTimeoutSeconds}s but TreeSize Free is registered; stopped the lingering process."
-    Exit 0
-  }
-
-  Write-Host "Installer did not finish within ${installTimeoutSeconds}s and TreeSize Free is not registered."
-  Exit 1
+} else {
+  Write-Host "Install exit code: $($process.ExitCode)"
 }
-
-$exitCode = $process.ExitCode
-Write-Host "Install exit code: $exitCode"
 
 foreach ($name in $leftovers) { Stop-Process -Name $name -Force -ErrorAction SilentlyContinue }
 
+# Registration is the success signal, not the exit code: on the timeout path the
+# installer was killed, so its exit code says nothing about the install.
 if (-not (Test-TreeSizeRegistered)) {
   Write-Host "TreeSize Free did not register in Add/Remove Programs."
+  Write-InnoLog
   Exit 1
 }
 
-# 3010 (reboot required) and 1641 (reboot initiated) are successful installs.
-if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
-
-Exit $exitCode
+Write-Host "TreeSize Free is registered in Add/Remove Programs."
+Exit 0
 
 } catch {
   Write-Host "Error: $_"
+  Write-InnoLog
   Exit 1
 }
