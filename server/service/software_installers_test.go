@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -626,6 +627,11 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
 		statusMu.Lock()
 		defer statusMu.Unlock()
+		// Only the batch status key holds a value here. The sibling keys for deleted
+		// packages, categories and download progress are all empty.
+		if strings.Contains(key, ":") {
+			return nil, nil
+		}
 		return ptr.String(status), nil
 	}
 
@@ -713,12 +719,12 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 
 	timeout := time.After(30 * time.Second)
 	for {
-		status, _, packages, _, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
+		result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", "requestuuid", false)
 		require.NoError(t, err)
 		// The status will be failed IFF
 		// the mock installer store's Put method was called fleet.BatchUploadMaxRetries times.
-		if status == fleet.BatchSetSoftwareInstallersStatusFailed {
-			require.Empty(t, packages)
+		if result.Status == fleet.BatchSetSoftwareInstallersStatusFailed {
+			require.Empty(t, result.Packages)
 			break
 		}
 		select {

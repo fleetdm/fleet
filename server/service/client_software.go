@@ -88,15 +88,26 @@ func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	return nil, nil
 }
 
-func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (c *Client) ApplyNoTeamSoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	opts fleet.ApplySpecOptions,
+	fleetName string,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
+	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun, fleetName, logFn)
 }
 
-func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (c *Client) applySoftwareInstallers(
+	softwareInstallers []fleet.SoftwareInstallerPayload,
+	query url.Values,
+	dryRun bool,
+	fleetName string,
+	logFn func(format string, args ...any),
+) ([]fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
@@ -106,12 +117,38 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 		return nil, nil, nil, nil
 	}
 
+	// The batch uploads packages one at a time in the background, so each poll reports the
+	// packages it has started and finished downloading so far. A package stays in the
+	// report for the rest of the batch, so track what's been printed to print each line
+	// once. A dry run downloads packages too, but its output stays as it was before.
+	printedDownloading := make(map[string]struct{})
+	printedDownloaded := make(map[string]struct{})
+	logDownloadProgress := func(downloadProgress []fleet.SoftwarePackageDownloadProgress) {
+		if dryRun {
+			return
+		}
+		for _, pkg := range downloadProgress {
+			if pkg.Name == "" {
+				continue
+			}
+			if _, printed := printedDownloading[pkg.Name]; !printed {
+				printedDownloading[pkg.Name] = struct{}{}
+				logFn(downloadingSoftwareFormat, pkg.Name)
+			}
+			if _, printed := printedDownloaded[pkg.Name]; pkg.Finished && !printed {
+				printedDownloaded[pkg.Name] = struct{}{}
+				logFn(downloadedSoftwareFormat, fleetName, pkg.Name)
+			}
+		}
+	}
+
 	requestUUID := resp.RequestUUID
 	for {
 		var resp batchSetSoftwareInstallersResultResponse
 		if err := c.authenticatedRequestWithQuery(nil, "GET", path+"/"+requestUUID, &resp, query.Encode()); err != nil {
 			return nil, nil, nil, err
 		}
+		logDownloadProgress(resp.DownloadProgress)
 		switch {
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusProcessing:
 			time.Sleep(1 * time.Second)

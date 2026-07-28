@@ -212,6 +212,35 @@ type DeletedSoftwarePackage struct {
 	DisplayName string `json:"display_name" db:"display_name"`
 }
 
+// SoftwarePackageDownloadProgress reports the download state of one software package in a
+// software batch. Entries keep the index they have in the batch payload, so a package that
+// hasn't started downloading has an empty name.
+type SoftwarePackageDownloadProgress struct {
+	Name string `json:"name"`
+	// Finished means the download finished, not that the package was applied.
+	Finished bool `json:"finished"`
+}
+
+// BatchSetSoftwareInstallersResult is the status of a software batch started by
+// BatchSetSoftwareInstallers.
+type BatchSetSoftwareInstallersResult struct {
+	// Status is "processing", "completed" or "failed".
+	Status string
+	// Message carries the error information when the status is "failed".
+	Message string
+	// Packages holds the applied software packages once the status is "completed". It is
+	// always empty for a dry run.
+	Packages []SoftwarePackageResponse
+	// DeletedPackages holds the packages the batch deleted, or would delete on a dry run,
+	// once the status is "completed".
+	DeletedPackages []DeletedSoftwarePackage
+	// Categories holds the self-service categories the batch uses or added, once the
+	// status is "completed".
+	Categories []string
+	// DownloadProgress is filled in while the status is still "processing".
+	DownloadProgress []SoftwarePackageDownloadProgress
+}
+
 // VPPAppResponse is the response type used when applying app store apps by batch.
 type VPPAppResponse struct {
 	// TeamID is the ID of the team.

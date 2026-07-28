@@ -2461,12 +2461,12 @@ func TestBatchSetSoftwareInstallersDryRunEmptyReportsDeletions(t *testing.T) {
 	require.Equal(t, wouldDelete, gotDeleted)
 
 	// The result endpoint returns the deleted packages on the dry-run completed branch.
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", requestUUID, true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Equal(t, wouldDelete, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Equal(t, wouldDelete, result.DeletedPackages)
 }
 
 func TestBatchSetSoftwareInstallersSkipsURLValidationForScriptPackages(t *testing.T) {
@@ -2530,12 +2530,13 @@ func TestGetBatchSetSoftwareInstallersResultMissingDeletedKey(t *testing.T) {
 		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 	})
 
-	status, message, packages, deletedPackages, _, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
+	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "", "test-uuid", true)
 	require.NoError(t, err)
-	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, status)
-	require.Empty(t, message)
-	require.Empty(t, packages)
-	require.Empty(t, deletedPackages)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status)
+	require.Empty(t, result.Message)
+	require.Empty(t, result.Packages)
+	require.Empty(t, result.DeletedPackages)
+	require.Empty(t, result.DownloadProgress)
 }
 
 func TestVersionMatchesMajor(t *testing.T) {

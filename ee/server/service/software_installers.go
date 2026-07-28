@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -2657,6 +2658,10 @@ const (
 	// we can only be certain of all categories after downloading all FMA manifests and seeing
 	// which default categories we might need to add.
 	batchSoftwareCategoriesSuffix = ":categories"
+	// batchSoftwareDownloadedSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of packages the batch started downloading, and whether each one
+	// finished. Written while the batch runs so clients can report progress before it completes.
+	batchSoftwareDownloadedSuffix = ":downloaded"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
 	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
@@ -2996,6 +3001,34 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 	return resp, tfr, nil
 }
 
+func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string {
+	// TODO(JK): the software title isn't known until the package is downloaded, so settle
+	// on what to call a package before then.
+	switch {
+	case payload.DisplayName != "":
+		return payload.DisplayName
+	case payload.MaintainedApp != nil && payload.MaintainedApp.Name != "":
+		return payload.MaintainedApp.Name
+	case payload.Slug != nil && *payload.Slug != "":
+		return *payload.Slug
+	}
+
+	// Script packages carry their file name in a "script://" url, not a real download url.
+	downloadURL := strings.TrimPrefix(payload.URL, "script://")
+	if downloadURL == "" {
+		return payload.SHA256
+	}
+	parsedURL, err := url.Parse(downloadURL)
+	if err != nil {
+		return downloadURL
+	}
+	filename := path.Base(parsedURL.Path)
+	if filename == "" || filename == "." || filename == "/" {
+		return downloadURL
+	}
+	return filename
+}
+
 func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
@@ -3133,6 +3166,35 @@ func (svc *Service) softwareBatchUpload(
 	// goroutine only writes to its index.
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
+
+	// Progress goes in its own key as each package starts and finishes downloading, so a
+	// client polling the batch status can report progress before the batch completes. The
+	// name comes from the payload both times, so the package a client sees finish is named
+	// the same as the one it saw start.
+	//
+	// The whole slice is read on every write, so unlike the slices above, writing only to
+	// your own index isn't enough to stay safe if the goroutine limit is ever raised.
+	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
+	var downloadProgressMutex sync.Mutex
+	setDownloadProgress := func(payloadIndex int, finished bool) {
+		downloadProgressMutex.Lock()
+		defer downloadProgressMutex.Unlock()
+
+		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
+			Name:     softwarePackageProgressName(payloads[payloadIndex]),
+			Finished: finished,
+		}
+
+		progressJSON, err := json.Marshal(downloadProgress)
+		if err != nil {
+			svc.logger.WarnContext(ctx, "encoding software package download progress", "request_uuid", requestUUID, "err", err)
+			return
+		}
+
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), 10*time.Minute); err != nil {
+			svc.logger.WarnContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
+		}
+	}
 
 	for i, p := range payloads {
 		i, p := i, p
@@ -3279,6 +3341,9 @@ func (svc *Service) softwareBatchUpload(
 					return ctxerr.Wrap(ctx, err, "check if installer exists in store")
 				}
 			}
+
+			// A cached package never downloads, so it reports started and finished back to back.
+			setDownloadProgress(i, false)
 
 			// no accessible matching installer was found, so attempt to download it from URL.
 			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
@@ -3607,6 +3672,9 @@ func (svc *Service) softwareBatchUpload(
 				ExtraInstallers:                extraInstallers,
 			}
 
+			// Downloaded doesn't mean applied, which is only known once the batch finishes.
+			setDownloadProgress(i, true)
+
 			return nil
 		})
 	}
@@ -3832,19 +3900,19 @@ func validETag(etag string) bool {
 	return true
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, []fleet.DeletedSoftwarePackage, []string, error) {
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
 	// We've already authorized in the POST /api/latest/fleet/software/batch,
 	// but adding it here so we don't need to worry about a special case endpoint.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return "", "", nil, nil, nil, err
+		return nil, err
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
-		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "failed to get result")
+		return nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+		return nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
 	}
 
 	// getDeletedPackages loads the packages the batch deleted (dry run: would
@@ -3880,61 +3948,111 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return categories, nil
 	}
 
+	// getDownloadProgress loads how far the batch got through downloading its packages.
+	// Progress is only ever printed for the user, so a missing, expired or unreadable key
+	// degrades to an empty list rather than failing the batch that the client is polling.
+	getDownloadProgress := func() []fleet.SoftwarePackageDownloadProgress {
+		progressJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix)
+		if err != nil {
+			svc.logger.WarnContext(ctx, "failed to get software package download progress", "request_uuid", requestUUID, "err", err)
+			return nil
+		}
+		if progressJSON == nil || *progressJSON == "" {
+			return nil
+		}
+		var downloadProgress []fleet.SoftwarePackageDownloadProgress
+		if err := json.Unmarshal([]byte(*progressJSON), &downloadProgress); err != nil {
+			svc.logger.WarnContext(ctx, "unreadable software package download progress", "request_uuid", requestUUID, "err", err)
+			return nil
+		}
+		return downloadProgress
+	}
+
+	// authorizeSoftwareWrite resolves the team and repeats the check from the POST
+	// /api/latest/fleet/software/batch counterpart, so we don't need to worry about a
+	// special case endpoint. We use fleet.ActionWrite because this method is that
+	// endpoint's counterpart. This applies to dry runs too, since the deleted-packages
+	// list and the download progress both expose team-scoped software data.
+	authorizeSoftwareWrite := func() (uint, error) {
+		var (
+			teamID    uint  // GetSoftwareInstallers uses 0 for "No team"
+			ptrTeamID *uint // Authorize uses *uint for "No team" teamID
+		)
+		if tmName != "" {
+			team, err := svc.ds.TeamByName(ctx, tmName)
+			if err != nil {
+				return 0, ctxerr.Wrap(ctx, err, "load team by name")
+			}
+			teamID = team.ID
+			ptrTeamID = &team.ID
+		}
+		if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "validating authorization")
+		}
+		return teamID, nil
+	}
+
 	switch {
 	case *result == batchSetCompleted:
 		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil, nil, nil
+		if _, err := authorizeSoftwareWrite(); err != nil {
+			return nil, err
+		}
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:           fleet.BatchSetSoftwareInstallersStatusProcessing,
+			DownloadProgress: getDownloadProgress(),
+		}, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
 		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
-		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil, nil, nil
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:  fleet.BatchSetSoftwareInstallersStatusFailed,
+			Message: message,
+		}, nil
 	default:
-		return "", "", nil, nil, nil, ctxerr.New(ctx, "invalid status")
+		return nil, ctxerr.New(ctx, "invalid status")
 	}
 
-	var (
-		teamID    uint  // GetSoftwareInstallers uses 0 for "No team"
-		ptrTeamID *uint // Authorize uses *uint for "No team" teamID
-	)
-	if tmName != "" {
-		team, err := svc.ds.TeamByName(ctx, tmName)
-		if err != nil {
-			return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "load team by name")
-		}
-		teamID = team.ID
-		ptrTeamID = &team.ID
-	}
-
-	// We've already authorized in the POST /api/latest/fleet/software/batch,
-	// but adding it here so we don't need to worry about a special case endpoint.
-	//
-	// We use fleet.ActionWrite because this method is the counterpart of the POST
-	// /api/latest/fleet/software/batch. This applies to dry runs too, since the
-	// deleted-packages list exposes team-scoped software data.
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "validating authorization")
+	teamID, err := authorizeSoftwareWrite()
+	if err != nil {
+		return nil, err
 	}
 
 	deletedPackages, err := getDeletedPackages()
 	if err != nil {
-		return "", "", nil, nil, nil, err
+		return nil, err
 	}
 
 	categories, err := getCategories()
 	if err != nil {
-		return "", "", nil, nil, nil, err
+		return nil, err
 	}
 
+	// The last packages to finish downloading are only in the progress key by the time the
+	// batch completes, so report it here too and let the client print what it hasn't yet.
+	downloadProgress := getDownloadProgress()
+
 	if dryRun {
-		return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, deletedPackages, categories, nil
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:           fleet.BatchSetSoftwareInstallersStatusCompleted,
+			DeletedPackages:  deletedPackages,
+			Categories:       categories,
+			DownloadProgress: downloadProgress,
+		}, nil
 	}
 
 	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
 	if err != nil {
-		return "", "", nil, nil, nil, ctxerr.Wrap(ctx, err, "get software installers")
+		return nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}
 
-	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, deletedPackages, categories, nil
+	return &fleet.BatchSetSoftwareInstallersResult{
+		Status:           fleet.BatchSetSoftwareInstallersStatusCompleted,
+		Packages:         softwarePackages,
+		DeletedPackages:  deletedPackages,
+		Categories:       categories,
+		DownloadProgress: downloadProgress,
+	}, nil
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
