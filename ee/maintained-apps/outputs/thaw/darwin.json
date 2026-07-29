@@ -6,7 +6,7 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.stonerl.Thaw';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stonerl.Thaw' AND version_compare(bundle_short_version, '1.2.0') < 0);"
       },
-      "installer_url": "https://github.com/stonerl/Thaw/releases/download/1.2.0/Thaw_1.2.0.zip",
+      "installer_url": "https://github.com/thaw-app/Thaw/releases/download/1.2.0/Thaw_1.2.0.zip",
       "install_script_ref": "d8e6eec2",
       "uninstall_script_ref": "5a2c9aee",
       "sha256": "d67f4d31ef9fa057849a98540b810cfa42e0bc66019d3605abd08e45c69aa06f",
