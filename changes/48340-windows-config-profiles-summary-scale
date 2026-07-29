@@ -1,0 +1,1 @@
+- Improved the performance of the configuration profiles status summary (`GET /api/latest/fleet/configuration_profiles/summary`) for Windows hosts so it no longer times out on large fleets.

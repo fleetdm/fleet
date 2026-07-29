@@ -20,6 +20,7 @@ import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -144,9 +145,18 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
           url="https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
         />
       </div>
-      <Button isLoading={fetchingSignupUrl} onClick={onConnectMdm}>
-        Connect
-      </Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button
+            isLoading={fetchingSignupUrl}
+            disabled={disableChildren}
+            onClick={onConnectMdm}
+          >
+            Connect
+          </Button>
+        )}
+      />
     </>
   );
 };
@@ -197,7 +207,14 @@ const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
         }
         value={data.android_enterprise_id}
       />
-      <Button onClick={onClickTurnOff}>Turn off Android MDM</Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button onClick={onClickTurnOff} disabled={disableChildren}>
+            Turn off Android MDM
+          </Button>
+        )}
+      />
     </>
   );
 };

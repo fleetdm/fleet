@@ -100,6 +100,7 @@ import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureDataStudio from "./AzureDataStudio";
 import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
@@ -141,6 +142,7 @@ import Boom3D from "./Boom3D";
 import Boop from "./Boop";
 import BoostNote from "./BoostNote";
 import Box from "./Box";
+import BoxTools from "./BoxTools";
 import Brave from "./Brave";
 import Breaktimer from "./Breaktimer";
 import BricklinkStudio from "./BricklinkStudio";
@@ -430,6 +432,7 @@ import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
 import Git from "./Git";
+import GitExtensions from "./GitExtensions";
 import Gitfinder from "./Gitfinder";
 import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
@@ -437,6 +440,7 @@ import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
 import GitupApp from "./GitupApp";
 import Glyphs from "./Glyphs";
+import Gnupg from "./Gnupg";
 import Go from "./Go";
 import Go2Shell from "./Go2Shell";
 import GoanywhereOpenpgpStudio from "./GoanywhereOpenpgpStudio";
@@ -467,6 +471,7 @@ import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
 import Hazel from "./Hazel";
 import Hazeover from "./Hazeover";
+import Heidisql from "./Heidisql";
 import Helium from "./Helium";
 import HexFiend from "./HexFiend";
 import HeyDesktop from "./HeyDesktop";
@@ -480,23 +485,36 @@ import Homerow from "./Homerow";
 import Hot from "./Hot";
 import Houdahspot from "./Houdahspot";
 import HpEasyAdmin from "./HpEasyAdmin";
+import HpPrimeVirtualCalculator from "./HpPrimeVirtualCalculator";
 import Hubstaff from "./Hubstaff";
 import Huly from "./Huly";
+import Hwmonitor from "./Hwmonitor";
 import Hyper from "./Hyper";
 import Hyperkey from "./Hyperkey";
 import I1Profiler from "./I1Profiler";
 import IbmNotifier from "./IbmNotifier";
+import IbmSemeruJdk11 from "./IbmSemeruJdk11";
+import IbmSemeruJdk17 from "./IbmSemeruJdk17";
+import IbmSemeruJdk21 from "./IbmSemeruJdk21";
+import IbmSemeruJdk8 from "./IbmSemeruJdk8";
+import IbmSemeruJre11 from "./IbmSemeruJre11";
+import IbmSemeruJre17 from "./IbmSemeruJre17";
+import IbmSemeruJre21 from "./IbmSemeruJre21";
+import IbmSemeruJre8 from "./IbmSemeruJre8";
 import IconComposer from "./IconComposer";
 import Iconjar from "./Iconjar";
 import Idagio from "./Idagio";
 import Iexplorer from "./Iexplorer";
 import Iina from "./Iina";
+import Imageglass from "./Imageglass";
 import ImazingConverter from "./ImazingConverter";
+import ImazingHeicConverter from "./ImazingHeicConverter";
 import IMazingProfileEditor from "./IMazingProfileEditor";
 import Imhex from "./Imhex";
 import Inkscape from "./Inkscape";
 import InputSourcePro from "./InputSourcePro";
 import Insomnia from "./Insomnia";
+import Install4J from "./Install4J";
 import Intellidock from "./Intellidock";
 import IntelliJIdea from "./IntelliJIdea";
 import IntelliJIdeaCe from "./IntelliJIdeaCe";
@@ -504,6 +522,9 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Invesalius from "./Invesalius";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import Irfanview from "./Irfanview";
+import Ironpython from "./Ironpython";
+import Isobuster from "./Isobuster";
 import Istherenet from "./Istherenet";
 import ITerm from "./ITerm";
 import Itsycal from "./Itsycal";
@@ -562,6 +583,7 @@ import Localsend from "./Localsend";
 import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import LogitechUnifyingSoftware from "./LogitechUnifyingSoftware";
 import Logseq from "./Logseq";
 import Lookaway from "./Lookaway";
 import Loom from "./Loom";
@@ -671,7 +693,6 @@ import Nextcloud from "./Nextcloud";
 import NextcloudTalk from "./NextcloudTalk";
 import Nightfall from "./Nightfall";
 import NitroPdfPro from "./NitroPdfPro";
-import Nocturnal from "./Nocturnal";
 import Nodejs from "./Nodejs";
 import Nordlayer from "./Nordlayer";
 import Nordpass from "./Nordpass";
@@ -845,6 +866,7 @@ import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
 import Rsyncui from "./Rsyncui";
+import Rtools from "./Rtools";
 import RubyMine from "./RubyMine";
 import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
@@ -900,6 +922,7 @@ import Snapmotion from "./Snapmotion";
 import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
+import SonicwallNetextender from "./SonicwallNetextender";
 import Sonobus from "./Sonobus";
 import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
@@ -982,6 +1005,7 @@ import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
 import Ticktick from "./Ticktick";
 import Tidal from "./Tidal";
+import Tightvnc from "./Tightvnc";
 import Tiles from "./Tiles";
 import Timescribe from "./Timescribe";
 import Timing from "./Timing";
@@ -1089,6 +1113,7 @@ import Xnviewmp from "./Xnviewmp";
 import Xquartz from "./Xquartz";
 import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
+import Yarn from "./Yarn";
 import Yattee from "./Yattee";
 import Yippy from "./Yippy";
 import YtMusic from "./YtMusic";
@@ -1102,6 +1127,7 @@ import ZeroOneZeroEditor from "./010Editor";
 import Zettlr from "./Zettlr";
 import Zight from "./Zight";
 import Zoom from "./Zoom";
+import ZoomOutlookPlugin from "./ZoomOutlookPlugin";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 import Zulip from "./Zulip";
@@ -1223,6 +1249,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure data studio": AzureDataStudio,
   "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
@@ -1265,6 +1292,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   boop: Boop,
   "boost note": BoostNote,
   box: Box,
+  "box tools": BoxTools,
   brave: Brave,
   breaktimer: Breaktimer,
   "bricklink studio": BricklinkStudio,
@@ -1552,6 +1580,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   ghostty: Ghostty,
   gimp: Gimp,
   git: Git,
+  "git extensions": GitExtensions,
   gitfinder: Gitfinder,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
@@ -1559,6 +1588,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gitkraken: GitKraken,
   gitup: GitupApp,
   glyphs: Glyphs,
+  "gnu privacy guard": Gnupg,
   go: Go,
   go2shell: Go2Shell,
   "goanywhere openpgp studio": GoanywhereOpenpgpStudio,
@@ -1593,6 +1623,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   handbrake: HandbrakeApp,
   hazel: Hazel,
   hazeover: Hazeover,
+  heidisql: Heidisql,
   helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
@@ -1606,30 +1637,46 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
+  "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
   huly: Huly,
+  hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
   i1profiler: I1Profiler,
   "ibm notifier": IbmNotifier,
+  "ibm semeru runtime open edition jdk 11": IbmSemeruJdk11,
+  "ibm semeru runtime open edition jdk 17": IbmSemeruJdk17,
+  "ibm semeru runtime open edition jdk 21": IbmSemeruJdk21,
+  "ibm semeru runtime open edition jdk 8": IbmSemeruJdk8,
+  "ibm semeru runtime open edition jre 11": IbmSemeruJre11,
+  "ibm semeru runtime open edition jre 17": IbmSemeruJre17,
+  "ibm semeru runtime open edition jre 21": IbmSemeruJre21,
+  "ibm semeru runtime open edition jre 8": IbmSemeruJre8,
   ice: JordanbairdIce,
   "icon composer": IconComposer,
   iconjar: Iconjar,
   idagio: Idagio,
   iexplorer: Iexplorer,
   iina: Iina,
+  imageglass: Imageglass,
   imazing: IMazingProfileEditor,
   "imazing converter": ImazingConverter,
+  "imazing heic converter": ImazingHeicConverter,
   "imazing profile editor": IMazingProfileEditor,
   imhex: Imhex,
   inkscape: Inkscape,
   "input source pro": InputSourcePro,
   insomnia: Insomnia,
+  install4j: Install4J,
   insyncclient: DruvaInSync,
   intellidock: Intellidock,
   "intellij idea": IntelliJIdea,
   "intellij idea ce": IntelliJIdeaCe,
   invesalius: Invesalius,
+  irfanview: Irfanview,
+  "ironpython 3": Ironpython,
+  isobuster: Isobuster,
   istherenet: Istherenet,
   iterm2: ITerm,
   itsycal: Itsycal,
@@ -1687,6 +1734,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
   loom: Loom,
@@ -1803,7 +1851,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nextcloud talk desktop": NextcloudTalk,
   nightfall: Nightfall,
   "nitro pdf pro": NitroPdfPro,
-  nocturnal: Nocturnal,
   "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordlayer: Nordlayer,
@@ -1980,6 +2027,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
+  rtools: Rtools,
   rubymine: RubyMine,
   runjs: Runjs,
   rustdesk: RustDesk,
@@ -2034,6 +2082,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,
   soulver: Soulver,
@@ -2118,6 +2167,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   ticktick: Ticktick,
   tidal: Tidal,
+  tightvnc: Tightvnc,
   timescribe: Timescribe,
   timing: Timing,
   todoist: Todoist,
@@ -2186,6 +2236,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   webcatalog: Webcatalog,
   webex: Webex,
   webstorm: WebStorm,
+  wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
   whatroute: Whatroute,
@@ -2223,6 +2274,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   xquartz: Xquartz,
   yaak: Yaak,
   yacreader: Yacreader,
+  yarn: Yarn,
   yattee: Yattee,
   yippy: Yippy,
   "youtube music": YtMusic,
@@ -2234,6 +2286,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
   zulip: Zulip,

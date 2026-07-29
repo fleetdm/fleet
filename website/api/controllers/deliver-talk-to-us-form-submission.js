@@ -42,19 +42,6 @@ module.exports = {
       description: 'The organization of the user who submitted the "talk to us" form'
     },
 
-    primaryBuyingSituation: {
-      type: 'string',
-      required: true,
-      description: 'What this user will be using Fleet for',
-      isIn: [
-        'it-major-mdm',
-        'it-gap-filler-mdm',
-        'it-misc',
-        'security-misc',
-        'security-vm',
-      ],
-    },
-
   },
 
 
@@ -75,7 +62,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts, primaryBuyingSituation}) {
+  fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts}) {
 
     let emailDomain = emailAddress.split('@')[1];
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
@@ -87,8 +74,6 @@ module.exports = {
       emailAddress: emailAddress,
       firstName: firstName,
       lastName: lastName,
-      // organization: organization, // Note: the user-provided organization is not used here because we're relying on the enrichment helper below to find the correct organization for this person.
-      primaryBuyingSituation: primaryBuyingSituation === 'security-misc' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'it-misc' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'it-major-mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : primaryBuyingSituation === 'security-vm' ? 'Vulnerability management' : undefined,
       psychologicalStage: '4 - Has use case',
       psychologicalStageChangeReason: 'Website - Contact forms',
       marketingAttributionCookie: attributionCookieOrUndefined

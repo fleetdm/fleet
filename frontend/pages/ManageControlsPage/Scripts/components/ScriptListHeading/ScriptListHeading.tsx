@@ -20,13 +20,13 @@ const ScriptListHeading = ({ onClickAddScript }: IScriptListHeading) => {
             renderChildren={(disableChildren) => (
               <Button
                 disabled={disableChildren}
-                variant="brand-inverse-icon"
+                variant="secondary"
+                size="small"
                 className={`${baseClass}__add-button`}
                 onClick={onClickAddScript}
-                iconStroke
               >
                 <>
-                  <Icon name="plus" color="core-fleet-green" />
+                  <Icon name="plus" size="small" />
                   Add script
                 </>
               </Button>

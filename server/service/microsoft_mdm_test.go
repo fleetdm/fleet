@@ -395,6 +395,40 @@ func TestSyncMLCmdTextEscapesXMLMetacharacters(t *testing.T) {
 	require.NotContains(t, payload, "AT&T", "raw ampersand must not appear unescaped")
 }
 
+func TestWindowsTOSRedirectURIAllowed(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name        string
+		redirectURI string
+		want        bool
+	}{
+		// Legitimate Autopilot/Entra broker callback and browser-based federated flows.
+		{"ms-appx-web broker callback", "ms-appx-web://Microsoft.AAD.BrokerPlugin", true},
+		{"ms-appx-web mixed case scheme", "MS-APPX-WEB://Microsoft.AAD.BrokerPlugin", true},
+		{"https url", "https://enroll.example.com/continue", true},
+
+		// Script-executing schemes must be rejected (issue #16880).
+		{"javascript scheme", "javascript:console.log(424281957)//", false},
+		{"javascript mixed case scheme", "JavaScript:alert(1)", false},
+		{"data scheme", "data:text/html,<script>alert(1)</script>", false},
+		{"vbscript scheme", "vbscript:msgbox(1)", false},
+
+		// Other schemes and malformed/scheme-less values are rejected by the allow-list.
+		{"http scheme", "http://enroll.example.com/continue", false},
+		{"empty", "", false},
+		{"scheme-less relative", "Microsoft.AAD.BrokerPlugin", false},
+		{"leading space before javascript", " javascript:alert(1)", false},
+		{"control character in scheme", "java\tscript:alert(1)", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, windowsTOSRedirectURIAllowed(tc.redirectURI))
+		})
+	}
+}
+
 func TestValidSyncMLCmdXml(t *testing.T) {
 	testOmaURI := "testuri"
 	testData := "testdata"

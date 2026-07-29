@@ -9501,6 +9501,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_windows_profiles_status (host_uuid, status)
+          VALUES (?, 'pending')
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid)
           VALUES (?, uuid())
 	`, host.UUID)
@@ -9590,7 +9596,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Add a setup experience status result
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "test.sh", ScriptContents: "echo foo"})
 	require.NoError(t, err)
 
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, host.UUID, 0)

@@ -186,7 +186,7 @@ type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet
 
 type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
-type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
+type SaveLabelFunc func(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
 type DeleteLabelFunc func(ctx context.Context, name string, filter fleet.TeamFilter) error
 
@@ -402,6 +402,8 @@ type DeletePasswordResetRequestsForUserFunc func(ctx context.Context, userID uin
 
 type FindPasswordResetByTokenFunc func(ctx context.Context, token string) (*fleet.PasswordResetRequest, error)
 
+type ResetPasswordFunc func(ctx context.Context, token string, user *fleet.User) error
+
 type CleanupExpiredPasswordResetRequestsFunc func(ctx context.Context) error
 
 type SessionByKeyFunc func(ctx context.Context, key string) (*fleet.Session, error)
@@ -518,7 +520,7 @@ type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleLis
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
-type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint) (name string, displayName string, err error)
+type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error)
 
 type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string) error
 
@@ -1074,6 +1076,8 @@ type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.Hos
 
 type GetHostDEPAssignmentsBySerialFunc func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error)
 
+type GetHostDEPAssignmentsByHostIDsFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.HostDEPAssignment, error)
+
 type ReconcileDuplicateDEPHostOnDeleteFunc func(ctx context.Context, serial string, platform string, deletedHostID uint) (duplicateExists bool, err error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
@@ -1336,6 +1340,10 @@ type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName str
 
 type CountABMTokensWithTermsExpiredFunc func(ctx context.Context) (int, error)
 
+type SetABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+
+type IsABMTokenInvalidForOrgNameFunc func(ctx context.Context, orgName string) (bool, error)
+
 type InsertABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error)
 
 type ListABMTokensFunc func(ctx context.Context) ([]*fleet.ABMToken, error)
@@ -1453,6 +1461,8 @@ type GetMDMWindowsBitLockerSummaryFunc func(ctx context.Context, teamID *uint) (
 type GetMDMWindowsBitLockerStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error)
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type ReconcileWindowsProfilesStatusFunc func(ctx context.Context) error
 
 type GetWindowsMDMHostForReconcileFunc func(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error)
 
@@ -1640,7 +1650,7 @@ type SetPinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint, 
 
 type DeletePinnedVersionFunc func(ctx context.Context, teamID *uint, titleID uint) error
 
-type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error)
+type HasFMAInstallerVersionFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error)
 
 type GetCachedFMAInstallerMetadataFunc func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error)
 
@@ -1808,7 +1818,7 @@ type GetSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) (*flee
 
 type GetSetupExperienceScriptByIDFunc func(ctx context.Context, scriptID uint) (*fleet.Script, error)
 
-type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) error
+type SetSetupExperienceScriptFunc func(ctx context.Context, script *fleet.Script) (changed bool, err error)
 
 type DeleteSetupExperienceScriptFunc func(ctx context.Context, teamID *uint) error
 
@@ -2805,6 +2815,9 @@ type DataStore struct {
 
 	FindPasswordResetByTokenFunc        FindPasswordResetByTokenFunc
 	FindPasswordResetByTokenFuncInvoked bool
+
+	ResetPasswordFunc        ResetPasswordFunc
+	ResetPasswordFuncInvoked bool
 
 	CleanupExpiredPasswordResetRequestsFunc        CleanupExpiredPasswordResetRequestsFunc
 	CleanupExpiredPasswordResetRequestsFuncInvoked bool
@@ -3814,6 +3827,9 @@ type DataStore struct {
 	GetHostDEPAssignmentsBySerialFunc        GetHostDEPAssignmentsBySerialFunc
 	GetHostDEPAssignmentsBySerialFuncInvoked bool
 
+	GetHostDEPAssignmentsByHostIDsFunc        GetHostDEPAssignmentsByHostIDsFunc
+	GetHostDEPAssignmentsByHostIDsFuncInvoked bool
+
 	ReconcileDuplicateDEPHostOnDeleteFunc        ReconcileDuplicateDEPHostOnDeleteFunc
 	ReconcileDuplicateDEPHostOnDeleteFuncInvoked bool
 
@@ -4207,6 +4223,12 @@ type DataStore struct {
 	CountABMTokensWithTermsExpiredFunc        CountABMTokensWithTermsExpiredFunc
 	CountABMTokensWithTermsExpiredFuncInvoked bool
 
+	SetABMTokenInvalidForOrgNameFunc        SetABMTokenInvalidForOrgNameFunc
+	SetABMTokenInvalidForOrgNameFuncInvoked bool
+
+	IsABMTokenInvalidForOrgNameFunc        IsABMTokenInvalidForOrgNameFunc
+	IsABMTokenInvalidForOrgNameFuncInvoked bool
+
 	InsertABMTokenFunc        InsertABMTokenFunc
 	InsertABMTokenFuncInvoked bool
 
@@ -4383,6 +4405,9 @@ type DataStore struct {
 
 	GetMDMWindowsProfilesSummaryFunc        GetMDMWindowsProfilesSummaryFunc
 	GetMDMWindowsProfilesSummaryFuncInvoked bool
+
+	ReconcileWindowsProfilesStatusFunc        ReconcileWindowsProfilesStatusFunc
+	ReconcileWindowsProfilesStatusFuncInvoked bool
 
 	GetWindowsMDMHostForReconcileFunc        GetWindowsMDMHostForReconcileFunc
 	GetWindowsMDMHostForReconcileFuncInvoked bool
@@ -6130,11 +6155,11 @@ func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fl
 	return s.NewLabelFunc(ctx, label, opts...)
 }
 
-func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs []uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 	s.mu.Lock()
 	s.SaveLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.SaveLabelFunc(ctx, label, teamFilter)
+	return s.SaveLabelFunc(ctx, label, hostIDs, teamFilter)
 }
 
 func (s *DataStore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
@@ -6886,6 +6911,13 @@ func (s *DataStore) FindPasswordResetByToken(ctx context.Context, token string) 
 	return s.FindPasswordResetByTokenFunc(ctx, token)
 }
 
+func (s *DataStore) ResetPassword(ctx context.Context, token string, user *fleet.User) error {
+	s.mu.Lock()
+	s.ResetPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetPasswordFunc(ctx, token, user)
+}
+
 func (s *DataStore) CleanupExpiredPasswordResetRequests(ctx context.Context) error {
 	s.mu.Lock()
 	s.CleanupExpiredPasswordResetRequestsFuncInvoked = true
@@ -7292,11 +7324,11 @@ func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	return s.SoftwareTitleByIDFunc(ctx, id, teamID, tmFilter)
 }
 
-func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint) (name string, displayName string, err error) {
+func (s *DataStore) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (name string, displayName string, err error) {
 	s.mu.Lock()
 	s.SoftwareTitleNameForHostFilterFuncInvoked = true
 	s.mu.Unlock()
-	return s.SoftwareTitleNameForHostFilterFunc(ctx, id)
+	return s.SoftwareTitleNameForHostFilterFunc(ctx, id, teamID, tmFilter)
 }
 
 func (s *DataStore) UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error {
@@ -9238,6 +9270,13 @@ func (s *DataStore) GetHostDEPAssignmentsBySerial(ctx context.Context, serial st
 	return s.GetHostDEPAssignmentsBySerialFunc(ctx, serial)
 }
 
+func (s *DataStore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs []uint) ([]*fleet.HostDEPAssignment, error) {
+	s.mu.Lock()
+	s.GetHostDEPAssignmentsByHostIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostDEPAssignmentsByHostIDsFunc(ctx, hostIDs)
+}
+
 func (s *DataStore) ReconcileDuplicateDEPHostOnDelete(ctx context.Context, serial string, platform string, deletedHostID uint) (duplicateExists bool, err error) {
 	s.mu.Lock()
 	s.ReconcileDuplicateDEPHostOnDeleteFuncInvoked = true
@@ -10155,6 +10194,20 @@ func (s *DataStore) CountABMTokensWithTermsExpired(ctx context.Context) (int, er
 	return s.CountABMTokensWithTermsExpiredFunc(ctx)
 }
 
+func (s *DataStore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+	s.mu.Lock()
+	s.SetABMTokenInvalidForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetABMTokenInvalidForOrgNameFunc(ctx, orgName, invalid)
+}
+
+func (s *DataStore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error) {
+	s.mu.Lock()
+	s.IsABMTokenInvalidForOrgNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsABMTokenInvalidForOrgNameFunc(ctx, orgName)
+}
+
 func (s *DataStore) InsertABMToken(ctx context.Context, tok *fleet.ABMToken) (*fleet.ABMToken, error) {
 	s.mu.Lock()
 	s.InsertABMTokenFuncInvoked = true
@@ -10566,6 +10619,13 @@ func (s *DataStore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	s.GetMDMWindowsProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) ReconcileWindowsProfilesStatus(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsProfilesStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsProfilesStatusFunc(ctx)
 }
 
 func (s *DataStore) GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*fleet.WindowsHostReconcileInfo, error) {
@@ -11219,7 +11279,7 @@ func (s *DataStore) DeletePinnedVersion(ctx context.Context, teamID *uint, title
 	return s.DeletePinnedVersionFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+func (s *DataStore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (versionExists bool, storageID string, err error) {
 	s.mu.Lock()
 	s.HasFMAInstallerVersionFuncInvoked = true
 	s.mu.Unlock()
@@ -11807,7 +11867,7 @@ func (s *DataStore) GetSetupExperienceScriptByID(ctx context.Context, scriptID u
 	return s.GetSetupExperienceScriptByIDFunc(ctx, scriptID)
 }
 
-func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
+func (s *DataStore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) (changed bool, err error) {
 	s.mu.Lock()
 	s.SetSetupExperienceScriptFuncInvoked = true
 	s.mu.Unlock()

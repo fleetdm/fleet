@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.4.0.2",
+      "version": "6.5.0.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited' AND version_compare(version, '6.4.0.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited' AND version_compare(version, '6.5.0.2') < 0);"
       },
       "installer_url": "https://mega.nz/MEGAsyncSetup64.exe",
       "install_script_ref": "de703749",
       "uninstall_script_ref": "43371245",
-      "sha256": "064f34fc2dc285b07e6dc04d397792d6b673aff8e170b682c89276248396d039",
+      "sha256": "3aa07f2c81a1678ae6e3e2e5280cb6e5d69ec968d9ff2e47859a6051b17f7ea1",
       "default_categories": [
         "Productivity"
       ]

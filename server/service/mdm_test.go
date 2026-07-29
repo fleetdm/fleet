@@ -24,6 +24,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -3184,6 +3185,84 @@ func TestResendHostNameTemplate(t *testing.T) {
 	})
 }
 
+func TestUpdateMDMHostNameTemplateValidatesCustomHostVitals(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	// Simulate the real datastore: only vital id 1 exists.
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		var malformed []string
+		var missing []uint
+		for _, d := range documents {
+			malformed = append(malformed, fleet.ContainsMalformedCustomHostVitalRefs(d)...)
+			for _, id := range fleet.FindCustomHostVitalIDs(d) {
+				if id != 1 {
+					missing = append(missing, id)
+				}
+			}
+		}
+		if len(malformed) > 0 {
+			return &fleet.InvalidCustomHostVitalRefError{Refs: malformed}
+		}
+		if len(missing) > 0 {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: missing}
+		}
+		return nil
+	}
+
+	t.Run("unknown vital id is rejected", func(t *testing.T) {
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_999")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_HOST_VITAL_999")
+		require.Contains(t, err.Error(), "is not defined")
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+	})
+
+	t.Run("malformed vital ref is rejected", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_asset_tag")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "must be a custom host vital ID")
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+	})
+
+	t.Run("known vital id passes validation and is persisted", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		var savedTemplate string
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			savedTemplate = conf.MDM.HostNameTemplate.Value
+			return nil
+		}
+		svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+			ApplyHostNameTemplateChange: func(ctx context.Context, team *fleet.Team, nameTemplate string) error { return nil },
+		})
+
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_1")
+		require.NoError(t, err)
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+		require.Equal(t, "WS-$FLEET_HOST_VITAL_1", savedTemplate)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+
+		err := svc.UpdateMDMHostNameTemplate(adminCtx, nil, "WS-$FLEET_HOST_VITAL_1")
+		require.Error(t, err)
+		require.True(t, ds.ValidateReferencedCustomHostVitalsFuncInvoked)
+		require.Contains(t, err.Error(), "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+	})
+}
+
 func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds := new(mock.Store)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.
@@ -3612,6 +3691,79 @@ func TestBatchSetMDMProfilesOSUpdates(t *testing.T) {
 	}
 }
 
+func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	androidProfile := androidConfigProfileForTest(t, "$FLEET_HOST_VITAL_9", nil)
+	profiles := []fleet.MDMProfileBatchPayload{{Name: "android-vital", Contents: androidProfile.RawJSON}}
+
+	t.Run("android profile content is included in the existence check", func(t *testing.T) {
+		var gotDocs []string
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			gotDocs = documents
+			return nil
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.NoError(t, err)
+		found := false
+		for _, doc := range gotDocs {
+			if strings.Contains(doc, "$FLEET_HOST_VITAL_9") {
+				found = true
+			}
+		}
+		require.True(t, found, "android profile content should have been passed to ValidateReferencedCustomHostVitals")
+	})
+
+	t.Run("unknown vital ID referenced by an android profile is rejected", func(t *testing.T) {
+		ds.BatchSetMDMProfilesFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{9}}
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.BatchSetMDMProfilesFuncInvoked = false
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, false, false, new(true), false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+		require.False(t, ds.BatchSetMDMProfilesFuncInvoked, "batch set should not run when vitals validation fails")
+	})
+}
+
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
@@ -3861,6 +4013,56 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+	ds.NewMDMAndroidConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAndroidConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAndroidConfigProfile, error) {
+		return &cp, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	t.Run("valid custom host vital reference is accepted", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			require.Len(t, documents, 1)
+			require.Contains(t, documents[0], "$FLEET_HOST_VITAL_7")
+			return nil
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("unknown custom host vital ID is rejected at upload", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return &fleet.MissingCustomHostVitalsError{MissingIDs: []uint{7}}
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not defined")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalidArgErr)
+	})
+
+	t.Run("infrastructure failure propagates instead of being reported as invalid input", func(t *testing.T) {
+		ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+			return ctxerr.Wrap(ctx, errors.New("connection refused"), "validating custom host vitals")
+		}
+		_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "profile1", []byte(`{"name": "$FLEET_HOST_VITAL_7"}`), nil, fleet.LabelsIncludeAll, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "connection refused")
+		var invalidArgErr *fleet.InvalidArgumentError
+		require.NotErrorAs(t, err, &invalidArgErr, "an infrastructure failure must not be reported as invalid input (422)")
+	})
 }
 
 func TestNewMDMAndroidConfigProfileLicense(t *testing.T) {

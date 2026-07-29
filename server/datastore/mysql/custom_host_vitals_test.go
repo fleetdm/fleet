@@ -30,6 +30,7 @@ func TestCustomHostVitals(t *testing.T) {
 		{"DeleteCustomHostVital", testDeleteCustomHostVital},
 		{"DeleteUsedCustomHostVital", testDeleteUsedCustomHostVital},
 		{"SetHostValueResendsReferencingProfiles", testSetHostCustomHostVitalValueResendsProfiles},
+		{"SetHostValueResendsReferencingDeviceName", testSetHostCustomHostVitalValueResendsDeviceName},
 		{"ReconcileSnapshotMarksVitalDeclarations", testReconcileSnapshotMarksVitalDeclarations},
 		{"ValidateReferencedCustomHostVitalsRejectsMalformed", testValidateReferencedCustomHostVitalsRejectsMalformed},
 	}
@@ -411,6 +412,26 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.DeleteMDMWindowsConfigProfile(ctx, winProfile.ProfileUUID))
 	})
 
+	t.Run("android profiles", func(t *testing.T) {
+		androidProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			Name:    "android-zoo",
+			RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, id)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, id, useErr.CustomHostVitalID)
+		require.Equal(t, "FUNCTION", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityAndroidProfile, useErr.Entity.Type)
+		require.Equal(t, "android-zoo", useErr.Entity.Name)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, androidProfile.ProfileUUID))
+	})
+
 	t.Run("scripts", func(t *testing.T) {
 		script, err := ds.NewScript(ctx, &fleet.Script{
 			Name:           "collect.sh",
@@ -465,13 +486,14 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("setup experience scripts", func(t *testing.T) {
-		require.NoError(t, ds.SetSetupExperienceScript(ctx, &fleet.Script{
+		_, err := ds.SetSetupExperienceScript(ctx, &fleet.Script{
 			Name:           "setup.sh",
 			ScriptContents: fmt.Sprintf("echo %s", token),
 			TeamID:         &foobarTeam.ID,
-		}))
+		})
+		require.NoError(t, err)
 
-		_, err := ds.DeleteCustomHostVital(ctx, id)
+		_, err = ds.DeleteCustomHostVital(ctx, id)
 		require.Error(t, err)
 		var useErr *fleet.CustomHostVitalUsedError
 		require.ErrorAs(t, err, &useErr)
@@ -482,6 +504,58 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
 		require.NoError(t, ds.DeleteSetupExperienceScript(ctx, &foobarTeam.ID))
+	})
+
+	t.Run("host name templates", func(t *testing.T) {
+		teamVitalID := createCustomHostVital(t, ds, "HT_TEAM")
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`,
+			fmt.Sprintf("WS-$%s%d", fleet.CustomHostVitalPrefix, teamVitalID), foobarTeam.ID)
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, teamVitalID)
+		require.Error(t, err)
+		var useErr *fleet.CustomHostVitalUsedError
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, teamVitalID, useErr.CustomHostVitalID)
+		require.Equal(t, "HT_TEAM", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityHostNameTemplate, useErr.Entity.Type)
+		require.Equal(t, "Foobar", useErr.Entity.FleetName)
+		require.Contains(t, err.Error(), "host name template")
+
+		// Clearing the team's template unblocks the delete.
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', '') WHERE id = ?`, foobarTeam.ID)
+		require.NoError(t, err)
+
+		name, err := ds.DeleteCustomHostVital(ctx, teamVitalID)
+		require.NoError(t, err)
+		require.Equal(t, "HT_TEAM", name)
+
+		// The "No team" (global) template blocks the delete the same way.
+		noTeamVitalID := createCustomHostVital(t, ds, "HT_NOTEAM")
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`,
+			fmt.Sprintf("WS-${%s%d}", fleet.CustomHostVitalPrefix, noTeamVitalID))
+		require.NoError(t, err)
+
+		_, err = ds.DeleteCustomHostVital(ctx, noTeamVitalID)
+		require.Error(t, err)
+		useErr = nil
+		require.ErrorAs(t, err, &useErr)
+		require.Equal(t, noTeamVitalID, useErr.CustomHostVitalID)
+		require.Equal(t, "HT_NOTEAM", useErr.CustomHostVitalName)
+		require.Equal(t, fleet.CustomHostVitalEntityHostNameTemplate, useErr.Entity.Type)
+		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
+
+		// Clearing the global template as well unblocks the delete again.
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', CAST('null' AS JSON))`)
+		require.NoError(t, err)
+
+		name, err = ds.DeleteCustomHostVital(ctx, noTeamVitalID)
+		require.NoError(t, err)
+		require.Equal(t, "HT_NOTEAM", name)
 	})
 
 	t.Run("host vitals labels", func(t *testing.T) {
@@ -529,6 +603,7 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 
 	host := test.NewHost(t, ds, "mac", "1", "mackey", "macuuid", time.Now())
 	winHost := test.NewHost(t, ds, "win", "2", "winkey", "winuuid", time.Now(), test.WithPlatform("windows"))
+	androidHost := newBareAndroidHostForTest(t, ds, "android")
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")
 	otherID := createCustomHostVital(t, ds, "OTHER")
@@ -550,11 +625,24 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	profWNone, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("wn", "plain", 0), nil)
 	require.NoError(t, err)
 
+	profAVital, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "av",
+		RawJSON: json.RawMessage(fmt.Sprintf(`{"name": "%s"}`, token)),
+	}, nil)
+	require.NoError(t, err)
+	profANone, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "an",
+		RawJSON: json.RawMessage(`{"name": "plain"}`),
+	}, nil)
+	require.NoError(t, err)
+
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profOther, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetWindowsHostProfileStatus(t, ds, winHost.UUID, profWNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
 	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
 	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
@@ -565,9 +653,10 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	forceSetAppleHostDeclarationStatus(t, ds, host.UUID, declVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// Set the value on both hosts; only referencing entities on the same host reset.
+	// Set the value on all three hosts; only referencing entities on the same host reset.
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, winHost.ID, vitalID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.ID, vitalID, "Engineering"))
 
 	// A reset row has NULL status, which assertHostProfileStatus reports as
 	// pending. The declaration surfaces through GetHostMDMAppleProfiles too, so
@@ -580,6 +669,9 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	assertHostProfileStatus(t, ds, winHost.UUID,
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, androidHost.UUID,
+		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profANone.ProfileUUID, fleet.MDMDeliveryVerifying})
 
 	var declStatus *fleet.MDMDeliveryStatus
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -588,6 +680,66 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 			host.UUID, declVital.DeclarationUUID)
 	})
 	require.Nil(t, declStatus, "declaration should be reset (NULL status) so the DDM reconciler re-delivers it")
+}
+
+// testSetHostCustomHostVitalValueResendsDeviceName covers the device-name side
+// of the resend-on-value-change hook: setting the value of a vital referenced
+// by the host's (team) name template re-queues its device-name enforcement
+// row, but setting a vital the template doesn't reference leaves the row
+// untouched, mirroring the precision of the profile-resend case above. Also
+// covers the same behavior for a No-team ("Unassigned") host, whose template
+// lives in the global app config rather than a team's config.
+func testSetHostCustomHostVitalValueResendsDeviceName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	vitalID := createCustomHostVital(t, ds, "FUNCTION")
+	otherID := createCustomHostVital(t, ds, "OTHER")
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "device-name-vital-team"})
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE teams SET config = JSON_SET(config, '$.mdm.name_template', ?) WHERE id = ?`,
+		fmt.Sprintf("WS-$%s%d", fleet.CustomHostVitalPrefix, vitalID), team.ID)
+	require.NoError(t, err)
+
+	host := enrollAppleHostForDeviceName(t, ds, "vital-mac", "darwin", team.ID, false)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, &team.ID))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, host.UUID, fleet.MDMDeliveryVerifying, nil, "WS-Engineering", ""))
+
+	// Setting a vital the template doesn't reference leaves the settled row alone.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, otherID, "ignored"))
+	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Setting the referenced vital's value re-queues the row (status reset to
+	// NULL) so the cron re-resolves the name with the new value.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, host.ID, vitalID, "Engineering"))
+	require.Nil(t, getDeviceNameRow(t, ds, host.UUID).Status)
+
+	// Same behavior for a No-team ("Unassigned") host: its template lives in
+	// app_config_json instead of a team's config.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', ?)`,
+		fmt.Sprintf("NT-$%s%d", fleet.CustomHostVitalPrefix, vitalID))
+	require.NoError(t, err)
+	defer func() {
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.mdm.name_template', CAST('null' AS JSON))`)
+		require.NoError(t, err)
+	}()
+
+	noTeamHost := enrollAppleHostForDeviceName(t, ds, "vital-mac-noteam", "darwin", team.ID, false)
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = NULL WHERE id = ?`, noTeamHost.ID)
+	require.NoError(t, err)
+	require.NoError(t, ds.BulkUpsertHostDeviceNameEnforcement(ctx, nil))
+	require.NoError(t, ds.SetHostDeviceNameStatus(ctx, noTeamHost.UUID, fleet.MDMDeliveryVerifying, nil, "NT-Engineering", ""))
+
+	// Setting a vital the No-team template doesn't reference leaves the row alone.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, noTeamHost.ID, otherID, "ignored"))
+	require.Equal(t, fleet.MDMDeliveryVerifying, *getDeviceNameRow(t, ds, noTeamHost.UUID).Status)
+
+	// Setting the referenced vital's value re-queues the No-team row too.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, noTeamHost.ID, vitalID, "Engineering"))
+	require.Nil(t, getDeviceNameRow(t, ds, noTeamHost.UUID).Status)
 }
 
 // The DDM reconcile snapshot must flag declarations that reference a custom host
@@ -602,6 +754,8 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	// A macOS host must be MDM-enrolled to enter the reconcile window; otherwise
 	// the snapshot skips loading declarations entirely.
 	host := test.NewHost(t, ds, "macos-1", "1", "macos-1-key", "macos-1-uuid", time.Now())
+	err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
 	vitalID := createCustomHostVital(t, ds, "FUNCTION")

@@ -85,7 +85,7 @@ const FeedListItem = ({
           {allowShowDetails && (
             <Button
               className={`${baseClass}__action-button`}
-              variant="icon"
+              variant="subdued"
               onClick={onClickFeedItem}
               ariaLabel="show info"
             >
@@ -95,7 +95,7 @@ const FeedListItem = ({
           {allowCancel && (
             <Button
               className={`${baseClass}__action-button`}
-              variant="icon"
+              variant="subdued"
               onClick={onClickCancel}
               disabled={disableCancel}
               ariaLabel="cancel action"

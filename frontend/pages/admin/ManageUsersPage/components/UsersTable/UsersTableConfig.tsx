@@ -268,7 +268,7 @@ const generateTableHeaders = (
           }
           placeholder="Actions"
           menuAlign="right"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },

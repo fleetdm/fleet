@@ -30,6 +30,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		testName     string
 		mobileconfig mobileconfig.Mobileconfig
 		shouldFail   bool
+		errString    *string
 	}{
 		{
 			testName:     "TestParseConfigProfileOK",
@@ -91,6 +92,24 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			}(),
 			shouldFail: true,
 		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInPayload",
+			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), `<string>Unescaped & < > ' "</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInIdentifier",
+			mobileconfig: MobileconfigForTest("ValidName", "Valid<Identifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInName",
+			mobileconfig: MobileconfigForTest("Valid<Name", "ValidIdentifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
 	}
 
 	for _, c := range cases {
@@ -98,6 +117,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			parsed, err := NewMDMAppleConfigProfile(c.mobileconfig, nil)
 			if c.shouldFail {
 				require.Error(t, err)
+				if c.errString != nil {
+					require.ErrorContains(t, err, *c.errString)
+				}
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, "ValidName", parsed.Name)
@@ -510,6 +532,26 @@ func TestHostDEPAssignment(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
 			require.Equal(t, c.expect, c.input.IsDEPAssignedToFleet())
+		})
+	}
+}
+
+func TestDEPDeviceErrorTypeMessage(t *testing.T) {
+	cases := []struct {
+		errType DEPDeviceErrorType
+		expect  string
+	}{
+		{DEPDeviceErrorTokenInvalid, "Fleet can't connect to Apple Business. An admin needs to renew the AB token."},
+		{DEPDeviceErrorTermsExpired, "Apple Business terms/conditions have changed. An admin must accept them."},
+		{DEPDeviceErrorNotFound, "Fleet can't find this host in Apple Business. It may have been removed or assigned to a different MDM server."},
+		{DEPDeviceErrorServerError, "Apple's servers are temporarily unavailable. Please try again later."},
+		{DEPDeviceErrorUnavailable, "Fleet can't retrieve data from Apple right now. Please try again later."},
+		{DEPDeviceErrorType("unknown"), "Fleet can't retrieve data from Apple right now. Please try again later."},
+	}
+
+	for _, c := range cases {
+		t.Run(string(c.errType), func(t *testing.T) {
+			require.Equal(t, c.expect, c.errType.Message())
 		})
 	}
 }

@@ -7,6 +7,7 @@ import { LabelTargetMode, TargetType } from "components/TargetLabelSelector";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 
 import CustomLink from "components/CustomLink";
+import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
 
 export interface IParseFileResult {
   name: string;
@@ -106,31 +107,6 @@ const generateSCEPLearnMoreErrMsg = (
       />
     </>
   );
-};
-
-/**
- * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
- */
-const generateGenericLearnMoreErrMsg = (errMsg: string) => {
-  if (errMsg.includes(" Learn more: https://")) {
-    const message = errMsg.substring(
-      0,
-      errMsg.indexOf(" Learn more: https://")
-    );
-    const link = errMsg.substring(errMsg.indexOf("https://"));
-    return (
-      <>
-        {message}{" "}
-        <CustomLink
-          url={link}
-          text="Learn more"
-          variant="flash-message-link"
-          newTab
-        />
-      </>
-    );
-  }
-  return errMsg;
 };
 
 /** We want to add some additional messaging to some of the error messages so

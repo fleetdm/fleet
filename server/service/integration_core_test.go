@@ -3023,6 +3023,123 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 	}
 }
 
+func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
+	t := s.T()
+	ctx := context.Background()
+
+	createInvite := func(email string, ssoEnabled bool) *fleet.Invite {
+		createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+			Email:      new(email),
+			Name:       new("SSO Invitee"),
+			GlobalRole: null.StringFrom(fleet.RoleObserver),
+			SSOEnabled: new(ssoEnabled),
+		}}
+		createInviteResp := createInviteResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+		t.Cleanup(func() {
+			// Ignore the error: an accepted invite is consumed (deleted) by the
+			// acceptance flow, so it may no longer exist at cleanup time.
+			_ = s.ds.DeleteInvite(ctx, createInviteResp.Invite.ID)
+		})
+		// the token is not returned via the response's json, must get it from the db
+		invite, err := s.ds.Invite(ctx, createInviteResp.Invite.ID)
+		require.NoError(t, err)
+		return invite
+	}
+
+	// An SSO-only invite must not be acceptable through the password flow.
+	t.Run("sso invite rejects password payload", func(t *testing.T) {
+		email := "sso-password-attack@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    &test.GoodPassword,
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		// no user should have been created
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// An empty password field on an SSO invite must also be rejected: the
+	// presence of the field at all is not allowed.
+	t.Run("sso invite rejects empty password field", func(t *testing.T) {
+		email := "sso-empty-password@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    new(""),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// The legitimate SSO acceptance flow must create an SSO-enabled user.
+	t.Run("sso invite accepted via sso flow", func(t *testing.T) {
+		email := "sso-legit@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("SSO User"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusOK, &resp)
+		require.NotNil(t, resp.User)
+		require.True(t, resp.User.SSOEnabled)
+		t.Cleanup(func() { require.NoError(t, s.ds.DeleteUser(ctx, resp.User.ID)) })
+	})
+
+	// A non-SSO invite accepted with SSO flags but no password must be rejected
+	// (and must not panic on a nil password).
+	t.Run("password invite rejects sso payload without password", func(t *testing.T) {
+		email := "password-as-sso@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("No Password"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// A non-SSO invite accepted with SSOInvite falsely set must still enforce
+	// password complexity: setting the SSO flag must not let a weak password
+	// slip past validation.
+	t.Run("password invite rejects sso payload with weak password", func(t *testing.T) {
+		email := "password-as-sso-weak@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Weak Password"),
+			Email:       new(email),
+			Password:    new("weak"), // too short, no number or symbol
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()
@@ -5595,6 +5712,47 @@ func (s *integrationTestSuite) TestLabels() {
 			// attempt to delete by id
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
 		}
+
+		// A modify that changes membership but fails metadata validation (a
+		// duplicate name) must roll back as a unit: the membership change must not
+		// be committed on its own, and no edited_label activity must be recorded
+		// for the failed request.
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: "atomic_conflict_label"}, http.StatusOK, &createResp)
+		conflictName := createResp.Label.Name
+
+		createResp = fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels",
+			&fleet.LabelPayload{Name: "atomic_target_label", HostIDs: []uint{manualHosts[0].ID, manualHosts[1].ID}}, http.StatusOK, &createResp)
+		atomicLbl := createResp.Label.Label
+		require.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, createResp.Label.HostIDs)
+
+		// watermark: id of the most recent activity before the failed request
+		lastActID := s.lastActivityMatches("", "", 0)
+
+		// rename to the conflicting name while also changing membership: the
+		// duplicate name must fail the whole request with 409
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: &conflictName, HostIDs: []uint{manualHosts[2].ID}}, http.StatusConflict, &modResp)
+
+		// name and membership must be unchanged (no partial commit)
+		getResp = fleet.GetLabelResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID), nil, http.StatusOK, &getResp)
+		assert.Equal(t, atomicLbl.Name, getResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID}, getResp.Label.HostIDs)
+
+		// no new activity must have been recorded for the failed request
+		assert.Equal(t, lastActID, s.lastActivityMatches("", "", 0))
+
+		// a valid rename that also changes membership must commit both and record
+		// the edited_label activity
+		modResp = fleet.ModifyLabelResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", atomicLbl.ID),
+			&fleet.ModifyLabelPayload{Name: new("atomic_target_renamed"), HostIDs: []uint{manualHosts[2].ID}}, http.StatusOK, &modResp)
+		assert.Equal(t, "atomic_target_renamed", modResp.Label.Name)
+		assert.ElementsMatch(t, []uint{manualHosts[2].ID}, modResp.Label.HostIDs)
+		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedLabel{}.ActivityName(), "", 0), lastActID)
 	})
 
 	t.Run("IdP Labels", func(t *testing.T) {
@@ -6445,8 +6603,42 @@ func (s *integrationTestSuite) TestUsers() {
 		return err
 	})
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/sessions", sessionCreateRequest{Token: "foo"}, http.StatusUnauthorized, &loginResp)
-	// MFA unsupported client
-	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
+
+	loginErrMessage := func(rawBody []byte) string {
+		var body struct {
+			Message string `json:"message"`
+			Errors  []struct {
+				Name   string `json:"name"`
+				Reason string `json:"reason"`
+			} `json:"errors"`
+		}
+		require.NoError(t, json.Unmarshal(rawBody, &body))
+		return fmt.Sprintf("%s %+v", body.Message, body.Errors)
+	}
+
+	mfaUnsupportedResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	mfaUnsupportedBody, err := io.ReadAll(mfaUnsupportedResp.Body)
+	require.NoError(t, err)
+	mfaUnsupportedResp.Body.Close()
+
+	wrongPwdResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "extra@asd.com", Password: "wrong-" + userRawPwd}),
+		http.StatusUnauthorized)
+	wrongPwdBody, err := io.ReadAll(wrongPwdResp.Body)
+	require.NoError(t, err)
+	wrongPwdResp.Body.Close()
+
+	nonexistentResp := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
+		jsonMustMarshal(t, fleet.LoginRequest{Email: "does-not-exist@asd.com", Password: userRawPwd}),
+		http.StatusUnauthorized)
+	nonexistentBody, err := io.ReadAll(nonexistentResp.Body)
+	require.NoError(t, err)
+	nonexistentResp.Body.Close()
+
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(mfaUnsupportedBody))
+	require.Equal(t, loginErrMessage(wrongPwdBody), loginErrMessage(nonexistentBody))
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		fleet.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
@@ -8420,6 +8612,23 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
+	// scripts containing Fleet variables require a premium license
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo $FLEET_VAR_HOST_UUID"}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
+	body, headers = generateNewScriptMultipartRequest(t,
+		"varscript.sh", []byte("echo $FLEET_VAR_HOST_UUID"), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
+	res = s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: []fleet.ScriptPayload{
+		{Name: "vars.sh", ScriptContents: []byte("echo $FLEET_VAR_HOST_UUID")},
+	}}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
 	// delete a saved script
 	var delScriptResp fleet.DeleteScriptResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)
@@ -9782,6 +9991,29 @@ func (s *integrationTestSuite) TestEnrollOsquery() {
 	defer hres.Body.Close()
 	require.NoError(t, json.NewDecoder(hres.Body).Decode(&resp))
 	require.NotEmpty(t, resp.NodeKey)
+
+	// A team may retain an empty enroll secret created before the create/update
+	// validation existed. Simulate that by writing an empty secret directly via
+	// the datastore, bypassing the service-layer validation.
+	ctx := context.Background()
+	emptyTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "empty"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &emptyTeam.ID, []*fleet.EnrollSecret{{Secret: "", TeamID: &emptyTeam.ID}}))
+
+	// Enrolling with an empty or whitespace-only secret must be rejected as
+	// node_invalid, even though an empty secret exists in storage.
+	for _, badSecret := range []string{"", "   "} {
+		j, err = json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   badSecret,
+			HostIdentifier: t.Name() + "empty-host",
+		})
+		require.NoError(t, err)
+		badRes := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(badRes.Body).Decode(&body))
+		badRes.Body.Close()
+		require.Equal(t, true, body["node_invalid"])
+	}
 }
 
 func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
@@ -10600,19 +10832,21 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 57)         // total number of cols
+	assert.Len(t, rows[0], 58)         // total number of cols
 	// Validate that both team_id and fleet_id columns are present.
 	assert.Contains(t, rows[0], "team_id")
 	assert.Contains(t, rows[0], "fleet_id")
 	assert.Contains(t, rows[0], "team_name")
 	assert.Contains(t, rows[0], "fleet_name")
 
+	// hardware_marketing_name is emitted right after hardware_model, shifting
+	// every subsequent column index by one.
 	const (
 		idCol        = 3
-		issuesCol    = 46
-		gigsDiskCol  = 42
-		pctDiskCol   = 43
-		gigsTotalCol = 44
+		issuesCol    = 47
+		gigsDiskCol  = 43
+		pctDiskCol   = 44
+		gigsTotalCol = 45
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
@@ -10647,6 +10881,21 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, res.Header.Get("Content-Disposition"), "attachment;")
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
 	require.Contains(t, res.Header.Get("X-Content-Type-Options"), "nosniff")
+
+	// requesting columns that don't include hardware_model or
+	// hardware_marketing_name returns exactly the requested columns and neither
+	// hardware field (hardware_marketing_name must not leak into the report).
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,uuid,platform",
+	)
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Equal(t, []string{"hostname", "uuid", "platform"}, rows[0])
+	require.NotContains(t, rows[0], "hardware_model")
+	require.NotContains(t, rows[0], "hardware_marketing_name")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
@@ -10748,6 +10997,61 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_title_id", "123", "software_version_id", "456")
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456")
 	s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusBadRequest, "software_id", "123", "software_version_id", "456", "software_title_id", "789")
+}
+
+func (s *integrationTestSuite) TestHostsReportHardwareMarketingName() {
+	t := s.T()
+	ctx := context.Background()
+
+	newHost := func(suffix, platform, model string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + suffix),
+			NodeKey:         new(t.Name() + suffix),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + suffix,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		// hardware_model is not persisted by NewHost, so set it directly.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx, `UPDATE hosts SET hardware_model = ? WHERE id = ?`, model, h.ID)
+			return err
+		})
+		return h
+	}
+
+	// Apple host whose model maps to a marketing name, plus a non-Apple host
+	// with no mapping.
+	mapped := newHost("-mapped", "darwin", "MacBookPro18,1")
+	unmapped := newHost("-unmapped", "ubuntu", "Standard PC")
+
+	res := s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,hardware_model,hardware_marketing_name",
+	)
+	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 3) // header + 2 hosts
+	// columns are returned in the requested order
+	require.Equal(t, []string{"hostname", "hardware_model", "hardware_marketing_name"}, rows[0])
+
+	byHostname := make(map[string][]string, len(rows)-1)
+	for _, row := range rows[1:] {
+		byHostname[row[0]] = row
+	}
+
+	// Apple host: raw model plus the mapped marketing name.
+	require.Equal(t, "MacBookPro18,1", byHostname[mapped.Hostname][1])
+	require.Equal(t, fleet.AppleHardwareModelsToMarketingNames["MacBookPro18,1"], byHostname[mapped.Hostname][2])
+
+	// Non-Apple host: raw model, empty marketing name.
+	require.Equal(t, "Standard PC", byHostname[unmapped.Hostname][1])
+	require.Empty(t, byHostname[unmapped.Hostname][2])
 }
 
 func (s *integrationTestSuite) TestSSODisabled() {
@@ -12997,7 +13301,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 57)         // total number of cols
+	assert.Len(t, rows1[0], 58)         // total number of cols
 
 	var (
 		idIdx     int
@@ -13027,7 +13331,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 57)         // total number of cols
+	assert.Len(t, rows2[0], 58)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

@@ -1,0 +1,1 @@
+- Added a clear error message when adding both Mozilla Firefox and Firefox ESR (which share a bundle identifier) to the same fleet, so admins understand only one of them can be added instead of seeing a generic conflict error.

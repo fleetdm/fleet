@@ -431,9 +431,26 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
-	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	p.MFAEnabled = new(invite.MFAEnabled)
 	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
 	p.InviteID = &invite.ID
+	p.SSOEnabled = new(invite.SSOEnabled)
+	p.SSOInvite = new(invite.SSOEnabled)
+	if invite.SSOEnabled {
+		// SSO invites must not create local password credentials. Reject the
+		// payload if it carries a password field at all, even an empty one.
+		if p.Password != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
+		}
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
+	}
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -1521,10 +1538,25 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
-	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password, true)
-	if err != nil {
-		return fleet.NewInvalidArgumentError("new_password", err.Error())
+	// Hash the new password before touching the database. Hashing is the only step that
+	// can reject the password (bcrypt rejects passwords longer than its limit), and it is
+	// CPU-bound, so it must run before — and outside of — the reset transaction. Doing it
+	// here also guarantees a rejected password never consumes the token.
+	if err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
+	}
+
+	// Consume the token and apply the password change atomically. Within a single
+	// transaction this consumes the token, saves the new password, and invalidates the
+	// user's other reset links and sessions. It enforces one-time-use semantics (exactly
+	// one concurrent request can consume a given token) and, because it is transactional,
+	// a failure in any step rolls back the token consumption so the reset link stays
+	// usable.
+	if err := svc.ds.ResetPassword(ctx, token, user); err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewAuthFailedError("invalid password reset token"), "password reset token already used")
+		}
+		return ctxerr.Wrap(ctx, err, "resetting password")
 	}
 
 	return nil
