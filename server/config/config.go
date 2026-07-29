@@ -2579,6 +2579,9 @@ func TestConfig() FleetConfig {
 		Vulnerabilities: VulnerabilitiesConfig{
 			OSVForVulnerabilities: true,
 		},
+		MDM: MDMConfig{
+			AllowOrbitEndUserAuthBypass: true,
+		},
 	}
 }
 

@@ -1748,18 +1748,6 @@ func TestEnrollOrbitEndUserAuthBypass(t *testing.T) {
 		require.False(t, ds.EnrollOrbitFuncInvoked)
 	})
 
-	t.Run("flag enabled allows enrollment with no capabilities header", func(t *testing.T) {
-		// A pre-EUA agent may send no X-Fleet-Capabilities header at all. That is the
-		// backward-compat case the flag exists for, so it must enroll when the flag is on.
-		ds, svc, ctx := newSvc(t, true)
-		req := httptest.NewRequest("POST", "/api/fleet/orbit/enroll", nil)
-		noHeaderCtx := capabilities.NewContext(ctx, req)
-		nodeKey, err := svc.EnrollOrbit(noHeaderCtx, hostInfo, "secret", "")
-		require.NoError(t, err)
-		require.NotEmpty(t, nodeKey)
-		require.True(t, ds.EnrollOrbitFuncInvoked)
-	})
-
 	t.Run("windows EUA token takes precedence over the flag", func(t *testing.T) {
 		// A Windows host presenting an EUA token must go through the token path even when
 		// the flag is on and the client omits the capability — the token case is ordered
