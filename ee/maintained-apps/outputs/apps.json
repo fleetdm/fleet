@@ -6915,7 +6915,7 @@
       "slug": "proxyman/windows",
       "platform": "windows",
       "unique_identifier": "Proxyman",
-      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+      "description": "Proxyman is a high-performance app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
       "name": "Pulsar",
@@ -9165,11 +9165,11 @@
       "description": "WeChat for Mac is a free messaging and calling application."
     },
     {
-      "name": "WeChat for Mac",
+      "name": "WeChat",
       "slug": "wechat/windows",
       "platform": "windows",
       "unique_identifier": "WeChat",
-      "description": "WeChat for Mac is a free messaging and calling application."
+      "description": "WeChat is a free messaging and calling application."
     },
     {
       "name": "WeekToDo",
