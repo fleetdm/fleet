@@ -148,7 +148,7 @@ Only include a key when you are confident of its value. Omit any key you are uns
         website: emailDomain,
         numberOfEmployees: numberOfEmployeesToUseForTerritoryLookup,
       }).tolerate((err)=>{
-        sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce territory information could not be found using the provided information. This user will be sent to the calendly link for the washingtonDc region. Full error: ${require('util').inspect(err)}`);
+        sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce territory information could not be found using the provided information. This user will be sent to the default "Talk to us" calendly link. Full error: ${require('util').inspect(err)}`);
         return '0054x000005mpQmAAI';
       });
 
@@ -164,8 +164,8 @@ Only include a key when you are confident of its value. Omit any key you are uns
       let eventUrlForThisUsersTerritory = bookingUrlByUserId[territoryUserId];
       if(!eventUrlForThisUsersTerritory) {
         // If the user ID returned by the helper is not one of the five expected values above, log a warning to alert us, and send the user to the washingtonDc calednly link.
-        sails.log.warn(`When looking up Salesforce territory information to route a user (email: ${emailAddress}) who submitted the "Talk to us" form to the correct meeting link, the user ID returned by the getTerritoryUserId helper (${territoryUserId}) did not match the hardcoded user IDs in the bookingUrlByUserId dictionary. This user will be sent to the callendly link for the washingtonDc region.`);
-        eventUrlForThisUsersTerritory = 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us';
+        sails.log.warn(`When looking up Salesforce territory information to route a user (email: ${emailAddress}) who submitted the "Talk to us" form to the correct meeting link, the user ID returned by the getTerritoryUserId helper (${territoryUserId}) did not match the hardcoded user IDs in the bookingUrlByUserId dictionary. This user will be sent to the default "Talk to us" calendly link.`);
+        eventUrlForThisUsersTerritory = 'https://calendly.com/d/d3hw-r73-gt7/talk-to-us';
       }
       return {
         icp: true,
