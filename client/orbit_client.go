@@ -910,10 +910,9 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	return nil
 }
 
-// SendManagedLocalAccountPassword escrows the password of the managed local admin account that
-// fleetd created on this Windows host. Exactly one of password and clientError is meaningful: a
-// non-empty clientError reports that creating the account failed, which the server records against
-// the host and which makes it ask this host to try again.
+// SendManagedLocalAccountPassword escrows the password of the managed local admin account that fleetd created on this
+// Windows host. A non-empty clientError reports that creating the account failed, which the server records against the
+// host and which makes it ask this host to try again.
 func (oc *OrbitClient) SendManagedLocalAccountPassword(password, clientError string) error {
 	verb, path := "POST", "/api/fleet/orbit/managed_local_account"
 	var resp fleet.OrbitPostManagedLocalAccountResponse

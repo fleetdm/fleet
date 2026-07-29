@@ -27,6 +27,14 @@ const (
 	errorMemberInAlias   = 1378 // ERROR_MEMBER_IN_ALIAS: already a group member.
 	userInfoPasswordOnly = 1003 // USER_INFO_1003: password-only update level.
 	userInfoFlagsOnly    = 1008 // USER_INFO_1008: flags-only update level.
+
+	// NERR_PasswordTooShort is the catch-all Windows returns for any password-policy rejection, not
+	// just length: MSDN lists it for "too long, too recent in its change history, not enough unique
+	// characters, or does not meet another password policy requirement", which includes a custom
+	// password filter DLL.
+	nerrPasswordTooShort = 2245
+	// ERROR_PASSWORD_RESTRICTION, the equivalent from the system error range.
+	errorPasswordRestriction = 1325
 )
 
 // logonUIHiddenAccountsKey holds a DWORD per account name; 0 hides the account from the sign-in
@@ -126,7 +134,7 @@ func ensureUser(username, password string) error {
 			0, // parm_err
 		)
 		if ret != 0 {
-			return fmt.Errorf("resetting password for %s: %w", username, windows.Errno(ret))
+			return accountError(fmt.Sprintf("resetting password for %s", username), ret, len(password))
 		}
 		// Resetting the password is not enough to make the account usable again. If it was disabled,
 		// locked out, or had its never-expire flag removed after we created it, Fleet would escrow a
@@ -153,9 +161,23 @@ func ensureUser(username, password string) error {
 		0, // parm_err
 	)
 	if ret != 0 {
-		return fmt.Errorf("creating %s: %w", username, windows.Errno(ret))
+		return accountError(fmt.Sprintf("creating %s", username), ret, len(password))
 	}
 	return nil
+}
+
+// accountError turns a netapi32 return code into an error, spelling out password-policy rejections.
+// Windows reports every one of those as NERR_PasswordTooShort, whose text lives in netmsg.dll rather
+// than the system message table, so Go cannot format it and the admin would otherwise see the reason
+// their break-glass account never appeared as a bare "winapi error #2245" in Fleet.
+func accountError(op string, ret uintptr, passwordLen int) error {
+	if ret == nerrPasswordTooShort || ret == errorPasswordRestriction {
+		return fmt.Errorf(
+			"%s: this device's password policy rejected the generated %d-character password; "+
+				"check the minimum password length and any custom password filter on the host",
+			op, passwordLen)
+	}
+	return fmt.Errorf("%s: %w", op, windows.Errno(ret))
 }
 
 // existingAccount is the subset of USER_INFO_1 the caller needs: the flags say whether a present

@@ -2,11 +2,9 @@ package managedaccount
 
 import (
 	"errors"
-	"strings"
 	"sync"
 	"testing"
 	"time"
-	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -36,12 +34,23 @@ func (m *mockEscrower) snapshot() (calls int, password, clientError string) {
 	return m.calls, m.password, m.clientError
 }
 
-// newTestReceiver returns a receiver whose provisioning is stubbed and whose attempts can be waited
-// on, so the background goroutine does not make the tests racy.
-func newTestReceiver(t *testing.T, escrower Escrower, provision provisionFunc) (*Receiver, chan struct{}) {
+// newTestReceiver returns a receiver whose provisioning is stubbed. Tests wait on the channel
+// attempt() returns, which closes only after the single-flight lock is released.
+func newTestReceiver(escrower Escrower, provision provisionFunc) *Receiver {
+	return &Receiver{escrower: escrower, provision: provision}
+}
+
+// awaitAttempt starts an attempt and waits for it to finish, failing rather than hanging if the
+// attempt was dropped or never completes.
+func awaitAttempt(t *testing.T, r *Receiver) {
 	t.Helper()
-	done := make(chan struct{})
-	return &Receiver{escrower: escrower, provision: provision, done: done}, done
+	done := r.attempt()
+	require.NotNil(t, done, "attempt was dropped")
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("provisioning attempt did not finish")
+	}
 }
 
 func notification(enabled bool) *fleet.OrbitConfig {
@@ -51,36 +60,40 @@ func notification(enabled bool) *fleet.OrbitConfig {
 }
 
 func TestReceiverRun(t *testing.T) {
-	t.Run("does nothing without the notification", func(t *testing.T) {
+	// Run must gate on the notification, and must start provisioning when it is set. Everything below
+	// exercises attempt() directly so it can wait on completion.
+	t.Run("Run gates on the notification", func(t *testing.T) {
 		esc := &mockEscrower{}
-		var provisioned bool
-		r, done := newTestReceiver(t, esc, func(string, string) error {
-			provisioned = true
+		provisioned := make(chan struct{})
+		r := newTestReceiver(esc, func(string, string) error {
+			close(provisioned)
 			return nil
 		})
 
 		require.NoError(t, r.Run(notification(false)))
-
 		select {
-		case <-done:
+		case <-provisioned:
 			t.Fatal("provisioning ran without the notification")
 		case <-time.After(100 * time.Millisecond):
 		}
-		assert.False(t, provisioned)
-		calls, _, _ := esc.snapshot()
-		assert.Zero(t, calls)
+
+		require.NoError(t, r.Run(notification(true)))
+		select {
+		case <-provisioned:
+		case <-time.After(10 * time.Second):
+			t.Fatal("the notification did not start provisioning")
+		}
 	})
 
 	t.Run("provisions and escrows the password it generated", func(t *testing.T) {
 		esc := &mockEscrower{}
 		var gotUser, gotPassword string
-		r, done := newTestReceiver(t, esc, func(username, password string) error {
+		r := newTestReceiver(esc, func(username, password string) error {
 			gotUser, gotPassword = username, password
 			return nil
 		})
 
-		require.NoError(t, r.Run(notification(true)))
-		<-done
+		awaitAttempt(t, r)
 
 		assert.Equal(t, fleet.ManagedLocalAccountUsername, gotUser)
 		calls, escrowed, clientError := esc.snapshot()
@@ -95,12 +108,11 @@ func TestReceiverRun(t *testing.T) {
 	// keeps asking. No password is escrowed, because none was successfully set.
 	t.Run("reports a provisioning failure as a client error", func(t *testing.T) {
 		esc := &mockEscrower{}
-		r, done := newTestReceiver(t, esc, func(string, string) error {
+		r := newTestReceiver(esc, func(string, string) error {
 			return errors.New("NetUserAdd failed: access denied")
 		})
 
-		require.NoError(t, r.Run(notification(true)))
-		<-done
+		awaitAttempt(t, r)
 
 		calls, password, clientError := esc.snapshot()
 		assert.Equal(t, 1, calls)
@@ -118,13 +130,9 @@ func TestReceiverRun(t *testing.T) {
 			return nil
 		}
 
-		r, done := newTestReceiver(t, esc, provision)
-		require.NoError(t, r.Run(notification(true)))
-		<-done
-
-		r.done = make(chan struct{})
-		require.NoError(t, r.Run(notification(true)))
-		<-r.done
+		r := newTestReceiver(esc, provision)
+		awaitAttempt(t, r)
+		awaitAttempt(t, r)
 
 		assert.Equal(t, 2, provisions, "the second notification must re-run provisioning")
 	})
@@ -133,12 +141,11 @@ func TestReceiverRun(t *testing.T) {
 	// reporting and MDM down with it. The mutex must still be released so the next poll can retry.
 	t.Run("a panic while provisioning does not escape the goroutine", func(t *testing.T) {
 		esc := &mockEscrower{}
-		r, done := newTestReceiver(t, esc, func(string, string) error {
+		r := newTestReceiver(esc, func(string, string) error {
 			panic("simulated syscall failure")
 		})
 
-		require.NoError(t, r.Run(notification(true)))
-		<-done
+		awaitAttempt(t, r)
 
 		calls, _, _ := esc.snapshot()
 		assert.Zero(t, calls, "nothing should be escrowed when provisioning panics")
@@ -149,60 +156,73 @@ func TestReceiverRun(t *testing.T) {
 			provisioned = true
 			return nil
 		}
-		r.done = make(chan struct{})
-		require.NoError(t, r.Run(notification(true)))
-		<-r.done
+		awaitAttempt(t, r)
 		assert.True(t, provisioned, "a panic must not wedge the single-flight lock")
+	})
+
+	// The server re-sends the notification every config fetch, so a host that cannot provision would
+	// otherwise redo the syscalls and re-post its error every 30 seconds forever.
+	t.Run("a failed attempt is not retried until the retry frequency elapses", func(t *testing.T) {
+		esc := &mockEscrower{}
+		var provisions int
+		r := newTestReceiver(esc, func(string, string) error {
+			provisions++
+			return errors.New("policy rejected the password")
+		})
+		r.retryFrequency = time.Hour
+
+		awaitAttempt(t, r)
+		assert.Equal(t, 1, provisions)
+
+		// A notification arriving right after the failure is dropped rather than redoing the work.
+		assert.Nil(t, r.attempt(), "a retry inside the frequency window must be dropped")
+		assert.Equal(t, 1, provisions)
+
+		// Once the window has passed, the host tries again.
+		r.lastFailure = time.Now().Add(-2 * time.Hour)
+		awaitAttempt(t, r)
+		assert.Equal(t, 2, provisions)
+	})
+
+	// A success clears the throttle, so a later notification (a re-enrollment, say) is acted on at once
+	// rather than waiting out a window from some earlier failure.
+	t.Run("a success clears the retry throttle", func(t *testing.T) {
+		esc := &mockEscrower{}
+		r := newTestReceiver(esc, func(string, string) error { return nil })
+		r.retryFrequency = time.Hour
+		r.lastFailure = time.Now()
+
+		// Still inside the window from the earlier failure.
+		assert.Nil(t, r.attempt())
+
+		r.lastFailure = time.Time{}
+		awaitAttempt(t, r)
+		assert.True(t, r.lastFailure.IsZero(), "a successful attempt must leave no throttle behind")
+		awaitAttempt(t, r)
 	})
 
 	t.Run("only one attempt runs at a time", func(t *testing.T) {
 		esc := &mockEscrower{}
+		started := make(chan struct{})
 		release := make(chan struct{})
-		var concurrent, maxConcurrent int
-		var mu sync.Mutex
 
-		r, done := newTestReceiver(t, esc, func(string, string) error {
-			mu.Lock()
-			concurrent++
-			if concurrent > maxConcurrent {
-				maxConcurrent = concurrent
-			}
-			mu.Unlock()
+		r := newTestReceiver(esc, func(string, string) error {
+			close(started)
 			<-release
-			mu.Lock()
-			concurrent--
-			mu.Unlock()
 			return nil
 		})
 
-		require.NoError(t, r.Run(notification(true)))
-		// Second notification while the first attempt is still in flight; it must be dropped.
-		require.NoError(t, r.Run(notification(true)))
+		done := r.attempt()
+		require.NotNil(t, done)
+		<-started
+
+		// A second attempt while the first is in flight is dropped, not queued.
+		assert.Nil(t, r.attempt(), "a concurrent attempt must be dropped")
+
 		close(release)
 		<-done
 
-		mu.Lock()
-		defer mu.Unlock()
-		assert.Equal(t, 1, maxConcurrent)
 		calls, _, _ := esc.snapshot()
-		assert.Equal(t, 1, calls, "the dropped notification must not escrow a second password")
+		assert.Equal(t, 1, calls, "the dropped attempt must not escrow a second password")
 	})
-}
-
-func TestGeneratePassword(t *testing.T) {
-	seen := make(map[string]struct{})
-	for range 100 {
-		pw, err := generatePassword()
-		require.NoError(t, err)
-
-		assert.Equal(t, passwordLength, utf8.RuneCountInString(pw))
-		assert.True(t, strings.ContainsAny(pw, lowerChars), "no lowercase in %q", pw)
-		assert.True(t, strings.ContainsAny(pw, upperChars), "no uppercase in %q", pw)
-		assert.True(t, strings.ContainsAny(pw, digitChars), "no digit in %q", pw)
-		assert.True(t, strings.ContainsAny(pw, symbolChars), "no symbol in %q", pw)
-
-		_, duplicate := seen[pw]
-		assert.False(t, duplicate, "generated a duplicate password")
-		seen[pw] = struct{}{}
-	}
 }

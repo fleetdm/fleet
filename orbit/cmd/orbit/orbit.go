@@ -1236,6 +1236,9 @@ func orbitAction(c *cli.Context) error {
 		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
 		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
 		windowsMDMSyncCommandFrequency = time.Minute
+		// windowsManagedAccountRetryFrequency paces retries when the managed local account cannot be
+		// provisioned, for instance because the host's password policy rejects the generated password.
+		windowsManagedAccountRetryFrequency = time.Hour
 	)
 
 	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
@@ -1315,7 +1318,7 @@ func orbitAction(c *cli.Context) error {
 		defer comWorker.Close()
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
 			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
-		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient))
+		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
 	case "linux":
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
