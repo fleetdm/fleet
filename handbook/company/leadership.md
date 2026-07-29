@@ -253,7 +253,7 @@ Do you need to create a completely new role at Fleet? Use these steps to open up
     - `department`: The department of the proposed position.
     - `hiringManagerName`: The full name of this proposed position's hiring manager.
     - `hiringManagerGithubUsername`: The GitHub username of the proposed position's hiring manager. This is used to add the hiring manager as the open position page's maintainer.
-    - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
+    - `hiringManagerLinkedInUrl`: The url of the hiring manager's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
     - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
     - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
   - If needed, you can override the default compensation range ($48,000 - $480,000) in the open position template page by adding a `onTargetEarnings` value to the open position. If provided, `onTargetEarnings` values should be a string containing the salary range for the proposed position.

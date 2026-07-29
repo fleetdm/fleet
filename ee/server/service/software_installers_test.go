@@ -1559,6 +1559,39 @@ func TestInstallShScriptOnDarwin(t *testing.T) {
 	require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked, "install request should be created")
 }
 
+// TestInstallerCompatibleWithHost verifies that .sh and .py script packages
+// (stored as platform='linux') are compatible with any unix-like host.
+func TestInstallerCompatibleWithHost(t *testing.T) {
+	t.Parallel()
+
+	installer := func(name, platform string) *fleet.SoftwareInstaller {
+		return &fleet.SoftwareInstaller{Name: name, Platform: platform}
+	}
+	host := func(platform string) *fleet.Host { return &fleet.Host{Platform: platform} }
+
+	cases := []struct {
+		name      string
+		installer *fleet.SoftwareInstaller
+		host      *fleet.Host
+		want      bool
+	}{
+		{".py on darwin", installer("script.py", "linux"), host("darwin"), true},
+		{".py on ubuntu", installer("script.py", "linux"), host("ubuntu"), true},
+		{".py on windows", installer("script.py", "linux"), host("windows"), false},
+		{".sh on darwin", installer("script.sh", "linux"), host("darwin"), true},
+		{".sh on ubuntu", installer("script.sh", "linux"), host("ubuntu"), true},
+		{".sh on windows", installer("script.sh", "linux"), host("windows"), false},
+		{".deb on darwin", installer("installer.deb", "linux"), host("darwin"), false},
+		{".pkg on darwin", installer("app.pkg", "darwin"), host("darwin"), true},
+		{".pkg on ubuntu", installer("app.pkg", "darwin"), host("ubuntu"), false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, installerCompatibleWithHost(tt.installer, tt.host))
+		})
+	}
+}
+
 // TestInstallZipInstallerUsesStoredPlatform tests that .zip installers use the
 // stored platform (windows or darwin) rather than inferring darwin from the extension.
 func TestInstallZipInstallerUsesStoredPlatform(t *testing.T) {

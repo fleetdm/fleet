@@ -1,0 +1,11 @@
+name: apple_hardware_info
+platforms:
+  - darwin
+description: Hardware marketing name for macOS hosts.
+columns:
+  - name: hardware_marketing_name
+    type: text
+    required: true
+    description: Hardware marketing name, e.g. "MacBook Air (13-inch, M5)".
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

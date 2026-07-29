@@ -58,6 +58,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return 0, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &installScript, argErr)
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &postInstallScript, argErr)

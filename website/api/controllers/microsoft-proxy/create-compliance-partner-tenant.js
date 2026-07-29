@@ -16,7 +16,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'Details about a new Microsoft complaince tsenant have been returned to a Fleet isntance' },
+    success: { description: 'Details about a new Microsoft compliance tenant have been returned to a Fleet instance' },
     connectionAlreadyExists: {description: 'A Microsoft compliance tenant already exists for the provided entra tenant id.', statusCode: 409},
     missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest'},
   },
@@ -29,8 +29,8 @@ module.exports = {
       throw 'missingOriginHeader';
     }
 
-    // Look for an existing microsoftComplianceTenant record using the requesting Fleet instances URL.
-    let existingComplianceTenant = await MicrosoftComplianceTenant.findOne({fleetInstanceUrl: this.req.get('origin')});
+    // Look for an existing microsoftComplianceTenant record using the provided entraTenantId.
+    let existingComplianceTenant = await MicrosoftComplianceTenant.findOne({entraTenantId});
     if(existingComplianceTenant) {
       // If we found one with the provided tenant ID, and setup was not completed, delete the incomplete compliance tenant and create a new one.
       if(!existingComplianceTenant.setupCompleted) {

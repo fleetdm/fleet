@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -349,6 +350,37 @@ func (ds *Datastore) resendDeviceNamesForSecretChange(ctx context.Context, chang
 		}
 	}
 	return nil
+}
+
+// resendDeviceNameForCustomHostVital re-queues the host's device-name
+// enforcement row if its applicable (team or No-team) name template
+// references $FLEET_HOST_VITAL_<vitalID>, so the cron re-resolves with the
+// host's newly-set value. Mirrors resendMDMProfilesForCustomHostVital's
+// content-match precision: a host whose template doesn't reference this vital
+// gets no needless resend. Must run in the same transaction as the value
+// write (see SetHostCustomHostVitalValue) so the reconciler never reads a
+// stale value.
+func resendDeviceNameForCustomHostVital(ctx context.Context, tx sqlx.ExtContext, hostID, vitalID uint) error {
+	var tmpl string
+	err := sqlx.GetContext(ctx, tx, &tmpl, `
+		SELECT COALESCE(
+			CASE WHEN h.team_id IS NULL
+				THEN `+deviceNameNoTeamTemplateExpr+`
+				ELSE (SELECT t.config->>'$.mdm.name_template' FROM teams t WHERE t.id = h.team_id)
+			END, '')
+		FROM hosts h WHERE h.id = ?`, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get host name template for custom host vital resend")
+	}
+
+	if tmpl == "" || !fleet.ContainsVar(tmpl, fmt.Sprintf("%s%d", fleet.CustomHostVitalPrefix, vitalID)) {
+		return nil
+	}
+
+	return reconcileHostDeviceNamesForHostsDB(ctx, tx, []uint{hostID})
 }
 
 func (ds *Datastore) ReconcileHostDeviceNamesForHosts(ctx context.Context, hostIDs []uint) error {

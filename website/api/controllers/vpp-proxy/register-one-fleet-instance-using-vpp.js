@@ -48,6 +48,9 @@ module.exports = {
         { algorithm: 'ES256' }
       );
     } catch(unusedErr) {
+      // If a license could not be verified, log the error name
+      sails.log.info('VPP auth rejected:', unusedErr.name);
+
       // If there is an error parsing the provided fleetLicenseKey, return a couldNotVerifyLicense response.
       throw 'couldNotVerifyLicense';
     }

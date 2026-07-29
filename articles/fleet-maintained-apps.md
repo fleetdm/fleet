@@ -123,6 +123,8 @@ Fleet:
 - fetches an individual app's manifest when the **Add** button is pressed from the maintained apps list in the UI, and when an individual app is [retrieved](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-maintained-app) or [added](https://fleetdm.com/docs/rest-api/rest-api#add-fleet-maintained-app) via the REST API
 - DOES NOT directly pull data from WinGet or Homebrew to end-user devices
 
+For a deeper look at the whole pipeline, including validation on real hosts, how broken updates are frozen, and the security model, see [how Fleet keeps Fleet-maintained apps safe and up to date](https://fleetdm.com/articles/inside-fleet-maintained-apps).
+
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
 <meta name="authorGitHubUsername" value="ghernandez345">

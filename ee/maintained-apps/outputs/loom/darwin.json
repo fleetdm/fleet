@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.361.3",
+      "version": "0.362.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop' AND version_compare(bundle_short_version, '0.361.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.loom.desktop' AND version_compare(bundle_short_version, '0.362.1') < 0);"
       },
-      "installer_url": "https://packages.loom.com/desktop-packages/Loom-0.361.3-arm64.dmg",
+      "installer_url": "https://packages.loom.com/desktop-packages/Loom-0.362.1-arm64.dmg",
       "install_script_ref": "bd0f7905",
       "uninstall_script_ref": "f408ec47",
-      "sha256": "456348bbe10e214890f07a96307362c5ddb5e3477ebf4c293bb06126f0eaae5d",
+      "sha256": "a092470d514bb84fde2a77ec4fa76e4b4543f223d3c4f8fcfcec9df4b9d0d170",
       "default_categories": [
         "Productivity"
       ]

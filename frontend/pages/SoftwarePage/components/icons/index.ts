@@ -467,6 +467,7 @@ import Hammerspoon from "./Hammerspoon";
 import HandbrakeApp from "./HandbrakeApp";
 import Hazel from "./Hazel";
 import Hazeover from "./Hazeover";
+import Heidisql from "./Heidisql";
 import Helium from "./Helium";
 import HexFiend from "./HexFiend";
 import HeyDesktop from "./HeyDesktop";
@@ -480,8 +481,10 @@ import Homerow from "./Homerow";
 import Hot from "./Hot";
 import Houdahspot from "./Houdahspot";
 import HpEasyAdmin from "./HpEasyAdmin";
+import HpPrimeVirtualCalculator from "./HpPrimeVirtualCalculator";
 import Hubstaff from "./Hubstaff";
 import Huly from "./Huly";
+import Hwmonitor from "./Hwmonitor";
 import Hyper from "./Hyper";
 import Hyperkey from "./Hyperkey";
 import I1Profiler from "./I1Profiler";
@@ -1593,6 +1596,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   handbrake: HandbrakeApp,
   hazel: Hazel,
   hazeover: Hazeover,
+  heidisql: Heidisql,
   helium: Helium,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
@@ -1606,8 +1610,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
+  "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
   huly: Huly,
+  hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
   i1profiler: I1Profiler,

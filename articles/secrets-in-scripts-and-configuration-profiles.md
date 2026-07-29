@@ -6,7 +6,7 @@
 
 In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
 
-Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
 
 Custom variables (`$FLEET_SECRET_*`) hold a single value shared across all hosts. To store a different value per host, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
 

@@ -37,7 +37,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 |:-------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|
 | [Orchestration](#orchestration-group)      | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               |
 | [Supply Chain](#supply-chain-group)        | Help customers secure the software and dependencies running on their fleet.                                            |
-| [Apple @ Work](#apple--work-group)         | Increase the number of Apple devices managed by Fleet.                                                                 |
+| [Apple @ Work](#apple-work-group)         | Increase the number of Apple devices managed by Fleet.                                                                 |
 | [Auto Patching](#auto-patching-group)      | Reduce the time before software is patched after vulnerabilities are discovered.                                       |
 | [Power to the PC](#power-to-the-pc-group)  | Empower Windows users to fully leverage Fleet as an MDM.                                                                |
 | [BYOD](#byod-group)                        | Enable Fleet to manage personally-owned Android devices used at work.                                                  |
@@ -278,7 +278,7 @@ The goal of the Apple @ Work group is to increase the number of Apple devices ma
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
-| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_, Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_, Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_, [Rajendra Kadam](https://www.linkedin.com/in/rajendra-kadam/) _([@raju249](https://github.com/raju249))_
 
 **Areas of expertise**:
 - Apple MDM protocol & configuration

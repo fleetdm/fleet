@@ -191,6 +191,7 @@ Document the completion of a customer promise through the following steps:
 
 ### Submit a feature request for CSA review (For CSMs)
 
+Note: This is for cases where the customer in question does not have an assigned CSA. CSAs will submit feature requests for accounts that they are assigned to.
 Submit a feature request to the CSA team for review following these steps:
 - Navigate to the help-customers board in GitHub
 - Press "Add item" under the "New requests" column

@@ -118,6 +118,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		// Redo per-script to report which script references the undefined custom host vital.
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &payload.InstallScript, argErr)
@@ -399,6 +402,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, scripts); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
 		var argErr *fleet.InvalidArgumentError
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", payload.InstallScript, argErr)
 		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
@@ -1535,7 +1541,7 @@ func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host 
 }
 
 // installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
-// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh runs on any unix-like host).
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh and .py run on any unix-like host).
 func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
 	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
@@ -1544,7 +1550,7 @@ func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet
 	if host.FleetPlatform() == requiredPlatform {
 		return true
 	}
-	return ext == ".sh" && fleet.IsUnixLike(host.Platform)
+	return (ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
@@ -2720,6 +2726,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allScripts); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
 	}

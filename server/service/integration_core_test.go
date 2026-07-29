@@ -3023,6 +3023,123 @@ func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 	}
 }
 
+func (s *integrationTestSuite) TestCreateUserFromSSOInvite() {
+	t := s.T()
+	ctx := context.Background()
+
+	createInvite := func(email string, ssoEnabled bool) *fleet.Invite {
+		createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+			Email:      new(email),
+			Name:       new("SSO Invitee"),
+			GlobalRole: null.StringFrom(fleet.RoleObserver),
+			SSOEnabled: new(ssoEnabled),
+		}}
+		createInviteResp := createInviteResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+		t.Cleanup(func() {
+			// Ignore the error: an accepted invite is consumed (deleted) by the
+			// acceptance flow, so it may no longer exist at cleanup time.
+			_ = s.ds.DeleteInvite(ctx, createInviteResp.Invite.ID)
+		})
+		// the token is not returned via the response's json, must get it from the db
+		invite, err := s.ds.Invite(ctx, createInviteResp.Invite.ID)
+		require.NoError(t, err)
+		return invite
+	}
+
+	// An SSO-only invite must not be acceptable through the password flow.
+	t.Run("sso invite rejects password payload", func(t *testing.T) {
+		email := "sso-password-attack@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    &test.GoodPassword,
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		// no user should have been created
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// An empty password field on an SSO invite must also be rejected: the
+	// presence of the field at all is not allowed.
+	t.Run("sso invite rejects empty password field", func(t *testing.T) {
+		email := "sso-empty-password@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Attacker"),
+			Email:       new(email),
+			Password:    new(""),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// The legitimate SSO acceptance flow must create an SSO-enabled user.
+	t.Run("sso invite accepted via sso flow", func(t *testing.T) {
+		email := "sso-legit@b.c"
+		invite := createInvite(email, true)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("SSO User"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusOK, &resp)
+		require.NotNil(t, resp.User)
+		require.True(t, resp.User.SSOEnabled)
+		t.Cleanup(func() { require.NoError(t, s.ds.DeleteUser(ctx, resp.User.ID)) })
+	})
+
+	// A non-SSO invite accepted with SSO flags but no password must be rejected
+	// (and must not panic on a nil password).
+	t.Run("password invite rejects sso payload without password", func(t *testing.T) {
+		email := "password-as-sso@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("No Password"),
+			Email:       new(email),
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+
+	// A non-SSO invite accepted with SSOInvite falsely set must still enforce
+	// password complexity: setting the SSO flag must not let a weak password
+	// slip past validation.
+	t.Run("password invite rejects sso payload with weak password", func(t *testing.T) {
+		email := "password-as-sso-weak@b.c"
+		invite := createInvite(email, false)
+
+		var resp createUserResponse
+		s.DoJSON("POST", "/api/latest/fleet/users", fleet.UserPayload{
+			Name:        new("Weak Password"),
+			Email:       new(email),
+			Password:    new("weak"), // too short, no number or symbol
+			SSOInvite:   new(true),
+			InviteToken: new(invite.Token),
+		}, http.StatusUnprocessableEntity, &resp)
+
+		_, err := s.ds.UserByEmail(ctx, email)
+		require.True(t, fleet.IsNotFound(err), "expected no user to be created, got err: %v", err)
+	})
+}
+
 func (s *integrationTestSuite) TestGetHostSummary() {
 	t := s.T()
 	ctx := context.Background()

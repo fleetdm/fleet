@@ -3992,6 +3992,13 @@
       "description": "HazeOver is a windows manager and desktop organiser."
     },
     {
+      "name": "HeidiSQL",
+      "slug": "heidisql/windows",
+      "platform": "windows",
+      "unique_identifier": "HeidiSQL",
+      "description": "HeidiSQL is a lightweight client for managing MariaDB, MySQL, SQL Server, PostgreSQL, and SQLite databases."
+    },
+    {
       "name": "Helium",
       "slug": "helium/darwin",
       "platform": "darwin",
@@ -4083,6 +4090,13 @@
       "description": "HP Easy Admin is a tool to directly download HP printing and/or scanning drivers."
     },
     {
+      "name": "HP Prime Virtual Calculator",
+      "slug": "hp-prime-virtual-calculator/windows",
+      "platform": "windows",
+      "unique_identifier": "HP Prime Virtual Calculator",
+      "description": "HP Prime Virtual Calculator is a Windows simulator of the HP Prime graphing calculator."
+    },
+    {
       "name": "Hubstaff",
       "slug": "hubstaff/darwin",
       "platform": "darwin",
@@ -4095,6 +4109,13 @@
       "platform": "darwin",
       "unique_identifier": "hc.hcengineering.Huly",
       "description": "Huly is an All-in-One Project Management Platform."
+    },
+    {
+      "name": "HWMonitor",
+      "slug": "hwmonitor/windows",
+      "platform": "windows",
+      "unique_identifier": "CPUID HWMonitor",
+      "description": "HWMonitor is a hardware monitoring tool that reads PC voltages, temperatures, fan speeds, and power sensors."
     },
     {
       "name": "Hyper",
@@ -6601,6 +6622,13 @@
       "platform": "darwin",
       "unique_identifier": "com.GraphPad.Prism.autocomplete",
       "description": "GraphPad Prism is a statistical analysis and graphing software."
+    },
+    {
+      "name": "Prisma Browser",
+      "slug": "prisma-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.talon-sec.Work",
+      "description": "Prisma Browser is a SASE-native browser that empowers secure work."
     },
     {
       "name": "Prisma Browser",

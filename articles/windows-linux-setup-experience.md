@@ -32,7 +32,17 @@ Learn how to enforce authentication in the [setup experience guide](https://flee
 
 When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, IdP authentication won't be enforced.
+> IdP authentication is best-effort when a host enrolls through fleetd, not through Autopilot or an Entra join during OOBE. Fleet relies on fleetd to enforce it, so a technical end user can skip it, for example by installing a fleetd older than 1.50.0 (which doesn't support IdP authentication) or by enrolling with a script that calls Fleet's enroll endpoint directly with the enroll secret, which is embedded in the installer. Treat it as a way to guide end users, not a security control.
+
+### Skip authentication when building the installer
+
+If end users authenticate before fleetd is installed, for example during 3rd party Windows Autopilot or Intune enrollment, you can skip Fleet's authentication window. Add the `--bypass-end-user-auth` flag when you build the installer:
+
+```bash
+fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
+```
+
+Hosts that install this package enroll without the authentication prompt. Available in Fleet 4.91.0 and later, and requires fleetd 1.60.0 or later in the installer.
 
 ## Install software
 

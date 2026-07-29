@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.1.2",
+      "version": "3.1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app' AND version_compare(bundle_short_version, '3.1.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.tuple.app' AND version_compare(bundle_short_version, '3.1.3') < 0);"
       },
-      "installer_url": "https://d32ifkf9k9ezcg.cloudfront.net/production/sparkle/tuple-3.1.2-2026-07-13-b931d41cb7.zip",
+      "installer_url": "https://d32ifkf9k9ezcg.cloudfront.net/production/sparkle/tuple-3.1.3-2026-07-21-7b5d4785db.zip",
       "install_script_ref": "ff9821fc",
       "uninstall_script_ref": "2dba520b",
-      "sha256": "29c0bf29b22cfffc529b9ed15fe977dfb3a1e24c1de5d74cb77786d99b2ab40f",
+      "sha256": "2dd9d5463a72d37e36ea4fda1a1c8dcdc6522b06022c7de085ed65c1b36725b0",
       "default_categories": [
         "Productivity"
       ]

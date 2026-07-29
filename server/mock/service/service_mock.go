@@ -578,7 +578,7 @@ type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloa
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
-type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error)
+type GetHostDEPAssignmentDetailsFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, error)
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleConfigProfile, error)
 
@@ -755,6 +755,8 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profi
 type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, filename string) error
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
+
+type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
@@ -979,6 +981,8 @@ type CreateAppleDDMAssetFunc func(ctx context.Context, teamID *uint, name string
 type DeleteAppleDDMAssetFunc func(ctx context.Context, assetUUID string) error
 
 type BatchSetAppleDDMAssetsFunc func(ctx context.Context, teamID *uint, teamName string, assets []fleet.MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+type ReleaseABDevicesFunc func(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error)
 
 type Service struct {
 	EnrollOsqueryFunc        EnrollOsqueryFunc
@@ -2085,6 +2089,9 @@ type Service struct {
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
 
+	UpdateMDMConfigProfileFunc        UpdateMDMConfigProfileFunc
+	UpdateMDMConfigProfileFuncInvoked bool
+
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
 
@@ -2420,6 +2427,9 @@ type Service struct {
 
 	BatchSetAppleDDMAssetsFunc        BatchSetAppleDDMAssetsFunc
 	BatchSetAppleDDMAssetsFuncInvoked bool
+
+	ReleaseABDevicesFunc        ReleaseABDevicesFunc
+	ReleaseABDevicesFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4377,7 +4387,7 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	return s.GetHostDEPAssignmentFunc(ctx, host)
 }
 
-func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.Device, error) {
+func (s *Service) GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, *godep.DeviceDetails, error) {
 	s.mu.Lock()
 	s.GetHostDEPAssignmentDetailsFuncInvoked = true
 	s.mu.Unlock()
@@ -4998,6 +5008,13 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMInvalidJSONConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
+}
+
+func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+	s.mu.Lock()
+	s.UpdateMDMConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateMDMConfigProfileFunc(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 }
 
 func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -5782,4 +5799,11 @@ func (s *Service) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, team
 	s.BatchSetAppleDDMAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, teamName, assets, dryRun)
+}
+
+func (s *Service) ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*fleet.ABReleaseDeviceResponse, error) {
+	s.mu.Lock()
+	s.ReleaseABDevicesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReleaseABDevicesFunc(ctx, hostIDs)
 }

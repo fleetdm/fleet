@@ -2,15 +2,25 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -586,4 +596,458 @@ func TestBatchSetAppleDDMAssets(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.BatchSetAppleDDMAssetsFuncInvoked)
 	})
+}
+
+func appleHost(id uint, serial string, teamID *uint) *fleet.Host {
+	return &fleet.Host{ID: id, Platform: "darwin", HardwareSerial: serial, TeamID: teamID, Hostname: fmt.Sprintf("host-%d", id)}
+}
+
+func depAssignment(hostID uint, serial string, tokenID *uint) *fleet.HostDEPAssignment {
+	return &fleet.HostDEPAssignment{HostID: hostID, HardwareSerial: serial, ABMTokenID: tokenID}
+}
+
+// startDEPServer stands in for Apple's DEP API. sessionStatus/disownStatus of 0
+// mean 200. serialStatus overrides the per-serial status echoed by /devices/disown
+// (defaults to SUCCESS).
+func startDEPServer(t *testing.T, sessionStatus, disownStatus int, serialStatus map[string]string) *httptest.Server {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/session"):
+			if sessionStatus != 0 && sessionStatus != http.StatusOK {
+				w.WriteHeader(sessionStatus)
+				_, _ = w.Write([]byte(`{"error":"FORBIDDEN"}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"auth_session_token":"tok"}`))
+		case strings.Contains(r.URL.Path, "/devices/disown"):
+			if disownStatus != 0 && disownStatus != http.StatusOK {
+				w.WriteHeader(disownStatus)
+				return
+			}
+			var req struct {
+				Devices []string `json:"devices"`
+			}
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			out := make(map[string]string, len(req.Devices))
+			for _, s := range req.Devices {
+				st := "SUCCESS"
+				if v, ok := serialStatus[s]; ok {
+					st = v
+				}
+				out[s] = st
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"devices": out}))
+		}
+	}))
+	t.Cleanup(ts.Close)
+	return ts
+}
+
+func setupReleaseABTest(t *testing.T) (*Service, *mock.Store, *nanodep_mock.Storage, *svcmock.Service) {
+	ds := new(mock.Store)
+	svc, base := newTestServiceWithMock(t, ds)
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	base.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error { return nil }
+
+	// Short-circuit the DEP client's terms-expired after-hook.
+	ds.CountABMTokensWithTermsExpiredFunc = func(context.Context) (int, error) { return 0, nil }
+	ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.DeleteHostDEPAssignmentsFunc = func(context.Context, uint, []string) error { return nil }
+
+	dep := &nanodep_mock.Storage{}
+	dep.RetrieveAuthTokensFunc = func(context.Context, string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{ConsumerKey: "ck", ConsumerSecret: "cs", AccessToken: "at", AccessSecret: "as"}, nil
+	}
+	svc.depStorage = dep
+	return svc, ds, dep, base
+}
+
+func byHostID(resp []*fleet.ABReleaseDeviceResponse) map[uint]*fleet.ABReleaseDeviceResponse {
+	m := make(map[uint]*fleet.ABReleaseDeviceResponse, len(resp))
+	for _, r := range resp {
+		m[r.HostID] = r
+	}
+	return m
+}
+
+func adminCtx() context.Context {
+	return viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+}
+
+func TestReleaseABDevicesAuthorization(t *testing.T) {
+	team1 := uint(1)
+	team2 := uint(2)
+
+	setup := func(t *testing.T) (*Service, *mock.Store) {
+		svc, ds, _, _ := setupReleaseABTest(t)
+		ds.ListHostsLiteByIDsFunc = func(_ context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				appleHost(1, "S1", &team1),
+				appleHost(2, "S2", &team2),
+			}, nil
+		}
+		// No DEP assignments so authorized calls short-circuit before hitting Apple.
+		ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+			return nil, nil
+		}
+		ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+			return nil, nil
+		}
+		return svc, ds
+	}
+
+	cases := []struct {
+		name    string
+		user    *fleet.User
+		wantErr bool
+	}{
+		{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false},
+		{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true},
+		{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, true},
+		{"global gitops", &fleet.User{GlobalRole: new(fleet.RoleGitOps)}, true},
+		{"team admin missing one team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1}, Role: fleet.RoleAdmin}}}, true},
+		{"team admin all teams", &fleet.User{Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team1}, Role: fleet.RoleAdmin},
+			{Team: fleet.Team{ID: team2}, Role: fleet.RoleAdmin},
+		}}, false},
+		{"team admin wrong role", &fleet.User{Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: team1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: team2}, Role: fleet.RoleObserver},
+		}}, true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, _ := setup(t)
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: c.user})
+			_, err := svc.ReleaseABDevices(ctx, []uint{1, 2})
+			if c.wantErr {
+				var forbidden *authz.Forbidden
+				require.ErrorAs(t, err, &forbidden)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestReleaseABDevicesTooManyHosts(t *testing.T) {
+	svc, ds, _, _ := setupReleaseABTest(t)
+	ids := make([]uint, 32_001)
+	for i := range ids {
+		ids[i] = uint(i + 1)
+	}
+	_, err := svc.ReleaseABDevices(adminCtx(), ids)
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.False(t, ds.ListHostsLiteByIDsFuncInvoked)
+}
+
+func TestReleaseABDevicesDatastoreError(t *testing.T) {
+	svc, ds, _, _ := setupReleaseABTest(t)
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return nil, io.ErrUnexpectedEOF
+	}
+	_, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.Error(t, err)
+}
+
+func TestReleaseABDevicesPerHostErrors(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	tokenID := uint(10)
+	otherToken := uint(99)
+
+	// host 1: apple + assigned -> success
+	// host 2: not returned by lite lookup -> not found
+	// host 3: non-apple platform -> ineligible
+	// host 4: apple but no DEP assignment -> not in AB
+	// host 5: apple, assignment with nil token -> no ABM token
+	// host 6: apple, assignment references unknown token -> token not found
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		h3 := appleHost(3, "S3", nil)
+		h3.Platform = "windows"
+		return []*fleet.Host{
+			appleHost(1, "S1", nil),
+			h3,
+			appleHost(4, "S4", nil),
+			appleHost(5, "S5", nil),
+			appleHost(6, "S6", nil),
+		}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{
+			depAssignment(1, "S1", &tokenID),
+			depAssignment(5, "S5", nil),
+			depAssignment(6, "S6", &otherToken),
+		}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	ts := startDEPServer(t, 0, 0, nil)
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2, 3, 4, 5, 6})
+	require.NoError(t, err)
+	m := byHostID(resp)
+	require.NotNil(t, m[1])
+	require.NotNil(t, m[2])
+	require.NotNil(t, m[3])
+	require.NotNil(t, m[4])
+	require.NotNil(t, m[5])
+	require.NotNil(t, m[6])
+
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
+	require.Empty(t, m[1].Error)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), m[2].Status)
+	require.Contains(t, m[2].Error, "Host not found")
+	require.Contains(t, m[3].Error, "not an eligible Apple host")
+	require.Contains(t, m[4].Error, "not found in Apple Business")
+	require.Contains(t, m[5].Error, "no associated ABM token")
+	require.Contains(t, m[6].Error, "ABM token not found")
+
+	// Responses are sorted by host ID.
+	for i := 1; i < len(resp); i++ {
+		require.Less(t, resp[i-1].HostID, resp[i].HostID)
+	}
+}
+
+func TestReleaseABDevicesDEPAuthError(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	tokenID := uint(10)
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{appleHost(1, "S1", nil)}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{depAssignment(1, "S1", &tokenID)}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	ts := startDEPServer(t, http.StatusForbidden, 0, nil)
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), resp[0].Status)
+	require.Contains(t, resp[0].Error, "Apple rejected this request")
+}
+
+func TestReleaseABDevicesDEPGenericError(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	tokenID := uint(10)
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{appleHost(1, "S1", nil)}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{depAssignment(1, "S1", &tokenID)}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	ts := startDEPServer(t, 0, http.StatusInternalServerError, nil)
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), resp[0].Status)
+	require.Contains(t, resp[0].Error, "Couldn't release host from Apple Business.") // full error is logged on the server side
+	require.NotContains(t, resp[0].Error, "Apple rejected this request")
+}
+
+func TestReleaseABDevicesNonSuccessStatus(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	tokenID := uint(10)
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{appleHost(1, "S1", nil), appleHost(2, "S2", nil)}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{depAssignment(1, "S1", &tokenID), depAssignment(2, "S2", &tokenID)}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	ts := startDEPServer(t, 0, 0, map[string]string{"S2": "NOT_ACCESSIBLE"})
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2})
+	require.NoError(t, err)
+	m := byHostID(resp)
+	require.NotNil(t, m[1])
+	require.NotNil(t, m[2])
+
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), m[2].Status)
+	require.Contains(t, m[2].Error, "NOT_ACCESSIBLE")
+}
+
+func TestReleaseABDevicesActivityLogged(t *testing.T) {
+	svc, ds, dep, base := setupReleaseABTest(t)
+	tokenID := uint(10)
+	var logged []fleet.ActivityTypeReleasedDeviceFromAB
+	base.NewActivityFunc = func(_ context.Context, _ *fleet.User, act fleet.ActivityDetails) error {
+		a, ok := act.(fleet.ActivityTypeReleasedDeviceFromAB)
+		require.True(t, ok)
+		logged = append(logged, a)
+		return nil
+	}
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{appleHost(1, "S1", nil)}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{depAssignment(1, "S1", &tokenID)}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	var deletedToken uint
+	var deletedSerials []string
+	ds.DeleteHostDEPAssignmentsFunc = func(_ context.Context, abmTokenID uint, serials []string) error {
+		deletedToken = abmTokenID
+		deletedSerials = serials
+		return nil
+	}
+	ts := startDEPServer(t, 0, 0, nil)
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	_, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.NoError(t, err)
+	require.True(t, base.NewActivityFuncInvoked)
+	require.Len(t, logged, 1)
+	require.Equal(t, uint(1), logged[0].HostID)
+	require.Equal(t, "S1", logged[0].HostSerial)
+
+	// Released devices have their DEP assignment cleared under the right token.
+	require.True(t, ds.DeleteHostDEPAssignmentsFuncInvoked)
+	require.Equal(t, tokenID, deletedToken)
+	require.Equal(t, []string{"S1"}, deletedSerials)
+}
+
+// TestReleaseABDevicesMultiToken exercises devices spread across two ABM tokens,
+// where one token's disown call is rejected by Apple and the other succeeds.
+func TestReleaseABDevicesMultiToken(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	token1 := uint(10)
+	token2 := uint(20)
+
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{
+			appleHost(1, "S1", nil),
+			appleHost(2, "S2", nil),
+			appleHost(3, "S3", nil),
+		}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{
+			depAssignment(1, "S1", &token1),
+			depAssignment(2, "S2", &token1),
+			depAssignment(3, "S3", &token2),
+		}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{
+			{ID: token1, OrganizationName: "Org1"},
+			{ID: token2, OrganizationName: "Org2"},
+		}, nil
+	}
+
+	deleted := map[uint][]string{}
+	ds.DeleteHostDEPAssignmentsFunc = func(_ context.Context, abmTokenID uint, serials []string) error {
+		deleted[abmTokenID] = serials
+		return nil
+	}
+
+	// Org1 succeeds, Org2's session is rejected (auth error).
+	okServer := startDEPServer(t, 0, 0, nil)
+	authFailServer := startDEPServer(t, http.StatusForbidden, 0, nil)
+	seen := map[string]struct{}{}
+	dep.RetrieveConfigFunc = func(_ context.Context, name string) (*nanodep_client.Config, error) {
+		seen[name] = struct{}{}
+		if name == "Org2" {
+			return &nanodep_client.Config{BaseURL: authFailServer.URL}, nil
+		}
+		return &nanodep_client.Config{BaseURL: okServer.URL}, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1, 2, 3})
+	require.NoError(t, err)
+	m := byHostID(resp)
+	require.NotNil(t, m[1])
+	require.NotNil(t, m[2])
+	require.NotNil(t, m[3])
+
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[1].Status)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), m[2].Status)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusError), m[3].Status)
+	require.Contains(t, m[3].Error, "Apple rejected this request")
+
+	// Each token was resolved by its own organization name.
+	_, ok := seen["Org1"]
+	assert.True(t, ok)
+	_, ok = seen["Org2"]
+	assert.True(t, ok)
+
+	// Only the successful token clears its assignments; the failed token does not.
+	require.ElementsMatch(t, []string{"S1", "S2"}, deleted[token1])
+	require.NotContains(t, deleted, token2)
+}
+
+func TestReleaseABDevicesAllIneligibleSkipsDEP(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	h := appleHost(1, "S1", nil)
+	h.Platform = "ubuntu"
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{h}, nil
+	}
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		t.Fatal("DEP should not be contacted when there are no eligible hosts")
+		return nil, nil
+	}
+
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	require.Contains(t, resp[0].Error, "not an eligible Apple host")
+	require.False(t, ds.GetHostDEPAssignmentsByHostIDsFuncInvoked)
+}
+
+func TestReleaseABDevicesDeleteAssignmentErrorIsNonFatal(t *testing.T) {
+	svc, ds, dep, _ := setupReleaseABTest(t)
+	tokenID := uint(10)
+	ds.ListHostsLiteByIDsFunc = func(context.Context, []uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{appleHost(1, "S1", nil)}, nil
+	}
+	ds.GetHostDEPAssignmentsByHostIDsFunc = func(context.Context, []uint) ([]*fleet.HostDEPAssignment, error) {
+		return []*fleet.HostDEPAssignment{depAssignment(1, "S1", &tokenID)}, nil
+	}
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: tokenID, OrganizationName: "Org1"}}, nil
+	}
+	ds.DeleteHostDEPAssignmentsFunc = func(context.Context, uint, []string) error {
+		return io.ErrUnexpectedEOF
+	}
+	ts := startDEPServer(t, 0, 0, nil)
+	dep.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{BaseURL: ts.URL}, nil
+	}
+
+	// The device was released, so the call still succeeds even though clearing
+	// the DEP assignment failed (that error is only logged).
+	resp, err := svc.ReleaseABDevices(adminCtx(), []uint{1})
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	require.Equal(t, string(fleet.ABReleaseDeviceStatusSuccess), resp[0].Status)
+	require.True(t, ds.DeleteHostDEPAssignmentsFuncInvoked)
 }

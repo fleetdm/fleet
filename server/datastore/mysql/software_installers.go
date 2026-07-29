@@ -3844,7 +3844,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 			SELECT 1
 			FROM software_installers
 			WHERE self_service = 1
-			  AND (platform = ? OR (extension = 'sh' AND platform = 'linux' AND ? = 'darwin'))
+			  AND (platform = ? OR (extension IN ('sh', 'py') AND platform = 'linux' AND ? = 'darwin'))
 			  AND global_or_team_id = ?
 		) OR EXISTS (
 			SELECT 1

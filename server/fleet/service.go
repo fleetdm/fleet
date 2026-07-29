@@ -930,7 +930,7 @@ type Service interface {
 	// Apple's live device details from ABM for the given host ID.
 	// Returns (nil, nil, nil) for non-DEP hosts.
 	// If ABM returns an error, dep_device is nil and the error is logged.
-	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.Device, error)
+	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
 	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) (*MDMAppleConfigProfile, error)
@@ -1244,6 +1244,12 @@ type Service interface {
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error
+
+	// UpdateMDMConfigProfile updates an existing configuration profile's
+	// contents and/or label targeting in place. Supported for Apple
+	// .mobileconfig profiles, Apple DDM declarations, Windows profiles, and
+	// Android profiles.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1606,6 +1612,9 @@ type Service interface {
 	// for a team (used by GitOps). It upserts the given assets and deletes any
 	// existing assets not in the set.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, teamName string, assets []MDMAppleDDMAssetBatchPayload, dryRun bool) error
+
+	// ReleaseABDevices releases the specified Apple Business devices.
+	ReleaseABDevices(ctx context.Context, hostIDs []uint) ([]*ABReleaseDeviceResponse, error)
 }
 
 type KeyValueStore interface {

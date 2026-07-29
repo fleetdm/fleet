@@ -3991,7 +3991,7 @@ func (ds *Datastore) resolveFirstAddedInstallersForHost(ctx context.Context, hos
 	}
 	byTitle := make(map[uint]*candidate, len(titleIDs))
 	for _, r := range rows {
-		compat := r.Platform == hostPlatform || (r.Extension == "sh" && r.Platform == "linux" && fleet.IsUnixLike(host.Platform))
+		compat := r.Platform == hostPlatform || ((r.Extension == "sh" || r.Extension == "py") && r.Platform == "linux" && fleet.IsUnixLike(host.Platform))
 		pkg := resolvedInstaller{ID: r.InstallerID, SelfService: r.SelfService}
 		c := byTitle[r.TitleID]
 		if c == nil {
@@ -5639,10 +5639,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software_titles st
 			LEFT OUTER JOIN
 				-- filter out software that is not available for install on the host's platform
-				-- .sh packages are available for both linux and darwin hosts
+				-- .sh and .py packages are available for both linux and darwin hosts
 				-- is_active=1 ensures fresh hosts (no install record) don't see a stale inactive
 				-- installer's labels and surface a title that the install endpoint will reject.
-				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension = 'sh' AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id AND si.is_active = 1
+				software_installers si ON st.id = si.title_id AND (si.platform = :host_compatible_platforms OR (si.extension IN ('sh', 'py') AND si.platform = 'linux' AND :host_compatible_platforms = 'darwin')) AND si.extension NOT IN (:incompatible_extensions) AND si.global_or_team_id = :global_or_team_id AND si.is_active = 1
 			LEFT OUTER JOIN
 				-- include VPP apps only if the host is on a supported platform
 				vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)

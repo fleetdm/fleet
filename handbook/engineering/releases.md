@@ -40,6 +40,21 @@ All minor releases go through the release candidate process before they are publ
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
 
+## Create a fleetd release candidate
+
+At the same time as the Fleet server RC, a fleetd release candidate branch is also created at `rc-minor-fleetd-v1.x.x` from `main`, where `1.x.x` is the next minor version after the last released fleetd version (fleetd versioning is separate from Fleet server versioning). No additional feature work is merged into the RC branch without EM and QA approval.
+
+1. Create the release candidate branch from `main` and push it.
+2. Create a release QA issue for the fleetd release.
+3. Announce the release candidate in Slack.
+
+The same cherry-pick policy applies as for the Fleet server RC. To merge a bug fix into the fleetd release candidate, follow the same process described in [Merge unreleased bug fixes into the release candidate](#merge-unreleased-bug-fixes-into-the-release-candidate).
+
+Once QA approves, push to `edge` for 24 hours. QA runs smoke tests from the release issue during this period. If no issues are found, promote from `edge` to `stable`. For the full release steps, see the [fleetd release procedure](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
+
+> Android and ChromeOS agents are released less frequently and as needed. They do not follow the train-timetable schedule. See [Prepare fleetd agent release](#prepare-fleetd-agent-release) for links to their release guides.
+
+
 ## Merge unreleased bug fixes into the release candidate
 
 Only merge unreleased bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate:

@@ -106,7 +106,11 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+To automatically patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+
+To automatically patch the app when this policy fails and app is not open, set `patch_when_closed` to `true`. With this option, Fleet adds a read-only pre-install query that skips automatic install while the app is open and retries on the next policy run. Also, the `continuous_automations_enabled` is automatically set to `true`. 
+
+Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
@@ -201,6 +205,13 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
+  continuous_automations_enabled: true
+  patch_when_closed: true
+- name: Slack
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: slack/darwin
   continuous_automations_enabled: true
   install_software: true
 ```
@@ -348,11 +359,13 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
 - `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
-- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Can only be configured for "All fleets" (default.yml).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `android_enabled_and_configured` specifies whether or not to turn on Android MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
+
+> `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
+
 
 #### Example
 
@@ -370,20 +383,31 @@ controls:
     - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
-  enable_disk_encryption: true # Available in Fleet Premium
   apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
   android_enabled_and_configured: true
   macos_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
-    minimum_version: "15.1"
+    # Custom version
+    minimum_version: "15.4.1"
+    deadline: "2025-07-01"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
     update_new_hosts: true
   ios_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    # Custom version
     minimum_version: "18.1"
+    deadline: "2024-12-31"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
   ipados_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    # Custom version
     minimum_version: "18.1"
+    deadline: "2024-12-31"
+    # OR — Latest version (based on host hardware)
+    minimum_version: "latest"
+    deadline_days: 14
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -394,11 +418,16 @@ controls:
         labels_include_any:
           - Engineering
         activation: ../lib/macos/activations/activation.json
+    enable_disk_encryption: true # Available in Fleet Premium
+    escrow_disk_encryption_key: true # Available in Fleet Premium
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
+    enable_disk_encryption: true # Available in Fleet Premium
+  linux_settings:
+    escrow_disk_encryption_key: true # Available in Fleet Premium
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -425,19 +454,22 @@ controls:
 
 ### macos_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. (default: `""`).
-- `minimum_version` specifies the minimum required macOS version (default: `""`).
+- `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest macOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 - `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
-- `minimum_version` specifies the minimum required iOS version (default: `""`).
+- `minimum_version` specifies the minimum required iOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest iOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### ipados_updates
 
-- `deadline` specifies the deadline in `YYYY-MM-DD` format; the exact deadline is set to noon local time. (default: `""`).
-- `minimum_version` specifies the minimum required iPadOS version (default: `""`).
+- `minimum_version` specifies the minimum required iPadOS version. Accepts a specific version number (e.g., `"15.4.1"`) `"latest"` (latest iPadOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### windows_updates
 
@@ -446,8 +478,14 @@ controls:
 
 ### apple_settings and windows_settings
 
-- `apple_settings.configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
-- `windows_settings.configuration_profiles` is a list of Windows configuration profiles (.xml).
+### apple_settings
+- `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
+- `escrow_disk_encryption_key` specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption (default: `false`). Set to `true` when a third-party tool handles enforcement. `enable_disk_encryption` must be set to `true`.
+
+### windows_settings
+- `configuration_profiles` is a list of Windows configuration profiles (.xml).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
 
 Each entry can use either `path:` or `paths:`:
 
@@ -457,6 +495,9 @@ Each entry can use either `path:` or `paths:`:
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 > `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
+
+### linux_settings
+- `escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
 
 ### android_settings
 
@@ -709,7 +750,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables). If a [patch policy](#patch-policy) has `patch_when_closed` set to `true`, Fleet manages this query and rejects this field.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under **Actions > Versions**. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
@@ -1245,6 +1286,21 @@ org_settings:
       ios_fleet: 📱🏢 Company-owned iPhones
       ipados_fleet: 🔳🏢 Company-owned iPads
       byod_fleet: 📱 BYOD iPhones
+```
+
+#### windows_automatic_enrollment
+
+The `windows_automatic_enrollment` section lets you control the default fleet that automatically enrolled Windows hosts get placed in.
+
+- `default_fleet` specifies the name of the fleet that automatically enrolled Windows hosts go in (default: `""`).
+
+#### Example
+
+```yaml
+org_settings:
+  mdm:
+    windows_automatic_enrollment: # Available in Fleet Premium
+      default_fleet: Windows Workstations
 ```
 
 #### volume_purchasing_program
