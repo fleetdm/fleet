@@ -47,6 +47,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAExcludedWhenSpanningTitles", testWindowsFMAExcludedWhenSpanningTitles},
 		{"WindowsFMAIgnoresInstallerWithoutTitle", testWindowsFMAIgnoresInstallerWithoutTitle},
 		{"WindowsFMANameWithLikeWildcards", testWindowsFMANameWithLikeWildcards},
+		{"WindowsFMANamesCache", testWindowsFMANamesCache},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1862,6 +1863,58 @@ func testWindowsFMANameWithLikeWildcards(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, installerTitleID, cUnderscoreTitle)
 	require.NotEqual(t, installerTitleID, cxcTitle, "_ must not act as a wildcard")
+}
+
+// testWindowsFMANamesCache: ingestion reads the Windows FMA set through a short-lived
+// cache, so an app added within the TTL is not matched until it expires. Asserted
+// behaviourally, by observing when a newly added app starts collapsing titles.
+func testWindowsFMANamesCache(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	origTTL := windowsFMANamesCacheTTL
+	windowsFMANamesCacheTTL = 300 * time.Millisecond
+	t.Cleanup(func() { windowsFMANamesCacheTTL = origTTL })
+	ds.clearWindowsFMANamesCache()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Warm the cache while no app is added, so the entry is an empty set.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Unrelated 1.0", Version: "1.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	// Within the TTL the cached empty set is still in use, so no collapsing happens.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Unrelated 1.0", Version: "1.0", Source: "programs"},
+		{Name: "Granola 7.373.1", Version: "7.373.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Granola 7.373.1", titleNameForSoftware(t, ds, "Granola 7.373.1"),
+		"an app added within the TTL is not yet visible to ingestion")
+
+	// After expiry a newly reported version lands on the installer's title.
+	time.Sleep(windowsFMANamesCacheTTL + 100*time.Millisecond)
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Unrelated 1.0", Version: "1.0", Source: "programs"},
+		{Name: "Granola 7.373.1", Version: "7.373.1", Source: "programs"},
+		{Name: "Granola 7.441.6", Version: "7.441.6", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID,
+			`SELECT title_id FROM software WHERE name = 'Granola 7.441.6'`)
+	})
+	require.Equal(t, canonicalID, gotTitleID, "after the TTL the added app is matched")
+
+	// The reconcile pass reads uncached, so it repairs what the stale window missed.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 7.373.1"))
 }
 
 // addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the

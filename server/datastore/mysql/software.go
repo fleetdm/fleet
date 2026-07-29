@@ -111,6 +111,49 @@ func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
+// windowsFMANamesCacheTTL bounds how long ingestion may keep matching against a stale
+// set of Windows Fleet-maintained apps. Short, because it delays a newly added app from
+// collapsing titles; a var so tests can shorten it further.
+var windowsFMANamesCacheTTL = 30 * time.Second
+
+// getWindowsFMANamesCached returns the Windows FMAs to match reported program names
+// against, from a short-lived in-process cache. The returned slice is shared and must
+// not be mutated. See the field comments on Datastore for why this is TTL-only.
+func (ds *Datastore) getWindowsFMANamesCached(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+	ds.windowsFMANamesMu.RLock()
+	names, expiry := ds.windowsFMANames, ds.windowsFMANamesExpiry
+	ds.windowsFMANamesMu.RUnlock()
+	if time.Now().Before(expiry) {
+		return names, nil
+	}
+
+	result, err, _ := ds.windowsFMANamesSF.Do("windowsFMANames", func() (any, error) {
+		fresh, err := ds.GetWindowsFMANames(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ds.windowsFMANamesMu.Lock()
+		ds.windowsFMANames = fresh
+		ds.windowsFMANamesExpiry = time.Now().Add(windowsFMANamesCacheTTL)
+		ds.windowsFMANamesMu.Unlock()
+		return fresh, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	fresh, _ := result.([]fleet.WindowsFMAName)
+	return fresh, nil
+}
+
+// clearWindowsFMANamesCache drops the cached Windows FMA set, forcing the next
+// ingestion to read through. Used by tests, which share a Datastore across cases.
+func (ds *Datastore) clearWindowsFMANamesCache() {
+	ds.windowsFMANamesMu.Lock()
+	defer ds.windowsFMANamesMu.Unlock()
+	ds.windowsFMANames = nil
+	ds.windowsFMANamesExpiry = time.Time{}
+}
+
 func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
 	ds.knownSoftwareTitleKeysMu.Lock()
 	defer ds.knownSoftwareTitleKeysMu.Unlock()
@@ -1151,8 +1194,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	}
 
 	// Windows has no bundle identifier, so a name-prefix match is the join key that
-	// collapses versioned program names onto the canonical FMA title.
-	winFMANames, winFMAErr := ds.GetWindowsFMANames(ctx)
+	// collapses versioned program names onto the canonical FMA title. Read through a
+	// short-lived cache: this runs on every host software update that reports something
+	// new, which a fleet-wide rollout makes simultaneous across hosts.
+	winFMANames, winFMAErr := ds.getWindowsFMANamesCached(ctx)
 	if winFMAErr != nil {
 		if ds.logger != nil {
 			ds.logger.WarnContext(ctx, "failed to get Windows FMA names", "err", winFMAErr)

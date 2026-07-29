@@ -113,6 +113,29 @@ type Datastore struct {
 	// same title key. Only one goroutine per title actually executes the INSERT; others wait
 	// and share the result. This prevents lock convoys on cold-start (#48719).
 	titleInsertSF singleflight.Group
+
+	// windowsFMANames caches the Windows Fleet-maintained apps that software ingestion
+	// matches reported program names against. The lookup joins software_installers and
+	// software_titles, and ingestion runs on every host software update, so it is held
+	// briefly rather than issued per check-in.
+	//
+	// Deliberately TTL-only, with no invalidation on installer or catalog changes. Fleet
+	// runs multiple server instances, so in-process invalidation would only clear the node
+	// that handled the change and the TTL would remain the real bound anyway; hooking the
+	// several direct and indirect mutation points would add staleness hazards to the flow
+	// this cache serves without removing the window. The TTL is short enough that a newly
+	// added app starts collapsing titles promptly, and the Fleet-maintained app sync's
+	// reconcile pass reads uncached and repairs anything missed in that window.
+	//
+	// The cached slice is replaced, never mutated, so a reader may keep using the value it
+	// received after a refresh. Callers must not mutate it.
+	windowsFMANames       []fleet.WindowsFMAName
+	windowsFMANamesExpiry time.Time
+	windowsFMANamesMu     sync.RWMutex
+	// windowsFMANamesSF collapses a cache-miss stampede into one query per node, which is
+	// what a fleet-wide rollout of a maintained app produces: many hosts report the new
+	// program at once, and every one of them misses.
+	windowsFMANamesSF singleflight.Group
 }
 
 // maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so
