@@ -3307,9 +3307,7 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 		return nil
 	}
 
-	// inspired by https://github.com/brunerd/macAdminTools/blob/main/Scripts/getSupportedMacOSVersions_ASLS.sh
-	// bridge-model is never used, and it only rely's on board-id and compatible by checking device architecture
-	// however we can just rely on returned values.
+	// Use bridge-model (T2), board-id (Intel), or compatible (Apple Silicon) depending on what's present.
 	var boardID, bridgeModel, compatible string
 	for _, row := range rows {
 		if val, ok := row["key"]; ok && val == "board-id" {
@@ -3321,7 +3319,8 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 		} else if val, ok := row["key"]; ok && val == "compatible" {
 			// If compatible presents itself, then always take that as that represent an Apple Silicon based mac.
 			// It might be present as well on Intel macs, but then board-id will override the value.
-			compatible = row["value"]
+			v := row["value"]
+			compatible = strings.Split(v, "\x00")[0] // take the first element of the null-separated list. While queries checked does not return multiple, the HEX value does (indicating truncation happens indirectly elsewhere upstream.)
 		}
 	}
 

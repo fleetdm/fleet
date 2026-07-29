@@ -4723,7 +4723,7 @@ func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
 
 	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
 		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
-			{"key": "compatible", "value": "Apple Silicon"},
+			{"key": "compatible", "value": "Apple Silicon\x00Mac16,7"},
 		})
 		require.NoError(t, err)
 		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
