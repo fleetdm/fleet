@@ -1485,6 +1485,24 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 
 	// OS updates enabled, create or update the profile with the current settings.
 
+	targetOSVersion := updates.MinimumVersion.Value
+	targetDeadline := updates.Deadline.Value
+	var usesFleetVars []fleet.FleetVarName
+	if updates.EnforcesLatestVersion() {
+		// In "latest" mode the target version and deadline differ per host (they
+		// depend on the host's hardware and on when Apple released the version it
+		// can run), so emit placeholders that are resolved at declaration fetch
+		// time. The deadline placeholder is brace-delimited so it doesn't absorb
+		// the time suffix appended below, and resolves to a YYYY-MM-DD date, the
+		// same shape as updates.Deadline in specific-version mode.
+		targetOSVersion = fmt.Sprintf("$FLEET_VAR_%s", fleet.FleetVarHostTargetOSVersion)
+		targetDeadline = fmt.Sprintf("${FLEET_VAR_%s}", fleet.FleetVarHostTargetOSDeadline)
+		usesFleetVars = []fleet.FleetVarName{
+			fleet.FleetVarHostTargetOSVersion,
+			fleet.FleetVarHostTargetOSDeadline,
+		}
+	}
+
 	rawDecl := []byte(fmt.Sprintf(`{
 	"Identifier": %q,
 	"Type": %q,
@@ -1492,7 +1510,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, apple_mdm.DeclarationTypeSoftwareUpdate, targetOSVersion, targetDeadline))
 
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, apple_mdm.DeclarationTypeSoftwareUpdate, softwareUpdateIdentifier)
 
@@ -1505,7 +1523,7 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 		{LabelName: labelName, LabelID: lblIDs[labelName]},
 	}
 
-	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, nil)
+	_, err = svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, d, usesFleetVars)
 	if err != nil {
 		return err
 	}

@@ -604,3 +604,119 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
 	})
 }
+func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
+	ctx := context.Background()
+	teamID := uint(1)
+
+	// captured records what the datastore was handed, so the tests assert on the
+	// generated declaration rather than on a real write.
+	type captured struct {
+		decl    *fleet.MDMAppleDeclaration
+		vars    []fleet.FleetVarName
+		deleted string
+		labels  []string
+	}
+
+	newSvc := func() (*Service, *captured) {
+		got := &captured{}
+		ds := new(mock.Store)
+		ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			got.labels = names
+			ids := make(map[string]uint, len(names))
+			for i, name := range names {
+				ids[name] = uint(i + 1) //nolint:gosec
+			}
+			return ids, nil
+		}
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, decl *fleet.MDMAppleDeclaration,
+			usesFleetVars []fleet.FleetVarName,
+		) (*fleet.MDMAppleDeclaration, error) {
+			got.decl = decl
+			got.vars = usesFleetVars
+			decl.DeclarationUUID = "decl-uuid"
+			return decl, nil
+		}
+		ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, declTeamID *uint, name string) error {
+			got.deleted = name
+			return nil
+		}
+		return &Service{ds: ds}, got
+	}
+
+	// Each platform gets its own declaration name and built-in label; a mix-up
+	// would send the OS update declaration to the wrong devices.
+	platforms := []struct {
+		name      string
+		device    fleet.AppleDevice
+		declName  string
+		labelName string
+	}{
+		{"macos", fleet.MacOS, mdm.FleetMacOSUpdatesProfileName, fleet.BuiltinLabelMacOS14Plus},
+		{"ios", fleet.IOS, mdm.FleetIOSUpdatesProfileName, fleet.BuiltinLabelIOS},
+		{"ipados", fleet.IPadOS, mdm.FleetIPadOSUpdatesProfileName, fleet.BuiltinLabelIPadOS},
+	}
+
+	t.Run("latest emits Fleet variable placeholders", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+					DeadlineDays:   optjson.SetInt(14),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Empty(t, got.deleted)
+
+				// The literal placeholder text matters: it is what gets substituted
+				// per host at declaration fetch time.
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "$FLEET_VAR_HOST_TARGET_OS_VERSION"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "${FLEET_VAR_HOST_TARGET_OS_DEADLINE}T12:00:00"`)
+				// Without these the declaration is stored but never expanded.
+				require.ElementsMatch(t, []fleet.FleetVarName{
+					fleet.FleetVarHostTargetOSVersion,
+					fleet.FleetVarHostTargetOSDeadline,
+				}, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("specific version emits literal values and no variables", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("15.7.8"),
+					Deadline:       optjson.SetString("2026-09-01"),
+				})
+				require.NoError(t, err)
+				require.NotNil(t, got.decl)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetOSVersion": "15.7.8"`)
+				require.Contains(t, string(got.decl.RawJSON), `"TargetLocalDateTime": "2026-09-01T12:00:00"`)
+				require.NotContains(t, string(got.decl.RawJSON), "FLEET_VAR_")
+				require.Empty(t, got.vars)
+
+				require.Equal(t, p.declName, got.decl.Name)
+				require.Equal(t, []string{p.labelName}, got.labels)
+			})
+		}
+	})
+
+	t.Run("disabled deletes the declaration", func(t *testing.T) {
+		for _, p := range platforms {
+			t.Run(p.name, func(t *testing.T) {
+				svc, got := newSvc()
+
+				err := svc.mdmAppleEditedAppleOSUpdates(ctx, &teamID, p.device, fleet.AppleOSUpdateSettings{})
+				require.NoError(t, err)
+				require.Nil(t, got.decl, "no declaration should be written when OS updates are off")
+				require.Equal(t, p.declName, got.deleted)
+			})
+		}
+	})
+}

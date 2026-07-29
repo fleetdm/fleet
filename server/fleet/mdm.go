@@ -78,6 +78,15 @@ const (
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
+	// FleetVarHostTargetOSVersion and FleetVarHostTargetOSDeadline are
+	// Fleet-internal: they are only ever placed in Fleet's own OS-update
+	// declaration when the platform's minimum_version is "latest", and are
+	// resolved per host at declaration fetch time from host_mdm_apple_os_updates.
+	// They are deliberately absent from the lists of variables admins may use in
+	// their own profiles and declarations.
+	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
+	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
+
 	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
 	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
