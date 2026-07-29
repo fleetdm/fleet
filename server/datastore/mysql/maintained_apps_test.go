@@ -2013,33 +2013,6 @@ func titleNameForSoftware(t *testing.T, ds *Datastore, softwareName string) stri
 	return name
 }
 
-// softwareCountForTitleNamed returns how many software rows still link to the
-// 'programs' title with the given name.
-func softwareCountForTitleNamed(t *testing.T, ds *Datastore, titleName string) int {
-	t.Helper()
-	var n int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(t.Context(), q, &n,
-			`SELECT COUNT(*) FROM software s JOIN software_titles st ON st.id = s.title_id
-			 WHERE st.name = ? AND st.source = 'programs'`, titleName)
-	})
-	return n
-}
-
-// hostCountRowsForTitleNamed returns how many software_titles_host_counts rows remain
-// for the 'programs' title with the given name.
-func hostCountRowsForTitleNamed(t *testing.T, ds *Datastore, titleName string) int {
-	t.Helper()
-	var n int
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(t.Context(), q, &n,
-			`SELECT COUNT(*) FROM software_titles_host_counts shc
-			 JOIN software_titles st ON st.id = shc.software_title_id
-			 WHERE st.name = ? AND st.source = 'programs'`, titleName)
-	})
-	return n
-}
-
 // countTitlesNamed returns how many 'programs' software titles carry the given name.
 func countTitlesNamed(t *testing.T, ds *Datastore, name string) int {
 	t.Helper()
