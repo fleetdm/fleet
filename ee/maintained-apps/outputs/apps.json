@@ -3754,6 +3754,13 @@
       "description": "Glyphs is a font editor."
     },
     {
+      "name": "GNU Privacy Guard",
+      "slug": "gnupg/windows",
+      "platform": "windows",
+      "unique_identifier": "GNU Privacy Guard",
+      "description": "GNU Privacy Guard is an implementation of the OpenPGP standard for encrypting and signing data and communications."
+    },
+    {
       "name": "Go",
       "slug": "go/windows",
       "platform": "windows",
