@@ -1099,25 +1099,41 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// MDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field).
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field), or "" for platforms
+// that don't take part in the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
-func MDMPlatform(hostPlatform string) string {
+//
+// Android is deliberately not part of this list: Android hosts don't take part
+// in the classic MDM command pipeline (raw XML/plist commands, nano_commands
+// and mdm_windows_commands, the mdmlifecycle hooks and the host_mdm table).
+// To check whether Fleet can turn MDM on for a platform at all, use
+// MDMTurnedOnSupported instead.
+func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
 		return "darwin"
 	case "windows":
 		return "windows"
-		// TODO(android): add android to this list?
 	}
 	return ""
 }
 
-// MDMSupported returns whether MDM is supported for a given host platform.
-func MDMSupported(hostPlatform string) bool {
-	return MDMPlatform(hostPlatform) != ""
+// ClassicMDMSupported returns whether the given host platform takes part in the
+// classic MDM command pipeline. It returns false for Android, see
+// ClassicMDMPlatform for details.
+func ClassicMDMSupported(hostPlatform string) bool {
+	return ClassicMDMPlatform(hostPlatform) != ""
+}
+
+// MDMTurnedOnSupported returns whether Fleet supports any form of MDM
+// enrollment for the given host platform, Android included. Use this for the
+// checks that only care about MDM being turned on for the host, such as the
+// "Can't <action> the host because it doesn't have MDM turned on." pre-checks.
+func MDMTurnedOnSupported(hostPlatform string) bool {
+	return ClassicMDMSupported(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices

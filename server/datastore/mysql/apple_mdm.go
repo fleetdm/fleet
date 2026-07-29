@@ -2192,7 +2192,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
@@ -4534,7 +4534,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 		host := hosts[0]
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
