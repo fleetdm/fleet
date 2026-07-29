@@ -28,10 +28,9 @@ const (
 	userInfoPasswordOnly = 1003 // USER_INFO_1003: password-only update level.
 	userInfoFlagsOnly    = 1008 // USER_INFO_1008: flags-only update level.
 
-	// NERR_PasswordTooShort is the catch-all Windows returns for any password-policy rejection, not
-	// just length: MSDN lists it for "too long, too recent in its change history, not enough unique
-	// characters, or does not meet another password policy requirement", which includes a custom
-	// password filter DLL.
+	// NERR_PasswordTooShort is the catch-all Windows returns for any password-policy rejection, not just length: MSDN
+	// lists it for "too long, too recent in its change history, not enough unique characters, or does not meet another
+	// password policy requirement", which includes a custom password filter DLL.
 	nerrPasswordTooShort = 2245
 	// ERROR_PASSWORD_RESTRICTION, the equivalent from the system error range.
 	errorPasswordRestriction = 1325
@@ -41,11 +40,8 @@ const (
 // screen and from Settings > Accounts. There is no MDM CSP for this, which is why fleetd does it.
 const logonUIHiddenAccountsKey = `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\SpecialAccounts\UserList`
 
-// fleetAccountComment is written as the account's description at creation, and is load-bearing: it is
-// how a later run tells an account Fleet created from an unrelated account that happens to share the
-// name. Without that check, enabling the feature on a host where "_fleetadmin" already existed would
-// reset someone else's password and silently grant it hidden administrator rights. Windows LAPS marks
-// the accounts it manages with a description for the same reason. Do not change this string.
+// fleetAccountComment is written as the account's description at creation: it is how a later run tells an account Fleet
+// created from an unrelated account that happens to share the name. Do not change this string.
 const fleetAccountComment = "Fleet-managed local administrator account."
 
 var (
@@ -79,16 +75,14 @@ type userInfo1008 struct {
 	Flags uint32
 }
 
-// localGroupMembersInfo3 mirrors LOCALGROUP_MEMBERS_INFO_3, which identifies a member by name
-// rather than SID.
+// localGroupMembersInfo3 mirrors LOCALGROUP_MEMBERS_INFO_3, which identifies a member by name rather than SID.
 type localGroupMembersInfo3 struct {
 	DomainAndName *uint16
 }
 
-// provisionAccount creates the managed local admin account if it is missing, resets its password if
-// it already exists, ensures it is a member of the local Administrators group, and hides it from the
-// sign-in screen. Every step is idempotent so the whole function is safe to re-run, which is what
-// makes retrying after a failed escrow safe.
+// provisionAccount creates the managed local admin account if it is missing, resets its password if it already exists,
+// ensures it is a member of the local Administrators group, and hides it from the sign-in screen. Every step is
+// idempotent so the whole function is safe to re-run, which is what makes retrying after a failed escrow safe.
 func provisionAccount(username, password string) error {
 	if err := ensureUser(username, password); err != nil {
 		return err
@@ -99,8 +93,8 @@ func provisionAccount(username, password string) error {
 	return hideFromSignInScreen(username)
 }
 
-// ensureUser creates the account, or resets its password when it already exists. The reset branch is
-// what lets a retry recover an account whose password Fleet never successfully escrowed.
+// ensureUser creates the account, or resets its password when it already exists. The reset branch is what lets a retry
+// recover an account whose password Fleet never successfully escrowed.
 func ensureUser(username, password string) error {
 	namePtr, err := windows.UTF16PtrFromString(username)
 	if err != nil {
@@ -117,9 +111,9 @@ func ensureUser(username, password string) error {
 	}
 
 	if existing != nil {
-		// Only adopt an account Fleet created. Anything else with this name belongs to someone else, and
-		// resetting its password and elevating it would be destructive; report it instead so it surfaces
-		// on the host rather than silently changing an account we do not own.
+		// Only adopt an account Fleet created. Anything else with this name belongs to someone else, and resetting its
+		// password and elevating it would be destructive; report it instead so it surfaces on the host rather than
+		// silently changing an account we do not own.
 		if existing.comment != fleetAccountComment {
 			return fmt.Errorf(
 				"an account named %s already exists and was not created by Fleet, refusing to take it over", username)
@@ -136,9 +130,8 @@ func ensureUser(username, password string) error {
 		if ret != 0 {
 			return accountError(fmt.Sprintf("resetting password for %s", username), ret, len(password))
 		}
-		// Resetting the password is not enough to make the account usable again. If it was disabled,
-		// locked out, or had its never-expire flag removed after we created it, Fleet would escrow a
-		// password that cannot actually log in, which defeats the purpose of a break-glass account.
+		// Resetting the password is not enough to make the account usable again. If it was disabled, locked out, or had
+		// its never-expire flag removed after we created it, Fleet would escrow a password that cannot actually log in.
 		// Only the flags we own are touched, so anything else set on the account is preserved.
 		return normalizeUserFlags(namePtr, username, existing.flags)
 	}

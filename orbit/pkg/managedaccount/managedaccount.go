@@ -94,7 +94,7 @@ func (r *Receiver) attempt() <-chan struct{} {
 		// Both writes happen while the lock is held.
 		r.lastFailure = time.Now()
 		if r.createAndEscrow() {
-			r.lastFailure = time.Time{}
+			r.lastFailure = time.Time{} // clear time
 		}
 	}()
 	return done
@@ -129,6 +129,6 @@ func (r *Receiver) createAndEscrow() bool {
 		return false
 	}
 
-	log.Info().Msg("managed local account: created and escrowed")
+	log.Info().Msg("managed local account: account created; password escrowed")
 	return true
 }
