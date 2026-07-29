@@ -7,10 +7,7 @@
   @include vertical-card-layout;
 
   &__tab-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: $pad-medium;
+    @include tab-header;
   }
 
   &__token {
@@ -36,10 +33,7 @@
   @include vertical-card-layout;
 
   &__tab-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: $pad-medium;
+    @include tab-header;
   }
 
   &__token {

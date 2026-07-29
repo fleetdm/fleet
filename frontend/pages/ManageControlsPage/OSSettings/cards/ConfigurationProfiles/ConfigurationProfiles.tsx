@@ -286,28 +286,30 @@ const ConfigurationProfiles = ({
           </TabList>
           <TabPanel>
             <div className="profiles-tab">
-              <div className="profiles-tab__tab-header">
-                <PageDescription
-                  variant="right-panel"
-                  content={profilesDescription}
-                />
-                {showAddProfileButton && (
-                  <GitOpsModeTooltipWrapper
-                    position="left"
-                    renderChildren={(disableChildren) => (
-                      <Button
-                        variant="secondary"
-                        size="small"
-                        onClick={() => setShowAddProfileModal(true)}
-                        disabled={disableChildren}
-                      >
-                        <Icon name="plus" size="small" />
-                        <span>Add profile</span>
-                      </Button>
-                    )}
+              {mdmEnabled && (
+                <div className="profiles-tab__tab-header">
+                  <PageDescription
+                    variant="right-panel"
+                    content={profilesDescription}
                   />
-                )}
-              </div>
+                  {showAddProfileButton && (
+                    <GitOpsModeTooltipWrapper
+                      position="left"
+                      renderChildren={(disableChildren) => (
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          onClick={() => setShowAddProfileModal(true)}
+                          disabled={disableChildren}
+                        >
+                          <Icon name="plus" size="small" />
+                          <span>Add profile</span>
+                        </Button>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
               {!mdmEnabled ? (
                 <EmptyState
                   variant="header-list"

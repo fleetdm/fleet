@@ -2,10 +2,7 @@
   @include vertical-page-tab-panel-layout;
 
   &__tab-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: $pad-medium;
+    @include tab-header;
   }
 
   .empty-assets {
