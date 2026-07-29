@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "10.1",
+      "version": "10.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.typinator2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.typinator2' AND version_compare(bundle_short_version, '10.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macility.typinator2' AND version_compare(bundle_short_version, '10.2') < 0);"
       },
-      "installer_url": "https://storage.ergonis.com/apps/production/typinator/archive/Typinator_101.dmg",
+      "installer_url": "https://storage.ergonis.com/apps/production/typinator/archive/Typinator_102.dmg",
       "install_script_ref": "dec26639",
       "uninstall_script_ref": "282f639a",
-      "sha256": "223b0ef7d877274ba0133aaf1bf836ff06a3122e0683c82f790446a6d038fd77",
+      "sha256": "381d0a71931f08de2f588185ae9647d59692389d04735c0835322ed5fb3b9694",
       "default_categories": [
         "Productivity"
       ]
