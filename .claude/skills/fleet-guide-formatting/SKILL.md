@@ -71,7 +71,7 @@ Fill it in like this:
 
 - `articleTitle`: matches the H1 exactly, character for character.
 - `category`: always `guides` for this skill. If it should be anything else, this skill doesn't apply (see Scope).
-- `description`: 1-2 sentences, 150 characters max, factual and benefit-driven. Write this one. It's the only field you can derive from the guide itself.
+- `description`: 1-2 sentences, factual and benefit-driven. Write this one. It's the only field you can derive from the guide itself. **150 characters max, enforced by the website build**, not a style preference: `website/scripts/build-static-content.js` throws `An article page has an invalid description meta tag` and fails the whole production build if you go over. Count the characters rather than eyeballing it, since a description that reads like one or two sentences lands near 150 more often than you'd expect.
 - `authorFullName`, `authorGitHubUsername`, and `publishedOn`: **never fabricate these.** If you don't know the author or the intended publish date, leave the placeholder in place and tell the author which fields they need to fill in.
 
 ## Write a new guide
@@ -97,7 +97,7 @@ Read the file, run the `content-style` skill over it, then check each item. Repo
 - [ ] Has a Verify section if success or failure isn't obvious from the last step.
 - [ ] Troubleshooting entries, if present, lead with a bold symptom, not a generic "Issue:" label.
 - [ ] Ends after the last practical section. No summary or conclusion coda.
-- [ ] Endmatter present and complete: all six `<meta>` tags, `category` is `guides`, `articleTitle` matches the H1 exactly, and `description` is under 150 characters. Author and date are real, or flagged as needing the author's input. Never invented.
+- [ ] Endmatter present and complete: all six `<meta>` tags, `category` is `guides`, `articleTitle` matches the H1 exactly, and `description` is 150 characters or fewer (counted, not estimated, since the website build fails over the limit). Author and date are real, or flagged as needing the author's input. Never invented.
 - [ ] `content-style` was run over the prose in this session, and its findings are reported alongside the structural ones.
 - [ ] **If it has no prerequisites and no concrete steps**, it's not a guide. Recommend recategorizing to `articles` or restructuring around a real procedure. Don't just reshuffle headings on a piece that has no steps to number.
 
