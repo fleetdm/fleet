@@ -1439,17 +1439,15 @@ func attemptInstallExtTestSetup(t *testing.T, execFn func(context.Context, strin
 }
 
 func TestScriptFileExtension(t *testing.T) {
-	orig := scriptGOOS
-	t.Cleanup(func() { scriptGOOS = orig })
+	t.Parallel()
 
-	scriptGOOS = "darwin"
-	require.Equal(t, ".sh", scriptFileExtension(""), "no shebang defaults to shell")
-	require.Equal(t, ".sh", scriptFileExtension("#!/bin/bash\necho hi"), "shell shebang")
-	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')"), "python shebang")
+	require.Equal(t, ".sh", scriptFileExtension("", "darwin"), "no shebang defaults to shell")
+	require.Equal(t, ".sh", scriptFileExtension("#!/bin/bash\necho hi", "darwin"), "shell shebang")
+	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "darwin"), "python shebang")
+	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "linux"), "python shebang on linux")
 
-	scriptGOOS = "windows"
-	require.Equal(t, ".ps1", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')"), "windows is always powershell")
-	require.Equal(t, ".ps1", scriptFileExtension(""))
+	require.Equal(t, ".ps1", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "windows"), "windows is always powershell")
+	require.Equal(t, ".ps1", scriptFileExtension("", "windows"))
 }
 
 func TestAttemptInstallScriptExtension(t *testing.T) {
@@ -1494,20 +1492,6 @@ func TestAttemptInstallScriptExtension(t *testing.T) {
 		require.Contains(t, *executed, "install-script.py")
 		require.Contains(t, *executed, "post-install-script.sh")
 		require.Contains(t, *executed, "rollback-script.sh")
-	})
-
-	t.Run("windows always powershell", func(t *testing.T) {
-		orig := scriptGOOS
-		t.Cleanup(func() { scriptGOOS = orig })
-		scriptGOOS = "windows"
-
-		r, executed := attemptInstallExtTestSetup(t, success)
-		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
-			InstallerID:   1,
-			InstallScript: "#!/usr/bin/env python3\nprint('install')",
-		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
-		require.NoError(t, err)
-		require.Contains(t, *executed, "install-script.ps1")
 	})
 }
 

@@ -501,7 +501,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 	}
 
 	logger.Info().Msg("about to run install script")
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript))
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript, runtime.GOOS))
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
@@ -512,7 +512,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 
 	if installer.PostInstallScript != "" {
 		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
-		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript))
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript, runtime.GOOS))
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
@@ -534,7 +534,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 				uninstallScript = file.GetRemoveScript(ext)
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
-				"rollback-script"+scriptFileExtension(uninstallScript))
+				"rollback-script"+scriptFileExtension(uninstallScript, runtime.GOOS))
 			logger.Info().Msgf(
 				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
@@ -636,15 +636,12 @@ func isNetworkOrTransientError(err error) bool {
 	return false
 }
 
-// scriptGOOS mirrors runtime.GOOS so tests can exercise the Windows branch of
-// scriptFileExtension on any host.
-var scriptGOOS = runtime.GOOS
-
 // scriptFileExtension picks the temp script filename extension so interpreter
 // error output (e.g. Python tracebacks) references a correctly-typed file.
 // Windows scripts are always PowerShell; on unix we honor the script's shebang.
-func scriptFileExtension(contents string) string {
-	if scriptGOOS == "windows" {
+// goos is passed in (rather than read from runtime) so it stays a pure function.
+func scriptFileExtension(contents, goos string) string {
+	if goos == "windows" {
 		return ".ps1"
 	}
 	if kind, _, err := fleet.ShebangInfo(contents); err == nil && kind == fleet.ShebangPython {
