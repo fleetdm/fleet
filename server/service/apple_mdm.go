@@ -2743,11 +2743,14 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
-	// Best-effort: don't block enrollment profile delivery if this write fails.
+	softwareUpdateDeviceID := machineInfo.Product
 	if isMac, _, _, err := fleet.IsMacIdentifier(machineInfo.Product); isMac && err == nil && machineInfo.SoftwareUpdateDeviceID != "" {
-		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, machineInfo.UDID, machineInfo.SoftwareUpdateDeviceID); err != nil {
-			svc.logger.ErrorContext(ctx, "inserting macOS software update device id", "host_uuid", machineInfo.UDID, "err", err)
-		}
+		softwareUpdateDeviceID = machineInfo.SoftwareUpdateDeviceID
+	}
+
+	// Best-effort: don't block enrollment profile delivery if this write fails.
+	if err := svc.ds.InsertAppleSoftwareUpdateDeviceID(ctx, machineInfo.UDID, softwareUpdateDeviceID); err != nil {
+		svc.logger.ErrorContext(ctx, "inserting Apple software update device id", "host_uuid", machineInfo.UDID, "err", err)
 	}
 
 	return signed, nil
@@ -8013,11 +8016,14 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
-	// Best-effort: don't block enrollment profile delivery if this write fails.
+	softwareUpdateDeviceID := deviceInfo.Product
 	if isMac, _, _, err := fleet.IsMacIdentifier(deviceInfo.Product); isMac && err == nil && deviceInfo.SoftwareUpdateDeviceID != "" {
-		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, deviceInfo.UDID, deviceInfo.SoftwareUpdateDeviceID); err != nil {
-			svc.logger.ErrorContext(ctx, "inserting macOS software update device id", "host_uuid", deviceInfo.UDID, "err", err)
-		}
+		softwareUpdateDeviceID = deviceInfo.SoftwareUpdateDeviceID
+	}
+
+	// Best-effort: don't block enrollment profile delivery if this write fails.
+	if err := svc.ds.InsertAppleSoftwareUpdateDeviceID(ctx, deviceInfo.UDID, softwareUpdateDeviceID); err != nil {
+		svc.logger.ErrorContext(ctx, "inserting Apple software update device id", "host_uuid", deviceInfo.UDID, "err", err)
 	}
 
 	return signed, nil

@@ -3343,7 +3343,7 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
 	}
 
-	return ds.InsertMacOSSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
+	return ds.InsertAppleSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
 }
 
 var luksVerifyQuery = DetailQuery{

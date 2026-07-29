@@ -3847,8 +3847,8 @@ type Datastore interface {
 	// deleted so the caller can log the corresponding activities.
 	BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, assets []*MDMAppleDDMAssetToSet) (*MDMAppleDDMAssetsBatchChanges, error)
 
-	// InsertMacOSSoftwareUpdateDeviceID inserts a new macOS software update device ID for the given host UUID for per-host os update tracking.
-	InsertMacOSSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
+	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
+	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
 }
 
 type AndroidDatastore interface {

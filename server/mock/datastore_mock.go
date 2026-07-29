@@ -13497,7 +13497,7 @@ func (s *DataStore) BatchSetAppleDDMAssets(ctx context.Context, teamID *uint, as
 	return s.BatchSetAppleDDMAssetsFunc(ctx, teamID, assets)
 }
 
-func (s *DataStore) InsertMacOSSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+func (s *DataStore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
 	s.mu.Lock()
 	s.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked = true
 	s.mu.Unlock()

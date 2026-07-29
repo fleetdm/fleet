@@ -8508,7 +8508,7 @@ func (ds *Datastore) GetHostDEPAssignmentsByHostIDs(ctx context.Context, hostIDs
 	return res, nil
 }
 
-func (ds *Datastore) InsertMacOSSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
+func (ds *Datastore) InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error {
 	if hostUUID == "" {
 		return ctxerr.New(ctx, "host UUID is required")
 	}
