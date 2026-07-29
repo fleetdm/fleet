@@ -3904,10 +3904,19 @@ func validETag(etag string) bool {
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
-	// We've already authorized in the POST /api/latest/fleet/software/batch,
-	// but adding it here so we don't need to worry about a special case endpoint.
-	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return nil, err
+	var teamID *uint
+	if tmName != "" {
+		team, err := svc.ds.TeamByName(ctx, tmName)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load team by name")
+		}
+		teamID = &team.ID
+	}
+
+	// Reading a batch result reports which packages it added and deleted, the same software
+	// names the fleet's observers can already read from its library.
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
@@ -3971,35 +3980,6 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return downloadProgress
 	}
 
-	// authorizeSoftwareWrite resolves the team and repeats the check from the POST
-	// /api/latest/fleet/software/batch counterpart, so we don't need to worry about a
-	// special case endpoint. We use fleet.ActionWrite because this method is that
-	// endpoint's counterpart. This applies to dry runs too, since the deleted-packages
-	// list and the download progress both expose team-scoped software data.
-	authorizeSoftwareWrite := func() (uint, error) {
-		var (
-			teamID    uint  // GetSoftwareInstallers uses 0 for "No team"
-			ptrTeamID *uint // Authorize uses *uint for "No team" teamID
-		)
-		if tmName != "" {
-			team, err := svc.ds.TeamByName(ctx, tmName)
-			if err != nil {
-				return 0, ctxerr.Wrap(ctx, err, "load team by name")
-			}
-			teamID = team.ID
-			ptrTeamID = &team.ID
-		}
-		if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "validating authorization")
-		}
-		return teamID, nil
-	}
-
-	teamID, err := authorizeSoftwareWrite()
-	if err != nil {
-		return nil, err
-	}
-
 	switch {
 	case *result == batchSetCompleted:
 		// fall through to retrieving the (deleted) software packages below.
@@ -4041,7 +4021,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		}, nil
 	}
 
-	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
+	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, ptr.ValOrZero(teamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installers")
 	}

@@ -3,8 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1301,6 +1307,146 @@ func TestEnsureHistoricalDataDefaults(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+		})
+	}
+}
+
+func TestApplySoftwareInstallersProgress(t *testing.T) {
+	pkg := func(name string, status fleet.SoftwarePackageDownloadStatus) fleet.SoftwarePackageDownloadProgress {
+		return fleet.SoftwarePackageDownloadProgress{Name: name, Status: status}
+	}
+	poll := func(status string, progress ...fleet.SoftwarePackageDownloadProgress) batchSetSoftwareInstallersResultResponse {
+		return batchSetSoftwareInstallersResultResponse{Status: status, DownloadProgress: progress}
+	}
+	// Fakes the batch endpoints, handing out one scripted response per poll.
+	newClient := func(t *testing.T, polls []batchSetSoftwareInstallersResultResponse) *Client {
+		var mu sync.Mutex
+		var polled int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if r.Method == "POST" {
+				_ = json.NewEncoder(w).Encode(batchSetSoftwareInstallersResponse{RequestUUID: "test-uuid"})
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			_ = json.NewEncoder(w).Encode(polls[min(polled, len(polls)-1)])
+			polled++
+		}))
+		t.Cleanup(srv.Close)
+		client, err := NewClient(srv.URL, true, "", "")
+		require.NoError(t, err)
+		client.SetToken("test-token")
+		return client
+	}
+
+	processing, completed := fleet.BatchSetSoftwareInstallersStatusProcessing, fleet.BatchSetSoftwareInstallersStatusCompleted
+	downloading, downloaded, failed := fleet.SoftwarePackageDownloadStarted, fleet.SoftwarePackageDownloadFinished, fleet.SoftwarePackageDownloadFailed
+
+	testCases := []struct {
+		name      string
+		polls     []batchSetSoftwareInstallersResultResponse
+		dryRun    bool
+		noTeam    bool
+		fleets    int
+		wantLines []string
+		wantErr   string
+	}{
+		{
+			// A package keeps its entry for the rest of the batch, so a line that already
+			// printed must not print again on the next poll.
+			name: "prints each line once however often it polls",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("zoom.pkg", downloading)),
+				poll(processing, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloading)),
+				poll(completed, pkg("zoom.pkg", downloaded), pkg("slack.pkg", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+				"[+] downloading software package - slack.pkg ...",
+				"[+] downloaded software package - slack.pkg",
+			},
+		},
+		{
+			name:  "packages the batch never downloads stay silent",
+			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, fleet.SoftwarePackageDownloadProgress{}, pkg("zoom.pkg", downloaded), fleet.SoftwarePackageDownloadProgress{})},
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+		{
+			name: "a failed download reports itself and never reports as downloaded",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("htop.rpm", downloading)),
+				{
+					Status:           fleet.BatchSetSoftwareInstallersStatusFailed,
+					Message:          `URL ("https://example.com/htop.rpm") returned "Not Found".`,
+					DownloadProgress: []fleet.SoftwarePackageDownloadProgress{pkg("htop.rpm", failed)},
+				},
+			},
+			wantLines: []string{
+				"[+] downloading software package - htop.rpm ...",
+				"Error: could not download software package htop.rpm",
+			},
+			wantErr: `returned "Not Found"`,
+		},
+		{
+			// A dry run downloads packages too, so it reports the same progress.
+			name:   "dry run reports progress",
+			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
+			dryRun: true,
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+		{
+			name:   "software for unassigned hosts reports progress",
+			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
+			noTeam: true,
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+		{
+			name:   "each fleet reports its own packages",
+			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
+			fleets: 2,
+			wantLines: []string{
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+				"[+] downloading software package - zoom.pkg ...",
+				"[+] downloaded software package - zoom.pkg",
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var lines []string
+			logFn := func(format string, args ...any) {
+				lines = append(lines, strings.TrimSuffix(fmt.Sprintf(format, args...), "\n"))
+			}
+
+			for range max(tt.fleets, 1) {
+				var err error
+				client := newClient(t, tt.polls)
+				if tt.noTeam {
+					_, _, _, err = client.ApplyNoTeamSoftwareInstallers(nil, fleet.ApplySpecOptions{DryRun: tt.dryRun}, logFn)
+				} else {
+					_, _, _, err = client.applySoftwareInstallers(nil, url.Values{}, tt.dryRun, logFn)
+				}
+				if tt.wantErr != "" {
+					require.ErrorContains(t, err, tt.wantErr)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+
+			require.Equal(t, tt.wantLines, lines)
 		})
 	}
 }

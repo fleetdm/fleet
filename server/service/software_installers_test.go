@@ -737,3 +737,198 @@ func TestSoftwareInstallerUploadRetries(t *testing.T) {
 	}
 
 }
+
+func TestGetBatchSetSoftwareInstallersResultAuth(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	kvStore := &mock.KVStore{}
+	kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
+		// Only the batch status key holds a value here, so the batch reports as still
+		// processing and no package lists are loaded.
+		if strings.Contains(key, ":") {
+			return nil, nil
+		}
+		return new(fleet.BatchSetSoftwareInstallersStatusProcessing), nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, KeyValueStore: kvStore})
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+
+	// Reading a batch result is scoped like software inventory: anyone who can read the
+	// fleet's software can read it, including its observers, and nobody outside can.
+	testCases := []struct {
+		name       string
+		user       *fleet.User
+		teamName   string
+		shouldFail bool
+	}{
+		{"global admin", test.UserAdmin, "team1", false},
+		{"global maintainer", test.UserMaintainer, "team1", false},
+		{"global gitops", test.UserGitOps, "team1", false},
+		{"global observer", test.UserObserver, "team1", false},
+		{"global observer+", test.UserObserverPlus, "team1", false},
+		{"no role", test.UserNoRoles, "team1", true},
+		{"team admin", test.UserTeamAdminTeam1, "team1", false},
+		{"team gitops", test.UserTeamGitOpsTeam1, "team1", false},
+		{"team observer", test.UserTeamObserverTeam1, "team1", false},
+		{"team observer+", test.UserTeamObserverPlusTeam1, "team1", false},
+		{"team admin other fleet", test.UserTeamAdminTeam2, "team1", true},
+		{"team observer other fleet", test.UserTeamObserverTeam2, "team1", true},
+		{"global observer unassigned", test.UserObserver, "", false},
+		{"team admin unassigned", test.UserTeamAdminTeam1, "", true},
+		{"no role unassigned", test.UserNoRoles, "", true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			_, err := svc.GetBatchSetSoftwareInstallersResult(ctx, tt.teamName, "request-uuid", false)
+			checkAuthErr(t, tt.shouldFail, err)
+		})
+	}
+}
+
+func TestSoftwareBatchDownloadProgress(t *testing.T) {
+	testCases := []struct {
+		name                string
+		failProgressWrites  bool
+		wantProgressWritten []string
+	}{
+		{
+			name: "records each package as its download starts and finishes",
+			wantProgressWritten: []string{
+				`[{"name":"dummy_installer.pkg","status":"downloading"}]`,
+				`[{"name":"dummy_installer.pkg","status":"downloaded"}]`,
+			},
+		},
+		{
+			// Progress is only ever printed for the user, so losing it must not turn a
+			// batch that would have succeeded into a failed one.
+			name:               "a progress write that fails leaves the batch alone",
+			failProgressWrites: true,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+			var kvMu sync.Mutex
+			var progressWritten []string
+			batchStatus := fleet.BatchSetSoftwareInstallersStatusProcessing
+
+			kvStore := &mock.KVStore{}
+			kvStore.SetFunc = func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+				kvMu.Lock()
+				defer kvMu.Unlock()
+				switch {
+				case strings.HasSuffix(key, ":downloaded"):
+					if tt.failProgressWrites {
+						return errors.New("progress write failed")
+					}
+					progressWritten = append(progressWritten, value)
+				case !strings.Contains(key, ":"):
+					batchStatus = value
+				}
+				return nil
+			}
+			kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
+				kvMu.Lock()
+				defer kvMu.Unlock()
+				if strings.Contains(key, ":") {
+					return nil, nil
+				}
+				return new(batchStatus), nil
+			}
+
+			softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(t.TempDir())
+			require.NoError(t, err)
+
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+				License:              lic,
+				SoftwareInstallStore: softwareInstallStore,
+				KeyValueStore:        kvStore,
+			})
+
+			authCtx := authz_ctx.AuthorizationContext{}
+			ctx = authz_ctx.NewContext(ctx, &authCtx)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
+			actx, _ := authz_ctx.FromContext(ctx)
+			actx.SetChecked()
+
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				return &fleet.Team{ID: 1, Name: "foo"}, nil
+			}
+			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: 1, Name: "foo"}, nil
+			}
+			ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+				return nil
+			}
+			ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+				return nil
+			}
+			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+				return map[string]uint{}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{}, nil
+			}
+			ds.GetInstallerByTeamAndURLFunc = func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+				return nil, nil
+			}
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
+				return []fleet.SoftwarePackageResponse{}, nil
+			}
+
+			baseDir := getPathRelative("./testdata/software-installers/")
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
+			}))
+			t.Cleanup(srv.Close)
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "foo", []*fleet.SoftwareInstallerPayload{{
+				URL:             srv.URL + "/dummy_installer.pkg",
+				InstallScript:   "install",
+				UninstallScript: "uninstall",
+				ValidatedLabels: &fleet.LabelIdentsWithScope{},
+				Categories:      optjson.SetSlice([]string{}),
+			}}, false)
+			require.NoError(t, err)
+
+			timeout := time.After(30 * time.Second)
+			for {
+				result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, "foo", requestUUID, false)
+				require.NoError(t, err)
+				if result.Status == fleet.BatchSetSoftwareInstallersStatusCompleted {
+					break
+				}
+				require.NotEqual(t, fleet.BatchSetSoftwareInstallersStatusFailed, result.Status, result.Message)
+				select {
+				case <-timeout:
+					t.Fatal("batch never completed")
+				case <-time.After(50 * time.Millisecond):
+				}
+			}
+
+			kvMu.Lock()
+			defer kvMu.Unlock()
+			require.Equal(t, tt.wantProgressWritten, progressWritten)
+		})
+	}
+}

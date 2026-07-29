@@ -1200,7 +1200,7 @@ func (c *Client) ApplyGroup(
 				}
 				if !opts.DryRun {
 					// The dry run already reported the number it would apply, before the batch ran.
-					logfn(appliedTeamFormat, numberWithPluralization(len(installers), "software package", "software packages"), tmName)
+					logfn(appliedTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				}
 				logSoftwareDeletions(logfn, deletedInstallers, opts.DryRun)
 				teamsSoftwareInstallers[tmName] = installers
