@@ -141,9 +141,6 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 		// listGroups lists groups (and their members) instead of users.
 		listGroups bool
 		limits     Limits
-		// maxPages lowers maxPagesPerListing so the page guard can be exercised
-		// without serving its production number of pages.
-		maxPages int
 		// wantErrContains is empty when the listing is expected to succeed.
 		wantErrContains string
 		// wantRecords is the number of users or groups a successful listing returns.
@@ -163,20 +160,18 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 			// The record limit can never trip here, only the page limit can.
 			name:            "users empty pages forever",
 			fake:            pagingFake{usersPerPage: 0},
-			limits:          Limits{MaxUsers: 1000},
-			maxPages:        5,
-			wantErrContains: "users listing stopped after 5 pages without completing",
-			wantRequests:    6,
+			limits:          Limits{MaxUsers: 1000, maxPages: 5},
+			wantErrContains: "users listing exceeded the limit of 5 pages",
+			wantRequests:    5,
 		},
 		{
 			// The page limit must hold with the record limit disabled too, or the
 			// documented escape hatch would restore the unbounded loop.
 			name:            "users empty pages forever with no record limit",
 			fake:            pagingFake{usersPerPage: 0},
-			limits:          Limits{MaxUsers: 0},
-			maxPages:        5,
-			wantErrContains: "users listing stopped after 5 pages without completing",
-			wantRequests:    6,
+			limits:          Limits{MaxUsers: 0, maxPages: 5},
+			wantErrContains: "users listing exceeded the limit of 5 pages",
+			wantRequests:    5,
 		},
 		{
 			name:         "users under limit",
@@ -184,6 +179,15 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 			limits:       Limits{MaxUsers: 1000},
 			wantRecords:  4,
 			wantRequests: 2,
+		},
+		{
+			// A listing whose last page is the last allowed page has nothing more to
+			// fetch, so it must succeed rather than trip the page limit.
+			name:         "users ending on the last allowed page",
+			fake:         pagingFake{usersPerPage: 2, userPages: 5},
+			limits:       Limits{MaxUsers: 1000, maxPages: 5},
+			wantRecords:  10,
+			wantRequests: 5,
 		},
 		{
 			// More users than the record limit in the cases above would allow.
@@ -205,10 +209,9 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 			name:            "groups empty pages forever with no record limit",
 			fake:            pagingFake{groupsPerPage: 0},
 			listGroups:      true,
-			limits:          Limits{MaxGroups: 0},
-			maxPages:        5,
-			wantErrContains: "groups listing stopped after 5 pages without completing",
-			wantRequests:    6,
+			limits:          Limits{MaxGroups: 0, maxPages: 5},
+			wantErrContains: "groups listing exceeded the limit of 5 pages",
+			wantRequests:    5,
 		},
 		{
 			name:            "group members over record limit",
@@ -223,10 +226,9 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 			name:            "group members empty pages forever with no record limit",
 			fake:            pagingFake{groupsPerPage: 1, groupPages: 1, membersPerPage: 0},
 			listGroups:      true,
-			limits:          Limits{MaxGroupMembers: 0},
-			maxPages:        5,
-			wantErrContains: "group members listing stopped after 5 pages without completing",
-			wantRequests:    7,
+			limits:          Limits{MaxGroupMembers: 0, maxPages: 5},
+			wantErrContains: "group members listing exceeded the limit of 5 pages",
+			wantRequests:    6,
 		},
 		{
 			name:            "total memberships over limit",
@@ -247,12 +249,6 @@ func TestDirectoryPaginationLimits(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.maxPages > 0 {
-				original := maxPagesPerListing
-				maxPagesPerListing = tc.maxPages
-				t.Cleanup(func() { maxPagesPerListing = original })
-			}
-
 			srv, requests := tc.fake.server(t, tc.wantRequests+1)
 			dir := newTestDirectory(t, srv, pemKey, tc.limits)
 

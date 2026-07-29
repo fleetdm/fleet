@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,17 +21,24 @@ import (
 // JSON, the real Directory client performs its JWT token exchange and Directory
 // API calls against a local fake server (over plain HTTP).
 func TestDirectoryEndpointOverride(t *testing.T) {
+	// Field projections as each endpoint received them, so the test can show the
+	// listings ask only for what Fleet maps.
+	requestedFields := map[string]string{}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "x", "token_type": "Bearer", "expires_in": 3600})
 	})
-	mux.HandleFunc("GET /admin/directory/v1/users", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /admin/directory/v1/users", func(w http.ResponseWriter, r *http.Request) {
+		requestedFields["users"] = r.URL.Query().Get("fields")
 		_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"id": "1", "primaryEmail": "a@b.com"}}})
 	})
-	mux.HandleFunc("GET /admin/directory/v1/groups", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /admin/directory/v1/groups", func(w http.ResponseWriter, r *http.Request) {
+		requestedFields["groups"] = r.URL.Query().Get("fields")
 		_ = json.NewEncoder(w).Encode(map[string]any{"groups": []map[string]any{{"id": "g1", "name": "G"}}})
 	})
-	mux.HandleFunc("GET /admin/directory/v1/groups/{k}/members", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /admin/directory/v1/groups/{k}/members", func(w http.ResponseWriter, r *http.Request) {
+		requestedFields["members"] = r.URL.Query().Get("fields")
 		_ = json.NewEncoder(w).Encode(map[string]any{"members": []map[string]any{{"id": "1", "type": "USER"}}})
 	})
 	srv := httptest.NewServer(mux)
@@ -64,4 +72,48 @@ func TestDirectoryEndpointOverride(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, groups, 1)
 	require.Len(t, groups[0].MemberExternalIDs, 1)
+
+	// Every listing must project its fields, and every projection must carry
+	// nextPageToken or pagination cannot advance past the first page.
+	require.Equal(t, map[string]string{
+		"users":   usersFields,
+		"groups":  groupsFields,
+		"members": membersFields,
+	}, requestedFields)
+	for name, fields := range requestedFields {
+		require.Contains(t, fields, "nextPageToken", "%s projection must request nextPageToken", name)
+	}
+}
+
+// TestFieldProjectionsCoverMappedFields pins each projection against the fields the
+// mapping code reads. A projection that drops one of these does not fail — the API
+// simply omits it — so the directory would silently sync with empty values.
+func TestFieldProjectionsCoverMappedFields(t *testing.T) {
+	for _, tc := range []struct {
+		fields string
+		// needed are the response fields the mapping code depends on.
+		needed []string
+	}{
+		{
+			// mapUser reads id, primaryEmail, suspended, archived, name, organizations
+			// (department, primary) and emails (address, type, primary).
+			fields: usersFields,
+			needed: []string{"id", "primaryEmail", "suspended", "archived", "name", "organizations", "emails"},
+		},
+		{
+			// groupDisplayName falls back from name to email.
+			fields: groupsFields,
+			needed: []string{"id", "name", "email"},
+		},
+		{
+			// Directory.ListGroups keeps members by id and filters on type.
+			fields: membersFields,
+			needed: []string{"id", "type"},
+		},
+	} {
+		t.Run(tc.fields, func(t *testing.T) {
+			inner := tc.fields[strings.Index(tc.fields, "(")+1 : len(tc.fields)-1]
+			require.ElementsMatch(t, tc.needed, strings.Split(inner, ","))
+		})
+	}
 }

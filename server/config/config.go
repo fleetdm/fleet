@@ -1045,7 +1045,7 @@ func (g GoogleWorkspaceConfig) Validate(initFatal func(err error, msg string)) {
 		"google_workspace.max_group_memberships": g.MaxGroupMemberships,
 	} {
 		if value < 0 {
-			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit)", setting),
+			initFatal(fmt.Errorf("%s must be non-negative (0 = no limit), got %d", setting, value),
 				"Google Workspace configuration")
 		}
 	}
