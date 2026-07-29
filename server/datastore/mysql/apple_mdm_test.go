@@ -104,6 +104,7 @@ func TestMDMApple(t *testing.T) {
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
+		{"MDMAppleUpsertHostRestoresServerURLOnReenroll", testMDMAppleUpsertHostRestoresServerURLOnReenroll},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -8158,6 +8159,80 @@ func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
 	// A brand-new host inserted directly as BYOD (insertMDMAppleHostDB path).
 	byodID := upsert("byod-first", true)
 	require.True(t, readPersonalEnrollment(byodID), "fresh BYOD enrollment should be personal")
+}
+
+// testMDMAppleUpsertHostRestoresServerURLOnReenroll guards host_mdm.server_url
+// and mdm_id through unenroll → re-enroll. MDMTurnOff clears those columns;
+// MDMAppleUpsertHost must rewrite them on conflict. Without that, iOS/iPadOS
+// hosts keep server_url='' forever (no osquery to refresh MDM details).
+// Regression for https://github.com/fleetdm/fleet/issues/50187
+func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	appCfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	expectedServerURL, err := apple_mdm.ResolveAppleMDMURL(appCfg.MDMUrl())
+	require.NoError(t, err)
+
+	type hostMDMRow struct {
+		Enrolled         bool   `db:"enrolled"`
+		ServerURL        string `db:"server_url"`
+		MDMID            *uint  `db:"mdm_id"`
+		InstalledFromDEP bool   `db:"installed_from_dep"`
+	}
+	readHostMDM := func(hostID uint) hostMDMRow {
+		var row hostMDMRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT enrolled, server_url, mdm_id, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		return row
+	}
+
+	for _, platform := range []string{"ios", "ipados"} {
+		uuid := fmt.Sprintf("reenroll-server-url-%s", platform)
+		err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "test-model",
+			Platform:       platform,
+		}, false)
+		require.NoError(t, err)
+
+		h, err := ds.HostByIdentifier(ctx, uuid)
+		require.NoError(t, err)
+
+		initial := readHostMDM(h.ID)
+		require.True(t, initial.Enrolled)
+		require.Equal(t, expectedServerURL, initial.ServerURL)
+		require.NotNil(t, initial.MDMID)
+		require.False(t, initial.InstalledFromDEP)
+
+		_, _, err = ds.MDMTurnOff(ctx, uuid)
+		require.NoError(t, err)
+
+		afterTurnOff := readHostMDM(h.ID)
+		require.False(t, afterTurnOff.Enrolled)
+		require.Empty(t, afterTurnOff.ServerURL)
+		require.Nil(t, afterTurnOff.MDMID)
+
+		// Re-enroll hits updateMDMAppleHostDB → upsertMDMAppleHostMDMInfoDB with
+		// an existing host_mdm row (ON DUPLICATE KEY UPDATE path).
+		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+			UUID:           uuid,
+			HardwareSerial: "serial-" + uuid,
+			HardwareModel:  "test-model",
+			Platform:       platform,
+		}, false)
+		require.NoError(t, err)
+
+		afterReenroll := readHostMDM(h.ID)
+		require.True(t, afterReenroll.Enrolled, "platform %s", platform)
+		require.Equal(t, expectedServerURL, afterReenroll.ServerURL, "platform %s", platform)
+		require.NotNil(t, afterReenroll.MDMID, "platform %s", platform)
+		require.False(t, afterReenroll.InstalledFromDEP, "platform %s", platform)
+	}
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {
