@@ -1502,8 +1502,10 @@ func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			var gotActivities []fleet.ActivityDetails
 			mockSvc := &svcmock.Service{}
-			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+			mockSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+				gotActivities = append(gotActivities, a)
 				return nil
 			}
 
@@ -1575,6 +1577,26 @@ func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
 				require.Contains(t, string(gotDecl.RawJSON), "$FLEET_VAR_HOST_TARGET_OS_VERSION")
 				require.Len(t, gotVars, 2)
 			}
+
+			// The activity feed renders "updated macOS version to latest" from
+			// minimum_version, so the payload has to carry the sentinel through.
+			// Deadline stays empty in latest mode, which is what makes the
+			// renderer drop its "(deadline: ...)" clause.
+			var osUpdateActivities []fleet.ActivityTypeEditedMacOSMinVersion
+			for _, a := range gotActivities {
+				if edited, ok := a.(fleet.ActivityTypeEditedMacOSMinVersion); ok {
+					osUpdateActivities = append(osUpdateActivities, edited)
+				}
+			}
+			if !tc.wantRedeploy {
+				require.Empty(t, osUpdateActivities, "an unchanged setting must not emit an activity")
+				return
+			}
+			require.Len(t, osUpdateActivities, 1)
+			require.Equal(t, fleet.AppleOSUpdateLatestVersion, osUpdateActivities[0].MinimumVersion)
+			require.Empty(t, osUpdateActivities[0].Deadline)
+			require.NotNil(t, osUpdateActivities[0].TeamID)
+			require.Equal(t, uint(1), *osUpdateActivities[0].TeamID)
 		})
 	}
 }
