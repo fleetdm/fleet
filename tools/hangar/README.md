@@ -48,6 +48,7 @@ task dev       # live-reload dev mode (Vite + Go)
 task build     # type-check + production build -> bin/fleet-hangar
 task package   # build + bundle + ad-hoc sign -> "bin/Fleet Hangar.app"
 task dist      # zip the existing .app into a shareable "bin/Fleet Hangar.zip"
+task pkg       # wrap the existing .app into a Fleet-installable "bin/Fleet Hangar.pkg"
 go test ./...  # backend unit tests
 ```
 
@@ -78,6 +79,12 @@ wails3 generate bindings -clean=true -ts
     Apple notarization), then `task dist`. No quarantine step needed.
 
   `dist` never rebuilds, so running it after `sign:notarize` preserves the notarized signature.
+- **Install onto hosts via Fleet.** `task pkg` wraps the existing `bin/Fleet Hangar.app` into
+  `bin/Fleet Hangar.pkg` — a component installer that drops the app into `/Applications`. Upload
+  it under *Fleet > Software > Add software > Custom package*; Fleet reads the identifier and
+  version from the app's `Info.plist` to track install status. Like `dist`, it never rebuilds, so
+  notarize first (`task darwin:sign:notarize`) for real hosts — an ad-hoc build installs cleanly
+  only because a pkg install skips the quarantine flag.
 
 ## Known issues
 
