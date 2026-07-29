@@ -1,0 +1,1 @@
+- Fixed the osquery result log endpoint so that an enrolled host can no longer inject rows into the report of a saved query it was never scheduled to run. Results are now only stored when the reported query belongs to the host's fleet and is actually on a schedule, instead of being trusted based on the reported query name alone.

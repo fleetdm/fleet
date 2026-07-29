@@ -657,6 +657,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 4242,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				TeamID:             ptr.Uint(1),
 				Logging:            fleet.LoggingSnapshot,
@@ -665,6 +667,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 4343,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				TeamID:             ptr.Uint(2),
 				Logging:            fleet.LoggingSnapshot,
@@ -673,23 +677,31 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 uint(name[0]),
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 			}, nil
 		case teamID != nil && *teamID == 1 && name == "hosts":
 			return &fleet.Query{
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				TeamID:             teamID,
 			}, nil
 		case teamID == nil && name == "query_not_automated":
 			return &fleet.Query{
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: false,
 			}, nil
 		case teamID == nil && name == "query_should_be_saved_and_submitted":
 			return &fleet.Query{
 				ID:                 123,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
@@ -697,6 +709,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 777,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
@@ -704,6 +718,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 1234,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
@@ -711,6 +727,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 444,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: false,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
@@ -718,6 +736,8 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			return &fleet.Query{
 				ID:                 555,
 				Name:               name,
+				Saved:              true,
+				Interval:           3600,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
@@ -902,6 +922,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	discardDataTrue := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
+			Saved:       true,
+			Interval:    3600,
 			DiscardData: true,
 			Logging:     fleet.LoggingSnapshot,
 		},
@@ -913,6 +935,8 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
+			Saved:       true,
+			Interval:    3600,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		},
@@ -951,6 +975,8 @@ func TestSaveResultLogsToQueryReportsWithTableOverLimit(t *testing.T) {
 	discardDataFalse := map[string]*fleet.Query{
 		"pack/Global/Uptime": {
 			ID:          1,
+			Saved:       true,
+			Interval:    3600,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		},
@@ -994,6 +1020,8 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:          1,
+			Saved:       true,
+			Interval:    3600,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
@@ -1045,6 +1073,8 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:          1,
+			Saved:       true,
+			Interval:    3600,
 			DiscardData: false,
 			Logging:     fleet.LoggingSnapshot,
 		}, nil
@@ -1065,6 +1095,81 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	err = svc.SubmitResultLogs(ctx, results)
 	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+// TestSubmitResultLogsOnlyStoresQueriesScheduledForHost checks that a host
+// cannot forge rows in the report of a saved query it was never scheduled to
+// run. osquery identifies scheduled query results by name only, so the reported
+// name must be correlated with the host's schedule before storing the results.
+func TestSubmitResultLogsOnlyStoresQueriesScheduledForHost(t *testing.T) {
+	const hostID = 999
+
+	// The reported queries, keyed by the query name the host claims to be
+	// reporting results for.
+	queries := map[string]*fleet.Query{
+		"scheduled": {
+			ID: 1, Name: "scheduled", Saved: true, Interval: 3600,
+			Logging: fleet.LoggingSnapshot,
+		},
+		"not_scheduled": {
+			// No schedule interval: Fleet never sends this query to any host, so no
+			// host can legitimately report results for it.
+			ID: 2, Name: "not_scheduled", Saved: true, Interval: 0,
+			Logging: fleet.LoggingSnapshot,
+		},
+		"not_saved": {
+			ID: 3, Name: "not_saved", Saved: false, Interval: 3600,
+			Logging: fleet.LoggingSnapshot,
+		},
+		"other_team": {
+			ID: 4, Name: "other_team", Saved: true, Interval: 3600,
+			TeamID: new(uint(42)), Logging: fleet.LoggingSnapshot,
+		},
+		"not_delivered_to_hosts": {
+			// Neither automations nor query reports: not part of any host's schedule.
+			ID: 5, Name: "not_delivered_to_hosts", Saved: true, Interval: 3600,
+			AutomationsEnabled: false, DiscardData: true, Logging: fleet.LoggingSnapshot,
+		},
+	}
+
+	for _, tc := range []struct {
+		queryName string
+		stored    bool
+	}{
+		{queryName: "scheduled", stored: true},
+		{queryName: "not_scheduled", stored: false},
+		{queryName: "not_saved", stored: false},
+		{queryName: "other_team", stored: false},
+		{queryName: "not_delivered_to_hosts", stored: false},
+	} {
+		t.Run(tc.queryName, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: hostID, TeamID: nil})
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+				query, ok := queries[name]
+				if !ok || teamID != nil {
+					return nil, newNotFoundError()
+				}
+				return query, nil
+			}
+			ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (int, error) {
+				return len(rows), nil
+			}
+
+			log := fmt.Sprintf(
+				`{"action":"snapshot","name":"pack/Global/%s","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"snapshot":[{"forged":"true"}]}`,
+				tc.queryName,
+			)
+			require.NoError(t, svc.SubmitResultLogs(ctx, []json.RawMessage{json.RawMessage(log)}))
+
+			assert.Equal(t, tc.stored, ds.OverwriteQueryResultRowsFuncInvoked)
+		})
+	}
 }
 
 type failingLogger struct{}
@@ -1103,6 +1208,8 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		return &fleet.Query{
 			ID:                 1,
+			Saved:              true,
+			Interval:           3600,
 			DiscardData:        false,
 			AutomationsEnabled: true,
 			Name:               name,

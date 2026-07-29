@@ -3232,6 +3232,69 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
+// queriesScheduledForHost returns the subset of the reported query names in
+// queriesDBData that the host is actually scheduled to run.
+//
+// osquery identifies scheduled query results by name only, so without this
+// correlation any enrolled host could submit results for any saved query in the
+// deployment — including queries of other teams and queries that are not
+// scheduled at all — and have them persisted in admin-visible query reports.
+//
+// This runs on every result log submission, so it must stay cheap: it needs no
+// DB access of its own, as the query rows in queriesDBData come from
+// Datastore.QueryByName, which is already cached in cached_mysql.
+//
+// The conditions below mirror Datastore.ListScheduledQueriesForAgents, which is
+// what builds the host's schedule, assuming query reports are enabled (the only
+// case where this is called). The label scope, platform and min osquery version
+// of a query are deliberately not enforced here: a host that is in the query's
+// fleet can already legitimately report results for it, so narrowing it further
+// costs a lookup per submission without preventing a cross-fleet forgery.
+func (svc *Service) queriesScheduledForHost(
+	ctx context.Context,
+	host *fleet.Host,
+	queriesDBData map[string]*fleet.Query,
+) map[string]struct{} {
+	var hostTeamID uint
+	if host.TeamID != nil {
+		hostTeamID = *host.TeamID
+	}
+
+	scheduled := make(map[string]struct{}, len(queriesDBData))
+	var notScheduledNames []string
+
+	for reportedName, dbQuery := range queriesDBData {
+		switch {
+		case !dbQuery.Saved:
+			// Only saved queries are part of a host's schedule.
+		case dbQuery.Interval == 0:
+			// The query is not scheduled to run on any host, thus no host can
+			// legitimately report results for it.
+		case dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID:
+			// The query belongs to a team the host is not a member of. Either the host
+			// was transferred to another team, or it reported another team's pack name.
+		case !dbQuery.AutomationsEnabled && (dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot):
+			// Fleet does not send this query to hosts, as it would do nothing with its
+			// results: they are neither forwarded to the log destination (automations
+			// are off) nor stored in a query report (data discarded or not a snapshot).
+		default:
+			scheduled[reportedName] = struct{}{}
+			continue
+		}
+		notScheduledNames = append(notScheduledNames, reportedName)
+	}
+
+	if len(notScheduledNames) > 0 {
+		// Logged in one line per submission to help detect hosts forging results, as
+		// well as to troubleshoot legitimate results dropped because the host's
+		// schedule changed since it last refreshed its config.
+		svc.logger.DebugContext(ctx, "discarding results for queries not scheduled for host",
+			"host_id", host.ID, "queries", strings.Join(notScheduledNames, ", "))
+	}
+
+	return scheduled
+}
+
 func (svc *Service) saveResultLogsToQueryReports(
 	ctx context.Context,
 	unmarshaledResults []*fleet.ScheduledQueryResult,
@@ -3254,6 +3317,10 @@ func (svc *Service) saveResultLogsToQueryReports(
 
 	// Filter results to only the most recent for each query.
 	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
+
+	// Reported query names the host is actually scheduled to run. Anything else is
+	// forged or stale and must not make it into a query report.
+	scheduledForHost := svc.queriesScheduledForHost(ctx, host, queriesDBData)
 
 	// Batch fetch query result counts from Redis for all queries
 	var queryResultCounts map[uint]int
@@ -3280,18 +3347,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 
-		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
-			// Ignore result if query is marked as discard data or if logging is not snapshot
+		if _, ok := scheduledForHost[result.QueryName]; !ok {
+			// Ignore results for queries that are not part of this host's schedule
+			// (e.g. queries of another team, out of the host's label scope, or not
+			// scheduled at all), otherwise a host could forge rows in any report.
 			continue
 		}
 
-		hostTeamID := uint(0)
-		if host.TeamID != nil {
-			hostTeamID = *host.TeamID
-		}
-		if dbQuery.TeamID != nil && *dbQuery.TeamID != hostTeamID {
-			// The host was transferred to another team/global so we ignore the incoming results
-			// of this query that belong to a different team.
+		if dbQuery.DiscardData || dbQuery.Logging != fleet.LoggingSnapshot {
+			// Ignore result if query is marked as discard data or if logging is not snapshot
 			continue
 		}
 
