@@ -474,7 +474,6 @@ describe("SelfServiceCard", () => {
 
   it("renders empty search state when the search query yields no rows", () => {
     const props = createTestProps({
-      enhancedSoftware: [],
       queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
     });
     const render = createCustomRenderer({ withBackendMock: true });
@@ -494,6 +493,45 @@ describe("SelfServiceCard", () => {
       name: /Reach out to IT/i,
     });
     expect(contactLink[0]).toHaveAttribute("href", props.contactUrl);
+  });
+
+  it("removes the empty search state immediately when search is cleared", async () => {
+    mockServer.use(
+      listDeviceSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const browserPackage = createMockHostSoftwarePackage({
+      categories: (["🌎 Browsers"] as string[]) as SoftwareCategory[],
+    });
+    const props = createTestProps({
+      queryParams: { ...DEFAULT_QUERY_PARAMS, query: "nonexistent" },
+      enhancedSoftware: [
+        {
+          ...createMockDeviceSoftware({ name: "browser" }),
+          ui_status: "installed",
+          software_package: browserPackage,
+        },
+      ],
+    });
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { rerender } = render(<SelfServiceCard {...props} />);
+
+    expect(
+      await screen.findByText("No items match your search")
+    ).toBeInTheDocument();
+    // Ensure the categories request has settled before exercising the update.
+    await screen.findByRole("button", { expanded: false });
+
+    rerender(
+      <SelfServiceCard
+        {...props}
+        queryParams={{ ...DEFAULT_QUERY_PARAMS, query: "" }}
+      />
+    );
+
+    expect(
+      screen.queryByText("No items match your search")
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("browser")).toBeInTheDocument();
   });
 
   it("renders empty-category state when the category filter yields no rows", async () => {

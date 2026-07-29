@@ -241,14 +241,14 @@ const SelfServiceCard = ({
     );
   }
 
-  // Search query filter required for mobile view only ( desktop view has filter built into TableContainer)
-  const filteredSoftware = isMobileView
-    ? softwareInSelectedCategory.filter((software) => {
-        const query = queryParams.query?.toLowerCase().trim() ?? "";
-        if (!query) return true;
-        return software.name.toLowerCase().includes(query);
-      })
-    : softwareInSelectedCategory;
+  // Filter before rendering either view. TableContainer's client-side filter is
+  // debounced separately from the search field, which can briefly report the
+  // previous result count after the URL query changes.
+  const filteredSoftware = softwareInSelectedCategory.filter((software) => {
+    const query = queryParams.query?.toLowerCase().trim() ?? "";
+    if (!query) return true;
+    return software.name.toLowerCase().includes(query);
+  });
 
   // The button is shown on desktop ONLY when a specific category is selected
   // (`category_id` is defined). On the unfiltered "All" view we suppress it so a
