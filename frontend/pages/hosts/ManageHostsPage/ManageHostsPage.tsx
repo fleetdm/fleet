@@ -1638,10 +1638,14 @@ const ManageHostsPage = ({
           .filter((element) => element !== "" && element !== "selection")
           // "agent" is a display-only column that coalesces orbit and osquery
           // versions; it has no corresponding CSV field on the backend, so we
-          // substitute the real fields it's derived from.
+          // substitute the real fields it's derived from. Likewise, the
+          // "hardware_model" column also surfaces the Apple marketing name in
+          // the UI, so we export both fields separately.
           .reduce((acc: string[], element) => {
             if (element === "agent") {
               acc.push("orbit_version", "osquery_version");
+            } else if (element === "hardware_model") {
+              acc.push("hardware_model", "hardware_marketing_name");
             } else {
               acc.push(element);
             }

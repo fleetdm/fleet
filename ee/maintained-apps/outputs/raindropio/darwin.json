@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "5.7.7",
+      "version": "5.7.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.raindrop.macapp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.raindrop.macapp' AND version_compare(bundle_short_version, '5.7.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.raindrop.macapp' AND version_compare(bundle_short_version, '5.7.9') < 0);"
       },
-      "installer_url": "https://github.com/raindropio/desktop/releases/download/v5.7.7/Raindrop-arm64.dmg",
+      "installer_url": "https://github.com/raindropio/desktop/releases/download/v5.7.9/Raindrop-arm64.dmg",
       "install_script_ref": "6bd4426f",
       "uninstall_script_ref": "86416480",
-      "sha256": "9982188c9b00c015c34e4cd05d9b3e660f19da75c421515e6bc9073664454a5f",
+      "sha256": "be2f654e5e978de6925a8636ea11540d783caef3379eb820965b55d06b13c44d",
       "default_categories": [
         "Productivity"
       ]

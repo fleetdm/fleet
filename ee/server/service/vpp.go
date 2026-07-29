@@ -381,6 +381,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
 						return nil, nil, err
 					}
+					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+						if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+							return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+						}
+						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+					}
 				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
@@ -814,6 +820,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		if strings.HasPrefix(appID.AdamID, fleet.AndroidWebAppPrefix) && appID.Configuration != nil {
 			return 0, "", fleet.NewInvalidArgumentError("configuration", "Couldn't add. Android web apps don't support configurations.")
+		}
+
+		if appID.Configuration != nil {
+			if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(appID.Configuration)}); err != nil {
+				if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+					return 0, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+				}
+				return 0, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+			}
 		}
 
 		appID.SelfService = true
@@ -1321,6 +1336,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.Configuration != nil && meta.Platform == fleet.AndroidPlatform {
 		if strings.HasPrefix(meta.AdamID, fleet.AndroidWebAppPrefix) {
 			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
+		}
+
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 		}
 
 		// check if configuration has changed

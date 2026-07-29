@@ -30,7 +30,7 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable IdP authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Single sign-on (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable IdP authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -97,13 +97,13 @@ This feature is available for macOS hosts that automatically enroll via Apple Bu
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and check **Managed local account**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+1. In Fleet, head to **Controls > Setup experience > Users** and check **Managed local account**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
 
 2. Wipe and re-enroll any existing macOS hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through Setup Assistant again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 
-> The managed account is hidden from the macOS login window. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
+> The managed account is hidden from the macOS login window. Apple's MDM protocol only supports creating hidden accounts during Automated Device Enrollment (ADE), which is why this feature requires hosts to enroll via Apple Business and go through Setup Assistant. To log in as `_fleetadmin`, click **Other** on the login window (or press the username field) and type the username and password manually.
 
 > The managed account does not have a Secure Token. To access a FileVault-encrypted disk, first unlock it using the [escrowed recovery key](https://fleetdm.com/guides/macos-mdm-setup#disk-encryption), then log in as `_fleetadmin` at the login window.
 

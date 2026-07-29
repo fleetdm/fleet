@@ -70,7 +70,7 @@ export const DownloadABMKey = ({
       onClick={handleDownload}
     >
       <label htmlFor="download-key">
-        <Icon name="download" size="medium" />
+        <Icon name="download" />
         <span>Download public key</span>
       </label>
     </Button>

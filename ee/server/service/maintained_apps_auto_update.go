@@ -166,11 +166,11 @@ func downloadNewVersionIfEligible(
 		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
 			return nil
 		}
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
+		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
+		if versionExists {
 			return nil
 		}
 	}
@@ -252,11 +252,11 @@ func downloadNewVersionIfEligible(
 		return nil
 	}
 	if version != app.Version {
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
+		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
+		if versionExists {
 			return nil
 		}
 	}
