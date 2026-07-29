@@ -2658,9 +2658,9 @@ const (
 	// we can only be certain of all categories after downloading all FMA manifests and seeing
 	// which default categories we might need to add.
 	batchSoftwareCategoriesSuffix = ":categories"
-	// batchSoftwareDownloadedSuffix is appended to the batch status key to form the key holding
-	// the JSON-encoded list of packages the batch started downloading, and whether each one
-	// finished. Written while the batch runs so clients can report progress before it completes.
+	// batchSoftwareDownloadedSuffix is appended to the batch status key to form the key
+	// holding each package's download status, written as the batch runs so clients can
+	// report progress before the batch completes.
 	batchSoftwareDownloadedSuffix = ":downloaded"
 	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
 	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
@@ -3010,8 +3010,7 @@ func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string
 	}
 
 	filename := file.ExtractFilenameFromURLPath(payload.URL, "")
-	// The extension is only known once the package is downloaded, so a url path without
-	// one comes back with a trailing dot.
+	// A url path with no extension comes back with a trailing dot.
 	filename = strings.TrimSuffix(filename, ".")
 	if filename == "" {
 		return payload.URL
@@ -3158,20 +3157,14 @@ func (svc *Service) softwareBatchUpload(
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
 
-	// Progress goes in its own key as each package starts and finishes downloading, so a
-	// client polling the batch status can report progress before the batch completes. The
-	// name comes from the payload both times, so the package a client sees finish is named
-	// the same as the one it saw start.
-	//
 	// The whole slice is read on every write, so unlike the slices above, writing only to
-	// your own index isn't enough to stay safe if the goroutine limit is ever raised. The
-	// write itself happens outside the lock so it never holds up another download.
+	// your own index isn't enough if the goroutine limit is ever raised. The write itself
+	// happens outside the lock so it never holds up another download.
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
 	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
 		downloadProgressMutex.Lock()
-		// Only a package that is still downloading can fail a download. Anything else means
-		// the error that got us here happened outside the download.
+		// Only a package that is still downloading can fail a download.
 		if status == fleet.SoftwarePackageDownloadFailed && downloadProgress[payloadIndex].Status != fleet.SoftwarePackageDownloadStarted {
 			downloadProgressMutex.Unlock()
 			return
@@ -3188,8 +3181,7 @@ func (svc *Service) softwareBatchUpload(
 			return
 		}
 
-		// Long enough to outlast a single slow download, which the sibling keys never have
-		// to survive because nothing reads them until the batch is done.
+		// Longer than the sibling keys because one slow download has to be able to outlast it.
 		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), time.Hour); err != nil {
 			svc.logger.WarnContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
 		}
@@ -3960,9 +3952,8 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return categories, nil
 	}
 
-	// getDownloadProgress loads how far the batch got through downloading its packages.
-	// Progress is only ever printed for the user, so a missing, expired or unreadable key
-	// degrades to an empty list rather than failing the batch that the client is polling.
+	// getDownloadProgress loads how far the batch got through downloading. Progress is only
+	// printed for the user, so an unreadable key degrades to an empty list, not an error.
 	getDownloadProgress := func() []fleet.SoftwarePackageDownloadProgress {
 		progressJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix)
 		if err != nil {
@@ -4008,8 +3999,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return nil, err
 	}
 
-	// The last packages to finish downloading are only in the progress key by the time the
-	// batch completes, so report it here too and let the client print what it hasn't yet.
+	// The last packages to finish are only in the key by the time the batch completes.
 	downloadProgress := getDownloadProgress()
 
 	if dryRun {

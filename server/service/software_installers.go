@@ -901,8 +901,7 @@ type batchSetSoftwareInstallersResultResponse struct {
 	DeletedPackages []fleet.DeletedSoftwarePackage `json:"deleted_packages,omitempty"`
 	// Categories lists the self-service categories the batch's software references.
 	Categories []string `json:"categories,omitempty"`
-	// DownloadProgress lists the packages the batch started downloading and whether each
-	// one finished, so a client can report progress before the batch completes.
+	// DownloadProgress reports each package's download status while the batch runs.
 	DownloadProgress []fleet.SoftwarePackageDownloadProgress `json:"download_progress,omitempty"`
 
 	Err error `json:"error,omitempty"`

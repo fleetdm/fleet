@@ -212,16 +212,16 @@ type DeletedSoftwarePackage struct {
 	DisplayName string `json:"display_name" db:"display_name"`
 }
 
-// SoftwarePackageDownloadProgress reports the download state of one software package in a
-// software batch. Entries keep the index they have in the batch payload, so a package that
-// hasn't started downloading has an empty name.
+// SoftwarePackageDownloadProgress reports one software package's download in a batch.
+// Entries keep their index in the batch payload, so a package that hasn't started
+// downloading has an empty name.
 type SoftwarePackageDownloadProgress struct {
 	Name   string                        `json:"name"`
 	Status SoftwarePackageDownloadStatus `json:"status"`
 }
 
-// SoftwarePackageDownloadStatus is how far one software package got through its download.
-// Downloaded means the bytes arrived, not that the package was applied.
+// SoftwarePackageDownloadStatus is how far a package got through its download. Downloaded
+// means the bytes arrived, not that the package was applied.
 type SoftwarePackageDownloadStatus string
 
 const (
@@ -233,21 +233,14 @@ const (
 // BatchSetSoftwareInstallersResult is the status of a software batch started by
 // BatchSetSoftwareInstallers.
 type BatchSetSoftwareInstallersResult struct {
-	// Status is "processing", "completed" or "failed".
-	Status string
-	// Message carries the error information when the status is "failed".
+	Status  string
 	Message string
-	// Packages holds the applied software packages once the status is "completed". It is
-	// always empty for a dry run.
+	// Packages is always empty for a dry run.
 	Packages []SoftwarePackageResponse
-	// DeletedPackages holds the packages the batch deleted, or would delete on a dry run,
-	// once the status is "completed".
+	// DeletedPackages holds what the batch deleted, or would delete on a dry run.
 	DeletedPackages []DeletedSoftwarePackage
-	// Categories holds the self-service categories the batch uses or added, once the
-	// status is "completed".
-	Categories []string
-	// DownloadProgress reports how far the batch got through downloading its packages,
-	// whatever the status.
+	Categories      []string
+	// DownloadProgress is reported whatever the status, not just while processing.
 	DownloadProgress []SoftwarePackageDownloadProgress
 }
 
