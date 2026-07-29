@@ -953,7 +953,7 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
 	"mdm_macos_software_update_id": {
-		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible','bridge-model','board-id');`,
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'board-id');`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
 		Discovery:        discoveryTable("ioreg"),
@@ -3307,18 +3307,27 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 		return nil
 	}
 
-	if len(rows) > 1 {
-		// TODO: Can a device ever report more than 1 row? I haven't seen it.
-		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID invalid number of rows: %d", len(rows))
+	// inspired by https://github.com/brunerd/macAdminTools/blob/main/Scripts/getSupportedMacOSVersions_ASLS.sh
+	// bridge-model is never used, and it only rely's on board-id and compatible by checking device architecture
+	// however we can just rely on returned values.
+	var deviceID string
+	for _, row := range rows {
+		if val, ok := row["key"]; ok && val == "board-id" {
+			// If board-id presents itself, then always take that as that represent an Intel based mac.
+			deviceID = row["value"]
+			break
+		} else if val, ok := row["key"]; ok && val == "compatible" {
+			// If compatible presents itself, then always take that as that represent an Apple Silicon based mac.
+			// It might be present as well on Intel macs, but then board-id will override the value.
+			deviceID = row["value"]
+		}
 	}
 
-	softwareUpdateDeviceID := rows[0]["value"]
-
-	if softwareUpdateDeviceID == "" {
+	if deviceID == "" {
 		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
 	}
 
-	return ds.InsertMacOSSoftwareUpdateDeviceID(ctx, host.UUID, softwareUpdateDeviceID)
+	return ds.InsertMacOSSoftwareUpdateDeviceID(ctx, host.UUID, deviceID)
 }
 
 var luksVerifyQuery = DetailQuery{

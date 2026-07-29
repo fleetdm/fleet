@@ -4677,22 +4677,14 @@ func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	hostUUID := "test-uuid"
 	host := fleet.Host{ID: 1, UUID: hostUUID}
+	var insertedDeviceID string
 	ds.InsertMacOSSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		insertedDeviceID = updateDeviceID
 		return nil
 	}
 
 	t.Run("no rows returns with no error", func(t *testing.T) {
 		require.NoError(t, directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{}))
-		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
-	})
-
-	t.Run("more than 1 row returns error", func(t *testing.T) {
-		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
-			{"software_update_id": "1"},
-			{"software_update_id": "2"},
-		})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "invalid number of rows")
 		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
 	})
 
@@ -4705,11 +4697,29 @@ func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
 		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
 	})
 
-	t.Run("valid value inserts entry", func(t *testing.T) {
+	t.Run("intel mac takes board-id", func(t *testing.T) {
 		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
-			{"value": "valid-id"},
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
 		})
 		require.NoError(t, err)
 		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-id", insertedDeviceID)
+
+		ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
+	})
+
+	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "compatible", "value": "Apple Silicon"},
+			{"key": "bridge-model", "value": "some-value"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "Apple Silicon", insertedDeviceID)
+
+		ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked = false
+		insertedDeviceID = ""
 	})
 }
