@@ -43,18 +43,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Checkout GitOps repository
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-        with:
-          repository: fleetdm/fleet-gitops
-          ref: main
-          path: fleet-gitops
-          persist-credentials: false
-
       - name: Apply latest configuration to Fleet
-        uses: ./fleet-gitops/.github/gitops-action-fleets
+        uses: ./.github/actions/gitops-fleets
         with:
-          working-directory: ${{ github.workspace }}/fleet-gitops
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
