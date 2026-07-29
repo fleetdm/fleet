@@ -356,6 +356,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-07-27 17:15:39
 
+### [CVE-2026-56852](https://nvd.nist.gov/vuln/detail/CVE-2026-56852)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The vulnerability is an infinite loop (DoS) in golang.org/x/text/unicode/norm on malformed input. fleetctl only reaches the affected symbols via norm.NFC.String on fleet/team names from the operator's own GitOps YAML files and their own Fleet server's API responses, and via hostname IDNA normalization in the Go standard library HTTP client for operator-supplied server URLs. All inputs are controlled by the operator running the CLI; the worst-case impact is hanging their own fleetctl process.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/text`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-07-29 12:25:39
+
 ### [CVE-2026-54513](https://nvd.nist.gov/vuln/detail/CVE-2026-54513)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
