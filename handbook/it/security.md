@@ -1705,21 +1705,89 @@ Impact — the consequences to Fleet if the risk occurs:
 
 Risk level by score:
 
-| Score   | Risk level |
-| ------- | ---------- |
-| 1–6     | Low        |
-| 7–19    | Medium     |
-| 20–25   | High       |
+<table style="border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <thead>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; width:44px;"></th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600;">Score</th>
+      <th style="border:1px solid #C5C7D1; padding:16px; text-align:left; color:#192147; font-weight:600;">Risk level</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; background:#029467;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">1&ndash;6</td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">Low</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; background:#EA8200;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">7&ndash;19</td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">Medium</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; background:#CB1830;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">20&ndash;25</td>
+      <td style="border:1px solid #C5C7D1; padding:16px;">High</td>
+    </tr>
+  </tbody>
+</table>
 
 Scores for every combination of likelihood and impact:
 
-| Impact ↓ / Likelihood → | 1 Very unlikely | 2 Unlikely   | 3 Somewhat likely | 4 Likely     | 5 Very likely |
-| ----------------------- | --------------- | ------------ | ----------------- | ------------ | ------------- |
-| **5 Very high**         | 5 (Low)         | 10 (Medium)  | 15 (Medium)       | 20 (High)    | 25 (High)     |
-| **4 High**              | 4 (Low)         | 8 (Medium)   | 12 (Medium)       | 16 (Medium)  | 20 (High)     |
-| **3 Medium**            | 3 (Low)         | 6 (Low)      | 9 (Medium)        | 12 (Medium)  | 15 (Medium)   |
-| **2 Low**               | 2 (Low)         | 4 (Low)      | 6 (Low)           | 8 (Medium)   | 10 (Medium)   |
-| **1 Very low**          | 1 (Low)         | 2 (Low)      | 3 (Low)           | 4 (Low)      | 5 (Low)       |
+<table style="border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
+  <thead>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">Impact &darr; / Likelihood &rarr;</th>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:center; color:#192147; font-weight:600;">1<br>Very unlikely</th>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:center; color:#192147; font-weight:600;">2<br>Unlikely</th>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:center; color:#192147; font-weight:600;">3<br>Somewhat likely</th>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:center; color:#192147; font-weight:600;">4<br>Likely</th>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:center; color:#192147; font-weight:600;">5<br>Very likely</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">5 Very high</th>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>5</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>10</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>15</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#CB1830; color:#FFFFFF;"><strong>20</strong><br>High</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#CB1830; color:#FFFFFF;"><strong>25</strong><br>High</td>
+    </tr>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">4 High</th>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>4</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>8</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>12</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>16</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#CB1830; color:#FFFFFF;"><strong>20</strong><br>High</td>
+    </tr>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">3 Medium</th>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>3</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>6</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>9</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>12</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>15</strong><br>Medium</td>
+    </tr>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">2 Low</th>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>2</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>4</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>6</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>8</strong><br>Medium</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#EA8200; color:#000000;"><strong>10</strong><br>Medium</td>
+    </tr>
+    <tr>
+      <th style="border:1px solid #C5C7D1; padding:12px; text-align:left; color:#192147; font-weight:600;">1 Very low</th>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>1</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>2</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>3</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>4</strong><br>Low</td>
+      <td style="border:1px solid #C5C7D1; padding:12px; text-align:center; background:#029467; color:#000000;"><strong>5</strong><br>Low</td>
+    </tr>
+  </tbody>
+</table>
 
 
 ### Acceptable Risk Levels
