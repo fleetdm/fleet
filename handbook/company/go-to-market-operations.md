@@ -538,7 +538,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
 
 #### LinkedIn comments from tracked posts
 
-We track certian social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
+We track certain social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
 - LinkedIn post URL provided to Clay.
 - Clay enriches the data from any reactions or shares.
 - Clay sends webhook to webhooks/receive-from-clay.js
