@@ -30,6 +30,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 		testName     string
 		mobileconfig mobileconfig.Mobileconfig
 		shouldFail   bool
+		errString    *string
 	}{
 		{
 			testName:     "TestParseConfigProfileOK",
@@ -91,6 +92,24 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			}(),
 			shouldFail: true,
 		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInPayload",
+			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), `<string>Unescaped & < > ' "</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInIdentifier",
+			mobileconfig: MobileconfigForTest("ValidName", "Valid<Identifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
+		{
+			testName:     "TestParseConfigProfileUnescapedCharsInName",
+			mobileconfig: MobileconfigForTest("Valid<Name", "ValidIdentifier", uuid.NewString(), `<string>Valid</string>`),
+			shouldFail:   true,
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
+		},
 	}
 
 	for _, c := range cases {
@@ -98,6 +117,9 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			parsed, err := NewMDMAppleConfigProfile(c.mobileconfig, nil)
 			if c.shouldFail {
 				require.Error(t, err)
+				if c.errString != nil {
+					require.ErrorContains(t, err, *c.errString)
+				}
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, "ValidName", parsed.Name)
