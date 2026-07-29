@@ -15,6 +15,8 @@ import (
 	"fmt"
 	"math/big"
 	mathrand "math/rand/v2"
+	"os"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -105,6 +107,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"MDMAppleUpsertHostPersonalEnrollment", testMDMAppleUpsertHostPersonalEnrollment},
 		{"MDMAppleUpsertHostRestoresServerURLOnReenroll", testMDMAppleUpsertHostRestoresServerURLOnReenroll},
+		{"UpsertMDMAppleHostMDMInfoDBSQLColumnParity", testUpsertMDMAppleHostMDMInfoDBSQLColumnParity},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
@@ -8233,6 +8236,93 @@ func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datasto
 		require.NotNil(t, afterReenroll.MDMID, "platform %s", platform)
 		require.False(t, afterReenroll.InstalledFromDEP, "platform %s", platform)
 	}
+}
+
+// testUpsertMDMAppleHostMDMInfoDBSQLColumnParity fails if a column is added to the
+// host_mdm INSERT in upsertMDMAppleHostMDMInfoDB but not to ON DUPLICATE KEY UPDATE
+// (except host_id, which is the primary key). That regression left iOS/iPadOS
+// server_url empty after re-enroll; see #50187 and testMDMAppleUpsertHostRestoresServerURLOnReenroll.
+func testUpsertMDMAppleHostMDMInfoDBSQLColumnParity(t *testing.T, _ *Datastore) {
+	src, err := os.ReadFile("apple_mdm.go")
+	require.NoError(t, err)
+
+	fn := extractGoFuncBody(t, string(src), "func upsertMDMAppleHostMDMInfoDB")
+	// Bind INSERT and UPDATE from the host_mdm statement only (the function also
+	// upserts mobile_device_management_solutions).
+	re := regexp.MustCompile("(?s)INSERT INTO host_mdm \\(([^)]+)\\) VALUES %s\\s+ON DUPLICATE KEY UPDATE\\s+([^`]+)`")
+	m := re.FindStringSubmatch(fn)
+	require.Len(t, m, 3, "host_mdm INSERT/ON DUPLICATE KEY UPDATE statement not found")
+
+	insertCols := splitSQLIdents(t, m[1])
+	updateCols := splitSQLUpdateLHS(t, m[2])
+
+	insertSet := make(map[string]struct{}, len(insertCols))
+	for _, c := range insertCols {
+		if c == "host_id" {
+			continue // PK; not rewritten on conflict
+		}
+		insertSet[c] = struct{}{}
+	}
+	updateSet := make(map[string]struct{}, len(updateCols))
+	for _, c := range updateCols {
+		updateSet[c] = struct{}{}
+	}
+
+	require.Equal(t, insertSet, updateSet,
+		"upsertMDMAppleHostMDMInfoDB must ON DUPLICATE KEY UPDATE every INSERT column except host_id; "+
+			"add the new column to both sides of the upsert")
+}
+
+func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
+	t.Helper()
+	start := strings.Index(src, funcPrefix)
+	require.GreaterOrEqual(t, start, 0, "function %q not found", funcPrefix)
+	brace := strings.Index(src[start:], "{")
+	require.GreaterOrEqual(t, brace, 0)
+	i := start + brace
+	depth := 0
+	for j := i; j < len(src); j++ {
+		switch src[j] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return src[i : j+1]
+			}
+		}
+	}
+	require.FailNow(t, "unbalanced braces extracting function body")
+	return ""
+}
+
+func splitSQLIdents(t *testing.T, list string) []string {
+	t.Helper()
+	parts := strings.Split(list, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		require.NotEmpty(t, p)
+		out = append(out, p)
+	}
+	return out
+}
+
+func splitSQLUpdateLHS(t *testing.T, clause string) []string {
+	t.Helper()
+	parts := strings.Split(clause, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		eq := strings.Index(p, "=")
+		require.Greater(t, eq, 0, "assignment %q", p)
+		out = append(out, strings.TrimSpace(p[:eq]))
+	}
+	require.NotEmpty(t, out)
+	return out
 }
 
 func testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS(t *testing.T, ds *Datastore) {

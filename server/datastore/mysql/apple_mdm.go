@@ -2078,6 +2078,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 			server_url = VALUES(server_url),
 			installed_from_dep = VALUES(installed_from_dep),
 			mdm_id = VALUES(mdm_id),
+			is_server = VALUES(is_server),
 			is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
