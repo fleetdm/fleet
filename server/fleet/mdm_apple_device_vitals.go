@@ -1,6 +1,79 @@
 package fleet
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
+
+// MDMAppleCellularTechnology is the cellular radio technology a device
+// supports, as reported by the CellularTechnology key of a DeviceInformation
+// command ack. Apple reports it as an integer, which is what Fleet persists;
+// it's mapped to a display string only when serializing an API response, so
+// the stored value stays exactly what Apple sent.
+//
+// Reference: https://developer.apple.com/documentation/devicemanagement/deviceinformationresponse/queryresponses-data.dictionary
+type MDMAppleCellularTechnology int64
+
+const (
+	MDMAppleCellularTechnologyNone       MDMAppleCellularTechnology = 0
+	MDMAppleCellularTechnologyGSM        MDMAppleCellularTechnology = 1
+	MDMAppleCellularTechnologyCDMA       MDMAppleCellularTechnology = 2
+	MDMAppleCellularTechnologyGSMAndCDMA MDMAppleCellularTechnology = 3
+	// MDMAppleCellularTechnologyUnknown is not a value Apple reports. It's
+	// what a value outside Apple's documented set maps to, so that Apple
+	// extending the enum can't fail serialization of a whole host response
+	// (nor deserialization of one, e.g. by fleetctl). The integer Apple
+	// actually sent is preserved in host_mdm_apple_device_vitals either way.
+	MDMAppleCellularTechnologyUnknown MDMAppleCellularTechnology = -1
+)
+
+func (c MDMAppleCellularTechnology) String() string {
+	switch c {
+	case MDMAppleCellularTechnologyNone:
+		return "None"
+	case MDMAppleCellularTechnologyGSM:
+		return "GSM"
+	case MDMAppleCellularTechnologyCDMA:
+		return "CDMA"
+	case MDMAppleCellularTechnologyGSMAndCDMA:
+		return "GSM and CDMA"
+	default:
+		return "unknown"
+	}
+}
+
+func (c MDMAppleCellularTechnology) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+func (c *MDMAppleCellularTechnology) UnmarshalJSON(b []byte) error {
+	// Accept the raw integer too, so a value straight out of Apple's ack (or
+	// the database) round-trips through this type.
+	var i int64
+	if err := json.Unmarshal(b, &i); err == nil {
+		*c = MDMAppleCellularTechnology(i)
+		return nil
+	}
+
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return fmt.Errorf("invalid MDMAppleCellularTechnology: %s", string(b))
+	}
+	switch s {
+	case "None":
+		*c = MDMAppleCellularTechnologyNone
+	case "GSM":
+		*c = MDMAppleCellularTechnologyGSM
+	case "CDMA":
+		*c = MDMAppleCellularTechnologyCDMA
+	case "GSM and CDMA":
+		*c = MDMAppleCellularTechnologyGSMAndCDMA
+	default:
+		*c = MDMAppleCellularTechnologyUnknown
+	}
+	return nil
+}
 
 // MDMAppleAccessibilitySettings is the accessibility settings currently set
 // on an iOS/iPadOS device, as reported by the AccessibilitySettings key of a
@@ -152,8 +225,11 @@ type HostMDMAppleDeviceVitals struct {
 	ITunesStoreAccountHash     *string `json:"itunes_store_account_hash,omitempty" db:"-" csv:"-"`
 	PushToken                  []byte  `json:"push_token,omitempty" db:"-" csv:"-"`
 
-	BatteryLevel       *float64 `json:"battery_level,omitempty" db:"-" csv:"-"`
-	CellularTechnology *int64   `json:"cellular_technology,omitempty" db:"-" csv:"-"`
+	BatteryLevel *float64 `json:"battery_level,omitempty" db:"-" csv:"-"`
+	// CellularTechnology serializes as Apple's display label ("GSM", "CDMA",
+	// ...), not the raw integer stored in the DB. See
+	// MDMAppleCellularTechnology.
+	CellularTechnology *MDMAppleCellularTechnology `json:"cellular_technology,omitempty" db:"-" csv:"-"`
 
 	AppAnalyticsEnabled           *bool `json:"app_analytics_enabled,omitempty" db:"-" csv:"-"`
 	AwaitingConfiguration         *bool `json:"awaiting_configuration,omitempty" db:"-" csv:"-"`

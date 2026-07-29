@@ -311,7 +311,9 @@ func (ds *Datastore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *fle
 		host.ITunesStoreAccountHash = row.ITunesStoreAccountHash
 		host.PushToken = row.PushToken
 		host.BatteryLevel = row.BatteryLevel
-		host.CellularTechnology = row.CellularTechnology
+		if row.CellularTechnology != nil {
+			host.CellularTechnology = new(fleet.MDMAppleCellularTechnology(*row.CellularTechnology))
+		}
 		host.AppAnalyticsEnabled = row.AppAnalyticsEnabled
 		host.AwaitingConfiguration = row.AwaitingConfiguration
 		host.DataRoamingEnabled = row.DataRoamingEnabled

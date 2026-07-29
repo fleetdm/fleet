@@ -11471,6 +11471,9 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	for _, key := range hostIOSVitalsJSONKeys {
 		assert.Contains(t, hostJSON, key, "expected key %q in response for fully populated iOS host", key)
 	}
+	// cellular_technology is stored as Apple's raw integer but returned as its
+	// display label.
+	assert.Equal(t, "GSM", hostJSON["cellular_technology"])
 
 	// GET /hosts/identifier/:identifier funnels through the same datastore
 	// loading path and must behave identically.
