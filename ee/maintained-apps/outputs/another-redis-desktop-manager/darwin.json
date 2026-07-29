@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.1",
+      "version": "1.7.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.qii404.another-redis-desktop-manager';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.qii404.another-redis-desktop-manager' AND version_compare(bundle_short_version, '1.7.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.qii404.another-redis-desktop-manager' AND version_compare(bundle_short_version, '1.7.2') < 0);"
       },
-      "installer_url": "https://github.com/qishibo/AnotherRedisDesktopManager/releases/download/v1.7.1/Another-Redis-Desktop-Manager-mac-1.7.1-arm64.dmg",
+      "installer_url": "https://github.com/qishibo/AnotherRedisDesktopManager/releases/download/v1.7.2/Another-Redis-Desktop-Manager-mac-1.7.2-arm64.dmg",
       "install_script_ref": "c4f87a01",
       "uninstall_script_ref": "0ab06aaf",
-      "sha256": "1833e153cd7d9c66cc6d88ec1448b081dfeb5c122c3c65bcae47be1c4d760235",
+      "sha256": "017a83750d79cf84530990c3bbe1fe93a2ae5124bb763d3c97932de0d38ac62b",
       "default_categories": [
         "Developer tools"
       ]
