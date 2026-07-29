@@ -1613,8 +1613,8 @@ None.
           "labels": ["Label 1", "Label 2"]
         }
       ],
-    "enable_disk_encryption": true,
-    "enable_escrow_disk_encryption_key": true
+      "enable_disk_encryption": true,
+      "enable_escrow_disk_encryption_key": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -1629,7 +1629,7 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
-    "enable_disk_encryption": true
+      "enable_disk_encryption": true
     },
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
