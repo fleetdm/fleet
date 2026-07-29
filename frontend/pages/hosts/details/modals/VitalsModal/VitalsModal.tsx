@@ -94,8 +94,8 @@ const renderNestedFields = (fields: INestedField[]) => {
   );
 };
 
-/** Renders a list-valued vital as one item per line, instead of a JSON
- * preview — falsy entries (e.g. a subscription with no slot) are dropped. */
+/** Renders a list-valued vital (the attestation certificate chain) as one item
+ * per line. Empty entries are dropped. */
 const renderLines = (values?: Array<string | null | undefined>) => {
   const lines = (values ?? []).filter((value): value is string =>
     Boolean(value)
