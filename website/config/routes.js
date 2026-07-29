@@ -1370,6 +1370,7 @@ module.exports.routes = {
   'GET /learn-more-about/idp-account-sync': '/guides/deploying-apple-account-provisioning-with-fleet',
   'GET /learn-more-about/security-posture': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#DevicePosture',
   'GET /learn-more-about/software-update-status': 'https://developers.google.com/android/management/reference/rest/v1/enterprises.devices#SystemUpdateInfo',
+  'GET /learn-more-about/linux-disk-encryption': '/guides/enforce-disk-encryption#enforce-disk-encryption-on-linux',
 
 
   // Sitemap
