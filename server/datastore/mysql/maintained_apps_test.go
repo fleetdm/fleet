@@ -38,7 +38,8 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMANotRenamedWithUpgradeCode", testWindowsFMANotRenamedWithUpgradeCode},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
-		{"WindowsFMAReconcileKeepsTitleReferences", testWindowsFMAReconcileKeepsTitleReferences},
+		{"WindowsFMAReconcileMovesTitleReferences", testWindowsFMAReconcileMovesTitleReferences},
+		{"WindowsFMAReconcilePinConflict", testWindowsFMAReconcilePinConflict},
 		{"WindowsFMAReconcileSameNameUpgradeCodeTitle", testWindowsFMAReconcileSameNameUpgradeCodeTitle},
 		{"WindowsFMAReconcileAfterCatalogRename", testWindowsFMAReconcileAfterCatalogRename},
 		{"WindowsFMAIngestAfterCatalogRename", testWindowsFMAIngestAfterCatalogRename},
@@ -1533,17 +1534,11 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 
-	// A single canonical "Granola" title now owns both versions. The emptied versioned
-	// titles are intentionally left behind rather than deleted: software_titles is
-	// referenced with ON DELETE CASCADE by patch policies, team pins and others, so
-	// deleting would discard admin configuration. They carry no software and no host
-	// counts, so they drop out of the software list.
+	// A single canonical "Granola" title now owns both versions; the merged-away
+	// versioned titles are gone.
 	require.Equal(t, 1, titleCount("Granola"))
-	require.Equal(t, 1, titleCount("Granola 7.373.1"))
-	require.Equal(t, 1, titleCount("Granola 7.373.2"))
-	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.1"))
-	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.2"))
-	require.Zero(t, hostCountRowsForTitleNamed(t, ds, "Granola 7.373.1"))
+	require.Zero(t, titleCount("Granola 7.373.1"))
+	require.Zero(t, titleCount("Granola 7.373.2"))
 
 	// Both Granola software rows now point at the single canonical title, keeping
 	// their versioned names.
@@ -1573,8 +1568,7 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Idempotent: a second run changes nothing.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, 1, titleCount("Granola"))
-	require.Equal(t, 1, titleCount("Granola 7.373.1"))
-	require.Zero(t, softwareCountForTitleNamed(t, ds, "Granola 7.373.1"))
+	require.Zero(t, titleCount("Granola 7.373.1"))
 }
 
 // testWindowsFMAReconcileSameNameUpgradeCodeTitle: (name, source, extension_for) is not
@@ -2183,12 +2177,10 @@ func testWindowsFMAAmbiguousMatchIsNoOp(t *testing.T, ds *Datastore) {
 		"an ambiguous match must not pick a winner")
 }
 
-// testWindowsFMAReconcileKeepsTitleReferences: the reconcile pass re-points software
-// onto the canonical title but must not delete the emptied title. software_titles is
-// referenced with ON DELETE CASCADE by policies.patch_software_title_id,
-// software_title_team_pins and others, so deleting silently destroys admin
-// configuration attached to that title.
-func testWindowsFMAReconcileKeepsTitleReferences(t *testing.T, ds *Datastore) {
+// testWindowsFMAReconcileMovesTitleReferences: the merge re-points software onto the
+// destination and deletes the emptied title, so admin configuration attached to it must
+// be moved first rather than cascaded away with it.
+func testWindowsFMAReconcileMovesTitleReferences(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2225,18 +2217,73 @@ func testWindowsFMAReconcileKeepsTitleReferences(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, canonicalID, gotTitleID)
 
-	// ...and the emptied title, plus the pin hanging off it, still exist.
+	// ...the merged-away title is gone...
 	var staleStillThere int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &staleStillThere,
 			`SELECT COUNT(*) FROM software_titles WHERE id = ?`, staleTitleID)
 	})
-	require.Equal(t, 1, staleStillThere, "stale title must not be deleted")
+	require.Zero(t, staleStillThere, "merged-away title should be deleted")
 
-	var pins int
+	// ...and the pin moved with it rather than being cascaded away, so it still governs
+	// the software the admin pinned.
+	var pinnedVersion string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &pins,
+		return sqlx.GetContext(ctx, q, &pinnedVersion,
+			`SELECT pinned_version FROM software_title_team_pins WHERE title_id = ?`, canonicalID)
+	})
+	require.Equal(t, "7.373.2", pinnedVersion, "the admin's pin must follow the software")
+
+	var orphanPins int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &orphanPins,
 			`SELECT COUNT(*) FROM software_title_team_pins WHERE title_id = ?`, staleTitleID)
 	})
-	require.Equal(t, 1, pins, "cascade must not destroy the admin's pinned version")
+	require.Zero(t, orphanPins)
+}
+
+// testWindowsFMAReconcilePinConflict: when the destination already has a pin for the
+// same team, the stale one cannot be moved onto it (unique on team_id, title_id). The
+// destination's pin is authoritative and the stale row goes away with its title.
+func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	var staleTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &staleTitleID,
+			`SELECT id FROM software_titles WHERE name = 'Granola 7.373.2' AND source = 'programs'`)
+	})
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	// Both titles carry a pin for the same team.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
+			 VALUES (0, ?, '7.373.2'), (0, ?, '9.9.9')`, staleTitleID, canonicalID)
+		return err
+	})
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	var pinnedVersion string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pinnedVersion,
+			`SELECT pinned_version FROM software_title_team_pins WHERE title_id = ?`, canonicalID)
+	})
+	require.Equal(t, "9.9.9", pinnedVersion, "the destination's own pin wins")
+
+	var total int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &total, `SELECT COUNT(*) FROM software_title_team_pins`)
+	})
+	require.Equal(t, 1, total, "the skipped pin is cascaded away with its title")
 }

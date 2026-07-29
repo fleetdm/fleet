@@ -128,12 +128,11 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 // rename, this is a merge: the versioned title and the installer's title are separate
 // rows, so software is re-pointed from one to the other.
 //
-// The emptied titles are deliberately left in place. software_titles is referenced
-// with ON DELETE CASCADE by policies.patch_software_title_id, software_title_team_pins,
-// software_update_schedules, software_title_icons and software_title_display_names,
-// so deleting a merged title would silently discard admin configuration attached to
-// it. A title with no software rows drops out of the software list once host counts
-// are recomputed, since software_titles_host_counts requires hosts_count > 0.
+// References to the merged-away title are moved onto the destination and the title is
+// then deleted, following the DedupeWindowsProgramTitlesFromUpgradeCode migration,
+// which collapses duplicate Windows program titles the same way. Leaving the emptied
+// titles behind would strand any admin configuration on them: a version pinned on
+// "Granola 7.373.2" would silently stop applying once its software moved to "Granola".
 //
 // Each FMA runs in its own transaction and the operation is idempotent.
 func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
@@ -230,25 +229,56 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Maintai
 		// there is nothing to create or look up by name here.
 		canonicalID := *fma.TitleID
 
-		// Re-point software onto the canonical title, leaving software.name unchanged so
-		// hosts still report the version they actually have installed.
-		repointStmt, repointArgs, err := sqlx.In(`UPDATE software SET title_id = ? WHERE title_id IN (?)`, canonicalID, staleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build re-point software statement")
+		// Re-point everything that references the stale titles onto the destination, then
+		// delete them. This mirrors the DedupeWindowsProgramTitlesFromUpgradeCode
+		// migration, which performs the same merge.
+		//
+		// software keeps its own name, so hosts still report the version they actually
+		// have installed. The tables with a unique key on (team, title) use UPDATE IGNORE
+		// because the destination may already have a row for that team; the delete below
+		// then cascades away whatever was skipped.
+		//
+		// software_installers, vpp_apps and in_house_apps are absent by construction: the
+		// scan above excludes any title they reference.
+		repoint := []struct {
+			label string
+			stmt  string
+		}{
+			{"software", `UPDATE software SET title_id = ? WHERE title_id IN (?)`},
+			{"host software installs", `UPDATE host_software_installs SET software_title_id = ? WHERE software_title_id IN (?)`},
+			{"upcoming install activities", `UPDATE software_install_upcoming_activities SET software_title_id = ? WHERE software_title_id IN (?)`},
+			{"patch policies", `UPDATE IGNORE policies SET patch_software_title_id = ? WHERE patch_software_title_id IN (?)`},
+			{"update schedules", `UPDATE IGNORE software_update_schedules SET title_id = ? WHERE title_id IN (?)`},
+			{"display names", `UPDATE IGNORE software_title_display_names SET software_title_id = ? WHERE software_title_id IN (?)`},
+			{"icons", `UPDATE IGNORE software_title_icons SET software_title_id = ? WHERE software_title_id IN (?)`},
+			{"team pins", `UPDATE IGNORE software_title_team_pins SET title_id = ? WHERE title_id IN (?)`},
 		}
-		if _, err := tx.ExecContext(ctx, repointStmt, repointArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "re-point software to canonical windows title")
+		for _, r := range repoint {
+			stmt, repointArgs, err := sqlx.In(r.stmt, canonicalID, staleIDs)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "build re-point statement for %s", r.label)
+			}
+			if _, err := tx.ExecContext(ctx, stmt, repointArgs...); err != nil {
+				return ctxerr.Wrapf(ctx, err, "re-point %s to canonical windows title", r.label)
+			}
 		}
 
-		// Drop the now-meaningless host counts for the emptied titles; the counts cron
-		// recomputes them. The titles themselves are left alone on purpose, see the
-		// comment on reconcileWindowsMaintainedAppSoftwareTitles.
+		// software_titles_host_counts has no foreign key, so it would be left behind by
+		// the delete. The counts cron recomputes it.
 		countsStmt, countsArgs, err := sqlx.In(`DELETE FROM software_titles_host_counts WHERE software_title_id IN (?)`, staleIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete stale host counts statement")
 		}
 		if _, err := tx.ExecContext(ctx, countsStmt, countsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete stale windows title host counts")
+		}
+
+		titlesStmt, titlesArgs, err := sqlx.In(`DELETE FROM software_titles WHERE id IN (?)`, staleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
+		}
+		if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale windows titles")
 		}
 
 		return nil
