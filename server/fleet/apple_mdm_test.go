@@ -96,19 +96,19 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 			testName:     "TestParseConfigProfileUnescapedCharsInPayload",
 			mobileconfig: MobileconfigForTest("ValidName", "ValidIdentifier", uuid.NewString(), `<string>Unescaped & < > ' "</string>`),
 			shouldFail:   true,
-			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → \\&, < → \\<) and try again."),
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
 		},
 		{
 			testName:     "TestParseConfigProfileUnescapedCharsInIdentifier",
 			mobileconfig: MobileconfigForTest("ValidName", "Valid<Identifier", uuid.NewString(), `<string>Valid</string>`),
 			shouldFail:   true,
-			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → \\&, < → \\<) and try again."),
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
 		},
 		{
 			testName:     "TestParseConfigProfileUnescapedCharsInName",
 			mobileconfig: MobileconfigForTest("Valid<Name", "ValidIdentifier", uuid.NewString(), `<string>Valid</string>`),
 			shouldFail:   true,
-			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → \\&, < → \\<) and try again."),
+			errString:    new("The configuration profile contains special characters (&, <, >, ', \") that must be XML-escaped. Please escape them (e.g. & → &amp;, < → &lt;) and try again."),
 		},
 	}
 
