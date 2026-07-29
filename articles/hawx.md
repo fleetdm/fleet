@@ -92,7 +92,7 @@ The worry that used to define the start of every season, technician onboarding a
 
 <meta name="category" value="case study">
 <meta name="articleTitle" value="How Hawx gets field technicians productive on hour one with Fleet">
-<meta name="description" value="Hawx automated seasonal iOS onboarding and offboarding with Fleet, Tines, and Okta, eliminating start-of-season helpdesk floods in a one-month migration.">
+<meta name="description" value="Hawx automated seasonal iOS onboarding and offboarding with Fleet, Tines, and Okta, eliminating start-of-season helpdesk floods in one month.">
 
 <meta name="publishedOn" value="2026-07-29">
 <meta name="authorGitHubUsername" value="n/a">
