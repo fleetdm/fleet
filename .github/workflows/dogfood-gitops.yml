@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
 
       - name: Apply latest configuration to Fleet
-        uses: ./.github/actions/gitops-fleets
+        uses: ./.github/actions/gitops
         with:
           dry-run-only: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
         env:
