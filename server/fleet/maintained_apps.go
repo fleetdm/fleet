@@ -22,40 +22,36 @@ type MaintainedApp struct {
 	Categories            []string `json:"categories"`
 	UpgradeCode           string   `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	PatchQuery            string   `json:"-" db:"patch_query"`
+	// TitleName is the name of the software title this app's installer owns, which is
+	// not necessarily Name: a Windows app's title is never renamed when the catalog
+	// name changes (the darwin reconcile passes are platform-scoped, and the installer
+	// only renames when an upgrade code is present). Windows software ingestion merges
+	// onto TitleID, and this is that title's name.
+	TitleName string `json:"-" db:"title_name"`
 }
 
-// WindowsFMAName is a Windows FMA's canonical software title name plus the
-// identifier its inventory may report under. Windows programs embed the version in
-// programs.name (e.g. "Granola 7.373.2"), so the reported name is matched against
-// these as prefixes to find the title the installer owns.
+// WinMatchPrefixes returns the candidate program-name prefixes for matching a reported
+// Windows program name onto this app's software title, longest first so the most
+// specific match wins, deduplicated and without blanks.
 //
-// Both name fields are candidates because neither alone is reliable: osquery reports
-// "CPUID CPU-Z ..." for the app Fleet calls "CPU-Z" (only UniqueIdentifier works),
-// while some apps.json entries carry a version-bearing identifier frozen at the
-// version current when they were added, e.g. "Notion 6.1.0" (only Name works).
-type WindowsFMAName struct {
-	Name             string `db:"name"`
-	UniqueIdentifier string `db:"unique_identifier"`
-	// TitleID and TitleName describe the software title the app's installer owns,
-	// resolved through software_installers.fleet_maintained_app_id. Together they are
-	// the merge destination, and are deliberately not re-derived from Name: a Windows
-	// FMA's title is never renamed when the catalog name changes (the darwin reconcile
-	// passes are platform-scoped, and the installer only renames when an upgrade code
-	// is present), so deriving the destination from the current catalog name could
-	// land software on a title no installer owns.
-	TitleID   uint   `db:"title_id"`
-	TitleName string `db:"title_name"`
-}
+// Windows programs embed the version in programs.name (e.g. "Granola 7.373.2"), so a
+// prefix match is the only join key available. All three names are candidates because
+// none alone is reliable: osquery reports "CPUID CPU-Z ..." for the app Fleet calls
+// "CPU-Z" (only UniqueIdentifier works); some apps.json entries carry a version-bearing
+// identifier frozen at the version current when they were added, e.g. "Notion 6.1.0"
+// (only Name works); and where the catalog name has drifted from the title, TitleName is
+// what inventory most likely reports under, being what the app was called when added.
+//
+// Returns nothing unless this is a Windows app with a resolved title, since there is
+// nothing to merge onto otherwise. Note that this depends on Platform and TitleID being
+// populated: a caller loading a partial MaintainedApp must select both.
+func (s *MaintainedApp) WinMatchPrefixes() []string {
+	if s.Platform != "windows" || s.TitleID == nil {
+		return nil
+	}
 
-// MatchPrefixes returns the candidate program-name prefixes for this FMA, longest
-// first so the most specific match wins, deduplicated and without blanks.
-//
-// The installer's title name is a candidate alongside the catalog name and identifier:
-// when the two have drifted, it is the name inventory most likely reports under, since
-// it is what the app was called when it was added.
-func (w WindowsFMAName) MatchPrefixes() []string {
 	prefixes := make([]string, 0, 3)
-	for _, c := range []string{w.UniqueIdentifier, w.Name, w.TitleName} {
+	for _, c := range []string{s.UniqueIdentifier, s.Name, s.TitleName} {
 		if c == "" || slices.Contains(prefixes, c) {
 			continue
 		}

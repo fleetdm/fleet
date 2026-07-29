@@ -12059,10 +12059,10 @@ func TestUniqueSoftwareTitleStrNormalization(t *testing.T) {
 func TestMatchWindowsFMATitle(t *testing.T) {
 	// win builds an FMA whose installer title agrees with the catalog name, which is
 	// the normal case. titleID doubles as the identity used for ambiguity checks.
-	win := func(titleID uint, name, uniqueIdentifier string) fleet.WindowsFMAName {
-		return fleet.WindowsFMAName{
+	win := func(titleID uint, name, uniqueIdentifier string) fleet.MaintainedApp {
+		return fleet.MaintainedApp{
 			Name: name, UniqueIdentifier: uniqueIdentifier,
-			TitleID: titleID, TitleName: name,
+			Platform: "windows", TitleID: &titleID, TitleName: name,
 		}
 	}
 
@@ -12081,47 +12081,48 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	foo := win(8, "Foo", "Foo")
 	// The catalog renamed this app; the installer's title keeps the older name, which
 	// is what inventory still reports under and where software must land.
-	renamed := fleet.WindowsFMAName{
+	renamed := fleet.MaintainedApp{
 		Name: "Zoom Workplace", UniqueIdentifier: "Zoom",
-		TitleID: 9, TitleName: "Zoom",
+		Platform: "windows", TitleID: new(uint(9)), TitleName: "Zoom",
 	}
 	// Two slugs of the same app resolving to one title: not ambiguous.
-	sameTitleA := fleet.WindowsFMAName{Name: "Dup A", UniqueIdentifier: "Dup", TitleID: 10, TitleName: "Dup"}
-	sameTitleB := fleet.WindowsFMAName{Name: "Dup B", UniqueIdentifier: "Dup", TitleID: 10, TitleName: "Dup"}
+	dupTitleID := uint(10)
+	sameTitleA := fleet.MaintainedApp{Name: "Dup A", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
+	sameTitleB := fleet.MaintainedApp{Name: "Dup B", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
 
 	cases := []struct {
 		name        string
 		reported    string
-		fmas        []fleet.WindowsFMAName
+		fmas        []fleet.MaintainedApp
 		wantTitle   string
 		wantTitleID uint
 		wantOK      bool
 	}{
-		{"version suffix", "Granola 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", 1, true},
-		{"exact name", "Granola", []fleet.WindowsFMAName{granola}, "Granola", 1, true},
-		{"case insensitive", "granola 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", 1, true},
-		{"no separator is not a match", "Zoombie 5.0", []fleet.WindowsFMAName{zoom}, "", 0, false},
-		{"prefix without space", "Granolabar 1.0", []fleet.WindowsFMAName{granola}, "", 0, false},
-		{"unrelated", "Firefox 141.0", []fleet.WindowsFMAName{granola, zoom}, "", 0, false},
-		{"matches via unique identifier", "CPUID CPU-Z 2.16", []fleet.WindowsFMAName{cpuz}, "CPU-Z", 3, true},
-		{"matches via name when identifier is stale", "Notion 7.2.0", []fleet.WindowsFMAName{notion}, "Notion", 4, true},
-		{"stale identifier still matches itself", "Notion 6.1.0 extra", []fleet.WindowsFMAName{notion}, "Notion", 4, true},
-		{"longest prefix wins", "Foo Bar 1.0", []fleet.WindowsFMAName{foo, fooBar}, "Foo Bar", 7, true},
-		{"longest prefix wins regardless of order", "Foo Bar 1.0", []fleet.WindowsFMAName{fooBar, foo}, "Foo Bar", 7, true},
-		{"shorter prefix still matches its own app", "Foo 1.0", []fleet.WindowsFMAName{foo, fooBar}, "Foo", 8, true},
-		{"ambiguous tie is no match", "Acme 3.0", []fleet.WindowsFMAName{acmeReader, acmeWriter}, "", 0, false},
-		{"ambiguous tie is no match, reversed", "Acme 3.0", []fleet.WindowsFMAName{acmeWriter, acmeReader}, "", 0, false},
-		{"same destination is not ambiguous", "Dup 1.0", []fleet.WindowsFMAName{sameTitleA, sameTitleB}, "Dup", 10, true},
+		{"version suffix", "Granola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"exact name", "Granola", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"case insensitive", "granola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"no separator is not a match", "Zoombie 5.0", []fleet.MaintainedApp{zoom}, "", 0, false},
+		{"prefix without space", "Granolabar 1.0", []fleet.MaintainedApp{granola}, "", 0, false},
+		{"unrelated", "Firefox 141.0", []fleet.MaintainedApp{granola, zoom}, "", 0, false},
+		{"matches via unique identifier", "CPUID CPU-Z 2.16", []fleet.MaintainedApp{cpuz}, "CPU-Z", 3, true},
+		{"matches via name when identifier is stale", "Notion 7.2.0", []fleet.MaintainedApp{notion}, "Notion", 4, true},
+		{"stale identifier still matches itself", "Notion 6.1.0 extra", []fleet.MaintainedApp{notion}, "Notion", 4, true},
+		{"longest prefix wins", "Foo Bar 1.0", []fleet.MaintainedApp{foo, fooBar}, "Foo Bar", 7, true},
+		{"longest prefix wins regardless of order", "Foo Bar 1.0", []fleet.MaintainedApp{fooBar, foo}, "Foo Bar", 7, true},
+		{"shorter prefix still matches its own app", "Foo 1.0", []fleet.MaintainedApp{foo, fooBar}, "Foo", 8, true},
+		{"ambiguous tie is no match", "Acme 3.0", []fleet.MaintainedApp{acmeReader, acmeWriter}, "", 0, false},
+		{"ambiguous tie is no match, reversed", "Acme 3.0", []fleet.MaintainedApp{acmeWriter, acmeReader}, "", 0, false},
+		{"same destination is not ambiguous", "Dup 1.0", []fleet.MaintainedApp{sameTitleA, sameTitleB}, "Dup", 10, true},
 		{"no FMAs", "Granola 7.373.2", nil, "", 0, false},
 
 		// Destination is the installer's title, never the current catalog name.
-		{"renamed catalog: matches old name", "Zoom 6.1.0", []fleet.WindowsFMAName{renamed}, "Zoom", 9, true},
-		{"renamed catalog: matches new name", "Zoom Workplace 7.0", []fleet.WindowsFMAName{renamed}, "Zoom", 9, true},
+		{"renamed catalog: matches old name", "Zoom 6.1.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
+		{"renamed catalog: matches new name", "Zoom Workplace 7.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
 
 		// MySQL's utf8mb4_unicode_ci ignores Unicode format characters, so Go-side
 		// matching must too or a name carrying one silently stops matching.
-		{"reported name with RTL mark", "Granola\u200f 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", 1, true},
-		{"zero-width joiner in reported name", "Gran\u200dola 7.373.2", []fleet.WindowsFMAName{granola}, "Granola", 1, true},
+		{"reported name with RTL mark", "Granola\u200f 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
+		{"zero-width joiner in reported name", "Gran\u200dola 7.373.2", []fleet.MaintainedApp{granola}, "Granola", 1, true},
 	}
 
 	for _, c := range cases {

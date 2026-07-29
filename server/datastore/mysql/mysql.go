@@ -114,7 +114,7 @@ type Datastore struct {
 	// and share the result. This prevents lock convoys on cold-start (#48719).
 	titleInsertSF singleflight.Group
 
-	// windowsFMANames caches the Windows Fleet-maintained apps that software ingestion
+	// windowsFMAMatches caches the Windows Fleet-maintained apps that software ingestion
 	// matches reported program names against. The lookup joins software_installers and
 	// software_titles, and ingestion runs on every host software update, so it is held
 	// briefly rather than issued per check-in.
@@ -129,13 +129,13 @@ type Datastore struct {
 	//
 	// The cached slice is replaced, never mutated, so a reader may keep using the value it
 	// received after a refresh. Callers must not mutate it.
-	windowsFMANames       []fleet.WindowsFMAName
-	windowsFMANamesExpiry time.Time
-	windowsFMANamesMu     sync.RWMutex
-	// windowsFMANamesSF collapses a cache-miss stampede into one query per node, which is
+	windowsFMAMatches       []fleet.MaintainedApp
+	windowsFMAMatchesExpiry time.Time
+	windowsFMAMatchesMu     sync.RWMutex
+	// windowsFMAMatchesSF collapses a cache-miss stampede into one query per node, which is
 	// what a fleet-wide rollout of a maintained app produces: many hosts report the new
 	// program at once, and every one of them misses.
-	windowsFMANamesSF singleflight.Group
+	windowsFMAMatchesSF singleflight.Group
 }
 
 // maxKnownSoftwareTitleKeys caps the in-process software title cache at roughly 100k entries so

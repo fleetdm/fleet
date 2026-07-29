@@ -3268,12 +3268,13 @@ type Datastore interface {
 	// FMAs (e.g. Firefox and Firefox ESR) are omitted.
 	GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error)
 
-	// GetWindowsFMANames returns the canonical name and unique_identifier of each
-	// Windows FMA that has been added as an installer, used during software ingestion
-	// to collapse versioned program names (e.g. "Granola 7.373.2") onto the canonical
-	// FMA title ("Granola"). See WindowsFMAName.MatchPrefixes for how a reported name
-	// is matched against the two.
-	GetWindowsFMANames(ctx context.Context) ([]WindowsFMAName, error)
+	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
+	// added as an installer, populated with just what name matching needs: the catalog
+	// name, unique identifier, platform, and the id and name of the software title the
+	// installer owns. Used during software ingestion to collapse versioned program names
+	// (e.g. "Granola 7.373.2") onto that title. See MaintainedApp.WinMatchPrefixes for how a
+	// reported name is matched against them.
+	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Certificate management

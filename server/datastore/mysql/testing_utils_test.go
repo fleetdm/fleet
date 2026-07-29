@@ -469,7 +469,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	ds.clearKnownSoftwareTitleKeys()
 	// Same for the Windows Fleet-maintained app cache, which would otherwise leak
 	// across test cases that share a Datastore.
-	ds.clearWindowsFMANamesCache()
+	ds.clearWindowsFMAMatchesCache()
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient

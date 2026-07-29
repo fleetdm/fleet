@@ -111,47 +111,47 @@ func (ds *Datastore) clearKnownSoftwareTitleKeys() {
 	ds.knownSoftwareTitleKeys = make(map[string]struct{})
 }
 
-// windowsFMANamesCacheTTL bounds how long ingestion may keep matching against a stale
+// windowsFMAMatchesCacheTTL bounds how long ingestion may keep matching against a stale
 // set of Windows Fleet-maintained apps. Short, because it delays a newly added app from
 // collapsing titles; a var so tests can shorten it further.
-var windowsFMANamesCacheTTL = 30 * time.Second
+var windowsFMAMatchesCacheTTL = 30 * time.Second
 
-// getWindowsFMANamesCached returns the Windows FMAs to match reported program names
+// getWindowsFMAMatchesCached returns the Windows FMAs to match reported program names
 // against, from a short-lived in-process cache. The returned slice is shared and must
 // not be mutated. See the field comments on Datastore for why this is TTL-only.
-func (ds *Datastore) getWindowsFMANamesCached(ctx context.Context) ([]fleet.WindowsFMAName, error) {
-	ds.windowsFMANamesMu.RLock()
-	names, expiry := ds.windowsFMANames, ds.windowsFMANamesExpiry
-	ds.windowsFMANamesMu.RUnlock()
+func (ds *Datastore) getWindowsFMAMatchesCached(ctx context.Context) ([]fleet.MaintainedApp, error) {
+	ds.windowsFMAMatchesMu.RLock()
+	names, expiry := ds.windowsFMAMatches, ds.windowsFMAMatchesExpiry
+	ds.windowsFMAMatchesMu.RUnlock()
 	if time.Now().Before(expiry) {
 		return names, nil
 	}
 
-	result, err, _ := ds.windowsFMANamesSF.Do("windowsFMANames", func() (any, error) {
-		fresh, err := ds.GetWindowsFMANames(ctx)
+	result, err, _ := ds.windowsFMAMatchesSF.Do("windowsFMANames", func() (any, error) {
+		fresh, err := ds.GetWindowsFMAMatches(ctx)
 		if err != nil {
 			return nil, err
 		}
-		ds.windowsFMANamesMu.Lock()
-		ds.windowsFMANames = fresh
-		ds.windowsFMANamesExpiry = time.Now().Add(windowsFMANamesCacheTTL)
-		ds.windowsFMANamesMu.Unlock()
+		ds.windowsFMAMatchesMu.Lock()
+		ds.windowsFMAMatches = fresh
+		ds.windowsFMAMatchesExpiry = time.Now().Add(windowsFMAMatchesCacheTTL)
+		ds.windowsFMAMatchesMu.Unlock()
 		return fresh, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	fresh, _ := result.([]fleet.WindowsFMAName)
+	fresh, _ := result.([]fleet.MaintainedApp)
 	return fresh, nil
 }
 
-// clearWindowsFMANamesCache drops the cached Windows FMA set, forcing the next
+// clearWindowsFMAMatchesCache drops the cached Windows FMA set, forcing the next
 // ingestion to read through. Used by tests, which share a Datastore across cases.
-func (ds *Datastore) clearWindowsFMANamesCache() {
-	ds.windowsFMANamesMu.Lock()
-	defer ds.windowsFMANamesMu.Unlock()
-	ds.windowsFMANames = nil
-	ds.windowsFMANamesExpiry = time.Time{}
+func (ds *Datastore) clearWindowsFMAMatchesCache() {
+	ds.windowsFMAMatchesMu.Lock()
+	defer ds.windowsFMAMatchesMu.Unlock()
+	ds.windowsFMAMatches = nil
+	ds.windowsFMAMatchesExpiry = time.Time{}
 }
 
 func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
@@ -1049,14 +1049,17 @@ type windowsFMAPrefix struct {
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
 // once per ingestion batch so the per-software-row match stays allocation-free.
-func windowsFMAPrefixes(fmas []fleet.WindowsFMAName) []windowsFMAPrefix {
+func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 	prefixes := make([]windowsFMAPrefix, 0, len(fmas)*3)
 	for _, f := range fmas {
-		for _, p := range f.MatchPrefixes() {
+		if f.TitleID == nil {
+			continue
+		}
+		for _, p := range f.WinMatchPrefixes() {
 			prefixes = append(prefixes, windowsFMAPrefix{
 				prefix:    normalizeSoftwareNameForMatch(p),
 				titleName: f.TitleName,
-				titleID:   f.TitleID,
+				titleID:   *f.TitleID,
 			})
 		}
 	}
@@ -1197,10 +1200,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	// collapses versioned program names onto the canonical FMA title. Read through a
 	// short-lived cache: this runs on every host software update that reports something
 	// new, which a fleet-wide rollout makes simultaneous across hosts.
-	winFMANames, winFMAErr := ds.getWindowsFMANamesCached(ctx)
+	winFMANames, winFMAErr := ds.getWindowsFMAMatchesCached(ctx)
 	if winFMAErr != nil {
 		if ds.logger != nil {
-			ds.logger.WarnContext(ctx, "failed to get Windows FMA names", "err", winFMAErr)
+			ds.logger.WarnContext(ctx, "failed to get Windows FMA matches", "err", winFMAErr)
 		}
 		winFMANames = nil
 	}

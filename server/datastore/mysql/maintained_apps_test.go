@@ -30,7 +30,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
 		{"SoftwareTitleRenamingWindows", testSoftwareTitleRenamingWindows},
 		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
-		{"GetWindowsFMANames", testGetWindowsFMANames},
+		{"GetWindowsFMAMatches", testGetWindowsFMAMatches},
 		{"WindowsFMANameOnIngest", testWindowsFMANameOnIngest},
 		{"ReconcileWindowsSoftwareTitles", testReconcileWindowsSoftwareTitles},
 		{"WindowsFMAMatchByUniqueIdentifier", testWindowsFMAMatchByUniqueIdentifier},
@@ -47,7 +47,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAExcludedWhenSpanningTitles", testWindowsFMAExcludedWhenSpanningTitles},
 		{"WindowsFMAIgnoresInstallerWithoutTitle", testWindowsFMAIgnoresInstallerWithoutTitle},
 		{"WindowsFMANameWithLikeWildcards", testWindowsFMANameWithLikeWildcards},
-		{"WindowsFMANamesCache", testWindowsFMANamesCache},
+		{"WindowsFMAMatchesCache", testWindowsFMAMatchesCache},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1336,13 +1336,13 @@ func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
 	require.False(t, ok)
 }
 
-func testGetWindowsFMANames(t *testing.T, ds *Datastore) {
+func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// Initially empty
-	names, err := ds.GetWindowsFMANames(ctx)
+	names, err := ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Empty(t, names)
 
@@ -1356,7 +1356,7 @@ func testGetWindowsFMANames(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	names, err = ds.GetWindowsFMANames(ctx)
+	names, err = ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Empty(t, names, "catalog entry with no installer must not be returned")
 
@@ -1388,20 +1388,32 @@ func testGetWindowsFMANames(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	names, err = ds.GetWindowsFMANames(ctx)
+	names, err = ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
-	byName := make(map[string]fleet.WindowsFMAName, len(names))
-	for _, n := range names {
-		byName[n.Name] = n
+	byName := make(map[string]*fleet.MaintainedApp, len(names))
+	for i := range names {
+		byName[names[i].Name] = &names[i]
 	}
 	require.Len(t, byName, 2)
 	require.Equal(t, "Granola", byName["Granola"].UniqueIdentifier)
 	require.Equal(t, "CPUID CPU-Z", byName["CPU-Z"].UniqueIdentifier)
+	// Platform must be selected, since WinMatchPrefixes gates on it.
+	require.Equal(t, "windows", byName["Granola"].Platform)
 
-	// Both fields are offered as match candidates, longest first.
-	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].MatchPrefixes())
+	// All name fields are offered as match candidates, longest first.
+	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].WinMatchPrefixes())
 	// Deduplicated when they are the same.
-	require.Equal(t, []string{"Granola"}, byName["Granola"].MatchPrefixes())
+	require.Equal(t, []string{"Granola"}, byName["Granola"].WinMatchPrefixes())
+
+	// A darwin app yields no prefixes even if the other fields are populated.
+	darwin := fleet.MaintainedApp{
+		Name: "Granola", UniqueIdentifier: "com.granola.app",
+		Platform: "darwin", TitleID: new(uint(1)), TitleName: "Granola",
+	}
+	require.Empty(t, darwin.WinMatchPrefixes())
+	// So does a Windows app with no resolved title.
+	noTitle := fleet.MaintainedApp{Name: "Granola", UniqueIdentifier: "Granola", Platform: "windows"}
+	require.Empty(t, noTitle.WinMatchPrefixes())
 }
 
 // testWindowsFMANameOnIngest: with a Windows FMA present, ingesting a versioned
@@ -1764,10 +1776,11 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, titleID, teamTitleID, "both teams' installers should share one title")
 
-	names, err := ds.GetWindowsFMANames(ctx)
+	names, err := ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Len(t, names, 1, "per-team installer rows must collapse to one entry")
-	require.Equal(t, titleID, names[0].TitleID)
+	require.NotNil(t, names[0].TitleID)
+	require.Equal(t, titleID, *names[0].TitleID)
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
@@ -1784,7 +1797,7 @@ func testWindowsFMAExcludedWhenSpanningTitles(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
 
-	names, err := ds.GetWindowsFMANames(ctx)
+	names, err := ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Len(t, names, 1)
 
@@ -1808,7 +1821,7 @@ func testWindowsFMAExcludedWhenSpanningTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	names, err = ds.GetWindowsFMANames(ctx)
+	names, err = ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Empty(t, names, "an app spanning two titles has no unambiguous destination")
 }
@@ -1827,7 +1840,7 @@ func testWindowsFMAIgnoresInstallerWithoutTitle(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	names, err := ds.GetWindowsFMANames(ctx)
+	names, err := ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
 	require.Empty(t, names, "an installer with no title cannot be a merge destination")
 
@@ -1865,16 +1878,16 @@ func testWindowsFMANameWithLikeWildcards(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, installerTitleID, cxcTitle, "_ must not act as a wildcard")
 }
 
-// testWindowsFMANamesCache: ingestion reads the Windows FMA set through a short-lived
+// testWindowsFMAMatchesCache: ingestion reads the Windows FMA set through a short-lived
 // cache, so an app added within the TTL is not matched until it expires. Asserted
 // behaviourally, by observing when a newly added app starts collapsing titles.
-func testWindowsFMANamesCache(t *testing.T, ds *Datastore) {
+func testWindowsFMAMatchesCache(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	origTTL := windowsFMANamesCacheTTL
-	windowsFMANamesCacheTTL = 300 * time.Millisecond
-	t.Cleanup(func() { windowsFMANamesCacheTTL = origTTL })
-	ds.clearWindowsFMANamesCache()
+	origTTL := windowsFMAMatchesCacheTTL
+	windowsFMAMatchesCacheTTL = 300 * time.Millisecond
+	t.Cleanup(func() { windowsFMAMatchesCacheTTL = origTTL })
+	ds.clearWindowsFMAMatchesCache()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -1897,7 +1910,7 @@ func testWindowsFMANamesCache(t *testing.T, ds *Datastore) {
 		"an app added within the TTL is not yet visible to ingestion")
 
 	// After expiry a newly reported version lands on the installer's title.
-	time.Sleep(windowsFMANamesCacheTTL + 100*time.Millisecond)
+	time.Sleep(windowsFMAMatchesCacheTTL + 100*time.Millisecond)
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Unrelated 1.0", Version: "1.0", Source: "programs"},
 		{Name: "Granola 7.373.1", Version: "7.373.1", Source: "programs"},

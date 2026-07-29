@@ -1844,7 +1844,7 @@ type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
 
-type GetWindowsFMANamesFunc func(ctx context.Context) ([]fleet.WindowsFMAName, error)
+type GetWindowsFMAMatchesFunc func(ctx context.Context) ([]fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
@@ -4981,8 +4981,8 @@ type DataStore struct {
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
 
-	GetWindowsFMANamesFunc        GetWindowsFMANamesFunc
-	GetWindowsFMANamesFuncInvoked bool
+	GetWindowsFMAMatchesFunc        GetWindowsFMAMatchesFunc
+	GetWindowsFMAMatchesFuncInvoked bool
 
 	BulkUpsertMDMManagedCertificatesFunc        BulkUpsertMDMManagedCertificatesFunc
 	BulkUpsertMDMManagedCertificatesFuncInvoked bool
@@ -11963,11 +11963,11 @@ func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]str
 	return s.GetFMANamesByIdentifierFunc(ctx)
 }
 
-func (s *DataStore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+func (s *DataStore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
 	s.mu.Lock()
-	s.GetWindowsFMANamesFuncInvoked = true
+	s.GetWindowsFMAMatchesFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetWindowsFMANamesFunc(ctx)
+	return s.GetWindowsFMAMatchesFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {

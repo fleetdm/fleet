@@ -137,21 +137,24 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 //
 // Each FMA runs in its own transaction and the operation is idempotent.
 func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
-	fmaNames, err := ds.GetWindowsFMANames(ctx)
+	fmaMatches, err := ds.GetWindowsFMAMatches(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get windows FMA names for reconcile")
+		return ctxerr.Wrap(ctx, err, "get windows FMA matches for reconcile")
 	}
 
 	// Two FMA rows can resolve to the same destination title (an app listed under two
 	// slugs, say), in which case merging it twice is harmless. Processing the same
 	// destination more than once is still wasted work, so collapse them.
-	allPrefixes := windowsFMAPrefixes(fmaNames)
-	seen := make(map[uint]struct{}, len(fmaNames))
-	for _, fma := range fmaNames {
-		if _, ok := seen[fma.TitleID]; ok {
+	allPrefixes := windowsFMAPrefixes(fmaMatches)
+	seen := make(map[uint]struct{}, len(fmaMatches))
+	for _, fma := range fmaMatches {
+		if fma.TitleID == nil {
 			continue
 		}
-		seen[fma.TitleID] = struct{}{}
+		if _, ok := seen[*fma.TitleID]; ok {
+			continue
+		}
+		seen[*fma.TitleID] = struct{}{}
 		if err := ds.mergeWindowsFMATitle(ctx, fma, allPrefixes); err != nil {
 			return ctxerr.Wrapf(ctx, err, "merge windows FMA title %q", fma.Name)
 		}
@@ -160,8 +163,8 @@ func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 	return nil
 }
 
-func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.WindowsFMAName, allPrefixes []windowsFMAPrefix) error {
-	prefixes := fma.MatchPrefixes()
+func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.MaintainedApp, allPrefixes []windowsFMAPrefix) error {
+	prefixes := fma.WinMatchPrefixes()
 	if len(prefixes) == 0 {
 		return nil
 	}
@@ -170,7 +173,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 	// decision is made in Go by matchWindowsFMATitle so that prefix precedence and the
 	// ambiguity rule match the ingestion path exactly.
 	var nameConds []string
-	args := []any{fma.TitleID}
+	args := []any{*fma.TitleID}
 	for _, prefix := range prefixes {
 		// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
 		// ESCAPE clause below is stated explicitly rather than relying on the default.
@@ -206,7 +209,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 
 		var staleIDs []uint
 		for _, c := range candidates {
-			if match, ok := matchWindowsFMATitle(c.Name, allPrefixes); ok && match.titleID == fma.TitleID {
+			if match, ok := matchWindowsFMATitle(c.Name, allPrefixes); ok && match.titleID == *fma.TitleID {
 				staleIDs = append(staleIDs, c.ID)
 			}
 		}
@@ -216,7 +219,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Windows
 
 		// The destination is the title the installer owns, carried on the FMA itself, so
 		// there is nothing to create or look up by name here.
-		canonicalID := fma.TitleID
+		canonicalID := *fma.TitleID
 
 		// Re-point software onto the canonical title, leaving software.name unchanged so
 		// hosts still report the version they actually have installed.
@@ -500,10 +503,9 @@ func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]st
 	return result, nil
 }
 
-// GetWindowsFMANames returns each Windows FMA's canonical name and unique_identifier
-// unchanged. Both are returned because either can be the one that matches a reported
-// program name; choosing between them is WindowsFMAName.MatchPrefixes's job.
-func (ds *Datastore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMAName, error) {
+// GetWindowsFMAMatches returns the Windows FMAs that name matching should consider,
+// populated with only the fields MaintainedApp.WinMatchPrefixes needs.
+func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.MaintainedApp, error) {
 	// Restricted to FMAs that are actually added somewhere, via their installer link.
 	// Prefix matching on a program name is only as precise as the name allows: the FMA
 	// manifests pair it with a publisher check, which fleet_maintained_apps does not
@@ -513,22 +515,26 @@ func (ds *Datastore) GetWindowsFMANames(ctx context.Context) ([]fleet.WindowsFMA
 	// installer rows normally share one title, so they collapse here; an app somehow
 	// spanning several is ambiguous and excluded rather than guessed at, matching how
 	// the darwin passes above handle a bundle identifier shared by multiple FMAs.
+	//
+	// platform is selected even though it is also filtered on, because WinMatchPrefixes
+	// checks it and would otherwise return nothing for every row.
 	query := `
-		SELECT fma.name, fma.unique_identifier, MIN(si.title_id) AS title_id, MIN(st.name) AS title_name
+		SELECT fma.name, fma.unique_identifier, fma.platform,
+			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
 		JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
-		GROUP BY fma.id, fma.name, fma.unique_identifier
+		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform
 		HAVING COUNT(DISTINCT si.title_id) = 1`
 
-	var names []fleet.WindowsFMAName
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, query); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "query Windows FMA names")
+	var apps []fleet.MaintainedApp
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query Windows FMA matches")
 	}
 
-	return names, nil
+	return apps, nil
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
