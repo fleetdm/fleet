@@ -1388,14 +1388,23 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 	macNotEnrolled := testhost{
 		host: &fleet.Host{ID: 2, UUID: "mac-not-enrolled-cp", Platform: "darwin"},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID: 3, UUID: "android-not-connected-cp", Platform: "android",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	hostByUUID := map[string]testhost{
-		macEnrolled.host.UUID:    macEnrolled,
-		macNotEnrolled.host.UUID: macNotEnrolled,
+		macEnrolled.host.UUID:         macEnrolled,
+		macNotEnrolled.host.UUID:      macNotEnrolled,
+		androidNotConnected.host.UUID: androidNotConnected,
 	}
 	hostsByID := map[uint]testhost{
-		macEnrolled.host.ID:    macEnrolled,
-		macNotEnrolled.host.ID: macNotEnrolled,
+		macEnrolled.host.ID:         macEnrolled,
+		macNotEnrolled.host.ID:      macNotEnrolled,
+		androidNotConnected.host.ID: androidNotConnected,
 	}
 
 	ds := setupTestServer(t)
@@ -1426,6 +1435,7 @@ func TestMDMClearPasscodeCommand(t *testing.T) {
 		{appCfgAllMDM, "empty host", []string{"--host", ""}, `No host targeted. Please provide --host.`},
 		{appCfgAllMDM, "unknown host", []string{"--host", "doesnotexist"}, fleet.HostNotFoundErrMsg},
 		{appCfgAllMDM, "darwin not enrolled", []string{"--host", macNotEnrolled.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+		{appCfgAllMDM, "android not connected", []string{"--host", androidNotConnected.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
 	}
 	for _, c := range cases {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return c.appCfg, nil }

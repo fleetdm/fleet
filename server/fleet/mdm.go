@@ -1099,18 +1099,20 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field), or "" for platforms
-// that don't take part in the classic MDM command pipeline.
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms derived
+// from a host's platform (a raw hosts.platform value, or the collapsed one
+// returned by Host.FleetPlatform), or "" for platforms that don't take part in
+// the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
 //
 // Android is deliberately not part of this list: Android hosts don't take part
-// in the classic MDM command pipeline (raw XML/plist commands, nano_commands
-// and mdm_windows_commands, the mdmlifecycle hooks and the host_mdm table).
-// To check whether Fleet can turn MDM on for a platform at all, use
-// MDMTurnedOnSupported instead.
+// in the classic MDM command pipeline (raw XML/plist commands, the
+// nano_commands and mdm_windows_commands listings, the mdmlifecycle hooks and
+// the host_mdm turn-off/reset paths MDMTurnOff and MDMResetEnrollment). Android
+// has its own commands table and its own unenroll path. To check whether Fleet
+// can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
 func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":

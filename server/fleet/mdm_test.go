@@ -670,6 +670,9 @@ func TestMDMPlatformSupport(t *testing.T) {
 		// Android hosts can have MDM turned on, but they don't take part in the
 		// classic MDM command pipeline.
 		{"android", "", true},
+		// "linux" isn't a hosts.platform value, but it is what
+		// Host.FleetPlatform collapses the distros to.
+		{"linux", "", false},
 		{"ubuntu", "", false},
 		{"rhel", "", false},
 		{"chrome", "", false},
