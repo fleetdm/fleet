@@ -913,7 +913,7 @@ func (r batchSetSoftwareInstallersResultResponse) Error() error { return r.Err }
 func batchSetSoftwareInstallersResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetSoftwareInstallersResultRequest)
 	result, err := svc.GetBatchSetSoftwareInstallersResult(ctx, req.TeamName, req.RequestUUID, req.DryRun)
-	if err != nil {
+	if err != nil || result == nil {
 		return batchSetSoftwareInstallersResultResponse{Err: err}, nil
 	}
 	return batchSetSoftwareInstallersResultResponse{

@@ -3002,8 +3002,6 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 }
 
 func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string {
-	// TODO(JK): the software title isn't known until the package is downloaded, so settle
-	// on what to call a package before then.
 	switch {
 	case payload.DisplayName != "":
 		return payload.DisplayName
@@ -3166,31 +3164,33 @@ func (svc *Service) softwareBatchUpload(
 	// the same as the one it saw start.
 	//
 	// The whole slice is read on every write, so unlike the slices above, writing only to
-	// your own index isn't enough to stay safe if the goroutine limit is ever raised.
+	// your own index isn't enough to stay safe if the goroutine limit is ever raised. The
+	// write itself happens outside the lock so it never holds up another download.
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
 	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
 		downloadProgressMutex.Lock()
-		defer downloadProgressMutex.Unlock()
-
-		// Only a package that is still downloading can fail one. Anything else means the
-		// error that got us here happened outside the download.
+		// Only a package that is still downloading can fail a download. Anything else means
+		// the error that got us here happened outside the download.
 		if status == fleet.SoftwarePackageDownloadFailed && downloadProgress[payloadIndex].Status != fleet.SoftwarePackageDownloadStarted {
+			downloadProgressMutex.Unlock()
 			return
 		}
-
 		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
 			Name:   softwarePackageProgressName(payloads[payloadIndex]),
 			Status: status,
 		}
-
 		progressJSON, err := json.Marshal(downloadProgress)
+		downloadProgressMutex.Unlock()
+
 		if err != nil {
 			svc.logger.WarnContext(ctx, "encoding software package download progress", "request_uuid", requestUUID, "err", err)
 			return
 		}
 
-		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), 10*time.Minute); err != nil {
+		// Long enough to outlast a single slow download, which the sibling keys never have
+		// to survive because nothing reads them until the batch is done.
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), time.Hour); err != nil {
 			svc.logger.WarnContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
 		}
 	}

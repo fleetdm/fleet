@@ -246,7 +246,8 @@ type BatchSetSoftwareInstallersResult struct {
 	// Categories holds the self-service categories the batch uses or added, once the
 	// status is "completed".
 	Categories []string
-	// DownloadProgress is filled in while the status is still "processing".
+	// DownloadProgress reports how far the batch got through downloading its packages,
+	// whatever the status.
 	DownloadProgress []SoftwarePackageDownloadProgress
 }
 
