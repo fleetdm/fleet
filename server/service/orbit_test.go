@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1653,4 +1654,72 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			require.Equal(t, tc.wantFlags, got)
 		})
 	}
+}
+
+func TestGetOrbitConfigHostDataCache(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	appCfg := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	// Track how many times each DB function is called.
+	var getHostMDMCalls atomic.Int32
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		getHostMDMCalls.Add(1)
+		return nil, nil
+	}
+
+	var listScriptsCalls atomic.Int32
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		listScriptsCalls.Add(1)
+		return nil, nil
+	}
+
+	var listInstallsCalls atomic.Int32
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		listInstallsCalls.Add(1)
+		return nil, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+
+	// First call should hit the DB (cache miss).
+	_, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+	require.Equal(t, int32(1), listScriptsCalls.Load())
+	require.Equal(t, int32(1), listInstallsCalls.Load())
+
+	// Second call should use the cache (no additional DB calls).
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+	require.Equal(t, int32(1), listScriptsCalls.Load())
+	require.Equal(t, int32(1), listInstallsCalls.Load())
+
+	// Third call should also use the cache.
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), getHostMDMCalls.Load())
+
+	// After flushing the cache, the next call should hit the DB again.
+	internal := ((svc.(validationMiddleware)).Service).(*Service)
+	internal.orbitHostCache.Flush()
+	_, err = svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int32(2), getHostMDMCalls.Load())
+	require.Equal(t, int32(2), listScriptsCalls.Load())
+	require.Equal(t, int32(2), listInstallsCalls.Load())
 }

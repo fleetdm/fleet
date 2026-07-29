@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -479,6 +480,46 @@ func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.
 	return merged, &debug, nil
 }
 
+// orbitHostCacheEntry holds per-host data that is fetched on every GetOrbitConfig
+// call but changes infrequently (MDM state, pending scripts/installs).
+// Caching this data with a short TTL dramatically reduces DB reads on this
+// high-frequency endpoint.
+type orbitHostCacheEntry struct {
+	mdmInfo         *fleet.HostMDM
+	pendingScripts  []*fleet.HostScriptResult
+	pendingInstalls []string
+}
+
+func (svc *Service) getOrbitHostData(ctx context.Context, hostID uint, scriptsDisabled bool) (*orbitHostCacheEntry, error) {
+	cacheKey := strconv.FormatUint(uint64(hostID), 10)
+	if cached, ok := svc.orbitHostCache.Get(cacheKey); ok {
+		return cached.(*orbitHostCacheEntry), nil
+	}
+
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
+	pendingScripts, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, hostID, scriptsDisabled)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing pending scripts for host")
+	}
+
+	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing pending software installs for host")
+	}
+
+	entry := &orbitHostCacheEntry{
+		mdmInfo:         mdmInfo,
+		pendingScripts:  pendingScripts,
+		pendingInstalls: pendingInstalls,
+	}
+	svc.orbitHostCache.SetDefault(cacheKey, entry)
+	return entry, nil
+}
+
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -493,10 +534,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	// Fetch per-host data from cache (or DB on miss). These 4 queries are called on every
+	// orbit check-in (~every 30s per host) but the underlying data changes rarely.
+	hostData, err := svc.getOrbitHostData(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
 	}
+	mdmInfo := hostData.mdmInfo
 
 	// Derive the Fleet-MDM connection state from the host_mdm data fetched above rather than issuing a separate
 	// IsHostConnectedToFleetMDM query.
@@ -624,14 +668,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	// load the (active, ready to execute) pending script executions for that host
-	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pending) > 0 {
-		execIDs := make([]string, 0, len(pending))
-		for _, p := range pending {
+	// Use cached pending script executions for this host.
+	if len(hostData.pendingScripts) > 0 {
+		execIDs := make([]string, 0, len(hostData.pendingScripts))
+		for _, p := range hostData.pendingScripts {
 			execIDs = append(execIDs, p.ExecutionID)
 		}
 		notifs.PendingScriptExecutionIDs = execIDs
@@ -642,13 +682,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		*host.DiskEncryptionEnabled &&
 		svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
-	// load the (active, ready to execute) pending software install executions for that host
-	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
-	if err != nil {
-		return fleet.OrbitConfig{}, err
-	}
-	if len(pendingInstalls) > 0 {
-		notifs.PendingSoftwareInstallerIDs = pendingInstalls
+	// Use cached pending software install executions for this host.
+	if len(hostData.pendingInstalls) > 0 {
+		notifs.PendingSoftwareInstallerIDs = hostData.pendingInstalls
 	}
 
 	// team ID is not nil, get team specific flags and options

@@ -75,6 +75,11 @@ type Service struct {
 
 	packConfigCache *gocache.Cache
 
+	// orbitHostCache caches per-host data fetched on every GetOrbitConfig call
+	// (MDM info, pending scripts, escrow status, pending installs) to reduce
+	// DB reads on this high-frequency endpoint (~every 30s per host).
+	orbitHostCache *gocache.Cache
+
 	androidSvc android.Service
 
 	// activitySvc is the activity bounded context service for write operations.
@@ -199,6 +204,7 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
+		orbitHostCache:                  gocache.New(15*time.Second, 30*time.Second),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 	}

@@ -1,0 +1,1 @@
+* Improved server performance by caching per-host data in the orbit config endpoint, reducing database reads on this high-frequency path.
