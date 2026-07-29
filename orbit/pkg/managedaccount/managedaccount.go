@@ -1,49 +1,25 @@
-// Package managedaccount creates and maintains the Fleet-managed local admin account on Windows
-// hosts, and escrows its password to the Fleet server.
+// Package managedaccount creates and maintains the Fleet-managed local admin account on Windows hosts, and escrows its
+// password to the Fleet server.
 //
-// The server asks for the account by setting the CreateWindowsManagedLocalAccount notification on
-// the orbit config response, and stops asking once this host escrows a password for its current MDM
-// enrollment. That makes the server the owner of "is this done", so there is deliberately no local
-// terminal state here: whenever Fleet asks, fleetd provisions the account and escrows the password.
-// Every step is idempotent, so being asked again is always safe. Keeping a local "already done"
-// marker would be able to disagree with the server and silently stall the flow, for instance after a
-// re-enrollment that did not wipe the disk.
+// The server asks for the account by setting the CreateWindowsManagedLocalAccount notification on the orbit config
+// response, and stops asking once this host escrows a password for its current MDM enrollment. Every step is idempotent,
+// so being asked again is always safe.
 package managedaccount
 
 import (
-	"crypto/rand"
-	"fmt"
-	"math/big"
-	"strings"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
-// passwordLength is the length of the generated password. The server accepts up to 256 characters;
-// 32 random characters across four classes is far beyond what a local account needs while staying
-// comfortably inside any password-length policy.
-const passwordLength = 32
-
-// Character classes for the generated password. Windows' default complexity policy requires three of
-// four, so all four are guaranteed. The symbol set deliberately omits quotes, backslashes and
-// spaces, which are awkward to type at the "Other user" sign-in prompt during a break-glass login.
-const (
-	lowerChars  = "abcdefghijkmnopqrstuvwxyz"
-	upperChars  = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-	digitChars  = "23456789"
-	symbolChars = "!#%&*+-=?@^_"
-)
-
-// Escrower sends the managed local account password to the Fleet server. Satisfied by
-// *service.OrbitClient; an interface so tests do not need a server.
+// Escrower sends the managed local account password to the Fleet server.
 type Escrower interface {
 	SendManagedLocalAccountPassword(password, clientError string) error
 }
 
-// provisionFunc creates or updates the managed local admin account and hides it from the sign-in
-// screen. Implemented per platform; a no-op everywhere except Windows.
+// provisionFunc creates or updates the managed local admin account and hides it from the sign-in screen.
 type provisionFunc func(username, password string) error
 
 // Receiver reacts to the CreateWindowsManagedLocalAccount notification.
@@ -54,18 +30,23 @@ type Receiver struct {
 	// use the platform implementation.
 	provision provisionFunc
 
+	// retryFrequency is the minimum time between attempts after a failure. The success path needs no throttle because
+	// the server stops sending the notification once a password is escrowed, so this only ever paces a host that fails.
+	retryFrequency time.Duration
+
 	// mu keeps a single provisioning attempt in flight. Held for the duration of the background
 	// goroutine, so a notification that arrives again while work is running is dropped rather than
-	// starting a second account reset.
+	// starting a second account reset. It also guards lastFailure.
 	mu sync.Mutex
 
-	// done, when non-nil, is closed after each completed attempt. Tests only.
-	done chan struct{}
+	// lastFailure is when the most recent attempt failed, zero after a success.
+	lastFailure time.Time
 }
 
-// New returns a Receiver that escrows through the given Escrower.
-func New(escrower Escrower) *Receiver {
-	return &Receiver{escrower: escrower}
+// New returns a Receiver that escrows through the given Escrower, retrying at most once every
+// retryFrequency after a failure.
+func New(escrower Escrower, retryFrequency time.Duration) *Receiver {
+	return &Receiver{escrower: escrower, retryFrequency: retryFrequency}
 }
 
 // Run implements fleet.OrbitConfigReceiver. It returns immediately; provisioning happens in the
@@ -78,46 +59,53 @@ func (r *Receiver) Run(cfg *fleet.OrbitConfig) error {
 	return nil
 }
 
-func (r *Receiver) attempt() {
-	// TryLock rather than Lock: if an attempt is already running, drop this one instead of queueing a
-	// second account reset behind it. The server keeps asking until an escrow succeeds, so nothing is
-	// lost by skipping.
+// attempt starts provisioning in the background. The returned channel is closed once the attempt has
+// finished and released the single-flight lock, or nil when another attempt was already running.
+// Run discards it; it exists so callers that need to know an attempt is fully done, notably tests,
+// observe a point where the lock is guaranteed free rather than one merely inside the work.
+func (r *Receiver) attempt() <-chan struct{} {
+	// TryLock rather than Lock: if an attempt is already running, drop this one instead of queueing a second account
+	// reset behind it. The server keeps asking until an escrow succeeds, so nothing is lost by skipping.
 	if !r.mu.TryLock() {
 		log.Debug().Msg("managed local account: provisioning already in progress, skipping")
-		return
+		return nil
 	}
+	// The server re-sends the notification on every config fetch, so without this a host that cannot
+	// provision would redo the syscalls and re-post its error every 30 seconds, indefinitely.
+	if !r.lastFailure.IsZero() && time.Since(r.lastFailure) <= r.retryFrequency {
+		log.Debug().Msg("managed local account: last attempt failed too recently, skipping")
+		r.mu.Unlock()
+		return nil
+	}
+	done := make(chan struct{})
 	go func() {
-		// Deferred LIFO, so the mutex is released first, then the panic is contained, then the
-		// completion is signalled. Signalling before unlocking would let a waiter start the next attempt
-		// while TryLock still fails, silently dropping it.
+		// Deferred LIFO, so the mutex is released first, then the panic is contained, then completion is signaled.
+		defer close(done)
 		defer func() {
-			// A panic in a goroutine takes down the whole process, and this one drives raw Windows
-			// syscalls. Provisioning a local account must not be able to kill osquery reporting, MDM, and
-			// every other orbit subsystem; the next poll retries. Same reasoning as the recover in
-			// orbit/pkg/table/ai_tools.
+			// A panic in a goroutine takes down the whole process, and this one drives raw Windows syscalls.
+			// Provisioning a local account must not be able to kill orbit/osquery. The next poll retries.
 			if p := recover(); p != nil {
 				log.Error().Interface("panic", p).Msg("managed local account: recovered from panic while provisioning")
 			}
-			if r.done != nil {
-				close(r.done)
-			}
 		}()
 		defer r.mu.Unlock()
-		r.createAndEscrow()
+
+		// Assume failure, so an early return or a panic still paces the next attempt; cleared on success.
+		// Both writes happen while the lock is held.
+		r.lastFailure = time.Now()
+		if r.createAndEscrow() {
+			r.lastFailure = time.Time{}
+		}
 	}()
+	return done
 }
 
-// createAndEscrow generates a password, provisions the account, and escrows the password. Any
-// failure before the escrow returns without recording success, so the next config fetch retries the
-// whole flow; the provisioning step resets the password of an existing account, which is what makes
-// that retry safe.
-func (r *Receiver) createAndEscrow() {
-	password, err := generatePassword()
-	if err != nil {
-		// Nothing to report to the server: we never touched the device, and the next poll retries.
-		log.Error().Err(err).Msg("managed local account: generating password")
-		return
-	}
+// createAndEscrow generates a password, provisions the account, and escrows the password. Any failure before the escrow
+// returns without recording success, so the next config fetch retries the whole flow; the provisioning step resets the
+// password of an existing account, which is what makes that retry safe.
+// It reports whether the password was successfully escrowed.
+func (r *Receiver) createAndEscrow() bool {
+	password := fleet.GenerateManagedLocalAccountPassword(true)
 
 	provision := r.provision
 	if provision == nil {
@@ -131,58 +119,16 @@ func (r *Receiver) createAndEscrow() {
 		if escrowErr := r.escrower.SendManagedLocalAccountPassword("", err.Error()); escrowErr != nil {
 			log.Error().Err(escrowErr).Msg("managed local account: reporting creation failure")
 		}
-		return
+		return false
 	}
 
 	if err := r.escrower.SendManagedLocalAccountPassword(password, ""); err != nil {
 		// The account now exists with a password Fleet does not know. That is recovered by the next
 		// notification: provisioning resets the password and escrows the new one.
 		log.Error().Err(err).Msg("managed local account: escrowing password")
-		return
+		return false
 	}
 
 	log.Info().Msg("managed local account: created and escrowed")
-}
-
-// generatePassword returns a cryptographically random password of passwordLength characters that
-// contains at least one character from each class.
-func generatePassword() (string, error) {
-	classes := []string{lowerChars, upperChars, digitChars, symbolChars}
-	all := strings.Join(classes, "")
-
-	chars := make([]byte, 0, passwordLength)
-	// Seed one character per class so complexity requirements are met regardless of how the remainder
-	// falls out, then fill the rest from the full alphabet.
-	for _, class := range classes {
-		c, err := randomChar(class)
-		if err != nil {
-			return "", err
-		}
-		chars = append(chars, c)
-	}
-	for len(chars) < passwordLength {
-		c, err := randomChar(all)
-		if err != nil {
-			return "", err
-		}
-		chars = append(chars, c)
-	}
-
-	// Shuffle so the seeded characters are not always in the first four positions.
-	for i := len(chars) - 1; i > 0; i-- {
-		j, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
-		if err != nil {
-			return "", fmt.Errorf("shuffling password: %w", err)
-		}
-		chars[i], chars[j.Int64()] = chars[j.Int64()], chars[i]
-	}
-	return string(chars), nil
-}
-
-func randomChar(alphabet string) (byte, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
-	if err != nil {
-		return 0, fmt.Errorf("reading random number: %w", err)
-	}
-	return alphabet[n.Int64()], nil
+	return true
 }

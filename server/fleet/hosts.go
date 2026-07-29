@@ -2008,11 +2008,6 @@ type HostMDMManagedLocalAccount struct {
 	PendingRotation bool `json:"pending_rotation" db:"-" csv:"-"`
 }
 
-// ManagedLocalAccountUsername is the short name of the local admin account Fleet provisions when the
-// managed local account feature is enabled. It is platform-neutral: macOS creates it via the
-// AccountConfiguration MDM command, Windows fleetd creates it directly.
-const ManagedLocalAccountUsername = "_fleetadmin"
-
 // HostManagedLocalAccountPassword is the API response for the managed local account password.
 type HostManagedLocalAccountPassword struct {
 	Username  string    `json:"username"`
