@@ -2,7 +2,11 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 import { addHours, isPast } from "date-fns";
 
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
+import {
+  DiskEncryptionStatus,
+  MdmEnrollmentStatus,
+  isAutomaticDeviceEnrollment,
+} from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
 import {
   HostPlatform,
@@ -67,6 +71,11 @@ const HostDetailsBanners = ({
     macDiskEncryptionStatus === "action_required" &&
     !isNewMdmEnrollment;
 
+  // ADE-enrolled hosts escrow their FileVault key automatically, so the end user
+  // doesn't need to log out. Manually-enrolled hosts only get a new key at next
+  // login, so they keep the log-out instruction.
+  const isAdeEnrolled = isAutomaticDeviceEnrollment(mdmEnrollmentStatus);
+
   const actionRequiredBanner = (
     <div className={baseClass}>
       <InfoBanner color="yellow">
@@ -92,8 +101,17 @@ const HostDetailsBanners = ({
     return (
       <div className={baseClass}>
         <InfoBanner color="yellow">
-          Disk encryption: Requires action from the end user. Ask the end user
-          to log out of their device or restart it.
+          {isAdeEnrolled ? (
+            <>
+              Disk encryption: FileVault key will be escrowed automatically on
+              this host&apos;s next refetch.
+            </>
+          ) : (
+            <>
+              Disk encryption: Requires action from the end user. Ask the end
+              user to log out of their device or restart it.
+            </>
+          )}
         </InfoBanner>
       </div>
     );

@@ -40,7 +40,7 @@ const Pagination = ({
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
       >
-        <Icon name="chevron-left" color="ui-fleet-black-75" /> Previous
+        <Icon name="chevron-left" /> Previous
       </Button>
       <Button
         variant="subdued"

@@ -100,6 +100,7 @@ import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureDataStudio from "./AzureDataStudio";
 import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
@@ -439,6 +440,7 @@ import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
 import GitupApp from "./GitupApp";
 import Glyphs from "./Glyphs";
+import Gnupg from "./Gnupg";
 import Go from "./Go";
 import Go2Shell from "./Go2Shell";
 import GoanywhereOpenpgpStudio from "./GoanywhereOpenpgpStudio";
@@ -581,6 +583,7 @@ import Localsend from "./Localsend";
 import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import LogitechUnifyingSoftware from "./LogitechUnifyingSoftware";
 import Logseq from "./Logseq";
 import Lookaway from "./Lookaway";
 import Loom from "./Loom";
@@ -863,6 +866,7 @@ import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
 import Rsyncui from "./Rsyncui";
+import Rtools from "./Rtools";
 import RubyMine from "./RubyMine";
 import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
@@ -1245,6 +1249,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure data studio": AzureDataStudio,
   "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
@@ -1583,6 +1588,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gitkraken: GitKraken,
   gitup: GitupApp,
   glyphs: Glyphs,
+  "gnu privacy guard": Gnupg,
   go: Go,
   go2shell: Go2Shell,
   "goanywhere openpgp studio": GoanywhereOpenpgpStudio,
@@ -1728,6 +1734,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
   loom: Loom,
@@ -2020,6 +2027,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
+  rtools: Rtools,
   rubymine: RubyMine,
   runjs: Runjs,
   rustdesk: RustDesk,
@@ -2228,6 +2236,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   webcatalog: Webcatalog,
   webex: Webex,
   webstorm: WebStorm,
+  wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
   whatroute: Whatroute,
