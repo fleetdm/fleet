@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -50,6 +51,9 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMANameWithLikeWildcards", testWindowsFMANameWithLikeWildcards},
 		{"WindowsFMAMatchesCache", testWindowsFMAMatchesCache},
 		{"WindowsFMAMergeWithoutPrefixes", testWindowsFMAMergeWithoutPrefixes},
+		{"WindowsFMAMergeMovesAllReferences", testWindowsFMAMergeMovesAllReferences},
+		{"WindowsFMAMergeMultipleDestinations", testWindowsFMAMergeMultipleDestinations},
+		{"WindowsFMAIngestIgnoresOtherSources", testWindowsFMAIngestIgnoresOtherSources},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1987,6 +1991,188 @@ func testWindowsFMAMergeWithoutPrefixes(t *testing.T, ds *Datastore) {
 			require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
 		})
 	}
+}
+
+// testWindowsFMAMergeMovesAllReferences: the merge re-points eight tables and then
+// deletes the emptied title. A statement that silently moved nothing would look
+// identical to a working one unless each table is checked, and the symptom in production
+// is admin configuration stranded on a title with no software.
+func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so a versioned title exists for the installer to merge.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	staleTitleID := titleIDNamed(t, ds, "Granola 7.373.2")
+
+	// Hang one row off the stale title in every table the merge re-points.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_title_id)
+			VALUES ('exec-1', ?, ?)`, host.ID, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO upcoming_activities (id, host_id, activity_type, execution_id, payload)
+			VALUES (9001, ?, 'software_install', 'exec-2', '{}')`, host.ID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_title_id)
+			VALUES (9001, ?)`, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO policies (name, query, description, checksum, patch_software_title_id)
+			VALUES ('patch granola', 'SELECT 1', '', UNHEX(MD5('patch granola')), ?)`, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_update_schedules (team_id, title_id, start_time, end_time)
+			VALUES (0, ?, '01:00', '02:00')`, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_title_display_names (team_id, software_title_id, display_name)
+			VALUES (0, ?, 'Granola (custom)')`, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
+			VALUES (0, ?, 'sid-icon', 'icon.png')`, staleTitleID)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO software_title_team_pins (team_id, title_id, pinned_version)
+			VALUES (0, ?, '7.373.2')`, staleTitleID)
+		return err
+	})
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	// Every reference now points at the destination, and none is left on the stale id.
+	for _, ref := range []struct {
+		label  string
+		table  string
+		column string
+	}{
+		{"software", "software", "title_id"},
+		{"host software installs", "host_software_installs", "software_title_id"},
+		{"upcoming install activities", "software_install_upcoming_activities", "software_title_id"},
+		{"patch policies", "policies", "patch_software_title_id"},
+		{"update schedules", "software_update_schedules", "title_id"},
+		{"display names", "software_title_display_names", "software_title_id"},
+		{"icons", "software_title_icons", "software_title_id"},
+		{"team pins", "software_title_team_pins", "title_id"},
+	} {
+		//nolint:gosec // table and column come from the fixed list above, not from input
+		countFor := func(titleID uint) int {
+			var n int
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &n,
+					fmt.Sprintf(`SELECT COUNT(*) FROM %s WHERE %s = ?`, ref.table, ref.column), titleID)
+			})
+			return n
+		}
+		require.Equal(t, 1, countFor(canonicalID), "%s should have moved to the destination", ref.label)
+		require.Zero(t, countFor(staleTitleID), "%s should not be left on the merged-away title", ref.label)
+	}
+
+	// The emptied title is gone, and its host counts with it.
+	require.Zero(t, countTitlesNamed(t, ds, "Granola 7.373.2"))
+	var counts int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &counts,
+			`SELECT COUNT(*) FROM software_titles_host_counts WHERE software_title_id = ?`, staleTitleID)
+	})
+	require.Zero(t, counts, "host counts for the merged-away title should be deleted")
+}
+
+// testWindowsFMAMergeMultipleDestinations: the pass groups candidates by destination and
+// merges each in its own transaction, so two apps with stale titles must both be handled
+// in a single run rather than only whichever is processed first.
+func testWindowsFMAMergeMultipleDestinations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Two unrelated apps, each reported with a version in the name, before either is added.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+		{Name: "Obsidian 1.5.3", Version: "1.5.3", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	granolaID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	obsidianID := addWindowsFMAWithInstaller(t, ds, user.ID, "Obsidian", "Obsidian", "obsidian/windows")
+
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+
+	require.Equal(t, granolaID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
+	require.Equal(t, obsidianID, titleIDForSoftware(t, ds, "Obsidian 1.5.3"))
+	require.Zero(t, countTitlesNamed(t, ds, "Granola 7.373.2"))
+	require.Zero(t, countTitlesNamed(t, ds, "Obsidian 1.5.3"))
+}
+
+// testWindowsFMAIngestIgnoresOtherSources: name matching is only meaningful for the
+// programs table. Software from another source that happens to share a prefix with an
+// added app must keep its own title.
+func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 9.9.9", Version: "9.9.9", Source: "chrome_extensions", ExtensionID: "abc"},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"),
+		"non-programs software must not be collapsed onto the installer's title")
+
+	// And the reconcile pass leaves it alone too.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"))
+}
+
+// titleIDForSoftware returns the software title that the given software row links to.
+func titleIDForSoftware(t *testing.T, ds *Datastore, softwareName string) uint {
+	t.Helper()
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &titleID,
+			`SELECT title_id FROM software WHERE name = ?`, softwareName)
+	})
+	return titleID
+}
+
+// titleIDNamed returns the id of the 'programs' software title with the given name.
+func titleIDNamed(t *testing.T, ds *Datastore, name string) uint {
+	t.Helper()
+	var id uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &id,
+			`SELECT id FROM software_titles WHERE name = ? AND source = 'programs'`, name)
+	})
+	return id
 }
 
 // addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the
