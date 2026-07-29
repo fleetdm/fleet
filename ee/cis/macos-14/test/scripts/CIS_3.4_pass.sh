@@ -15,6 +15,6 @@ trap '/bin/rm -f "$TMP_FILE"' EXIT
   { print }
   END { if (!found) print "expire-after:30d" }
 ' "$AUDIT_FILE" > "$TMP_FILE" || exit 1
-/usr/bin/sudo /bin/mv "$TMP_FILE" "$AUDIT_FILE"
-/usr/bin/sudo /usr/sbin/chown root:wheel "$AUDIT_FILE"
-/usr/bin/sudo /bin/chmod 0400 "$AUDIT_FILE"
+/usr/bin/sudo /bin/mv "$TMP_FILE" "$AUDIT_FILE" || exit 1
+/usr/bin/sudo /usr/sbin/chown root:wheel "$AUDIT_FILE" || exit 1
+/usr/bin/sudo /bin/chmod 0400 "$AUDIT_FILE" || exit 1

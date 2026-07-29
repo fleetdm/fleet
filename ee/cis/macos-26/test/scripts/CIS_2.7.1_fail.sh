@@ -9,5 +9,5 @@ if [ -z "$user" ] || [ "$user" = "root" ]; then
   echo "No non-root console user logged in; cannot apply fail state" >&2
   exit 1
 fi
-/usr/bin/sudo -u "$user" /usr/bin/defaults write com.apple.dock wvous-br-corner -int 6
+/usr/bin/sudo -u "$user" /usr/bin/defaults write com.apple.dock wvous-br-corner -int 6 || exit 1
 /usr/bin/sudo /usr/bin/killall cfprefsd 2>/dev/null || true

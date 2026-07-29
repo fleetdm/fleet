@@ -1818,6 +1818,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: CIS - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled (MDM Required)
+  cis_id: "2.11.1"
   platforms: macOS
   platform: darwin
   description: A locking screen saver is one of the standard security controls to limit access to a computer and the current user's session when the computer is temporarily unused or unattended. In macOS, the screen saver starts after a value is selected in the drop- down menu. 15 minutes or less is an acceptable value. Any value can be selected through the command line or script, but a number that is not reflected in the GUI can be problematic. 15 minutes is the default for new accounts.

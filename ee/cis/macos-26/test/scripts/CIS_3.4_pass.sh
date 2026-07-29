@@ -9,7 +9,7 @@ TMP="$(/usr/bin/mktemp /tmp/audit_control.XXXXXX)"
   /^expire-after:/ { print "expire-after:30d"; found=1; next }
   { print }
   END { if (!found) print "expire-after:30d" }
-' /etc/security/audit_control > "$TMP"
-/usr/bin/sudo /bin/mv "$TMP" /etc/security/audit_control
-/usr/bin/sudo /usr/sbin/chown root:wheel /etc/security/audit_control
-/usr/bin/sudo /bin/chmod 0440 /etc/security/audit_control
+' /etc/security/audit_control > "$TMP" || exit 1
+/usr/bin/sudo /bin/mv "$TMP" /etc/security/audit_control || exit 1
+/usr/bin/sudo /usr/sbin/chown root:wheel /etc/security/audit_control || exit 1
+/usr/bin/sudo /bin/chmod 0440 /etc/security/audit_control || exit 1
