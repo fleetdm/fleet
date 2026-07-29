@@ -2228,6 +2228,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   webcatalog: Webcatalog,
   webex: Webex,
   webstorm: WebStorm,
+  wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
   whatroute: Whatroute,
