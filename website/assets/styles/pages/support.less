@@ -151,14 +151,20 @@
   }
   @media (max-width: 991px) {
     [purpose='support-cards'] {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, 1fr);
     }
     [purpose='support-card'] {
+      height: 100%;
       text-align: center;
       align-items: center;
     }
     [purpose='support-quote'] {
       margin-top: 60px;
+    }
+  }
+  @media (max-width: 767px) {
+    [purpose='support-cards'] {
+      grid-template-columns: 1fr;
     }
   }
   @media (max-width: 576px) {
