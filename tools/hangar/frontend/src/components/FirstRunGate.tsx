@@ -3,6 +3,7 @@ import { api, type RepoProbe, type Settings } from "../lib/ipc";
 import { updateServer } from "../lib/servers";
 import logoUrl from "../assets/logo.png";
 import { DepCheckSection } from "./DepCheck";
+import { copyText } from "../lib/clipboard";
 
 const FLEET_CLONE_CMD = "git clone https://github.com/fleetdm/fleet.git";
 
@@ -252,9 +253,13 @@ export function FirstRunGate({
 function NoRepoFound() {
   const [copied, setCopied] = useState(false);
   async function copy() {
-    await navigator.clipboard.writeText(FLEET_CLONE_CMD);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await copyText(FLEET_CLONE_CMD);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error("copy failed", e);
+    }
   }
   return (
     <div

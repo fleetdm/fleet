@@ -12,6 +12,7 @@ import {
 } from "../../lib/ipc";
 import { serveChannel } from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { copyText } from "../../lib/clipboard";
 
 type Level = "debug" | "info" | "warn" | "error";
 
@@ -80,7 +81,7 @@ export function LogsTab({ server }: { server: ServerProfile }) {
     const filename = `${SOURCE}-${snapshotStamp(new Date())}.log`;
     let clipboardOk = false;
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text);
       clipboardOk = true;
     } catch (e) {
       // Webview may refuse clipboard in some configurations — fail the

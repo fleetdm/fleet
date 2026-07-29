@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type DepCheck as DepCheckT } from "../lib/ipc";
+import { copyText } from "../lib/clipboard";
 
 async function openDocs(url: string) {
   try {
@@ -171,9 +172,13 @@ function InstallCommand({
   const [copied, setCopied] = useState(false);
 
   async function copy() {
-    await navigator.clipboard.writeText(command);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await copyText(command);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error("copy failed", e);
+    }
   }
 
   return (

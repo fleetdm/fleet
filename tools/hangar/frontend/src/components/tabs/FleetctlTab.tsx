@@ -16,6 +16,7 @@ import {
 import { waitForExit } from "../../lib/orchestration";
 import { activeServer } from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { copyText } from "../../lib/clipboard";
 
 type SubTab = "login" | "get" | "trigger" | "custom";
 
@@ -1218,7 +1219,7 @@ function GetPanel({
           {output && (
             <>
               <button
-                onClick={() => navigator.clipboard.writeText(output)}
+                onClick={() => void copyText(output)}
                 style={{ padding: "4px 10px", fontSize: "var(--fs-xx-small)" }}
               >
                 Copy
@@ -2045,7 +2046,7 @@ function CustomPanel({
           {output && (
             <>
               <button
-                onClick={() => navigator.clipboard.writeText(output)}
+                onClick={() => void copyText(output)}
                 style={{
                   padding: "4px 10px",
                   fontSize: "var(--fs-xx-small)",
