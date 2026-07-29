@@ -1892,12 +1892,13 @@ func testWindowsFMANameWithLikeWildcards(t *testing.T, ds *Datastore) {
 // testWindowsFMAMatchesCache: ingestion reads the Windows FMA set through a short-lived
 // cache, so an app added within the TTL is not matched until it expires. Asserted
 // behaviourally, by observing when a newly added app starts collapsing titles.
+//
+// Expiry is forced by backdating the cached entry rather than by shortening the TTL and
+// sleeping: no wall-clock dependency, and the real TTL is left alone so nothing else in
+// the package can observe a mutated package-level value.
 func testWindowsFMAMatchesCache(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	origTTL := windowsFMAMatchesCacheTTL
-	windowsFMAMatchesCacheTTL = 300 * time.Millisecond
-	t.Cleanup(func() { windowsFMAMatchesCacheTTL = origTTL })
 	ds.clearWindowsFMAMatchesCache()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -1920,8 +1921,9 @@ func testWindowsFMAMatchesCache(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Granola 7.373.1", titleNameForSoftware(t, ds, "Granola 7.373.1"),
 		"an app added within the TTL is not yet visible to ingestion")
 
-	// After expiry a newly reported version lands on the installer's title.
-	time.Sleep(windowsFMAMatchesCacheTTL + 100*time.Millisecond)
+	// After expiry a newly reported version lands on the installer's title. The cached
+	// set stays in place and is simply stale, which is what a real TTL lapse looks like.
+	ds.expireWindowsFMAMatchesCache()
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Unrelated 1.0", Version: "1.0", Source: "programs"},
 		{Name: "Granola 7.373.1", Version: "7.373.1", Source: "programs"},

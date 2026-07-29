@@ -154,6 +154,16 @@ func (ds *Datastore) clearWindowsFMAMatchesCache() {
 	ds.windowsFMAMatchesExpiry = time.Time{}
 }
 
+// expireWindowsFMAMatchesCache backdates the cache expiry, leaving the cached set in
+// place. Lets tests exercise the TTL path without sleeping: unlike
+// clearWindowsFMAMatchesCache, the next read misses because the entry is stale rather
+// than absent, which is what expiry actually looks like.
+func (ds *Datastore) expireWindowsFMAMatchesCache() {
+	ds.windowsFMAMatchesMu.Lock()
+	defer ds.windowsFMAMatchesMu.Unlock()
+	ds.windowsFMAMatchesExpiry = time.Now().Add(-time.Second)
+}
+
 func (ds *Datastore) deleteKnownSoftwareTitleKey(key string) {
 	ds.knownSoftwareTitleKeysMu.Lock()
 	defer ds.knownSoftwareTitleKeysMu.Unlock()
