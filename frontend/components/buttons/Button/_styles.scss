@@ -145,6 +145,10 @@ $base-class: "button";
       $core-fleet-green-down
     );
     display: flex;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
   }
 
   &--success {
@@ -159,6 +163,10 @@ $base-class: "button";
       $core-vibrant-red-down
     );
     display: flex;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
 
     .loading-spinner {
       &__ring {
@@ -316,6 +324,36 @@ $base-class: "button";
   &--secondary__small.button--icon-only,
   &--subdued__small.button--icon-only {
     width: 28px;
+  }
+
+  // Buttons with leftIcon / rightIcon use uniform 16px horizontal padding and
+  // an 8px gap between icon and label at default size. Small buttons drop to
+  // 8px horizontal padding and a 4px gap. Applies to all variants that carry
+  // an icon (default, alert, secondary, subdued).
+  &--with-left-icon,
+  &--with-right-icon {
+    padding-left: $pad-medium;
+    padding-right: $pad-medium;
+
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  &--default__small.button--with-left-icon,
+  &--default__small.button--with-right-icon,
+  &--alert__small.button--with-left-icon,
+  &--alert__small.button--with-right-icon,
+  &--secondary__small.button--with-left-icon,
+  &--secondary__small.button--with-right-icon,
+  &--subdued__small.button--with-left-icon,
+  &--subdued__small.button--with-right-icon {
+    padding-left: $pad-small;
+    padding-right: $pad-small;
+
+    .children-wrapper {
+      gap: $pad-xsmall;
+    }
   }
 
   &--disabled {

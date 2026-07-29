@@ -1,5 +1,4 @@
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import React from "react";
 
 const baseClass = "info-button";
@@ -10,10 +9,13 @@ interface IInfoButton {
 
 const InfoButton = ({ onClick }: IInfoButton) => {
   return (
-    <Button className={baseClass} onClick={onClick} variant="subdued">
-      <>
-        Info <Icon name="info" size="small" />
-      </>
+    <Button
+      className={baseClass}
+      onClick={onClick}
+      variant="subdued"
+      rightIcon="info"
+    >
+      Info
     </Button>
   );
 };

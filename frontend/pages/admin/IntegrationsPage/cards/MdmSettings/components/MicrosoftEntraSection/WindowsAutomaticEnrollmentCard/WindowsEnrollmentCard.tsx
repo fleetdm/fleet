@@ -1,7 +1,6 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import SectionCard from "../../SectionCard";
 
 interface IWindowsAutomaticEnrollmentCardProps {
@@ -27,8 +26,7 @@ const WindowsTenantAddedCard = ({
   <SectionCard
     iconName="success"
     cta={
-      <Button onClick={editTenants} variant="subdued">
-        <Icon name="pencil" />
+      <Button onClick={editTenants} variant="subdued" leftIcon="pencil">
         Edit
       </Button>
     }

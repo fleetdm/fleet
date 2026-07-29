@@ -41,7 +41,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -438,8 +437,8 @@ const SoftwareTitleDetailsPage = ({
         variant="secondary"
         onClick={() => setShowAddPackageModal(true)}
         disabled={atPackageLimit}
+        leftIcon="plus"
       >
-        <Icon name="plus" />
         Add package
       </Button>
     );

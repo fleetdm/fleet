@@ -9,7 +9,6 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 import CardHeader from "components/CardHeader";
-import Icon from "components/Icon";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -143,8 +142,12 @@ const HostQueries = ({
       <div className={`${baseClass}__header`}>
         <CardHeader header="Reports" />
         {canAddQuery && (
-          <Button variant="secondary" onClick={onClickAddQuery} size="small">
-            <Icon name="plus" />
+          <Button
+            variant="secondary"
+            onClick={onClickAddQuery}
+            size="small"
+            leftIcon="plus"
+          >
             Add report
           </Button>
         )}

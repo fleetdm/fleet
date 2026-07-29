@@ -1791,11 +1791,9 @@ const ManageHostsPage = ({
               onClick={onExportHostsResults}
               variant="secondary"
               disabled={isTrulyEmpty}
+              leftIcon="download"
             >
-              <>
-                <Icon name="download" size="small" />
-                Export hosts
-              </>
+              Export hosts
             </Button>
           )}
           <Button
@@ -2086,8 +2084,8 @@ const ManageHostsPage = ({
                 }
                 className={`${baseClass}__custom-host-vitals`}
                 variant="secondary"
+                leftIcon="pencil"
               >
-                <Icon name="pencil" />
                 <span>Custom host vitals</span>
               </Button>
             )}
@@ -2096,8 +2094,8 @@ const ManageHostsPage = ({
                 onClick={() => setShowEnrollSecretModal(true)}
                 className={`${baseClass}__enroll-hosts button`}
                 variant="secondary"
+                leftIcon="settings"
               >
-                <Icon name="settings" />
                 <span>Enroll secrets</span>
               </Button>
             )}

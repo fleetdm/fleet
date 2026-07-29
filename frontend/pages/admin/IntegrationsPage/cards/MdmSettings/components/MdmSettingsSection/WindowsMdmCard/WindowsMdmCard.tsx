@@ -3,7 +3,6 @@ import React, { useContext } from "react";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SectionCard from "../../SectionCard";
 
 const baseClass = "windows-mdm-card";
@@ -37,8 +36,7 @@ const TurnOffWindowsMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickEdit} variant="subdued">
-          <Icon name="pencil" />
+        <Button onClick={onClickEdit} variant="subdued" leftIcon="pencil">
           Edit
         </Button>
       }

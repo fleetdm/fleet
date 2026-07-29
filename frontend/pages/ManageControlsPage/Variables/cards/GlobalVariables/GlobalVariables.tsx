@@ -22,7 +22,6 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import PageDescription from "components/PageDescription";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -189,8 +188,8 @@ const GlobalVariables = ({ router, location }: IGlobalVariablesProps) => {
                 size="small"
                 onClick={onClickAddVariable}
                 disabled={disableChildren}
+                leftIcon="plus"
               >
-                <Icon name="plus" size="small" />
                 <span>Add variable</span>
               </Button>
             )}

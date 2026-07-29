@@ -1,7 +1,6 @@
 import React from "react";
 import { browserHistory } from "react-router";
 
-import Icon from "components/Icon";
 import classnames from "classnames";
 import Button from "components/buttons/Button";
 
@@ -28,8 +27,12 @@ const BackButton = ({
   };
 
   return (
-    <Button variant="subdued" onClick={onClick} className={classes}>
-      <Icon name="chevron-left" />
+    <Button
+      variant="subdued"
+      onClick={onClick}
+      className={classes}
+      leftIcon="chevron-left"
+    >
       <span>{text}</span>
     </Button>
   );

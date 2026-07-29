@@ -85,4 +85,30 @@ describe("Button component", () => {
     );
     expect(container.firstChild).not.toHaveClass("button--icon-only");
   });
+  it("renders a leftIcon and applies the with-left-icon class", () => {
+    const { container } = render(
+      <Button variant="secondary" leftIcon="plus">
+        Add
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--with-left-icon");
+    expect(screen.getByTestId("plus-icon")).toBeInTheDocument();
+  });
+  it("renders a rightIcon and applies the with-right-icon class", () => {
+    const { container } = render(
+      <Button variant="subdued" rightIcon="chevron-right">
+        Next
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--with-right-icon");
+    expect(screen.getByTestId("chevron-right-icon")).toBeInTheDocument();
+  });
+  it("does not add the icon-only class when leftIcon is set with a single icon child", () => {
+    const { container } = render(
+      <Button variant="secondary" leftIcon="plus">
+        <Icon name="trash" />
+      </Button>
+    );
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
+  });
 });

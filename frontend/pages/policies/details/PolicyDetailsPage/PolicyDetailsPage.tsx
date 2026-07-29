@@ -430,8 +430,9 @@ const PolicyDetailsPage = ({
                         );
                     }}
                     disabled={!!disabledLiveQuery}
+                    rightIcon="run"
                   >
-                    Run policy <Icon name="run" />
+                    Run policy
                   </Button>
                 )}
                 {canEditPolicy && (

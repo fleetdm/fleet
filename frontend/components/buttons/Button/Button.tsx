@@ -2,6 +2,7 @@ import React from "react";
 import classnames from "classnames";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 
 const baseClass = "button";
 
@@ -51,6 +52,10 @@ export interface IButtonProps {
   ariaPressed?: boolean;
   /** Small: 1/2 the padding, Wide: 200px */
   size?: "small" | "wide" | "default";
+  /** Renders an icon before the label with icon-side padding trimmed to match design. */
+  leftIcon?: IconNames;
+  /** Renders an icon after the label with icon-side padding trimmed to match design. */
+  rightIcon?: IconNames;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -126,6 +131,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       ariaLabel,
       ariaPressed,
       size,
+      leftIcon,
+      rightIcon,
     } = this.props;
     // The bordered "secondary" and borderless "subdued" variants render as a
     // square when their only content is an icon (no text label) — see #35329.
@@ -134,6 +141,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     const childArray = React.Children.toArray(children);
     const isIconOnly =
       (variant === "secondary" || variant === "subdued") &&
+      !leftIcon &&
+      !rightIcon &&
       childArray.length === 1 &&
       React.isValidElement(childArray[0]) &&
       childArray[0].type === Icon;
@@ -146,6 +155,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-only`]: isIconOnly,
+        [`${baseClass}--with-left-icon`]: !!leftIcon,
+        [`${baseClass}--with-right-icon`]: !!rightIcon,
       }
     );
     const onWhite =
@@ -154,6 +165,10 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "subdued" ||
       variant === "pill" ||
       variant === "grey-pill";
+    // Icons: 16px on default-size buttons, 12px on small-size buttons.
+    const iconSize = size === "small" ? "small" : "medium";
+    // Default (green) buttons have white text — icons should match.
+    const iconColor = variant === "default" ? "core-fleet-white" : undefined;
 
     return (
       <button
@@ -171,7 +186,13 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         aria-pressed={ariaPressed}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
+          {leftIcon && (
+            <Icon name={leftIcon} size={iconSize} color={iconColor} />
+          )}
           {children}
+          {rightIcon && (
+            <Icon name={rightIcon} size={iconSize} color={iconColor} />
+          )}
         </div>
         {isLoading && <Spinner small button white={!onWhite} delay={0} />}
       </button>

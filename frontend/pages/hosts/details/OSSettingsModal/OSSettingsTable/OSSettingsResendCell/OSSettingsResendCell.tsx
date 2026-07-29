@@ -12,7 +12,6 @@ import { getErrorReason } from "interfaces/errors";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 import { IHostMdmProfileWithAddedStatus } from "../OSSettingsTableConfig";
 
@@ -37,8 +36,8 @@ const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
       variant="secondary"
       className={classNames}
       size="small"
+      leftIcon="refresh"
     >
-      <Icon name="refresh" size="small" />
       {buttonText}
     </Button>
   );
@@ -63,8 +62,8 @@ const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
       variant="secondary"
       className={classNames}
       size="small"
+      leftIcon="refresh"
     >
-      <Icon name="refresh" size="small" />
       {buttonText}
     </Button>
   );

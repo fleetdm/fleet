@@ -434,11 +434,8 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
-        <>
-          Schema
-          <Icon name="info" size="small" />
-        </>
+      <Button variant="subdued" onClick={onOpenSchemaSidebar} rightIcon="info">
+        Schema
       </Button>
     );
   };
@@ -579,8 +576,9 @@ const EditQueryForm = ({
                 );
               }}
               disabled={disabledLiveQuery}
+              rightIcon="run"
             >
-              Live report <Icon name="run" />
+              Live report
             </Button>
           </TooltipWrapper>
         </div>
@@ -882,8 +880,9 @@ const EditQueryForm = ({
                   );
                 }}
                 disabled={disabledLiveQuery}
+                rightIcon="run"
               >
-                Live report <Icon name="run" />
+                Live report
               </Button>
             </TooltipWrapper>
           </div>

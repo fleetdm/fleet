@@ -209,11 +209,13 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
           onMouseDown={addFleetMouseDown}
           onKeyDown={addFleetKeyDown}
         >
-          <Button variant="subdued" onClick={onClickAddFleet} size="small">
-            <>
-              Add fleet
-              <Icon name="plus" />
-            </>
+          <Button
+            variant="subdued"
+            onClick={onClickAddFleet}
+            size="small"
+            rightIcon="plus"
+          >
+            Add fleet
           </Button>
         </div>
       )}

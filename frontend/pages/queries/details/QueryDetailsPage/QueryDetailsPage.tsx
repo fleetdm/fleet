@@ -22,7 +22,6 @@ import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import Icon from "components/Icon";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
@@ -297,8 +296,9 @@ const QueryDetailsPage = ({
                               );
                           }}
                           disabled={isLiveQueryDisabled}
+                          rightIcon="run"
                         >
-                          Live report <Icon name="run" />
+                          Live report
                         </Button>
                       </div>
                     </TooltipWrapper>

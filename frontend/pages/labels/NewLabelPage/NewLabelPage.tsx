@@ -51,7 +51,6 @@ import InputField from "components/forms/fields/InputField";
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import SQLEditor from "components/SQLEditor";
-import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
 import PlatformField from "../components/PlatformField";
@@ -514,9 +513,12 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="subdued" onClick={onOpenSidebar}>
+                  <Button
+                    variant="subdued"
+                    onClick={onOpenSidebar}
+                    rightIcon="info"
+                  >
                     Schema
-                    <Icon name="info" size="small" />
                   </Button>
                 ) : null
               }

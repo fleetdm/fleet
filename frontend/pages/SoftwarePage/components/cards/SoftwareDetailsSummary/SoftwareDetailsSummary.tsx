@@ -26,7 +26,6 @@ import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import Button from "components/buttons/Button";
 import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
@@ -347,8 +346,8 @@ const SoftwareDetailsSummary = ({
                       variant="subdued"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
+                      leftIcon="pencil"
                     >
-                      <Icon name="pencil" />
                       Edit
                     </Button>
                   )}

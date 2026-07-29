@@ -7,7 +7,6 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import EmptyState from "components/EmptyState";
-import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -113,11 +112,12 @@ const PackQueriesTable = ({
         <EmptyState
           header="Your pack has no reports"
           primaryButton={
-            <Button onClick={onAddPackQuery} variant="secondary">
-              <>
-                Add report
-                <Icon name="plus" />
-              </>
+            <Button
+              onClick={onAddPackQuery}
+              variant="secondary"
+              rightIcon="plus"
+            >
+              Add report
             </Button>
           }
         />

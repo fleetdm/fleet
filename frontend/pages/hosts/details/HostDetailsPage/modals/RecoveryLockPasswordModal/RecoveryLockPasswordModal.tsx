@@ -12,7 +12,6 @@ import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenCon
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -83,8 +82,8 @@ const RecoveryLockPasswordModal = ({
         onClick={onRotatePassword}
         disabled={isRotating}
         className={`${baseClass}__rotate-button`}
+        leftIcon="refresh"
       >
-        <Icon name="refresh" />
         {isRotating ? "Rotating..." : "Rotate password"}
       </Button>
     );

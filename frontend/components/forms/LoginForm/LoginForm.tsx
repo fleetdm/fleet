@@ -4,7 +4,6 @@ import classnames from "classnames";
 import { ILoginUserData } from "interfaces/user";
 
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 // @ts-ignore
@@ -136,8 +135,8 @@ const LoginForm = ({
             onClick={() => setShowPendingEmail(false)}
             variant="subdued"
             className="back-link"
+            leftIcon="chevron-left"
           >
-            <Icon name="chevron-left" />
             Back to login
           </Button>
           <h1>Check your email</h1>

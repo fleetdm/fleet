@@ -4,7 +4,6 @@ import classnames from "classnames";
 import Editor from "components/Editor";
 import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "advanced-options-fields";
 
@@ -64,9 +63,8 @@ const AdvancedOptionsFields = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onClickShowSchema}>
+      <Button variant="subdued" onClick={onClickShowSchema} rightIcon="info">
         Schema
-        <Icon name="info" size="small" />
       </Button>
     );
   };

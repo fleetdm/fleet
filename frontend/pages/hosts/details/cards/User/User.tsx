@@ -8,7 +8,6 @@ import CardHeader from "components/CardHeader";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 import UserValue from "./components/UserValue";
 import {
@@ -76,9 +75,13 @@ const User = ({
         <CardHeader header="User" />
         <div className={`${baseClass}__header-actions`}>
           {canViewMyDeviceLink && (
-            <Button variant="secondary" onClick={onClickMyDevice} size="small">
+            <Button
+              variant="secondary"
+              onClick={onClickMyDevice}
+              size="small"
+              rightIcon="external-link"
+            >
               My device
-              <Icon name="external-link" />
             </Button>
           )}
           {canWriteEndUser && (
@@ -87,8 +90,8 @@ const User = ({
               variant="secondary"
               onClick={onClickUpdateUser}
               size="small"
+              leftIcon={writeButtonIcon}
             >
-              <Icon name={writeButtonIcon} size="small" />
               {writeButtonText}
             </Button>
           )}

@@ -2,7 +2,6 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import Icon from "components/Icon";
 
 const baseClass = "entra-client-ids-list-header";
 
@@ -25,11 +24,9 @@ const EntraClientIDsListHeader = ({
               variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddClientId}
+              leftIcon="plus"
             >
-              <>
-                <Icon name="plus" />
-                Add
-              </>
+              Add
             </Button>
           )}
         />

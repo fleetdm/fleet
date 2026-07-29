@@ -22,7 +22,6 @@ import LastUpdatedText from "components/LastUpdatedText";
 import Slider from "components/forms/fields/Slider";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import Icon from "components/Icon";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
@@ -206,8 +205,12 @@ const SoftwareLibraryTable = ({
   const renderCustomControls = () => {
     return (
       <div className={`${baseClass}__controls`}>
-        <Button variant="secondary" onClick={onClickCategories}>
-          <Icon name="settings" /> Categories
+        <Button
+          variant="secondary"
+          onClick={onClickCategories}
+          leftIcon="settings"
+        >
+          Categories
         </Button>
         <Slider
           value={selfServiceOnly}

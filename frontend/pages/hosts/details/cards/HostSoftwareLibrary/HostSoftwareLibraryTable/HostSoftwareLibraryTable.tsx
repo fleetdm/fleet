@@ -18,7 +18,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
@@ -216,8 +215,8 @@ const HostSoftwareLibraryTable = ({
             className={`${baseClass}__add-software-button`}
             variant="secondary"
             onClick={onAddSoftware}
+            leftIcon="plus"
           >
-            <Icon name="plus" />
             <span>Add software</span>
           </Button>
         )}

@@ -68,23 +68,30 @@ const createLoadingVariant = (variant: ButtonVariant): Story => ({
 
 // Variants with loading state
 export const DefaultVariant = createLoadingVariant("default");
+export const DefaultIconBeforeVariant = Template("default", undefined, {
+  leftIcon: "plus",
+});
+export const DefaultIconAfterVariant = Template("default", undefined, {
+  rightIcon: "chevron-right",
+});
+export const DefaultSmallIconBeforeVariant = Template("default", undefined, {
+  size: "small",
+  leftIcon: "plus",
+});
+
 export const AlertVariant = createLoadingVariant("alert");
+export const AlertIconBeforeVariant = Template("alert", undefined, {
+  leftIcon: "trash",
+});
 
 // Bordered secondary button — see #35329
 export const SecondaryVariant = Template("secondary");
-export const SecondaryIconAfterVariant = Template(
-  "secondary",
-  <>
-    Button text <Icon name="plus" size="small" />
-  </>
-);
-export const SecondaryIconBeforeVariant = Template(
-  "secondary",
-  <>
-    <Icon name="plus" size="small" />
-    Button text
-  </>
-);
+export const SecondaryIconAfterVariant = Template("secondary", undefined, {
+  rightIcon: "plus",
+});
+export const SecondaryIconBeforeVariant = Template("secondary", undefined, {
+  leftIcon: "plus",
+});
 export const SecondaryIconOnlyVariant = Template(
   "secondary",
   <Icon name="trash" />
@@ -92,42 +99,37 @@ export const SecondaryIconOnlyVariant = Template(
 export const SecondarySmallVariant = Template("secondary", undefined, {
   size: "small",
 });
+export const SecondarySmallIconBeforeVariant = Template(
+  "secondary",
+  undefined,
+  {
+    size: "small",
+    leftIcon: "plus",
+  }
+);
 export const SecondaryDisabledVariant = Template("secondary", undefined, {
   disabled: true,
 });
 
 // Borderless subdued button (low-emphasis text + icon)
-export const SubduedIconAfterVariant = Template(
-  "subdued",
-  <>
-    Button text <Icon name="chevron-right" size="small" />
-  </>
-);
-export const SubduedIconBeforeVariant = Template(
-  "subdued",
-  <>
-    <Icon name="chevron-left" size="small" />
-    Button text
-  </>
-);
+export const SubduedIconAfterVariant = Template("subdued", undefined, {
+  rightIcon: "chevron-right",
+});
+export const SubduedIconBeforeVariant = Template("subdued", undefined, {
+  leftIcon: "chevron-left",
+});
 export const SubduedIconOnlyVariant = Template(
   "subdued",
   <Icon name="chevron-right" />
 );
-export const SubduedSmallVariant = Template(
-  "subdued",
-  <>
-    Button text <Icon name="chevron-right" size="small" />
-  </>,
-  { size: "small" }
-);
-export const SubduedDisabledVariant = Template(
-  "subdued",
-  <>
-    Button text <Icon name="chevron-right" size="small" />
-  </>,
-  { disabled: true }
-);
+export const SubduedSmallVariant = Template("subdued", undefined, {
+  size: "small",
+  rightIcon: "chevron-right",
+});
+export const SubduedDisabledVariant = Template("subdued", undefined, {
+  rightIcon: "chevron-right",
+  disabled: true,
+});
 
 export const PillVariant = Template("pill");
 export const LinkVariant = Template("link");

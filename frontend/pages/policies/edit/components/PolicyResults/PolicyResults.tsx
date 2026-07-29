@@ -114,10 +114,9 @@ const PolicyResults = ({
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
           variant="secondary"
+          rightIcon="eye"
         >
-          <>
-            Show query <Icon name="eye" />
-          </>
+          Show query
         </Button>
         <Button
           className={`${baseClass}__export-btn`}

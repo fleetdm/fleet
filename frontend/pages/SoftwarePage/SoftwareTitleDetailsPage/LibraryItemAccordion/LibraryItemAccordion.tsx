@@ -232,8 +232,8 @@ const LibraryItemAccordion = ({
           size="small"
           onClick={handleBadgeClick(onBadgeClick)}
           className={`${baseClass}__badge-button`}
+          leftIcon={iconName}
         >
-          <Icon name={iconName} />
           <span>{label}</span>
         </Button>
       );
@@ -354,8 +354,8 @@ const LibraryItemAccordion = ({
                 size="small"
                 onClick={handleBadgeClick(onLabelCountClick)}
                 className={`${baseClass}__badge-button`}
+                leftIcon="tag"
               >
-                <Icon name="tag" />
                 <span>{labelCount}</span>
               </Button>
             ) : (
@@ -375,8 +375,8 @@ const LibraryItemAccordion = ({
               size="small"
               onClick={handleBadgeClick(onLabelCountClick)}
               className={`${baseClass}__badge-button`}
+              leftIcon="tag"
             >
-              <Icon name="tag" />
               <span>{ALL_HOSTS_LABEL}</span>
             </Button>
           ) : (

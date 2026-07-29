@@ -7,7 +7,6 @@ import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import EnrollSecretTable from "../EnrollSecretTable";
 
 interface IEnrollSecretModal {
@@ -101,8 +100,8 @@ const EnrollSecretModal = ({
                   onClick={addNewSecretClick}
                   className={`${baseClass}__add-secret-btn`}
                   variant="secondary"
+                  leftIcon="plus"
                 >
-                  <Icon name="plus" />
                   Add secret
                 </Button>
               )}
@@ -123,8 +122,8 @@ const EnrollSecretModal = ({
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
                 variant="secondary"
+                leftIcon="plus"
               >
-                <Icon name="plus" />
                 Add secret
               </Button>
             )}

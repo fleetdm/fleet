@@ -39,8 +39,9 @@ const Pagination = ({
         disabled={disablePrev}
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
+        leftIcon="chevron-left"
       >
-        <Icon name="chevron-left" /> Previous
+        Previous
       </Button>
       <Button
         variant="subdued"
