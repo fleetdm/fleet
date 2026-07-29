@@ -119,6 +119,107 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	})
 }
 
+func TestAppleOSUpdatesLatestValidate(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		cases := []struct {
+			name string
+			m    AppleOSUpdateSettings
+		}{
+			{
+				"latest with deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"latest with deadline_days of 1",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(1),
+				},
+			},
+			{
+				"latest with explicitly empty deadline",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					Deadline:       optjson.SetString(""),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.NoError(t, tc.m.Validate())
+			})
+		}
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		cases := []struct {
+			name string
+			m    AppleOSUpdateSettings
+		}{
+			{
+				"latest without deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+				},
+			},
+			{
+				"latest with null deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.Int{Set: true, Valid: false},
+				},
+			},
+			{
+				"latest with deadline",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					Deadline:       optjson.SetString("2026-09-01"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"latest with zero deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(0),
+				},
+			},
+			{
+				"latest with negative deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("latest"),
+					DeadlineDays:   optjson.SetInt(-1),
+				},
+			},
+			{
+				"specific version with deadline_days",
+				AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString("15.1"),
+					Deadline:       optjson.SetString("2026-09-01"),
+					DeadlineDays:   optjson.SetInt(14),
+				},
+			},
+			{
+				"deadline_days with no version",
+				AppleOSUpdateSettings{
+					DeadlineDays: optjson.SetInt(14),
+				},
+			},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.Error(t, tc.m.Validate())
+			})
+		}
+	})
+}
+
 func TestWindowsUpdatesValidate(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -174,24 +275,39 @@ func TestWindowsUpdatesEqual(t *testing.T) {
 }
 
 func TestMacOSUpdatesConfigured(t *testing.T) {
+	// nullDeadlineDays is what `"deadline_days": null` unmarshals to: the key was
+	// present but carried no value.
+	nullDeadlineDays := optjson.Int{Set: true, Valid: false}
+
 	cases := []struct {
-		version  string
-		deadline string
-		out      bool
+		name         string
+		version      string
+		deadline     string
+		deadlineDays optjson.Int
+		out          bool
 	}{
-		{"", "", false},
-		{"", "", false},
-		{"12.3", "", false},
-		{"", "12-03-2022", false},
-		{"12.3", "12-03-2022", true},
+		{"empty", "", "", optjson.Int{}, false},
+		{"version only", "12.3", "", optjson.Int{}, false},
+		{"deadline only", "", "12-03-2022", optjson.Int{}, false},
+		{"version and deadline", "12.3", "12-03-2022", optjson.Int{}, true},
+
+		// "latest" mode: DeadlineDays stands in for Deadline.
+		{"latest with deadline_days", AppleOSUpdateLatestVersion, "", optjson.SetInt(14), true},
+		{"latest without deadline_days", AppleOSUpdateLatestVersion, "", optjson.Int{}, false},
+		{"latest with null deadline_days", AppleOSUpdateLatestVersion, "", nullDeadlineDays, false},
+		{"latest with zero deadline_days", AppleOSUpdateLatestVersion, "", optjson.SetInt(0), false},
+		{"cleared", "", "", nullDeadlineDays, false},
 	}
 
 	for _, tc := range cases {
-		m := AppleOSUpdateSettings{
-			MinimumVersion: optjson.SetString(tc.version),
-			Deadline:       optjson.SetString(tc.deadline),
-		}
-		require.Equal(t, tc.out, m.Configured())
+		t.Run(tc.name, func(t *testing.T) {
+			m := AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(tc.version),
+				Deadline:       optjson.SetString(tc.deadline),
+				DeadlineDays:   tc.deadlineDays,
+			}
+			require.Equal(t, tc.out, m.Configured())
+		})
 	}
 }
 

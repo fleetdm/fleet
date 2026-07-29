@@ -1901,7 +1901,15 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 		return nil, errors.New("invalid settings type")
 	}
 
-	if macOSUpdates.MinimumVersion.Value == "" && iOSUpdates.MinimumVersion.Value == "" && iPadOSUpdates.MinimumVersion.Value == "" {
+	// "latest" is a sentinel, not a version: the concrete target is resolved per
+	// host from Apple's published versions later on, so there is nothing to look
+	// up here.
+	needsVersionCheck := func(s fleet.AppleOSUpdateSettings) bool {
+		return s.MinimumVersion.Value != "" && !s.EnforcesLatestVersion()
+	}
+
+	if !needsVersionCheck(macOSUpdates) && !needsVersionCheck(iOSUpdates) && !needsVersionCheck(iPadOSUpdates) {
+		// nothing to validate, so don't pay for the round trip to Apple.
 		return nil, nil
 	}
 
@@ -1914,12 +1922,12 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 	}
 
 	invalid := make(map[string]string, 3)
-	if macOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(macOSUpdates) {
 		if ok := am.IsSupportedMacOSVersion(macOSUpdates.MinimumVersion.Value, excludeNonPublicAssetSets); !ok {
 			invalid["macos"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iOSUpdates) {
 		// NOTE: iPod generally falls in the category of iOS in Fleet, but we're only validating against iPhone here
 		// because we assume Apple will eventually remove iPod versions from the Apple Software Lookup Service
 		// and we want to avoid breaking workflows for users in that event
@@ -1927,7 +1935,7 @@ func ValidateMDMSettingsAppleSupportedOSVersion[T fleet.MDM | fleet.TeamMDM](set
 			invalid["ios"] = fleet.AppleOSVersionUnsupportedMessage
 		}
 	}
-	if iPadOSUpdates.MinimumVersion.Value != "" {
+	if needsVersionCheck(iPadOSUpdates) {
 		if ok := am.IsSupportedIOSVersion(iPadOSUpdates.MinimumVersion.Value, "ipad", excludeNonPublicAssetSets); !ok {
 			invalid["ipados"] = fleet.AppleOSVersionUnsupportedMessage
 		}

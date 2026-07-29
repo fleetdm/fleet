@@ -394,15 +394,56 @@ type AppleOSUpdateSettings struct {
 	// Deadline the required installation date for Nudge to enforce the required
 	// operating system version.
 	Deadline optjson.String `json:"deadline"`
+	// DeadlineDays is the number of days after an OS version's release date
+	// before the update is enforced. It is only valid when MinimumVersion is
+	// "latest", where the deadline is relative to each version's release rather
+	// than a fixed calendar date.
+	DeadlineDays optjson.Int `json:"deadline_days"`
+}
+
+// AppleOSUpdateLatestVersion is the sentinel MinimumVersion value meaning
+// "enforce the newest version Apple offers for each host's hardware". The
+// target version is resolved per host, and the deadline is derived from that
+// version's release date plus DeadlineDays rather than being a fixed date.
+const AppleOSUpdateLatestVersion = "latest"
+
+// EnforcesLatestVersion returns whether these settings enforce the latest
+// available OS version rather than a specific one.
+func (m AppleOSUpdateSettings) EnforcesLatestVersion() bool {
+	return m.MinimumVersion.Value == AppleOSUpdateLatestVersion
 }
 
 // Configured returns a boolean indicating if updates are configured
 func (m AppleOSUpdateSettings) Configured() bool {
+	if m.EnforcesLatestVersion() {
+		// In "latest" mode the deadline is relative to each version's release
+		// date, so DeadlineDays stands in for Deadline.
+		return m.DeadlineDays.Valid && m.DeadlineDays.Value > 0
+	}
 	return m.Deadline.Value != "" &&
 		m.MinimumVersion.Value != ""
 }
 
 func (m AppleOSUpdateSettings) Validate() error {
+	if m.EnforcesLatestVersion() {
+		if m.Deadline.Value != "" {
+			return errors.New(`deadline cannot be set when minimum_version is set to "latest". Use deadline_days instead`)
+		}
+		if !m.DeadlineDays.Valid {
+			return errors.New(`deadline_days is required when minimum_version is set to "latest"`)
+		}
+		if m.DeadlineDays.Value < 1 {
+			return errors.New("deadline_days must be greater than 0")
+		}
+		return nil
+	}
+
+	// DeadlineDays is meaningless without a version to resolve it against, so
+	// reject it for a specific version and when no version is provided at all.
+	if m.DeadlineDays.Valid {
+		return errors.New(`deadline_days can only be set when minimum_version is set to "latest". Use deadline instead`)
+	}
+
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		// if one is set and empty, the other must be set and empty too, otherwise
