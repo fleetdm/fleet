@@ -1569,6 +1569,18 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, 1, titleCount("Granola"))
 	require.Zero(t, titleCount("Granola 7.373.1"))
+
+	// The merge deletes titles, and installer/VPP/in-house links to a title are
+	// ON DELETE SET NULL, so an owner must never be left pointing at nothing.
+	var orphaned int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &orphaned, `
+			SELECT
+				(SELECT COUNT(*) FROM software_installers WHERE title_id IS NULL) +
+				(SELECT COUNT(*) FROM vpp_apps WHERE title_id IS NULL) +
+				(SELECT COUNT(*) FROM in_house_apps WHERE title_id IS NULL)`)
+	})
+	require.Zero(t, orphaned, "no installer, VPP app or in-house app should be left without a title")
 }
 
 // testWindowsFMAReconcileSameNameUpgradeCodeTitle: (name, source, extension_for) is not
@@ -1962,8 +1974,16 @@ func testWindowsFMAMergeWithoutPrefixes(t *testing.T, ds *Datastore) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// Must not error, and must not move anything.
-			require.NoError(t, ds.mergeWindowsFMATitle(ctx, c.app, windowsFMAPrefixes([]fleet.MaintainedApp{c.app})))
+			apps := []fleet.MaintainedApp{c.app}
+
+			// The scan builds the WHERE clause from the prefixes, so it must find no work
+			// rather than emit an empty predicate.
+			stale, err := ds.staleWindowsTitlesByDestination(ctx, apps, windowsFMAPrefixes(apps))
+			require.NoError(t, err)
+			require.Empty(t, stale)
+
+			// And the write half is a no-op for an empty set.
+			require.NoError(t, ds.mergeWindowsFMATitle(ctx, ptr.ValOrZero(c.app.TitleID), nil))
 			require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
 		})
 	}
