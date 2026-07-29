@@ -220,4 +220,18 @@ describe("VitalsModal component", () => {
 
     expect(onExit).toHaveBeenCalled();
   });
+
+  it("calls onExit when Escape is pressed", async () => {
+    const host = buildFullyPopulatedHost();
+    const onExit = jest.fn();
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(<VitalsModal host={host} onExit={onExit} />);
+
+    await user.keyboard("{Escape}");
+
+    // Modal defers onExit until its close animation finishes, so this can't be
+    // asserted synchronously the way the Done button (a direct onExit) can.
+    await waitFor(() => expect(onExit).toHaveBeenCalledTimes(1));
+  });
 });
