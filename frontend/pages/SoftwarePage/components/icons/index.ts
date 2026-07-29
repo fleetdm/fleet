@@ -583,6 +583,7 @@ import Localsend from "./Localsend";
 import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import LogitechUnifyingSoftware from "./LogitechUnifyingSoftware";
 import Logseq from "./Logseq";
 import Lookaway from "./Lookaway";
 import Loom from "./Loom";
@@ -1732,6 +1733,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
   loom: Loom,
