@@ -241,9 +241,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("macos_updates", err.Error())
 			}
-			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
+			if payload.MDM.MacOSUpdates.MinimumVersion.Set || payload.MDM.MacOSUpdates.Deadline.Set || payload.MDM.MacOSUpdates.DeadlineDays.Set || payload.MDM.MacOSUpdates.UpdateNewHosts.Set {
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
+					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value ||
+					team.Config.MDM.MacOSUpdates.DeadlineDays.Value != payload.MDM.MacOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.MacOSUpdates.DeadlineDays.Valid != payload.MDM.MacOSUpdates.DeadlineDays.Valid
 				updateNewHostsChanged = team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value != payload.MDM.MacOSUpdates.UpdateNewHosts.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
 			}
@@ -253,9 +255,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
 			}
 
-			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
+			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set || payload.MDM.IOSUpdates.DeadlineDays.Set {
 				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
+					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value ||
+					team.Config.MDM.IOSUpdates.DeadlineDays.Value != payload.MDM.IOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.IOSUpdates.DeadlineDays.Valid != payload.MDM.IOSUpdates.DeadlineDays.Valid
 				team.Config.MDM.IOSUpdates = *payload.MDM.IOSUpdates
 			}
 		}
@@ -263,9 +267,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			if err := payload.MDM.IPadOSUpdates.Validate(); err != nil {
 				return nil, fleet.NewInvalidArgumentError("ipados_updates", err.Error())
 			}
-			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set {
+			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set || payload.MDM.IPadOSUpdates.DeadlineDays.Set {
 				iPadOSMinVersionUpdated = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != payload.MDM.IPadOSUpdates.MinimumVersion.Value ||
-					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value
+					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value ||
+					team.Config.MDM.IPadOSUpdates.DeadlineDays.Value != payload.MDM.IPadOSUpdates.DeadlineDays.Value ||
+					team.Config.MDM.IPadOSUpdates.DeadlineDays.Valid != payload.MDM.IPadOSUpdates.DeadlineDays.Valid
 				team.Config.MDM.IPadOSUpdates = *payload.MDM.IPadOSUpdates
 			}
 		}
@@ -1784,19 +1790,25 @@ func (svc *Service) editTeamFromSpec(
 		mdmIPadOSUpdatesEdited  bool
 		mdmWindowsUpdatesEdited bool
 	)
-	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
+	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set || spec.MDM.MacOSUpdates.DeadlineDays.Set || spec.MDM.MacOSUpdates.UpdateNewHosts.Set {
 		mdmMacOSUpdatesEdited = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != spec.MDM.MacOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value
+			team.Config.MDM.MacOSUpdates.Deadline.Value != spec.MDM.MacOSUpdates.Deadline.Value ||
+			team.Config.MDM.MacOSUpdates.DeadlineDays.Value != spec.MDM.MacOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.MacOSUpdates.DeadlineDays.Valid != spec.MDM.MacOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 	}
-	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set || spec.MDM.IOSUpdates.DeadlineDays.Set {
 		mdmIOSUpdatesEdited = team.Config.MDM.IOSUpdates.MinimumVersion.Value != spec.MDM.IOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value
+			team.Config.MDM.IOSUpdates.Deadline.Value != spec.MDM.IOSUpdates.Deadline.Value ||
+			team.Config.MDM.IOSUpdates.DeadlineDays.Value != spec.MDM.IOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.IOSUpdates.DeadlineDays.Valid != spec.MDM.IOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
 	}
-	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set || spec.MDM.IPadOSUpdates.DeadlineDays.Set {
 		mdmIPadOSUpdatesEdited = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != spec.MDM.IPadOSUpdates.MinimumVersion.Value ||
-			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value
+			team.Config.MDM.IPadOSUpdates.Deadline.Value != spec.MDM.IPadOSUpdates.Deadline.Value ||
+			team.Config.MDM.IPadOSUpdates.DeadlineDays.Value != spec.MDM.IPadOSUpdates.DeadlineDays.Value ||
+			team.Config.MDM.IPadOSUpdates.DeadlineDays.Valid != spec.MDM.IPadOSUpdates.DeadlineDays.Valid
 		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
 	}
 

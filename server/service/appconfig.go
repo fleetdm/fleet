@@ -1732,7 +1732,10 @@ func (svc *Service) processAppleOSUpdateSettings(
 	newOSUpdateSettings fleet.AppleOSUpdateSettings,
 ) error {
 	if oldOSUpdateSettings.MinimumVersion.Value != newOSUpdateSettings.MinimumVersion.Value ||
-		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value {
+		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value ||
+		// Valid as well as Value: going from unset to 0, or 14 to unset, is a change.
+		oldOSUpdateSettings.DeadlineDays.Value != newOSUpdateSettings.DeadlineDays.Value ||
+		oldOSUpdateSettings.DeadlineDays.Valid != newOSUpdateSettings.DeadlineDays.Valid {
 		if lic.IsPremium() {
 			if err := svc.EnterpriseOverrides.MDMAppleEditedAppleOSUpdates(ctx, nil, appleDevice, newOSUpdateSettings); err != nil {
 				return ctxerr.Wrap(ctx, err, "update DDM profile after Apple OS updates change")
