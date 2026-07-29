@@ -5,6 +5,7 @@ import { createCustomRenderer } from "test/test-utils";
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
 
+import { HostPlatform } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Vitals from "./Vitals";
 
@@ -395,6 +396,72 @@ describe("MDM status vital", () => {
     expect(screen.getByText("On (manual)")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "On (manual)" })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("View all vitals button", () => {
+  const renderVitalsCard = ({
+    platform = "ios",
+    withToggle = false,
+  }: {
+    platform?: HostPlatform;
+    withToggle?: boolean;
+  } = {}) => {
+    const mockHost = createMockHost({ platform });
+    const toggleVitalsModal = withToggle ? jest.fn() : undefined;
+
+    const utils = render(
+      <Vitals
+        vitalsData={mockHost}
+        mdm={mockHost.mdm}
+        toggleVitalsModal={toggleVitalsModal}
+      />
+    );
+
+    return { ...utils, toggleVitalsModal };
+  };
+
+  it("renders a 'View all' button for iOS hosts when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "ios", withToggle: true });
+
+    expect(
+      screen.getByRole("button", { name: "View all" })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'View all' button for iPadOS hosts when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "ipados", withToggle: true });
+
+    expect(
+      screen.getByRole("button", { name: "View all" })
+    ).toBeInTheDocument();
+  });
+
+  it("invokes toggleVitalsModal when the 'View all' button is clicked", () => {
+    const { toggleVitalsModal } = renderVitalsCard({
+      platform: "ios",
+      withToggle: true,
+    });
+
+    screen.getByRole("button", { name: "View all" }).click();
+
+    expect(toggleVitalsModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render the button for iOS hosts when toggleVitalsModal is not provided (e.g., My device page)", () => {
+    renderVitalsCard({ platform: "ios" });
+
+    expect(
+      screen.queryByRole("button", { name: "View all" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not render the button for non-iOS/iPadOS hosts even when toggleVitalsModal is provided", () => {
+    renderVitalsCard({ platform: "darwin", withToggle: true });
+
+    expect(
+      screen.queryByRole("button", { name: "View all" })
     ).not.toBeInTheDocument();
   });
 });

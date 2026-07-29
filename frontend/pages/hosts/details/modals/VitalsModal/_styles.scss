@@ -1,0 +1,61 @@
+.vitals-modal {
+  &__vitals {
+    // A 2-column grid (rather than each DataSet's own flex row) so every
+    // row's value lines up under the same left edge, regardless of how
+    // wide that row's own label is.
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    // No column-gap: a gap track sits between the two grid columns and
+    // isn't covered by either cell's border-bottom, which would leave a
+    // gap in the middle of each row's divider. The gutter between columns
+    // comes from dt's own padding-right instead, so the border stays
+    // continuous across both cells.
+    gap: 0; // also overrides the global `dl` rule's 16px flex gap
+
+    // Let each row's dt/dd become direct children of the grid above,
+    // instead of being laid out inside their own .data-set flex box.
+    .data-set {
+      display: contents;
+    }
+
+    dt,
+    dd {
+      padding: 10px 0;
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    dt {
+      padding-right: $pad-large;
+    }
+
+    .data-set:first-child {
+      dt,
+      dd {
+        padding-top: 0;
+      }
+    }
+
+    .data-set:last-child {
+      dt,
+      dd {
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+    }
+  }
+
+  &__json-preview {
+    width: 100%;
+    font-size: $x-small;
+  }
+
+  &__lines {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  .component__tooltip-wrapper__element {
+    line-height: inherit;
+  }
+}

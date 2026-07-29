@@ -56,6 +56,7 @@ interface IVitalsProps {
    * the My device page) so the row renders as plain text instead of a link.
    */
   toggleMDMStatusModal?: () => void;
+  toggleVitalsModal?: () => void;
   customHostVitals?: IHostCustomVital[];
   onEditCustomHostVital?: (vital: IHostCustomVital) => void;
 }
@@ -131,6 +132,7 @@ const Vitals = ({
   className,
   toggleLocationModal,
   toggleMDMStatusModal,
+  toggleVitalsModal,
   customHostVitals,
   onEditCustomHostVital,
 }: IVitalsProps) => {
@@ -698,7 +700,14 @@ const Vitals = ({
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
     >
-      <CardHeader header="Vitals" />
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Vitals" />
+        {isIosOrIpadosHost && toggleVitalsModal && (
+          <Button variant="subdued" size="small" onClick={toggleVitalsModal}>
+            View all
+          </Button>
+        )}
+      </div>
       <div className={`${baseClass}__info-grid`}>
         {renderVitalsAlphabetically()}
       </div>
