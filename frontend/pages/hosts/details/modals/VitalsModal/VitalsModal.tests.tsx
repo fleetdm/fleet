@@ -78,28 +78,49 @@ const buildFullyPopulatedHost = (overrides?: Partial<IHost>): IHost =>
     ...overrides,
   });
 
+/** Finds a vital row's value cell by its display label. */
+const findValueCell = (container: HTMLElement, label: string) =>
+  Array.from(container.querySelectorAll(".data-set"))
+    .find((dataSet) => dataSet.querySelector("dt")?.textContent === label)
+    ?.querySelector("dd");
+
 describe("VitalsModal component", () => {
-  it("renders all 29 new vitals fields, alphabetically sorted", () => {
+  it("renders the 29 iOS/iPadOS vitals alongside the pre-existing ones, in one alphabetical list", () => {
     const host = buildFullyPopulatedHost();
 
-    const { container } = render(<VitalsModal host={host} onExit={noop} />);
+    const { container } = render(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
 
     const renderedLabels = Array.from(
       container.querySelectorAll(".vitals-modal .data-set > dt")
-    ).map((el) => el.textContent);
+    ).map((el) => el.textContent ?? "");
 
+    // Every iOS/iPadOS-only vital.
     ALL_VITALS_LABELS.forEach((label) => {
       expect(renderedLabels).toContain(label);
     });
+
+    // Plus the pre-existing vitals, which the iOS/iPadOS card now trims away —
+    // the modal is the only place they remain visible.
+    ["Added to Fleet", "Hardware model", "Operating system"].forEach(
+      (label) => {
+        expect(renderedLabels).toContain(label);
+      }
+    );
+
+    // Merged into a single alphabetical ordering rather than appended.
     expect(renderedLabels).toEqual(
-      [...ALL_VITALS_LABELS].sort((a, b) => a.localeCompare(b))
+      [...renderedLabels].sort((a, b) => a.localeCompare(b))
     );
   });
 
   it("renders scalar and boolean vital values", () => {
     const host = buildFullyPopulatedHost();
 
-    render(<VitalsModal host={host} onExit={noop} />);
+    render(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
 
     expect(screen.getByText("00008030-000000000000000")).toBeInTheDocument();
     expect(screen.getByText("87%")).toBeInTheDocument();
@@ -110,41 +131,161 @@ describe("VitalsModal component", () => {
     expect(screen.getAllByText("False").length).toBeGreaterThan(0);
   });
 
-  it("renders service subscriptions and device properties attestation as one line per entry, not a JSON preview", () => {
+  it("renders the attestation certificate chain as one line per certificate", () => {
     const host = buildFullyPopulatedHost({
-      service_subscriptions: [{ slot: "primary" }, { slot: "secondary" }],
       device_properties_attestation: ["Y2VydC1vbmU=", "Y2VydC10d28="],
     });
 
-    const { container } = render(<VitalsModal host={host} onExit={noop} />);
+    const { container } = render(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
 
-    const findValueCell = (label: string) =>
-      Array.from(container.querySelectorAll(".data-set"))
-        .find((dataSet) => dataSet.querySelector("dt")?.textContent === label)
-        ?.querySelector("dd");
-
-    const subscriptionsLines = findValueCell(
-      "Service subscriptions"
-    )?.querySelectorAll(".vitals-modal__lines > div");
-    expect(
-      Array.from(subscriptionsLines ?? []).map((el) => el.textContent)
-    ).toEqual(["primary", "secondary"]);
-
-    const attestationLines = findValueCell(
+    const lines = findValueCell(
+      container,
       "Device properties attestation"
     )?.querySelectorAll(".vitals-modal__lines > div");
-    expect(
-      Array.from(attestationLines ?? []).map((el) => el.textContent)
-    ).toEqual(["Y2VydC1vbmU=", "Y2VydC10d28="]);
 
-    // accessibility_settings, organization_info, mdm_options only
-    expect(container.querySelectorAll("pre")).toHaveLength(3);
+    expect(Array.from(lines ?? []).map((el) => el.textContent)).toEqual([
+      "Y2VydC1vbmU=",
+      "Y2VydC10d28=",
+    ]);
+
+    // Nested dicts render as label/value lines, so no code block anywhere.
+    expect(container.querySelectorAll("pre")).toHaveLength(0);
+  });
+
+  it("renders one numbered subscription per SIM, revealing that subscription's values on hover", async () => {
+    const host = buildFullyPopulatedHost({
+      service_subscriptions: [
+        {
+          slot: "CTSubscriptionSlotOne",
+          label: "Principal",
+          phone_number: "+5491100000000",
+          is_roaming: false,
+        },
+        // A dual-SIM device with an empty eSIM slot reports only a couple of
+        // fields for it.
+        { slot: "CTSubscriptionSlotTwo", eid: "8904903200740888" },
+      ],
+    });
+    const customRender = createCustomRenderer({});
+
+    const { user, container } = customRender(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
+
+    const cell = findValueCell(container, "Service subscriptions");
+    expect(cell?.textContent).toContain("Subscription 1");
+    expect(cell?.textContent).toContain("Subscription 2");
+
+    await user.hover(screen.getByText("Subscription 1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Phone number:").tagName).toBe("B");
+    });
+    expect(screen.getByText(/\+5491100000000/)).toBeInTheDocument();
+    expect(screen.getByText("Label:")).toBeInTheDocument();
+    expect(screen.getByText("Roaming:")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Subscription 2"));
+    await waitFor(() => {
+      expect(screen.getByText(/8904903200740888/)).toBeInTheDocument();
+    });
+    expect(screen.queryAllByText("Phone number:")).toHaveLength(1);
+  });
+
+  describe("Nested-dict vitals", () => {
+    const findNestedPairs = (container: HTMLElement, label: string) => {
+      const nested = Array.from(container.querySelectorAll(".data-set"))
+        .find((dataSet) => dataSet.querySelector("dt")?.textContent === label)
+        ?.querySelector(".vitals-modal__nested");
+
+      return Array.from(nested?.children ?? []).map((el) => el.textContent);
+    };
+
+    it("renders each present sub-key as a label/value pair, with hand-written labels rather than raw API keys", () => {
+      const host = buildFullyPopulatedHost({
+        organization_info: {
+          organization_name: "Fleet Device Management",
+          organization_email: "support@example.com",
+        },
+      });
+
+      const { container } = render(
+        <VitalsModal
+          host={host}
+          vitalsData={host}
+          mdm={host.mdm}
+          onExit={noop}
+        />
+      );
+
+      expect(findNestedPairs(container, "Organization info")).toEqual([
+        "Email:",
+        "support@example.com",
+        "Name:",
+        "Fleet Device Management",
+      ]);
+      // Raw snake_case API keys must never reach the UI.
+      expect(screen.queryByText("organization_name")).not.toBeInTheDocument();
+    });
+
+    it("keeps a false sub-key but drops absent ones", () => {
+      const host = buildFullyPopulatedHost({
+        accessibility_settings: {
+          zoom_enabled: false,
+          text_size: 5,
+        },
+      });
+
+      const { container } = render(
+        <VitalsModal
+          host={host}
+          vitalsData={host}
+          mdm={host.mdm}
+          onExit={noop}
+        />
+      );
+
+      expect(findNestedPairs(container, "Accessibility settings")).toEqual([
+        "Text size:",
+        "5",
+        "Zoom:",
+        "False",
+      ]);
+    });
+
+    it("falls back to the empty value when every sub-key is absent (Apple's empty MDMOptions dict)", () => {
+      const host = buildFullyPopulatedHost({ mdm_options: {} });
+
+      const { container } = render(
+        <VitalsModal
+          host={host}
+          vitalsData={host}
+          mdm={host.mdm}
+          onExit={noop}
+        />
+      );
+
+      const mdmOptionsValue = Array.from(
+        container.querySelectorAll(".data-set")
+      )
+        .find(
+          (dataSet) =>
+            dataSet.querySelector("dt")?.textContent === "MDM options"
+        )
+        ?.querySelector("dd")?.textContent;
+
+      expect(mdmOptionsValue).toBe("None");
+    });
   });
 
   it("renders 'None' for a null field not marked unsupported", () => {
     const host = buildFullyPopulatedHost({ model_number: undefined });
 
-    const { container } = render(<VitalsModal host={host} onExit={noop} />);
+    const { container } = render(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
 
     const modelNumberValue = Array.from(container.querySelectorAll(".data-set"))
       .find(
@@ -177,7 +318,14 @@ describe("VitalsModal component", () => {
       });
       const customRender = createCustomRenderer({});
 
-      const { user } = customRender(<VitalsModal host={host} onExit={noop} />);
+      const { user } = customRender(
+        <VitalsModal
+          host={host}
+          vitalsData={host}
+          mdm={host.mdm}
+          onExit={noop}
+        />
+      );
 
       expect(
         screen.queryByText("00008030-should-not-show")
@@ -202,7 +350,14 @@ describe("VitalsModal component", () => {
         udid: "00008030-000000000000000",
       });
 
-      render(<VitalsModal host={host} onExit={noop} />);
+      render(
+        <VitalsModal
+          host={host}
+          vitalsData={host}
+          mdm={host.mdm}
+          onExit={noop}
+        />
+      );
 
       expect(screen.getByText("00008030-000000000000000")).toBeInTheDocument();
       expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
@@ -214,7 +369,14 @@ describe("VitalsModal component", () => {
     const onExit = jest.fn();
     const customRender = createCustomRenderer({});
 
-    const { user } = customRender(<VitalsModal host={host} onExit={onExit} />);
+    const { user } = customRender(
+      <VitalsModal
+        host={host}
+        vitalsData={host}
+        mdm={host.mdm}
+        onExit={onExit}
+      />
+    );
 
     await user.click(screen.getByRole("button", { name: "Done" }));
 
@@ -226,7 +388,14 @@ describe("VitalsModal component", () => {
     const onExit = jest.fn();
     const customRender = createCustomRenderer({});
 
-    const { user } = customRender(<VitalsModal host={host} onExit={onExit} />);
+    const { user } = customRender(
+      <VitalsModal
+        host={host}
+        vitalsData={host}
+        mdm={host.mdm}
+        onExit={onExit}
+      />
+    );
 
     await user.keyboard("{Escape}");
 

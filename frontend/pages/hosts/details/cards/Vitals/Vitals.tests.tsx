@@ -316,13 +316,13 @@ describe("Location vital", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Show location' button for ADE-enrolled iDevices when toggleLocationModal is provided", () => {
+  it("omits the Location row from the iOS/iPadOS card, since it isn't one of the 8 card vitals (it remains available behind 'View all')", () => {
     renderLocationVital({ ade: true, withToggle: true });
 
-    expect(screen.getByText("Location")).toBeInTheDocument();
+    expect(screen.queryByText("Location")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Show location" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Show location" })
+    ).not.toBeInTheDocument();
   });
 
   it("hides the Location row for ADE-enrolled iDevices when toggleLocationModal is not provided", () => {
@@ -463,6 +463,94 @@ describe("View all vitals button", () => {
     expect(
       screen.queryByRole("button", { name: "View all" })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("Card vitals subset", () => {
+  const IOS_CARD_VITALS = [
+    "Added to Fleet",
+    "Disk space available",
+    "Hardware model",
+    "MDM server URL",
+    "MDM status",
+    "Operating system",
+    "Serial number",
+    "Timezone",
+  ];
+
+  const renderCard = (platform: HostPlatform) => {
+    const mockHost = createMockHost({
+      platform,
+      hardware_serial: "test-serial",
+      timezone: "America/Argentina/Buenos_Aires",
+      memory: 8589934592,
+      cpu_type: "arm64",
+      primary_ip: "192.168.1.1",
+      public_ip: "203.0.113.1",
+      mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
+    } as Parameters<typeof createMockHost>[0]);
+
+    return render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+  };
+
+  it("limits an iOS host's card to the 8 Figma vitals", () => {
+    const { container } = renderCard("ios");
+
+    const rendered = Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+    expect(rendered).toEqual(
+      [...IOS_CARD_VITALS].sort((a, b) => a.localeCompare(b))
+    );
+  });
+
+  it("limits an iPadOS host's card to the same 8 vitals", () => {
+    const { container } = renderCard("ipados");
+
+    const rendered = Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+    expect(rendered).toEqual(
+      [...IOS_CARD_VITALS].sort((a, b) => a.localeCompare(b))
+    );
+  });
+
+  it("leaves other platforms unfiltered, still rendering vitals outside the iOS subset", () => {
+    const { container } = renderCard("darwin");
+
+    const rendered = Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+    // Vitals a macOS card shows that are absent from the iOS subset.
+    expect(rendered).toContain("Memory");
+    expect(rendered).toContain("Processor type");
+    expect(rendered).toContain("Private IP address");
+    expect(rendered.length).toBeGreaterThan(IOS_CARD_VITALS.length);
+  });
+
+  it("shows Enrollment ID instead of Serial number for a personally-enrolled iOS host, so its identity row survives the subset", () => {
+    const mockHost = createMockHost({
+      platform: "ios",
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "On (manual - personal)",
+      }),
+    });
+
+    const { container } = render(
+      <Vitals vitalsData={mockHost} mdm={mockHost.mdm} />
+    );
+
+    const rendered = Array.from(
+      container.querySelectorAll(".vitals-card__info-grid > .data-set > dt")
+    ).map((el) => el.textContent);
+
+    expect(rendered).toContain("Enrollment ID");
+    expect(rendered).not.toContain("Serial number");
   });
 });
 

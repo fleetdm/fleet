@@ -2061,7 +2061,22 @@ const HostDetailsPage = ({
           />
         )}
         {showVitalsModal && (
-          <VitalsModal host={host} onExit={toggleVitalsModal} />
+          <VitalsModal
+            host={host}
+            vitalsData={vitalsData}
+            munki={macadmins?.munki}
+            mdm={host?.mdm}
+            osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+              host.platform
+            )}
+            toggleLocationModal={toggleLocationModal}
+            toggleMDMStatusModal={toggleMDMStatusModal}
+            customHostVitals={host.custom_host_vitals}
+            onEditCustomHostVital={
+              canEditCustomHostVitals ? setEditingCustomHostVital : undefined
+            }
+            onExit={toggleVitalsModal}
+          />
         )}
         {editingCustomHostVital && (
           <EditHostVitalModal

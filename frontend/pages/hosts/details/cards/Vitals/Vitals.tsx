@@ -38,12 +38,14 @@ import Button from "components/buttons/Button";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { getCityCountryLocation } from "../../modals/LocationModal/LocationModal";
 
-interface IVitalsProps {
+/** Everything buildHostVitals needs to render the pre-existing host vitals.
+ * Shared with the "View all" modal so both surfaces build the same rows from
+ * one implementation. */
+export interface IHostVitalsSources {
   vitalsData: { [key: string]: any };
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
   osVersionRequirement?: IAppleDeviceUpdates;
-  className?: string;
   /**
    * Opens the Location modal. Presence of this handler also makes the
    * Location row interactive — omit it for read-only contexts (e.g., the
@@ -56,12 +58,40 @@ interface IVitalsProps {
    * the My device page) so the row renders as plain text instead of a link.
    */
   toggleMDMStatusModal?: () => void;
-  toggleVitalsModal?: () => void;
   customHostVitals?: IHostCustomVital[];
   onEditCustomHostVital?: (vital: IHostCustomVital) => void;
 }
 
-type VitalForSort = { sortKey: string; element: React.ReactNode };
+interface IVitalsProps extends IHostVitalsSources {
+  className?: string;
+  /**
+   * Opens the "View all" vitals modal (iOS/iPadOS only). Presence of this
+   * handler also makes the header button appear — omit it for read-only
+   * contexts (e.g., the My device page) so the button doesn't render at all.
+   */
+  toggleVitalsModal?: () => void;
+}
+
+export type VitalForSort = { sortKey: string; element: React.ReactNode };
+
+/** The only vitals the card itself shows for iOS/iPadOS hosts, per the #39281
+ * Figma. Everything else moves behind "View all". Other platforms are
+ * unaffected and still render every vital in the card.
+ *
+ * "Enrollment ID" is included alongside "Serial number" because the two are
+ * mutually exclusive — personal (BYOD) hosts report an enrollment ID instead
+ * of a serial. Without it a BYOD iPhone would lose its only identity row. */
+const IOS_CARD_VITAL_SORT_KEYS = new Set([
+  "Added to Fleet",
+  "Disk space available",
+  "Enrollment ID",
+  "Hardware model",
+  "MDM server URL",
+  "MDM status",
+  "Operating system",
+  "Serial number",
+  "Timezone",
+]);
 
 const baseClass = "vitals-card";
 
@@ -124,6 +154,572 @@ const getHostDiskEncryptionTooltipMessage = (
   ];
 };
 
+/** Builds the pre-existing host vitals as an unsorted list, so callers can
+ * filter (the card, for iOS/iPadOS) or extend (the "View all" modal, which
+ * appends the iOS/iPadOS-only vitals) before sorting. */
+export const buildHostVitals = ({
+  vitalsData,
+  munki,
+  mdm,
+  osVersionRequirement,
+  toggleLocationModal,
+  toggleMDMStatusModal,
+  customHostVitals,
+  onEditCustomHostVital,
+}: IHostVitalsSources): VitalForSort[] => {
+  const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
+  const isAndroidHost = isAndroid(vitalsData.platform);
+  const isChromeHost = isChrome(vitalsData.platform);
+
+  const {
+    platform,
+    os_version,
+    mdm_enrollment_hardware_attested,
+    disk_encryption_enabled: diskEncryptionEnabled,
+  } = vitalsData;
+
+  const vitals: VitalForSort[] = [];
+
+  vitals.push({
+    sortKey: "Added to Fleet",
+    element: (
+      <DataSet
+        key="added-to-fleet"
+        title="Added to Fleet"
+        value={
+          <HumanTimeDiffWithFleetLaunchCutoff
+            timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
+          />
+        }
+      />
+    ),
+  });
+
+  // Agent / Osquery
+  if (!isIosOrIpadosHost && !isAndroidHost) {
+    const {
+      orbit_version,
+      osquery_version,
+      fleet_desktop_version,
+    } = vitalsData;
+
+    const isChromeOrVanillaOsqueryHost =
+      isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE;
+
+    vitals.push({
+      sortKey: "Agent",
+      element: (
+        <DataSet
+          key="agent"
+          title="Agent"
+          value={
+            isChromeOrVanillaOsqueryHost ? (
+              osquery_version
+            ) : (
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    osquery: {osquery_version}
+                    <br />
+                    Orbit: {orbit_version}
+                    {fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
+                      <>
+                        <br />
+                        Fleet Desktop: {fleet_desktop_version}
+                      </>
+                    )}
+                  </>
+                }
+              >
+                {orbit_version}
+              </TooltipWrapper>
+            )
+          }
+        />
+      ),
+    });
+  }
+
+  // Battery condition
+  if (
+    vitalsData.batteries !== null &&
+    typeof vitalsData.batteries === "object" &&
+    vitalsData.batteries?.[0]?.health !== "Unknown"
+  ) {
+    vitals.push({
+      sortKey: "Battery condition",
+      element: (
+        <DataSet
+          key="battery-condition"
+          title="Battery condition"
+          value={
+            <TooltipWrapper
+              tipContent={BATTERY_TOOLTIP[vitalsData.batteries?.[0]?.health]}
+            >
+              {vitalsData.batteries?.[0]?.health}
+            </TooltipWrapper>
+          }
+        />
+      ),
+    });
+  }
+
+  // Disk encryption
+  if (platformSupportsDiskEncryption(platform, os_version)) {
+    const tooltipMessage = getHostDiskEncryptionTooltipMessage(
+      platform,
+      diskEncryptionEnabled
+    );
+
+    let statusText;
+    switch (true) {
+      case isChromeHost:
+        statusText = "Always on";
+        break;
+      case diskEncryptionEnabled === true:
+        statusText = "On";
+        break;
+      case diskEncryptionEnabled === false:
+        statusText = "Off";
+        break;
+      case (diskEncryptionEnabled === null ||
+        diskEncryptionEnabled === undefined) &&
+        platformSupportsDiskEncryption(platform, os_version):
+        statusText = "Unknown";
+        break;
+      default:
+        // something unexpected happened on the way to this component, display whatever we got or
+        // "Unknown" to draw attention to the issue.
+        statusText = diskEncryptionEnabled || "Unknown";
+    }
+
+    vitals.push({
+      sortKey: "Disk encryption",
+      element: (
+        <DataSet
+          key="disk-encryption"
+          title="Disk encryption"
+          value={
+            <TooltipWrapper tipContent={tooltipMessage}>
+              {statusText}
+            </TooltipWrapper>
+          }
+        />
+      ),
+    });
+  }
+
+  // Disk space
+  if (
+    !isChromeHost &&
+    !(
+      typeof vitalsData.gigs_disk_space_available === "number" &&
+      vitalsData.gigs_disk_space_available < 0
+    )
+  ) {
+    const title = isAndroidHost ? (
+      <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
+        Disk space available
+      </TooltipWrapper>
+    ) : (
+      "Disk space available"
+    );
+
+    vitals.push({
+      sortKey: "Disk space available",
+      element: (
+        <DataSet
+          key="disk-space-available"
+          title={title}
+          value={
+            <DiskSpaceIndicator
+              gigsDiskSpaceAvailable={vitalsData.gigs_disk_space_available}
+              percentDiskSpaceAvailable={
+                vitalsData.percent_disk_space_available
+              }
+              gigsTotalDiskSpace={vitalsData.gigs_total_disk_space}
+              gigsAllDiskSpace={vitalsData.gigs_all_disk_space}
+              platform={platform}
+              tooltipPosition="bottom"
+            />
+          }
+        />
+      ),
+    });
+  }
+
+  // Device identity
+  if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
+    //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
+    vitals.push({
+      sortKey: "Enrollment ID",
+      element: (
+        <DataSet
+          key="enrollment-id"
+          title={
+            <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
+              Enrollment ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.uuid} />}
+        />
+      ),
+    });
+  } else {
+    // for all other host types, show the serial number
+    vitals.push({
+      sortKey: "Serial number",
+      element: (
+        <DataSet
+          key="serial-number"
+          title="Serial number"
+          value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
+        />
+      ),
+    });
+  }
+
+  // Hardware model
+  const hardwareModelDisplay = getHardwareModelDisplay(
+    vitalsData.platform,
+    vitalsData.hardware_model,
+    vitalsData.hardware_marketing_name
+  );
+  vitals.push({
+    sortKey: "Hardware model",
+    element: (
+      <DataSet
+        key="hardware-model"
+        title="Hardware model"
+        value={
+          <TooltipTruncatedText
+            value={hardwareModelDisplay.value}
+            tooltip={hardwareModelDisplay.tooltip}
+            alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
+          />
+        }
+      />
+    ),
+  });
+
+  // Last restarted
+  if (!isIosOrIpadosHost && !isAndroidHost) {
+    vitals.push({
+      sortKey: "Last restarted",
+      element: (
+        <DataSet
+          key="last-restarted"
+          title="Last restarted"
+          value={
+            <HumanTimeDiffWithFleetLaunchCutoff
+              timeString={vitalsData.last_restarted_at}
+            />
+          }
+        />
+      ),
+    });
+  }
+
+  // Location
+  const geolocation = vitalsData.geolocation;
+  const isAdeIDevice =
+    isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
+
+  if (isAdeIDevice ? toggleLocationModal : geolocation) {
+    const label = isAdeIDevice
+      ? "Show location"
+      : getCityCountryLocation(geolocation);
+    const locationValue = toggleLocationModal ? (
+      <Button variant="link" onClick={toggleLocationModal}>
+        {label}
+      </Button>
+    ) : (
+      label
+    );
+    vitals.push({
+      sortKey: "Location",
+      element: (
+        <DataSet
+          className={`${baseClass}__location`}
+          key="location"
+          title="Location"
+          value={locationValue}
+        />
+      ),
+    });
+  }
+
+  // MDM attestation
+  if (mdm_enrollment_hardware_attested) {
+    vitals.push({
+      sortKey: "MDM attestation",
+      element: (
+        <DataSet
+          key="mdm-attestation"
+          title="MDM attestation"
+          value={
+            <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
+              Yes
+            </TooltipWrapper>
+          }
+        />
+      ),
+    });
+  }
+
+  // MDM
+  if (mdm?.enrollment_status) {
+    const mdmStatusLabel =
+      MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName;
+    vitals.push(
+      {
+        sortKey: "MDM status",
+        element: (
+          <DataSet
+            key="mdm-status"
+            title="MDM status"
+            className={`${baseClass}__mdm-status`}
+            value={
+              <>
+                {mdm.dep_profile_error && <Icon name="error" />}
+                {toggleMDMStatusModal ? (
+                  <Button variant="link" onClick={toggleMDMStatusModal}>
+                    {mdmStatusLabel}
+                  </Button>
+                ) : (
+                  mdmStatusLabel
+                )}
+              </>
+            }
+          />
+        ),
+      },
+
+      {
+        sortKey: "MDM server URL",
+        element: (
+          <DataSet
+            key="mdm-server-url"
+            title="MDM server URL"
+            value={
+              <TooltipTruncatedText
+                value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+              />
+            }
+          />
+        ),
+      }
+    );
+  }
+
+  if (!isIosOrIpadosHost) {
+    vitals.push({
+      sortKey: "Memory",
+      element: (
+        <DataSet
+          key="memory"
+          title="Memory"
+          value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
+        />
+      ),
+    });
+  }
+
+  if (munki) {
+    vitals.push({
+      sortKey: "Munki version",
+      element: (
+        <DataSet
+          key="munki-version"
+          title="Munki version"
+          value={munki.version || DEFAULT_EMPTY_CELL_VALUE}
+        />
+      ),
+    });
+  }
+
+  // Operating system
+  // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
+  if (!osVersionRequirement?.minimum_version) {
+    const version = vitalsData.os_version;
+    const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
+      <>
+        {version.slice(0, -8)}&nbsp;
+        <TooltipWrapperArchLinuxRolling />
+      </>
+    ) : (
+      <TooltipTruncatedText value={version} />
+    );
+    vitals.push({
+      sortKey: "Operating system",
+      element: (
+        <DataSet
+          key="operating-system"
+          title="Operating system"
+          value={versionForRender}
+          className={`${baseClass}__os-data-set`}
+        />
+      ),
+    });
+  } else {
+    const osVersionWithoutPrefix = removeOSPrefix(vitalsData.os_version);
+    const osVersionRequirementMet =
+      compareVersions(
+        osVersionWithoutPrefix,
+        osVersionRequirement.minimum_version
+      ) >= 0;
+
+    vitals.push({
+      sortKey: "Operating system",
+      element: (
+        <DataSet
+          key="operating-system"
+          title="Operating system"
+          value={
+            <span className={`${baseClass}__os-version`}>
+              {!osVersionRequirementMet && (
+                <Icon name="error-outline" color="ui-fleet-black-75" />
+              )}
+              <TooltipWrapper
+                className={`${baseClass}__os-version-tooltip`}
+                tipContent={
+                  osVersionRequirementMet ? (
+                    <>
+                      {vitalsData.os_version}
+                      <br />
+                      Meets minimum version requirement.
+                    </>
+                  ) : (
+                    <>
+                      {vitalsData.os_version}
+                      <br />
+                      Does not meet minimum version requirement.
+                      <br />
+                      Deadline to update: {osVersionRequirement.deadline}
+                    </>
+                  )
+                }
+              >
+                <span className={`${baseClass}__os-version-text`}>
+                  {vitalsData.os_version}
+                </span>
+              </TooltipWrapper>
+            </span>
+          }
+          className={`${baseClass}__os-data-set`}
+        />
+      ),
+    });
+  }
+
+  // IP addresses
+  if (!isIosOrIpadosHost && !isAndroidHost) {
+    vitals.push({
+      sortKey: "Private IP address",
+      element: (
+        <DataSet
+          key="private-ip-address"
+          title="Private IP address"
+          value={<TooltipTruncatedText value={vitalsData.primary_ip} />}
+        />
+      ),
+    });
+    vitals.push({
+      sortKey: "Public IP address",
+      element: (
+        <DataSet
+          key="public-ip-address"
+          title={
+            <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
+              Public IP address
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.public_ip} />}
+        />
+      ),
+    });
+    vitals.push({
+      sortKey: "MAC address",
+      element: (
+        <DataSet
+          key="mac-address"
+          title="MAC address"
+          value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
+        />
+      ),
+    });
+  }
+
+  if (!isIosOrIpadosHost) {
+    vitals.push({
+      sortKey: "Processor type",
+      element: (
+        <DataSet
+          key="processor-type"
+          title="Processor type"
+          value={vitalsData.cpu_type}
+        />
+      ),
+    });
+  }
+
+  if (isIosOrIpadosHost && vitalsData?.timezone) {
+    vitals.push({
+      sortKey: "Timezone",
+      element: (
+        <DataSet
+          key="timezone"
+          title="Timezone"
+          value={
+            <TooltipTruncatedText
+              value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
+            />
+          }
+        />
+      ),
+    });
+  }
+
+  customHostVitals?.forEach((vital) => {
+    const displayValue =
+      vital.value === "" ? DEFAULT_EMPTY_CELL_VALUE : vital.value;
+    const title = onEditCustomHostVital ? (
+      <span className={`${baseClass}__custom-vital-title`}>
+        {vital.name}
+        <Button
+          variant="subdued"
+          size="small"
+          onClick={() => onEditCustomHostVital(vital)}
+          ariaLabel={`Edit ${vital.name}`}
+        >
+          <Icon name="pencil" size="small" />
+        </Button>
+      </span>
+    ) : (
+      vital.name
+    );
+
+    vitals.push({
+      sortKey: vital.name,
+      element: (
+        <DataSet
+          className={`${baseClass}__custom-vital`}
+          key={`custom-host-vital-${vital.custom_host_vital_id}`}
+          title={title}
+          value={displayValue}
+        />
+      ),
+    });
+  });
+
+  return vitals;
+};
+
+/** Sorts vitals by their display title. Exported so the "View all" modal
+ * orders the combined list the same way the card does. */
+export const sortHostVitals = (vitals: VitalForSort[]): VitalForSort[] =>
+  [...vitals].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
 const Vitals = ({
   vitalsData,
   munki,
@@ -137,560 +733,23 @@ const Vitals = ({
   onEditCustomHostVital,
 }: IVitalsProps) => {
   const isIosOrIpadosHost = isIPadOrIPhone(vitalsData.platform);
-  const isAndroidHost = isAndroid(vitalsData.platform);
-  const isChromeHost = isChrome(vitalsData.platform);
 
-  const {
-    platform,
-    os_version,
-    mdm_enrollment_hardware_attested,
-    disk_encryption_enabled: diskEncryptionEnabled,
-  } = vitalsData;
+  const allVitals = buildHostVitals({
+    vitalsData,
+    munki,
+    mdm,
+    osVersionRequirement,
+    toggleLocationModal,
+    toggleMDMStatusModal,
+    customHostVitals,
+    onEditCustomHostVital,
+  });
 
-  const renderVitalsAlphabetically = () => {
-    const vitals: VitalForSort[] = [];
-
-    vitals.push({
-      sortKey: "Added to Fleet",
-      element: (
-        <DataSet
-          key="added-to-fleet"
-          title="Added to Fleet"
-          value={
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={vitalsData.last_enrolled_at ?? "Unavailable"}
-            />
-          }
-        />
-      ),
-    });
-
-    // Agent / Osquery
-    if (!isIosOrIpadosHost && !isAndroidHost) {
-      const {
-        orbit_version,
-        osquery_version,
-        fleet_desktop_version,
-      } = vitalsData;
-
-      const isChromeOrVanillaOsqueryHost =
-        isChromeHost || orbit_version === DEFAULT_EMPTY_CELL_VALUE;
-
-      vitals.push({
-        sortKey: "Agent",
-        element: (
-          <DataSet
-            key="agent"
-            title="Agent"
-            value={
-              isChromeOrVanillaOsqueryHost ? (
-                osquery_version
-              ) : (
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      osquery: {osquery_version}
-                      <br />
-                      Orbit: {orbit_version}
-                      {fleet_desktop_version !== DEFAULT_EMPTY_CELL_VALUE && (
-                        <>
-                          <br />
-                          Fleet Desktop: {fleet_desktop_version}
-                        </>
-                      )}
-                    </>
-                  }
-                >
-                  {orbit_version}
-                </TooltipWrapper>
-              )
-            }
-          />
-        ),
-      });
-    }
-
-    // Battery condition
-    if (
-      vitalsData.batteries !== null &&
-      typeof vitalsData.batteries === "object" &&
-      vitalsData.batteries?.[0]?.health !== "Unknown"
-    ) {
-      vitals.push({
-        sortKey: "Battery condition",
-        element: (
-          <DataSet
-            key="battery-condition"
-            title="Battery condition"
-            value={
-              <TooltipWrapper
-                tipContent={BATTERY_TOOLTIP[vitalsData.batteries?.[0]?.health]}
-              >
-                {vitalsData.batteries?.[0]?.health}
-              </TooltipWrapper>
-            }
-          />
-        ),
-      });
-    }
-
-    // Disk encryption
-    if (platformSupportsDiskEncryption(platform, os_version)) {
-      const tooltipMessage = getHostDiskEncryptionTooltipMessage(
-        platform,
-        diskEncryptionEnabled
-      );
-
-      let statusText;
-      switch (true) {
-        case isChromeHost:
-          statusText = "Always on";
-          break;
-        case diskEncryptionEnabled === true:
-          statusText = "On";
-          break;
-        case diskEncryptionEnabled === false:
-          statusText = "Off";
-          break;
-        case (diskEncryptionEnabled === null ||
-          diskEncryptionEnabled === undefined) &&
-          platformSupportsDiskEncryption(platform, os_version):
-          statusText = "Unknown";
-          break;
-        default:
-          // something unexpected happened on the way to this component, display whatever we got or
-          // "Unknown" to draw attention to the issue.
-          statusText = diskEncryptionEnabled || "Unknown";
-      }
-
-      vitals.push({
-        sortKey: "Disk encryption",
-        element: (
-          <DataSet
-            key="disk-encryption"
-            title="Disk encryption"
-            value={
-              <TooltipWrapper tipContent={tooltipMessage}>
-                {statusText}
-              </TooltipWrapper>
-            }
-          />
-        ),
-      });
-    }
-
-    // Disk space
-    if (
-      !isChromeHost &&
-      !(
-        typeof vitalsData.gigs_disk_space_available === "number" &&
-        vitalsData.gigs_disk_space_available < 0
-      )
-    ) {
-      const title = isAndroidHost ? (
-        <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
-          Disk space available
-        </TooltipWrapper>
-      ) : (
-        "Disk space available"
-      );
-
-      vitals.push({
-        sortKey: "Disk space available",
-        element: (
-          <DataSet
-            key="disk-space-available"
-            title={title}
-            value={
-              <DiskSpaceIndicator
-                gigsDiskSpaceAvailable={vitalsData.gigs_disk_space_available}
-                percentDiskSpaceAvailable={
-                  vitalsData.percent_disk_space_available
-                }
-                gigsTotalDiskSpace={vitalsData.gigs_total_disk_space}
-                gigsAllDiskSpace={vitalsData.gigs_all_disk_space}
-                platform={platform}
-                tooltipPosition="bottom"
-              />
-            }
-          />
-        ),
-      });
-    }
-
-    // Device identity
-    if (mdm && isBYODAccountDrivenUserEnrollment(mdm.enrollment_status)) {
-      //  Personal (BYOD) devices do not report their serial numbers, so show the enrollment id instead.
-      vitals.push({
-        sortKey: "Enrollment ID",
-        element: (
-          <DataSet
-            key="enrollment-id"
-            title={
-              <TooltipWrapper tipContent="Enrollment ID is a unique identifier for personal hosts. Personal (BYOD) devices don't report their serial numbers. The Enrollment ID changes with each enrollment.">
-                Enrollment ID
-              </TooltipWrapper>
-            }
-            value={<TooltipTruncatedText value={vitalsData.uuid} />}
-          />
-        ),
-      });
-    } else {
-      // for all other host types, show the serial number
-      vitals.push({
-        sortKey: "Serial number",
-        element: (
-          <DataSet
-            key="serial-number"
-            title="Serial number"
-            value={<TooltipTruncatedText value={vitalsData.hardware_serial} />}
-          />
-        ),
-      });
-    }
-
-    // Hardware model
-    const hardwareModelDisplay = getHardwareModelDisplay(
-      vitalsData.platform,
-      vitalsData.hardware_model,
-      vitalsData.hardware_marketing_name
-    );
-    vitals.push({
-      sortKey: "Hardware model",
-      element: (
-        <DataSet
-          key="hardware-model"
-          title="Hardware model"
-          value={
-            <TooltipTruncatedText
-              value={hardwareModelDisplay.value}
-              tooltip={hardwareModelDisplay.tooltip}
-              alwaysShowTooltip={hardwareModelDisplay.alwaysShowTooltip}
-            />
-          }
-        />
-      ),
-    });
-
-    // Last restarted
-    if (!isIosOrIpadosHost && !isAndroidHost) {
-      vitals.push({
-        sortKey: "Last restarted",
-        element: (
-          <DataSet
-            key="last-restarted"
-            title="Last restarted"
-            value={
-              <HumanTimeDiffWithFleetLaunchCutoff
-                timeString={vitalsData.last_restarted_at}
-              />
-            }
-          />
-        ),
-      });
-    }
-
-    // Location
-    const geolocation = vitalsData.geolocation;
-    const isAdeIDevice =
-      isIosOrIpadosHost && mdm?.enrollment_status === "On (automatic)";
-
-    if (isAdeIDevice ? toggleLocationModal : geolocation) {
-      const label = isAdeIDevice
-        ? "Show location"
-        : getCityCountryLocation(geolocation);
-      const locationValue = toggleLocationModal ? (
-        <Button variant="link" onClick={toggleLocationModal}>
-          {label}
-        </Button>
-      ) : (
-        label
-      );
-      vitals.push({
-        sortKey: "Location",
-        element: (
-          <DataSet
-            className={`${baseClass}__location`}
-            key="location"
-            title="Location"
-            value={locationValue}
-          />
-        ),
-      });
-    }
-
-    // MDM attestation
-    if (mdm_enrollment_hardware_attested) {
-      vitals.push({
-        sortKey: "MDM attestation",
-        element: (
-          <DataSet
-            key="mdm-attestation"
-            title="MDM attestation"
-            value={
-              <TooltipWrapper tipContent="Host provided a Managed Device Attestation signed by Apple at enrollment.">
-                Yes
-              </TooltipWrapper>
-            }
-          />
-        ),
-      });
-    }
-
-    // MDM
-    if (mdm?.enrollment_status) {
-      const mdmStatusLabel =
-        MDM_ENROLLMENT_STATUS_UI_MAP[mdm.enrollment_status].displayName;
-      vitals.push(
-        {
-          sortKey: "MDM status",
-          element: (
-            <DataSet
-              key="mdm-status"
-              title="MDM status"
-              className={`${baseClass}__mdm-status`}
-              value={
-                <>
-                  {mdm.dep_profile_error && <Icon name="error" />}
-                  {toggleMDMStatusModal ? (
-                    <Button variant="link" onClick={toggleMDMStatusModal}>
-                      {mdmStatusLabel}
-                    </Button>
-                  ) : (
-                    mdmStatusLabel
-                  )}
-                </>
-              }
-            />
-          ),
-        },
-
-        {
-          sortKey: "MDM server URL",
-          element: (
-            <DataSet
-              key="mdm-server-url"
-              title="MDM server URL"
-              value={
-                <TooltipTruncatedText
-                  value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
-                />
-              }
-            />
-          ),
-        }
-      );
-    }
-
-    if (!isIosOrIpadosHost) {
-      vitals.push({
-        sortKey: "Memory",
-        element: (
-          <DataSet
-            key="memory"
-            title="Memory"
-            value={wrapFleetHelper(humanHostMemory, vitalsData.memory)}
-          />
-        ),
-      });
-    }
-
-    if (munki) {
-      vitals.push({
-        sortKey: "Munki version",
-        element: (
-          <DataSet
-            key="munki-version"
-            title="Munki version"
-            value={munki.version || DEFAULT_EMPTY_CELL_VALUE}
-          />
-        ),
-      });
-    }
-
-    // Operating system
-    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
-    if (!osVersionRequirement?.minimum_version) {
-      const version = vitalsData.os_version;
-      const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(version) ? (
-        <>
-          {version.slice(0, -8)}&nbsp;
-          <TooltipWrapperArchLinuxRolling />
-        </>
-      ) : (
-        <TooltipTruncatedText value={version} />
-      );
-      vitals.push({
-        sortKey: "Operating system",
-        element: (
-          <DataSet
-            key="operating-system"
-            title="Operating system"
-            value={versionForRender}
-            className={`${baseClass}__os-data-set`}
-          />
-        ),
-      });
-    } else {
-      const osVersionWithoutPrefix = removeOSPrefix(vitalsData.os_version);
-      const osVersionRequirementMet =
-        compareVersions(
-          osVersionWithoutPrefix,
-          osVersionRequirement.minimum_version
-        ) >= 0;
-
-      vitals.push({
-        sortKey: "Operating system",
-        element: (
-          <DataSet
-            key="operating-system"
-            title="Operating system"
-            value={
-              <span className={`${baseClass}__os-version`}>
-                {!osVersionRequirementMet && (
-                  <Icon name="error-outline" color="ui-fleet-black-75" />
-                )}
-                <TooltipWrapper
-                  className={`${baseClass}__os-version-tooltip`}
-                  tipContent={
-                    osVersionRequirementMet ? (
-                      <>
-                        {vitalsData.os_version}
-                        <br />
-                        Meets minimum version requirement.
-                      </>
-                    ) : (
-                      <>
-                        {vitalsData.os_version}
-                        <br />
-                        Does not meet minimum version requirement.
-                        <br />
-                        Deadline to update: {osVersionRequirement.deadline}
-                      </>
-                    )
-                  }
-                >
-                  <span className={`${baseClass}__os-version-text`}>
-                    {vitalsData.os_version}
-                  </span>
-                </TooltipWrapper>
-              </span>
-            }
-            className={`${baseClass}__os-data-set`}
-          />
-        ),
-      });
-    }
-
-    // IP addresses
-    if (!isIosOrIpadosHost && !isAndroidHost) {
-      vitals.push({
-        sortKey: "Private IP address",
-        element: (
-          <DataSet
-            key="private-ip-address"
-            title="Private IP address"
-            value={<TooltipTruncatedText value={vitalsData.primary_ip} />}
-          />
-        ),
-      });
-      vitals.push({
-        sortKey: "Public IP address",
-        element: (
-          <DataSet
-            key="public-ip-address"
-            title={
-              <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
-                Public IP address
-              </TooltipWrapper>
-            }
-            value={<TooltipTruncatedText value={vitalsData.public_ip} />}
-          />
-        ),
-      });
-      vitals.push({
-        sortKey: "MAC address",
-        element: (
-          <DataSet
-            key="mac-address"
-            title="MAC address"
-            value={<TooltipTruncatedText value={vitalsData.primary_mac} />}
-          />
-        ),
-      });
-    }
-
-    if (!isIosOrIpadosHost) {
-      vitals.push({
-        sortKey: "Processor type",
-        element: (
-          <DataSet
-            key="processor-type"
-            title="Processor type"
-            value={vitalsData.cpu_type}
-          />
-        ),
-      });
-    }
-
-    if (isIosOrIpadosHost && vitalsData?.timezone) {
-      vitals.push({
-        sortKey: "Timezone",
-        element: (
-          <DataSet
-            key="timezone"
-            title="Timezone"
-            value={
-              <TooltipTruncatedText
-                value={vitalsData.timezone || DEFAULT_EMPTY_CELL_VALUE}
-              />
-            }
-          />
-        ),
-      });
-    }
-
-    customHostVitals?.forEach((vital) => {
-      const displayValue =
-        vital.value === "" ? DEFAULT_EMPTY_CELL_VALUE : vital.value;
-      const title = onEditCustomHostVital ? (
-        <span className={`${baseClass}__custom-vital-title`}>
-          {vital.name}
-          <Button
-            variant="subdued"
-            size="small"
-            onClick={() => onEditCustomHostVital(vital)}
-            ariaLabel={`Edit ${vital.name}`}
-          >
-            <Icon name="pencil" size="small" />
-          </Button>
-        </span>
-      ) : (
-        vital.name
-      );
-
-      vitals.push({
-        sortKey: vital.name,
-        element: (
-          <DataSet
-            className={`${baseClass}__custom-vital`}
-            key={`custom-host-vital-${vital.custom_host_vital_id}`}
-            title={title}
-            value={displayValue}
-          />
-        ),
-      });
-    });
-
-    // Sort alphabetically by title and render
-    return (
-      <>
-        {vitals
-          .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-          .map((vitalForSort) => vitalForSort.element)}
-      </>
-    );
-  };
+  // iOS/iPadOS cards show a fixed subset and move the rest behind "View all".
+  // Every other platform keeps rendering all of its vitals in the card.
+  const cardVitals = isIosOrIpadosHost
+    ? allVitals.filter((vital) => IOS_CARD_VITAL_SORT_KEYS.has(vital.sortKey))
+    : allVitals;
 
   const classNames = classnames(baseClass, className);
 
@@ -709,7 +768,7 @@ const Vitals = ({
         )}
       </div>
       <div className={`${baseClass}__info-grid`}>
-        {renderVitalsAlphabetically()}
+        {sortHostVitals(cardVitals).map((vital) => vital.element)}
       </div>
     </Card>
   );

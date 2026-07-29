@@ -1,7 +1,6 @@
 import React from "react";
 
-import { IHost } from "interfaces/host";
-import { syntaxHighlight } from "utilities/helpers";
+import { IHost, IHostMdmAppleServiceSubscription } from "interfaces/host";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -9,6 +8,13 @@ import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+
+import {
+  buildHostVitals,
+  sortHostVitals,
+  IHostVitalsSources,
+  VitalForSort,
+} from "../../cards/Vitals/Vitals";
 
 import {
   IosOrIpadosEnrollmentStatus,
@@ -41,24 +47,50 @@ const renderLastCloudBackupDate = (value?: string | null) =>
     EMPTY_VITAL_VALUE
   );
 
-/** Renders a single-object vital (e.g. accessibility_settings) as a
- * read-only JSON preview, same treatment as PreviewPayloadModal. */
-const renderJson = (value: unknown) => {
-  const isEmpty =
-    value === undefined ||
-    value === null ||
-    (typeof value === "object" && Object.keys(value).length === 0);
+/* The nested-dict vitals (accessibility settings, organization info, MDM
+ * options) all have closed schemas, so each sub-key gets a hand-written label
+ * the same way the top-level vitals do — rather than exposing raw API key
+ * names. These three helpers return undefined for an absent sub-key so
+ * renderNestedFields drops the row entirely instead of padding the list with
+ * empty values; note `false` is a real value and must survive. */
+const nestedBool = (value?: boolean | null) => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  return value ? "True" : "False";
+};
 
-  if (isEmpty) {
+const nestedText = (value?: string | null) => value || undefined;
+
+const nestedNumber = (value?: number | null) =>
+  value === undefined || value === null ? undefined : String(value);
+
+interface INestedField {
+  label: string;
+  value?: string;
+}
+
+/** Renders a nested-dict vital as aligned label/value lines. Returns the
+ * empty-value text when every sub-key is absent (e.g. Apple reports
+ * MDMOptions as an empty dict when MDM has never set any). */
+const renderNestedFields = (fields: INestedField[]) => {
+  const present = fields.filter((field) => field.value !== undefined);
+
+  if (!present.length) {
     return EMPTY_VITAL_VALUE;
   }
 
   return (
-    <pre
-      className={`${baseClass}__json-preview`}
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: syntaxHighlight(value) }}
-    />
+    <div className={`${baseClass}__nested`}>
+      {present.map(({ label, value }) => (
+        <React.Fragment key={label}>
+          {/* Colon appended here rather than baked into the label strings so
+              they stay reusable; matches how DataSet renders its own titles. */}
+          <span className={`${baseClass}__nested-label`}>{label}:</span>
+          <span className={`${baseClass}__nested-value`}>{value}</span>
+        </React.Fragment>
+      ))}
+    </div>
   );
 };
 
@@ -82,6 +114,79 @@ const renderLines = (values?: Array<string | null | undefined>) => {
   );
 };
 
+/** Formats label/value pairs for a tooltip body, matching the Hardware model
+ * tooltip treatment (see getHardwareModelDisplay): bold "Label:" followed by
+ * the plain value, one pair per line. */
+const renderTooltipFields = (fields: INestedField[]) => (
+  // Left-align to override the tooltip's default centered text.
+  <div style={{ textAlign: "left" }}>
+    {fields
+      .filter((field) => field.value !== undefined)
+      .map(({ label, value }, i) => (
+        <React.Fragment key={label}>
+          {i > 0 && <br />}
+          <b>{label}:</b> {value}
+        </React.Fragment>
+      ))}
+  </div>
+);
+
+const subscriptionFields = (
+  sub: IHostMdmAppleServiceSubscription
+): INestedField[] => [
+  {
+    label: "Carrier settings version",
+    value: nestedText(sub.carrier_settings_version),
+  },
+  {
+    label: "Current carrier network",
+    value: nestedText(sub.current_carrier_network),
+  },
+  { label: "Current MCC", value: nestedText(sub.current_mcc) },
+  { label: "Current MNC", value: nestedText(sub.current_mnc) },
+  { label: "Data preferred", value: nestedBool(sub.is_data_preferred) },
+  { label: "EID", value: nestedText(sub.eid) },
+  { label: "ICCID", value: nestedText(sub.iccid) },
+  { label: "IMEI", value: nestedText(sub.imei) },
+  { label: "Label", value: nestedText(sub.label) },
+  { label: "Label ID", value: nestedText(sub.label_id) },
+  { label: "MEID", value: nestedText(sub.meid) },
+  { label: "Phone number", value: nestedText(sub.phone_number) },
+  { label: "Roaming", value: nestedBool(sub.is_roaming) },
+  { label: "Slot", value: nestedText(sub.slot) },
+  {
+    label: "Subscriber carrier network",
+    value: nestedText(sub.subscriber_carrier_network),
+  },
+  { label: "Voice preferred", value: nestedBool(sub.is_voice_preferred) },
+];
+
+/** Renders one underlined "Subscription N" per cellular subscription, revealing
+ * that subscription's values on hover. Dual-SIM devices report more than one,
+ * and an unprovisioned eSIM slot reports only a couple of fields. */
+const renderServiceSubscriptions = (
+  subscriptions?: IHostMdmAppleServiceSubscription[]
+) => {
+  if (!subscriptions?.length) {
+    return EMPTY_VITAL_VALUE;
+  }
+
+  return (
+    <div className={`${baseClass}__subscriptions`}>
+      {subscriptions.map((sub, i) => (
+        <TooltipWrapper
+          key={sub.slot}
+          tipContent={renderTooltipFields(subscriptionFields(sub))}
+        >
+          {/* Template literal keeps this one text node, so the label stays
+              queryable as a whole string. */}
+          {`Subscription ${i + 1}`}
+        </TooltipWrapper>
+      ))}
+    </div>
+  );
+};
+
 interface IVital {
   key: VitalKey;
   label: string;
@@ -95,7 +200,29 @@ const VITALS: IVital[] = [
   {
     key: "accessibility_settings",
     label: "Accessibility settings",
-    render: (host) => renderJson(host.accessibility_settings),
+    render: (host) => {
+      const a = host.accessibility_settings;
+      return renderNestedFields([
+        { label: "Bold text", value: nestedBool(a?.bold_text_enabled) },
+        { label: "Grayscale", value: nestedBool(a?.grayscale_enabled) },
+        {
+          label: "Increase contrast",
+          value: nestedBool(a?.increase_contrast_enabled),
+        },
+        { label: "Reduce motion", value: nestedBool(a?.reduce_motion_enabled) },
+        {
+          label: "Reduce transparency",
+          value: nestedBool(a?.reduce_transparency_enabled),
+        },
+        { label: "Text size", value: nestedNumber(a?.text_size) },
+        {
+          label: "Touch accommodations",
+          value: nestedBool(a?.touch_accommodations_enabled),
+        },
+        { label: "VoiceOver", value: nestedBool(a?.voice_over_enabled) },
+        { label: "Zoom", value: nestedBool(a?.zoom_enabled) },
+      ]);
+    },
     multiline: true,
   },
   {
@@ -187,7 +314,25 @@ const VITALS: IVital[] = [
   {
     key: "mdm_options",
     label: "MDM options",
-    render: (host) => renderJson(host.mdm_options),
+    render: (host) => {
+      const o = host.mdm_options;
+      return renderNestedFields([
+        {
+          label: "Activation Lock allowed while supervised",
+          value: nestedBool(o?.activation_lock_allowed_while_supervised),
+        },
+        {
+          label: "Bootstrap token allowed",
+          value: nestedBool(o?.bootstrap_token_allowed),
+        },
+        {
+          label: "Prompt user to allow bootstrap token for authentication",
+          value: nestedBool(
+            o?.prompt_user_to_allow_bootstrap_token_for_authentication
+          ),
+        },
+      ]);
+    },
     multiline: true,
   },
   {
@@ -203,7 +348,18 @@ const VITALS: IVital[] = [
   {
     key: "organization_info",
     label: "Organization info",
-    render: (host) => renderJson(host.organization_info),
+    render: (host) => {
+      const o = host.organization_info;
+      return renderNestedFields([
+        // Apple documents OrganizationAddress as using \n for line breaks; the
+        // value cell preserves them via white-space: pre-line.
+        { label: "Address", value: nestedText(o?.organization_address) },
+        { label: "Email", value: nestedText(o?.organization_email) },
+        { label: "Magic", value: nestedText(o?.organization_magic) },
+        { label: "Name", value: nestedText(o?.organization_name) },
+        { label: "Phone", value: nestedText(o?.organization_phone) },
+      ]);
+    },
     multiline: true,
   },
   {
@@ -219,11 +375,7 @@ const VITALS: IVital[] = [
   {
     key: "service_subscriptions",
     label: "Service subscriptions",
-    // TODO(nulmete): Per-subscription objects can carry many mostly-absent fields (see
-    // MDMAppleServiceSubscription) — showing just the slot until product
-    // confirms which other field(s) are worth surfacing here.
-    render: (host) =>
-      renderLines(host.service_subscriptions?.map((sub) => sub.slot)),
+    render: (host) => renderServiceSubscriptions(host.service_subscriptions),
     multiline: true,
   },
   {
@@ -249,12 +401,15 @@ const VITALS: IVital[] = [
 ];
 VITALS.sort((a, b) => a.label.localeCompare(b.label));
 
-interface IVitalsModal {
+/** Takes the same vitals sources as the Vitals card so it can rebuild the
+ * pre-existing rows, plus the full host for the iOS/iPadOS-only fields (which
+ * aren't part of the card's narrower vitalsData pick). */
+interface IVitalsModal extends IHostVitalsSources {
   host: IHost;
   onExit: () => void;
 }
 
-const VitalsModal = ({ host, onExit }: IVitalsModal) => {
+const VitalsModal = ({ host, onExit, ...vitalsSources }: IVitalsModal) => {
   // enrollment_status is the full MdmEnrollmentStatus union; a non-iOS status
   // (or null) simply has no entry, leaving every vital supported.
   const unsupportedVitals =
@@ -262,29 +417,44 @@ const VitalsModal = ({ host, onExit }: IVitalsModal) => {
       host.mdm?.enrollment_status as IosOrIpadosEnrollmentStatus
     ];
 
+  const iosOnlyVitals: VitalForSort[] = VITALS.map(
+    ({ key, label, render, multiline }) => {
+      const isUnsupported = unsupportedVitals?.includes(key) ?? false;
+      const value = isUnsupported ? (
+        <TooltipWrapper tipContent={NOT_SUPPORTED_VITAL_TOOLTIP}>
+          Not supported
+        </TooltipWrapper>
+      ) : (
+        render(host)
+      );
+
+      return {
+        sortKey: label,
+        element: (
+          <DataSet
+            key={key}
+            title={label}
+            value={value}
+            multiline={multiline && !isUnsupported}
+          />
+        ),
+      };
+    }
+  );
+
+  // The modal is the only place the full set is visible, so it shows the
+  // pre-existing vitals (which the iOS/iPadOS card now trims to 8) alongside
+  // the iOS/iPadOS-only ones, in one alphabetical list.
+  const allVitals = sortHostVitals([
+    ...buildHostVitals(vitalsSources),
+    ...iosOnlyVitals,
+  ]);
+
   return (
     <Modal title="Vitals" className={baseClass} onExit={onExit} width="large">
       <>
         <dl className={`${baseClass}__vitals`}>
-          {VITALS.map(({ key, label, render, multiline }) => {
-            const isUnsupported = unsupportedVitals?.includes(key) ?? false;
-            const value = isUnsupported ? (
-              <TooltipWrapper tipContent={NOT_SUPPORTED_VITAL_TOOLTIP}>
-                Not supported
-              </TooltipWrapper>
-            ) : (
-              render(host)
-            );
-
-            return (
-              <DataSet
-                key={key}
-                title={label}
-                value={value}
-                multiline={multiline && !isUnsupported}
-              />
-            );
-          })}
+          {allVitals.map((vital) => vital.element)}
         </dl>
         <ModalFooter
           primaryButtons={
