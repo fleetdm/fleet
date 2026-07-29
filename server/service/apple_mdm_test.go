@@ -8538,6 +8538,31 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_DIGICERT_DATA_myCA is not supported in DDM profiles")
 	})
+
+	// The OS update target variables are Fleet-internal: they are placed only in
+	// Fleet's own OS update declaration and resolved per host. An admin must not
+	// be able to reference them in a declaration of their own, so they are
+	// deliberately absent from fleetVarsSupportedInDDMDeclarations. Adding them
+	// there would silently break that.
+	t.Run("Fleet-internal OS update variables are rejected", func(t *testing.T) {
+		for _, v := range []fleet.FleetVarName{
+			fleet.FleetVarHostTargetOSVersion,
+			fleet.FleetVarHostTargetOSDeadline,
+		} {
+			// Both reference forms, since Fleet's own declaration uses each of them.
+			for form, value := range map[string]string{
+				"bare":   fmt.Sprintf("$FLEET_VAR_%s", v),
+				"braces": fmt.Sprintf("${FLEET_VAR_%s}", v),
+			} {
+				t.Run(string(v)+"/"+form, func(t *testing.T) {
+					_, err := validateDeclarationFleetVariables(makeDecl(value), premiumLic)
+					require.Error(t, err)
+					require.ErrorContains(t, err,
+						fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in DDM profiles", v))
+				})
+			}
+		}
+	})
 }
 
 func TestJSONEscapeString(t *testing.T) {
