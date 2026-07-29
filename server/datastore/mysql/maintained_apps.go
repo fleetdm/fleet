@@ -164,17 +164,19 @@ func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 }
 
 func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.MaintainedApp, allPrefixes []windowsFMAPrefix) error {
-	prefixes := fma.WinMatchPrefixes()
-	if len(prefixes) == 0 {
+	if fma.TitleID == nil {
+		// No installer-owned title, so there is no merge destination.
 		return nil
 	}
 
-	// Narrow the scan to names that could plausibly belong to this FMA. The final
-	// decision is made in Go by matchWindowsFMATitle so that prefix precedence and the
-	// ambiguity rule match the ingestion path exactly.
+	// Narrow the scan to names that could plausibly belong to this FMA. These are the
+	// app's own prefixes, and unlike the entries in allPrefixes they are the raw stored
+	// form, since they go to LIKE rather than to a Go comparison. The final decision is
+	// still made by matchWindowsFMATitle over allPrefixes, so prefix precedence and the
+	// cross-app ambiguity rule match the ingestion path exactly.
 	var nameConds []string
 	args := []any{*fma.TitleID}
-	for _, prefix := range prefixes {
+	for _, prefix := range fma.WinMatchPrefixes() {
 		// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
 		// ESCAPE clause below is stated explicitly rather than relying on the default.
 		escaped := prefix
@@ -183,6 +185,13 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Maintai
 		}
 		nameConds = append(nameConds, `st.name = ? OR st.name LIKE ? ESCAPE '\\'`)
 		args = append(args, prefix, escaped+" %")
+	}
+
+	// An app with no usable name yields no conditions. Match nothing rather than
+	// joining into an empty predicate, which would be a syntax error.
+	nameCond := "1 = 0"
+	if len(nameConds) > 0 {
+		nameCond = strings.Join(nameConds, " OR ")
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -194,7 +203,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, fma fleet.Maintai
 			FROM software_titles st
 			WHERE st.source = 'programs' AND st.extension_for = ''
 				AND st.id <> ?
-				AND (` + strings.Join(nameConds, " OR ") + `)
+				AND (` + nameCond + `)
 				AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
 				AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)
 				AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = st.id)

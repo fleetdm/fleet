@@ -48,6 +48,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAIgnoresInstallerWithoutTitle", testWindowsFMAIgnoresInstallerWithoutTitle},
 		{"WindowsFMANameWithLikeWildcards", testWindowsFMANameWithLikeWildcards},
 		{"WindowsFMAMatchesCache", testWindowsFMAMatchesCache},
+		{"WindowsFMAMergeWithoutPrefixes", testWindowsFMAMergeWithoutPrefixes},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1928,6 +1929,50 @@ func testWindowsFMAMatchesCache(t *testing.T, ds *Datastore) {
 	// The reconcile pass reads uncached, so it repairs what the stale window missed.
 	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
 	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 7.373.1"))
+}
+
+// testWindowsFMAMergeWithoutPrefixes: an app that yields no match prefixes must be a
+// safe no-op. The prefixes build the WHERE clause, so an empty set previously risked
+// joining into an empty predicate, which MySQL rejects as a syntax error.
+func testWindowsFMAMergeWithoutPrefixes(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so the software sits on a versioned title that a working merge
+	// would move. That is what makes "nothing moved" a meaningful assertion.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	titleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"),
+		"precondition: software is still on the versioned title")
+
+	cases := []struct {
+		name string
+		app  fleet.MaintainedApp
+	}{
+		// Every name field blank: no prefixes, so nothing can be matched.
+		{"no names", fleet.MaintainedApp{Platform: "windows", TitleID: &titleID}},
+		// Not a Windows app: WinMatchPrefixes declines regardless of the names.
+		{"not windows", fleet.MaintainedApp{
+			Name: "Granola", UniqueIdentifier: "Granola", TitleName: "Granola",
+			Platform: "darwin", TitleID: &titleID,
+		}},
+		// No destination title at all.
+		{"no title", fleet.MaintainedApp{Name: "Granola", UniqueIdentifier: "Granola", Platform: "windows"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Must not error, and must not move anything.
+			require.NoError(t, ds.mergeWindowsFMATitle(ctx, c.app, windowsFMAPrefixes([]fleet.MaintainedApp{c.app})))
+			require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
+		})
+	}
 }
 
 // addWindowsFMAWithInstaller creates a Windows FMA plus an installer that owns the
