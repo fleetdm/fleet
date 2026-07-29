@@ -1723,3 +1723,88 @@ func TestGetOrbitConfigHostDataCache(t *testing.T) {
 	require.Equal(t, int32(2), listScriptsCalls.Load())
 	require.Equal(t, int32(2), listInstallsCalls.Load())
 }
+
+func TestGetOrbitConfigHostDataCacheErrors(t *testing.T) {
+	t.Run("GetHostMDM error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "retrieving host mdm info")
+	})
+
+	t.Run("ListReadyToExecuteScriptsForHost error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "listing pending scripts")
+	})
+
+	t.Run("ListReadyToExecuteSoftwareInstalls error propagates", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{OsqueryHostID: ptr.String("test"), ID: 1, Platform: "ubuntu"}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, errors.New("db connection failed")
+		}
+
+		ctx = test.HostContext(ctx, host)
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "listing pending software installs")
+	})
+}
+
+func TestGetOrbitConfigHostDataCacheWithPendingWork(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) { return false, nil }
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) { return nil, nil }
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		return []*fleet.HostScriptResult{
+			{ExecutionID: "exec-1"},
+			{ExecutionID: "exec-2"},
+		}, nil
+	}
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		return []string{"install-1", "install-2"}, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+	cfg, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []string{"exec-1", "exec-2"}, cfg.Notifications.PendingScriptExecutionIDs)
+	require.Equal(t, []string{"install-1", "install-2"}, cfg.Notifications.PendingSoftwareInstallerIDs)
+}
