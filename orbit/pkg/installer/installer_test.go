@@ -1412,3 +1412,119 @@ func TestInstallSoftwareNotFoundRetryWindow(t *testing.T) {
 		require.False(t, stillTracked, "non-404 error path must clear tracker")
 	})
 }
+
+// attemptInstallExtTestSetup wires a Runner whose exec fn records the base name
+// of every script it runs, so tests can assert the temp file extension picked
+// for each script's contents.
+func attemptInstallExtTestSetup(t *testing.T, execFn func(context.Context, string, []string) ([]byte, int, error)) (*Runner, *[]string) {
+	t.Helper()
+	var executed []string
+	oc := &TestOrbitClient{
+		downloadInstallerFn: func(installerID uint, downloadDir string) (string, error) {
+			return filepath.Join(downloadDir, fmt.Sprint(installerID)+".pkg"), nil
+		},
+	}
+	r := &Runner{
+		OrbitClient:               oc,
+		scriptsEnabled:            func() bool { return true },
+		installerExecutionTimeout: time.Minute,
+		tempDirFn:                 func(string, string) (string, error) { return t.TempDir(), nil },
+		removeAllFn:               func(string) error { return nil },
+		execCmdFn: func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			executed = append(executed, filepath.Base(scriptPath))
+			return execFn(ctx, scriptPath, env)
+		},
+	}
+	return r, &executed
+}
+
+func TestScriptFileExtension(t *testing.T) {
+	orig := scriptGOOS
+	t.Cleanup(func() { scriptGOOS = orig })
+
+	scriptGOOS = "darwin"
+	require.Equal(t, ".sh", scriptFileExtension(""), "no shebang defaults to shell")
+	require.Equal(t, ".sh", scriptFileExtension("#!/bin/bash\necho hi"), "shell shebang")
+	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')"), "python shebang")
+
+	scriptGOOS = "windows"
+	require.Equal(t, ".ps1", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')"), "windows is always powershell")
+	require.Equal(t, ".ps1", scriptFileExtension(""))
+}
+
+func TestAttemptInstallScriptExtension(t *testing.T) {
+	success := func(context.Context, string, []string) ([]byte, int, error) { return []byte("ok"), 0, nil }
+
+	t.Run("python install script", func(t *testing.T) {
+		r, executed := attemptInstallExtTestSetup(t, success)
+		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:   1,
+			InstallScript: "#!/usr/bin/env python3\nprint('install')",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.NoError(t, err)
+		require.Contains(t, *executed, "install-script.py")
+	})
+
+	t.Run("no-shebang install script", func(t *testing.T) {
+		r, executed := attemptInstallExtTestSetup(t, success)
+		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:   1,
+			InstallScript: "echo install",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.NoError(t, err)
+		require.Contains(t, *executed, "install-script.sh")
+	})
+
+	t.Run("python install with shell post-install and uninstall", func(t *testing.T) {
+		// A .py package can carry a Python install script but shell post-install
+		// and uninstall scripts; each temp file must reflect its own shebang.
+		exitPost := func(_ context.Context, scriptPath string, _ []string) ([]byte, int, error) {
+			if strings.Contains(scriptPath, "post-install-script") {
+				return []byte("boom"), 1, &exec.ExitError{}
+			}
+			return []byte("ok"), 0, nil
+		}
+		r, executed := attemptInstallExtTestSetup(t, exitPost)
+		_, _ = r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:       1,
+			InstallScript:     "#!/usr/bin/env python3\nprint('install')",
+			PostInstallScript: "#!/bin/sh\necho post",
+			UninstallScript:   "#!/bin/sh\necho uninstall",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.Contains(t, *executed, "install-script.py")
+		require.Contains(t, *executed, "post-install-script.sh")
+		require.Contains(t, *executed, "rollback-script.sh")
+	})
+
+	t.Run("windows always powershell", func(t *testing.T) {
+		orig := scriptGOOS
+		t.Cleanup(func() { scriptGOOS = orig })
+		scriptGOOS = "windows"
+
+		r, executed := attemptInstallExtTestSetup(t, success)
+		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:   1,
+			InstallScript: "#!/usr/bin/env python3\nprint('install')",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.NoError(t, err)
+		require.Contains(t, *executed, "install-script.ps1")
+	})
+}
+
+// An execve failure (exit code -1, empty output) must surface the underlying
+// error to the server rather than reporting a blank result.
+func TestRunInstallerScriptSurfacesExecveError(t *testing.T) {
+	const execveErr = "fork/exec /usr/local/bin/python3: no such file or directory"
+	r, _ := attemptInstallExtTestSetup(t, func(context.Context, string, []string) ([]byte, int, error) {
+		return nil, -1, errors.New(execveErr)
+	})
+
+	payload := &fleet.HostSoftwareInstallResultPayload{}
+	_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+		InstallerID:   1,
+		InstallScript: "#!/usr/local/bin/python3\nprint('install')",
+	}, payload, log.With().Logger())
+	require.Error(t, err)
+	require.NotNil(t, payload.InstallScriptOutput)
+	require.Contains(t, *payload.InstallScriptOutput, execveErr)
+}

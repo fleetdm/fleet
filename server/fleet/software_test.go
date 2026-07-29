@@ -182,6 +182,29 @@ func TestEnhanceOutputDetails(t *testing.T) {
 			expectedPostInstallScriptOutput: nil,
 		},
 		{
+			name: "non-pending status with script timeout/could-not-run exit code and empty output",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeScriptTimeout),
+				Output:                new(""),
+			},
+			expectedPreInstallQueryOutput:   nil,
+			expectedOutput:                  new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, "")),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
+			name: "non-pending status with script timeout/could-not-run exit code and partial output",
+			initial: HostSoftwareInstallerResult{
+				Status:                SoftwareInstallFailed,
+				InstallScriptExitCode: new(ExitCodeScriptTimeout),
+				Output:                new("partial output before the process was stopped"),
+			},
+			expectedPreInstallQueryOutput: nil,
+			expectedOutput: new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy,
+				"partial output before the process was stopped")),
+			expectedPostInstallScriptOutput: nil,
+		},
+		{
 			name: "non-pending status with failed install script",
 			initial: HostSoftwareInstallerResult{
 				Status:                SoftwareInstallFailed,

@@ -1,0 +1,6 @@
+- Fixed the "Add software" error for a file whose contents don't match a supported installer format — it no longer says "Couldn't edit software" on an add and no longer implies the file extension is the problem.
+- Fixed software installer validation errors reporting the wrong action verb (add vs. edit).
+- Allowed `.py` script-only packages to be assigned a `setup_experience_platform` (`darwin` or `linux`), matching `.sh`.
+- Added a diagnostic message when an install script can't be run (exit code -1) — e.g. when the interpreter in its shebang is missing on the host — instead of reporting no output.
+- Fixed the install rejection message for `.sh`/`.py` script packages to say they can be installed on macOS and Linux hosts, rather than Linux only.
+- Fixed `.py` package install scripts being written to the host with a `.sh` extension, which produced misleading Python tracebacks.

@@ -2091,7 +2091,7 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 		// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
 		if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 				InternalErr: ctxerr.NewWithData(
 					ctx, "invalid host platform for requested installer",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
@@ -2402,12 +2402,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			if failOnBlankScript {
 				if payload.InstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Install script is required for .zip packages.",
+						Message: "Install script is required for .zip packages.",
 					}
 				}
 				if payload.UninstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Uninstall script is required for .zip packages.",
+						Message: "Uninstall script is required for .zip packages.",
 					}
 				}
 			}
@@ -2419,14 +2419,16 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
+			// The failure comes from magic-byte detection, so the file's content
+			// (not its extension) is what didn't match a supported format.
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
+				Message:     "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
 		if errors.Is(err, file.ErrInvalidTarball) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. Uploaded file is not a valid .tar.gz archive.",
+				Message:     "Uploaded file is not a valid .tar.gz archive.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -2435,7 +2437,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" && meta.Extension != "zip" {
 		return "", &fleet.BadRequestError{
-			Message:     "Couldn't add. Unable to extract necessary metadata.",
+			Message:     "Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
@@ -2464,11 +2466,11 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		ext := strings.ToLower(payload.Extension)
 		if ext == "zip" {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't add. Install script is required for .zip packages.",
+				Message: "Install script is required for .zip packages.",
 			}
 		}
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", ext),
+			Message: fmt.Sprintf("Install script is required for .%s packages.", ext),
 		}
 	}
 
@@ -2481,7 +2483,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 	if payload.UninstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+			Message: fmt.Sprintf("Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
 	}
 
@@ -2533,7 +2535,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 
 	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
 		return &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
 		}
 	}
@@ -2542,7 +2544,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	kind, directExecute, err := fleet.ShebangInfo(scriptContents)
 	if err != nil {
 		return &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script shebang"),
 		}
 	}
@@ -2551,7 +2553,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
 		if directExecute && kind != fleet.ShebangShell {
 			return &fleet.BadRequestError{
-				Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
+				Message:     fmt.Sprintf("Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
 				InternalErr: ctxerr.New(ctx, "shell script with non-shell shebang"),
 			}
 		}
@@ -2559,7 +2561,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// python scripts must be directly executable (via a python shebang).
 		if !directExecute || kind != fleet.ShebangPython {
 			return &fleet.BadRequestError{
-				Message:     "Couldn't add. Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
+				Message:     "Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
 				InternalErr: ctxerr.New(ctx, "python script without python shebang"),
 			}
 		}
@@ -2567,7 +2569,7 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
 		if directExecute {
 			return &fleet.BadRequestError{
-				Message:     "Couldn't add. Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+				Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
 				InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
 			}
 		}
@@ -3982,7 +3984,7 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 			// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
 			if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
 				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "invalid host platform for requested installer",
 						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
@@ -4142,6 +4144,26 @@ func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, require
 		return ext, installer.Platform
 	}
 	return ext, packageExtensionToPlatform(ext)
+}
+
+// humanReadableRequiredPlatforms returns the platform(s) named in the
+// "can be installed only on ..." rejection message. .sh/.py script packages
+// are stored/derived as "linux" but the install gate also permits darwin
+// (see fleet.IsUnixLike), so they need the two-platform wording.
+func humanReadableRequiredPlatforms(ext, requiredPlatform string) string {
+	if ext == ".sh" || ext == ".py" {
+		return "macOS and Linux"
+	}
+	switch requiredPlatform {
+	case "darwin":
+		return "macOS"
+	case "windows":
+		return "Windows"
+	case "linux":
+		return "Linux"
+	default:
+		return requiredPlatform
+	}
 }
 
 // packageExtensionToPlatform returns the platform name based on the

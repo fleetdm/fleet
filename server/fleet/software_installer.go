@@ -500,9 +500,10 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy  = "Installing software...\nError: Software installer download failed."
-	SoftwareInstallerNotFoundCopy        = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
-	SoftwareInstallerFleetVarsFailedCopy = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerDownloadFailedCopy    = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy          = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerFleetVarsFailedCopy   = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerScriptCouldNotRunCopy = "Installing software...\nError: Fleet couldn't run the install script. The script's interpreter (from its \"#!\" shebang) may be missing or not executable on this host, or the script was stopped before it finished.\n%s"
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -538,6 +539,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeFleetVarResolutionFailed:
 		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
+		return
+	case ExitCodeScriptTimeout:
+		h.Output = new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, *h.Output))
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -805,7 +809,7 @@ func CanonicalPlatform(p string) string {
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
-	case "sh":
+	case "sh", "py":
 		return []string{"darwin", "linux"}
 	default:
 		return nil
