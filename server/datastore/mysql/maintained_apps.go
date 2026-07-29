@@ -218,13 +218,24 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	}
 
 	staleByDestination := make(map[uint][]uint)
+	var unmatched []string
 	for _, c := range candidates {
 		match, ok := matchWindowsFMATitle(c.Name, allPrefixes)
 		if !ok || match.titleID == c.ID {
+			if !ok {
+				unmatched = append(unmatched, c.Name)
+			}
 			continue
 		}
 		staleByDestination[match.titleID] = append(staleByDestination[match.titleID], c.ID)
 	}
+
+	if len(unmatched) > 0 && ds.logger != nil {
+		ds.logger.DebugContext(ctx, "windows software titles matched a maintained app by name but were not merged",
+			"names", unmatched,
+		)
+	}
+
 	return staleByDestination, nil
 }
 
@@ -237,7 +248,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		canonicalID := destinationID
 
 		// Re-point everything that references the stale titles onto the destination, then
@@ -304,7 +315,19 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		}
 
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	if ds.logger != nil {
+		ds.logger.InfoContext(ctx, "merged Windows software titles into the title owned by a Fleet-maintained app installer",
+			"destination_title_id", destinationID,
+			"merged_title_ids", staleIDs,
+			"merged_count", len(staleIDs),
+		)
+	}
+
+	return nil
 }
 
 // fleetMaintainedAppsTeamJoin is the FROM clause plus the LEFT JOIN that
