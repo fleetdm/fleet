@@ -45,13 +45,30 @@ type MaintainedApp struct {
 // Returns nothing unless this is a Windows app with a resolved title, since there is
 // nothing to merge onto otherwise. Note that this depends on Platform and TitleID being
 // populated: a caller loading a partial MaintainedApp must select both.
+//
+// Given (UniqueIdentifier, Name, TitleName), it returns:
+//
+//	("Granola", "Granola", "Granola")                  -> ["Granola"]
+//	("CPUID CPU-Z", "CPU-Z", "CPU-Z")                   -> ["CPUID CPU-Z", "CPU-Z"]
+//	("Notion 6.1.0", "Notion", "Notion")                -> ["Notion 6.1.0", "Notion"]
+//	("Zoom", "Zoom Workplace", "Zoom")                  -> ["Zoom Workplace", "Zoom"]
+//	("Box", "Box Drive", "Box Drive")                   -> ["Box Drive", "Box"]
+//	("", "Granola", "")                                 -> ["Granola"]
+//
+// The first collapses to one entry because all three names agree. The second and third
+// show why all three are kept: only the identifier matches "CPUID CPU-Z 2.16", and only
+// the name matches "Notion 7.2.0". The fourth is a catalog rename, where the title still
+// carries the older name inventory reports under. Ordering is longest first, so
+// "Box Drive 2.0" matches the more specific "Box Drive" rather than "Box".
 func (s *MaintainedApp) WinMatchPrefixes() []string {
 	if s.Platform != "windows" || s.TitleID == nil {
 		return nil
 	}
 
-	prefixes := make([]string, 0, 3)
-	for _, c := range []string{s.UniqueIdentifier, s.Name, s.TitleName} {
+	candidates := []string{s.UniqueIdentifier, s.Name, s.TitleName}
+
+	prefixes := make([]string, 0, len(candidates))
+	for _, c := range candidates {
 		if c == "" || slices.Contains(prefixes, c) {
 			continue
 		}
