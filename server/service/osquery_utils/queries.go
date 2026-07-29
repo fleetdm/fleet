@@ -952,6 +952,12 @@ var mdmQueries = map[string]DetailQuery{
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
+	"mdm_macos_software_update_id": {
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible','bridge-model','board-id');`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
+		Discovery:        discoveryTable("ioreg"),
+	},
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.
@@ -3294,6 +3300,25 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	logger.InfoContext(ctx, "assigned windows enrollment default fleet",
 		"host_id", hostID, "team_id", *teamID, "team_name", teamName, "mdm_device_id", device.MDMDeviceID)
 	return nil
+}
+
+func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	if len(rows) > 1 {
+		// TODO: Can a device ever report more than 1 row? I haven't seen it.
+		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID invalid number of rows: %d", len(rows))
+	}
+
+	softwareUpdateDeviceID := rows[0]["value"]
+
+	if softwareUpdateDeviceID == "" {
+		return ctxerr.Errorf(ctx, "directIngestMDMMacOSSoftwareUpdateID empty software update device ID")
+	}
+
+	return ds.InsertMacOSSoftwareUpdateDeviceID(ctx, host.UUID, softwareUpdateDeviceID)
 }
 
 var luksVerifyQuery = DetailQuery{

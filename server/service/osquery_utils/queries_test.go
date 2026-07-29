@@ -4671,3 +4671,45 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 		})
 	}
 }
+
+func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
+	ds := new(mock.Store)
+	logger := slog.New(slog.DiscardHandler)
+	hostUUID := "test-uuid"
+	host := fleet.Host{ID: 1, UUID: hostUUID}
+	ds.InsertMacOSSoftwareUpdateDeviceIDFunc = func(ctx context.Context, hostUUID, updateDeviceID string) error {
+		return nil
+	}
+
+	t.Run("no rows returns with no error", func(t *testing.T) {
+		require.NoError(t, directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{}))
+		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("more than 1 row returns error", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"software_update_id": "1"},
+			{"software_update_id": "2"},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "invalid number of rows")
+		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("empty value return error", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"value": ""},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "empty software update device ID")
+		require.False(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+	})
+
+	t.Run("valid value inserts entry", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+	})
+}
