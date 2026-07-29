@@ -2071,10 +2071,6 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 	}
 
-	// Also rewrite server_url/mdm_id/installed_from_dep on conflict. MDMTurnOff
-	// clears those columns; without restoring them here, iOS/iPadOS hosts that
-	// unenroll and re-enroll stay on server_url='' forever (no osquery path to
-	// refresh MDM details). See https://github.com/fleetdm/fleet/issues/50187
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id, is_personal_enrollment) VALUES %s
 		ON DUPLICATE KEY UPDATE
