@@ -7380,6 +7380,13 @@
       "description": "RsyncUI is a GUI for rsync."
     },
     {
+      "name": "Rtools",
+      "slug": "rtools/windows",
+      "platform": "windows",
+      "unique_identifier": "Rtools",
+      "description": "Rtools is a toolchain bundle for building R packages from source on Windows."
+    },
+    {
       "name": "RubyMine",
       "slug": "rubymine/darwin",
       "platform": "darwin",
