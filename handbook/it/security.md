@@ -1679,11 +1679,69 @@ Fleet policy requires:
 - The risk register is monitored quarterly to assess compliance with the above policy, and document newly discovered or created risks.
 
 
+### Risk scoring rubric
+
+Every risk in the risk register is rated on two scales, and the two ratings are multiplied together (`likelihood × impact`) to produce the risk score. The score determines the risk level, the corrective action timeline, and whether approval is required to accept the risk instead of mitigating it.
+
+Likelihood — how likely the risk is to occur:
+
+| Rating | Likelihood      |
+| ------ | --------------- |
+| 1      | Very unlikely   |
+| 2      | Unlikely        |
+| 3      | Somewhat likely |
+| 4      | Likely          |
+| 5      | Very likely     |
+
+Impact — the consequences to Fleet if the risk occurs:
+
+| Rating | Impact           |
+| ------ | ---------------- |
+| 1      | Very low impact  |
+| 2      | Low impact       |
+| 3      | Medium impact    |
+| 4      | High impact      |
+| 5      | Very high impact |
+
+Risk level by score:
+
+| Score   | Risk level |
+| ------- | ---------- |
+| 1–6     | Low        |
+| 7–19    | Medium     |
+| 20–25   | High       |
+
+Scores for every combination of likelihood and impact:
+
+| Impact ↓ / Likelihood → | 1 Very unlikely | 2 Unlikely   | 3 Somewhat likely | 4 Likely     | 5 Very likely |
+| ----------------------- | --------------- | ------------ | ----------------- | ------------ | ------------- |
+| **5 Very high**         | 5 (Low)         | 10 (Medium)  | 15 (Medium)       | 20 (High)    | 25 (High)     |
+| **4 High**              | 4 (Low)         | 8 (Medium)   | 12 (Medium)       | 16 (Medium)  | 20 (High)     |
+| **3 Medium**            | 3 (Low)         | 6 (Low)      | 9 (Medium)        | 12 (Medium)  | 15 (Medium)   |
+| **2 Low**               | 2 (Low)         | 4 (Low)      | 6 (Low)           | 8 (Medium)   | 10 (Medium)   |
+| **1 Very low**          | 1 (Low)         | 2 (Low)      | 3 (Low)           | 4 (Low)      | 5 (Low)       |
+
+
 ### Acceptable Risk Levels
 
 Risks that are either low impact or low probability are generally considered acceptable.
 
 All other risks must be individually reviewed and managed.
+
+
+### Risk mitigation and approval
+
+Whether a risk requires mitigation, and who must approve accepting it, is determined by its risk level:
+
+| Risk level    | Mitigation                                                       | Approval to accept the risk instead of mitigating it                      |
+| ------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Low (1–6)     | Not required. Mitigate on a best-effort basis.                    | None. Acceptance is recorded in the risk register by the risk owner.       |
+| Medium (7–19) | Required. A documented treatment plan with an owner and due date. | Fleet's Head of Security.                                                 |
+| High (20–25)  | Required. A documented treatment plan with an owner and due date. | Fleet's Head of Security and CIO.                                         |
+
+- Accepting a medium or high risk requires a documented business justification, the compensating controls in place, and an expiration date no longer than one year from the date of approval. Accepted risks must be reviewed and re-evaluated on or before the expiration date.
+- Mitigation work that will not complete within the corrective action timeline below must be treated as an accepted risk for the remaining period and approved accordingly.
+- Rescoring a risk to a lower level requires the same approval as accepting it at its original level.
 
 
 ### Risk corrective action timelines
