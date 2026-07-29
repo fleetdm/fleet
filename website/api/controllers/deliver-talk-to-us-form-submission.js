@@ -122,11 +122,13 @@ Only include a key when you are confident of its value. Omit any key you are uns
     // If we got a employer.numberOfEmployees value from the getEnriched helper, or the user entered more than 700 hosts, get the SF user who owns the territory that this user's company is in, and send them to a "Talk to us" calendly event.
     if(numberOfHosts >= 700 || (employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 700)) {
       contactInformation.contactSource = 'Website - Contact forms - Demo - ICP';
-
+      let numberOfEmployeesToUseForTerritoryLookup;
       if(employeeCountFromEnrichmentHelper && employeeCountFromEnrichmentHelper >= 700) {
         contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event because of the number of employees (${employeeCountFromEnrichmentHelper}) returned by Coresignal. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+        numberOfEmployeesToUseForTerritoryLookup = employeeCountFromEnrichmentHelper;
       } else {
         contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Provided organization name: ${organization}, Number of employees: ${numberOfHosts}`;
+        numberOfEmployeesToUseForTerritoryLookup = numberOfHosts;
       }
 
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
@@ -142,18 +144,21 @@ Only include a key when you are confident of its value. Omit any key you are uns
       let territoryUserId = await sails.helpers.salesforce.getTerritoryUserId.with({
         state: locationForTerritoryLookup.state,
         country: locationForTerritoryLookup.country,
-        city: locationForTerritoryLookup.city
+        city: locationForTerritoryLookup.city,
+        website: emailDomain,
+        numberOfEmployees: numberOfEmployeesToUseForTerritoryLookup,
       }).tolerate((err)=>{
         sails.log.warn(`When a user submitted the "Talk to us" form, Salesforce territory information could not be found using the provided information. This user will be sent to the calendly link for the washingtonDc region. Full error: ${require('util').inspect(err)}`);
         return '0054x0000086sOlAAI';
       });
 
       let bookingUrlByUserId = {
-        '005UG000006YYDVYA4': 'https://calendly.com/d/d3fs-28g-vdk/talk-to-us', //newYorkCity
-        '0054x0000086sOlAAI': 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us', //washingtonDc
-        '005UG000008y0wbYAA': 'https://calendly.com/d/ds9c-9vt-mz6/talk-to-us', //losAngeles
-        '0054x0000086wsGAAQ': 'https://calendly.com/d/dz4c-mjx-6xv/talk-to-us', //sanFrancisco
-        '005UG000009NnSfYAK': 'https://calendly.com/d/ds88-n2m-ddt/talk-to-us', //stockholm
+        '0054x000005mpQmAAI': 'https://calendly.com/d/d3hw-r73-gt7/talk-to-us',// New York City - Enterprise
+        '005UG000008y0wbYAA': 'https://calendly.com/d/ds9c-9vt-mz6/talk-to-us',// Los Angeles - Enterprise
+        '0054x0000086wsGAAQ': 'https://calendly.com/d/dz4c-mjx-6xv/talk-to-us',// San Francisco - Enterprise
+        '005UG000006YYDVYA4': 'https://calendly.com/d/d3fs-28g-vdk/talk-to-us',// San Francisco - Mid-market
+        '0054x0000086sOlAAI': 'https://calendly.com/d/dzyz-tt7-yt8/talk-to-us',// New York City - Mid-market
+        '005UG000009NnSfYAK': 'https://calendly.com/d/ds88-n2m-ddt/talk-to-us',// Stockholm
       };
 
       let eventUrlForThisUsersTerritory = bookingUrlByUserId[territoryUserId];

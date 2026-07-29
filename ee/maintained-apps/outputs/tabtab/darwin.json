@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2.1.1",
+      "version": "2.1.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'riccqi.TabTab';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'riccqi.TabTab' AND version_compare(bundle_short_version, '2.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'riccqi.TabTab' AND version_compare(bundle_short_version, '2.1.2') < 0);"
       },
       "installer_url": "https://github.com/riccqi/TabTabApp/releases/download/prod/tabtab.dmg",
       "install_script_ref": "db1cb8ec",

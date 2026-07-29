@@ -168,7 +168,6 @@ const SoftwareFilters = ({
         hideText="Advanced options"
         caretPosition="after"
         onClick={() => setShowAdvanced((prev) => !prev)}
-        variant="secondary"
       />
 
       {showAdvanced && (

@@ -919,6 +919,13 @@
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
     },
     {
+      "name": "Azure Data Studio",
+      "slug": "azure-data-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Azure Data Studio",
+      "description": "Azure Data Studio is a cross-platform database tool for querying and managing SQL Server, Azure SQL, and PostgreSQL."
+    },
+    {
       "name": "Azure Functions Core Tools",
       "slug": "azure-functions-core-tools/windows",
       "platform": "windows",
@@ -3747,6 +3754,13 @@
       "description": "Glyphs is a font editor."
     },
     {
+      "name": "GNU Privacy Guard",
+      "slug": "gnupg/windows",
+      "platform": "windows",
+      "unique_identifier": "GNU Privacy Guard",
+      "description": "GNU Privacy Guard is an implementation of the OpenPGP standard for encrypting and signing data and communications."
+    },
+    {
       "name": "Go",
       "slug": "go/windows",
       "platform": "windows",
@@ -3870,6 +3884,13 @@
       "slug": "google-earth-pro/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.GoogleEarthUpdateHelper",
+      "description": "Google Earth Pro is a virtual globe."
+    },
+    {
+      "name": "Google Earth Pro",
+      "slug": "google-earth-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Earth Pro",
       "description": "Google Earth Pro is a virtual globe."
     },
     {
@@ -4956,6 +4977,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech Unifying Software",
+      "slug": "logitech-unifying-software/windows",
+      "platform": "windows",
+      "unique_identifier": "Logitech Unifying Software",
+      "description": "Logitech Unifying Software is a tool for pairing and removing devices that use a Logitech Unifying receiver."
     },
     {
       "name": "Logi Tune",
@@ -6915,7 +6943,7 @@
       "slug": "proxyman/windows",
       "platform": "windows",
       "unique_identifier": "Proxyman",
-      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+      "description": "Proxyman is a high-performance app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
       "name": "Pulsar",
@@ -7350,6 +7378,13 @@
       "platform": "darwin",
       "unique_identifier": "no.blogspot.RsyncUI",
       "description": "RsyncUI is a GUI for rsync."
+    },
+    {
+      "name": "Rtools",
+      "slug": "rtools/windows",
+      "platform": "windows",
+      "unique_identifier": "Rtools",
+      "description": "Rtools is a toolchain bundle for building R packages from source on Windows."
     },
     {
       "name": "RubyMine",
@@ -9165,11 +9200,11 @@
       "description": "WeChat for Mac is a free messaging and calling application."
     },
     {
-      "name": "WeChat for Mac",
+      "name": "WeChat",
       "slug": "wechat/windows",
       "platform": "windows",
       "unique_identifier": "WeChat",
-      "description": "WeChat for Mac is a free messaging and calling application."
+      "description": "WeChat is a free messaging and calling application."
     },
     {
       "name": "WeekToDo",
@@ -9502,17 +9537,10 @@
     },
     {
       "name": "Yubikey Manager",
-      "slug": "yubico-yubikey-manager/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
-    },
-    {
-      "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/windows",
       "platform": "windows",
       "unique_identifier": "YubiKey Manager",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zappy",

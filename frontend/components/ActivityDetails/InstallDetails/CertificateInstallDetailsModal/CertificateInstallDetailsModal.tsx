@@ -57,7 +57,6 @@ const CertificateInstallDetailsModal = ({
               hideText="Details"
               caretPosition="after"
               onClick={() => setShowDetails((prev) => !prev)}
-              variant="secondary"
             />
             {showDetails && (
               <Textarea label="Error details:" variant="code">
