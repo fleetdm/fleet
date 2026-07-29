@@ -7,7 +7,8 @@ on:
     paths:
       - 'tools/dibble/**'
       - 'tools/upgrade/**'
-      # dibble and upgrade pin the parent module via `replace github.com/fleetdm/fleet/v4 => ../..`, so a
+      - 'tools/gitops-auto-complete/**'
+      # These tools pin the parent module via `replace github.com/fleetdm/fleet/v4 => ../..`, so a
       # change to the root module's dependency graph can leave their go.mod and go.sum out of sync. Trigger on
       # the root go.mod/go.sum too, so the same change that bumps a root dependency is forced to re-tidy them.
       - 'go.mod'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'tools/dibble/**'
       - 'tools/upgrade/**'
+      - 'tools/gitops-auto-complete/**'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-tools.yml'
@@ -51,6 +53,9 @@ jobs:
             run_tests: true
           - tool: upgrade
             dir: tools/upgrade
+            run_tests: false
+          - tool: gitops-auto-complete
+            dir: tools/gitops-auto-complete
             run_tests: false
     steps:
       - name: Harden Runner

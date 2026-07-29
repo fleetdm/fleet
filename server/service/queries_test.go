@@ -851,6 +851,70 @@ func TestQueryAuth(t *testing.T) {
 	}
 }
 
+func TestQueryResponsesFilterUnauthorizedPacks(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamID := uint(1)
+	// Simulates a pack scoped to another team that got associated to this
+	// query via the name-based join in loadPacksForQueries.
+	otherTeamPack := fleet.Pack{ID: 123, Name: "other team pack", Description: "secret"}
+	teamQuery := fleet.Query{
+		ID:     88,
+		Name:   "shared name",
+		TeamID: &teamID,
+	}
+
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		q := teamQuery
+		q.Packs = []fleet.Pack{otherTeamPack}
+		return &q, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		q := teamQuery
+		q.Packs = []fleet.Pack{otherTeamPack}
+		return []*fleet.Query{&q}, 1, 0, nil, nil
+	}
+
+	// A team observer can read the team query but is not authorized to read
+	// packs, so pack metadata must be filtered out of the response.
+	teamObserver := &fleet.User{
+		ID: 44,
+		Teams: []fleet.UserTeam{
+			{
+				Team: fleet.Team{ID: teamID},
+				Role: fleet.RoleObserver,
+			},
+		},
+	}
+	observerCtx := viewer.NewContext(ctx, viewer.Viewer{User: teamObserver})
+
+	query, err := svc.GetQuery(observerCtx, teamQuery.ID)
+	require.NoError(t, err)
+	require.Empty(t, query.Packs)
+
+	queries, _, _, _, err := svc.ListQueries(observerCtx, fleet.ListOptions{}, &teamID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Empty(t, queries[0].Packs)
+
+	// A global admin is authorized to read packs, so pack metadata is kept.
+	globalAdmin := &fleet.User{
+		ID:         1,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	adminCtx := viewer.NewContext(ctx, viewer.Viewer{User: globalAdmin})
+
+	query, err = svc.GetQuery(adminCtx, teamQuery.ID)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.Pack{otherTeamPack}, query.Packs)
+
+	queries, _, _, _, err = svc.ListQueries(adminCtx, fleet.ListOptions{}, &teamID, nil, false, nil)
+	require.NoError(t, err)
+	require.Len(t, queries, 1)
+	require.Equal(t, []fleet.Pack{otherTeamPack}, queries[0].Packs)
+}
+
 func TestQueryReportIsClipped(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
