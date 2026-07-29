@@ -216,11 +216,19 @@ type DeletedSoftwarePackage struct {
 // software batch. Entries keep the index they have in the batch payload, so a package that
 // hasn't started downloading has an empty name.
 type SoftwarePackageDownloadProgress struct {
-	Name string `json:"name"`
-	// Finished means the download finished, not that the package was applied.
-	Finished bool `json:"finished"`
-	Failed   bool `json:"failed"`
+	Name   string                        `json:"name"`
+	Status SoftwarePackageDownloadStatus `json:"status"`
 }
+
+// SoftwarePackageDownloadStatus is how far one software package got through its download.
+// Downloaded means the bytes arrived, not that the package was applied.
+type SoftwarePackageDownloadStatus string
+
+const (
+	SoftwarePackageDownloadStarted  SoftwarePackageDownloadStatus = "downloading"
+	SoftwarePackageDownloadFinished SoftwarePackageDownloadStatus = "downloaded"
+	SoftwarePackageDownloadFailed   SoftwarePackageDownloadStatus = "failed"
+)
 
 // BatchSetSoftwareInstallersResult is the status of a software batch started by
 // BatchSetSoftwareInstallers.

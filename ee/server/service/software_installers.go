@@ -2952,7 +2952,7 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+				fmt.Sprintf("URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
 			)
 		}
 
@@ -2972,7 +2972,7 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, nil, fleet.NewInvalidArgumentError(
 			"software.url",
-			fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
+			fmt.Sprintf("URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
 		)
 	}
 
@@ -2980,7 +2980,7 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 	if resp.StatusCode >= 400 {
 		return nil, nil, fleet.NewInvalidArgumentError(
 			"software.url",
-			fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
+			fmt.Sprintf("URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
 		)
 	}
 
@@ -2992,7 +2992,7 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, nil, fleet.NewInvalidArgumentError(
 				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+				fmt.Sprintf("URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
 			)
 		}
 		return nil, nil, fmt.Errorf("reading installer %q contents: %w", downloadURL, err)
@@ -3009,21 +3009,14 @@ func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string
 		return payload.DisplayName
 	case payload.MaintainedApp != nil && payload.MaintainedApp.Name != "":
 		return payload.MaintainedApp.Name
-	case payload.Slug != nil && *payload.Slug != "":
-		return *payload.Slug
 	}
 
-	// Script packages carry their file name in a "script://" url, not a real download url.
-	downloadURL := strings.TrimPrefix(payload.URL, "script://")
-	if downloadURL == "" {
-		return payload.SHA256
-	}
-	filename := file.ExtractFilenameFromURLPath(downloadURL, "")
+	filename := file.ExtractFilenameFromURLPath(payload.URL, "")
 	// The extension is only known once the package is downloaded, so a url path without
 	// one comes back with a trailing dot.
 	filename = strings.TrimSuffix(filename, ".")
 	if filename == "" {
-		return downloadURL
+		return payload.URL
 	}
 	return filename
 }
@@ -3174,34 +3167,22 @@ func (svc *Service) softwareBatchUpload(
 	//
 	// The whole slice is read on every write, so unlike the slices above, writing only to
 	// your own index isn't enough to stay safe if the goroutine limit is ever raised.
-	type downloadState int
-	const (
-		downloadStarted downloadState = iota
-		downloadFinished
-		downloadFailed
-	)
-
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
-	setDownloadProgress := func(payloadIndex int, state downloadState) {
+	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
 		downloadProgressMutex.Lock()
 		defer downloadProgressMutex.Unlock()
 
-		progress := fleet.SoftwarePackageDownloadProgress{
-			Name: softwarePackageProgressName(payloads[payloadIndex]),
+		// Only a package that is still downloading can fail one. Anything else means the
+		// error that got us here happened outside the download.
+		if status == fleet.SoftwarePackageDownloadFailed && downloadProgress[payloadIndex].Status != fleet.SoftwarePackageDownloadStarted {
+			return
 		}
-		switch state {
-		case downloadFinished:
-			progress.Finished = true
-		case downloadFailed:
-			// The package either never started downloading or already finished, so the
-			// error that got us here isn't a download failure.
-			if downloadProgress[payloadIndex].Name == "" || downloadProgress[payloadIndex].Finished {
-				return
-			}
-			progress.Failed = true
+
+		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
+			Name:   softwarePackageProgressName(payloads[payloadIndex]),
+			Status: status,
 		}
-		downloadProgress[payloadIndex] = progress
 
 		progressJSON, err := json.Marshal(downloadProgress)
 		if err != nil {
@@ -3220,7 +3201,7 @@ func (svc *Service) softwareBatchUpload(
 		g.Go(func() (err error) {
 			defer func() {
 				if err != nil {
-					setDownloadProgress(i, downloadFailed)
+					setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 				}
 			}()
 
@@ -3397,7 +3378,7 @@ func (svc *Service) softwareBatchUpload(
 					toBeClosedTFRs[i] = tfr
 					installer.Filename = filename
 				} else {
-					setDownloadProgress(i, downloadStarted)
+					setDownloadProgress(i, fleet.SoftwarePackageDownloadStarted)
 
 					// Conditional GET (default behavior, disabled by always_download: true).
 					// Look up existing installer by URL for its ETag, only when
@@ -3501,7 +3482,7 @@ func (svc *Service) softwareBatchUpload(
 						}
 					}
 
-					setDownloadProgress(i, downloadFinished)
+					setDownloadProgress(i, fleet.SoftwarePackageDownloadFinished)
 				}
 			}
 

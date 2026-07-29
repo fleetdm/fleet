@@ -561,7 +561,7 @@ const (
 
 	downloadingSoftwareFormat = "[+] downloading software package - %s ...\n"
 	downloadedSoftwareFormat  = "[+] downloaded software package - %s\n"
-	failedSoftwareFormat      = "[!] failed to download software package - %s\n"
+	failedSoftwareFormat      = "Error: could not download software package %s\n"
 )
 
 // ApplyGroup applies the given spec group to Fleet.

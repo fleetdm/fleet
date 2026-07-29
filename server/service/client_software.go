@@ -136,11 +136,11 @@ func (c *Client) applySoftwareInstallers(
 			if printedFinish {
 				continue
 			}
-			switch {
-			case packageProgress.Failed:
+			switch packageProgress.Status {
+			case fleet.SoftwarePackageDownloadFailed:
 				printedResult[packageProgress.Name] = struct{}{}
 				logFn(failedSoftwareFormat, packageProgress.Name)
-			case packageProgress.Finished:
+			case fleet.SoftwarePackageDownloadFinished:
 				printedResult[packageProgress.Name] = struct{}{}
 				logFn(downloadedSoftwareFormat, packageProgress.Name)
 			}
