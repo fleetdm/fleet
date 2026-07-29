@@ -124,8 +124,8 @@ func baseDownloadStore(t *testing.T, activeVersion string, activeID uint) *mock.
 	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, tmID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Google Chrome", Slug: testFMASlug, Platform: "darwin"}, nil
 	}
-	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) {
-		return false, nil
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return false, "", nil
 	}
 	// No recoverable metadata by default (byte-dedup path).
 	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
@@ -199,8 +199,8 @@ func TestAutoUpdateByteDedupSkipsDownload(t *testing.T) {
 func TestAutoUpdateAlreadyCachedSkipsInsert(t *testing.T) {
 	srv := newFakeManifestServer(t)
 	ds := baseDownloadStore(t, "149.0.0", 9)
-	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) {
-		return true, nil // already cached
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, "cached", nil // version already cached
 	}
 	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 		t.Fatal("must not insert when the version is already cached")
@@ -250,7 +250,9 @@ func TestAutoUpdateFetchesManifestOncePerSlug(t *testing.T) {
 	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, tmID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{ID: testFMAAppID, Name: "Google Chrome", Slug: testFMASlug, Platform: "darwin"}, nil
 	}
-	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, error) { return false, nil }
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return false, "", nil
+	}
 	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) ([]string, string, error) {
 		return nil, "", nil
 	}
