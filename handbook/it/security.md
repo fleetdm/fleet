@@ -1733,13 +1733,12 @@ All other risks must be individually reviewed and managed.
 
 Whether a risk requires mitigation, and who must approve accepting it, is determined by its risk level:
 
-| Risk level    | Mitigation                                                       | Approval to accept the risk instead of mitigating it                      |
-| ------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Low (1–6)     | Not required. Mitigate on a best-effort basis.                    | None. Acceptance is recorded in the risk register by the risk owner.       |
-| Medium (7–19) | Required. A documented treatment plan with an owner and due date. | Fleet's Head of Security.                                                 |
-| High (20–25)  | Required. A documented treatment plan with an owner and due date. | Fleet's Head of Security and CIO.                                         |
+| Risk level               | Mitigation                                                        | Approval to accept the risk instead of mitigating it                 |
+| ------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Low (1–6), Medium (7–19) | Not required. Mitigate within the corrective action timeline below on a best-effort basis. | None. Acceptance is recorded in the risk register by the risk owner. |
+| High (20–25)             | Required. A documented treatment plan with an owner and due date.  | Fleet's Head of Security and CIO.                                    |
 
-- Accepting a medium or high risk requires a documented business justification, the compensating controls in place, and an expiration date no longer than one year from the date of approval. Accepted risks must be reviewed and re-evaluated on or before the expiration date.
+- Accepting a high risk requires a documented business justification, the compensating controls in place, and an expiration date no longer than one year from the date of approval. Accepted risks must be reviewed and re-evaluated on or before the expiration date.
 - Mitigation work that will not complete within the corrective action timeline below must be treated as an accepted risk for the remaining period and approved accordingly.
 - Rescoring a risk to a lower level requires the same approval as accepting it at its original level.
 
