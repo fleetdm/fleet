@@ -3130,3 +3130,87 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		})
 	}
 }
+
+func TestProcessAppleOSUpdateSettingsDeadlineDays(t *testing.T) {
+	ctx := context.Background()
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	// sentinel is returned by the override so the change is observable without
+	// standing up the activity service: reaching the override means the settings
+	// were considered changed.
+	sentinel := errors.New("override invoked")
+
+	newSvc := func(called *bool) *Service {
+		svc := &Service{ds: new(mock.Store)}
+		svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
+			MDMAppleEditedAppleOSUpdates: func(ctx context.Context, teamID *uint, appleDevice fleet.AppleDevice,
+				updates fleet.AppleOSUpdateSettings,
+			) error {
+				*called = true
+				return sentinel
+			},
+		})
+		return svc
+	}
+
+	latest := func(days optjson.Int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   days,
+		}
+	}
+
+	cases := []struct {
+		name        string
+		old         fleet.AppleOSUpdateSettings
+		new         fleet.AppleOSUpdateSettings
+		wantUpdated bool
+	}{
+		{
+			name:        "deadline_days changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.SetInt(7)),
+			wantUpdated: true,
+		},
+		{
+			name:        "deadline_days set from unset",
+			old:         latest(optjson.Int{}),
+			new:         latest(optjson.SetInt(14)),
+			wantUpdated: true,
+		},
+		{
+			name:        "deadline_days cleared to null",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.Int{Set: true, Valid: false}),
+			wantUpdated: true,
+		},
+		{
+			name:        "nothing changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         latest(optjson.SetInt(14)),
+			wantUpdated: false,
+		},
+		{
+			name:        "minimum_version changed",
+			old:         latest(optjson.SetInt(14)),
+			new:         fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("15.7.8"), Deadline: optjson.SetString("2026-09-01")},
+			wantUpdated: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var called bool
+			svc := newSvc(&called)
+
+			err := svc.processAppleOSUpdateSettings(ctx, lic, fleet.MacOS, tc.old, tc.new)
+			if tc.wantUpdated {
+				require.ErrorIs(t, err, sentinel, "expected the OS updates change to be detected")
+				require.True(t, called)
+			} else {
+				require.NoError(t, err)
+				require.False(t, called, "expected no update for unchanged settings")
+			}
+		})
+	}
+}
