@@ -2,7 +2,7 @@ import React from "react";
 
 export const ADD_SOFTWARE_ERROR_PREFIX = "Couldn't add.";
 export const DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
-export const REQUEST_TIMEOUT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Request timeout. Please make sure your server and load balancer timeout is long enough.`;
+export const REQUEST_TIMEOUT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} The request timed out. Make sure your server, and any proxy or load balancer in front of Fleet, allows enough time to transfer large installers.`;
 
 export const DIFFERENT_FILE_TYPE_MESSAGE =
   "The selected package is for a different file type.";
