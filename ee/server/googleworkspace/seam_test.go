@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,23 +23,31 @@ import (
 // API calls against a local fake server (over plain HTTP).
 func TestDirectoryEndpointOverride(t *testing.T) {
 	// Field projections as each endpoint received them, so the test can show the
-	// listings ask only for what Fleet maps.
+	// listings ask only for what Fleet maps. Written from the server's handler
+	// goroutines, so guard it rather than relying on the request/response round trip
+	// to order the writes before the assertions below.
+	var fieldsMu sync.Mutex
 	requestedFields := map[string]string{}
+	recordFields := func(endpoint string, r *http.Request) {
+		fieldsMu.Lock()
+		defer fieldsMu.Unlock()
+		requestedFields[endpoint] = r.URL.Query().Get("fields")
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /token", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "x", "token_type": "Bearer", "expires_in": 3600})
 	})
 	mux.HandleFunc("GET /admin/directory/v1/users", func(w http.ResponseWriter, r *http.Request) {
-		requestedFields["users"] = r.URL.Query().Get("fields")
+		recordFields("users", r)
 		_ = json.NewEncoder(w).Encode(map[string]any{"users": []map[string]any{{"id": "1", "primaryEmail": "a@b.com"}}})
 	})
 	mux.HandleFunc("GET /admin/directory/v1/groups", func(w http.ResponseWriter, r *http.Request) {
-		requestedFields["groups"] = r.URL.Query().Get("fields")
+		recordFields("groups", r)
 		_ = json.NewEncoder(w).Encode(map[string]any{"groups": []map[string]any{{"id": "g1", "name": "G"}}})
 	})
 	mux.HandleFunc("GET /admin/directory/v1/groups/{k}/members", func(w http.ResponseWriter, r *http.Request) {
-		requestedFields["members"] = r.URL.Query().Get("fields")
+		recordFields("members", r)
 		_ = json.NewEncoder(w).Encode(map[string]any{"members": []map[string]any{{"id": "1", "type": "USER"}}})
 	})
 	srv := httptest.NewServer(mux)
@@ -75,6 +84,8 @@ func TestDirectoryEndpointOverride(t *testing.T) {
 
 	// Every listing must project its fields, and every projection must carry
 	// nextPageToken or pagination cannot advance past the first page.
+	fieldsMu.Lock()
+	defer fieldsMu.Unlock()
 	require.Equal(t, map[string]string{
 		"users":   usersFields,
 		"groups":  groupsFields,
