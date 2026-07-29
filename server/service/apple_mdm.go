@@ -2743,10 +2743,10 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
-	// Once we return the enrollment profile, we capture and store the software device id for macOS hosts.
+	// Best-effort: don't block enrollment profile delivery if this write fails.
 	if isMac, _, _, err := fleet.IsMacIdentifier(machineInfo.Product); isMac && err == nil && machineInfo.SoftwareUpdateDeviceID != "" {
 		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, machineInfo.UDID, machineInfo.SoftwareUpdateDeviceID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "inserting macOS software update device id")
+			svc.logger.ErrorContext(ctx, "inserting macOS software update device id", "host_uuid", machineInfo.UDID, "err", err)
 		}
 	}
 
@@ -8013,10 +8013,10 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "signing profile")
 	}
 
-	// Once we return the enrollment profile, we capture and store the software device id for macOS hosts.
+	// Best-effort: don't block enrollment profile delivery if this write fails.
 	if isMac, _, _, err := fleet.IsMacIdentifier(deviceInfo.Product); isMac && err == nil && deviceInfo.SoftwareUpdateDeviceID != "" {
 		if err := svc.ds.InsertMacOSSoftwareUpdateDeviceID(ctx, deviceInfo.UDID, deviceInfo.SoftwareUpdateDeviceID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "inserting macOS software update device id")
+			svc.logger.ErrorContext(ctx, "inserting macOS software update device id", "host_uuid", deviceInfo.UDID, "err", err)
 		}
 	}
 

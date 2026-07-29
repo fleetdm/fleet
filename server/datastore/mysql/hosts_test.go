@@ -9752,6 +9752,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
+	err = ds.InsertMacOSSoftwareUpdateDeviceID(ctx, host.UUID, "bogus-update-id")
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
