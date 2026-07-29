@@ -742,6 +742,15 @@ func TestMDMUnlockCommand(t *testing.T) {
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
@@ -758,6 +767,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -918,6 +928,7 @@ fleetctl get host %s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "unlock", successfulOutput, cases)
@@ -1076,6 +1087,15 @@ func TestMDMWipeCommand(t *testing.T) {
 			Platform: "linux",
 		},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       21,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	linuxHostIDs := []uint{linuxEnrolled.host.ID, linuxEnrolled2.host.ID, linuxEnrolled3.host.ID}
 
@@ -1100,6 +1120,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledWiped,
 		winEnrolledLocked,
 		macEnrolledLocked,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -1290,6 +1311,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 	}
 
 	successfulOutput := func(ident string) string {
