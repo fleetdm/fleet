@@ -287,6 +287,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if err != nil {
 		panic(err)
 	}
+
+	// Disable the orbit host cache for tests. Integration tests modify DB state
+	// (e.g., MDM enrollment, script queueing) between GetOrbitConfig calls and
+	// need fresh data each time. The cache is only useful in production where
+	// hosts poll every 30s and data changes rarely.
+	if vm, ok := svc.(validationMiddleware); ok {
+		vm.Service.(*Service).orbitHostCache = nil
+	}
+
 	if lic.IsPremium() {
 		if softwareInstallStore == nil {
 			// default to file-based

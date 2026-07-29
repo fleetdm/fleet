@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -1660,6 +1661,10 @@ func TestGetOrbitConfigHostDataCache(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 
+	// Re-enable the orbit host cache (disabled by default in tests) so we can test caching behavior.
+	internal := ((svc.(validationMiddleware)).Service).(*Service)
+	internal.orbitHostCache = gocache.New(15*time.Second, 30*time.Second)
+
 	host := &fleet.Host{
 		OsqueryHostID: ptr.String("test"),
 		ID:            1,
@@ -1715,7 +1720,6 @@ func TestGetOrbitConfigHostDataCache(t *testing.T) {
 	require.Equal(t, int32(1), getHostMDMCalls.Load())
 
 	// After flushing the cache, the next call should hit the DB again.
-	internal := ((svc.(validationMiddleware)).Service).(*Service)
 	internal.orbitHostCache.Flush()
 	_, err = svc.GetOrbitConfig(ctx)
 	require.NoError(t, err)

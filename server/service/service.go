@@ -76,8 +76,9 @@ type Service struct {
 	packConfigCache *gocache.Cache
 
 	// orbitHostCache caches per-host data fetched on every GetOrbitConfig call
-	// (MDM info, pending scripts, escrow status, pending installs) to reduce
-	// DB reads on this high-frequency endpoint (~every 30s per host).
+	// (MDM info, pending scripts, pending installs) to reduce DB reads on this
+	// high-frequency endpoint (~every 30s per host). Nil disables caching
+	// (used in integration tests where DB state changes between calls).
 	orbitHostCache *gocache.Cache
 
 	androidSvc android.Service

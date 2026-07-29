@@ -490,10 +490,20 @@ type orbitHostCacheEntry struct {
 	pendingInstalls []string
 }
 
+func orbitHostCacheKey(hostID uint, scriptsDisabled bool) string {
+	key := strconv.FormatUint(uint64(hostID), 10)
+	if scriptsDisabled {
+		return key + ":sd"
+	}
+	return key
+}
+
 func (svc *Service) getOrbitHostData(ctx context.Context, hostID uint, scriptsDisabled bool) (*orbitHostCacheEntry, error) {
-	cacheKey := strconv.FormatUint(uint64(hostID), 10)
-	if cached, ok := svc.orbitHostCache.Get(cacheKey); ok {
-		return cached.(*orbitHostCacheEntry), nil
+	cacheKey := orbitHostCacheKey(hostID, scriptsDisabled)
+	if svc.orbitHostCache != nil {
+		if cached, ok := svc.orbitHostCache.Get(cacheKey); ok {
+			return cached.(*orbitHostCacheEntry), nil
+		}
 	}
 
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, hostID)
@@ -516,7 +526,9 @@ func (svc *Service) getOrbitHostData(ctx context.Context, hostID uint, scriptsDi
 		pendingScripts:  pendingScripts,
 		pendingInstalls: pendingInstalls,
 	}
-	svc.orbitHostCache.SetDefault(cacheKey, entry)
+	if svc.orbitHostCache != nil {
+		svc.orbitHostCache.SetDefault(cacheKey, entry)
+	}
 	return entry, nil
 }
 
@@ -534,7 +546,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
-	// Fetch per-host data from cache (or DB on miss). These 4 queries are called on every
+	// Fetch per-host data from cache (or DB on miss). These 3 queries are called on every
 	// orbit check-in (~every 30s per host) but the underlying data changes rarely.
 	hostData, err := svc.getOrbitHostData(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
