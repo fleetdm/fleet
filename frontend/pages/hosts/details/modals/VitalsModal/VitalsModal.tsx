@@ -191,9 +191,10 @@ interface IVital {
   key: VitalKey;
   label: string;
   render: (host: IHost) => React.ReactNode;
-  /** Multi-line values (JSON previews, line-per-entry lists) need to wrap
+  /** Multi-line values (nested field lists, line-per-entry lists) need to wrap
    * instead of truncating with an ellipsis (DataSet's default). */
   multiline?: boolean;
+  tooltip?: string;
 }
 
 const VITALS: IVital[] = [
@@ -234,6 +235,8 @@ const VITALS: IVital[] = [
     key: "awaiting_configuration",
     label: "Awaiting configuration",
     render: (host) => renderBoolean(host.awaiting_configuration),
+    tooltip:
+      "Determines whether the device is waiting for a Device Configured command or User Configured command to continue through Setup Assistant on the device channel or user channel, respectively.",
   },
   {
     key: "battery_level",
@@ -270,6 +273,7 @@ const VITALS: IVital[] = [
     key: "eas_device_identifier",
     label: "EAS device identifier",
     render: (host) => renderText(host.eas_device_identifier),
+    tooltip: "The device identifier for Exchange ActiveSync (EAS).",
   },
   {
     key: "is_cloud_backup_enabled",
@@ -371,6 +375,8 @@ const VITALS: IVital[] = [
     key: "push_token",
     label: "Push token",
     render: (host) => renderText(host.push_token),
+    tooltip:
+      "A push token the server uses to send update notifications for a registered pass to a device.",
   },
   {
     key: "service_subscriptions",
@@ -382,11 +388,15 @@ const VITALS: IVital[] = [
     key: "supplemental_build_version",
     label: "Supplemental build version",
     render: (host) => renderText(host.supplemental_build_version),
+    tooltip:
+      "The build version for the currently installed Background Security Improvement. If there’s no installed Background Security Improvement, this value is the same as “Build”.",
   },
   {
     key: "supplemental_os_version_extra",
     label: "Supplemental OS version extra",
     render: (host) => renderText(host.supplemental_os_version_extra),
+    tooltip:
+      "The OS update Background Security Improvement version letter, listed after the OS (e.g. iOS 26.3.1 (a)).",
   },
   {
     key: "udid",
@@ -418,10 +428,14 @@ const VitalsModal = ({ host, onExit, ...vitalsSources }: IVitalsModal) => {
     ];
 
   const iosOnlyVitals: VitalForSort[] = VITALS.map(
-    ({ key, label, render, multiline }) => {
+    ({ key, label, render, multiline, tooltip }) => {
       const isUnsupported = unsupportedVitals?.includes(key) ?? false;
       const value = isUnsupported ? (
-        <TooltipWrapper tipContent={NOT_SUPPORTED_VITAL_TOOLTIP}>
+        <TooltipWrapper
+          tipContent={NOT_SUPPORTED_VITAL_TOOLTIP}
+          showArrow
+          position="top"
+        >
           Not supported
         </TooltipWrapper>
       ) : (
@@ -433,7 +447,13 @@ const VitalsModal = ({ host, onExit, ...vitalsSources }: IVitalsModal) => {
         element: (
           <DataSet
             key={key}
-            title={label}
+            title={
+              tooltip ? (
+                <TooltipWrapper tipContent={tooltip}>{label}</TooltipWrapper>
+              ) : (
+                label
+              )
+            }
             value={value}
             multiline={multiline && !isUnsupported}
           />

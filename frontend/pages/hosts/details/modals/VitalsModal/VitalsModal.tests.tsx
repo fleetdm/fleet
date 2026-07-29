@@ -194,6 +194,31 @@ describe("VitalsModal component", () => {
     expect(screen.queryAllByText("Phone number:")).toHaveLength(1);
   });
 
+  // Enrollment ID's tooltip is defined in buildHostVitals, so this guards
+  // that the card and the modal really do share one implementation.
+  it("keeps Enrollment ID's existing tooltip, which comes from the shared vitals builder", async () => {
+    const host = buildFullyPopulatedHost({
+      hardware_serial: "",
+      uuid: "enrollment-id-12345",
+      mdm: createMockHostMdmData({
+        enrollment_status: "On (manual - personal)",
+      }),
+    });
+    const customRender = createCustomRenderer({});
+
+    const { user } = customRender(
+      <VitalsModal host={host} vitalsData={host} mdm={host.mdm} onExit={noop} />
+    );
+
+    await user.hover(screen.getByText("Enrollment ID"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Enrollment ID is a unique identifier for personal/i)
+      ).toBeInTheDocument();
+    });
+  });
+
   describe("Nested-dict vitals", () => {
     const findNestedPairs = (container: HTMLElement, label: string) => {
       const nested = Array.from(container.querySelectorAll(".data-set"))

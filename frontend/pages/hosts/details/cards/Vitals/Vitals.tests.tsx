@@ -493,7 +493,7 @@ describe("Card vitals subset", () => {
     return render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
   };
 
-  it("limits an iOS host's card to the 8 Figma vitals", () => {
+  it("limits an iOS host's card to the 8 vitals specified in #39281", () => {
     const { container } = renderCard("ios");
 
     const rendered = Array.from(

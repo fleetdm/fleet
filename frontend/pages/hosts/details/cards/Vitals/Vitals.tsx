@@ -74,8 +74,8 @@ interface IVitalsProps extends IHostVitalsSources {
 
 export type VitalForSort = { sortKey: string; element: React.ReactNode };
 
-/** The only vitals the card itself shows for iOS/iPadOS hosts, per the #39281
- * Figma. Everything else moves behind "View all". Other platforms are
+/** The only vitals the card itself shows for iOS/iPadOS hosts, as specified in
+ * #39281. Everything else moves behind "View all". Other platforms are
  * unaffected and still render every vital in the card.
  *
  * "Enrollment ID" is included alongside "Serial number" because the two are
