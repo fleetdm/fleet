@@ -1,6 +1,6 @@
-/** The 29 new iOS/iPadOS vitals fields (see HostMDMAppleDeviceVitals,
- * server/fleet/mdm_apple_device_vitals.go), keyed by their GET host API JSON
- * field name. */
+import { MdmEnrollmentStatus } from "interfaces/mdm";
+
+/** iOS/iPadOS vitals fields (see HostMDMAppleDeviceVitals, server/fleet/mdm_apple_device_vitals.go) */
 export type VitalKey =
   | "udid"
   | "model_number"
@@ -32,21 +32,27 @@ export type VitalKey =
   | "device_properties_attestation"
   | "service_subscriptions";
 
-/** The only enrollment methods an iOS/iPadOS host can report (see
- * host.mdm.enrollment_status, MDM_ENROLLMENT_STATUS_UI_MAP in
- * interfaces/mdm.ts). */
-type IosOrIpadosEnrollmentStatus =
-  | "On (manual)"
-  | "On (automatic)"
-  | "On (manual - personal)";
+/** The enrollment methods an iOS/iPadOS host can report. Narrowed from
+ * MdmEnrollmentStatus rather than written out independently, so renaming or
+ * removing one of these upstream fails to compile here instead of silently
+ * never matching a host.
+ *
+ * "On (company-owned)" is deliberately excluded: it's the display name the UI
+ * shows *for* "On (automatic)" (see MDM_ENROLLMENT_STATUS_UI_MAP), not a value
+ * the API returns — the server has no such constant (see the
+ * MDMEnrollmentStatus* block in server/fleet/hosts.go) and the
+ * host_mdm.enrollment_status ENUM doesn't include it. */
+export type IosOrIpadosEnrollmentStatus = Extract<
+  MdmEnrollmentStatus,
+  "On (manual)" | "On (automatic)" | "On (manual - personal)"
+>;
 
 export const NOT_SUPPORTED_VITAL_TOOLTIP =
   "This property isn't supported for this device's enrollment method.";
 
 /**
- * Ships empty (or with only the fields QA has already confirmed) pending
- * manual QA of each enrollment method — see sub-issue fleetdm/fleet#49987.
- * Populating this table is a fast-follow to this PR, not a blocker.
+ * TODO(nulmete): pending manual QA of what each enrollment method supports.
+ * See sub-issue fleetdm/fleet#49987.
  *
  * A vital listed here for a given enrollment method always renders the
  * "Not supported" treatment for hosts enrolled that way, regardless of what

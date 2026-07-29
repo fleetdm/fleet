@@ -11,6 +11,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 
 import {
+  IosOrIpadosEnrollmentStatus,
   NOT_SUPPORTED_VITAL_TOOLTIP,
   UNSUPPORTED_VITALS_BY_ENROLLMENT,
   VitalKey,
@@ -218,7 +219,7 @@ const VITALS: IVital[] = [
   {
     key: "service_subscriptions",
     label: "Service subscriptions",
-    // Per-subscription objects can carry many mostly-absent fields (see
+    // TODO(nulmete): Per-subscription objects can carry many mostly-absent fields (see
     // MDMAppleServiceSubscription) — showing just the slot until product
     // confirms which other field(s) are worth surfacing here.
     render: (host) =>
@@ -254,10 +255,11 @@ interface IVitalsModal {
 }
 
 const VitalsModal = ({ host, onExit }: IVitalsModal) => {
+  // enrollment_status is the full MdmEnrollmentStatus union; a non-iOS status
+  // (or null) simply has no entry, leaving every vital supported.
   const unsupportedVitals =
     UNSUPPORTED_VITALS_BY_ENROLLMENT[
-      host.mdm
-        ?.enrollment_status as keyof typeof UNSUPPORTED_VITALS_BY_ENROLLMENT
+      host.mdm?.enrollment_status as IosOrIpadosEnrollmentStatus
     ];
 
   return (

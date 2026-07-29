@@ -1,16 +1,8 @@
 .vitals-modal {
   &__vitals {
-    // A 2-column grid (rather than each DataSet's own flex row) so every
-    // row's value lines up under the same left edge, regardless of how
-    // wide that row's own label is.
     display: grid;
     grid-template-columns: max-content 1fr;
-    // No column-gap: a gap track sits between the two grid columns and
-    // isn't covered by either cell's border-bottom, which would leave a
-    // gap in the middle of each row's divider. The gutter between columns
-    // comes from dt's own padding-right instead, so the border stays
-    // continuous across both cells.
-    gap: 0; // also overrides the global `dl` rule's 16px flex gap
+    gap: 0;
 
     // Let each row's dt/dd become direct children of the grid above,
     // instead of being laid out inside their own .data-set flex box.
