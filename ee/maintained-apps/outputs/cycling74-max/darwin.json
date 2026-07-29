@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "9.1.4",
+      "version": "9.1.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max' AND version_compare(bundle_short_version, '9.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cycling74.Max' AND version_compare(bundle_short_version, '9.1.5') < 0);"
       },
-      "installer_url": "https://downloads.cdn.cycling74.com/max9/Max914_260407.dmg",
+      "installer_url": "https://downloads.cdn.cycling74.com/max9/Max915_260728.dmg",
       "install_script_ref": "b553ba8e",
       "uninstall_script_ref": "44c66470",
-      "sha256": "7be324e2ace7473765fa8b898048bea45886fa6acf76cd042e97be2c94be3ef0",
+      "sha256": "884837d39536b6e2e10268ff3d5d1d32b83fb25c8a93d71ba22354503f1dffbc",
       "default_categories": [
         "Developer tools"
       ]
