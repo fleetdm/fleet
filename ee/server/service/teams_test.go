@@ -1460,3 +1460,121 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 	require.Contains(t, err.Error(), "setup_experience.enable_managed_local_account")
 	require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
 }
+
+func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
+	// A deadline_days-only edit must be treated as a change: the setting has to be
+	// stored and the OS update declaration regenerated. Before deadline_days was
+	// part of the change detection, both were silently skipped.
+	testCases := []struct {
+		name         string
+		storedDays   optjson.Int
+		payloadDays  optjson.Int
+		wantSaved    int
+		wantRedeploy bool
+	}{
+		{
+			name:         "deadline_days changed",
+			storedDays:   optjson.SetInt(14),
+			payloadDays:  optjson.SetInt(21),
+			wantSaved:    21,
+			wantRedeploy: true,
+		},
+		{
+			name:         "deadline_days set from unset",
+			storedDays:   optjson.Int{},
+			payloadDays:  optjson.SetInt(14),
+			wantSaved:    14,
+			wantRedeploy: true,
+		},
+		{
+			name:         "deadline_days unchanged",
+			storedDays:   optjson.SetInt(14),
+			payloadDays:  optjson.SetInt(14),
+			wantSaved:    14,
+			wantRedeploy: false,
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &svcmock.Service{}
+			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+				return nil
+			}
+
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team-1", Config: fleet.TeamConfig{
+					MDM: fleet.TeamMDM{
+						MacOSUpdates: fleet.AppleOSUpdateSettings{
+							MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+							DeadlineDays:   tc.storedDays,
+						},
+					},
+				}}, nil
+			}
+			var savedTeam *fleet.Team
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				savedTeam = team
+				return team, nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(_ context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+			ds.LabelIDsByNameFunc = func(_ context.Context, names []string, _ fleet.TeamFilter) (map[string]uint, error) {
+				ids := make(map[string]uint, len(names))
+				for i, name := range names {
+					ids[name] = uint(i + 1) //nolint:gosec
+				}
+				return ids, nil
+			}
+			var gotDecl *fleet.MDMAppleDeclaration
+			var gotVars []fleet.FleetVarName
+			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
+				usesFleetVars []fleet.FleetVarName,
+			) (*fleet.MDMAppleDeclaration, error) {
+				gotDecl = decl
+				gotVars = usesFleetVars
+				decl.DeclarationUUID = "decl-uuid"
+				return decl, nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+				MacOSUpdates: &fleet.AppleOSUpdateSettings{
+					MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+					DeadlineDays:   tc.payloadDays,
+				},
+			}}
+			team, err := svc.ModifyTeam(ctx, 1, payload)
+			require.NoError(t, err)
+			require.NotNil(t, team)
+
+			// The outer Set guard also controls whether the value is stored at all.
+			require.NotNil(t, savedTeam)
+			require.Equal(t, tc.wantSaved, savedTeam.Config.MDM.MacOSUpdates.DeadlineDays.Value)
+
+			require.Equal(t, tc.wantRedeploy, ds.SetOrUpdateMDMAppleDeclarationFuncInvoked,
+				"declaration regeneration must follow the change detection")
+			if tc.wantRedeploy {
+				require.NotNil(t, gotDecl)
+				require.Contains(t, string(gotDecl.RawJSON), "$FLEET_VAR_HOST_TARGET_OS_VERSION")
+				require.Len(t, gotVars, 2)
+			}
+		})
+	}
+}
