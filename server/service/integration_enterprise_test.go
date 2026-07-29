@@ -4439,22 +4439,48 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = res.Body.Close()
 	require.NoError(t, err)
 
+	// asserts that a JSON-decoded policy from a device-authenticated endpoint
+	// only contains device-safe fields, i.e. it never exposes the policy
+	// author's identity nor the raw SQL query.
+	assertDeviceSafePolicy := func(policy map[string]any) {
+		require.NotContains(t, policy, "query")
+		require.NotContains(t, policy, "author_id")
+		require.NotContains(t, policy, "author_name")
+		require.NotContains(t, policy, "author_email")
+		require.Contains(t, policy, "name")
+		require.Contains(t, policy, "response")
+	}
+
 	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
-	err = json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
+	rawBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	err = res.Body.Close()
 	require.NoError(t, err)
+	err = json.Unmarshal(rawBody, &listDevicePoliciesResp)
+	require.NoError(t, err)
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+	// the response must not leak the policy author's identity nor the raw SQL query
+	var rawPoliciesResp struct {
+		Policies []map[string]any `json:"policies"`
+	}
+	err = json.Unmarshal(rawBody, &rawPoliciesResp)
+	require.NoError(t, err)
+	require.Len(t, rawPoliciesResp.Policies, 2)
+	for _, policy := range rawPoliciesResp.Policies {
+		assertDeviceSafePolicy(policy)
+	}
 
 	// GET `/api/_version_/fleet/device/{token}`
 	getDeviceHostResp := getDeviceHostResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
-	err = json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	rawBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
 	err = res.Body.Close()
+	require.NoError(t, err)
+	err = json.Unmarshal(rawBody, &getDeviceHostResp)
 	require.NoError(t, err)
 	require.NoError(t, getDeviceHostResp.Err)
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
@@ -4463,6 +4489,19 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	require.Equal(t, "http://example.com/contact", getDeviceHostResp.OrgContactURL)
 	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 	require.False(t, getDeviceHostResp.GlobalConfig.Features.EnableSoftwareInventory)
+	// the host's policies must not leak the policy author's identity nor the
+	// raw SQL query
+	var rawHostResp struct {
+		Host struct {
+			Policies []map[string]any `json:"policies"`
+		} `json:"host"`
+	}
+	err = json.Unmarshal(rawBody, &rawHostResp)
+	require.NoError(t, err)
+	require.Len(t, rawHostResp.Host.Policies, 2)
+	for _, policy := range rawHostResp.Host.Policies {
+		assertDeviceSafePolicy(policy)
+	}
 
 	// GET `/api/_version_/fleet/device/{token}/desktop`
 	getDesktopResp := fleetDesktopResponse{}
