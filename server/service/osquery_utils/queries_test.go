@@ -4710,10 +4710,20 @@ func TestDirectIngestMDMMacOSSoftwareUpdateID(t *testing.T) {
 		insertedDeviceID = ""
 	})
 
+	t.Run("intel T2 mac takes bridge-model", func(t *testing.T) {
+		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
+			{"key": "bridge-model", "value": "valid-bridge-model"},
+			{"key": "compatible", "value": "Intel"},
+			{"key": "board-id", "value": "valid-id"},
+		})
+		require.NoError(t, err)
+		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)
+		require.Equal(t, "valid-bridge-model", insertedDeviceID)
+	})
+
 	t.Run("apple silicon mac takes compatible", func(t *testing.T) {
 		err := directIngestMDMMacOSSoftwareUpdateID(t.Context(), logger, &host, ds, []map[string]string{
 			{"key": "compatible", "value": "Apple Silicon"},
-			{"key": "bridge-model", "value": "some-value"},
 		})
 		require.NoError(t, err)
 		require.True(t, ds.InsertMacOSSoftwareUpdateDeviceIDFuncInvoked)

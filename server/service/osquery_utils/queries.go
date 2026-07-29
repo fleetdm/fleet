@@ -953,7 +953,7 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
 	"mdm_macos_software_update_id": {
-		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'board-id');`,
+		Query:            `SELECT key, value FROM ioreg WHERE c = 'IOPlatformExpertDevice' AND key IN ('compatible', 'bridge-model', 'board-id');`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMDMMacOSSoftwareUpdateID,
 		Discovery:        discoveryTable("ioreg"),
@@ -3310,17 +3310,34 @@ func directIngestMDMMacOSSoftwareUpdateID(ctx context.Context, logger *slog.Logg
 	// inspired by https://github.com/brunerd/macAdminTools/blob/main/Scripts/getSupportedMacOSVersions_ASLS.sh
 	// bridge-model is never used, and it only rely's on board-id and compatible by checking device architecture
 	// however we can just rely on returned values.
-	var deviceID string
+	var boardID, bridgeModel, compatible string
 	for _, row := range rows {
 		if val, ok := row["key"]; ok && val == "board-id" {
 			// If board-id presents itself, then always take that as that represent an Intel based mac.
-			deviceID = row["value"]
-			break
+			boardID = row["value"]
+		} else if val, ok := row["key"]; ok && val == "bridge-model" {
+			// If bridge-model presents itself, then always take that as that represent an Intel based mac. It takes priority over board-id.
+			bridgeModel = row["value"]
 		} else if val, ok := row["key"]; ok && val == "compatible" {
 			// If compatible presents itself, then always take that as that represent an Apple Silicon based mac.
 			// It might be present as well on Intel macs, but then board-id will override the value.
-			deviceID = row["value"]
+			compatible = row["value"]
 		}
+	}
+
+	var deviceID string
+	if compatible != "" {
+		deviceID = compatible
+	}
+
+	// Always take boardID over compatible.
+	if boardID != "" {
+		deviceID = boardID
+	}
+
+	// Always take bridge-model over boardID
+	if bridgeModel != "" {
+		deviceID = bridgeModel
 	}
 
 	if deviceID == "" {
