@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260727111742, Down_20260727111742)
+	MigrationClient.AddMigration(Up_20260729110229, Down_20260729110229)
 }
 
-func Up_20260727111742(tx *sql.Tx) error {
+func Up_20260729110229(tx *sql.Tx) error {
 	// Password reset tokens are base64url-encoded, so their alphabet is
 	// case-sensitive. The column defaulted to the case-insensitive
 	// utf8mb4_unicode_ci collation, which made lookups match case-mutated
@@ -23,6 +23,6 @@ func Up_20260727111742(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260727111742(tx *sql.Tx) error {
+func Down_20260729110229(tx *sql.Tx) error {
 	return nil
 }
