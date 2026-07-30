@@ -348,11 +348,12 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 #### When errors appear
 
-- Never show a field's error before the user has interacted with that field. A field becomes interacted-with when the user types into it or blurs it while it holds a value.
-- On blur of a field the user has interacted with, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
+
+- Never show a field's error before the field is dirty.
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
 - On submit, show inline errors on every invalid field simultaneously, then return without submitting.
-- Autofill counts as user interaction — treat autofilled fields as touched.
-- On an Edit form, pre-filled values that are invalid do not show errors until the user interacts with the field.
+- On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
 #### When errors clear
 
@@ -371,8 +372,8 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 - The submit button is enabled by default. Empty required fields, currently-invalid values, unchanged Edit forms, and prior server errors do not disable it.
 - The only reasons to disable the submit button are an in-flight submission (see [In-flight and submission lifecycle](#in-flight-and-submission-lifecycle)) or the entire form being disabled by GitOps mode. GitOps-managed pages disable the form's fields and submit button together — users cannot save through the UI at all.
-- If the user clicks submit with invalid data, the submit handler shows all inline errors and returns without submitting. The button itself stays enabled so the click can surface the errors.
-- Do not gate on `isDirty` or "form has changes." A no-op re-save is allowed.
+- If the user clicks submit with invalid data, the submit handler shows all inline client-side errors and returns without calling the API. The button itself stays enabled so the click can surface the errors.
+- Do not gate on form-level `isDirty` ("form has changes"). A no-op re-save is allowed.
 
 #### Server-side errors
 
@@ -384,7 +385,7 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 #### Conditional / dependent validation
 
 - Cross-field checks (e.g. password + confirmation match) run on blur of either field. The error attaches to the field that is invalid, not to both.
-- Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until interacted with" rule. There is no visual indicator that a field is conditionally required.
+- Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
 
@@ -400,15 +401,15 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 - Whitespace-only content in a required field counts as empty.
 - Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](#forms) in the top-level rules.
 - If the max length is unusual (e.g. a 48-character password), show an inline error on the field instead of relying on silent truncation.
-- Autofill counts as user interaction — treat autofilled fields as touched.
 
 #### In-flight and submission lifecycle
 
 - During submission, the submit button shows a spinner AND is disabled. Do not change the button's color/variant.
 - Form fields are disabled while a submission is in flight — the user cannot edit during the request.
 - The submit handler must guard against a second submission while one is in flight. Do not rely solely on the button being disabled.
-- The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background.
-- On success, fire the success toast BEFORE navigation (see [Notifications](../../.claude/rules/fleet-frontend.md#notifications) and #48088) and close the modal.
+- The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background. We don't require abort because most call sites use plain Promises (not `useMutation`), and we don't want a confirmation dialog on Cancel — it adds friction to the common case for a rare one.
+- Because Cancel doesn't abort, the submission must be resilient to the modal being closed before the request resolves. Guard post-success side effects (toast, navigation, cache invalidation) so they don't fire against an unmounted component or a screen the user has already left. Failures on a closed modal are dropped silently — no toast, no re-open.
+- On success, close the modal and call `notify.success` before `router.push` / `router.replace`. This is a code-call order, not a visual order — `notify.success` defers toast creation by a tick, so calling it first lets the toast land on the destination page instead of getting wiped by its own navigation. See [Notifications](../../.claude/rules/fleet-frontend.md#notifications) and #48088.
 - On failure, fields become editable again, the submit button re-enables immediately, and server errors surface per [Server-side errors](#server-side-errors).
 - Closing a modal with unsaved changes silently discards them. No confirmation dialog. (Exceptions like the SQL editor stay exceptions.)
 
