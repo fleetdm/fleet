@@ -10,23 +10,18 @@ That made Hawx's seasonality the crux of the problem. Hiring ramps up hard in th
 
 *The MDM screen held up every new technician during onboarding. You couldn't do anything with the phone until the person receiving it logged in, and nobody knew their username or password. We'd get calls from their personal phones blowing up the helpdesk. At the start of the summer season, all we did was troubleshoot phones.*
 
-**Loren Farr**
-
-IT Manager, Hawx
 </div>
 
 The friction wasn't limited to onboarding. Even routine support calls were slow, because simply identifying who was holding a given device was difficult. In Jamf, associating users with devices meant CSV uploads and manual matching.
+
+With a renewal on the horizon, the team had a reason to look for something better.
 
 <div purpose="attribution-quote">
 
 *When a field technician calls in, they previously had to read off their phone number or dig the serial number out of settings. Often, we had to walk them through where to find their serial number in settings. That's five or ten minutes a call, determining which device and user we're working with before even starting to troubleshoot their issue, and we take five to ten of those a day all season long. With Fleet, all we need is their name.*
 
-**Loren Farr**
-
-IT Manager, Hawx
 </div>
 
-With a renewal on the horizon, the team had a reason to look for something better.
 
 ## Why Fleet
 
@@ -36,9 +31,6 @@ Hawx evaluated two other vendors alongside Fleet. Fleet's open-source code base 
 
 *The slam dunk for us was that Fleet gave us control over the phone itself. We can run the device the way we want. Nobody else we looked at could offer that.*
 
-**Loren Farr**
-
-IT Manager, Hawx
 </div>
 
 That control, paired with reliable end-user association, was what made it possible to automate the seasonal enrollment and offboarding that had been the team's biggest time commitment. There was no waiting on a vendor to build a trigger Hawx needed. Pairing Fleet with the automation platform Tines, Hawx tailors onboarding to each individual field technician or corporate employee, then leans on its identity provider to do the rest. Hawx drives all of it through Fleet's API rather than the Fleet UI.
@@ -53,9 +45,6 @@ That control, paired with reliable end-user association, was what made it possib
 
 *When a termination notice comes through, Fleet and Tines go find that phone and wipe it. It stays associated with the user and in its fleet until we assign someone new. For senior roles like a GM, we lock it instead of wiping it just in case we need to retrieve anything from that device.*
 
-**Loren Farr**
-
-IT Manager, Hawx
 </div>
 
 ## The results
@@ -83,9 +72,6 @@ For Loren, success is measured in silence.
 
 *The way we know Fleet is working well and that we made the right choice is that leadership isn't hearing from branch general managers that technology is a blocker to technician onboarding. No news is good news, and that's the peace Fleet brings me.*
 
-**Loren Farr**
-
-IT Manager, Hawx
 </div>
 
 The worry that used to define the start of every season, technician onboarding and offboarding, simply isn't a worry anymore.
@@ -98,14 +84,14 @@ The worry that used to define the start of every season, technician onboarding a
 <meta name="authorGitHubUsername" value="n/a">
 <meta name="authorFullName" value="Fleetdm">
 
-<meta name="companyLogoFilename" value="TODO-hawx-logo-000x40@2x.png">
-<meta name="quoteAuthorImageFilename" value="TODO-loren-farr-120x120@2x.png">
+<meta name="companyLogoFilename" value="hawx-logo-150x40@2x.png">
+<meta name="quoteAuthorImageFilename" value="loren-farr-120x120@2x.png">
 <meta name="quoteAuthorName" value="Loren Farr">
 <meta name="quoteAuthorJobTitle" value="IT Manager, Hawx">
 <meta name="quoteContent" value="“The slam dunk for us was that Fleet gave us control over the phone itself. We can run the device the way we want. Nobody else we looked at could offer that.”">
 
 <meta name="companyName" value="Hawx">
-<meta name="companyInfo" value="Hawx Pest Control provides residential and commercial pest control across more than a dozen states. Its model is built on prevention and consistency, backed by a technology-first approach: clear service reports with notes and photos after every visit, and communication designed to keep homeowners informed about exactly what's happening at their property.">
+<meta name="companyInfo" value="Hawx Pest Control provides residential and commercial pest control across more than a dozen states. Its model is built on prevention and consistency, backed by a technology-first approach, designed to keep homeowners informed about exactly what's happening at their property.">
 <meta name="companyInfoLineTwo" value="A three-person IT team manages roughly 500 iOS devices in Fleet's managed cloud, supporting a field technician workforce that expands sharply every summer.">
 
 <meta name="summaryChallenge" value="Hawx hires droves of contract pest control technicians every summer, and a technician who can't get their phone provisioned can't be dispatched. With Jamf, phones were stuck on the MDM screen until the technician logged in, and nobody remembered their credentials, flooding the helpdesk. Identifying which device belonged to which technician took five to ten minutes per call.">
