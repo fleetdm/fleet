@@ -322,7 +322,7 @@ When building a React-controlled form:
   - calls `evt.preventDefault()` in its body. This prevents the HTML `form`'s default submit behavior from interfering with our custom handler's logic.
   - runs `validate` against the full form, sets errors on every invalid field, and returns without submitting when any errors are present.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`).
-- Disable the submit button only while a submission is in flight. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
+- Disable the submit button only while a submission is in flight, or when the whole form is disabled by GitOps mode. Do not disable it because required fields are empty or values are currently invalid — see [Submit button state](#submit-button-state).
 
 ### Data validation
 
@@ -352,7 +352,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - Never show a field's error before the field is dirty.
 - On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
-- On submit, show inline errors on every invalid field simultaneously, then return without submitting.
+- On submit, show inline errors on every invalid field simultaneously, then return without submitting. Submit is an explicit exception to the dirty gate — it marks all fields dirty, so pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
 #### When errors clear
@@ -399,7 +399,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - Trim leading and trailing whitespace client-side before submitting. Send the trimmed value to the API.
 - Whitespace-only content in a required field counts as empty.
-- Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](#forms) in the top-level rules.
+- Cap free-text `maxLength` to the backend column length via `inputOptions={{ maxLength: N }}` on `InputField`. The native input silently truncates paste. See [Forms](../../.claude/rules/fleet-frontend.md#forms) in the top-level rules.
 - If the max length is unusual (e.g. a 48-character password), show an inline error on the field instead of relying on silent truncation.
 
 #### In-flight and submission lifecycle
