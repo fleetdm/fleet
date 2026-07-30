@@ -6,7 +6,7 @@
 # exit code here.
 #
 # Usage:
-#   ./dev-notify.sh https://your-deployment.vercel.app
+#   ./dev-notify.sh [--url] <https url>
 #
 # Pass a real device page URL, or any static page that implements the fleetDesktop
 # bridge (see ToastWindow.swift for the message contract).
