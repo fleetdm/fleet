@@ -1,17 +1,23 @@
 import React, { useContext, useEffect, useState } from "react";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
+import teamsAPI from "services/entities/teams";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TabNav from "components/TabNav";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
 import LocalAccountSection, {
   effectiveEnableManagedLocalAccount,
 } from "./components/LocalAccountSection/LocalAccountSection";
+import WindowsAccountSection from "./components/WindowsAccountSection";
 
 const baseClass = "users-form";
 
@@ -20,6 +26,7 @@ export interface IUsersFormData {
   lockEndUserInfo: boolean;
   enableManagedLocalAccount: boolean;
   localAccountType: EndUserLocalAccountType;
+  enableManagedLocalAccountWindows: boolean;
 }
 
 interface IUsersFormProps {
@@ -30,6 +37,7 @@ interface IUsersFormProps {
   /** The radio value to start from. Defaults to the option that doesn't
    * force the managed local account on. */
   defaultLocalAccountType?: EndUserLocalAccountType;
+  defaultEnableManagedLocalAccountWindows: boolean;
   isIdPConfigured: boolean;
 }
 
@@ -39,9 +47,14 @@ const UsersForm = ({
   defaultLockEndUserInfo,
   defaultEnableManagedLocalAccount,
   defaultLocalAccountType = EndUserLocalAccountType.ADMIN,
+  defaultEnableManagedLocalAccountWindows,
   isIdPConfigured,
 }: IUsersFormProps) => {
-  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
+  const {
+    config,
+    isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured,
+  } = useContext(AppContext);
   const gitOpsModeEnabled = !!config?.gitops.gitops_mode_enabled;
 
   const [formData, setFormData] = useState<IUsersFormData>({
@@ -49,6 +62,7 @@ const UsersForm = ({
     lockEndUserInfo: defaultLockEndUserInfo,
     enableManagedLocalAccount: defaultEnableManagedLocalAccount,
     localAccountType: defaultLocalAccountType,
+    enableManagedLocalAccountWindows: defaultEnableManagedLocalAccountWindows,
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -61,12 +75,14 @@ const UsersForm = ({
       lockEndUserInfo: defaultLockEndUserInfo,
       enableManagedLocalAccount: defaultEnableManagedLocalAccount,
       localAccountType: defaultLocalAccountType,
+      enableManagedLocalAccountWindows: defaultEnableManagedLocalAccountWindows,
     });
   }, [
     defaultIsEndUserAuthEnabled,
     defaultLockEndUserInfo,
     defaultEnableManagedLocalAccount,
     defaultLocalAccountType,
+    defaultEnableManagedLocalAccountWindows,
   ]);
 
   const onEndUserAuthChange = (value: boolean) => {
@@ -88,6 +104,13 @@ const UsersForm = ({
 
   const onEnableManagedLocalAccountChange = (value: boolean) => {
     setFormData((prev) => ({ ...prev, enableManagedLocalAccount: value }));
+  };
+
+  const onEnableManagedLocalAccountWindowsChange = (value: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      enableManagedLocalAccountWindows: value,
+    }));
   };
 
   const onLocalAccountTypeChange = (value: EndUserLocalAccountType) => {
@@ -114,6 +137,26 @@ const UsersForm = ({
           end_user_local_account_type: formData.localAccountType,
         }),
       });
+
+      // The Windows toggle isn't part of the Apple Setup Assistant flow that
+      // /setup_experience models, so it saves through the MDM config instead.
+      // Sent on every save like the call above; the server only records an
+      // activity when the value actually changes.
+      const mdmUpdate = {
+        windows_settings: {
+          managed_local_account_settings: {
+            enabled: formData.enableManagedLocalAccountWindows,
+          },
+        },
+      };
+      // teamsAPI.update only types the *_updates keys, so arbitrary MDM
+      // settings go through updateConfig (same as the Passwords card).
+      if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
+        await configAPI.update({ mdm: mdmUpdate });
+      } else {
+        await teamsAPI.updateConfig({ mdm: mdmUpdate }, currentTeamId);
+      }
+
       notify.success("Successfully updated.");
     } catch (err) {
       notify.error("Couldn't update settings. Please try again.", {
@@ -130,12 +173,6 @@ const UsersForm = ({
   return (
     <div className={baseClass}>
       <form onSubmit={onSubmit}>
-        <LocalAccountSection
-          formData={formData}
-          onLocalAccountTypeChange={onLocalAccountTypeChange}
-          onEnableManagedLocalAccountChange={onEnableManagedLocalAccountChange}
-          isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
-        />
         <EndUserAuthSection
           endUserAuthEnabled={formData.endUserAuthEnabled}
           lockEndUserInfo={formData.lockEndUserInfo}
@@ -145,6 +182,41 @@ const UsersForm = ({
           isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
+        <TabNav secondary>
+          <Tabs>
+            <TabList>
+              <Tab>macOS</Tab>
+              {/* Windows MDM has to be on for the toggle to do anything, so the
+              tab is only offered when it is configured. */}
+              {isWindowsMdmEnabledAndConfigured && <Tab>Windows</Tab>}
+            </TabList>
+            <TabPanel>
+              <LocalAccountSection
+                formData={formData}
+                onLocalAccountTypeChange={onLocalAccountTypeChange}
+                onEnableManagedLocalAccountChange={
+                  onEnableManagedLocalAccountChange
+                }
+                isMacMdmEnabledAndConfigured={!!isMacMdmEnabledAndConfigured}
+              />
+            </TabPanel>
+            {isWindowsMdmEnabledAndConfigured && (
+              <TabPanel>
+                <WindowsAccountSection
+                  enableManagedLocalAccount={
+                    formData.enableManagedLocalAccountWindows
+                  }
+                  onEnableManagedLocalAccountChange={
+                    onEnableManagedLocalAccountWindowsChange
+                  }
+                  isWindowsMdmEnabledAndConfigured={
+                    !!isWindowsMdmEnabledAndConfigured
+                  }
+                />
+              </TabPanel>
+            )}
+          </Tabs>
+        </TabNav>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <Button

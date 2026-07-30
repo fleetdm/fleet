@@ -1,4 +1,4 @@
-.local-account-section {
+.windows-account-section {
   &__managed-local-account {
     .component__tooltip-wrapper.show-arrow {
       line-height: 1;
@@ -13,5 +13,11 @@
 
   &__sub-header {
     font-size: $x-small;
+  }
+
+  &__end-user-help-text {
+    margin: 0;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
   }
 }

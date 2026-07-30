@@ -1823,10 +1823,13 @@ const HostDetailsPage = ({
             <ManagedAccountModal
               hostId={host.id}
               canRotatePassword={
-                isGlobalAdmin ||
-                isGlobalMaintainer ||
-                isHostTeamAdmin ||
-                isHostTeamMaintainer
+                // Rotation is macOS-only for now, so Windows hosts get neither
+                // the rotate button nor the auto-rotate banner.
+                host.platform === "darwin" &&
+                (isGlobalAdmin ||
+                  isGlobalMaintainer ||
+                  isHostTeamAdmin ||
+                  isHostTeamMaintainer)
               }
               onCancel={() => {
                 setShowManagedAccountModal(false);

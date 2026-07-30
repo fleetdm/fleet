@@ -2255,7 +2255,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
           isConnectedToFleetMdm
-          hostPlatform="windows"
+          hostPlatform="ubuntu"
           isManagedLocalAccountEnabled
         />
       );
@@ -2265,6 +2265,68 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show managed account")
       ).not.toBeInTheDocument();
+    });
+
+    // Windows hosts get a managed account from fleetd after any MDM enrollment,
+    // so the action is offered without the Apple automatic-enrollment check.
+    it("shows the action for a Windows host that is not automatically enrolled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          isManagedLocalAccountEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
+    });
+
+    it("shows the action for a Windows host with an existing account row even when the setting is off", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (manual)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          managedAccountStatus="verified"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Show managed account")).toBeInTheDocument();
     });
 
     it("hides the action when host is not connected to Fleet MDM", async () => {

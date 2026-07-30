@@ -2,7 +2,9 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
+import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
+import teamsAPI from "services/entities/teams";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
 import UsersForm from "./UsersForm";
@@ -13,6 +15,7 @@ describe("UsersForm", () => {
     defaultIsEndUserAuthEnabled: false,
     defaultLockEndUserInfo: false,
     defaultEnableManagedLocalAccount: false,
+    defaultEnableManagedLocalAccountWindows: false,
     isIdPConfigured: true,
   };
 
@@ -31,6 +34,16 @@ describe("UsersForm", () => {
     withBackendMock: true,
     context: {
       app: { isMacMdmEnabledAndConfigured: false },
+    },
+  });
+
+  const renderWithWindowsMdmEnabled = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        isMacMdmEnabledAndConfigured: true,
+        isWindowsMdmEnabledAndConfigured: true,
+      },
     },
   });
 
@@ -139,6 +152,122 @@ describe("UsersForm", () => {
         enable_managed_local_account: false,
         end_user_local_account_type: EndUserLocalAccountType.ADMIN,
       });
+    });
+  });
+
+  describe("platform tabs", () => {
+    it("hides the Windows tab when Windows MDM is not enabled and configured", () => {
+      renderWithMdmEnabled(<UsersForm {...defaultProps} />);
+      expect(screen.getByRole("tab", { name: "macOS" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("tab", { name: "Windows" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the Windows tab when Windows MDM is enabled and configured", () => {
+      renderWithWindowsMdmEnabled(<UsersForm {...defaultProps} />);
+      expect(screen.getByRole("tab", { name: "Windows" })).toBeInTheDocument();
+    });
+
+    it("renders the Windows tab without end user account type options", async () => {
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} />
+      );
+      await user.click(screen.getByRole("tab", { name: "Windows" }));
+
+      expect(
+        screen.getByText(
+          "End users get the default role for the host's platform.",
+          {
+            exact: false,
+          }
+        )
+      ).toBeInTheDocument();
+      // Account type is macOS-only; Windows gets whatever the platform defaults to.
+      expect(
+        screen.queryByRole("radio", { name: "Admin" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("windows managed account save", () => {
+    it("sends the windows config PATCH on every save, matching the setup experience call", async () => {
+      const setupSpy = jest
+        .spyOn(mdmAPI, "updateSetupExperienceSettings")
+        .mockResolvedValue({});
+      const configSpy = jest
+        .spyOn(configAPI, "update")
+        .mockResolvedValue({} as never);
+
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} />
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(setupSpy).toHaveBeenCalled();
+      // Unconditional: the server only records an activity when the value
+      // actually changes, so a no-op PATCH is harmless.
+      expect(configSpy).toHaveBeenCalledWith({
+        mdm: {
+          windows_settings: {
+            managed_local_account_settings: { enabled: false },
+          },
+        },
+      });
+    });
+
+    it("saves the windows toggle through the config PATCH for no team", async () => {
+      jest.spyOn(mdmAPI, "updateSetupExperienceSettings").mockResolvedValue({});
+      const configSpy = jest
+        .spyOn(configAPI, "update")
+        .mockResolvedValue({} as never);
+
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} />
+      );
+      await user.click(screen.getByRole("tab", { name: "Windows" }));
+      await user.click(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(configSpy).toHaveBeenCalledWith({
+        mdm: {
+          windows_settings: {
+            managed_local_account_settings: { enabled: true },
+          },
+        },
+      });
+    });
+
+    it("saves the windows toggle through the team PATCH for a fleet", async () => {
+      jest.spyOn(mdmAPI, "updateSetupExperienceSettings").mockResolvedValue({});
+      const teamSpy = jest
+        .spyOn(teamsAPI, "updateConfig")
+        .mockResolvedValue({} as never);
+
+      const { user } = renderWithWindowsMdmEnabled(
+        <UsersForm {...defaultProps} currentTeamId={7} />
+      );
+      await user.click(screen.getByRole("tab", { name: "Windows" }));
+      await user.click(
+        screen.getByRole("checkbox", { name: "Create hidden admin" })
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(teamSpy).toHaveBeenCalledWith(
+        {
+          mdm: {
+            windows_settings: {
+              managed_local_account_settings: { enabled: true },
+            },
+          },
+        },
+        7
+      );
     });
   });
 });

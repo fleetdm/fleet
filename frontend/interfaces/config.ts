@@ -93,6 +93,14 @@ export interface IMdmConfig {
   macos_setup?: {
     enable_managed_local_account?: boolean;
   };
+  /** Windows-only settings. The managed local account lives here rather than
+   * under setup_experience because it isn't part of the Apple Setup Assistant
+   * flow that endpoint models. */
+  windows_settings?: {
+    managed_local_account_settings?: {
+      enabled?: boolean;
+    };
+  };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;

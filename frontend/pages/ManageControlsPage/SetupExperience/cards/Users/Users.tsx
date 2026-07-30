@@ -52,6 +52,26 @@ const getEnabledManagedLocalAccount = (
   };
 };
 
+/** The Windows managed local account lives outside setup_experience, under
+ * mdm.windows_settings, because it is not part of the Apple Setup Assistant
+ * flow that endpoint models. */
+const getEnabledManagedLocalAccountWindows = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+): boolean => {
+  if (currentTeamId === 0) {
+    return (
+      globalConfig?.mdm?.windows_settings?.managed_local_account_settings
+        ?.enabled ?? false
+    );
+  }
+  return (
+    teamConfig?.mdm?.windows_settings?.managed_local_account_settings
+      ?.enabled ?? false
+  );
+};
+
 const getEnabledEndUserAuth = (
   currentTeamId: number,
   globalConfig?: IConfig,
@@ -137,6 +157,12 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     teamConfig
   );
 
+  const enableManagedLocalAccountWindows = getEnabledManagedLocalAccountWindows(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
   const renderContent = () => {
     if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
@@ -151,6 +177,9 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
           managedLocalAccountConfig.managed_local_account
         }
         defaultLocalAccountType={managedLocalAccountConfig.local_account_type}
+        defaultEnableManagedLocalAccountWindows={
+          enableManagedLocalAccountWindows
+        }
         isIdPConfigured={isIdPConfigured(mdmConfig)}
       />
     );
@@ -171,9 +200,9 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
       <PageDescription
         content={
           <>
-            Customize local user accounts. You can automatically create local
-            user accounts using IdP credentials via Platform Single Sign-On
-            (PSSO), an advanced account configuration.{" "}
+            Customize local user accounts. For advanced account configuration,
+            like creating local accounts with IdP credentials via Platform
+            Single Sign-On (PSSO), use a custom setup.{" "}
             <CustomLink
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
               text="Learn how"
