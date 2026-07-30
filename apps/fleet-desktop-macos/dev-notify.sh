@@ -16,8 +16,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")"
 
+# Accept both `dev-notify.sh <url>` and `dev-notify.sh --url <url>`. The flag is what
+# the binary takes, so typing it here is the natural thing to do.
+if [ "${1:-}" = "--url" ]; then
+    shift
+fi
+
 if [ "$#" -eq 0 ]; then
-    echo "usage: $0 <https url>" >&2
+    echo "usage: $0 [--url] <https url>" >&2
     exit 2
 fi
 
@@ -26,5 +32,9 @@ if [ ! -x "$BIN" ]; then
     ./build.sh
 fi
 
-"$BIN" notify --url "$1"
+URL="$1"
+shift
+
+# Remaining arguments pass straight through to notify.
+"$BIN" notify --url "$URL" "$@"
 echo "exit=$?"
