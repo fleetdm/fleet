@@ -306,7 +306,7 @@ export const SOURCE_TYPE_CONVERSION = {
   firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
-  programs: "Program (Windows)",
+  programs: "Application (Windows)",
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
