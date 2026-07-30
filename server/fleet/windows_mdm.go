@@ -238,18 +238,24 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 		locURI := v.locURIAccumulator.String()
 		v.locURIAccumulator.Reset()
 
+		// Check for Fleet-reserved LocURIs (e.g. BitLocker, Windows Updates). Runs first so users
+		// get the specific "managed by Fleet" error instead of a generic format error.
 		if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
 			v.currentElement = ""
 			v.locURIHasContent = false
 			return err
 		}
 
+		// Validate structural format rules (must start with "./", no invalid characters, etc.)
+		// that real Windows devices enforce with status 400.
 		if err := validateLocURIFormat(locURI); err != nil {
 			v.currentElement = ""
 			v.locURIHasContent = false
 			return err
 		}
 
+		// Validate SCEP-specific constraints depending on whether this LocURI is inside an
+		// <Exec> command (certificate operations) or a non-Exec command (Add/Replace).
 		if v.isInExec() {
 			if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
 				v.currentElement = ""
