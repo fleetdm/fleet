@@ -4,7 +4,7 @@
 
 ## Key takeaways
 - **CISA's deadlines are shrinking, not just multiplying.** The Arista fix carried a 3-day window under Binding Operational Directive (BOD) 26-04, a preview of how fast every future Known Exploited Vulnerabilities (KEV) addition may need to move.
-- **Neither flaw sits on a typical endpoint.** VeloCloud Orchestrator and FortiOS are network appliances, not devices a fleet of laptops and servers would normally include. That's worth naming plainly instead of stretching a product claim to fit.
+- **Neither flaw sits on a typical endpoint.** VeloCloud Orchestrator and FortiOS are network appliances, not devices a fleet of laptops and servers would normally include.
 - **The real lesson is about the software that *is* in your fleet.** The same KEV additions happen constantly for browsers, VPN clients, and OS packages that live on the Mac, Windows, and Linux devices IT already manages.
 - **Manual "which hosts still have the old version" scrambles don't scale to 72-hour windows.** A point-in-time scan is stale before the meeting that reviews it ends.
 - **Fleet flags KEV-listed exposure automatically, host by host.** Every CVE Fleet detects on managed software already carries a live CISA "known exploited" flag, so there's no separate spreadsheet to build when CISA adds one.
@@ -26,7 +26,7 @@ Both are appliances: a VeloCloud Orchestrator manages SD-WAN, and FortiOS runs o
 
 ## The part that does apply to your fleet
 
-What's genuinely useful here isn't the specific CVEs, it's the pattern. CISA's KEV catalog adds entries like this constantly, and BOD 26-04 (like BOD 23-01 before it) exists because the agency has learned that "patch when convenient" doesn't hold up against active exploitation. Past KEV additions have landed on software that IT teams actually run fleet-wide: Log4Shell in 2021, and a steady stream of actively exploited Chrome and Windows CVEs since. The next one just as easily lands on a browser, a VPN client, or an npm package installed across thousands of the Mac, Windows, and Linux devices your team already manages with Fleet.
+What's actually worth calling out here isn't the specific CVEs, it's the pattern. CISA's KEV catalog adds entries like this constantly, and BOD 26-04 (like BOD 23-01 before it) exists because the agency has learned that "patch when convenient" doesn't hold up against active exploitation. Past KEV additions have landed on software that IT teams actually run fleet-wide: Log4Shell in 2021, and a steady stream of actively exploited Chrome and Windows CVEs since. The next one just as easily lands on a browser, a VPN client, or an npm package installed across thousands of the Mac, Windows, and Linux devices your team already manages with Fleet.
 
 That's where a three-day deadline becomes solvable instead of a fire drill. Fleet's agent inventories installed software (apps, OS versions, browser plugins, and packages) across every managed host and cross-references it against multiple vulnerability sources, including the National Vulnerability Database and, for Fleet Premium customers, CISA's own KEV catalog. Every CVE Fleet surfaces already carries a `cisa_known_exploit` flag. When CISA adds a new entry, there's no tracking sheet to build from scratch. Filter your existing software inventory to `exploit: true` and you get the exact list of hosts still running the vulnerable version, right now.
 
