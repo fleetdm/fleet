@@ -2620,6 +2620,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
 		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
+		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
+		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
+		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
 	}
 
