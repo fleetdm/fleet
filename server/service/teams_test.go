@@ -246,6 +246,28 @@ func TestTeamAuth(t *testing.T) {
 	}
 }
 
+func TestDeleteTeamRejectsNonAdminNonGitOpsRoles(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	for _, tt := range []struct {
+		name string
+		user *fleet.User
+	}{
+		{"global technician", &fleet.User{GlobalRole: new(fleet.RoleTechnician)}},
+		{"team technician, belongs to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleTechnician}}}},
+		{"global observer_plus", &fleet.User{GlobalRole: new(fleet.RoleObserverPlus)}},
+		{"team observer_plus, belongs to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			err := svc.DeleteTeam(ctx, 1)
+			checkAuthErr(t, true, err)
+		})
+	}
+}
+
 // TestGitOpsCannotManageTeamMembers verifies that a team gitops user cannot
 // add or remove team members (including self-promotion to admin).
 func TestGitOpsCannotManageTeamMembers(t *testing.T) {
