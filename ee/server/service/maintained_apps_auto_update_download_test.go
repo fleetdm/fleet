@@ -445,3 +445,30 @@ func TestAutoUpdatePreservesCustomInstallScriptBeyondFilename(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.Equal(t, custom, gotPayload.InstallScript, "a customization beyond the filename must be preserved")
 }
+
+// TestNormalizeInstallerFilename verifies the filename is neutralized only where
+// it's the installer path argument — not free-floating text elsewhere. A URL
+// basename can resolve to a short token (e.g. "dmg") that also appears in a
+// mount path, and a whole-script replace would mangle it and break the compare.
+func TestNormalizeInstallerFilename(t *testing.T) {
+	const ph = "__FLEET_INSTALLER_FILE__"
+
+	// Short token that also appears free-floating in the mount path.
+	dmg := "MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)\n" + `sudo cp -R "$TMPDIR/dmg" "$APPDIR"`
+	got := normalizeInstallerFilename(dmg, "dmg")
+	require.Contains(t, got, "/tmp/dmg_mount_XXXXXX", "free-floating token must not be replaced")
+	require.Contains(t, got, `"$TMPDIR/`+ph+`"`, "installer path argument is neutralized")
+
+	// Quoted pkg form.
+	require.Equal(t,
+		`sudo installer -pkg "$TMPDIR/`+ph+`" -target /`,
+		normalizeInstallerFilename(`sudo installer -pkg "$TMPDIR/Foo-1.0.pkg" -target /`, "Foo-1.0.pkg"))
+
+	// Choices form (filename unquoted after $TMPDIR).
+	require.Equal(t,
+		`sudo installer -pkg "$TMPDIR"/`+ph+` -target / -applyChoiceChangesXML "$X"`,
+		normalizeInstallerFilename(`sudo installer -pkg "$TMPDIR"/Foo-1.0.pkg -target / -applyChoiceChangesXML "$X"`, "Foo-1.0.pkg"))
+
+	// Empty filename is a no-op.
+	require.Equal(t, "unchanged", normalizeInstallerFilename("unchanged", ""))
+}

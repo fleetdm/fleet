@@ -413,5 +413,11 @@ func normalizeInstallerFilename(script, filename string) string {
 	if filename == "" {
 		return script
 	}
-	return strings.ReplaceAll(script, filename, "__FLEET_INSTALLER_FILE__")
+	const placeholder = "__FLEET_INSTALLER_FILE__"
+	// Replace only where the filename is the installer path argument. A short URL
+	// basename (e.g. "dmg") would otherwise rewrite free-floating occurrences such
+	// as /tmp/dmg_mount_XXXXXX.
+	script = strings.ReplaceAll(script, `"$TMPDIR/`+filename+`"`, `"$TMPDIR/`+placeholder+`"`)
+	script = strings.ReplaceAll(script, `"$TMPDIR"/`+filename, `"$TMPDIR"/`+placeholder)
+	return script
 }
