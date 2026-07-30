@@ -8282,19 +8282,14 @@ func testUpsertMDMAppleHostMDMInfoDBSQLColumnParity(t *testing.T, _ *Datastore) 
 	m := re.FindStringSubmatch(fn)
 	require.Len(t, m, 3, "host_mdm INSERT/ON DUPLICATE KEY UPDATE statement not found")
 
-	updateSet := make(map[string]struct{})
-	for _, c := range splitSQLUpdateLHS(t, m[2]) {
-		updateSet[c] = struct{}{}
-	}
+	updateCols := []string{"enrolled", "server_url", "mdm_id", "is_personal_enrollment"}
+	preserveCols := []string{"installed_from_dep", "is_server", "host_id"}
+	classifiedCols := append(append([]string{}, updateCols...), preserveCols...)
 
-	for _, c := range []string{"enrolled", "server_url", "mdm_id", "is_personal_enrollment"} {
-		_, ok := updateSet[c]
-		require.True(t, ok, "ON DUPLICATE KEY UPDATE must rewrite %s", c)
-	}
-	for _, c := range []string{"installed_from_dep", "is_server", "host_id"} {
-		_, ok := updateSet[c]
-		require.False(t, ok, "ON DUPLICATE KEY UPDATE must not rewrite %s", c)
-	}
+	require.ElementsMatch(t, classifiedCols, splitSQLIdents(t, m[1]),
+		"every host_mdm INSERT column must be classified as updated or preserved on conflict")
+	require.ElementsMatch(t, updateCols, splitSQLUpdateLHS(t, m[2]),
+		"host_mdm ON DUPLICATE KEY UPDATE columns must match the update classification")
 }
 
 func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
@@ -8318,6 +8313,18 @@ func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
 	}
 	require.FailNow(t, "unbalanced braces extracting function body")
 	return ""
+}
+
+func splitSQLIdents(t *testing.T, list string) []string {
+	t.Helper()
+	parts := strings.Split(list, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		require.NotEmpty(t, p)
+		out = append(out, p)
+	}
+	return out
 }
 
 func splitSQLUpdateLHS(t *testing.T, clause string) []string {
