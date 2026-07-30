@@ -4,6 +4,7 @@
 # Build output
 build/
 
-# Deployable archive of placeholder-page/, generated for Vercel Drop and friends.
-# Rebuild it with the command in placeholder-page/README.md.
+# Local test page for `notify --url`, deployed to a static host rather than shipped.
+# The bridge contract it demonstrates is documented in the PR and in ToastWindow.swift.
+placeholder-page/
 placeholder-page.zip
