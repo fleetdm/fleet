@@ -25,6 +25,36 @@ func TestHostLinuxPlatformPackageCompatibility(t *testing.T) {
 	}
 }
 
+func TestIsLUKSSupported(t *testing.T) {
+	for _, tc := range []struct {
+		platform  string
+		osVersion string
+		expected  bool
+	}{
+		{platform: "ubuntu", expected: true},
+		{platform: "zorin", expected: true},
+		// Fedora hosts report their platform as "rhel", so they are identified by OS version.
+		{platform: "rhel", osVersion: "Fedora Linux 41", expected: true},
+		{platform: "rhel", osVersion: "CentOS Linux 7.9.2009", expected: false},
+		// Arch and its derivatives.
+		{platform: "arch", expected: true},
+		{platform: "archarm", expected: true},
+		{platform: "manjaro", expected: true},
+		{platform: "manjaro-arm", expected: true},
+		{platform: "cachyos", expected: true},
+		{platform: "omarchy", expected: true},
+		// Linux platforms without LUKS support, and non-Linux platforms.
+		{platform: "debian", expected: false},
+		{platform: "darwin", expected: false},
+		{platform: "windows", expected: false},
+	} {
+		t.Run(tc.platform+" "+tc.osVersion, func(t *testing.T) {
+			h := &Host{Platform: tc.platform, OSVersion: tc.osVersion}
+			require.Equal(t, tc.expected, h.IsLUKSSupported())
+		})
+	}
+}
+
 func TestHostStatus(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
