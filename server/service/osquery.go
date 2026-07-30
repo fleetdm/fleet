@@ -1,8 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -326,16 +329,32 @@ func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type getClientConfigRequest struct {
-	NodeKey string `json:"node_key"`
+	NodeKey     string `json:"node_key"`
+	IfNoneMatch string `json:"-"`
 }
 
 func (r *getClientConfigRequest) hostNodeKey() string {
 	return r.NodeKey
 }
 
+func (getClientConfigRequest) DecodeRequest(
+	ctx context.Context,
+	r *http.Request,
+) (interface{}, error) {
+	req := new(getClientConfigRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return nil, err
+	}
+	req.IfNoneMatch = r.Header.Get("If-None-Match")
+	return req, nil
+}
+
 type getClientConfigResponse struct {
-	Config map[string]interface{}
-	Err    error `json:"error,omitempty"`
+	Config map[string]interface{} `json:"-"`
+	body         []byte
+	etag         string
+	notModified  bool
+	Err          error `json:"error,omitempty"`
 }
 
 func (r getClientConfigResponse) Error() error { return r.Err }
@@ -345,7 +364,12 @@ func (r getClientConfigResponse) Error() error { return r.Err }
 // Osquery expects the response for configs to be at the
 // top-level of the JSON response.
 func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
-	return json.Marshal(r.Config)
+	if r.Err != nil {
+		return json.Marshal(struct {
+			Error string `json:"error,omitempty"`
+		}{Error: r.Err.Error()})
+	}
+	return marshalClientConfig(r.Config)
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -353,17 +377,117 @@ func (r getClientConfigResponse) MarshalJSON() ([]byte, error) {
 // Osquery expects the response for configs to be at the
 // top-level of the JSON response.
 func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
+	r.Config = make(map[string]interface{})
 	return json.Unmarshal(data, &r.Config)
 }
 
+func (r getClientConfigResponse) HijackRender(
+	ctx context.Context,
+	w http.ResponseWriter,
+) {
+	w.Header().Set("ETag", r.etag)
+	w.Header().Set("Cache-Control", "private, no-cache")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+	if r.notModified {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(r.body); err != nil {
+		logging.WithErr(ctx, err)
+	}
+}
+
+// marshalClientConfig serializes the config map to JSON using the same
+// encoder settings as the existing jsonMarshal path (two-space indent,
+// trailing newline from json.Encoder.Encode).
+func marshalClientConfig(config map[string]any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(config); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// clientConfigETag computes a quoted SHA-256 ETag over the given body bytes.
+func clientConfigETag(body []byte) string {
+	sum := sha256.Sum256(body)
+	return `"` + hex.EncodeToString(sum[:]) + `"`
+}
+
+// clientConfigETagMatches parses the If-None-Match header and checks whether
+// it contains the computed ETag. It follows RFC 7232 semantics for strong
+// validators, with osquery-specific behavior for POST.
+func clientConfigETagMatches(ifNoneMatch, etag string) bool {
+	if ifNoneMatch == "" {
+		return false
+	}
+
+	// Trim leading/trailing whitespace
+	v := strings.TrimSpace(ifNoneMatch)
+	if v == "" {
+		return false
+	}
+
+	// "*" matches any existing representation
+	if v == "*" {
+		return true
+	}
+
+	// Parse comma-separated list
+	for _, tag := range strings.Split(v, ",") {
+		tag = strings.TrimSpace(tag)
+		if tag == "" {
+			continue
+		}
+		// Skip weak tags
+		if strings.HasPrefix(tag, "W/") {
+			continue
+		}
+		if tag == etag {
+			return true
+		}
+	}
+	return false
+}
+
 func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getClientConfigRequest)
+
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
 	}
 
+	body, err := marshalClientConfig(config)
+	if err != nil {
+		return getClientConfigResponse{
+			Err: newOsqueryError("internal error: encode config: " + err.Error()),
+		}, nil
+	}
+
+	etag := clientConfigETag(body)
+	notModified := clientConfigETagMatches(req.IfNoneMatch, etag)
+
+	// Debug logging for ETag behavior
+	logging.WithLevel(ctx, slog.LevelDebug)
+	if req.IfNoneMatch == "" {
+		logging.WithExtras(ctx, "etag_result", "full_no_validator")
+	} else if notModified {
+		logging.WithExtras(ctx, "etag_result", "not_modified")
+	} else {
+		logging.WithExtras(ctx, "etag_result", "full_mismatch")
+	}
+
 	return getClientConfigResponse{
-		Config: config,
+		Config:      config,
+		body:        body,
+		etag:        etag,
+		notModified: notModified,
 	}, nil
 }
 
