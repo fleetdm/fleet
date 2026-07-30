@@ -24,6 +24,14 @@
     <true/>
     <key>LSMultipleInstancesProhibited</key>
     <true/>
+    <!-- What this build's CLI supports. Callers probe for a capability rather than
+         comparing version numbers, so adding a command later doesn't mean updating a
+         hardcoded minimum version in every script that invokes us. -->
+    <key>FleetDesktopCapabilities</key>
+    <dict>
+        <key>notify</key>
+        <true/>
+    </dict>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
