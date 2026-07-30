@@ -352,7 +352,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - Never show a field's error before the field is dirty.
 - On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
-- On submit, show inline errors on every invalid field simultaneously, then return without submitting. Submit is an explicit exception to the dirty gate — it marks all fields dirty, so pristine required fields surface their errors too.
+- On submit, validate every field regardless of dirty state, show inline errors on all invalid fields simultaneously, then return without submitting. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
 #### When errors clear
