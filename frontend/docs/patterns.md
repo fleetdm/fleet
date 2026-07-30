@@ -384,7 +384,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 #### Conditional / dependent validation
 
-- Cross-field checks (e.g. password + confirmation match) run on blur of either field. The error attaches to the field that is invalid, not to both.
+- Cross-field checks (e.g. password + confirmation match) run on blur only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the dependent/confirmation field, not the source.
 - Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
@@ -409,7 +409,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 - The submit handler must guard against a second submission while one is in flight. Do not rely solely on the button being disabled.
 - The Cancel button remains enabled during submission and closes the modal immediately. It does not abort the in-flight request; the request completes in the background. We don't require abort because most call sites use plain Promises (not `useMutation`), and we don't want a confirmation dialog on Cancel — it adds friction to the common case for a rare one.
 - Because Cancel doesn't abort, the submission must be resilient to the modal being closed before the request resolves. Guard post-success side effects (toast, navigation, cache invalidation) so they don't fire against an unmounted component or a screen the user has already left. Failures on a closed modal are dropped silently — no toast, no re-open.
-- On success, close the modal and call `notify.success` before `router.push` / `router.replace`. This is a code-call order, not a visual order — `notify.success` defers toast creation by a tick, so calling it first lets the toast land on the destination page instead of getting wiped by its own navigation. See [Notifications](../../.claude/rules/fleet-frontend.md#notifications) and #48088.
+- On success, close the modal and call `notify.success` before `router.push` / `router.replace`. This is a code-call order, not a visual order — `notify.success` defers toast creation by a tick, so calling it first lets the toast land on the destination page instead of getting wiped by its own navigation. See [Notifications](../../.claude/rules/fleet-frontend.md#notifications).
 - On failure, fields become editable again, the submit button re-enables immediately, and server errors surface per [Server-side errors](#server-side-errors).
 - Closing a modal with unsaved changes silently discards them. No confirmation dialog. (Exceptions like the SQL editor stay exceptions.)
 
@@ -1125,7 +1125,7 @@ Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([.
 `components/ToastNotification`. Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
 Visible toasts are dismissed automatically on URL change.
 
-**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
+**When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page.
 
 ```tsx
 // first notify
