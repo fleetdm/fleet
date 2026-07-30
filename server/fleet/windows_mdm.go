@@ -224,8 +224,8 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 		v.currentTopLevelElement = ""
 	}
 
-	// An empty <LocURI></LocURI> produces no CharData token, so we catch it here when the close tag fires before any
-	// content. Whitespace-only content is rejected in validateLocURIFormat.
+	// An empty <LocURI></LocURI> or whitespace-only LocURI produces no non-whitespace CharData, so locURIHasContent
+	// stays false and we reject here before any further validation runs.
 	if elementName == "LocURI" && !v.locURIHasContent {
 		v.currentElement = ""
 		v.locURIAccumulator.Reset()
