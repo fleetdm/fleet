@@ -344,7 +344,9 @@ jobs:
       run: |
         ARCH=$(uname -m)
         if [ "$ARCH" = "x86_64" ]; then FLEET_ARCH="amd64"; else FLEET_ARCH="arm64"; fi
-        sudo hostnamectl set-hostname ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
+        # --transient: newer runner images don't allow hostnamed to write /etc/hostname;
+        # the kernel hostname is all osquery and `hostname -s` read anyway.
+        sudo hostnamectl set-hostname --transient ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
