@@ -146,12 +146,66 @@ describe("ManageHostsPage", () => {
     ).toBeDisabled();
     expect(screen.getByPlaceholderText(/search name/i)).toBeDisabled();
 
-    // Add hosts button still visible in the page header
+    // Add hosts button still visible in the page header, next to the
+    // settings gear menu (which now contains Enroll secrets).
     const headerWrap = screen
-      .getByText("Enroll secrets")
+      .getByRole("button", { name: "Hosts page settings" })
       .closest(".manage-hosts__button-wrap");
     expect(
       within(headerWrap as HTMLElement).getByText("Add hosts")
+    ).toBeInTheDocument();
+  });
+
+  it("renders the settings gear menu with its options", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+
+    const gear = screen.getByRole("button", { name: "Hosts page settings" });
+    expect(gear).toBeInTheDocument();
+
+    await user.click(gear);
+
+    expect(screen.getByText("Enroll secrets")).toBeInTheDocument();
+    expect(screen.getByText("Custom host vitals")).toBeInTheDocument();
+    expect(screen.getByText("Activity automations")).toBeInTheDocument();
+  });
+
+  it("disables Activity automations on Fleet Free with a premium tooltip", async () => {
+    setupHandlers(0);
+    // mockAppContext is Free tier (isPremiumTier: false).
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+    await user.click(
+      screen.getByRole("button", { name: "Hosts page settings" })
+    );
+
+    const option = screen
+      .getByText("Activity automations")
+      .closest('[data-testid="dropdown-option"]');
+    expect(option).toHaveAttribute("aria-disabled", "true");
+
+    await user.hover(screen.getByText("Activity automations"));
+    expect(
+      await screen.findByText(
+        "Activity automations are available in Fleet Premium."
+      )
     ).toBeInTheDocument();
   });
 

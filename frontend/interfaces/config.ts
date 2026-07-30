@@ -4,6 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
+  IWebhookHostActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 import { EndUserLocalAccountType } from "./mdm";
@@ -260,6 +261,7 @@ export interface IWebhookSettings {
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   activities_webhook: IWebhookActivities;
+  host_activities_webhook?: IWebhookHostActivities | null;
 }
 
 export type IAutomationsConfig = Pick<

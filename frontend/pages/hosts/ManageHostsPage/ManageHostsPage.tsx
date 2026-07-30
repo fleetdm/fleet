@@ -5,7 +5,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useQuery } from "react-query";
+import { useMutation, useQuery } from "react-query";
 import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
@@ -21,7 +21,10 @@ import scriptsAPI, {
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamResponse,
+  ILoadTeamsResponse,
+} from "services/entities/teams";
 import policiesAPI from "services/entities/policies";
 import hostsAPI, {
   HOSTS_QUERY_PARAMS as PARAMS,
@@ -64,6 +67,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IEmptyStateProps } from "interfaces/empty_state";
 import {
   DiskEncryptionStatus,
@@ -97,6 +101,7 @@ import TableCount from "components/TableContainer/TableCount";
 import DataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import FleetsDropdown from "components/FleetsDropdown";
+import ActionsDropdown from "components/ActionsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import EmptyState from "components/EmptyState";
@@ -129,6 +134,8 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
 import RunScriptBatchModal from "./components/RunScriptBatchModal";
+import HostActivityAutomationsModal from "./components/HostActivityAutomationsModal";
+import { IHostActivityAutomationsFormData } from "./components/HostActivityAutomationsModal/HostActivityAutomationsModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -235,11 +242,19 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
+  const [
+    showHostActivityAutomationsModal,
+    setShowHostActivityAutomationsModal,
+  ] = useState(false);
 
   // Hoisted above the deep-link effects so they share the same gate
   // as the in-page Add hosts / Manage enroll secrets affordances.
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  // Activity automations are configured per fleet, admins only. The menu item
+  // stays visible but disabled on "All fleets" (the setting belongs to one
+  // fleet) and on Fleet Free (Premium feature, shown so it can be discovered).
+  const canManageHostActivityAutomations = isGlobalAdmin || isTeamAdmin;
 
   // Open add hosts modal via query param (e.g. from command palette).
   // Wait until role flags and the team route have resolved before
@@ -277,6 +292,34 @@ const ManageHostsPage = ({
     location.pathname,
     router,
     canEnrollHosts,
+    isGlobalAdmin,
+    isRouteOk,
+  ]);
+
+  // Open activity automations modal via query param (e.g. from command
+  // palette). Same hydration gate as the effects above; re-checks the same
+  // conditions that enable the gear menu item.
+  useEffect(() => {
+    if (queryParams?.manage_activity_automations !== "1") return;
+    if (isGlobalAdmin === undefined || !isRouteOk) return;
+    if (
+      canManageHostActivityAutomations &&
+      !!isPremiumTier &&
+      !isAllTeamsSelected
+    ) {
+      setShowHostActivityAutomationsModal(true);
+    }
+    router.replace({
+      pathname: location.pathname,
+      query: omit(queryParams, "manage_activity_automations"),
+    });
+  }, [
+    queryParams,
+    location.pathname,
+    router,
+    canManageHostActivityAutomations,
+    isPremiumTier,
+    isAllTeamsSelected,
     isGlobalAdmin,
     isRouteOk,
   ]);
@@ -520,6 +563,26 @@ const ManageHostsPage = ({
   );
 
   const {
+    data: teamResponse,
+    isLoading: isLoadingHostActivityAutomations,
+    refetch: refetchHostActivityAutomations,
+  } = useQuery<ILoadTeamResponse, Error>(
+    ["team webhook settings", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      // Fetched only when the modal opens so the modal mounts with the stored
+      // settings; works for "No fleet" (team 0) too.
+      enabled:
+        isRouteOk &&
+        showHostActivityAutomationsModal &&
+        teamIdForApi !== undefined &&
+        !!isPremiumTier,
+    }
+  );
+  const hostActivityAutomations =
+    teamResponse?.team?.webhook_settings?.host_activities_webhook;
+
+  const {
     data: policy,
     isLoading: isLoadingPolicy,
     error: errorPolicy,
@@ -752,6 +815,59 @@ const ManageHostsPage = ({
   const toggleRunScriptBatchModal = useCallback(() => {
     setShowRunScriptBatchModal(!showRunScriptBatchModal);
   }, [showRunScriptBatchModal]);
+
+  const toggleHostActivityAutomationsModal = () => {
+    setShowHostActivityAutomationsModal(!showHostActivityAutomationsModal);
+  };
+
+  const {
+    mutate: updateHostActivityAutomations,
+    isLoading: isUpdatingHostActivityAutomations,
+  } = useMutation(
+    (formData: IHostActivityAutomationsFormData) =>
+      teamsAPI.update(
+        {
+          webhook_settings: {
+            host_activities_webhook: {
+              enable_host_activities_webhook: formData.enabled,
+              destination_url: formData.url,
+            },
+          },
+        },
+        teamIdForApi
+      ),
+    {
+      onSuccess: () => {
+        notify.success("Successfully updated activity automations.");
+        setShowHostActivityAutomationsModal(false);
+        refetchHostActivityAutomations();
+      },
+      onError: () => {
+        notify.error(
+          "Could not update activity automations. Please try again."
+        );
+      },
+    }
+  );
+
+  const onSelectHostsPageSetting = (value: string) => {
+    switch (value) {
+      case "enrollSecrets":
+        setShowEnrollSecretModal(true);
+        break;
+      case "customHostVitals":
+        router.push(
+          getPathWithQueryParams(PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS, {
+            fleet_id: teamIdForApi,
+          })
+        );
+        break;
+      case "activityAutomations":
+        setShowHostActivityAutomationsModal(true);
+        break;
+      default:
+    }
+  };
 
   const toggleEditColumnsModal = () => {
     setShowEditColumnsModal(!showEditColumnsModal);
@@ -2068,38 +2184,55 @@ const ManageHostsPage = ({
 
   const showAddHostsButton = canEnrollHosts && !hasErrors;
 
+  // Gear menu grouping the page-level settings (see #50219). Options are
+  // gated per item; the gear renders only when at least one is available.
+  const hostsPageSettingsOptions: IDropdownOption[] = [];
+  if (canEnrollHosts) {
+    hostsPageSettingsOptions.push({
+      label: "Enroll secrets",
+      value: "enrollSecrets",
+      disabled: false,
+    });
+  }
+  if (canManageCustomHostVitals) {
+    hostsPageSettingsOptions.push({
+      label: "Custom host vitals",
+      value: "customHostVitals",
+      disabled: false,
+    });
+  }
+  if (canManageHostActivityAutomations) {
+    const automationsDisabled = !isPremiumTier || isAllTeamsSelected;
+    let automationsTooltip: React.ReactNode;
+    if (!isPremiumTier) {
+      automationsTooltip =
+        "Activity automations are available in Fleet Premium.";
+    } else if (isAllTeamsSelected) {
+      automationsTooltip = "Select a fleet to manage activity automations.";
+    }
+    hostsPageSettingsOptions.push({
+      label: "Activity automations",
+      value: "activityAutomations",
+      disabled: automationsDisabled,
+      tooltipContent: automationsTooltip,
+    });
+  }
+
   return (
     <>
       <MainContent className={baseClass}>
         <div className={`${baseClass}__header-wrap`}>
           {renderHeader()}
           <div className={`${baseClass}__button-wrap`}>
-            {canManageCustomHostVitals && !hasErrors && (
-              <Button
-                onClick={() =>
-                  router.push(
-                    getPathWithQueryParams(
-                      PATHS.CONTROLS_VARIABLES_CUSTOM_HOST_VITALS,
-                      { fleet_id: teamIdForApi }
-                    )
-                  )
-                }
-                className={`${baseClass}__custom-host-vitals`}
-                variant="secondary"
-              >
-                <Icon name="pencil" />
-                <span>Custom host vitals</span>
-              </Button>
-            )}
-            {canEnrollHosts && !hasErrors && (
-              <Button
-                onClick={() => setShowEnrollSecretModal(true)}
-                className={`${baseClass}__enroll-hosts button`}
-                variant="secondary"
-              >
-                <Icon name="settings" />
-                <span>Enroll secrets</span>
-              </Button>
+            {hostsPageSettingsOptions.length > 0 && !hasErrors && (
+              <ActionsDropdown
+                className={`${baseClass}__settings-dropdown`}
+                options={hostsPageSettingsOptions}
+                placeholder="Hosts page settings"
+                onChange={onSelectHostsPageSetting}
+                triggerIcon="settings"
+                menuAlign="right"
+              />
             )}
             {showAddHostsButton && (
               <Button
@@ -2181,6 +2314,15 @@ const ManageHostsPage = ({
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
+      {showHostActivityAutomationsModal &&
+        !isLoadingHostActivityAutomations && (
+          <HostActivityAutomationsModal
+            automationSettings={hostActivityAutomations}
+            onSubmit={updateHostActivityAutomations}
+            onExit={toggleHostActivityAutomationsModal}
+            isUpdating={isUpdatingHostActivityAutomations}
+          />
+        )}
       {showEditColumnsModal && renderEditColumnsModal()}
       {showDeleteLabelModal && renderDeleteLabelModal()}
       {showAddHostsModal && renderAddHostsModal()}
