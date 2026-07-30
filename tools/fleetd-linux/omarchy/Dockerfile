@@ -22,7 +22,11 @@ RUN chmod +x /run-fleetd.sh
 # -Sy and then installing a package that pulls newer dependencies can leave the
 # system inconsistent. Upgrade with -Syu and install fleetd in the same layer so
 # both steps succeed or fail together.
-RUN pacman -Syu --noconfirm --needed ca-certificates \
+#
+# --disable-sandbox is required because this image is built for linux/amd64, so
+# on an arm64 host it runs emulated and pacman's download sandbox cannot install
+# its seccomp filter ("error restricting syscalls via seccomp: 22").
+RUN pacman --disable-sandbox -Syu --noconfirm --needed ca-certificates \
 	&& pacman -U --noconfirm /fleet-osquery_amd64.pkg.tar.zst
 
 ENTRYPOINT ["/run-fleetd.sh"]
