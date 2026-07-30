@@ -201,7 +201,7 @@ const AppleOSTargetForm = ({
           <>
             Use only versions{" "}
             <CustomLink
-              text="available from Apple."
+              text="available from Apple"
               newTab
               url="https://fleetdm.com/learn-more-about/apple-available-os-updates"
             />
