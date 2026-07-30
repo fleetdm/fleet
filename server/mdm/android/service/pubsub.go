@@ -233,16 +233,23 @@ func androidOperationTerminalState(op *androidmanagement.Operation) (status stri
 func setAndroidCommandTerminalState(ctx context.Context, ds fleet.Datastore, newActivityFn fleet.NewActivityFunc,
 	cmd *android.MDMAndroidCommand, status string, errCode, errMsg *string,
 ) error {
-	if err := ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, status, errCode, errMsg); err != nil {
-		return ctxerr.Wrap(ctx, err, "update android command status")
-	}
-
 	// WIPE ack is the authoritative signal that the device has been wiped (BYO: work profile removed; COBO: full factory reset). Flip
 	// host_mdm.enrolled to 0 here rather than waiting on a separate STATUS_REPORT / ENROLLMENT with state=DELETED, which AMAPI does
 	// not reliably send for a factory-reset COBO device (the agent is gone, nothing left to phone home). For BYO the DELETED
 	// notification typically arrives and is now a no-op because we already flipped state.
+	//
+	// This runs before the status write, not after: androidWipeAckUnenroll is idempotent, so a failure
+	// here leaving the row pending is recoverable (Pub/Sub redelivers, and the reconciler cron only
+	// selects pending rows). Writing the status first would strand a row as acknowledged with its side
+	// effects never applied, which the reconciler could never pick up again.
 	if cmd.CommandType == string(android.MDMAndroidCommandTypeWipe) && status == string(android.MDMAndroidCommandStatusAcknowledged) {
-		return androidWipeAckUnenroll(ctx, ds, newActivityFn, cmd)
+		if err := androidWipeAckUnenroll(ctx, ds, newActivityFn, cmd); err != nil {
+			return err
+		}
+	}
+
+	if err := ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID, status, errCode, errMsg); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android command status")
 	}
 	return nil
 }

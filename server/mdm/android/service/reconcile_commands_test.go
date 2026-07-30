@@ -213,6 +213,33 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		require.IsType(t, fleet.ActivityTypeMDMUnenrolled{}, activities[0])
 	})
 
+	t.Run("a failed WIPE side effect leaves the command pending so the next run retries it", func(t *testing.T) {
+		// The reconciler only ever selects pending rows, so writing the terminal status before the
+		// unenroll side effect succeeds would strand the host: acknowledged, still enrolled, and never
+		// looked at again.
+		cmd := pendingCommandForReconcile("cmd-wipe-transient", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
+		mockDS, client, logger := newReconcileFixture(t, cmd)
+		client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+			return &androidmanagement.Operation{Name: operationName, Done: true}, nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 55, UUID: hostUUID}}, nil
+		}
+		mockDS.GetHostMDMFunc = func(ctx context.Context, id uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{IsPersonalEnrollment: false}, nil
+		}
+		mockDS.SetAndroidHostUnenrolledFunc = func(ctx context.Context, id uint) (bool, error) {
+			return false, errors.New("simulated transient DB connection drop")
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage *string) error {
+			t.Fatalf("the command must stay pending when its wipe side effect fails")
+			return nil
+		}
+
+		require.NoError(t, reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval))
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
 	t.Run("errored WIPE does not unenroll the host", func(t *testing.T) {
 		cmd := pendingCommandForReconcile("cmd-wipe-failed", string(android.MDMAndroidCommandTypeWipe), 48*time.Hour)
 		mockDS, client, logger := newReconcileFixture(t, cmd)
@@ -271,6 +298,27 @@ func TestReconcileAndroidCommands(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, 1, calls, "the run must stop at the first quota error instead of hammering AMAPI")
 		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	t.Run("AMAPI rejecting our credentials stops the run and surfaces an error", func(t *testing.T) {
+		// A missing or stale Fleet server secret, or lost access to the enterprise, rejects every call
+		// identically -- working through the batch would only produce noise.
+		for _, statusCode := range []int{http.StatusUnauthorized, http.StatusForbidden} {
+			first := pendingCommandForReconcile("cmd-rejected", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
+			second := pendingCommandForReconcile("cmd-after-rejected", string(android.MDMAndroidCommandTypeLock), 48*time.Hour)
+			mockDS, client, logger := newReconcileFixture(t, first, second)
+			var calls int
+			client.EnterprisesDevicesOperationsGetFunc = func(ctx context.Context, operationName string) (*androidmanagement.Operation, error) {
+				calls++
+				return nil, googleAPIError(statusCode, "rejected")
+			}
+
+			err := reconcileAndroidCommands(t.Context(), &mockDS.DataStore, client, logger, noopNewActivity, reconcileNow, reconcileTestCallInterval)
+			require.Error(t, err, "status code %d", statusCode)
+			require.Equal(t, 1, calls, "status code %d must stop the run at the first rejection", statusCode)
+			require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked,
+				"a rejected call says nothing about the command, so nothing may be marked failed")
+		}
 	})
 
 	t.Run("nothing pending makes no AMAPI calls", func(t *testing.T) {

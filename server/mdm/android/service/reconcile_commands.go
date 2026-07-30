@@ -57,10 +57,19 @@ func ReconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, logger *s
 
 	client := newAMAPIClient(ctx, logger, licenseKey)
 
-	// Best-effort set authentication secret for proxy client usage (no-op for Google client).
-	if assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil); err == nil {
-		if asset, ok := assets[fleet.MDMAssetAndroidFleetServerSecret]; ok && len(asset.Value) > 0 {
-			_ = client.SetAuthenticationSecret(string(asset.Value))
+	// Set the authentication secret for proxy client usage (a no-op for the Google client, which
+	// authenticates from its own env var and has no such asset). Without it every AMAPI call on the proxy
+	// path is rejected, so say so loudly rather than letting the run burn through the batch on 401s.
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil)
+	switch {
+	case err != nil:
+		logger.WarnContext(ctx, "could not read the android fleet server secret; AMAPI calls will fail if this Fleet uses the proxy client", "err", err)
+	default:
+		asset, ok := assets[fleet.MDMAssetAndroidFleetServerSecret]
+		if !ok || len(asset.Value) == 0 {
+			logger.WarnContext(ctx, "no android fleet server secret stored; AMAPI calls will fail if this Fleet uses the proxy client")
+		} else if err := client.SetAuthenticationSecret(string(asset.Value)); err != nil {
+			return ctxerr.Wrap(ctx, err, "set android fleet server secret")
 		}
 	}
 
@@ -103,6 +112,14 @@ func reconcileAndroidCommands(ctx context.Context, ds fleet.Datastore, client an
 			logger.WarnContext(ctx, "android command reconcile hit AMAPI quota, stopping run",
 				"command_uuid", cmd.CommandUUID, "resolved", resolved, "remaining", len(cmds)-i)
 			return ctxerr.Wrap(ctx, err, "android command reconcile exceeded AMAPI quota")
+
+		case androidmgmt.IsAuthenticationError(err):
+			// Bad or missing credentials, or Fleet lost access to the enterprise. Every remaining call
+			// would be rejected the same way, so stop instead of working through the batch on errors that
+			// say nothing about the individual commands.
+			logger.ErrorContext(ctx, "android command reconcile rejected by AMAPI, stopping run",
+				"command_uuid", cmd.CommandUUID, "resolved", resolved, "remaining", len(cmds)-i, "err", err)
+			return ctxerr.Wrap(ctx, err, "android command reconcile rejected by AMAPI")
 
 		case androidmgmt.IsNotFoundError(err):
 			age := now.Sub(cmd.CreatedAt)

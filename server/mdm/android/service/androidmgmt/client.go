@@ -139,6 +139,16 @@ func IsNotFoundError(err error) bool {
 	return false
 }
 
+// IsAuthenticationError reports whether the AMAPI error indicates that the
+// request was rejected over credentials or access, rather than anything about
+// the resource that was requested.
+func IsAuthenticationError(err error) bool {
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		return ae.Code == http.StatusUnauthorized || ae.Code == http.StatusForbidden
+	}
+	return false
+}
+
 // IsTooManyRequestsError reports whether the AMAPI error indicates that we
 // exceeded the project's request quota.
 func IsTooManyRequestsError(err error) bool {

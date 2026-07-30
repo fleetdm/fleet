@@ -28,8 +28,14 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
-    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
+    // Unlike the other android-proxy actions, this one keeps 403 distinct from 404: the Fleet server
+    // treats "this operation is unknown" as evidence a command can never complete, and must not draw
+    // that conclusion from a loss of access to the enterprise.
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', statusCode: 403 },
     operationNotFound: { description: 'The specified operation does not exist in this Android enterprise', responseType: 'notFound' },
+    // The Fleet server classifies this status code to know it should stop polling and wait for the next
+    // reconciler run, so the Android management API's 429 has to survive the trip through this proxy.
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -76,11 +82,13 @@ module.exports = {
       return getOperationResult.data;
     }).intercept({status: 429}, (err)=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
-      sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to get a device operation for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      sails.log.warn(`p1: Android management API rate limit exceeded! When attempting to get a device operation for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so its reconciler
+      // can tell rate limiting apart from a generic failure.
+      return 'tooManyRequests';
     }).intercept({status: 403}, ()=>{
-      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
-      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
+      // If the Android management API returns a 403 response, return an enterpriseNotAccessible (403) response to the Fleet server.
+      return 'enterpriseNotAccessible';
     }).intercept({status: 404}, ()=>{
       // If the Android management API returns a 404 response, return an operationNotFound (notFound) response to the Fleet server.
       // The Fleet server treats this as "Google no longer has a record of this command".
