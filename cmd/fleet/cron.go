@@ -2389,15 +2389,6 @@ func newWindowsMaintainedAppTitlesSchedule(
 	return s, nil
 }
 
-// Deliberately not a job on the Fleet-maintained apps schedule, for the same reasons as
-// newWindowsMaintainedAppTitlesSchedule: it reads only local software and software title
-// state, so it must keep running when the catalog fetch fails. Previously this ran inside
-// the catalog sync, which meant a failed or partial fetch also skipped the rename pass and
-// left names the previous fetch had already recorded uncorrected until a later sync
-// succeeded.
-//
-// Back-dating the first run also gives the pass a run shortly after startup, which is what
-// heals names that are already mismatched when a server upgrades.
 func newMacOSMaintainedAppNamesSchedule(
 	ctx context.Context,
 	instanceID string,
