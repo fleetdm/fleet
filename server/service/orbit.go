@@ -490,6 +490,9 @@ type orbitHostCacheEntry struct {
 	pendingInstalls []string
 }
 
+// orbitHostCacheKey builds the cache key for a host's cached orbit data.
+// The key includes the scriptsDisabled flag because ListReadyToExecuteScriptsForHost
+// returns different results depending on whether scripts are globally disabled.
 func orbitHostCacheKey(hostID uint, scriptsDisabled bool) string {
 	key := strconv.FormatUint(uint64(hostID), 10)
 	if scriptsDisabled {
@@ -498,6 +501,11 @@ func orbitHostCacheKey(hostID uint, scriptsDisabled bool) string {
 	return key
 }
 
+// getOrbitHostData returns cached per-host data (MDM info, pending scripts,
+// pending installs) or fetches it from the DB on a cache miss. The cache uses
+// a 15s TTL, which is within the 30s orbit polling interval, so a host sees
+// at most one stale response before getting fresh data. When orbitHostCache
+// is nil (integration tests), every call goes directly to the DB.
 func (svc *Service) getOrbitHostData(ctx context.Context, hostID uint, scriptsDisabled bool) (*orbitHostCacheEntry, error) {
 	cacheKey := orbitHostCacheKey(hostID, scriptsDisabled)
 	if svc.orbitHostCache != nil {
