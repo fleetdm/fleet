@@ -34,7 +34,6 @@ SDK="$(xcrun --show-sdk-path)"
 
 # --- Host app -------------------------------------------------------------
 SOURCES=(
-    "$SRC_DIR/FleetConfig.swift"
     "$SRC_DIR/cli.swift"
     "$SRC_DIR/FleetService.swift"
     "$SRC_DIR/BrowserWindow.swift"
@@ -43,16 +42,6 @@ SOURCES=(
     "$SRC_DIR/FleetDesktopApp.swift"
 )
 SWIFT_FLAGS=(-sdk "$SDK" -parse-as-library -O)
-
-# Dev builds let `notify` load an arbitrary URL or local file, which release builds
-# must not: the toast is borderless, floats above every window and exposes a JS
-# bridge, so an arbitrary URL in a Fleet-signed binary would be a convincing
-# phishing surface. Gating at compile time keeps the code out of the release binary
-# entirely rather than relying on a bypassable runtime check. CI never sets this.
-if [ "${FLEET_DESKTOP_DEV:-}" = "1" ]; then
-    SWIFT_FLAGS+=(-D FLEET_DESKTOP_DEV)
-    echo "WARNING: dev build — notify accepts --url and --html"
-fi
 
 # Build both architectures in parallel. Collect both exit statuses before
 # failing — a bare `wait PID` under set -e exits on the first failure and
@@ -90,15 +79,6 @@ mkdir -p "$CONTENTS_DIR/Resources"
 cp "$SRC_DIR/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
 if [ -f "$SRC_DIR/fleet-logo.png" ]; then
     cp "$SRC_DIR/fleet-logo.png" "$CONTENTS_DIR/Resources/fleet-logo.png"
-fi
-
-# Placeholder page for `notify --placeholder`, plus the images it references.
-if [ -f "$SRC_DIR/patch-notification-placeholder.html" ]; then
-    cp "$SRC_DIR/patch-notification-placeholder.html" \
-        "$CONTENTS_DIR/Resources/patch-notification-placeholder.html"
-fi
-if [ -d "$SRC_DIR/toast-assets" ]; then
-    cp -R "$SRC_DIR/toast-assets" "$CONTENTS_DIR/Resources/toast-assets"
 fi
 
 # --- Platform SSO extension (.appex) --------------------------------------

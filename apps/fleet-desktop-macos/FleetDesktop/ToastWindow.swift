@@ -36,13 +36,6 @@ enum ToastOutcome {
 /// toast is actually on screen, and `onFinish` when it is gone — or immediately, with
 /// a failure, if it never appeared.
 final class ToastWindow: NSObject {
-    /// Where the toast content comes from. Determines which origins the JS bridge
-    /// will accept messages from.
-    enum Content {
-        case remote(URL)
-        case localFile(URL)
-    }
-
     // MARK: - Layout
 
     /// Matches the Figma update card.
@@ -60,6 +53,23 @@ final class ToastWindow: NSObject {
     private static let shadowPadding: CGFloat = 70
 
     private static let animationDuration: TimeInterval = 0.35
+
+    // MARK: - Timeouts
+
+    /// How long to wait for the page to reach first paint. A real network failure is
+    /// reported through the navigation delegate long before this — it only covers a
+    /// page that connects and then never renders.
+    static let loadTimeout: TimeInterval = 30
+
+    /// How long the toast stays up untouched before fading out. A safety net, not the
+    /// expected way for it to close: the page's own dismiss action is. Without it a
+    /// page that never sends `dismiss` would leave a window the user cannot close,
+    /// since the toast has no title bar, no close button and no Esc handling.
+    static let displayTimeout: TimeInterval = 600
+
+    /// Hard upper bound on a toast's lifetime. The watchdog uses this as a last
+    /// resort, in case a wedged WebKit means neither timeout above ever fires.
+    static let watchdogLimit: TimeInterval = loadTimeout + displayTimeout + 5
 
     /// Bounds for a page-requested resize, so a bad `height` can't produce a window
     /// taller than the screen or too small to read.
@@ -79,12 +89,11 @@ final class ToastWindow: NSObject {
     private let root: HaloView
     private let shadowView: ShadowBackingView
     private let card: NSView
-    private let content: Content
-    private let displayTimeout: TimeInterval
-    private let loadTimeout: TimeInterval
+    private let url: URL
     private let logger: Logger
 
-    /// Origin the page must post from. Captured at init from what we actually load.
+    /// Host the page must post from, captured from the URL we load. Always https, so
+    /// the scheme is checked separately.
     private let expectedHost: String?
 
     private var cardSize: NSSize
@@ -105,24 +114,12 @@ final class ToastWindow: NSObject {
     /// The page signalled `ready`, or `didFinish` fired and the grace period lapsed.
     private var hasPainted = false
 
-    init(
-        content: Content,
-        loadTimeout: TimeInterval,
-        displayTimeout: TimeInterval,
-        logger: Logger
-    ) {
-        self.content = content
-        self.loadTimeout = loadTimeout
-        self.displayTimeout = displayTimeout
+    init(url: URL, logger: Logger) {
+        self.url = url
         self.logger = logger
         self.cardSize = Self.cardSize
 
-        switch content {
-        case .remote(let url):
-            self.expectedHost = url.host?.lowercased()
-        case .localFile:
-            self.expectedHost = nil
-        }
+        self.expectedHost = url.host?.lowercased()
 
         let pad = Self.shadowPadding
         let cardRect = NSRect(origin: NSPoint(x: pad, y: pad), size: Self.cardSize)
@@ -235,22 +232,14 @@ final class ToastWindow: NSObject {
     /// paint, this reports `.loadFailed` and shows nothing at all — a toast the user
     /// never saw must not be reported as displayed.
     func present() {
-        switch content {
-        case .remote(let url):
-            webView.load(URLRequest(url: url))
-        case .localFile(let url):
-            // Read access scoped to the containing directory so the page's relative
-            // asset paths resolve.
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
-        }
+        webView.load(URLRequest(url: url))
 
-        guard loadTimeout > 0 else { return }
         let deadline = DispatchWorkItem { [weak self] in
             guard let self = self, !self.hasPainted else { return }
-            self.finish(.loadFailed("Page did not render within \(Int(self.loadTimeout))s."))
+            self.finish(.loadFailed("Page did not render within \(Int(Self.loadTimeout))s."))
         }
         loadDeadline = deadline
-        DispatchQueue.main.asyncAfter(deadline: .now() + loadTimeout, execute: deadline)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.loadTimeout, execute: deadline)
     }
 
     /// Anchors bottom-right on the active screen and fades in.
@@ -314,12 +303,11 @@ final class ToastWindow: NSObject {
     }
 
     private func armDisplayTimeout() {
-        guard displayTimeout > 0 else { return }
         let deadline = DispatchWorkItem { [weak self] in
             self?.fadeOutAndFinish(.timedOut)
         }
         displayDeadline = deadline
-        DispatchQueue.main.asyncAfter(deadline: .now() + displayTimeout, execute: deadline)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.displayTimeout, execute: deadline)
     }
 
     // MARK: - Finishing
@@ -448,16 +436,9 @@ extension ToastWindow: WKScriptMessageHandler {
     }
 
     private func isTrusted(_ origin: WKSecurityOrigin) -> Bool {
-        switch content {
-        case .remote:
-            guard let expectedHost = expectedHost else { return false }
-            return origin.protocol.lowercased() == "https"
-                && origin.host.lowercased() == expectedHost
-        case .localFile:
-            // For file:// origins `host` is the empty string, so only the scheme is
-            // meaningful here.
-            return origin.protocol.lowercased() == "file"
-        }
+        guard let expectedHost = expectedHost else { return false }
+        return origin.protocol.lowercased() == "https"
+            && origin.host.lowercased() == expectedHost
     }
 }
 
@@ -467,7 +448,7 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
     /// First paint is done, but the real page is React and mounts after this fires —
     /// which is why `ready` from the bridge is preferred. Give the page a short grace
     /// period to send it, then show anyway: a page that loaded but doesn't speak our
-    /// protocol (the placeholder, or any Fleet version predating the bridge) should
+    /// protocol (any Fleet version predating the bridge, or an arbitrary URL) should
     /// still be displayed.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard !hasPainted else { return }
@@ -578,14 +559,9 @@ extension ToastWindow: WKNavigationDelegate, WKUIDelegate {
         return nil
     }
 
-    private func isSameOrigin(_ url: URL) -> Bool {
-        switch content {
-        case .remote:
-            return url.scheme?.lowercased() == "https"
-                && url.host?.lowercased() == expectedHost
-        case .localFile:
-            return url.isFileURL
-        }
+    private func isSameOrigin(_ candidate: URL) -> Bool {
+        candidate.scheme?.lowercased() == "https"
+            && candidate.host?.lowercased() == expectedHost
     }
 
     private func handleNavigationFailure(_ error: Error) {

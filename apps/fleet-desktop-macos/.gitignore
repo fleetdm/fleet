@@ -3,3 +3,7 @@
 
 # Build output
 build/
+
+# Deployable archive of placeholder-page/, generated for Vercel Drop and friends.
+# Rebuild it with the command in placeholder-page/README.md.
+placeholder-page.zip

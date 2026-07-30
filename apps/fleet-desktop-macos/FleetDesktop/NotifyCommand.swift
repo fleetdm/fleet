@@ -23,9 +23,6 @@ import os
 enum NotifyCommand {
     private static let logger = Logger(subsystem: "com.fleetdm.fleet-desktop", category: "notify")
 
-    /// Extra head-room on top of both timeouts before the watchdog gives up.
-    private static let watchdogSlack: TimeInterval = 5
-
     static func run(_ options: NotifyOptions) -> Never {
         if options.isDetachedChild {
             runChild(options)
@@ -49,27 +46,13 @@ enum NotifyCommand {
             report(.internalError, "Could not determine our own executable path.")
         }
 
-        var arguments = [
+        let arguments = [
             executable,
             "notify",
-            "--patch-notification-id", options.patchNotificationID,
-            "--load-timeout", String(options.loadTimeout),
-            "--timeout", String(options.displayTimeout),
+            "--url", options.url.absoluteString,
             "--detached-child",
             "--handshake-fd", String(writeFD),
         ]
-        switch options.source {
-        case .device:
-            break
-        case .placeholder:
-            arguments.append("--placeholder")
-        #if FLEET_DESKTOP_DEV
-            case .url(let url):
-                arguments.append(contentsOf: ["--url", url.absoluteString])
-            case .htmlFile(let url):
-                arguments.append(contentsOf: ["--html", url.path])
-        #endif
-        }
 
         var fileActions: posix_spawn_file_actions_t?
         posix_spawn_file_actions_init(&fileActions)
@@ -142,21 +125,9 @@ enum NotifyCommand {
         }
         let handshake = Handshake(fd: handshakeFD)
 
-        // Configuration is checked before the lock state, even though a locked screen
-        // means we won't display either way. A misconfigured host is a real problem
-        // the admin needs to hear about, and it doesn't depend on whether the user
-        // happens to be at their desk — checking the lock first would report 41 on
-        // every attempt and never surface the actual fault.
-        let content: ToastWindow.Content
-        do {
-            content = try resolveContent(options)
-        } catch let failure as FleetConfig.Failure {
-            handshake.send(.configUnavailable, failure.diagnostic)
-            exit(ExitCode.configUnavailable.rawValue)
-        } catch {
-            handshake.send(.internalError, "Could not determine what to display.")
-            exit(ExitCode.internalError.rawValue)
-        }
+        // Never log the URL itself: the server embeds the device token in its path,
+        // and that is a bearer credential which os_log persists to disk.
+        logger.log("target host \(options.url.host ?? "?", privacy: .public)")
 
         // Someone is logged in — the caller established that — but behind a locked
         // screen the toast would expire unseen while reporting success. Report instead
@@ -175,8 +146,7 @@ enum NotifyCommand {
         // possible.
         app.setActivationPolicy(.accessory)
 
-        let delegate = ChildDelegate(
-            options: options, content: content, handshake: handshake, logger: logger)
+        let delegate = ChildDelegate(url: options.url, handshake: handshake, logger: logger)
         app.delegate = delegate
         app.run()
 
@@ -184,47 +154,6 @@ enum NotifyCommand {
         exit(ExitCode.internalError.rawValue)
     }
 
-    /// Builds the URL, or picks up the bundled placeholder.
-    private static func resolveContent(_ options: NotifyOptions) throws -> ToastWindow.Content {
-        switch options.source {
-        case .device:
-            let config = try FleetConfig.resolve(tokenFilePath: FleetConfig.defaultTokenFilePath())
-            guard
-                let url = FleetConfig.deviceURL(
-                    baseURL: config.baseURL,
-                    token: config.token,
-                    pathComponents: ["patch-notification", options.patchNotificationID]
-                )
-            else {
-                throw FleetConfig.Failure.fleetURLInvalid
-            }
-            // Never log the token: it's a bearer credential and os_log persists.
-            logger.log(
-                """
-                target \(config.baseURL, privacy: .public)/device/<redacted>/\
-                patch-notification/\(options.patchNotificationID, privacy: .public)
-                """)
-            return .remote(url)
-
-        case .placeholder:
-            guard
-                let url = Bundle.main.url(
-                    forResource: "patch-notification-placeholder",
-                    withExtension: "html"
-                )
-            else {
-                throw FleetConfig.Failure.managedPreferencesUnavailable
-            }
-            return .localFile(url)
-
-        #if FLEET_DESKTOP_DEV
-            case .url(let url):
-                return .remote(url)
-            case .htmlFile(let url):
-                return .localFile(url)
-        #endif
-        }
-    }
 
     /// Whether the session's screen is locked.
     ///
@@ -290,8 +219,7 @@ struct Handshake {
 
 /// Owns the toast for the lifetime of the child process.
 private final class ChildDelegate: NSObject, NSApplicationDelegate {
-    private let options: NotifyOptions
-    private let content: ToastWindow.Content
+    private let url: URL
     private let handshake: Handshake
     private let logger: Logger
 
@@ -301,10 +229,8 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
     /// True once the handshake line has been sent, so it is never sent twice.
     private var didReport = false
 
-    init(options: NotifyOptions, content: ToastWindow.Content, handshake: Handshake, logger: Logger)
-    {
-        self.options = options
-        self.content = content
+    init(url: URL, handshake: Handshake, logger: Logger) {
+        self.url = url
         self.handshake = handshake
         self.logger = logger
     }
@@ -314,12 +240,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
             finish(.internalError, "No display is available.")
         }
 
-        let toast = ToastWindow(
-            content: content,
-            loadTimeout: options.loadTimeout,
-            displayTimeout: options.displayTimeout,
-            logger: logger
-        )
+        let toast = ToastWindow(url: url, logger: logger)
         self.toast = toast
 
         toast.onDisplayed = { [weak self] in
@@ -337,7 +258,7 @@ private final class ChildDelegate: NSObject, NSApplicationDelegate {
     /// draws, and no Esc handling, so a wedged WebKit would leave an undismissable
     /// window floating over everything. Bounded by both timeouts plus slack.
     private func armWatchdog() {
-        let limit = options.loadTimeout + options.displayTimeout + 5
+        let limit = ToastWindow.watchdogLimit
         let item = DispatchWorkItem { [weak self] in
             self?.finish(.internalError, "Watchdog fired after \(Int(limit))s.")
         }

@@ -87,8 +87,15 @@ final class FleetService {
     /// Access only from stateQueue.
     private var _pageBadgeCount: Int?
 
+    /// Characters to trim from file contents (leading/trailing only).
+    private static let trimCharacters = CharacterSet(charactersIn: "\n\r ")
+
+    /// Path to the managed preferences plist (MDM-managed machines).
+    private static let managedPrefsPlistPath = "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
+
     init() {
-        self.tokenFile = FleetConfig.defaultTokenFilePath()
+        let root = ProcessInfo.processInfo.environment["ORBIT_ROOT_DIR"] ?? "/opt/orbit"
+        self.tokenFile = "\(root)/identifier"
     }
 
     deinit {
@@ -382,17 +389,18 @@ final class FleetService {
     /// filtered to that category (the value is validated as numeric upstream).
     private func deviceURL(page: String = "self-service", categoryId: String? = nil) -> URL? {
         let (base, token): (String?, String?) = stateQueue.sync { (_baseURL, _currentToken) }
-        guard let baseURL = base, let tok = token else { return nil }
-        var query: [String: String] = [:]
-        if let categoryId = categoryId {
-            query["category_id"] = categoryId
+        guard let baseURL = base,
+              let tok = token,
+              let encoded = tok.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            return nil
         }
-        return FleetConfig.deviceURL(
-            baseURL: baseURL,
-            token: tok,
-            pathComponents: [page],
-            query: query
-        )
+        let encodedPage = page.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? page
+        var urlString = "\(baseURL)/device/\(encoded)/\(encodedPage)"
+        if let categoryId = categoryId,
+           let encodedCategory = categoryId.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            urlString += "?category_id=\(encodedCategory)"
+        }
+        return URL(string: urlString)
     }
 
     /// Reads config, creates the BrowserWindow, loads the URL, optionally shows the window,
@@ -491,25 +499,33 @@ final class FleetService {
     }
 
     /// Reads the Fleet URL and device token. Returns true if successful.
-    ///
-    /// Note that on failure nothing is assigned, where previously `_baseURL` was set
-    /// before the token was read. Unobservable in practice: `showError` terminates
-    /// the app, and the only caller bails immediately.
     private func resolveConfig() -> Bool {
-        do {
-            let config = try FleetConfig.resolve(tokenFilePath: tokenFile)
-            stateQueue.sync {
-                _baseURL = config.baseURL
-                _currentToken = config.token
-            }
-            return true
-        } catch let failure as FleetConfig.Failure {
-            showError(failure.userFacingMessage)
-            return false
-        } catch {
-            showError("Unable to read Fleet configuration.")
+        guard let fleetURL = readFleetURL() else {
+            showError("This app is currently only supported on MDM-enabled Macs. Please contact your administrator for assistance.")
             return false
         }
+
+        // Require HTTPS — the device token is sent to this URL, and a
+        // misconfigured http:// value would put it on the wire in cleartext.
+        // Require a host too: URL(string:) accepts host-less values like
+        // "https://", which would otherwise build a device URL whose host is
+        // the literal path segment "device".
+        guard let parsed = URL(string: fleetURL),
+              parsed.scheme?.lowercased() == "https",
+              let host = parsed.host, !host.isEmpty else {
+            showError("The configured Fleet URL must be a valid HTTPS URL.\nCheck the FleetURL managed preference.")
+            return false
+        }
+
+        stateQueue.sync { _baseURL = fleetURL.hasSuffix("/") ? String(fleetURL.dropLast()) : fleetURL }
+
+        guard let token = readToken() else {
+            showError("Device token not found or could not be read at \(tokenFile).\nEnsure orbit is enrolled and the identifier file exists.")
+            return false
+        }
+
+        stateQueue.sync { _currentToken = token }
+        return true
     }
 
     // MARK: - Token Refresh
@@ -542,8 +558,7 @@ final class FleetService {
 
     /// Re-reads the token file. If the token has changed, silently reloads the browser with the new URL.
     private func refreshTokenIfNeeded() {
-        guard let newToken = FleetConfig.readToken(at: tokenFile),
-              let browser = browserWindow else { return }
+        guard let newToken = readToken(), let browser = browserWindow else { return }
 
         let changed: Bool = stateQueue.sync {
             guard newToken != _currentToken else { return false }
@@ -566,7 +581,7 @@ final class FleetService {
         let oldToken: String? = stateQueue.sync { _currentToken }
 
         // First, try an immediate refresh
-        if let newToken = FleetConfig.readToken(at: tokenFile), newToken != oldToken {
+        if let newToken = readToken(), newToken != oldToken {
             stateQueue.sync {
                 _currentToken = newToken
                 _retryCount = 0
@@ -666,6 +681,45 @@ final class FleetService {
         DispatchQueue.main.async {
             browser.reloadCurrent()
         }
+    }
+
+    // MARK: - File Reading
+
+    /// Reads the Fleet URL from managed preferences (MDM).
+    /// Only MDM-managed machines are supported.
+    private func readFleetURL() -> String? {
+        guard let plist = NSDictionary(contentsOfFile: Self.managedPrefsPlistPath),
+              let url = plist["FleetURL"] as? String else {
+            return nil
+        }
+        let trimmed = url.trimmingCharacters(in: Self.trimCharacters)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// Characters allowed in a device token (ASCII alphanumerics plus - and _).
+    /// Listed explicitly because CharacterSet.alphanumerics also matches
+    /// non-ASCII Unicode letters and digits. Rejecting anything else keeps path
+    /// separators and other URL metacharacters out of the device URLs built
+    /// from the token.
+    private static let tokenAllowedCharacters = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    )
+
+    private func readToken() -> String? {
+        guard let token = readFileTrimmed(path: tokenFile),
+              token.unicodeScalars.allSatisfy({ Self.tokenAllowedCharacters.contains($0) }) else {
+            return nil
+        }
+        return token
+    }
+
+    private func readFileTrimmed(path: String) -> String? {
+        guard let data = FileManager.default.contents(atPath: path),
+              let raw = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        let trimmed = raw.trimmingCharacters(in: Self.trimCharacters)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Error Display
