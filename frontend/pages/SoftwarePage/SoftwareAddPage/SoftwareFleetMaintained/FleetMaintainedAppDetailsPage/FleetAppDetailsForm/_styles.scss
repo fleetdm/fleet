@@ -41,7 +41,7 @@
   &__action-buttons {
     display: flex;
     flex-direction: row-reverse;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 
   fieldset {

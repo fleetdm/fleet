@@ -500,6 +500,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			IPadOSUpdates:              cmd.AppConfig.MDM.IPadOSUpdates,
 			WindowsUpdates:             cmd.AppConfig.MDM.WindowsUpdates,
 			MacOSSetup:                 cmd.AppConfig.MDM.MacOSSetup,
+			WindowsSettings:            cmd.AppConfig.MDM.WindowsSettings,
 		}
 
 		// Collect failing policy IDs from webhook settings so we can output
@@ -1368,11 +1369,24 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(t, "MacOSSettings")] = macosSettings
 			}
 		}
-		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					jsonFieldName(windowsSettingsT, "CustomSettings"): profiles["windows_profiles"],
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			windowsSettings := map[string]any{}
+			if profiles != nil {
+				if windowsProfiles, _ := profiles["windows_profiles"].([]map[string]any); len(windowsProfiles) > 0 {
+					windowsSettings[jsonFieldName(windowsSettingsT, "CustomSettings")] = windowsProfiles
 				}
+			}
+			// Emit the managed local account toggle only when it is enabled. Omitting it is lossless because false is
+			// the setting's default: GitOps clears what a YAML file does not define, and a cleared managed local account
+			// setting resolves to false, the same state we would have written out explicitly. Per product guidance
+			// (2026/07/24) we only output what has actually been configured rather than every setting at its default.
+			if cmd.AppConfig.License.IsPremium() && teamMdm != nil && teamMdm.WindowsSettings.ManagedLocalAccountSettings.Enabled.Value {
+				windowsSettings[jsonFieldName(windowsSettingsT, "ManagedLocalAccountSettings")] = map[string]any{
+					jsonFieldName(reflect.TypeFor[fleet.ManagedLocalAccountSettings](), "Enabled"): true,
+				}
+			}
+			if len(windowsSettings) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = windowsSettings
 			}
 		}
 		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {

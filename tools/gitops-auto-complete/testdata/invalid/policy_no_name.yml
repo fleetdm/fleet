@@ -1,0 +1,3 @@
+# A policy must set name (or path/paths); this one has neither.
+policies:
+  - query: "SELECT 1;"

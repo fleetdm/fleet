@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.6.1",
+      "version": "2.7.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.p0deje.Maccy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.p0deje.Maccy' AND version_compare(bundle_short_version, '2.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.p0deje.Maccy' AND version_compare(bundle_short_version, '2.7.0') < 0);"
       },
-      "installer_url": "https://github.com/p0deje/Maccy/releases/download/2.6.1/Maccy.app.zip",
+      "installer_url": "https://github.com/p0deje/Maccy/releases/download/2.7.0/Maccy.app.zip",
       "install_script_ref": "e52430d0",
       "uninstall_script_ref": "a8ff99d4",
-      "sha256": "84b95baf1961bdf30045188c855237f90c1426ac8f123b4ae8f74191f9f38682",
+      "sha256": "9e2ff4393059a71dcdcd27c5d111de31673080ae2c18fec44ba65c1ab264383c",
       "default_categories": [
         "Productivity"
       ]
