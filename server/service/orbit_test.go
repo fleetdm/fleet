@@ -1657,6 +1657,24 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// GetOrbitConfig cache tests -- DO NOT REMOVE
+//
+// These tests protect a performance optimization that eliminates ~10,000 DB
+// reads/s at 100K hosts by caching per-host data in GetOrbitConfig. Removing
+// or weakening them risks silent performance regressions that show up only
+// under production load.
+//
+// TestGetOrbitConfigHostDataCache      -- verifies cache hit/miss behavior
+// TestGetOrbitConfigHostDataCacheErrors -- verifies errors bypass the cache
+// TestGetOrbitConfigHostDataCacheWithPendingWork -- verifies cached data flows
+//                                                  into the response correctly
+// TestGetOrbitConfigDBCallBudget       -- guardrail that fails when a new DB
+//                                        call is added to GetOrbitConfig without
+//                                        updating the cache or acknowledging the
+//                                        new call. See its doc comment for details.
+// =============================================================================
+
 func TestGetOrbitConfigHostDataCache(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
