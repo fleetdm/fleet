@@ -1184,7 +1184,7 @@ func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdB
 			error_code, error_message, created_at, updated_at
 		FROM mdm_android_commands
 		WHERE status = ? AND created_at < ?
-		ORDER BY created_at
+		ORDER BY created_at, command_uuid
 		LIMIT ?
 	`
 	var cmds []*android.MDMAndroidCommand
