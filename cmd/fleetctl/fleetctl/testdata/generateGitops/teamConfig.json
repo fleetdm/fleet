@@ -47,6 +47,10 @@
                 3
             ],
             "host_batch_size": 4
+        },
+        "host_activities_webhook": {
+            "enable_host_activities_webhook": true,
+            "destination_url": "https://some-team-host-activities-webhook.com"
         }
     },
     "integrations": {

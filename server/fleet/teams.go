@@ -288,6 +288,17 @@ type TeamWebhookSettings struct {
 	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
 	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	// HostActivitiesWebhook is nil when not provided so partial updates and
+	// team specs can leave the stored value untouched.
+	HostActivitiesWebhook *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
+}
+
+// HostActivitiesWebhookSettings is the per-fleet webhook fired when an
+// activity linked to one of the fleet's hosts is created. The payload has the
+// same format as the global activities webhook (ActivitiesWebhookSettings).
+type HostActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_host_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
@@ -305,6 +316,7 @@ type DefaultTeamConfig struct {
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings `json:"host_activities_webhook"`
 }
 
 // DefaultTeamIntegrations contains only the integrations supported for team ID 0
@@ -506,6 +518,10 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	if t.WebhookSettings.HostStatusWebhook != nil {
 		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
 		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if t.WebhookSettings.HostActivitiesWebhook != nil {
+		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
+		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
 	}
 	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
 		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
@@ -735,6 +751,7 @@ type TeamSpec struct {
 type TeamSpecWebhookSettings struct {
 	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	HostActivitiesWebhook  *HostActivitiesWebhookSettings  `json:"host_activities_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'
@@ -788,6 +805,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+	if t.Config.WebhookSettings.HostActivitiesWebhook != nil {
+		webhookSettings.HostActivitiesWebhook = t.Config.WebhookSettings.HostActivitiesWebhook
 	}
 
 	var integrations TeamSpecIntegrations

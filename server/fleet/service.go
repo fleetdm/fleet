@@ -110,6 +110,10 @@ type ActivityLookupService interface {
 
 	// GetActivitiesWebhookSettings returns the webhook settings for activities.
 	GetActivitiesWebhookSettings(ctx context.Context) (ActivitiesWebhookSettings, error)
+	// GetHostActivitiesWebhookSettings returns the enabled host-activities
+	// webhook settings of the fleets the given hosts belong to, deduplicated by
+	// fleet. Returns nil on Fleet Free.
+	GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhookSettings, error)
 	// ActivateNextUpcomingActivityForHost activates the next upcoming activity for the given host.
 	ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error
 }

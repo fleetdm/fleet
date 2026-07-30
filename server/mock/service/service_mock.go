@@ -44,6 +44,8 @@ type GetHostLiteFunc func(ctx context.Context, id uint) (host *fleet.Host, err e
 
 type GetActivitiesWebhookSettingsFunc func(ctx context.Context) (fleet.ActivitiesWebhookSettings, error)
 
+type GetHostActivitiesWebhookSettingsFunc func(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error)
+
 type ActivateNextUpcomingActivityForHostFunc func(ctx context.Context, hostID uint, fromCompletedExecID string) error
 
 type GetTransparencyURLFunc func(ctx context.Context) (string, error)
@@ -1020,6 +1022,9 @@ type Service struct {
 
 	GetActivitiesWebhookSettingsFunc        GetActivitiesWebhookSettingsFunc
 	GetActivitiesWebhookSettingsFuncInvoked bool
+
+	GetHostActivitiesWebhookSettingsFunc        GetHostActivitiesWebhookSettingsFunc
+	GetHostActivitiesWebhookSettingsFuncInvoked bool
 
 	ActivateNextUpcomingActivityForHostFunc        ActivateNextUpcomingActivityForHostFunc
 	ActivateNextUpcomingActivityForHostFuncInvoked bool
@@ -2516,6 +2521,13 @@ func (s *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Activ
 	s.GetActivitiesWebhookSettingsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetActivitiesWebhookSettingsFunc(ctx)
+}
+
+func (s *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
+	s.mu.Lock()
+	s.GetHostActivitiesWebhookSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostActivitiesWebhookSettingsFunc(ctx, hostIDs)
 }
 
 func (s *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {

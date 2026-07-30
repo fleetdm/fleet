@@ -1012,14 +1012,29 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: No team\nsettings:\n  webhook_settings:\n    host_status_webhook:\n      enable_host_status_webhook: true\n    failing_policies_webhook:\n      enable_failing_policies_webhook: true\n"
 					noTeamPath5a, noTeamBasePath5a := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5a, noTeamBasePath5a, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'host_status_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
 
 					// No team with vulnerabilities_webhook in webhook_settings should fail
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\nsettings:\n  webhook_settings:\n    vulnerabilities_webhook:\n      enable_vulnerabilities_webhook: true\n"
 					noTeamPath5b, noTeamBasePath5b := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath5b, noTeamBasePath5b, nil, nopLogf)
-					assert.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' is allowed")
+					require.ErrorContains(t, err, "unsupported webhook_settings option 'vulnerabilities_webhook' in no-team.yml - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed")
+
+					// No team with valid host_activities_webhook should work
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5c, noTeamBasePath5c := createNamedFileOnTempDir(t, "no-team.yml", config)
+					gitops, err = GitOpsFromFile(noTeamPath5c, noTeamBasePath5c, nil, nopLogf)
+					require.NoError(t, err)
+					assert.NotNil(t, gitops)
+
+					// No team with non-object host_activities_webhook should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook: bad\n"
+					noTeamPath5d, noTeamBasePath5d := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5d, noTeamBasePath5d, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook' must be an object or null")
 
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})

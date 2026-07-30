@@ -8,7 +8,13 @@ type ActivitiesWebhookSettings struct {
 	DestinationURL string
 }
 
+// HostActivitiesWebhook is one fleet's enabled host-activities webhook destination.
+type HostActivitiesWebhook struct {
+	DestinationURL string
+}
+
 // AppConfigProvider provides access to app configuration needed by the activity bounded context.
 type AppConfigProvider interface {
 	GetActivitiesWebhookConfig(ctx context.Context) (*ActivitiesWebhookSettings, error)
+	GetHostActivitiesWebhooks(ctx context.Context, hostIDs []uint) ([]HostActivitiesWebhook, error)
 }

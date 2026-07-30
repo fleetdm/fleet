@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -61,6 +62,14 @@ type simpleActivity struct {
 }
 
 func (a simpleActivity) ActivityName() string { return "simple_test" }
+
+// hostActivity is a host-linked activity (implements types.ActivityHosts).
+type hostActivity struct {
+	simpleActivity
+	hostIDs []uint
+}
+
+func (a hostActivity) HostIDs() []uint { return a.hostIDs }
 
 type aliasedActivity struct {
 	TeamID uint `json:"team_id" renameto:"fleet_id"`
@@ -393,4 +402,188 @@ func TestNewActivityWebhookDisabled(t *testing.T) {
 	err := svc.NewActivity(t.Context(), &api.User{ID: 1}, simpleActivity{Name: "no webhook"})
 	require.NoError(t, err)
 	require.True(t, ds.newActivityCalled)
+}
+
+func TestNewActivityHostWebhook(t *testing.T) {
+	t.Parallel()
+
+	// One channel-fed server so payloads can be asserted; each fleet webhook
+	// destination is a distinct path on it.
+	type receivedPayload struct {
+		path string
+		body webhookPayload
+	}
+	received := make(chan receivedPayload, 4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body webhookPayload
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Log(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		received <- receivedPayload{path: r.URL.Path, body: body}
+	}))
+	t.Cleanup(srv.Close)
+
+	user := &api.User{ID: 1, Name: "testUser", Email: "testUser@example.com"}
+
+	t.Run("fires one webhook per fleet destination", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/fleet-a"},
+					{DestinationURL: srv.URL + "/fleet-b"},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivity{simpleActivity: simpleActivity{Name: "host act"}, hostIDs: []uint{42, 43}}
+		err := svc.NewActivity(t.Context(), user, act)
+		require.NoError(t, err)
+		require.True(t, ds.newActivityCalled)
+		require.True(t, providers.hostWebhooksCalled)
+		assert.Equal(t, []uint{42, 43}, providers.hostWebhookHostIDs)
+
+		paths := make(map[string]webhookPayload, 2)
+		for range 2 {
+			select {
+			case <-time.After(3 * time.Second):
+				t.Fatal("timeout waiting for host activities webhooks")
+			case p := <-received:
+				paths[p.path] = p.body
+			}
+		}
+		require.Len(t, paths, 2)
+		for _, path := range []string{"/fleet-a", "/fleet-b"} {
+			body, ok := paths[path]
+			require.True(t, ok, "expected a webhook POST to %s", path)
+			// Same format as the global activities webhook.
+			assert.Equal(t, act.ActivityName(), body.Type)
+			require.NotNil(t, body.ActorFullName)
+			assert.Equal(t, user.Name, *body.ActorFullName)
+			require.NotNil(t, body.ActorID)
+			assert.Equal(t, user.ID, *body.ActorID)
+			require.NotNil(t, body.ActorEmail)
+			assert.Equal(t, user.Email, *body.ActorEmail)
+			var details map[string]string
+			require.NoError(t, json.Unmarshal(*body.Details, &details))
+			assert.Equal(t, "host act", details["name"])
+		}
+	})
+
+	t.Run("global activity does not look up fleet webhooks", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/never"},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		err := svc.NewActivity(t.Context(), user, simpleActivity{Name: "global act"})
+		require.NoError(t, err)
+		require.True(t, ds.newActivityCalled)
+		assert.False(t, providers.hostWebhooksCalled)
+	})
+
+	t.Run("host activity with no host IDs does not look up fleet webhooks", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		err := svc.NewActivity(t.Context(), user, hostActivity{simpleActivity: simpleActivity{Name: "no hosts"}})
+		require.NoError(t, err)
+		require.True(t, ds.newActivityCalled)
+		assert.False(t, providers.hostWebhooksCalled)
+	})
+
+	t.Run("no enabled fleet webhooks fires nothing and stores the activity", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooks:     nil,
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		err := svc.NewActivity(t.Context(), user, hostActivity{simpleActivity: simpleActivity{Name: "quiet"}, hostIDs: []uint{7}})
+		require.NoError(t, err)
+		require.True(t, ds.newActivityCalled)
+		require.True(t, providers.hostWebhooksCalled)
+		// Nothing should be delivered anywhere. Prior subtests drained their own
+		// deliveries, so any message here would be a stray fire from this one.
+		select {
+		case p := <-received:
+			t.Fatalf("unexpected webhook POST to %s", p.path)
+		case <-time.After(200 * time.Millisecond):
+		}
+	})
+
+	t.Run("provider error is best-effort: activity is still stored, nothing fires", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				hostWebhooksErr:  errors.New("boom"),
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		err := svc.NewActivity(t.Context(), user, hostActivity{simpleActivity: simpleActivity{Name: "err"}, hostIDs: []uint{7}})
+		require.NoError(t, err)
+		assert.True(t, ds.newActivityCalled)
+	})
+
+	t.Run("global and fleet webhooks both fire for a host activity", func(t *testing.T) {
+		ds := &newActivityMockDatastore{}
+		providers := &newActivityMockProviders{
+			mockDataProviders: mockDataProviders{
+				mockUserProvider: &mockUserProvider{},
+				mockHostProvider: &mockHostProvider{},
+				webhookConfig: &activity.ActivitiesWebhookSettings{
+					Enable:         true,
+					DestinationURL: srv.URL + "/global",
+				},
+				hostWebhooks: []activity.HostActivitiesWebhook{
+					{DestinationURL: srv.URL + "/fleet-c"},
+				},
+			},
+		}
+		svc := newTestServiceWithWebhook(ds, providers)
+
+		act := hostActivity{simpleActivity: simpleActivity{Name: "both"}, hostIDs: []uint{9}}
+		err := svc.NewActivity(t.Context(), user, act)
+		require.NoError(t, err)
+
+		paths := make(map[string]webhookPayload, 2)
+		for range 2 {
+			select {
+			case <-time.After(3 * time.Second):
+				t.Fatal("timeout waiting for global + fleet webhooks")
+			case p := <-received:
+				paths[p.path] = p.body
+			}
+		}
+		require.Len(t, paths, 2)
+		assert.Contains(t, paths, "/global")
+		assert.Contains(t, paths, "/fleet-c")
+		// Identical payload on both destinations.
+		assert.Equal(t, paths["/global"], paths["/fleet-c"])
+	})
 }

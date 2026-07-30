@@ -883,6 +883,48 @@ func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context)
 	return appConfig.WebhookSettings.ActivitiesWebhook, nil
 }
 
+func (t *testingLookupService) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
+	hosts, err := t.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	seenTeamIDs := make(map[uint]struct{})
+	var settings []fleet.HostActivitiesWebhookSettings
+	for _, host := range hosts {
+		var teamKey uint
+		if host.TeamID != nil {
+			teamKey = *host.TeamID
+		}
+		if _, ok := seenTeamIDs[teamKey]; ok {
+			continue
+		}
+		seenTeamIDs[teamKey] = struct{}{}
+
+		var webhook *fleet.HostActivitiesWebhookSettings
+		if teamKey == 0 {
+			config, err := t.ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return nil, err
+			}
+			webhook = config.WebhookSettings.HostActivitiesWebhook
+		} else {
+			team, err := t.ds.TeamLite(ctx, teamKey)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					continue
+				}
+				return nil, err
+			}
+			webhook = team.Config.WebhookSettings.HostActivitiesWebhook
+		}
+
+		if webhook != nil && webhook.Enable && webhook.DestinationURL != "" {
+			settings = append(settings, *webhook)
+		}
+	}
+	return settings, nil
+}
+
 func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
 	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }

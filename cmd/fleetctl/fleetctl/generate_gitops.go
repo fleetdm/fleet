@@ -1285,11 +1285,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	}
 
 	if team.ID == 0 {
-		// Only include failing_policies_webhook for "No Team".
+		// Only include failing_policies_webhook and host_activities_webhook for "No Team".
 		fpw := webhookSettings["failing_policies_webhook"]
+		haw := webhookSettings["host_activities_webhook"]
 		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): map[string]any{
 				"failing_policies_webhook": fpw,
+				"host_activities_webhook":  haw,
 			},
 		}
 		return teamSettings, nil

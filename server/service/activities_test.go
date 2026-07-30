@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -225,4 +226,130 @@ func TestCancelHostUpcomingActivityAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeam, err)
 		})
 	}
+}
+
+func TestGetHostActivitiesWebhookSettings(t *testing.T) {
+	newLicenseCtx := func(t *testing.T, tier string) context.Context {
+		return license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: tier})
+	}
+
+	teamID1, teamID2 := uint(1), uint(2)
+	hostInTeam := func(id uint, teamID *uint) *fleet.Host {
+		return &fleet.Host{ID: id, TeamID: teamID}
+	}
+
+	newDS := func(hosts []*fleet.Host, teamWebhooks map[uint]*fleet.HostActivitiesWebhookSettings, noTeamWebhook *fleet.HostActivitiesWebhookSettings) *mock.Store {
+		ds := new(mock.Store)
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return hosts, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			webhook, ok := teamWebhooks[tid]
+			if !ok {
+				return nil, &notFoundError{}
+			}
+			return &fleet.TeamLite{
+				ID:     tid,
+				Config: fleet.TeamConfigLite{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: webhook}},
+			}, nil
+		}
+		ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+			return &fleet.TeamConfig{WebhookSettings: fleet.TeamWebhookSettings{HostActivitiesWebhook: noTeamWebhook}}, nil
+		}
+		return ds
+	}
+
+	enabled := func(url string) *fleet.HostActivitiesWebhookSettings {
+		return &fleet.HostActivitiesWebhookSettings{Enable: true, DestinationURL: url}
+	}
+
+	t.Run("free tier returns nil without touching the datastore", func(t *testing.T) {
+		ds := newDS([]*fleet.Host{hostInTeam(1, &teamID1)}, map[uint]*fleet.HostActivitiesWebhookSettings{teamID1: enabled("https://example.com")}, nil)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierFree), []uint{1})
+		require.NoError(t, err)
+		require.Nil(t, settings)
+		require.False(t, ds.ListHostsLiteByIDsFuncInvoked)
+	})
+
+	t.Run("returns the host's fleet webhook", func(t *testing.T) {
+		ds := newDS([]*fleet.Host{hostInTeam(1, &teamID1)}, map[uint]*fleet.HostActivitiesWebhookSettings{teamID1: enabled("https://example.com/a")}, nil)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1})
+		require.NoError(t, err)
+		require.Len(t, settings, 1)
+		require.Equal(t, "https://example.com/a", settings[0].DestinationURL)
+	})
+
+	t.Run("dedups hosts in the same fleet", func(t *testing.T) {
+		ds := newDS(
+			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, &teamID1)},
+			map[uint]*fleet.HostActivitiesWebhookSettings{teamID1: enabled("https://example.com/a")},
+			nil,
+		)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
+		require.NoError(t, err)
+		require.Len(t, settings, 1)
+	})
+
+	t.Run("hosts across fleets return one webhook per enabled fleet", func(t *testing.T) {
+		ds := newDS(
+			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, &teamID2), hostInTeam(3, nil)},
+			map[uint]*fleet.HostActivitiesWebhookSettings{
+				teamID1: enabled("https://example.com/a"),
+				teamID2: {Enable: false, DestinationURL: "https://example.com/disabled"},
+			},
+			enabled("https://example.com/no-team"),
+		)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2, 3})
+		require.NoError(t, err)
+		urls := make([]string, 0, len(settings))
+		for _, s := range settings {
+			urls = append(urls, s.DestinationURL)
+		}
+		require.ElementsMatch(t, []string{"https://example.com/a", "https://example.com/no-team"}, urls)
+	})
+
+	t.Run("no-team host uses the default team config", func(t *testing.T) {
+		ds := newDS([]*fleet.Host{hostInTeam(1, nil)}, nil, enabled("https://example.com/no-team"))
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1})
+		require.NoError(t, err)
+		require.Len(t, settings, 1)
+		require.Equal(t, "https://example.com/no-team", settings[0].DestinationURL)
+	})
+
+	t.Run("deleted fleet is skipped", func(t *testing.T) {
+		ds := newDS([]*fleet.Host{hostInTeam(1, &teamID1)}, nil, nil) // TeamLite returns not found
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1})
+		require.NoError(t, err)
+		require.Empty(t, settings)
+	})
+
+	t.Run("nil or empty-URL webhooks are filtered", func(t *testing.T) {
+		ds := newDS(
+			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, &teamID2)},
+			map[uint]*fleet.HostActivitiesWebhookSettings{
+				teamID1: nil,
+				teamID2: {Enable: true, DestinationURL: ""},
+			},
+			nil,
+		)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
+		require.NoError(t, err)
+		require.Empty(t, settings)
+	})
+
+	t.Run("no host IDs short-circuits", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), nil)
+		require.NoError(t, err)
+		require.Nil(t, settings)
+		require.False(t, ds.ListHostsLiteByIDsFuncInvoked)
+	})
 }

@@ -78,4 +78,7 @@ settings:
       destination_url: https://example.com/no-team-webhook
       enable_failing_policies_webhook: true
       host_batch_size: 100
+    host_activities_webhook:
+      destination_url: https://example.com/no-team-activities-webhook
+      enable_host_activities_webhook: true
 software:

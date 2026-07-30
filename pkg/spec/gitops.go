@@ -1080,9 +1080,9 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 				return multierror.Append(multiError, errors.New("'settings.webhook_settings' must be an object or null"))
 			}
 			for key := range webhookMap {
-				if key != "failing_policies_webhook" {
+				if key != "failing_policies_webhook" && key != "host_activities_webhook" {
 					multiError = multierror.Append(multiError,
-						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' is allowed", key, filepath.Base(filePath)))
+						fmt.Errorf("unsupported webhook_settings option '%s' in %s - only 'failing_policies_webhook' and 'host_activities_webhook' are allowed", key, filepath.Base(filePath)))
 				}
 			}
 			// If present, ensure failing_policies_webhook is an object or null
@@ -1095,6 +1095,11 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 					if err := validateFailingPoliciesWebhook(fpwMap, "settings.webhook_settings.failing_policies_webhook"); err != nil {
 						multiError = multierror.Append(multiError, err)
 					}
+				}
+			}
+			if haw, ok := webhookMap["host_activities_webhook"]; ok && haw != nil {
+				if _, ok := haw.(map[string]any); !ok {
+					multiError = multierror.Append(multiError, errors.New("'settings.webhook_settings.host_activities_webhook' must be an object or null"))
 				}
 			}
 			// Store the webhook settings for later processing

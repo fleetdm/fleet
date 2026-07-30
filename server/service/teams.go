@@ -91,6 +91,7 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+					HostActivitiesWebhook:  team.Config.WebhookSettings.HostActivitiesWebhook,
 				},
 				Integrations: fleet.DefaultTeamIntegrations{
 					Jira:    team.Config.Integrations.Jira,
@@ -181,6 +182,7 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+					HostActivitiesWebhook:  team.Config.WebhookSettings.HostActivitiesWebhook,
 				},
 				Integrations: fleet.DefaultTeamIntegrations{
 					Jira:    team.Config.Integrations.Jira,
