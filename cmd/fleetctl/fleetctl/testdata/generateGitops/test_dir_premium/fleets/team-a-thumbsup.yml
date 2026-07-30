@@ -31,14 +31,17 @@ controls:
   enable_recovery_lock_password: false
   ios_updates:
     deadline: "2021-12-31"
+    deadline_days:
     minimum_version: "98.1"
     update_new_hosts:
   ipados_updates:
     deadline: "2022-12-31"
+    deadline_days:
     minimum_version: "98.2"
     update_new_hosts:
   macos_updates:
     deadline: "2020-12-31"
+    deadline_days:
     minimum_version: "95.1"
     update_new_hosts: true
   name_template: iPad $FLEET_VAR_HOST_HARDWARE_SERIAL

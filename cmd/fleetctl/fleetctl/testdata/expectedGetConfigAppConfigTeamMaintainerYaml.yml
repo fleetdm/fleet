@@ -62,14 +62,17 @@ spec:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     ios_updates:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     ipados_updates:
       update_new_hosts: null
       minimum_version: null
       deadline: null
+      deadline_days: null
     windows_updates:
       deadline_days: 7
       grace_period_days: 3

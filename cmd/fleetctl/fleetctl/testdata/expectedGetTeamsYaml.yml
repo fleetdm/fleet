@@ -24,14 +24,17 @@ spec:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       ios_updates:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       ipados_updates:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -83,14 +86,17 @@ spec:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       ios_updates:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       ipados_updates:
         update_new_hosts: null
         minimum_version: null
         deadline: null
+        deadline_days: null
       windows_updates:
         deadline_days: null
         grace_period_days: null
@@ -154,9 +160,11 @@ spec:
       ios_updates:
         minimum_version: "17.5"
         deadline: "2022-11-15"
+        deadline_days: null
       macos_updates:
         minimum_version: "18.0"
         deadline: "2023-01-01"
+        deadline_days: null
       windows_updates:
         deadline_days: 7
         grace_period_days: 3
@@ -214,9 +222,11 @@ spec:
       ios_updates:
         minimum_version: "17.5"
         deadline: "2022-11-15"
+        deadline_days: null
       macos_updates:
         minimum_version: "18.0"
         deadline: "2023-01-01"
+        deadline_days: null
       windows_updates:
         deadline_days: 7
         grace_period_days: 3

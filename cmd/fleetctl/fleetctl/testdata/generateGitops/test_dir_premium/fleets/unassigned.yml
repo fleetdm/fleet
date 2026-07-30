@@ -6,10 +6,12 @@ controls:
   enable_turn_on_windows_mdm_manually: false
   ios_updates:
     deadline: "2025-12-31"
+    deadline_days:
     minimum_version: "18.1"
     update_new_hosts:
   ipados_updates:
     deadline: "2026-12-31"
+    deadline_days:
     minimum_version: "18.2"
     update_new_hosts:
   macos_migration:
@@ -18,6 +20,7 @@ controls:
     webhook_url: https://some-macos-migration-webhook-url.com
   macos_updates:
     deadline: "2024-12-31"
+    deadline_days:
     minimum_version: "15.1"
     update_new_hosts: true
   name_template: No team Mac $FLEET_VAR_HOST_UUID

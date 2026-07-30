@@ -37,16 +37,19 @@
         "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "macos_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
@@ -119,11 +122,13 @@
         "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
@@ -146,6 +151,7 @@
         },
         "macos_updates": {
           "deadline": null,
+          "deadline_days": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
@@ -228,16 +234,19 @@
         "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
+          "deadline_days": null,
           "minimum_version": "17.5",
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": "2023-01-01",
+          "deadline_days": null,
           "minimum_version": "18.0",
           "update_new_hosts": null
         },
         "macos_updates": {
           "deadline": "2021-12-14",
+          "deadline_days": null,
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
@@ -325,11 +334,13 @@
         "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
+          "deadline_days": null,
           "minimum_version": "17.5",
           "update_new_hosts": null
         },
         "ipados_updates": {
           "deadline": "2023-01-01",
+          "deadline_days": null,
           "minimum_version": "18.0",
           "update_new_hosts": null
         },
@@ -352,6 +363,7 @@
         },
         "macos_updates": {
           "deadline": "2021-12-14",
+          "deadline_days": null,
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
