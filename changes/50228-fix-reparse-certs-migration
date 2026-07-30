@@ -1,0 +1,1 @@
+* Improved performance of the Windows host certificates re-parse migration to avoid sustained high DB load during upgrade.

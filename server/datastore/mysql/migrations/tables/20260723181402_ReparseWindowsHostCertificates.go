@@ -32,41 +32,50 @@ func countWindowsHostCertsToReparse(tx *sql.Tx) (uint64, error) {
 	return total, err
 }
 
-// softDeleteWindowsHostCertsForReparse walks the osquery-origin Windows host certificates in id-keyed batches and
-// soft-deletes each one, calling increment per row so progress is reported.
+// softDeleteWindowsHostCertsForReparse collects Windows host IDs once upfront,
+// then soft-deletes their certificate rows in batches using only the
+// host_certificates primary key. This avoids re-joining the hosts table on
+// every batch, which was causing ~14 minutes of sustained full DB load at
+// 100K hosts (#50228).
 func softDeleteWindowsHostCertsForReparse(tx *sql.Tx, increment incrementCountFn) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
-	const batchSize = 1000
-	var lastID uint64
-	for {
-		var ids []uint64
-		if err := txx.Select(&ids, `
-			SELECT hc.id
-			FROM host_certificates hc
-			JOIN hosts h ON h.id = hc.host_id
-			WHERE h.platform = 'windows' AND hc.origin = 'osquery' AND hc.deleted_at IS NULL AND hc.id > ?
-			ORDER BY hc.id
-			LIMIT ?`, lastID, batchSize); err != nil {
-			return fmt.Errorf("selecting windows host certs batch after id %d: %w", lastID, err)
-		}
-		if len(ids) == 0 {
-			return nil
-		}
+	// Step 1: collect all Windows host IDs in one query (bounded by host count, not cert count).
+	var windowsHostIDs []uint64
+	if err := txx.Select(&windowsHostIDs, `SELECT id FROM hosts WHERE platform = 'windows'`); err != nil {
+		return fmt.Errorf("selecting windows host ids: %w", err)
+	}
+	if len(windowsHostIDs) == 0 {
+		return nil
+	}
 
-		query, args, err := sqlx.In(`UPDATE host_certificates SET deleted_at = NOW(6) WHERE id IN (?)`, ids)
+	// Step 2: soft-delete certs in batches of host IDs. Each batch UPDATE
+	// hits the host_certificates index on (host_id) without joining hosts.
+	const hostBatchSize = 500
+	for i := 0; i < len(windowsHostIDs); i += hostBatchSize {
+		end := i + hostBatchSize
+		if end > len(windowsHostIDs) {
+			end = len(windowsHostIDs)
+		}
+		batch := windowsHostIDs[i:end]
+
+		query, args, err := sqlx.In(`
+			UPDATE host_certificates
+			SET deleted_at = NOW(6)
+			WHERE host_id IN (?) AND origin = 'osquery' AND deleted_at IS NULL`, batch)
 		if err != nil {
-			return fmt.Errorf("building soft-delete query: %w", err)
+			return fmt.Errorf("building soft-delete query for host batch: %w", err)
 		}
-		if _, err := txx.Exec(query, args...); err != nil {
-			return fmt.Errorf("soft-deleting windows host certs batch after id %d: %w", lastID, err)
+		result, err := txx.Exec(query, args...)
+		if err != nil {
+			return fmt.Errorf("soft-deleting certs for host batch starting at index %d: %w", i, err)
 		}
-
-		for range ids {
+		affected, _ := result.RowsAffected()
+		for range affected {
 			increment()
 		}
-		lastID = ids[len(ids)-1]
 	}
+	return nil
 }
 
 func Down_20260723181402(tx *sql.Tx) error {
