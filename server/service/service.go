@@ -205,7 +205,7 @@ func NewService(
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
 		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
-		orbitHostCache:                  gocache.New(15*time.Second, 30*time.Second),
+		orbitHostCache:                  gocache.New(45*time.Second, 90*time.Second),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 	}

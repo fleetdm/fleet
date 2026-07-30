@@ -503,9 +503,10 @@ func orbitHostCacheKey(hostID uint, scriptsDisabled bool) string {
 
 // getOrbitHostData returns cached per-host data (MDM info, pending scripts,
 // pending installs) or fetches it from the DB on a cache miss. The cache uses
-// a 15s TTL, which is within the 30s orbit polling interval, so a host sees
-// at most one stale response before getting fresh data. When orbitHostCache
-// is nil (integration tests), every call goes directly to the DB.
+// a 45s TTL, which is longer than the 30s orbit polling interval so that the
+// second poll within the TTL window is a cache hit (~50% hit rate). A host
+// sees at most one stale response before getting fresh data. When
+// orbitHostCache is nil (integration tests), every call goes directly to the DB.
 func (svc *Service) getOrbitHostData(ctx context.Context, hostID uint, scriptsDisabled bool) (*orbitHostCacheEntry, error) {
 	cacheKey := orbitHostCacheKey(hostID, scriptsDisabled)
 	if svc.orbitHostCache != nil {

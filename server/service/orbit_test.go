@@ -1681,7 +1681,7 @@ func TestGetOrbitConfigHostDataCache(t *testing.T) {
 
 	// Re-enable the orbit host cache (disabled by default in tests) so we can test caching behavior.
 	internal := ((svc.(validationMiddleware)).Service).(*Service)
-	internal.orbitHostCache = gocache.New(15*time.Second, 30*time.Second)
+	internal.orbitHostCache = gocache.New(45*time.Second, 90*time.Second)
 
 	host := &fleet.Host{
 		OsqueryHostID: ptr.String("test"),
