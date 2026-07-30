@@ -194,6 +194,12 @@ describe("UsersForm", () => {
   });
 
   describe("windows managed account save", () => {
+    // jest config sets clearMocks (which resets calls) but not restoreMocks, so
+    // spies would keep their mock implementation and leak into later tests.
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it("sends the windows config PATCH on every save, matching the setup experience call", async () => {
       const setupSpy = jest
         .spyOn(mdmAPI, "updateSetupExperienceSettings")

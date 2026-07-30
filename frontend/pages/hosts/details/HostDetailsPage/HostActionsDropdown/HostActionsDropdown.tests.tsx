@@ -2235,7 +2235,7 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("hides the action for non-macOS hosts", async () => {
+    it("hides the action for hosts that are neither macOS nor Windows", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
