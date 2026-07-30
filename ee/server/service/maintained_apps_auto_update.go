@@ -285,16 +285,24 @@ func downloadNewVersionIfEligible(
 	// Preserve admin-customized scripts across auto-updates. The active installer
 	// (still the previous version here; promotion happens later) is the one to
 	// carry forward from. Detect customization per-script by comparing against the
-	// manifest: the install script is a version-independent template (direct
-	// compare), but the uninstall script is version-specific after $PACKAGE_ID /
-	// $UPGRADE_CODE substitution, so compare against the manifest template
-	// substituted with the active version's package IDs.
+	// manifest, first neutralizing the parts that legitimately change between
+	// versions so a routine version bump isn't mistaken for an edit: the install
+	// script hardcodes the versioned installer filename, and the uninstall script
+	// is version-specific after $PACKAGE_ID / $UPGRADE_CODE substitution.
 	active, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, c.TeamID, c.TitleID, true)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting active installer to preserve custom scripts")
 	}
 	if active != nil {
-		if strings.TrimSpace(active.InstallScript) != strings.TrimSpace(app.InstallScript) {
+		// Compare with the old and new filenames replaced by a common placeholder
+		// (active.Name is the filename column); otherwise the filename difference
+		// alone reads as an admin edit and the stale script is kept against the
+		// newly downloaded installer. FMAs whose script embeds a name unrelated to
+		// the stored installer filename (e.g. a versioned pkg inside a dmg) aren't
+		// neutralized and fall back to preserving, as before.
+		activeInstall := normalizeInstallerFilename(strings.TrimSpace(active.InstallScript), active.Name)
+		manifestInstall := normalizeInstallerFilename(strings.TrimSpace(app.InstallScript), payload.Filename)
+		if activeInstall != manifestInstall {
 			payload.InstallScript = active.InstallScript
 		}
 		defaultUninstall := &fleet.UploadSoftwareInstallerPayload{
@@ -395,4 +403,15 @@ func teamIDForLog(p *uint) any {
 		return "none"
 	}
 	return *p
+}
+
+// normalizeInstallerFilename replaces the version-specific installer filename in
+// a generated FMA install script with a fixed placeholder, so two scripts that
+// differ only because the installer filename changed between versions compare
+// equal. A missing filename leaves the script unchanged.
+func normalizeInstallerFilename(script, filename string) string {
+	if filename == "" {
+		return script
+	}
+	return strings.ReplaceAll(script, filename, "__FLEET_INSTALLER_FILE__")
 }

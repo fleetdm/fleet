@@ -36,6 +36,7 @@ type fakeManifestServer struct {
 	sha           string
 	bytes         []byte
 	version       string // manifest version to advertise (default testFMALatest)
+	install       string // install script ref body (default "echo install")
 	uninstall     string // uninstall script ref body (default "echo uninstall")
 	upgradeCode   string // manifest upgrade_code (default empty)
 	manifestHits  int
@@ -44,7 +45,7 @@ type fakeManifestServer struct {
 }
 
 func newFakeManifestServer(t *testing.T) *fakeManifestServer {
-	f := &fakeManifestServer{bytes: []byte("fake installer payload"), version: testFMALatest, uninstall: "echo uninstall"}
+	f := &fakeManifestServer{bytes: []byte("fake installer payload"), version: testFMALatest, install: "echo install", uninstall: "echo uninstall"}
 	sum := sha256.Sum256(f.bytes)
 	f.sha = hex.EncodeToString(sum[:])
 
@@ -64,7 +65,7 @@ func newFakeManifestServer(t *testing.T) *fakeManifestServer {
 				Queries:            ma.FMAQueries{Exists: "SELECT 1", Patched: "SELECT 2"},
 				DefaultCategories:  []string{"Browsers"},
 			}},
-			Refs: map[string]string{"i": "echo install", "u": f.uninstall},
+			Refs: map[string]string{"i": f.install, "u": f.uninstall},
 		}
 		_ = json.NewEncoder(w).Encode(manifest)
 	})
@@ -378,4 +379,69 @@ func TestAutoUpdatePreservesCustomScripts(t *testing.T) {
 	require.NotNil(t, gotPayload)
 	require.Equal(t, "echo CUSTOM install", gotPayload.InstallScript, "custom install script carried forward")
 	require.Equal(t, "echo CUSTOM uninstall", gotPayload.UninstallScript, "custom uninstall script carried forward")
+}
+
+// TestAutoUpdateAdoptsNewInstallScriptWhenOnlyFilenameChanged guards against a
+// regression where the cron kept the active version's install script (which
+// hardcodes the old installer filename) against a newly downloaded installer,
+// because FMA install scripts embed the versioned filename and the whole-string
+// compare misread that difference as an admin customization. The unedited script
+// must adopt the new manifest.
+func TestAutoUpdateAdoptsNewInstallScriptWhenOnlyFilenameChanged(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	// New manifest script references the new installer file. The byte-dedup path
+	// derives the payload filename from the installer URL basename ("installer.pkg").
+	srv.install = `sudo installer -pkg "$TMPDIR/installer.pkg" -target /`
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	// Active installer holds the canonical script for the OLD version — identical
+	// except the hardcoded installer filename (Name is the filename column).
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			Name:            "installer-149.0.0.pkg",
+			InstallScript:   `sudo installer -pkg "$TMPDIR/installer-149.0.0.pkg" -target /`,
+			UninstallScript: "echo uninstall",
+			Extension:       "pkg",
+		}, nil
+	}
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	store := memStore(srv.sha) // byte-dedup: no download, filename comes from the URL
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, store, discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.Equal(t, "installer.pkg", gotPayload.Filename)
+	require.Equal(t, srv.install, gotPayload.InstallScript, "unedited script must adopt the new manifest, not keep the old filename")
+	require.NotContains(t, gotPayload.InstallScript, "installer-149.0.0.pkg")
+}
+
+// TestAutoUpdatePreservesCustomInstallScriptBeyondFilename is the counterpart:
+// filename normalization must not clobber a genuine admin edit. When the active
+// script differs from the manifest by more than the installer filename, it is
+// preserved.
+func TestAutoUpdatePreservesCustomInstallScriptBeyondFilename(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.install = `sudo installer -pkg "$TMPDIR/installer.pkg" -target /`
+	ds := baseDownloadStore(t, "149.0.0", 9)
+	custom := `sudo installer -pkg "$TMPDIR/installer-149.0.0.pkg" -target /` + "\necho admin custom step"
+	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		return &fleet.SoftwareInstaller{
+			Name:            "installer-149.0.0.pkg",
+			InstallScript:   custom,
+			UninstallScript: "echo uninstall",
+			Extension:       "pkg",
+		}, nil
+	}
+	var gotPayload *fleet.UploadSoftwareInstallerPayload
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		gotPayload = payload
+		return 13, nil
+	}
+
+	store := memStore(srv.sha)
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, store, discardLogger()))
+	require.NotNil(t, gotPayload)
+	require.Equal(t, custom, gotPayload.InstallScript, "a customization beyond the filename must be preserved")
 }
