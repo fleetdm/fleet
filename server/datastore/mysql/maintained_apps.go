@@ -53,24 +53,19 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
-// ReconcileMaintainedAppSoftwareNames aligns inventoried software with the
-// Fleet-maintained app that owns it. Called once per sync; idempotent.
+// ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software rows
+// to the canonical Fleet-maintained app name (e.g. "Code" -> "Microsoft Visual Studio
+// Code"). Inventory and the installer already share a title via bundle_identifier, so
+// only the name needs correcting. Called once per catalog sync, which is the right
+// trigger because the canonical names come from that catalog; set-based and idempotent.
 //
-// The two platforms need different work, because what goes wrong differs:
+// A bundle identifier is not unique across apps (Firefox and Firefox ESR both use
+// org.mozilla.firefox), so renaming by identifier alone is ambiguous: it renames first
+// by the precise installer link, then by bundle identifier but only where it maps to a
+// single app name.
 //
-//   - macOS is a rename. Inventory and the installer both key on bundle_identifier, so
-//     they already share one software title; only its name is osquery's rather than the
-//     catalog's ("Code" instead of "Microsoft Visual Studio Code").
-//   - Windows is a merge. Programs report the version inside programs.name, and with no
-//     bundle identifier those versioned names become separate titles from the one the
-//     installer owns. A rename cannot join them, since the destination already occupies
-//     that key, so software is re-pointed instead. See
-//     reconcileWindowsMaintainedAppSoftwareTitles.
-//
-// The macOS passes below are set-based. A bundle identifier is not unique across FMAs
-// (Firefox and Firefox ESR both use org.mozilla.firefox), so renaming by identifier
-// alone is ambiguous: it renames first by the precise installer link, then by bundle
-// identifier but only where it maps to a single FMA name.
+// Windows needs a merge rather than a rename and does not depend on the catalog, so it
+// runs separately. See ReconcileWindowsMaintainedAppSoftwareTitles.
 func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
 	// title_id -> name, for titles linked to a single FMA via their installer.
 	// GROUP BY also collapses a title's per-team installer rows to avoid fan-out.
@@ -119,21 +114,17 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 			WHERE s.name <> fma.name`},
 	}
 
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, u := range updates {
 			if _, err := tx.ExecContext(ctx, u.stmt); err != nil {
 				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: %s", u.label)
 			}
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-
-	return ds.reconcileWindowsMaintainedAppSoftwareTitles(ctx)
+	})
 }
 
-// reconcileWindowsMaintainedAppSoftwareTitles collapses versioned Windows program
+// ReconcileWindowsMaintainedAppSoftwareTitles collapses versioned Windows program
 // titles onto the canonical FMA title (Windows has no bundle identifier to join on,
 // so the program name is the only key). Unlike the darwin passes above, which are a
 // rename, this is a merge: the versioned title and the installer's title are separate
@@ -141,7 +132,7 @@ func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) er
 //
 // References to the merged-away title are moved onto the destination and the title is
 // then deleted, which collapses duplicate Windows program titles.
-func (ds *Datastore) reconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
+func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
 	fmaMatches, err := ds.GetWindowsFMAMatches(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows FMA matches for reconcile")
@@ -249,8 +240,6 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		canonicalID := destinationID
-
 		// Re-point everything that references the stale titles onto the destination, then
 		// delete them. This mirrors the DedupeWindowsProgramTitlesFromUpgradeCode
 		// migration, which performs the same merge.
@@ -276,7 +265,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 			{"team pins", `UPDATE IGNORE software_title_team_pins SET title_id = ? WHERE title_id IN (?)`},
 		}
 		for _, r := range repoint {
-			stmt, repointArgs, err := sqlx.In(r.stmt, canonicalID, staleIDs)
+			stmt, repointArgs, err := sqlx.In(r.stmt, destinationID, staleIDs)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "build re-point statement for %s", r.label)
 			}

@@ -54,6 +54,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMergeMovesAllReferences", testWindowsFMAMergeMovesAllReferences},
 		{"WindowsFMAMergeMultipleDestinations", testWindowsFMAMergeMultipleDestinations},
 		{"WindowsFMAIngestIgnoresOtherSources", testWindowsFMAIngestIgnoresOtherSources},
+		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ListAvailableAppsSharedIdentifier", testListAvailableAppsSharedIdentifier},
@@ -1536,7 +1537,7 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Zoom", "Zoom", "zoom/windows")
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Widget", "Widget", "widget/windows")
 
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	// A single canonical "Granola" title now owns both versions; the merged-away
 	// versioned titles are gone.
@@ -1570,7 +1571,7 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Widget 2.0", titleNameForSoftware(t, ds, "Widget 2.0"))
 
 	// Idempotent: a second run changes nothing.
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, 1, titleCount("Granola"))
 	require.Zero(t, titleCount("Granola 7.373.1"))
 
@@ -1627,7 +1628,7 @@ func testWindowsFMAReconcileSameNameUpgradeCodeTitle(t *testing.T, ds *Datastore
 	})
 	require.Equal(t, 1, byUniqueIdentifier)
 
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	var gotTitleID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1665,7 +1666,7 @@ func testWindowsFMAReconcileAfterCatalogRename(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	var gotTitleID uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1856,7 +1857,7 @@ func testWindowsFMAIgnoresInstallerWithoutTitle(t *testing.T, ds *Datastore) {
 	require.Empty(t, names, "an installer with no title cannot be a merge destination")
 
 	// And the reconcile pass stays a no-op rather than merging onto title 0.
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 }
 
 // testWindowsFMANameWithLikeWildcards: an FMA name containing LIKE metacharacters must
@@ -1875,7 +1876,7 @@ func testWindowsFMANameWithLikeWildcards(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	installerTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "C_C", "C_C", "c-c/windows")
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	// "C_C 1.0" merges; "CXC 2.0" must not, since _ is a literal here.
 	var cUnderscoreTitle, cxcTitle uint
@@ -1939,7 +1940,7 @@ func testWindowsFMAMatchesCache(t *testing.T, ds *Datastore) {
 	require.Equal(t, canonicalID, gotTitleID, "after the TTL the added app is matched")
 
 	// The reconcile pass reads uncached, so it repairs what the stale window missed.
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 7.373.1"))
 }
 
@@ -2011,7 +2012,7 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	staleTitleID := titleIDNamed(t, ds, "Granola 7.373.2")
+	staleTitleID := titleIDForTitleNamed(t, ds, "Granola 7.373.2")
 
 	// Hang one row off the stale title in every table the merge re-points.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2064,7 +2065,7 @@ func testWindowsFMAMergeMovesAllReferences(t *testing.T, ds *Datastore) {
 	})
 
 	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	// Every reference now points at the destination, and none is left on the stale id.
 	for _, ref := range []struct {
@@ -2123,7 +2124,7 @@ func testWindowsFMAMergeMultipleDestinations(t *testing.T, ds *Datastore) {
 	granolaID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
 	obsidianID := addWindowsFMAWithInstaller(t, ds, user.ID, "Obsidian", "Obsidian", "obsidian/windows")
 
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	require.Equal(t, granolaID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
 	require.Equal(t, obsidianID, titleIDForSoftware(t, ds, "Obsidian 1.5.3"))
@@ -2151,8 +2152,39 @@ func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
 		"non-programs software must not be collapsed onto the installer's title")
 
 	// And the reconcile pass leaves it alone too.
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"))
+}
+
+// testWindowsFMAReconcileIndependentOfCatalogSync: the Windows merge is reachable on its
+// own, without the macOS catalog pass. That separation is the point of splitting them: on
+// the catalog sync it was gated on a successful manifest fetch, so an instance that could
+// not reach the CDN never repaired its Windows titles.
+func testWindowsFMAReconcileIndependentOfCatalogSync(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"),
+		"precondition: software is on the versioned title")
+
+	// The Windows pass alone is enough; the macOS pass is not involved.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+
+	require.Equal(t, canonicalID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
+	require.Zero(t, countTitlesNamed(t, ds, "Granola 7.373.2"))
+
+	// And the macOS pass no longer performs the Windows merge, so running it on already
+	// merged data is a no-op rather than a second attempt.
+	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.Equal(t, canonicalID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
 }
 
 // titleIDForSoftware returns the software title that the given software row links to.
@@ -2166,8 +2198,9 @@ func titleIDForSoftware(t *testing.T, ds *Datastore, softwareName string) uint {
 	return titleID
 }
 
-// titleIDNamed returns the id of the 'programs' software title with the given name.
-func titleIDNamed(t *testing.T, ds *Datastore, name string) uint {
+// titleIDForTitleNamed returns the id of the 'programs' software title with the given
+// name. Distinct from titleIDForSoftware, which resolves through a software row.
+func titleIDForTitleNamed(t *testing.T, ds *Datastore, name string) uint {
 	t.Helper()
 	var id uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2331,7 +2364,7 @@ func testWindowsFMANoCollapseWithoutInstaller(t *testing.T, ds *Datastore) {
 	require.Zero(t, countTitlesNamed(t, ds, "Granola"))
 
 	// The reconcile pass must leave it alone too.
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"))
 	require.Zero(t, countTitlesNamed(t, ds, "Granola"))
 }
@@ -2388,7 +2421,7 @@ func testWindowsFMAReconcileMovesTitleReferences(t *testing.T, ds *Datastore) {
 	})
 
 	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	// Software moved onto the canonical title...
 	var gotTitleID uint
@@ -2453,7 +2486,7 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	require.NoError(t, ds.ReconcileMaintainedAppSoftwareNames(ctx))
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
 	var pinnedVersion string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {

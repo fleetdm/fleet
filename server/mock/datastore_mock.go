@@ -1842,6 +1842,8 @@ type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp)
 
 type ReconcileMaintainedAppSoftwareNamesFunc func(ctx context.Context) error
 
+type ReconcileWindowsMaintainedAppSoftwareTitlesFunc func(ctx context.Context) error
+
 type GetFMANamesByIdentifierFunc func(ctx context.Context) (map[string]string, error)
 
 type GetWindowsFMAMatchesFunc func(ctx context.Context) ([]fleet.MaintainedApp, error)
@@ -4977,6 +4979,9 @@ type DataStore struct {
 
 	ReconcileMaintainedAppSoftwareNamesFunc        ReconcileMaintainedAppSoftwareNamesFunc
 	ReconcileMaintainedAppSoftwareNamesFuncInvoked bool
+
+	ReconcileWindowsMaintainedAppSoftwareTitlesFunc        ReconcileWindowsMaintainedAppSoftwareTitlesFunc
+	ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked bool
 
 	GetFMANamesByIdentifierFunc        GetFMANamesByIdentifierFunc
 	GetFMANamesByIdentifierFuncInvoked bool
@@ -11954,6 +11959,13 @@ func (s *DataStore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) err
 	s.ReconcileMaintainedAppSoftwareNamesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReconcileMaintainedAppSoftwareNamesFunc(ctx)
+}
+
+func (s *DataStore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
+	s.mu.Lock()
+	s.ReconcileWindowsMaintainedAppSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileWindowsMaintainedAppSoftwareTitlesFunc(ctx)
 }
 
 func (s *DataStore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {

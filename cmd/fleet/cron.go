@@ -1404,6 +1404,14 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupHostIssues(ctx)
 			},
 		),
+		// Lives here rather than on the Fleet-maintained apps sync because it reads only
+		// local installer and software title state.
+		schedule.WithJob(
+			"reconcile_windows_maintained_app_titles",
+			func(ctx context.Context) error {
+				return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
+			},
+		),
 		schedule.WithJob(
 			"sync_enrolled_host_ids",
 			func(ctx context.Context) error {

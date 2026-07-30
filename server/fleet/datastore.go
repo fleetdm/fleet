@@ -3258,17 +3258,22 @@ type Datastore interface {
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
 
-	// ReconcileMaintainedAppSoftwareNames aligns inventoried software with the
-	// Fleet-maintained app that owns it, for both macOS and Windows. Called once per
-	// sync; idempotent, and ambiguity-aware where an identifier or a name could point
-	// at more than one app.
-	//
-	// macOS is a rename: inventory and the installer already share a software title
-	// via bundle_identifier, so only its name is corrected. Windows is a merge: a
-	// program reporting its version in the name (e.g. "Granola 7.373.2") lands on a
-	// different title than the installer owns, so its software is re-pointed onto that
-	// title and the emptied one is removed.
+	// ReconcileMaintainedAppSoftwareNames renames macOS software titles and software
+	// rows to the canonical Fleet-maintained app name, since inventory and the installer
+	// already share a title via bundle_identifier and only the name is wrong. Belongs to
+	// the catalog sync, which is where those canonical names come from. Idempotent, and
+	// ambiguity-aware for apps that share a bundle identifier.
 	ReconcileMaintainedAppSoftwareNames(ctx context.Context) error
+
+	// ReconcileWindowsMaintainedAppSoftwareTitles merges Windows software titles whose
+	// reported name embeds the version (e.g. "Granola 7.373.2") into the title owned by
+	// the Fleet-maintained app's installer, re-pointing every reference and deleting the
+	// emptied title. Idempotent.
+	//
+	// Separate from the macOS pass because it reads only local installer and title state,
+	// never the catalog: it must not be gated on a successful catalog fetch, and it wants
+	// to run whenever those links change rather than when the catalog refreshes.
+	ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error
 
 	// GetFMANamesByIdentifier returns unique_identifier -> canonical name for macOS
 	// FMAs, used during software ingestion. Identifiers shared by differently-named

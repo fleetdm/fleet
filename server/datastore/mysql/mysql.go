@@ -123,9 +123,11 @@ type Datastore struct {
 	// runs multiple server instances, so in-process invalidation would only clear the node
 	// that handled the change and the TTL would remain the real bound anyway; hooking the
 	// several direct and indirect mutation points would add staleness hazards to the flow
-	// this cache serves without removing the window. The TTL is short enough that a newly
-	// added app starts collapsing titles promptly, and the Fleet-maintained app sync's
-	// reconcile pass reads uncached and repairs anything missed in that window.
+	// this cache serves without removing the window.
+	//
+	// The window is bounded on both sides: adding an app merges existing titles straight
+	// away, and ReconcileWindowsMaintainedAppSoftwareTitles reads uncached, so anything a
+	// host reported while the entry was stale is repaired on its next run.
 	//
 	// The cached slice is replaced, never mutated, so a reader may keep using the value it
 	// received after a refresh. Callers must not mutate it.
