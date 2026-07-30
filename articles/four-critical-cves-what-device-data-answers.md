@@ -1,6 +1,6 @@
 # Four critical CVEs in two weeks. Which ones can your device data answer for?
 
-*July handed defenders two actively exploited critical flaws and two more that are only critical on paper so far. Here's an honest read on where device management helps, and where it doesn't.*
+*July handed defenders two actively exploited critical flaws and two more that are only critical on paper so far. Here's where device management helps, and where it doesn't.*
 
 ## Key takeaways
 
@@ -20,7 +20,7 @@
 
 Four critical vulnerabilities landed in a two-week stretch this month, across SharePoint, Check Point, VMware, and nginx. If you run a device management platform, you probably got asked some version of "are we affected?" for all four, and the honest answer is different for each one.
 
-That difference is worth spelling out, because the fastest way to lose credibility during a patch scramble is to over-claim what your tooling can see. Here's what's on the list, and then what your device data can and cannot tell you about it.
+The fastest way to lose credibility during a patch scramble is to over-claim what your tooling can see. Here's what's on the list, and then what your device data can and cannot tell you about it.
 
 ## What's on the list
 
@@ -31,7 +31,7 @@ That difference is worth spelling out, because the fastest way to lose credibili
 | CVE-2026-59309 | VMware Directory Service, reached through vCenter | CVSS 9.8 | Not that Broadcom is aware of | VMSA-2026-0006, July 29 |
 | CVE-2026-42533 | nginx, in configurations using a `map` directive with regex | CVSS v4 9.2, CVSS v3.1 8.1 | Not reported | nginx 1.30.4 and 1.31.3, NGINX Plus 37.0.3.1, July 15 |
 
-A few details that matter for triage.
+### A few details that matter for triage.
 
 CVE-2026-50522 is a deserialization flaw in the `SessionSecurityTokenHandler` class, reachable with no authentication and no user interaction. It is the fourth SharePoint vulnerability exploited in roughly a month.
 
@@ -98,7 +98,7 @@ Patching is still the platform owner's job. Knowing the full list of servers tha
 
 ## A version match is not an exposure
 
-CVE-2026-42533 is the one worth slowing down on, because it shows why version-only scanning gives you a misleading answer.
+CVE-2026-42533 shows why version-only scanning gives you a misleading answer.
 
 The flaw is a heap buffer overflow in how nginx handles the `map` directive when regular expression matching is involved. It surfaces when a `map` using regex references a capture variable such as `$1` before the map's own output variable. nginx sizes the output buffer in one pass and writes it in another, the two passes disagree about length, and the write runs past the end of the allocation. F5, acting as CNA, scored it 9.2 critical on CVSS v4.0 and 8.1 high on CVSS v3.1, and notes that code execution may be possible where ASLR is disabled or can be bypassed.
 
@@ -121,9 +121,9 @@ WHERE path = '/etc/nginx/nginx.conf'
   AND line LIKE '%map %';
 ```
 
-Two honest caveats. Most real deployments split configuration across `include` directives, so this query alone is a starting point rather than a complete audit; enumerate the included files and read those too. And a `map` line by itself is not the bug. You are looking for a `map` block using a regex where a capture variable is referenced ahead of the output variable, which means a human still reads the results. What the query buys you is a shortlist of servers worth reading, instead of every server running nginx.
+Two caveats. Most real deployments split configuration across `include` directives, so this query alone is a starting point rather than a complete audit; enumerate the included files and read those too. And a `map` line by itself is not the bug. You are looking for a `map` block using a regex where a capture variable is referenced ahead of the output variable, which means a human still reads the results. What the query buys you is a shortlist of servers worth reading, instead of every server running nginx.
 
-That distinction generalizes. A CVE feed tells you which versions are implicated. A query tells you what your machines look like. When a flaw is conditional, only the second one answers the question you were asked.
+The same logic applies elsewhere. A CVE feed tells you which versions are implicated. A query tells you what your machines look like. When a flaw is conditional, only the second one answers the question you were asked.
 
 ## Patching isn't the close-out for SharePoint
 
@@ -139,7 +139,7 @@ The payoff is that the next advisory starts from a different place. Instead of "
 
 ## The uncomfortable part
 
-Two of this month's four critical flaws are being actively exploited, and for both of them the fix lives outside your device management platform. That's worth sitting with, because the instinct during a scramble is to reach for the tool you know rather than the tool that applies.
+Two of this month's four critical flaws are being actively exploited, and for both of them the fix lives outside your device management platform. That's the uncomfortable part, because the instinct during a scramble is to reach for the tool you know rather than the tool that applies.
 
 Device data earns its place in that week by being specific about a narrower question: which machines do we own, what is on them, is the fix there, and what did we forget. Answer those honestly and quickly, and the people patching the servers can spend their attention on the servers.
 
