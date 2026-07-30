@@ -2657,7 +2657,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}}, http.StatusUnprocessableEntity)
 	errText := extractServerErrorText(res.Body)
-	require.Contains(t, errText, "webhook_settings.host_activities_webhook.destination_url")
+	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
 
 	// enabling with a non-http(s) destination URL fails validation
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -3336,7 +3336,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 		},
 	}}, http.StatusUnprocessableEntity)
 	errText := extractServerErrorText(res.Body)
-	require.Contains(t, errText, "webhook_settings.host_activities_webhook.destination_url")
+	require.Contains(t, errText, "destination_url is required to enable the host activities webhook")
 
 	// Explicitly disabling works
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
