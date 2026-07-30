@@ -150,6 +150,40 @@ The error message will provide the reason from the Android Management API (AMAPI
 
 Note that the "Resend" button is only available for certificates. Fleet pushes certificates via Fleet's Android app. Other configuration profiles don't have the "Resend" button because they are sent via a different mechanism: the host checks in for these profiles periodically similarly to Apple declaration (DDM) profiles, rather than Fleet pushing them. 
 
+#### Biometric unlock on personally-owned (BYOD) hosts
+
+Android applies the biometric values of `keyguardDisabledFeatures` to the work profile lock. By default, the end user has one lock for both the work profile and the host ("Use one lock"). There is no separate work profile lock to restrict, so Android restricts the host's lock instead. The profile below turns off fingerprint and face unlock for the whole host, including the end user's personal apps:
+
+```json
+{
+  "keyguardDisabledFeatures": [
+    "FACE",
+    "BIOMETRICS"
+  ]
+}
+```
+
+To restrict biometric unlock on the work profile only, require a separate work profile lock in the same profile:
+
+```json
+{
+  "keyguardDisabledFeatures": [
+    "FACE",
+    "BIOMETRICS"
+  ],
+  "passwordPolicies": [
+    {
+      "passwordScope": "SCOPE_PROFILE",
+      "unifiedLockSettings": "REQUIRE_SEPARATE_WORK_LOCK"
+    }
+  ]
+}
+```
+
+Android then asks the end user to set a work profile lock. Until they set it, Android reports `passwordPolicies` with a reason of `USER_ACTION`, and Fleet shows the profile as "Failed" on **Host > OS settings**. The profile moves to "Verified" after the end user sets the lock.
+
+`unifiedLockSettings` requires Android 9 or later, and Android rejects the policy unless `passwordScope` is `SCOPE_PROFILE`.
+
 ## Broken profiles
 
 If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
