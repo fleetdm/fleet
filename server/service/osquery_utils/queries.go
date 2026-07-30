@@ -3192,9 +3192,8 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// Newly created hosts from user-driven enrollments are assigned the configured default fleet.
-	// Best-effort: the link is already established and will not re-run, so a failed assignment is
-	// logged and reported but must not fail the caller (the enrollment/link itself succeeded).
 	if err := maybeAssignWindowsEnrollmentDefaultFleet(ctx, logger, ds, hostID, device); err != nil {
+		// Best-effort. In the unlikely event of a failure, the host remains in Unassigned fleet.
 		logger.ErrorContext(ctx, "failed to assign windows enrollment default fleet", "err", err, "host_id", hostID)
 		ctxerr.Handle(ctx, err)
 	}
@@ -3235,20 +3234,16 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 	return updated, nil
 }
 
-// windowsEnrollmentNewHostGrace is how much earlier than its Windows MDM enrollment row a host row
-// may have been created and still count as "new in this enrollment cycle" for default fleet
-// assignment. It covers the fleetd-first setup ordering: fleetd installed manually (or preinstalled
-// in an image), then the user completes the Entra enrollment after downloads, reboots, and the
-// Settings flow. Hosts older than this kept their fleet on purpose.
-const windowsEnrollmentNewHostGrace = 30 * time.Minute
-
 // maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment
 // default fleet iff all of: the linked enrollment is user-driven (LinkWindowsHostMDMEnrollment
 // verifies the UPN before calling), a default fleet is configured, the host has no fleet, and the
-// host record was created in this enrollment cycle (at or after the enrollment row, minus the
-// grace window). Pre-existing hosts are never moved, including hosts deliberately parked in "No
-// team", matching macOS ABM re-enrollment behavior. The transfer runs the same profile side
-// effects as a manual transfer; no transferred_hosts activity is logged, mirroring ABM ingest.
+// host record was created at or after the enrollment row (MDM-first ordering, as in Autopilot,
+// where Fleet installs fleetd after MDM enrollment). Hosts that enrolled fleetd first keep the
+// fleet their enroll secret chose; IT admins deploying fleetd ahead of MDM enrollment should use
+// the target fleet's enroll secret. Pre-existing hosts are never moved, including hosts
+// deliberately parked in Unassigned, matching macOS ABM re-enrollment behavior. The transfer runs
+// the same profile side effects as a manual transfer; no transferred_hosts activity is logged,
+// mirroring ABM ingest.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
 	// Require the primary for both reads: this path runs only once per link, so replica lag could
 	// permanently lose the assignment, either by missing a just-configured default fleet or by a
@@ -3268,7 +3263,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	if host.TeamID != nil {
 		return nil
 	}
-	if host.CreatedAt.Before(device.CreatedAt.Add(-windowsEnrollmentNewHostGrace)) {
+	if host.CreatedAt.Before(device.CreatedAt) {
 		// The host existed before this MDM enrollment: keep its fleet (Unassigned included).
 		return nil
 	}

@@ -4574,15 +4574,15 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 			expectTransfer: true,
 		},
 		{
-			name:           "host created just inside the grace window gets the default fleet",
+			name:           "host created at the same time as the enrollment gets the default fleet",
 			defaultTeamID:  &defaultTeamID,
-			hostCreatedAt:  enrollmentCreatedAt.Add(-windowsEnrollmentNewHostGrace + time.Minute),
+			hostCreatedAt:  enrollmentCreatedAt,
 			expectTransfer: true,
 		},
 		{
-			name:           "host created just outside the grace window stays put",
+			name:           "host created before the enrollment stays put",
 			defaultTeamID:  &defaultTeamID,
-			hostCreatedAt:  enrollmentCreatedAt.Add(-windowsEnrollmentNewHostGrace - time.Minute),
+			hostCreatedAt:  enrollmentCreatedAt.Add(-time.Minute),
 			expectTransfer: false,
 		},
 		{
