@@ -17146,7 +17146,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 		Filename:      "no_bundle_identifier.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Unable to extract necessary metadata.")
 }
 
 func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
@@ -17161,13 +17161,13 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 		Filename:      "hello-world-installer.exe",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Uninstall script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename: "hello-world-installer.exe",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Install script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
@@ -23341,7 +23341,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+	require.Contains(t, errMsg, "Install script is required for .exe packages.")
 
 	softwareToInstall[1].InstallScript = "echo install"
 	softwareToInstall[1].UninstallScript = "echo uninstall"
