@@ -1990,6 +1990,33 @@ func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, inst
 	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
+func (ds *Datastore) ClearPreInstallQueryForTitle(ctx context.Context, teamID uint, titleID uint) error {
+	// An FMA title has one is_active=1 row, so team and title identify the managed installer.
+	var installer fleet.SoftwareInstaller
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &installer, `
+		SELECT id, COALESCE(pre_install_query, '') AS pre_install_query
+		FROM software_installers
+		WHERE global_or_team_id = ?
+			AND title_id = ?
+			AND fleet_maintained_app_id IS NOT NULL
+			AND is_active = 1
+		LIMIT 1`, teamID, titleID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get title installer")
+	case installer.PreInstallQuery == "":
+		return nil
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE software_installers SET pre_install_query = '' WHERE id = ?`, installer.InstallerID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+	}
+	return ds.ProcessInstallerUpdateSideEffects(ctx, installer.InstallerID, true, false)
+}
+
 func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool, isEdit bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately

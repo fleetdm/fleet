@@ -261,6 +261,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
 						}
 						pkg.PatchPolicy = patchPolicy
+
+						// While patch_when_closed is on, the pre-install query is Fleet's managed
+						// app open query, shown read-only.
+						if patchPolicy != nil && patchPolicy.PatchWhenClosed {
+							pkg.PreInstallQuery = pkg.AppOpenQuery
+						}
 					}
 				}
 

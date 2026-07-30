@@ -2652,115 +2652,78 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 	}
 }
 
-func TestReconcilePatchPolicy(t *testing.T) {
-	ctx := context.Background()
+func TestPlanPatchPolicy(t *testing.T) {
 	titleID := uint(42)
 	teamID := uint(0)
 	fmaInstaller := &fleet.SoftwareInstaller{TitleID: &titleID, FleetMaintainedAppID: new(uint(7)), PreInstallQuery: "SELECT old;"}
 	nonFMAInstaller := &fleet.SoftwareInstaller{TitleID: &titleID}
 
-	// setup resolves GetPatchPolicy to existing (nil means the title has no patch policy).
-	setup := func(t *testing.T, existing *fleet.PatchPolicyData) (*Service, *svcmock.Service) {
-		ds := new(mock.Store)
-		ds.GetPatchPolicyFunc = func(ctx context.Context, gotTeamID *uint, gotTitleID uint) (*fleet.PatchPolicyData, error) {
-			if existing == nil {
-				return nil, &notFoundError{}
-			}
-			return existing, nil
-		}
-		return newTestServiceWithMock(t, ds)
-	}
-
 	payload := func(patch *bool, patchWhenClosed *bool) *fleet.UpdateSoftwareInstallerPayload {
 		return &fleet.UpdateSoftwareInstallerPayload{TitleID: titleID, TeamID: &teamID, Patch: patch, PatchWhenClosed: patchWhenClosed}
 	}
 
-	// patch_when_closed can't be enabled unless patch is enabled too, whether patch is omitted
-	// (with no existing policy) or explicitly disabled.
+	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
+	// existing policy or explicitly disabled.
 	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
-		svc, _ := setup(t, nil)
-		require.ErrorContains(t, svc.reconcilePatchPolicy(ctx, payload(nil, new(true)), fmaInstaller), "requires")
-		require.ErrorContains(t, svc.reconcilePatchPolicy(ctx, payload(new(false), new(true)), fmaInstaller), "requires")
+		_, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
+		_, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
 	// While patch_when_closed is on, the user pre-install query is managed and can't be edited.
 	t.Run("rejects pre-install edit while managed", func(t *testing.T) {
-		svc, _ := setup(t, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		err := svc.reconcilePatchPolicy(ctx, p, fmaInstaller)
+		_, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.ErrorContains(t, err, "managed by Fleet")
 	})
 
-	// A pre-install edit on a non-FMA package is never managed.
+	// A pre-install edit on a non-FMA package is never managed; nothing to plan.
 	t.Run("allows pre-install edit on non-FMA package", func(t *testing.T) {
-		svc, _ := setup(t, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, p, nonFMAInstaller))
+		patchFlag, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
 	})
 
-	// patch:true with no existing policy creates one with the requested patch_when_closed.
+	// patch:true with no existing policy plans a create with patch_when_closed on.
 	t.Run("creates when no policy exists", func(t *testing.T) {
-		svc, base := setup(t, nil)
-		base.NewTeamPolicyFunc = func(ctx context.Context, tID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
-			require.NotNil(t, p.Type)
-			assert.Equal(t, fleet.PolicyTypePatch, *p.Type)
-			assert.True(t, p.PatchWhenClosed)
-			return &fleet.Policy{}, nil
-		}
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, payload(new(true), new(true)), fmaInstaller))
-		assert.True(t, base.NewTeamPolicyFuncInvoked)
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
 	})
 
 	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
 	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
-		svc, base := setup(t, nil)
-		var got bool
-		base.NewTeamPolicyFunc = func(ctx context.Context, tID uint, p fleet.NewTeamPolicyPayload) (*fleet.Policy, error) {
-			got = p.PatchWhenClosed
-			return &fleet.Policy{}, nil
-		}
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, payload(new(true), nil), fmaInstaller))
-		assert.True(t, got)
+		_, patchWhenClosedFlag, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
 	})
 
-	// patch:false deletes the existing patch policy.
-	t.Run("deletes when patch disabled", func(t *testing.T) {
-		svc, base := setup(t, &fleet.PatchPolicyData{ID: 9})
-		var deleted []uint
-		base.DeleteTeamPoliciesFunc = func(ctx context.Context, tID uint, ids []uint) ([]uint, error) {
-			deleted = ids
-			return ids, nil
-		}
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, payload(new(false), nil), fmaInstaller))
-		assert.Equal(t, []uint{9}, deleted)
+	// patch:false disables the existing patch policy.
+	t.Run("disables when patch off", func(t *testing.T) {
+		patchFlag, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
 	})
 
-	// Toggling patch_when_closed on an existing policy updates it rather than recreating it.
+	// Toggling patch_when_closed on an existing policy keeps patch on and flips the value.
 	t.Run("updates patch_when_closed on existing policy", func(t *testing.T) {
-		svc, base := setup(t, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
-		var modified *bool
-		base.ModifyTeamPolicyFunc = func(ctx context.Context, tID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
-			assert.Equal(t, uint(9), id)
-			modified = p.PatchWhenClosed
-			return &fleet.Policy{}, nil
-		}
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, payload(nil, new(true)), fmaInstaller))
-		assert.False(t, base.NewTeamPolicyFuncInvoked)
-		require.NotNil(t, modified)
-		assert.True(t, *modified)
+		patchFlag, patchWhenClosedFlag, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.True(t, patchWhenClosedFlag)
 	})
 
-	// A pre-install edit is allowed and touches no policy when the title's patch policy has
-	// patch_when_closed off.
+	// A pre-install edit is allowed when the title's patch policy has patch_when_closed off.
 	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
-		svc, base := setup(t, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		require.NoError(t, svc.reconcilePatchPolicy(ctx, p, fmaInstaller))
-		assert.False(t, base.NewTeamPolicyFuncInvoked)
-		assert.False(t, base.ModifyTeamPolicyFuncInvoked)
-		assert.False(t, base.DeleteTeamPoliciesFuncInvoked)
+		_, patchWhenClosedFlag, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
 	})
 }

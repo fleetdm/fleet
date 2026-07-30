@@ -93,6 +93,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
 		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
+		{"ApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery", testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery},
 		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
@@ -8331,6 +8332,64 @@ func testApplyPolicySpecsDynamicAndPatchSameFMA(t *testing.T, ds *Datastore) {
 	require.Equal(t, "patch-fma", patch.Name)
 	require.NotNil(t, patch.PatchSoftwareTitleID, "patch policy must set patch_software_title_id")
 	require.Equal(t, fmaTitleID, *patch.PatchSoftwareTitleID)
+}
+
+func testApplyPolicySpecsPatchWhenClosedRejectsPreInstallQuery(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-pwc-pre-install"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained2",
+		Slug:             "maintained2",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained2",
+	})
+	require.NoError(t, err)
+
+	// The package carries a user-set pre-install query.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		StorageID:            "storage-pwc-pre-install",
+		Filename:             "maintained2",
+		Title:                "Maintained2",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "fleet.maintained2",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	spec := func(patchWhenClosed bool) []*fleet.PolicySpec {
+		return []*fleet.PolicySpec{{
+			Name:                   "patch-fma-when-closed",
+			Query:                  "SELECT 1;",
+			Team:                   team1.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "maintained2",
+			PatchWhenClosed:        patchWhenClosed,
+		}}
+	}
+
+	// patch_when_closed is rejected while the package has its own pre-install query.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, spec(true))
+	require.ErrorContains(t, err, "pre_install_query can't be set on Fleet-maintained app")
+
+	// The rejected batch wrote nothing.
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM policies WHERE name = ?`, "patch-fma-when-closed")
+	})
+	require.Zero(t, count)
+
+	// The same spec applies without patch_when_closed.
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, spec(false)))
 }
 
 // testApplyPolicySpecsRenamePatchPolicyRegression43687 reproduces the customer

@@ -74,11 +74,11 @@ func TestGenerateOpenQuery(t *testing.T) {
 	// macOS resolves the app's install path from its bundle identifier and matches a process
 	// running from inside it.
 	got := patch_policy.GenerateOpenQuery("darwin", "org.mozilla.firefox", "")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'org.mozilla.firefox');", got)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'org.mozilla.firefox');", got)
 
 	// Apostrophes in the bundle identifier are escaped so they can't break the literal.
 	got = patch_policy.GenerateOpenQuery("darwin", "com.oreilly.o'reilly", "")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path LIKE concat(a.path, '/%') WHERE a.bundle_identifier = 'com.oreilly.o''reilly');", got)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON substr(p.path, 1, LENGTH(a.path) + 1) = concat(a.path, '/') WHERE a.bundle_identifier = 'com.oreilly.o''reilly');", got)
 
 	// Windows matches a process named "<title>.exe".
 	got = patch_policy.GenerateOpenQuery("windows", "", "Slack")

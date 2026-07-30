@@ -42,9 +42,9 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		LabelsExcludeAll:             req.LabelsExcludeAll,
 		ConditionalAccessEnabled:     req.ConditionalAccessEnabled,
 		ContinuousAutomationsEnabled: req.ContinuousAutomationsEnabled,
-		PatchWhenClosed:              req.PatchWhenClosed,
 		Type:                         req.Type,
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
+		PatchWhenClosed:              req.PatchWhenClosed,
 	})
 	if err != nil {
 		return fleet.TeamPolicyResponse{Err: err}, nil
@@ -102,6 +102,12 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, teamID, *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
 	}
 
 	if teamID == 0 {
@@ -304,9 +310,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	}
 
 	// Continuous automations must be enabled so the patch policy keeps retrying until the app is closed.
-	continuousAutomationsEnabled := p.ContinuousAutomationsEnabled
-	if p.PatchWhenClosed {
-		continuousAutomationsEnabled = true
+	if p.PatchWhenClosed && !p.ContinuousAutomationsEnabled {
+		return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: errPatchWhenClosedRequiresContinuousAutomations}
 	}
 
 	return fleet.PolicyPayload{
@@ -326,7 +331,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		LabelsExcludeAny:             p.LabelsExcludeAny,
 		LabelsExcludeAll:             p.LabelsExcludeAll,
 		ConditionalAccessEnabled:     p.ConditionalAccessEnabled,
-		ContinuousAutomationsEnabled: continuousAutomationsEnabled,
+		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
 		PatchWhenClosed:              p.PatchWhenClosed,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
@@ -713,10 +718,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.PatchWhenClosed != nil {
 		patchWhenClosed = *p.PatchWhenClosed
 	}
+	// patch_when_closed needs continuous automations: reject an explicit false, otherwise force it on.
 	if patchWhenClosed && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("policy payload verification: %s", errPatchWhenClosedRequiresContinuousAutomations),
-		})
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: errPatchWhenClosedRequiresContinuousAutomations})
 	}
 	if patchWhenClosed {
 		policy.ContinuousAutomationsEnabled = true
@@ -795,6 +799,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 
 	if err := svc.populateAutomationsForTeamPolicy(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
+	}
+
+	if policy.Type == fleet.PolicyTypePatch && policy.PatchWhenClosed && policy.PatchSoftwareTitleID != nil {
+		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), *policy.PatchSoftwareTitleID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
+		}
 	}
 
 	if teamID == nil {

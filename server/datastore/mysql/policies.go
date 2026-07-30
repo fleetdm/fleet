@@ -1782,6 +1782,13 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting patch policy installer")
 					}
+
+					// Defensive: this can only happen if this endpoint is being called not via gitops
+					// and batch software didn't get called before.
+					if spec.PatchWhenClosed && installer.PreInstallQuery != "" {
+						return ctxerr.Errorf(ctx, "policy %q: pre_install_query can't be set on Fleet-maintained app %q when patch_when_closed is true", spec.Name, spec.FleetMaintainedAppSlug)
+					}
+
 					generated, err := patch_policy.GenerateFromInstaller(patch_policy.PolicyData{
 						Name:        spec.Name,
 						Description: spec.Description,
