@@ -958,7 +958,7 @@ func (ds *Datastore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) 
 		(team_id IS NULL OR team_id = ?)`
 	query, args, err := sqlx.In(query, platforms, fleet.LabelMembershipTypeDynamic, host.TeamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building label queries for host query")
+		return nil, ctxerr.Wrap(ctx, err, "building label queries for host")
 	}
 	rows, err := ds.reader(ctx).QueryContext(ctx, query, args...)
 	if err != nil && err != sql.ErrNoRows {
