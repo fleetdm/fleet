@@ -17,9 +17,9 @@ jobs:
   goreleaser-macos:
     runs-on: macos-latest
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -83,9 +83,9 @@ jobs:
   goreleaser-linux:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -131,9 +131,9 @@ jobs:
   goreleaser-linux-arm64:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -176,9 +176,7 @@ jobs:
   goreleaser-windows:
     runs-on: windows-2022
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -233,9 +231,7 @@ jobs:
   goreleaser-windows-arm64:
     runs-on: windows-2022
     permissions:
-      contents: write
-      id-token: write
-      attestations: write
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4

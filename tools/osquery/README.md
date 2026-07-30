@@ -51,7 +51,7 @@ docker-compose rm
 If you want to only start one instance of `osqueryd`, use:
 
 ```
-docker-compose run ubuntu14-osquery
+docker-compose run ubuntu18-osquery
 ```
 
 or
@@ -65,7 +65,7 @@ Note that `docker-compose run` does not save state between calls.
 This system can also be used to start many instances of osqueryd running in containers on the same host:
 
 ```
-docker-compose up -d && docker-compose up --scale ubuntu14-osquery=20
+docker-compose up -d && docker-compose up --scale ubuntu18-osquery=20
 ```
 
 To stop the containers when running in detached mode like this, use:

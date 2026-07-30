@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	gocache "github.com/patrickmn/go-cache"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -69,6 +72,8 @@ type Service struct {
 	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
 	keyValueStore fleet.KeyValueStore
+
+	packConfigCache *gocache.Cache
 
 	androidSvc android.Service
 
@@ -193,6 +198,7 @@ func NewService(
 
 		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 		keyValueStore:                   keyValueStore,
+		packConfigCache:                 gocache.New(1*time.Minute, 5*time.Minute),
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 	}
@@ -224,4 +230,18 @@ type validationMiddleware struct {
 // getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
 	return template.URL("https://fleetdm.com/images/permanent")
+}
+
+// emailLinkBaseURL returns the base URL used to build links in transactional
+// emails. The server URL is the source of truth; the URL prefix is appended
+// only when the server URL does not already carry it. This keeps links correct
+// whether an operator configures the subpath in the server URL, in the URL
+// prefix, or both, instead of duplicating it (e.g. https://host/p/p/login).
+func emailLinkBaseURL(serverURL, urlPrefix string) template.URL {
+	if urlPrefix != "" && !strings.HasSuffix(strings.TrimSuffix(serverURL, "/"), urlPrefix) {
+		if joined, err := url.JoinPath(serverURL, urlPrefix); err == nil {
+			serverURL = joined
+		}
+	}
+	return template.URL(serverURL) //nolint:gosec // G203: operator-configured URL, not user input
 }

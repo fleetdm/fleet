@@ -1,0 +1,12 @@
+{
+  "name": "Proxyman",
+  "slug": "proxyman/windows",
+  "package_identifier": "Proxyman.Proxyman",
+  "unique_identifier": "Proxyman",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/proxyman_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/proxyman_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

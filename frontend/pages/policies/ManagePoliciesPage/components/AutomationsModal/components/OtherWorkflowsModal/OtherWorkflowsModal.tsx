@@ -52,6 +52,16 @@ const getIntegrationType = (integration?: IIntegration) =>
   (!!integration?.project_key && "jira") ||
   undefined;
 
+const getDestinationUrlError = (url: string): string | undefined => {
+  if (!url) {
+    return "Please add a destination URL";
+  }
+  if (!validUrl({ url })) {
+    return "Destination URL is not a valid URL";
+  }
+  return undefined;
+};
+
 const OtherWorkflowsModal = forwardRef<
   IAutomationFormHandle<IOtherWorkflowsModalSubmit>,
   IOtherWorkflowsModalProps
@@ -157,10 +167,9 @@ const OtherWorkflowsModal = forwardRef<
             : "Add an integration to create tickets for policy automations.";
         }
         if (isWebhookEnabled) {
-          if (!destinationUrl) {
-            newErrors.url = "Please add a destination URL";
-          } else if (!validUrl({ url: destinationUrl })) {
-            newErrors.url = "Destination URL is not a valid URL";
+          const urlError = getDestinationUrlError(destinationUrl);
+          if (urlError) {
+            newErrors.url = urlError;
           }
         }
       }
@@ -199,6 +208,20 @@ const OtherWorkflowsModal = forwardRef<
       setErrors((errs) => omit(errs, "url"));
     };
 
+    const onBlurUrl = () => {
+      // Skip validation when the field is disabled (automations off or GitOps
+      // mode) so we don't surface an error on a control the user can't edit.
+      // This must mirror the InputField's `disabled` condition below.
+      if (!isPolicyAutomationsEnabled || gitOpsModeEnabled) {
+        return;
+      }
+      const urlError = getDestinationUrlError(destinationUrl);
+      setErrors((errs) => {
+        const next = omit(errs, "url");
+        return urlError ? { ...next, url: urlError } : next;
+      });
+    };
+
     const onChangeRadio = (val: string) => {
       switch (val) {
         case "webhook":
@@ -235,22 +258,13 @@ const OtherWorkflowsModal = forwardRef<
           type="text"
           value={destinationUrl}
           onChange={onChangeUrl}
+          onBlur={onBlurUrl}
           error={errors.url}
           helpText="For configured policies, Fleet will send a JSON payload to this URL with a list of hosts whose statuses changed from pass to fail."
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
           disabled={!isPolicyAutomationsEnabled || gitOpsModeEnabled}
         />
-        <RevealButton
-          isShowing={showExamplePayload}
-          className={baseClass}
-          hideText="Hide example payload"
-          showText="Show example payload"
-          caretPosition="after"
-          onClick={() => setShowExamplePayload(!showExamplePayload)}
-          disabled={!isPolicyAutomationsEnabled}
-        />
-        {showExamplePayload && <ExamplePayload />}
       </>
     );
 
@@ -353,6 +367,19 @@ const OtherWorkflowsModal = forwardRef<
           </div>
           {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
         </div>
+        {isWebhookEnabled && (
+          <>
+            <RevealButton
+              isShowing={showExamplePayload}
+              className={baseClass}
+              hideText="Example payload"
+              showText="Example payload"
+              caretPosition="after"
+              onClick={() => setShowExamplePayload(!showExamplePayload)}
+            />
+            {showExamplePayload && <ExamplePayload />}
+          </>
+        )}
       </div>
     );
   }

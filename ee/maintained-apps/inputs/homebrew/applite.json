@@ -1,0 +1,10 @@
+{
+  "name": "Applite",
+  "unique_identifier": "dev.aerolite.Applite",
+  "token": "applite",
+  "installer_format": "dmg",
+  "slug": "applite/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

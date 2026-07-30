@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.2.3",
+      "version": "3.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ibm.cio.notifier';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ibm.cio.notifier' AND version_compare(bundle_short_version, '3.2.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ibm.cio.notifier' AND version_compare(bundle_short_version, '3.2.4') < 0);"
       },
-      "installer_url": "https://github.com/IBM/mac-ibm-notifications/releases/download/v-3.2.3-b-135/IBM.Notifier.zip",
+      "installer_url": "https://github.com/IBM/mac-ibm-notifications/releases/download/v-3.2.4-b-136/IBM.Notifier.zip",
       "install_script_ref": "b440ccc8",
       "uninstall_script_ref": "d7bfc531",
-      "sha256": "2b4d13398d68a2305574567f486c34204998641206cd21ff2c2d816e346ab257",
+      "sha256": "27eebdca2301aea50c9a2a8610b1a8c11c59245883be39fde9ec9c3d894ef4de",
       "default_categories": [
         "Developer tools"
       ]

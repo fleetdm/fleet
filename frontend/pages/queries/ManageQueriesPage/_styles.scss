@@ -42,7 +42,7 @@
 
   &__action-button-container {
     display: flex;
-    gap: $pad-small;
+    gap: $gap-action-elements;
   }
 
   .queries-table {
@@ -53,7 +53,6 @@
     .data-table-block {
       .data-table {
         &__wrapper {
-          overflow-x: auto;
           overflow-y: hidden;
         }
         &__table {

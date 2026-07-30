@@ -25,6 +25,7 @@ import {
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -433,7 +434,7 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+      <Button variant="subdued" onClick={onOpenSchemaSidebar}>
         <>
           Schema
           <Icon name="info" size="small" />
@@ -464,6 +465,7 @@ const EditQueryForm = ({
             setLastEditedQueryName(lastEditedQueryName.trim());
           }}
           disabled={gitOpsModeEnabled}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
       );
     }
@@ -480,7 +482,7 @@ const EditQueryForm = ({
           placeholder="Add description"
           value={lastEditedQueryDescription}
           type="textarea"
-          helpText="What information does your report reveal? (Optional)"
+          helpText="What information does your report reveal? (optional)"
           onChange={(value: string) => setLastEditedQueryDescription(value)}
           disabled={gitOpsModeEnabled}
         />
@@ -818,7 +820,7 @@ const EditQueryForm = ({
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
-                        variant="inverse"
+                        variant="secondary"
                         onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
@@ -859,7 +861,7 @@ const EditQueryForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="inverse"
+                variant="secondary"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting

@@ -6,11 +6,16 @@ import ENDPOINTS from "utilities/endpoints";
 
 import PolicyAutomationsList from "./PolicyAutomationsList";
 
-// Stub SoftwareIcon to avoid asset resolution in tests; surface the url prop so
-// we can assert the custom icon path is forwarded.
+// Stub SoftwareIcon to avoid asset resolution in tests; surface the url and
+// name props so we can assert the raw software name (used for fallback icon
+// matching) and the custom icon path are forwarded.
 jest.mock("pages/SoftwarePage/components/icons/SoftwareIcon", () => {
-  return ({ url }: { url?: string | null }) => (
-    <span data-testid="software-icon" data-url={url ?? ""} />
+  return ({ name, url }: { name?: string; url?: string | null }) => (
+    <span
+      data-testid="software-icon"
+      data-name={name ?? ""}
+      data-url={url ?? ""}
+    />
   );
 });
 
@@ -135,6 +140,31 @@ describe("PolicyAutomationsList", () => {
       );
     });
 
+    it("passes the raw install_software.name to SoftwareIcon even when a display_name override is set (regression: #47123)", () => {
+      // The display name is what users see, but SoftwareIcon's fallback
+      // matcher needs the raw name to find FMA / well-known icons; otherwise
+      // a custom display name causes it to fall through to the generic icon.
+      render(
+        <PolicyAutomationsList
+          storedPolicy={createMockPolicy({
+            install_software: {
+              name: "Zoom",
+              display_name: "Custom Renamed App",
+              software_title_id: 42,
+            },
+          })}
+          currentAutomatedPolicies={[]}
+        />
+      );
+
+      expect(screen.getByTestId("software-icon")).toHaveAttribute(
+        "data-name",
+        "Zoom"
+      );
+      // sanity check: label still uses the display name override
+      expect(screen.getByText("Custom Renamed App")).toBeInTheDocument();
+    });
+
     it("shows script automation row", () => {
       render(
         <PolicyAutomationsList
@@ -207,58 +237,6 @@ describe("PolicyAutomationsList", () => {
       );
 
       expect(screen.getByText("Webhook or ticket")).toBeInTheDocument();
-    });
-  });
-
-  describe("footer text", () => {
-    it("shows default footer text when continuous_automations_enabled is not set", () => {
-      render(
-        <PolicyAutomationsList
-          storedPolicy={createMockPolicy()}
-          currentAutomatedPolicies={[]}
-        />
-      );
-
-      expect(
-        screen.getByText(
-          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
-        )
-      ).toBeInTheDocument();
-    });
-
-    it("shows continuous footer text when continuous_automations_enabled is true", () => {
-      render(
-        <PolicyAutomationsList
-          storedPolicy={createMockPolicy({
-            continuous_automations_enabled: true,
-          })}
-          currentAutomatedPolicies={[]}
-        />
-      );
-
-      expect(
-        screen.getByText(/Software and script automations run/)
-      ).toBeInTheDocument();
-      expect(screen.getByText("every time")).toBeInTheDocument();
-      expect(
-        screen.getByText(/All other automations run on a host's first failure/)
-      ).toBeInTheDocument();
-    });
-
-    it("shows footer text even in the empty state", () => {
-      render(
-        <PolicyAutomationsList
-          storedPolicy={createMockPolicy()}
-          currentAutomatedPolicies={[]}
-        />
-      );
-
-      expect(screen.getByText("No automations")).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          "Automations run on a host's first failure, or when a host's response changes from pass to fail."
-        )
-      ).toBeInTheDocument();
     });
   });
 });

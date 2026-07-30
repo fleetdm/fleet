@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
@@ -358,14 +359,46 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 	}
 
 	switch *hsr.ExitCode {
-	case -1:
+	case ExitCodeScriptTimeout:
 		return HostScriptTimeoutMessage(hostTimeoutValue)
-	case -2:
+	case ExitCodeScriptsDisabled:
 		return RunScriptDisabledErrMsg
+	case ExitCodeFleetVarResolutionFailed:
+		return RunScriptFleetVarsFailedErrMsg
 	default:
 		return ""
 	}
 }
+
+// Sentinel exit codes for script results (host_script_results.exit_code) and
+// software install results (host_software_installs.install_script_exit_code).
+// They are assigned by fleetd or the Fleet server, never by the script
+// itself, and share a single namespace so a value can't mean different things
+// on the two surfaces; each comment notes where the code applies. A real
+// process can exit with a status that collides with these values; that
+// ambiguity is accepted.
+const (
+	// ExitCodeScriptTimeout is reported when a script did not terminate
+	// normally, e.g. fleetd killed it at the execution timeout (Go reports -1
+	// for a process that did not exit cleanly). Script results only.
+	ExitCodeScriptTimeout = -1
+	// ExitCodeScriptsDisabled is reported by fleetd when a script or software
+	// install can't run because scripts are disabled on the host.
+	ExitCodeScriptsDisabled = -2
+	// ExitCodeInstallerDownloadFailed is reported by fleetd when it failed to
+	// download the installer. Software install results only.
+	ExitCodeInstallerDownloadFailed = -3
+	// ExitCodeInstallerNotFound is reported by fleetd when it has been unable
+	// to fetch installer details from the server for longer than the retry
+	// window (e.g. because the installer was deleted/replaced while a
+	// setup-experience install was in flight). Software install results only.
+	ExitCodeInstallerNotFound = -4
+	// ExitCodeFleetVarResolutionFailed is recorded by the server when it
+	// can't resolve one or more Fleet variables in a script or in a software
+	// installer's scripts for the target host; the result's output holds the
+	// reasons.
+	ExitCodeFleetVarResolutionFailed = -5
+)
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int
@@ -604,22 +637,26 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery string `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// InstallScript is the script to run after downloading the installer. For script
 	// packages via "script://" URL, this contains the package content itself.
-	InstallScript      string   `json:"install_script"`
-	UninstallScript    string   `json:"uninstall_script"`
-	PostInstallScript  string   `json:"post_install_script"`
-	SelfService        bool     `json:"self_service"`
-	FleetMaintained    bool     `json:"-"`
-	Filename           string   `json:"-"`
-	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
-	LabelsIncludeAny   []string `json:"labels_include_any"`
-	LabelsExcludeAny   []string `json:"labels_exclude_any"`
-	LabelsIncludeAll   []string `json:"labels_include_all"`
+	InstallScript      string `json:"install_script"`
+	UninstallScript    string `json:"uninstall_script"`
+	PostInstallScript  string `json:"post_install_script"`
+	SelfService        bool   `json:"self_service"`
+	FleetMaintained    bool   `json:"-"`
+	Filename           string `json:"-"`
+	InstallDuringSetup *bool  `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
+	// SetupExperiencePlatforms carries non-native cross-platform setup
+	// experience selections. Nil means "no change"; an empty slice clears
+	// all cross-platform selections for this installer.
+	SetupExperiencePlatforms *[]string `json:"setup_experience_platforms,omitempty"`
+	LabelsIncludeAny         []string  `json:"labels_include_any"`
+	LabelsExcludeAny         []string  `json:"labels_exclude_any"`
+	LabelsIncludeAll         []string  `json:"labels_include_all"`
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string   `json:"sha256"`
-	Categories      []string `json:"categories"`
-	DisplayName     string   `json:"display_name"`
+	SHA256          string                `json:"sha256"`
+	Categories      optjson.Slice[string] `json:"categories,omitzero"`
+	DisplayName     string                `json:"display_name"`
 	// This is to support FMAs
 	Slug            *string        `json:"slug"`
 	MaintainedApp   *MaintainedApp `json:"-"`
@@ -832,6 +869,7 @@ var (
 	BatchExecuteIncompatiblePlatform = "incompatible-platform"
 	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
 	BatchExecuteInvalidHost          = "invalid-host"
+	BatchExecuteIncompatibleTeam     = "incompatible-team"
 )
 
 type BatchExecutionStatusFilter struct {

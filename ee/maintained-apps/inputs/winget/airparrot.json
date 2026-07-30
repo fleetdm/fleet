@@ -1,0 +1,11 @@
+{
+  "name": "AirParrot",
+  "slug": "airparrot/windows",
+  "package_identifier": "Squirrels.AirParrot3",
+  "unique_identifier": "AirParrot 3",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "Squirrels",
+  "default_categories": ["Productivity"]
+}

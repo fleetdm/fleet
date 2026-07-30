@@ -1,0 +1,10 @@
+{
+  "name": "Local",
+  "unique_identifier": "com.getflywheel.lightning.local",
+  "token": "local",
+  "installer_format": "dmg",
+  "slug": "local/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

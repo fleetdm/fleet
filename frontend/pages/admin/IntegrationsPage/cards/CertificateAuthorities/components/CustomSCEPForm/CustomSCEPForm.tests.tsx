@@ -94,4 +94,24 @@ describe("CustomSCEPForm", () => {
 
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
   });
+
+  it("accepts a challenge with non-PrintableString characters", () => {
+    // Regression test for the reverted PrintableString challenge validation (#49756): characters
+    // such as "_" and "@" must not block submission.
+    render(
+      <CustomSCEPForm
+        formData={createTestFormData({
+          challenge: "base64url_style@challenge",
+        })}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        isDirty
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+  });
 });

@@ -1,0 +1,10 @@
+{
+  "name": "Transmission",
+  "unique_identifier": "org.m0k.transmission",
+  "token": "transmission",
+  "installer_format": "dmg",
+  "slug": "transmission/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

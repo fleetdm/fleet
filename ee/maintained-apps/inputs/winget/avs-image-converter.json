@@ -1,0 +1,14 @@
+{
+  "name": "AVS Image Converter",
+  "slug": "avs-image-converter/windows",
+  "package_identifier": "Ascensio.AVSImageConverter",
+  "unique_identifier": "AVS Image Converter",
+  "fuzzy_match_name": true,
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/avs-image-converter_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/avs-image-converter_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

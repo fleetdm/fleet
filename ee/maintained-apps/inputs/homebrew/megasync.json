@@ -1,0 +1,10 @@
+{
+  "name": "MEGAsync",
+  "unique_identifier": "mega.mac",
+  "token": "megasync",
+  "installer_format": "dmg",
+  "slug": "megasync/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

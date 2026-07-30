@@ -1,17 +1,11 @@
-import React, {
-  FormEvent,
-  useCallback,
-  useMemo,
-  useState,
-  useContext,
-} from "react";
+import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
 import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
-import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { notify } from "components/ToastNotification";
 import { downloadBase64ToFile, RequestState } from "./helpers";
 
 interface IDownloadABMKeyProps {
@@ -31,7 +25,6 @@ const useDownloadABMKey = ({
   onError,
 }: Omit<IDownloadABMKeyProps, "baseClass">) => {
   const [downloadState, setDownloadState] = useState<RequestState>(undefined);
-  const { renderFlash } = useContext(NotificationContext);
 
   const handleDownload = useCallback(
     async (evt: FormEvent) => {
@@ -44,7 +37,7 @@ const useDownloadABMKey = ({
         onSuccess && onSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        renderFlash("error", msg);
+        notify.error(msg, { response: e });
         setDownloadState("error");
         onError && onError(e);
       }
@@ -73,11 +66,11 @@ export const DownloadABMKey = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="inverse"
+      variant="secondary"
       onClick={handleDownload}
     >
       <label htmlFor="download-key">
-        <Icon name="download" color="ui-fleet-black-75" size="medium" />
+        <Icon name="download" />
         <span>Download public key</span>
       </label>
     </Button>

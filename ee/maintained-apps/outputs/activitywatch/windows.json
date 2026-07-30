@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "0.13.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'ActivityWatch' AND publisher = 'ActivityWatch Contributors' AND version_compare(version, '0.13.2') < 0);"
+      },
+      "installer_url": "https://github.com/ActivityWatch/activitywatch/releases/download/v0.13.2/activitywatch-v0.13.2-windows-x86_64-setup.exe",
+      "install_script_ref": "c9e9cc94",
+      "uninstall_script_ref": "e72cca96",
+      "sha256": "666c4d7a7bd9346d9d714bedd17b7dee5ed98e66fb277de3c026c088de6d6627",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "c9e9cc94": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# ActivityWatch ships as an Inno Setup installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "e72cca96": "# Attempts to locate ActivityWatch's Inno Setup uninstaller from the registry and run it silently.\n\n$displayNameLike = \"ActivityWatch*\"\n$publisher = \"ActivityWatch Contributors\"\n\n$paths = @(\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -like $displayNameLike -and $_.Publisher -like \"$publisher*\"\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\n\nif (-not $uninstall -or -not $uninstall.UninstallString) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n$uninstallCommand = $uninstall.UninstallString\n$uninstallArgs = \"/VERYSILENT /NORESTART\"\n\nif ($uninstallCommand -match '^\"([^\"]+)\"\\s*(.*)$') {\n    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()\n    if ($extra) { $uninstallArgs = \"$extra $uninstallArgs\".Trim() }\n} elseif ($uninstallCommand -match '^(.+?\\.exe)\\s*(.*)$') {\n    $uninstallCommand = $matches[1]; $extra = $matches[2].Trim()\n    if ($extra) { $uninstallArgs = \"$extra $uninstallArgs\".Trim() }\n} else {\n    Write-Host \"Error: Could not parse uninstall command: $uninstallCommand\"; Exit 1\n}\n\nWrite-Host \"Uninstall command: $uninstallCommand\"\nWrite-Host \"Uninstall args: $uninstallArgs\"\n\ntry {\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        ArgumentList = $uninstallArgs\n        NoNewWindow = $true\n        PassThru = $true\n        Wait = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n} catch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

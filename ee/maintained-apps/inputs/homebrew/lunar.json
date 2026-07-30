@@ -1,0 +1,10 @@
+{
+  "name": "Lunar",
+  "unique_identifier": "fyi.lunar.Lunar",
+  "token": "lunar",
+  "installer_format": "dmg",
+  "slug": "lunar/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

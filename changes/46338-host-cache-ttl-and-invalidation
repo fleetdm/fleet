@@ -1,1 +1,0 @@
-* Raised the default `FLEET_REDIS_HOST_CACHE_TTL` from 60s to 180s and removed the reverse-index GETs that the host-update invalidation path performed. Together these reduce DB reader load and lower Redis CPU usage.

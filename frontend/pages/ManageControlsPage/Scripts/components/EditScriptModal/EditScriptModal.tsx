@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 
 import classnames from "classnames";
 
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import RunScriptHelpText from "pages/hosts/components/ScriptDetailsModal/RunScriptHelpText";
 import scriptAPI from "services/entities/scripts";
@@ -59,7 +59,7 @@ const WarningModal = ({
         >
           Save
         </Button>
-        <Button onClick={onExit} variant="inverse">
+        <Button onClick={onExit} variant="secondary">
           Cancel
         </Button>
       </div>
@@ -85,7 +85,6 @@ const EditScriptModal = ({
   scriptName,
   onExit,
 }: IEditScriptModal) => {
-  const { renderFlash } = useContext(NotificationContext);
   const {
     currentTeam,
     isGlobalAdmin,
@@ -155,10 +154,10 @@ const EditScriptModal = ({
     try {
       setIsSubmitting(true);
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
-      renderFlash("success", "Successfully saved script.");
+      notify.success("Successfully saved script.");
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     } finally {
       setIsSubmitting(false);
       setShowConfirmChanges(false);
@@ -210,7 +209,7 @@ const EditScriptModal = ({
           <ModalFooter
             primaryButtons={
               <>
-                <Button onClick={onExit} variant="inverse">
+                <Button onClick={onExit} variant="secondary">
                   Cancel
                 </Button>
                 <GitOpsModeTooltipWrapper

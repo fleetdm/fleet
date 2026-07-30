@@ -481,10 +481,10 @@ describe("getUiStatus", () => {
 });
 
 describe("getSoftwareSubheader", () => {
-  test("iOS device, MDM status 'On (personal)', my device page", () => {
+  test("iOS device, MDM status 'On (manual - personal)', my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
-      hostMdmEnrollmentStatus: "On (personal)",
+      hostMdmEnrollmentStatus: "On (manual - personal)",
       isMyDevicePage: true,
     });
     expect(result).toBe(
@@ -492,10 +492,10 @@ describe("getSoftwareSubheader", () => {
     );
   });
 
-  test("iOS device, MDM status 'On (personal)', NOT my device page", () => {
+  test("iOS device, MDM status 'On (manual - personal)', NOT my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
-      hostMdmEnrollmentStatus: "On (personal)",
+      hostMdmEnrollmentStatus: "On (manual - personal)",
       isMyDevicePage: false,
     });
     expect(result).toBe(

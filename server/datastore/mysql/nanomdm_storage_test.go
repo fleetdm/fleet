@@ -28,6 +28,7 @@ func TestNanoMDMStorage(t *testing.T) {
 	}{
 		{"TestEnqueueDeviceLockCommand", testEnqueueDeviceLockCommand},
 		{"TestGetPendingLockCommand", testGetPendingLockCommand},
+		{"TestEnqueueDeviceLockReplacesOrphanRef", testEnqueueDeviceLockReplacesOrphanRef},
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
 		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
@@ -240,6 +241,73 @@ func testGetPendingLockCommand(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 	require.Empty(t, pin)
+}
+
+// testEnqueueDeviceLockReplacesOrphanRef verifies that a lock_ref pointing to a
+// command that is no longer deliverable (nano_enrollment_queue.active = 0, e.g.
+// after re-enrollment, SCEP renewal, or wipe) is treated as an orphan: it does
+// not count as a pending lock and does not block a fresh lock command.
+// See https://github.com/fleetdm/fleet/issues/45931
+func testEnqueueDeviceLockReplacesOrphanRef(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "orphan-relock-name",
+		OsqueryHostID: new("4242"),
+		NodeKey:       new("4242"),
+		UUID:          "orphan-relock-uuid",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	// Enqueue an initial lock command: active=1, no result yet -> genuinely pending.
+	lockCmd := &mdm.Command{}
+	lockCmd.CommandUUID = "orphan-lock-cmd-1"
+	lockCmd.Command.RequestType = "DeviceLock"
+	lockCmd.Raw = []byte("<?xml")
+	require.NoError(t, ns.EnqueueDeviceLockCommand(ctx, host, lockCmd, "654321"))
+
+	pending, pin, err := ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	require.Equal(t, "orphan-lock-cmd-1", pending.CommandUUID)
+	require.Equal(t, "654321", pin)
+
+	// Simulate re-enrollment/SCEP renewal/wipe deactivating the queued command
+	// without a result (what nanomdm ClearQueue does on Authenticate).
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`,
+		host.UUID, "orphan-lock-cmd-1")
+	require.NoError(t, err)
+
+	// Gate 1: the deactivated command is no longer deliverable, so it must not
+	// count as a pending lock.
+	pending, _, err = ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, pending)
+
+	// Gate 2: the stale lock_ref must not block a fresh lock command.
+	lockCmd2 := &mdm.Command{}
+	lockCmd2.CommandUUID = "orphan-lock-cmd-2"
+	lockCmd2.Command.RequestType = "DeviceLock"
+	lockCmd2.Raw = []byte("<?xml2")
+	require.NoError(t, ns.EnqueueDeviceLockCommand(ctx, host, lockCmd2, "222222"))
+
+	// The new (active) command is now the pending lock, and lock_ref was overwritten.
+	pending, pin, err = ns.GetPendingLockCommand(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, pending)
+	require.Equal(t, "orphan-lock-cmd-2", pending.CommandUUID)
+	require.Equal(t, "222222", pin)
+
+	var lockRef string
+	require.NoError(t, ds.writer(ctx).QueryRowContext(ctx,
+		`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ?`, host.ID).Scan(&lockRef))
+	require.Equal(t, "orphan-lock-cmd-2", lockRef)
 }
 
 // testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal verifies that

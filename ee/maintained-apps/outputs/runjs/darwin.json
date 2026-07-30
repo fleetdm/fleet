@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.0.6",
+      "version": "4.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.lukehaas.runjs';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.lukehaas.runjs' AND version_compare(bundle_short_version, '4.0.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.lukehaas.runjs' AND version_compare(bundle_short_version, '4.1.0') < 0);"
       },
-      "installer_url": "https://github.com/lukehaas/RunJS/releases/download/v4.0.6/RunJS-4.0.6-universal.dmg",
+      "installer_url": "https://github.com/lukehaas/RunJS/releases/download/v4.1.0/RunJS-4.1.0-universal.dmg",
       "install_script_ref": "b0338dfc",
       "uninstall_script_ref": "dacf445c",
-      "sha256": "85e845630a07c50329e59cbedfcbbe01510fd86de9eba6a23eb4d2fea0296fdb",
+      "sha256": "e39fc1b495121f5808ddc50b570d933f1493066ecb247bfe94ce81a9ff082a07",
       "default_categories": [
         "Productivity"
       ]

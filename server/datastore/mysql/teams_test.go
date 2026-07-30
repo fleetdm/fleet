@@ -202,6 +202,17 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 					return err
 				}
 
+				_, err = q.ExecContext(
+					context.Background(),
+					"INSERT INTO software_title_team_pins (team_id, title_id, pinned_version) VALUES (?, ?, ?)",
+					team.ID,
+					titleID,
+					"^1",
+				)
+				if err != nil {
+					return err
+				}
+
 				// Insert the team label on a in-house application.
 				res, err = q.ExecContext(context.Background(), fmt.Sprintf(`INSERT INTO software_titles (name, source) VALUES ('ipa_test-%s', 'ipados_apps')`, tt.name))
 				if err != nil {
@@ -890,7 +901,8 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EndUserLocalAccountType:     optjson.SetString("admin"),
 			},
 			WindowsSettings: fleet.WindowsSettings{
-				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+				CustomSettings:              optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+				ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)},
 			},
 			AndroidSettings: fleet.AndroidSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),

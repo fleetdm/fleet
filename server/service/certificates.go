@@ -143,6 +143,12 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, ctxerr.Wrap(ctx, err, "creating certificate template")
 	}
 
+	// Track which variables this template uses so SCIM can trigger resends when values change.
+	certVars := extractCertTemplateFleetVars(subjectName, subjectAlternativeName)
+	if err := svc.ds.SetCertificateTemplateVariables(ctx, savedTemplate.ID, certVars); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting certificate template variables")
+	}
+
 	// Create pending certificate template records for all enrolled Android hosts in the team
 	if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, savedTemplate.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
@@ -540,7 +546,8 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		return err
 	}
 
-	// Create pending certificate template records for all enrolled Android hosts in each team.
+	// Create pending certificate template records for all enrolled Android hosts in each team,
+	// and track which variables each template uses for SCIM-triggered resends.
 	for _, cert := range certificates {
 		// Get the template ID by querying for it (BatchUpsert doesn't return IDs)
 		tmpl, err := svc.ds.GetCertificateTemplateByTeamIDAndName(ctx, cert.TeamID, cert.Name)
@@ -550,6 +557,10 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		// Safe to call even for existing templates (it will be a no-op for hosts that already have records)
 		if _, err := svc.ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, tmpl.ID, cert.TeamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "creating pending certificate templates for existing hosts")
+		}
+		certVars := extractCertTemplateFleetVars(cert.SubjectName, cert.SubjectAlternativeName)
+		if err := svc.ds.SetCertificateTemplateVariables(ctx, tmpl.ID, certVars); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting certificate template variables")
 		}
 	}
 

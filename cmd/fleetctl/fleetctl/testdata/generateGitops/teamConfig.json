@@ -109,6 +109,7 @@
     },
     "mdm": {
         "enable_disk_encryption": true,
+        "name_template": "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL",
         "macos_updates": {
             "minimum_version": "95.1",
             "deadline": "2020-12-31",

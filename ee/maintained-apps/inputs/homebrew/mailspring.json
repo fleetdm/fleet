@@ -1,0 +1,10 @@
+{
+  "name": "Mailspring",
+  "unique_identifier": "com.mailspring.mailspring",
+  "token": "mailspring",
+  "installer_format": "zip",
+  "slug": "mailspring/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

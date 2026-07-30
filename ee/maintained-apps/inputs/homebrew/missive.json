@@ -1,0 +1,10 @@
+{
+  "name": "Missive",
+  "unique_identifier": "com.missiveapp.osx",
+  "token": "missive",
+  "installer_format": "dmg",
+  "slug": "missive/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

@@ -9,6 +9,14 @@ examples: |-
   SELECT mode FROM santa_status;
   ```
 columns:
+  - name: daemon_reachable
+    description: Whether the Santa daemon could be reached (1=reachable, 0=unreachable, e.g. Full Disk Access not granted or system extension awaiting approval). Always populated; when 0, the `error` column contains the santactl error and the remaining columns are NULL.
+    required: false
+    type: integer
+  - name: error
+    description: The error returned by `santactl status` when the daemon is unreachable (daemon_reachable=0); empty when the daemon is reachable.
+    required: false
+    type: text
   - name: sync_server
     description: The server Santa syncs rules and configuration from
     required: false

@@ -1,0 +1,1 @@
+- Fixed server-side paginated tables (e.g. policies) landing on an empty state after deleting the last row on a page. The table now navigates back to a page with data instead.

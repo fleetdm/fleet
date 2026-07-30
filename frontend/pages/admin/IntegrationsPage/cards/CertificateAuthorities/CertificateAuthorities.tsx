@@ -155,7 +155,7 @@ const CertificateAuthorities = () => {
   };
 
   return (
-    <SettingsSection title="Certificate authorities">
+    <SettingsSection title="Certificate enrollment">
       {renderContent()}
       {showAddCertAuthorityModal && certAuthorities && (
         <AddCertAuthorityModal

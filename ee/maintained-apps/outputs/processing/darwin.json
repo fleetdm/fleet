@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.5.2",
+      "version": "4.5.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four' AND version_compare(bundle_short_version, '4.5.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.processing.four' AND version_compare(bundle_short_version, '4.5.6') < 0);"
       },
-      "installer_url": "https://github.com/processing/processing4/releases/download/processing-1313-4.5.2/processing-4.5.2-macos-aarch64.dmg",
+      "installer_url": "https://github.com/processing/processing4/releases/download/processing-1434-4.5.6/processing-4.5.6-macos-aarch64.dmg",
       "install_script_ref": "c22623fc",
       "uninstall_script_ref": "b69978e7",
-      "sha256": "27772a40761ae02ee470cdebb6a8e4a8265926b55771b7249a40d006d4e818ef",
+      "sha256": "f543a70d06fa43ea4f57955368734296c49960b71b24b2220da18d14806ed3fa",
       "default_categories": [
         "Productivity"
       ]

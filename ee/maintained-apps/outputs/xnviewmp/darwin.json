@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.11.2",
+      "version": "1.11.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView' AND version_compare(bundle_short_version, '1.11.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnView' AND version_compare(bundle_short_version, '1.11.5') < 0);"
       },
-      "installer_url": "https://download.xnview.com/old_versions/XnView_MP/XnView_MP-1.11.2-mac.dmg",
+      "installer_url": "https://download.xnview.com/old_versions/XnView_MP/XnView_MP-1.11.5-mac.dmg",
       "install_script_ref": "e427c90d",
       "uninstall_script_ref": "be3d7bc2",
-      "sha256": "b97ca9a21b119c3eb2580e6157c04c14d14d92636640d85a42829211687d2ff4",
+      "sha256": "675143eb3784c9fbbe9dbb290a6edb8f3b994e978ed99d3e73fd26a248b17659",
       "default_categories": [
         "Productivity"
       ]

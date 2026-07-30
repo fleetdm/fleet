@@ -1,0 +1,12 @@
+{
+  "name": "dupeGuru",
+  "slug": "dupeguru/windows",
+  "package_identifier": "DupeGuru.DupeGuru",
+  "unique_identifier": "dupeGuru",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dupeguru_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dupeguru_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

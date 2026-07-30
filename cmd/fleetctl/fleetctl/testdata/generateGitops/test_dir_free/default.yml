@@ -30,6 +30,9 @@ controls:
     - labels_include_any:
       - Label D
       path: ./lib/profiles/global-windows-profile.xml
+custom_host_vitals:
+- name: Asset tag
+- name: Department
 labels:
 - description: Label A description
   label_membership_type: dynamic
@@ -190,9 +193,6 @@ policies:
   description: This is a global policy
   install_software:
     hash_sha256: # TODO: Add your hash_sha256 here
-  labels_include_any:
-  - Label A
-  - Label B
   name: Global Policy
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1

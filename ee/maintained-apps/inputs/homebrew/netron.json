@@ -1,0 +1,10 @@
+{
+  "name": "Netron",
+  "unique_identifier": "com.lutzroeder.netron",
+  "token": "netron",
+  "installer_format": "zip",
+  "slug": "netron/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

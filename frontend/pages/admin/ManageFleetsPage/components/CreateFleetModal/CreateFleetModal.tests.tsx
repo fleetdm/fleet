@@ -80,6 +80,13 @@ describe("CreateFleetModal", () => {
     expect(screen.getByText("Team name already exists")).toBeInTheDocument();
   });
 
+  it("caps the fleet name input at 255 characters (matches DB varchar(255))", () => {
+    render(<CreateFleetModal {...defaultProps} />);
+
+    const nameInput = screen.getByLabelText("Fleet name") as HTMLInputElement;
+    expect(nameInput.maxLength).toBe(255);
+  });
+
   it("clears errors when user types in the input", async () => {
     const props = {
       ...defaultProps,

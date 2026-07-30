@@ -6,6 +6,7 @@ import hostsAPI, { ILoadHostsResponse } from "services/entities/hosts";
 import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
 import HighlightedLabel from "./HighlightedLabel";
+import UprightEmoji from "./UprightEmoji";
 
 const baseClass = "command-palette";
 
@@ -85,7 +86,7 @@ const HostPicker = ({
             </span>
             {showTeamColumn && (
               <span className={`${baseClass}__host-team`}>
-                {host.team_name || "Unassigned"}
+                <UprightEmoji text={host.team_name || "Unassigned"} />
               </span>
             )}
           </Command.Item>

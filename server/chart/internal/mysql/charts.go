@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +22,20 @@ import (
 // considered offline). Duplicated rather than imported because the chart
 // bounded context must not depend on server/fleet — arch test enforced.
 const onlineIntervalBufferSeconds = 60
+
+// mobileOnlineWindowSeconds is the window within which a mobile
+// (iOS/iPadOS/Android) host's most recent MDM activity signal must fall for it
+// to count as online. Mobile MDM devices have no osquery check-in interval
+// (distributed_interval/config_tls_refresh are 0), so instead of a per-host
+// interval we anchor the window to the iOS/iPadOS refetch cadence (1 hour; see
+// ListIOSAndIPadOSToRefetch) plus the same grace buffer used for osquery hosts.
+const mobileOnlineWindowSeconds = 3600 + onlineIntervalBufferSeconds
+
+// neverTimestamp mirrors server.NeverTimestamp, the sentinel written to
+// detail_updated_at before a host's first full detail refetch. Duplicated
+// rather than imported because the chart bounded context must not depend on the
+// server package — arch test enforced.
+const neverTimestamp = "2000-01-01 00:00:00"
 
 // Datastore is the MySQL implementation of the chart datastore.
 type Datastore struct {
@@ -70,24 +86,56 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindOnlineHostIDs returns host IDs that are "online" at `now` per the same
-// per-host predicate used by the hosts list status=online filter
-// (filterHostsByStatus in server/datastore/mysql/hosts.go): the host has a
-// host_seen_times row whose seen_time falls within the host's own check-in
-// interval (LEAST of distributed_interval and config_tls_refresh) plus the
-// OnlineIntervalBuffer grace period.
+// FindOnlineHostIDs returns host IDs that are "online" at `now`, using a
+// platform-specific predicate:
 //
-// Because host_seen_times is updated only by osquery check-ins, MDM-only
-// mobile devices (iOS, iPadOS, Android) are currently excluded by design.
+//   - Non-mobile (osquery-capable) hosts use the same predicate as the hosts
+//     list status=online filter (filterHostsByStatus in
+//     server/datastore/mysql/hosts.go): a host_seen_times row whose seen_time
+//     falls within the host's own check-in interval (LEAST of
+//     distributed_interval and config_tls_refresh) plus the OnlineIntervalBuffer
+//     grace period.
+//   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
+//     they use their MDM activity signal — the most recent of
+//     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
+//     considered for enabled enrollments since last_seen_at is also bumped when
+//     an enrollment is disabled on checkout) and
+//     host_seen_times.seen_time, falling back to detail_updated_at (the
+//     neverTimestamp sentinel treated as null) — within mobileOnlineWindowSeconds
+//     of `now`. There is deliberately no created_at fallback: a freshly enrolled
+//     device that never checked in is not "online".
 func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
 	query := fmt.Sprintf(`
 		SELECT h.id
 		FROM hosts h
-		JOIN host_seen_times hst ON h.id = hst.host_id
-		WHERE DATE_ADD(hst.seen_time,
-			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
-		) > ?`, onlineIntervalBufferSeconds)
-	args := []any{now.UTC()}
+			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
+				AND ne.enabled = 1
+				AND ne.type IN ('Device', 'User Enrollment (Device)')
+		WHERE (
+			(
+				h.platform NOT IN ('ios', 'ipados', 'android')
+				AND hst.seen_time IS NOT NULL
+				AND DATE_ADD(hst.seen_time,
+					INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+				) > ?
+			)
+			OR
+			(
+				h.platform IN ('ios', 'ipados', 'android')
+				AND DATE_ADD(
+					COALESCE(
+						GREATEST(
+							COALESCE(hst.seen_time, ne.last_seen_at),
+							COALESCE(ne.last_seen_at, hst.seen_time)
+						),
+						NULLIF(h.detail_updated_at, ?)
+					),
+					INTERVAL %d SECOND
+				) > ?
+			)
+		)`, onlineIntervalBufferSeconds, mobileOnlineWindowSeconds)
+	args := []any{now.UTC(), neverTimestamp, now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
 		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`
@@ -107,48 +155,52 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 	return ids, nil
 }
 
-// The matcher list and TrackedCriticalCVEs exist as performance optimizations.
+// The matcher list exists as a performance optimization that bounds which CVEs
+// the chart collects.
 // TODO: implement bitmap compression so we can collect more CVE data.
-// TODO: implement more filtering options for users.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
-// optional source allowlist. Empty Sources means any source.
+// optional source allowlist. Empty Sources means any source. Category groups
+// the matcher under one of the api.CVECategory* keys so the read-time filter
+// can include/exclude whole categories.
 type cveSoftwareMatcher struct {
+	Category    string
 	NamePattern string
 	Sources     []string
 }
 
-// trackedCVESoftwareMatchers is the hard-coded curated list of software
-// whose critical CVEs contribute to the CVE chart. Patterns are deliberately
-// broad (trailing `%`) so packaging variants (Chrome Beta/Canary, Firefox
-// ESR/Nightly, kernel metapackages) are absorbed without maintenance.
+// trackedCVESoftwareMatchers is the hard-coded curated list of software whose
+// CVEs contribute to the CVE chart. Patterns are deliberately broad (trailing
+// `%`) so packaging variants (Chrome Beta/Canary, Firefox ESR/Nightly, kernel
+// metapackages) are absorbed without maintenance. The kernel matchers belong
+// to the OS category alongside operating-system vulnerabilities.
 var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	// Browsers.
-	{"Google Chrome%", nil},
-	{"Firefox%", nil},
-	{"Mozilla Firefox%", nil},
-	{"Brave Browser%", nil},
-	{"Safari%", []string{"apps"}},
-	{"Opera%", nil},
+	{api.CVECategoryBrowsers, "Google Chrome%", nil},
+	{api.CVECategoryBrowsers, "Firefox%", nil},
+	{api.CVECategoryBrowsers, "Mozilla Firefox%", nil},
+	{api.CVECategoryBrowsers, "Brave Browser%", nil},
+	{api.CVECategoryBrowsers, "Safari%", []string{"apps"}},
+	{api.CVECategoryBrowsers, "Opera%", nil},
 
 	// Microsoft Office.
-	{"Microsoft Word%", nil},
-	{"Microsoft Excel%", nil},
-	{"Microsoft PowerPoint%", nil},
-	{"Microsoft Outlook%", nil},
-	{"Microsoft Office%", nil},
+	{api.CVECategoryOffice, "Microsoft Word%", nil},
+	{api.CVECategoryOffice, "Microsoft Excel%", nil},
+	{api.CVECategoryOffice, "Microsoft PowerPoint%", nil},
+	{api.CVECategoryOffice, "Microsoft Outlook%", nil},
+	{api.CVECategoryOffice, "Microsoft Office%", nil},
 
 	// Adobe.
-	{"Adobe Flash%", nil},
-	{"Shockwave Flash%", nil},
-	{"Adobe Acrobat%", nil},
+	{api.CVECategoryAdobe, "Adobe Flash%", nil},
+	{api.CVECategoryAdobe, "Shockwave Flash%", nil},
+	{api.CVECategoryAdobe, "Adobe Acrobat%", nil},
 
-	// Linux kernel. Debian/Ubuntu metapackages are linux-image-* and
-	// linux-signed-image-*; RHEL/Fedora/Amazon Linux are kernel-* (confirmed
-	// via server/vulnerabilities/osv/analyzer.go rhelKernelPackages).
-	{"linux-image-%", []string{"deb_packages"}},
-	{"linux-signed-image-%", []string{"deb_packages"}},
-	{"kernel-%", []string{"rpm_packages"}},
+	// Linux kernel (OS category). Debian/Ubuntu metapackages are linux-image-*
+	// and linux-signed-image-*; RHEL/Fedora/Amazon Linux are kernel-*
+	// (confirmed via server/vulnerabilities/osv/analyzer.go rhelKernelPackages).
+	{api.CVECategoryOS, "linux-image-%", []string{"deb_packages"}},
+	{api.CVECategoryOS, "linux-signed-image-%", []string{"deb_packages"}},
+	{api.CVECategoryOS, "kernel-%", []string{"rpm_packages"}},
 }
 
 // AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
@@ -206,71 +258,178 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 	return result, nil
 }
 
-// TrackedCriticalCVEs returns the deduplicated set of CVE IDs that are
-// (a) linked to any `software` row matching trackedCVESoftwareMatchers with
-// `cve_meta.cvss_score >= 9.0`, OR (b) present in
-// `operating_system_vulnerabilities` with `cve_meta.cvss_score >= 9.0`.
+// CollectibleCVEs returns the deduplicated set of CVE IDs, at all severities,
+// that are (a) linked to any `software` row matching trackedCVESoftwareMatchers,
+// OR (b) present in `operating_system_vulnerabilities`. This is the wide set the
+// CVE collector records; display-time severity/category/EPSS narrowing happens
+// at read time via ResolveCVEChartEntities.
 //
-// Returns a non-nil empty slice when no CVEs match, so callers can
-// distinguish "filter resolved to empty" from "no filter requested" (nil).
-// See GetSCDData for how empty vs nil is interpreted at the query layer.
-//
-// TODO: replace with user-configurable filtering. See the
-// matcher-list comment above.
-func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
-	const criticalCVSS = 9.0
+// Returns a non-nil empty slice when no CVEs match.
+func (ds *Datastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
 	set := make(map[string]struct{})
 
-	// Software-side: build an OR-chained matcher clause. Each matcher adds one
-	// `(name LIKE ? AND source IN (?))` or `name LIKE ?` subclause.
-	softwareArgs := []any{criticalCVSS}
-	matcherClauses := make([]string, 0, len(trackedCVESoftwareMatchers))
-	for _, m := range trackedCVESoftwareMatchers {
-		if len(m.Sources) == 0 {
-			matcherClauses = append(matcherClauses, "s.name LIKE ?")
-			softwareArgs = append(softwareArgs, m.NamePattern)
-		} else {
-			matcherClauses = append(matcherClauses, "(s.name LIKE ? AND s.source IN (?))")
-			softwareArgs = append(softwareArgs, m.NamePattern, m.Sources)
+	// Software-side: every tracked-matcher CVE, no cve_meta join or severity
+	// filter — we collect all severities and narrow only at read time.
+	if swClause, swArgs, ok := softwareMatcherClause(nil); ok {
+		swQuery := `
+			SELECT DISTINCT sc.cve
+			FROM software_cve sc
+			JOIN software s ON s.id = sc.software_id
+			WHERE ` + swClause
+		expanded, expandedArgs, err := sqlx.In(swQuery, swArgs...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "expand collectible-CVE software args")
+		}
+		expanded = ds.rebind(expanded)
+		if err := streamCVEStrings(ctx, ds.reader(ctx), expanded, expandedArgs, set); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "stream collectible-CVE software results")
 		}
 	}
-	softwareQuery := `
-		SELECT DISTINCT sc.cve
-		FROM software_cve sc
-		JOIN software s  ON s.id = sc.software_id
-		JOIN cve_meta cm ON cm.cve = sc.cve
-		WHERE cm.cvss_score >= ?
-		  AND (` + strings.Join(matcherClauses, " OR ") + `)`
 
-	expanded, expandedArgs, err := sqlx.In(softwareQuery, softwareArgs...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand tracked-CVE software args")
-	}
-	expanded = ds.rebind(expanded)
-	if err := streamCVEStrings(ctx, ds.reader(ctx), expanded, expandedArgs, set); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream tracked-CVE software results")
+	// OS-side: all OS vulnerabilities. Fleet's OS vuln coverage is already
+	// scoped to desktop OSes.
+	const osQuery = `SELECT DISTINCT osv.cve FROM operating_system_vulnerabilities osv`
+	if err := streamCVEStrings(ctx, ds.reader(ctx), osQuery, nil, set); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "stream collectible-CVE OS results")
 	}
 
-	// OS-side: all OS vulnerabilities at or above the critical threshold.
-	// Fleet's OS vuln coverage is already scoped to desktop OSes.
-	const osQuery = `
-		SELECT DISTINCT osv.cve
-		FROM operating_system_vulnerabilities osv
-		JOIN cve_meta cm ON cm.cve = osv.cve
-		WHERE cm.cvss_score >= ?`
-	if err := streamCVEStrings(ctx, ds.reader(ctx), osQuery, []any{criticalCVSS}, set); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream tracked-CVE OS results")
+	return setToSlice(set), nil
+}
+
+// ResolveCVEChartEntities resolves the read-time CVE allow-set by intersecting
+// the curated universe with the filter's predicates (software category, CVSS
+// range, EPSS range, known-exploit) and subtracting any excluded CVEs.
+//
+// With the default filter (CVSS 9.0–10.0, all categories, no EPSS bound, no
+// known-exploit, no exclusions) this reproduces the iteration-1 "tracked
+// critical CVEs" set, so the chart's default display is unchanged.
+//
+// Returns a non-nil empty slice when the filter resolves to nothing, so callers
+// never pass nil to GetSCDData (which would mean "all collected", leaking
+// lower-severity CVEs into the chart).
+func (ds *Datastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
+	set := make(map[string]struct{})
+	cats := categorySet(filter.Categories) // nil == all categories
+	metaClause, metaArgs := cveMetaPredicate(filter)
+
+	// Software-side: skip entirely when no matcher falls in the selected
+	// categories (e.g. only the OS category is selected).
+	if swClause, swArgs, ok := softwareMatcherClause(cats); ok {
+		args := slices.Concat(swArgs, metaArgs)
+		swQuery := `
+			SELECT DISTINCT sc.cve
+			FROM software_cve sc
+			JOIN software s  ON s.id = sc.software_id
+			JOIN cve_meta cm ON cm.cve = sc.cve
+			WHERE ` + swClause + metaClause
+		expanded, expandedArgs, err := sqlx.In(swQuery, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "expand resolve-CVE software args")
+		}
+		expanded = ds.rebind(expanded)
+		if err := streamCVEStrings(ctx, ds.reader(ctx), expanded, expandedArgs, set); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "stream resolve-CVE software results")
+		}
 	}
 
+	// OS-side: only when the OS category is selected (or no category filter).
+	if cats == nil || containsCategory(cats, api.CVECategoryOS) {
+		osQuery := `
+			SELECT DISTINCT osv.cve
+			FROM operating_system_vulnerabilities osv
+			JOIN cve_meta cm ON cm.cve = osv.cve
+			WHERE 1=1` + metaClause
+		expanded, expandedArgs, err := sqlx.In(osQuery, metaArgs...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "expand resolve-CVE OS args")
+		}
+		expanded = ds.rebind(expanded)
+		if err := streamCVEStrings(ctx, ds.reader(ctx), expanded, expandedArgs, set); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "stream resolve-CVE OS results")
+		}
+	}
+
+	// Subtract excluded CVEs. Excluding a CVE not in the set is a no-op, so a
+	// user may freely exclude CVEs that were never collected.
+	for _, cve := range filter.ExcludeCVEs {
+		delete(set, cve)
+	}
+
+	return setToSlice(set), nil
+}
+
+// softwareMatcherClause builds the OR-chained software matcher subclause for the
+// matchers in the selected categories, plus its args. A nil categories map
+// means "all categories". Returns ok=false when no matcher falls in the
+// selected categories, signaling the caller to skip the software-side query.
+func softwareMatcherClause(categories map[string]struct{}) (clause string, args []any, ok bool) {
+	subclauses := make([]string, 0, len(trackedCVESoftwareMatchers))
+	for _, m := range trackedCVESoftwareMatchers {
+		if categories != nil {
+			if _, sel := categories[m.Category]; !sel {
+				continue
+			}
+		}
+		if len(m.Sources) == 0 {
+			subclauses = append(subclauses, "s.name LIKE ?")
+			args = append(args, m.NamePattern)
+		} else {
+			subclauses = append(subclauses, "(s.name LIKE ? AND s.source IN (?))")
+			args = append(args, m.NamePattern, m.Sources)
+		}
+	}
+	if len(subclauses) == 0 {
+		return "", nil, false
+	}
+	return "(" + strings.Join(subclauses, " OR ") + ")", args, true
+}
+
+// cveMetaPredicate builds the cve_meta WHERE fragment (with a leading " AND ")
+// shared by the software- and OS-side resolve queries, plus its args. The CVSS
+// range is always applied; EPSS bounds and the known-exploit flag are optional.
+func cveMetaPredicate(filter types.CVEChartFilter) (string, []any) {
+	clauses := []string{"cm.cvss_score >= ?", "cm.cvss_score <= ?"}
+	args := []any{filter.CVSSMin, filter.CVSSMax}
+	if filter.EPSSMin != nil {
+		clauses = append(clauses, "cm.epss_probability >= ?")
+		args = append(args, *filter.EPSSMin)
+	}
+	if filter.EPSSMax != nil {
+		clauses = append(clauses, "cm.epss_probability <= ?")
+		args = append(args, *filter.EPSSMax)
+	}
+	if filter.KnownExploit {
+		clauses = append(clauses, "cm.cisa_known_exploit = 1")
+	}
+	return " AND " + strings.Join(clauses, " AND "), args
+}
+
+func categorySet(categories []string) map[string]struct{} {
+	if len(categories) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(categories))
+	for _, c := range categories {
+		set[c] = struct{}{}
+	}
+	return set
+}
+
+func containsCategory(set map[string]struct{}, c string) bool {
+	_, ok := set[c]
+	return ok
+}
+
+func setToSlice(set map[string]struct{}) []string {
 	out := make([]string, 0, len(set))
 	for cve := range set {
 		out = append(out, cve)
 	}
-	return out, nil
+	return out
 }
 
 // streamCVEStrings runs a single-column SELECT of CVE IDs and inserts each
-// into the provided set. Helper for TrackedCriticalCVEs. Streams rather than
+// into the provided set. Helper for the CVE resolver queries. Streams rather than
 // using SelectContext so we don't materialize the full result set.
 func streamCVEStrings(ctx context.Context, q sqlx.QueryerContext, query string, args []any, out map[string]struct{}) error {
 	// sqlclosecheck can't see through the QueryerContext interface to verify

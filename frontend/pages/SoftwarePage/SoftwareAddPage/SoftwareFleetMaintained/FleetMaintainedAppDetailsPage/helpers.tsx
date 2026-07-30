@@ -17,7 +17,7 @@ const NameToIdentifierMap: Record<string, string> = {
   "Adobe Acrobat Reader": "adobe-acrobat-reader",
   "Box Drive": "box-drive",
   Brave: "brave-browser",
-  "Cloudflare WARP": "cloudflare-warp",
+  "Cloudflare One": "cloudflare-warp",
   "Docker Desktop": "docker",
   Figma: "figma",
   "Mozilla Firefox": "firefox",
@@ -64,6 +64,11 @@ export const getErrorMessage = (err: unknown) => {
     reason.includes("json decoder error") // 400 bad request when really slow
   ) {
     return REQUEST_TIMEOUT_ERROR_MESSAGE;
+  }
+
+  // Server returns a complete user-facing message; pass it through as-is.
+  if (reason.includes("can be added to the same fleet")) {
+    return ensurePeriod(reason);
   }
 
   // software is already available for install

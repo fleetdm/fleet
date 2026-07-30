@@ -490,6 +490,68 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+// deviceNameSettingCommand builds the raw Settings/DeviceName command used to
+// rename a device.
+func deviceNameSettingCommand(deviceName, cmdUUID string) (string, error) {
+	escaped, err := mobileconfig.XMLEscapeString(deviceName)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>Settings</string>
+		<key>Settings</key>
+		<array>
+			<dict>
+				<key>Item</key>
+				<string>DeviceName</string>
+				<key>DeviceName</key>
+				<string>%s</string>
+			</dict>
+		</array>
+	</dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+</dict>
+</plist>`, escaped, cmdUUID), nil
+}
+
+// DeviceNameSetting sends the Settings command with a DeviceName item to rename the device.
+// Requires supervision on iOS/iPadOS.
+func (svc *MDMAppleCommander) DeviceNameSetting(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
+}
+
+// DeviceNameSettingWithoutNotifications is like DeviceNameSetting but only
+// enqueues the command; it does not send an APNs push. The caller must invoke
+// SendNotifications afterwards. This lets a bulk sender enqueue one command per
+// host and then wake every device with a single batched push instead of one
+// APNs request per host.
+func (svc *MDMAppleCommander) DeviceNameSettingWithoutNotifications(ctx context.Context, hostUUID, cmdUUID, deviceName string) error {
+	raw, err := deviceNameSettingCommand(deviceName, cmdUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "escaping device name for XML")
+	}
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+	if _, err := svc.storage.EnqueueCommand(ctx, []string{hostUUID},
+		&mdm.CommandWithSubtype{Command: *cmd, Subtype: mdm.CommandSubtypeNone}); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceName")
+	}
+	return nil
+}
+
 func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, hostUUIDs []string, cmdUUID string, managedOnly bool) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

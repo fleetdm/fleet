@@ -13,7 +13,6 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareApiParams } from "services/entities/software";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   convertParamsToSnakeCase,
@@ -21,6 +20,7 @@ import {
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
+import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
 import AutomationsButton from "components/buttons/AutomationsButton";
 import MainContent from "components/MainContent";
@@ -147,8 +147,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const isPrimoMode =
     globalConfigFromContext?.partnerships?.enable_primo || false;
-
-  const { renderFlash } = useContext(NotificationContext);
 
   const queryParams = location.query;
 
@@ -282,15 +280,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     try {
       const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
-        renderFlash(
-          "success",
-          "Successfully updated vulnerability automations."
-        );
+        notify.success("Successfully updated vulnerability automations.");
         refetchSoftwareConfig();
       });
     } catch {
-      renderFlash(
-        "error",
+      notify.error(
         "Could not update vulnerability automations. Please try again."
       );
     } finally {

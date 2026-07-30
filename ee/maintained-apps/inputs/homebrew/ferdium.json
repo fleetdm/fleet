@@ -1,0 +1,10 @@
+{
+  "name": "Ferdium",
+  "unique_identifier": "com.ferdium.ferdium-app",
+  "token": "ferdium",
+  "installer_format": "dmg",
+  "slug": "ferdium/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

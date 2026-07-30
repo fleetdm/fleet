@@ -1,0 +1,10 @@
+{
+  "name": "ThumbsUp",
+  "unique_identifier": "com.devon-technologies.ThumbsUp",
+  "token": "thumbsup",
+  "installer_format": "zip",
+  "slug": "thumbsup/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

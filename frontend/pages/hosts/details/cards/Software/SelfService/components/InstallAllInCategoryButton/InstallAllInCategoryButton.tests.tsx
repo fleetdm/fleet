@@ -28,18 +28,57 @@ describe("InstallAllInCategoryButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("is disabled when uninstalledCount is 0", () => {
+  it("renders without the (0) suffix and stays disabled when count is 0 but an install is in progress", () => {
     const render = createCustomRenderer({ withBackendMock: true });
-    render(<InstallAllInCategoryButton {...baseProps} uninstalledCount={0} />);
-    expect(screen.getByRole("button", { name: /Install all/i })).toBeDisabled();
+    render(
+      <InstallAllInCategoryButton
+        {...baseProps}
+        uninstalledCount={0}
+        hasInProgressInCategory
+      />
+    );
+    const button = screen.getByRole("button", { name: /^Install all$/i });
+    expect(button).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    expect(screen.queryByText(/\(0\)/)).not.toBeInTheDocument();
   });
 
-  it("is disabled when hasInProgressInCategory is true", () => {
+  it("is not rendered when count is 0 and nothing is in progress", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<InstallAllInCategoryButton {...baseProps} uninstalledCount={0} />);
+    expect(
+      screen.queryByRole("button", { name: /Install all/i })
+    ).not.toBeInTheDocument();
+  });
+
+  // Per design intent, `hasInProgressInCategory` is only true for
+  // install/script in-flight statuses (see helpers.ts). A category whose only
+  // active work is an "updating..." item should report hasInProgressInCategory
+  // = false, so the button is hidden when count is also 0.
+  it("is not rendered when count is 0 and the parent reports no install_all in flight", () => {
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <InstallAllInCategoryButton
+        {...baseProps}
+        uninstalledCount={0}
+        hasInProgressInCategory={false}
+      />
+    );
+    expect(
+      screen.queryByRole("button", { name: /Install all/i })
+    ).not.toBeInTheDocument();
+  });
+
+  // `install_all` skips items already in INSTALLED_OR_IN_FLIGHT, so a second
+  // click during a batch only queues whatever is still eligible. The button
+  // stays enabled whenever there's something actionable to click. See #47855
+  // for the full visibility/count/enabled rules.
+  it("stays enabled when count > 0 even if an install_all batch is in flight", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(
       <InstallAllInCategoryButton {...baseProps} hasInProgressInCategory />
     );
-    expect(screen.getByRole("button", { name: /Install all/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Install all/i })).toBeEnabled();
   });
 
   it("opens the confirmation modal when clicked", async () => {

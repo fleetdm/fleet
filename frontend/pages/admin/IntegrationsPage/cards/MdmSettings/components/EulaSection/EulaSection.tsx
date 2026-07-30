@@ -1,7 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+
+import { notify } from "components/ToastNotification";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
@@ -24,7 +25,6 @@ const EulaSection = ({
   onUpload,
   onDelete,
 }: IEulaSectionProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [showDeleteEulaModal, setShowDeleteEulaModal] = useState(false);
 
   const onDeleteEula = async () => {
@@ -32,9 +32,9 @@ const EulaSection = ({
 
     try {
       await mdmAPI.deleteEULA(eulaMetadata.token);
-      renderFlash("success", "Successfully deleted.");
-    } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      notify.success("Successfully deleted.");
+    } catch (e) {
+      notify.error("Couldn’t delete. Please try again.", { response: e });
     } finally {
       setShowDeleteEulaModal(false);
       onDelete();

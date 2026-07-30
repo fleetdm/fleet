@@ -25,6 +25,21 @@ describe("generateErrorTooltip", () => {
     expect(result).toBeNull();
   });
 
+  it("renders a windows certificate install error as is, without key-value formatting", () => {
+    const detail = `Couldn't install certificate. The "WINSCEPTEST" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`;
+    const tooltip = generateErrorTooltip(
+      createMockHostMdmProfile({
+        platform: "windows",
+        status: "failed",
+        detail,
+      })
+    );
+
+    renderTooltip(tooltip);
+
+    expect(screen.getByText(detail)).toBeInTheDocument();
+  });
+
   it("formats a windows profile error with key-value pairs", () => {
     const tooltip = generateErrorTooltip(
       createMockHostMdmProfile({

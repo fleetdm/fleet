@@ -1,0 +1,10 @@
+{
+  "name": "Mountain Duck",
+  "unique_identifier": "io.mountainduck",
+  "token": "mountain-duck",
+  "installer_format": "zip",
+  "slug": "mountain-duck/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

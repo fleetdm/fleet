@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.62",
+      "version": "1.66",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Superkey';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Superkey' AND version_compare(bundle_short_version, '1.62') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.knollsoft.Superkey' AND version_compare(bundle_short_version, '1.66') < 0);"
       },
-      "installer_url": "https://superkey.app/downloads/Superkey1.62.dmg",
+      "installer_url": "https://superkey.app/downloads/Superkey1.66.dmg",
       "install_script_ref": "4c4f50b7",
       "uninstall_script_ref": "aa2f8462",
-      "sha256": "d6f60b81efbe4ddd4dccf41a0d0d9729c7d53c28f9e4fd14822f140068862705",
+      "sha256": "cf2e19a2ed79cf2230efa5a6b1baf19da4278e5e3b834c62043fec65790cc918",
       "default_categories": [
         "Productivity"
       ]

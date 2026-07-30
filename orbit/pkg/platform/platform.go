@@ -16,7 +16,6 @@ var (
 type UUIDSource string
 
 const (
-	UUIDSourceInvalid  = "UUID_Source_Invalid"
 	UUIDSourceWMI      = "UUID_Source_WMI"
 	UUIDSourceHardware = "UUID_Source_Hardware"
 )

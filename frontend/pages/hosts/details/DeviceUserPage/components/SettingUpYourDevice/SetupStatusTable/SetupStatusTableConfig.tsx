@@ -24,6 +24,7 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
         return (
           <SetupSoftwareProcessCell
             name={getDisplayedSoftwareName(name, display_name)}
+            iconName={name ?? ""}
             url={icon_url}
           />
         );

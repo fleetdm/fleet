@@ -165,16 +165,8 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	}, nil
 }
 
-var (
-	//goland:noinspection GoErrorStringFormat
-	sendingMFAEmail = errors.New("sending MFA email")
-
-	noMFASupported           = errors.New("client with no MFA email support")
-	mfaNotSupportedForClient = endpointer.BadRequestErr(
-		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-		noMFASupported,
-	)
-)
+//goland:noinspection GoErrorStringFormat
+var sendingMFAEmail = errors.New("sending MFA email")
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
 	// skipauth: No user context available yet to authorize against.
@@ -191,7 +183,7 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	// take ~1s and frustrate a timing attack.
 	var err error
 	defer func(start time.Time) {
-		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
+		if err != nil && !errors.Is(err, sendingMFAEmail) {
 			if err := svc.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
@@ -219,23 +211,41 @@ func (svc *Service) Login(ctx context.Context, email, password string, supportsE
 	}
 
 	if user.SSOEnabled {
-		return nil, nil, fleet.NewAuthFailedError("password login disabled for sso users")
+		err = fleet.NewAuthFailedError("password login disabled for sso users")
+		return nil, nil, err
 	} else if user.MFAEnabled {
 		if !supportsEmailVerification {
-			return nil, nil, mfaNotSupportedForClient
+			err = fleet.NewAuthFailedError("client with no MFA email support")
+			return nil, nil, err
 		}
 
 		if err = svc.makeMFAEmail(ctx, *user); err != nil {
 			return nil, nil, fleet.NewAuthFailedError(err.Error())
 		}
 
-		return nil, nil, sendingMFAEmail
+		// A correct password on an MFA-enabled account triggers a verification
+		// email. Record it so this event is visible in the activity feed and
+		// audit stream, since it is otherwise the only observable signal that a
+		// valid password was submitted.
+		if actErr := svc.NewActivity(
+			ctx, nil, fleet.ActivityTypeUserMFARequested{
+				Email:    email,
+				PublicIP: publicip.FromContext(ctx),
+			}); actErr != nil {
+			logging.WithExtras(logging.WithNoUser(ctx),
+				"msg", "failed to generate MFA requested activity",
+			)
+		}
+
+		err = sendingMFAEmail
+		return nil, nil, err
 	}
 
 	// Do not allow login if on Fleet Free and the user has a Premium-only role.
 	if !license.IsPremium(ctx) {
 		if fleet.PremiumRolesPresent(user.GlobalRole, user.Teams) {
-			return nil, nil, fleet.ErrMissingLicense
+			err = fleet.ErrMissingLicense
+			return nil, nil, err
 		}
 	}
 
@@ -481,13 +491,14 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (sessio
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	// Parse the URL and use JoinPath to avoid double slashes
+	// Construct the ACS callback URL. CallbackURL appends the url_prefix only when
+	// the server URL doesn't already include it, so the subpath is present exactly
+	// once whether or not server_url was configured with the prefix.
 	parsedURL, err := url.Parse(ssoURL)
 	if err != nil {
 		return "", 0, "", ctxerr.Wrap(ctx, badRequest("invalid SSO URL: "+err.Error()))
 	}
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
-	acsURL := parsedURL.String()
+	acsURL := sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback").String()
 
 	// If entityID is not explicitly set, default to host name.
 	//
@@ -573,6 +584,17 @@ func decodeCallbackRequest(ctx context.Context, r *http.Request) (
 		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: "missing SAMLResponse",
 		}, "missing SAMLResponse in SSO callback")
+	}
+	// Cap the SAMLResponse value itself, not just the request body. FormValue
+	// reads from both the POST body and the URL query string, and
+	// WithRequestBodySizeLimit only bounds the body — so without this check the
+	// body cap is trivially bypassed by sending the payload as a
+	// ?SAMLResponse= query argument. This guards both the regular and MDM SSO
+	// callbacks, which share this decoder.
+	if int64(len(samlResponseValue)) > fleet.MaxSSOCallbackSize {
+		return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "SAMLResponse too large",
+		}, "SAMLResponse exceeds maximum size in SSO callback")
 	}
 	decodedSAMLResponseValue, err := sso.DecodeSAMLResponse(samlResponseValue)
 	if err != nil {
@@ -718,15 +740,16 @@ func (svc *Service) InitSSOCallback(
 	if appConfig.SSOSettings != nil && appConfig.SSOSettings.SSOServerURL != "" {
 		ssoURL = appConfig.SSOSettings.SSOServerURL
 	}
-	// Parse the URL and use JoinPath to avoid double slashes
 	parsedURL, err := url.Parse(ssoURL)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, newSSOError(err, ssoOtherError), "invalid SSO URL")
 	}
 	baseSSO := parsedURL.String()
 
-	// Now construct the ACS URL
-	parsedURL = parsedURL.JoinPath(svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
+	// Now construct the ACS URL. CallbackURL appends the url_prefix only when the
+	// server URL doesn't already include it, so the subpath is present exactly once
+	// whether or not server_url was configured with the prefix.
+	parsedURL = sso.CallbackURL(parsedURL, svc.config.Server.URLPrefix, "/api/v1/fleet/sso/callback")
 
 	expectedAudiences := []string{
 		appConfig.SSOSettings.EntityID,
@@ -870,7 +893,7 @@ func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
 		Mailer: &mail.MFAMailer{
 			FullName: user.Name,
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix), //nolint:gosec // dismiss G203
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}

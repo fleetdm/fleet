@@ -13,7 +13,6 @@ or the complete summary of changes and release binaries check out the [release n
 
 ## Agent auto-updates beta
 
-![Agent auto-updates beta](../website/assets/images/articles/fleet-3.10.0-1-600x337@2x.gif)
 
 Updating the osquery version on your hosts helps reveal new capabilities and information from your fleet, but managing updates can be challenging. Our new self-managed agent auto-updates feature, available for Fleet Basic customers, helps you manage osquery agent versions across your fleet.
 
@@ -22,7 +21,6 @@ We’ve also released the beta for [Orbit](https://github.com/fleetdm/orbit), Fl
 
 ## Identity Provider-Initiated Single Sign-On
 
-![Identity Provider-Initiated Single Sign-On](../website/assets/images/articles/fleet-3.10.0-2-600x337@2x.gif)
 
 Fleet attempts to provide power users with more options for control over their Fleet instance. We’ve introduced Identity Provider-Initiated (IdP-initiated) Single Sign-On (SSO) as a configurable option in Fleet. Turning this option on provides you, and other users of your Fleet instance, with the ability to login to Fleet straight from your configured IdP dashboard.
 
@@ -31,7 +29,6 @@ Please make sure to understand the risks before enabling IdP-initiated SSO. Auth
 
 ## Improved server logging
 
-![Improved server logging](../website/assets/images/articles/fleet-3.10.0-3-600x337@2x.gif)
 
 Generating helpful logs is a vital tool for debugging. Fleet 3.10.0 introduces more consistent logging to assist in highlighting logs of high importance such as errors, agent enrollment, live queries, and others. Thank you William Shoemaker from 
 [Atlassian](https://medium.com/u/5aa6b9976187?source=post_page-----f4dd61be001d--------------------------------) for the assistance!

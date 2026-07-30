@@ -191,6 +191,7 @@ func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID str
 		LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
 		INNER JOIN nano_enrollment_queue neq ON neq.command_uuid = nc.command_uuid
 		WHERE neq.id = ?
+		AND neq.active = 1
 		AND nc.request_type = 'DeviceLock'
 		AND ncr.command_uuid IS NULL
 		ORDER BY nc.created_at DESC
@@ -244,10 +245,21 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 			`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`,
 			host.ID)
 
-		// If we got a row and it has a lock_ref, fail with conflict
+		// A non-null lock_ref only blocks a new lock if it still points to a
+		// deliverable command. Re-enrollment, SCEP renewal, and wipe flip the
+		// queued command to active=0 (see nanomdm ClearQueue), and an inactive
+		// command is never sent to the device, so treat it as an orphan ref and
+		// let the new lock overwrite it below.
 		if err == nil && existingLockRef != nil && *existingLockRef != "" {
-			// A lock command already exists, don't overwrite
-			return lockConflictError{hostUUID: host.UUID}
+			var active bool
+			if err := sqlx.GetContext(ctx, tx, &active,
+				`SELECT EXISTS(SELECT 1 FROM nano_enrollment_queue WHERE command_uuid = ? AND id = ? AND active = 1)`,
+				*existingLockRef, host.UUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "checking if existing lock command is active")
+			}
+			if active {
+				return lockConflictError{hostUUID: host.UUID}
+			}
 		}
 
 		// If the row doesn't exist, that's OK, we'll insert it

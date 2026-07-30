@@ -5,7 +5,6 @@ import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
@@ -22,6 +21,7 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PageDescription from "components/PageDescription";
+import { notify } from "components/ToastNotification";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
@@ -32,7 +32,6 @@ const AgentOptionsPage = ({
   location,
   router,
 }: ITeamSubnavProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
 
@@ -110,10 +109,7 @@ const AgentOptionsPage = ({
     osqueryOptionsAPI
       .updateTeam(teamIdForApi, formDataToSubmit)
       .then(() => {
-        renderFlash(
-          "success",
-          `Successfully updated ${teamName} fleet agent options.`
-        );
+        notify.success(`Successfully updated ${teamName} fleet agent options.`);
         refetchTeamOptions();
       })
       .catch((response: { data: IApiError }) => {
@@ -123,8 +119,7 @@ const AgentOptionsPage = ({
           reason.includes("unsupported key provided") ||
           reason.includes("invalid value type");
 
-        renderFlash(
-          "error",
+        notify.error(
           <>
             Couldn&apos;t update {teamName} fleet agent options:
             {reason}
@@ -135,7 +130,8 @@ const AgentOptionsPage = ({
                 apply --force command to override validation.
               </>
             )}
-          </>
+          </>,
+          { response }
         );
       })
       .finally(() => {

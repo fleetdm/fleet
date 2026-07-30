@@ -10,6 +10,15 @@ import EndUserAuthSection, {
 } from "./EndUserAuthSection";
 import { IFormDataIdp } from "./helpers";
 
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
+
 const EMPTY_FORM_DATA: IFormDataIdp = {
   idp_name: "",
   entity_id: "",
@@ -30,9 +39,6 @@ const createTestRenderer = () => {
       app: {
         isPremiumTier: true,
         config: createMockConfig(),
-      },
-      notification: {
-        renderFlash: jest.fn(),
       },
     },
   });

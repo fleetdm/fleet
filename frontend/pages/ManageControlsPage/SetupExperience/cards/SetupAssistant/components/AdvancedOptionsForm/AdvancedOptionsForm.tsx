@@ -1,11 +1,11 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 
 import mdmAPI from "services/entities/mdm";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
 import Button from "components/buttons/Button";
-import { NotificationContext } from "context/notification";
+import { notify } from "components/ToastNotification";
 import RevealButton from "components/buttons/RevealButton";
 
 const baseClass = "advanced-options-form";
@@ -21,16 +21,17 @@ const AdvancedOptionsForm = ({
 }: IAdvancedOptionsFormProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [releaseDevice, setReleaseDevice] = useState(defaultReleaseDevice);
-  const { renderFlash } = useContext(NotificationContext);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     try {
       await mdmAPI.updateReleaseDeviceSetting(currentTeamId, releaseDevice);
-      renderFlash("success", "Successfully updated.");
-    } catch {
-      renderFlash("error", "Something went wrong. Please try again.");
+      notify.success("Successfully updated.");
+    } catch (err) {
+      notify.error("Something went wrong. Please try again.", {
+        response: err,
+      });
     }
   };
 

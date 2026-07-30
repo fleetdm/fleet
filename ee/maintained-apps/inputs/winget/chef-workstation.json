@@ -1,0 +1,11 @@
+{
+  "name": "Chef Workstation",
+  "slug": "chef-workstation/windows",
+  "package_identifier": "ChefSoftware.Workstation",
+  "unique_identifier": "Chef Workstation",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Chef Workstation v%' AND publisher LIKE '%Chef Software%';",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -7,8 +7,10 @@ import {
   getDefaultSoftwareInstallHandler,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
+  getSoftwareInstallHandlerWithHash,
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
+  getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
 import { noop } from "lodash";
@@ -380,6 +382,93 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByRole("button", {
           name: /Details/i,
         })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("API error states", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the Fleet Premium upsell when the results request returns 402", async () => {
+      mockServer.use(getSoftwareInstallResultHandlerPremiumRequired);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Couldn't get install details.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/This feature is included in Fleet Premium/i)
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/upgrade"
+      );
+    });
+  });
+
+  // The Package SHA-256 hash row is guarded on the payload's `hash_sha256`
+  // field. Backend hydrates it for package-backed installs; VPP / older
+  // results carry no hash and the row must stay out of the DOM.
+  describe("Package SHA-256 hash row", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the label, hash, and a copy button when the install result carries hash_sha256", async () => {
+      mockServer.use(getSoftwareInstallHandlerWithHash);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Package SHA-256 hash:")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad"
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Copy hash to clipboard/i })
+      ).toBeInTheDocument();
+    });
+
+    it("does not render the hash row when the install result has no hash_sha256", async () => {
+      mockServer.use(getDefaultSoftwareInstallHandler);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      // Wait for the modal to finish loading (status message is a good
+      // anchor — it renders after the useQuery resolves).
+      await screen.findByText(/Fleet installed/);
+      expect(
+        screen.queryByText("Package SHA-256 hash:")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Copy hash to clipboard/i })
       ).not.toBeInTheDocument();
     });
   });

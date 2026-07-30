@@ -1,0 +1,14 @@
+{
+  "name": "gPodder",
+  "slug": "gpodder/windows",
+  "package_identifier": "gPodder.gPodder",
+  "unique_identifier": "gPodder",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/gpodder_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/gpodder_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

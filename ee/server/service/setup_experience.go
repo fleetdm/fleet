@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -108,6 +109,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return err
 	}
 
+	var teamName *string
 	if teamID == nil {
 		ac, err := svc.ds.AppConfig(ctx)
 		if err != nil {
@@ -124,6 +126,7 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		if team.Config.MDM.MacOSSetup.ManualAgentInstall.Value {
 			return fleet.NewUserMessageError(errors.New("Couldn’t add setup experience script. To add script, first disable macos_manual_agent_install."), http.StatusUnprocessableEntity)
 		}
+		teamName = &team.Name
 	}
 
 	b, err := io.ReadAll(r)
@@ -140,6 +143,15 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{script.ScriptContents}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
+	if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
+		return err
+	}
 
 	// setup experience is only supported for macOS currently so we need to override the file
 	// extension check in the general script validation
@@ -151,7 +163,8 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
-	if err := svc.ds.SetSetupExperienceScript(ctx, script); err != nil {
+	changed, err := svc.ds.SetSetupExperienceScript(ctx, script)
+	if err != nil {
 		var (
 			existsErr fleet.AlreadyExistsError
 			fkErr     fleet.ForeignKeyError
@@ -164,7 +177,21 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		return ctxerr.Wrap(ctx, err, "create setup experience script")
 	}
 
-	// NOTE: there is no activity specified for set setup experience script
+	if !changed {
+		return nil
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityCreatedSetupExperienceScript{
+			FleetID:    teamID,
+			FleetName:  teamName,
+			ScriptName: name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for set setup experience script")
+	}
 
 	return nil
 }
@@ -174,11 +201,40 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 		return err
 	}
 
+	// Load the script first so we can skip the activity when there is nothing to delete (GitOps
+	// clears a script on every apply even when none was set) and so we can include its name.
+	script, err := svc.ds.GetSetupExperienceScript(ctx, teamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "get setup experience script for delete")
+	}
+
+	var teamName *string
+	if teamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load team for setup experience activity")
+		}
+		teamName = &team.Name
+	}
+
 	if err := svc.ds.DeleteSetupExperienceScript(ctx, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete setup experience script")
 	}
 
-	// NOTE: there is no activity specified for delete setup experience script
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityDeletedSetupExperienceScript{
+			FleetID:    teamID,
+			FleetName:  teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete setup experience script")
+	}
 
 	return nil
 }

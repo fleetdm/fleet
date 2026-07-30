@@ -49,9 +49,9 @@ sequenceDiagram
     ios->>+fleet: GET /mdm/apple/service_discovery/{token}
     fleet-->>-ios: 200 OK<br>Payload containing /api/mdm/apple/account_driven_enroll/{token}
     ios->>+fleet: POST /api/mdm/apple/account_driven_enroll/{token}
-    fleet-->>-ios: 401 WWW-Authenticate<br>/mdm/apple/account_driven_enroll/sso?initiator=account_driven_enroll:{token}
+    fleet-->>-ios: 401 WWW-Authenticate<br>/mdm/apple/account_driven_enroll/sso/{token}
     alt SAML
-        ios->>+fleet: /mdm/apple/account_driven_enroll/sso?initiator=account_driven_enroll:{token}
+        ios->>+fleet: /mdm/apple/account_driven_enroll/sso/{token}
         fleet-->>-ios: HTML page
         ios->>+fleet: [HTML page]<br>POST /api/v1/fleet/mdm/sso?initiator=account_driven_enroll:{token}
         fleet-->>-ios: IdP URL (SAML request, HTTP redirect binding, with {token} in metadata)

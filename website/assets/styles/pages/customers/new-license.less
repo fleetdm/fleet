@@ -12,13 +12,6 @@
     font-weight: 800;
     line-height: var(--Typography-Heading-H2-Line-height, 38.4px); /* 120% */
   }
-  a {
-    color: @core-vibrant-blue;
-  }
-  a:hover {
-    text-decoration: none;
-    color: darken(@core-vibrant-blue, 20%);
-  }
   h3 {
     font-size: 20px;
     font-weight: 700;
@@ -176,6 +169,7 @@
     height: 48px;
     display: flex;
     align-items: center;
+    justify-content: center;
     span {
       display: inline;
       margin-left: auto;
@@ -184,6 +178,9 @@
       line-height: 16px;
       text-align: center;
       font-weight: 700;
+    }
+    &:hover {
+      color: #FFF;
     }
   }
   [purpose='total-number-of-hosts-input'] {

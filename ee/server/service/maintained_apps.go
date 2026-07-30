@@ -57,6 +57,19 @@ func (svc *Service) AddFleetMaintainedApp(
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return 0, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
@@ -120,6 +133,12 @@ func (svc *Service) AddFleetMaintainedApp(
 				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
 			}
 		}
+	}
+
+	// validate the effective scripts, after empty inputs were defaulted from
+	// the maintained-app manifest above
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
+		return 0, err
 	}
 
 	maintainedAppID := &app.ID
@@ -193,6 +212,23 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
 	}
 
+	// Windows programs report the version inside their name, so software already
+	// inventoried for this app sits under a versioned title rather than the one this
+	// installer now owns, and the uninstall action stays hidden until they are merged.
+	// The periodic pass would get there, but only on its next run: doing it here is what
+	// makes the action appear as soon as the app is added.
+	//
+	// Best effort on purpose. The app is added and stored at this point, so failing the
+	// request over a merge that the periodic pass will redo would be the wrong trade.
+	if app.Platform == "windows" {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(ctx, "reconciling Windows software titles after adding a maintained app",
+				"slug", app.Slug,
+				"err", err,
+			)
+		}
+	}
+
 	// Save in S3
 	if err := svc.storeSoftware(ctx, payload); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "upload maintained app installer to S3")
@@ -237,7 +273,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	var authErr error
 	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
 	if teamID == nil {

@@ -1,0 +1,10 @@
+{
+  "name": "ForkLift",
+  "unique_identifier": "com.binarynights.ForkLift-4",
+  "token": "forklift",
+  "installer_format": "zip",
+  "slug": "forklift/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

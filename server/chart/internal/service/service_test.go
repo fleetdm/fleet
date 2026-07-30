@@ -61,7 +61,8 @@ type mockDatastore struct {
 	getHostIDsForFilterFunc func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
 	findOnlineHostIDsFn     func(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
-	trackedCriticalCVEsFn   func(ctx context.Context) ([]string, error)
+	collectibleCVEsFn       func(ctx context.Context) ([]string, error)
+	resolveCVEEntitiesFn    func(ctx context.Context, filter types.CVEChartFilter) ([]string, error)
 	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error
 	recordBucketDataInvoked bool
 	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
@@ -83,11 +84,21 @@ func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetI
 	return nil, nil
 }
 
-func (m *mockDatastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
-	if m.trackedCriticalCVEsFn != nil {
-		return m.trackedCriticalCVEsFn(ctx)
+func (m *mockDatastore) CollectibleCVEs(ctx context.Context) ([]string, error) {
+	if m.collectibleCVEsFn != nil {
+		return m.collectibleCVEsFn(ctx)
 	}
-	return nil, nil
+	// Match the real contract: non-nil, empty when nothing matches.
+	return []string{}, nil
+}
+
+func (m *mockDatastore) ResolveCVEChartEntities(ctx context.Context, filter types.CVEChartFilter) ([]string, error) {
+	if m.resolveCVEEntitiesFn != nil {
+		return m.resolveCVEEntitiesFn(ctx, filter)
+	}
+	// Match the real contract: non-nil, empty means "match nothing" (never nil,
+	// which would be interpreted as "no entity filter").
+	return []string{}, nil
 }
 
 func (m *mockDatastore) RecordBucketData(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string]*roaring.Bitmap) error {
@@ -299,9 +310,9 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.UptimeDataset{})
 
-	// Stub TrackedCriticalCVEs so an accidental call would fail loudly.
-	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
-		t.Fatal("uptime path must not call TrackedCriticalCVEs")
+	// The uptime path must not resolve CVE entities — fail loudly if it does.
+	ds.resolveCVEEntitiesFn = func(_ context.Context, _ types.CVEChartFilter) ([]string, error) {
+		t.Fatal("uptime path must not call ResolveCVEChartEntities")
 		return nil, nil
 	}
 	gotEntityIDsIsNil := false
@@ -313,6 +324,89 @@ func TestGetChartDataUptimePassesNilEntityIDs(t *testing.T) {
 	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 7})
 	require.NoError(t, err)
 	assert.True(t, gotEntityIDsIsNil, "uptime must pass nil entityIDs — the CVE branch must not leak")
+}
+
+// TestGetChartDataCVEAlwaysResolvesEntities verifies the two load-bearing
+// read-path guarantees for the CVE metric: (1) entity resolution always runs
+// and its result is forwarded to GetSCDData as a concrete (never-nil) set, so
+// newly collected lower-severity CVEs can't leak into the chart; and (2) the
+// severity bounds are forced to critical [9.0, 10.0] this round regardless of
+// any client-supplied severity_min/severity_max.
+func TestGetChartDataCVEAlwaysResolvesEntities(t *testing.T) {
+	t.Run("no filters still resolves a concrete set", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.CVEDataset{})
+
+		var gotFilter types.CVEChartFilter
+		resolveCalled := false
+		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
+			resolveCalled = true
+			gotFilter = filter
+			return []string{"CVE-2026-0001"}, nil
+		}
+		var gotEntityIDs []string
+		ds.getSCDDataFunc = func(_ context.Context, _ string, _, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ *roaring.Bitmap, entityIDs []string) ([]api.DataPoint, error) {
+			gotEntityIDs = entityIDs
+			return nil, nil
+		}
+
+		_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{Days: 7})
+		require.NoError(t, err)
+		assert.True(t, resolveCalled, "the CVE metric must always resolve its entity set")
+		assert.Equal(t, []string{"CVE-2026-0001"}, gotEntityIDs, "resolved set must be forwarded to GetSCDData, never nil")
+		assert.InDelta(t, 9.0, gotFilter.CVSSMin, 0, "severity is forced to critical")
+		assert.InDelta(t, 10.0, gotFilter.CVSSMax, 0, "severity is forced to critical")
+	})
+
+	t.Run("client severity bounds are overridden to critical", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.CVEDataset{})
+
+		var gotFilter types.CVEChartFilter
+		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
+			gotFilter = filter
+			return []string{}, nil
+		}
+
+		_, err := svc.GetChartData(t.Context(), "cve", api.RequestOpts{
+			Days:        7,
+			SeverityMin: new(1.0),
+			SeverityMax: new(5.0),
+		})
+		require.NoError(t, err)
+		assert.InDelta(t, 9.0, gotFilter.CVSSMin, 0, "client severity_min must be ignored this round")
+		assert.InDelta(t, 10.0, gotFilter.CVSSMax, 0, "client severity_max must be ignored this round")
+	})
+
+	t.Run("entity filters are forwarded to the resolver", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.CVEDataset{})
+
+		var gotFilter types.CVEChartFilter
+		ds.resolveCVEEntitiesFn = func(_ context.Context, filter types.CVEChartFilter) ([]string, error) {
+			gotFilter = filter
+			return []string{}, nil
+		}
+
+		opts := api.RequestOpts{
+			Days:            7,
+			SoftwareFilters: []string{api.CVECategoryBrowsers, api.CVECategoryAdobe},
+			KnownExploit:    true,
+			EPSSMin:         new(0.5),
+			EPSSMax:         new(1.0),
+			ExcludeCVEs:     []string{"CVE-2026-9999"},
+		}
+		_, err := svc.GetChartData(t.Context(), "cve", opts)
+		require.NoError(t, err)
+		assert.Equal(t, []string{api.CVECategoryBrowsers, api.CVECategoryAdobe}, gotFilter.Categories)
+		assert.True(t, gotFilter.KnownExploit)
+		require.NotNil(t, gotFilter.EPSSMin)
+		assert.InDelta(t, 0.5, *gotFilter.EPSSMin, 0)
+		assert.Equal(t, []string{"CVE-2026-9999"}, gotFilter.ExcludeCVEs)
+	})
 }
 
 func TestGetChartDataWithHostFilters(t *testing.T) {
@@ -549,7 +643,7 @@ func TestCollectDatasetsCVE(t *testing.T) {
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
 	wantTracked := []string{"CVE-2024-0001", "CVE-2024-0002"}
-	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+	ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
 		return wantTracked, nil
 	}
 	var gotCVEs []string
@@ -574,10 +668,10 @@ func TestCollectDatasetsCVE(t *testing.T) {
 	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
-	assert.Equal(t, wantTracked, gotCVEs, "TrackedCriticalCVEs result must be forwarded as the cves filter")
+	assert.Equal(t, wantTracked, gotCVEs, "CollectibleCVEs result must be forwarded as the cves filter")
 }
 
-// TestCollectDatasetsCVEEmptyTracked verifies that when TrackedCriticalCVEs
+// TestCollectDatasetsCVEEmptyTracked verifies that when CollectibleCVEs
 // returns an empty set, the collector still calls RecordBucketData with empty
 // bitmaps so recordSnapshot's "absent entities" branch can close any open
 // rows from prior cron ticks. Without this, dropping a CVE from the tracked
@@ -587,7 +681,7 @@ func TestCollectDatasetsCVEEmptyTracked(t *testing.T) {
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 	svc.RegisterDataset(&chart.CVEDataset{})
 
-	ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+	ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
 		return []string{}, nil
 	}
 	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint, cves []string) (map[string][]uint, error) {
@@ -654,7 +748,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 		svc.RegisterDataset(&chart.CVEDataset{})
 
-		ds.trackedCriticalCVEsFn = func(_ context.Context) ([]string, error) {
+		ds.collectibleCVEsFn = func(_ context.Context) ([]string, error) {
 			return []string{"CVE-1"}, nil
 		}
 		var gotDisabled []uint

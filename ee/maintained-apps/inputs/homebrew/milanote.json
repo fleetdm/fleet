@@ -1,0 +1,10 @@
+{
+  "name": "Milanote",
+  "unique_identifier": "com.milanote.app",
+  "token": "milanote",
+  "installer_format": "dmg",
+  "slug": "milanote/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

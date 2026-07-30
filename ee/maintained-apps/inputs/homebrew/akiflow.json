@@ -1,0 +1,10 @@
+{
+  "name": "Akiflow",
+  "unique_identifier": "com.akiflow.akiflow",
+  "token": "akiflow",
+  "installer_format": "dmg",
+  "slug": "akiflow/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

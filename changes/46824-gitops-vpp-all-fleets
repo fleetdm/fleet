@@ -1,1 +1,0 @@
-- Fixed GitOps `volume_purchasing_program` failing when using `All fleets` for the `fleets` field.

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.11.4",
+      "version": "0.11.20",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest' AND version_compare(bundle_short_version, '0.11.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.bilingify.readest' AND version_compare(bundle_short_version, '0.11.20') < 0);"
       },
-      "installer_url": "https://github.com/readest/readest/releases/download/v0.11.4/Readest_0.11.4_universal.dmg",
+      "installer_url": "https://github.com/readest/readest/releases/download/v0.11.20/Readest_0.11.20_universal.dmg",
       "install_script_ref": "3e736c25",
       "uninstall_script_ref": "13037b35",
-      "sha256": "52732e9dda711e48b51a938f22a3e93ab24e24c06f5045988ff08dd324bd518b",
+      "sha256": "c72b822e5bfe6635cebe4cc3f58876acfe04c2c44b22882bb3827940313e7d8c",
       "default_categories": [
         "Productivity"
       ]

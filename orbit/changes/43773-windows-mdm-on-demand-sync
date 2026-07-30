@@ -1,1 +1,0 @@
-- Added support for on-demand Windows MDM sync. When the Fleet server requests it, fleetd now starts an OMA-DM management session so queued Windows MDM commands are delivered promptly even when the device's MDM poll schedule has been relaxed. This lets the server reduce the Windows MDM poll frequency without increasing command latency.

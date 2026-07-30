@@ -17,11 +17,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
@@ -75,11 +78,14 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null

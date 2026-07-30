@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.1.4",
+      "version": "6.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.spyder-ide.Spyder-6';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.spyder-ide.Spyder-6' AND version_compare(bundle_short_version, '6.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.spyder-ide.Spyder-6' AND version_compare(bundle_short_version, '6.1.6') < 0);"
       },
-      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.4/Spyder-macOS-arm64.pkg",
+      "installer_url": "https://github.com/spyder-ide/spyder/releases/download/v6.1.6/Spyder-macOS-arm64.pkg",
       "install_script_ref": "43bfca21",
       "uninstall_script_ref": "89077ee2",
-      "sha256": "f79f77566a5c2089b9484560b86960cf7620095513ec51c74e520bc3da986637",
+      "sha256": "e6a24becbd68a72a044918d53cecfda0a2c1091be7f871040a1ec9fd5501db55",
       "default_categories": [
         "Developer tools"
       ]

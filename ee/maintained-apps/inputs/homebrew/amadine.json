@@ -1,0 +1,10 @@
+{
+  "name": "Amadine",
+  "unique_identifier": "com.belightsoft.Amadine",
+  "token": "amadine",
+  "installer_format": "dmg",
+  "slug": "amadine/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

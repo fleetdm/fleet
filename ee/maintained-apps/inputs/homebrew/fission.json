@@ -1,0 +1,10 @@
+{
+  "name": "Fission",
+  "unique_identifier": "com.rogueamoeba.Fission",
+  "token": "fission",
+  "installer_format": "zip",
+  "slug": "fission/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

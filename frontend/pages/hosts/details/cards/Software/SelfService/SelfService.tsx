@@ -1,7 +1,6 @@
 import React, {
   useCallback,
   useState,
-  useContext,
   useMemo,
   useRef,
   useEffect,
@@ -10,8 +9,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
 
-import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
+import { notify } from "components/ToastNotification";
 import {
   IDeviceSoftware,
   IHostSoftware,
@@ -147,8 +145,6 @@ const SoftwareSelfService = ({
   hostDisplayName,
   isMobileView = false,
 }: ISoftwareSelfServiceProps) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-
   /** Guards against setState/side-effects after unmount */
   const isMountedRef = useRef(false);
   /** Stores software IDs for which the user has initiated an action (install/uninstall) */
@@ -157,6 +153,14 @@ const SoftwareSelfService = ({
   const recentlyUpdatedTimeouts = useRef<{ [key: number]: NodeJS.Timeout }>({});
   /** Stores the set of pending install/uninstall software IDs for polling */
   const pendingSoftwareIdsRef = useRef<Set<string>>(new Set());
+  /**
+   * Tracks the set of pending IDs observed on the previous `selfServiceData`
+   * snapshot, independent of the polling query. Lets us promote a user-initiated
+   * action to "recently updated" the moment ANY data path (main query,
+   * host-details refetch) surfaces its completion, not only the dedicated poll —
+   * otherwise the "Update" button briefly reappears during the refetch.
+   */
+  const lastObservedPendingIdsRef = useRef<Set<string>>(new Set());
   /** Stores polling timeout for regularly checking API */
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   /** Detects parent/host polling completion status to trigger self-update sync */
@@ -216,9 +220,8 @@ const SoftwareSelfService = ({
     };
   }, []);
 
-  /** Registers a software ID as user-initiated action */
-  const registerUserSoftwareAction = useCallback((id: number) => {
-    userActionIdsRef.current.add(id);
+  /** (Re)arms the timeout that clears a software ID's "recently updated" badge. */
+  const scheduleRecentlyUpdatedExpiry = useCallback((id: number) => {
     // Prevent double timeouts
     if (recentlyUpdatedTimeouts.current[id]) {
       clearTimeout(recentlyUpdatedTimeouts.current[id]);
@@ -237,6 +240,15 @@ const SoftwareSelfService = ({
     }, 120000); // 2 minutes
   }, []);
 
+  /** Registers a software ID as a user-initiated action and arms its expiry. */
+  const registerUserSoftwareAction = useCallback(
+    (id: number) => {
+      userActionIdsRef.current.add(id);
+      scheduleRecentlyUpdatedExpiry(id);
+    },
+    [scheduleRecentlyUpdatedExpiry]
+  );
+
   const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
@@ -249,6 +261,50 @@ const SoftwareSelfService = ({
       ),
     }));
   }, [selfServiceData, recentlyUpdatedSoftwareIds, hostSoftwareUpdatedAt]);
+
+  // Promote completed user-initiated actions to "recently updated" on every
+  // `selfServiceData` change, regardless of which path produced it (main query,
+  // host-details refetch, or the pending poll). This guarantees the flag is set
+  // in the same render that first surfaces a completed-but-inventory-stale app,
+  // so its card never falls back to the "Update" button mid-refetch.
+  useEffect(() => {
+    if (!selfServiceData) return;
+
+    const currentlyPendingIds = new Set(
+      selfServiceData.software
+        .filter(
+          (software) =>
+            software.status === "pending_install" ||
+            software.status === "pending_uninstall"
+        )
+        .map((software) => String(software.id))
+    );
+
+    // IDs we previously saw as pending that are no longer pending → completed.
+    const completedAppIds = [...lastObservedPendingIdsRef.current].filter(
+      (id) => !currentlyPendingIds.has(id)
+    );
+
+    if (completedAppIds.length > 0) {
+      setRecentlyUpdatedSoftwareIds((prev) => {
+        const next = new Set(prev);
+        completedAppIds.forEach((idStr) => {
+          const id = Number(idStr);
+          if (userActionIdsRef.current.has(id)) {
+            next.add(id);
+            // Consume the user-action flag so a later non-user-initiated
+            // completion for the same app isn't misclassified as recently updated.
+            userActionIdsRef.current.delete(id);
+            // (Re)arm the 2-minute expiry timeout for the "recently updated" badge.
+            scheduleRecentlyUpdatedExpiry(id);
+          }
+        });
+        return next;
+      });
+    }
+
+    lastObservedPendingIdsRef.current = currentlyPendingIds;
+  }, [selfServiceData, scheduleRecentlyUpdatedExpiry]);
 
   const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
@@ -342,9 +398,11 @@ const SoftwareSelfService = ({
               const id = Number(idStr);
               if (userActionIdsRef.current.has(id)) {
                 next.add(id);
+                // Consume the user-action flag so a later non-user-initiated
+                // completion for the same app isn't misclassified as recently updated.
                 userActionIdsRef.current.delete(id);
-                // Register a timeout for this id (for cleanup and removal)
-                registerUserSoftwareAction(id);
+                // Re-arm the expiry timeout for the "recently updated" badge.
+                scheduleRecentlyUpdatedExpiry(id);
               }
             });
             return next;
@@ -391,11 +449,11 @@ const SoftwareSelfService = ({
           setSelfServiceData(response);
         }
       },
-      onError: () => {
+      onError: (error) => {
         pendingSoftwareIdsRef.current = new Set();
-        renderFlash(
-          "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+        notify.error(
+          "We're having trouble checking pending installs. Please refresh the page.",
+          { response: error }
         );
       },
     }
@@ -447,15 +505,15 @@ const SoftwareSelfService = ({
         }
       } catch (error) {
         // We only show toast message if API returns an error
-        renderFlash(
-          "error",
+        notify.error(
           isScriptPackage
             ? "Couldn't run. Please try again."
-            : getInstallErrorMessage(error)
+            : getInstallErrorMessage(error),
+          { response: error }
         );
       }
     },
-    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction, renderFlash]
+    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction]
   );
 
   const onClickUninstallAction = useCallback(
@@ -492,10 +550,12 @@ const SoftwareSelfService = ({
         onInstallOrUninstall();
       } catch (error) {
         // Only show toast message if API returns an error
-        renderFlash("error", "Couldn't update software. Please try again.");
+        notify.error("Couldn't update software. Please try again.", {
+          response: error,
+        });
       }
     },
-    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall, renderFlash]
+    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall]
   );
 
   const onClickUpdateAll = useCallback(async () => {
@@ -508,7 +568,7 @@ const SoftwareSelfService = ({
 
     // This should not happen
     if (!updateAvailableSoftware.length) {
-      renderFlash("success", "No updates available.");
+      notify.success("No updates available.");
       return;
     }
 
@@ -520,26 +580,26 @@ const SoftwareSelfService = ({
     const results = await Promise.allSettled(promises);
 
     // Only show toast message for updates that API returns an error
-    const failedUpdates = results
-      .map((result, idx) =>
-        result.status === "rejected" ? updateAvailableSoftware[idx] : null
-      )
-      .filter(Boolean) as typeof updateAvailableSoftware;
+    const failedUpdates = results.reduce<
+      { software: IDeviceSoftwareWithUiStatus; reason: unknown }[]
+    >((acc, result, idx) => {
+      if (result.status === "rejected") {
+        acc.push({
+          software: updateAvailableSoftware[idx],
+          reason: result.reason,
+        });
+      }
+      return acc;
+    }, []);
 
     if (failedUpdates.length > 0) {
-      const errorNotifications: INotification[] = failedUpdates.map(
-        (software) => ({
-          id: `update-error-${software.id}`,
-          alertType: "error",
-          isVisible: true,
+      notify.batch(
+        failedUpdates.map(({ software, reason }) => ({
+          variant: "error" as const,
           message: `Couldn't update ${software.name}. Please try again.`,
-          persistOnPageChange: false,
-        })
+          options: { response: reason },
+        }))
       );
-
-      renderMultiFlash({
-        notifications: errorNotifications,
-      });
     }
 
     // Only register success IDs for follow‑up “recently updated” handling
@@ -552,8 +612,6 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   }, [
     deviceToken,
-    renderFlash,
-    renderMultiFlash,
     enhancedSoftware,
     registerUserSoftwareAction,
     onInstallOrUninstall,

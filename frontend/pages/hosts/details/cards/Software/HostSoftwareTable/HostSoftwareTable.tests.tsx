@@ -1,14 +1,26 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import { noop } from "lodash";
 import { HostPlatform } from "interfaces/platform";
 
 import createMockUser from "__mocks__/userMock";
-import { createMockGetHostSoftwareResponse } from "__mocks__/hostMock";
+import {
+  createMockGetHostSoftwareResponse,
+  createMockHostSoftware,
+} from "__mocks__/hostMock";
 import HostSoftwareTable from "./HostSoftwareTable";
 
 const mockRouter = createMockRouter();
+
+// Server-side pagination only renders when a full page of rows is present
+// (DEFAULT_PAGE_SIZE = 20) and there are further results.
+const fullPageWithNextResults = createMockGetHostSoftwareResponse({
+  software: Array.from({ length: 20 }, (_, index) =>
+    createMockHostSoftware({ id: index + 1 })
+  ),
+  meta: { has_next_results: true, has_previous_results: false },
+});
 
 describe("HostSoftwareTable", () => {
   const baseProps = {
@@ -141,5 +153,66 @@ describe("HostSoftwareTable", () => {
 
     expect(screen.queryByText("Applications")).not.toBeInTheDocument();
     expect(screen.queryByText("Full inventory")).not.toBeInTheDocument();
+  });
+
+  it("renders the /Applications filter on the My device page for macOS hosts", () => {
+    renderWithContext({
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      isMyDevicePage: true,
+    });
+
+    expect(screen.getByText("Applications")).toBeInTheDocument();
+  });
+
+  it("appends macos_applications to the URL on pagination when the filter is set", () => {
+    const router = createMockRouter();
+    renderWithContext({
+      router,
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      data: fullPageWithNextResults,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("macos_applications=true")
+    );
+  });
+
+  it("appends macos_applications to the URL on pagination on the My device page", () => {
+    const router = createMockRouter();
+    renderWithContext({
+      router,
+      platform: "darwin",
+      macosApplicationsFilter: true,
+      isMyDevicePage: true,
+      data: fullPageWithNextResults,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledWith(
+      expect.stringContaining("macos_applications=true")
+    );
+  });
+
+  it("does not append macos_applications to the URL on pagination when the filter is undefined (non-macOS host)", () => {
+    const router = createMockRouter();
+    renderWithContext({
+      router,
+      platform: "windows",
+      // Non-macOS platforms leave the filter undefined since it doesn't apply.
+      macosApplicationsFilter: undefined,
+      data: fullPageWithNextResults,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(router.replace).toHaveBeenCalledTimes(1);
+    expect(router.replace).not.toHaveBeenCalledWith(
+      expect.stringContaining("macos_applications")
+    );
   });
 });

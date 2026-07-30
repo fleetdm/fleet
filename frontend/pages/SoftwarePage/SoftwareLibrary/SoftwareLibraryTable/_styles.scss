@@ -78,13 +78,6 @@
     }
   }
 
-  // needed to handle overflow of the table data on small screens
-  .data-table {
-    &__wrapper {
-      overflow-x: auto;
-    }
-  }
-
   .view-all-hosts {
     &__cell {
       display: flex;

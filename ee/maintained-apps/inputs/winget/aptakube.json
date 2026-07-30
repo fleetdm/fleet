@@ -1,0 +1,11 @@
+{
+  "name": "Aptakube",
+  "slug": "aptakube/windows",
+  "package_identifier": "SumbitLabs.Aptakube",
+  "unique_identifier": "Aptakube",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "program_publisher": "Zandar Labs SL",
+  "default_categories": ["Developer tools"]
+}

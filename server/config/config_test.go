@@ -803,6 +803,27 @@ func TestAndroidAgentConfigValidate(t *testing.T) {
 	})
 }
 
+func TestAndroidBatchSizeValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when positive", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 1000}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("valid when zero", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 0}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid when negative", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: -1}
+		called := false
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
 func TestServerConfigWithH2C(t *testing.T) {
 	ctx := context.Background()
 

@@ -62,6 +62,9 @@ module.exports.http = {
           // If an error occurs and this was a request going to a static asset, return a 403 response.
           } else if(req.url.match(sails.LOOKS_LIKE_ASSET_RX)) {
             return res.status(403).send();
+          } else if(err && _.isString(err.message) && err.message.startsWith('EUNFNTEX')) {
+          // If Skipper throws an EUNFNTEX error (a plaintext error thrown when a client never finishes streaming its request body), return a 408 (request timeout) response.
+            return res.status(408).send();
           } else {
             sails.log.error('Sending 500 ("Server Error") response: \n', err);
             return res.status(500).send();

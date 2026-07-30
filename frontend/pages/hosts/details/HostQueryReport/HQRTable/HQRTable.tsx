@@ -13,6 +13,7 @@ import FileSaver from "file-saver";
 import Spinner from "components/Spinner";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
@@ -108,20 +109,22 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="inverse"
+          variant="secondary"
+          size="small"
         >
           <>
-            Show query <Icon name="eye" />
+            Show query <Icon name="eye" size="small" />
           </>
         </Button>
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="inverse"
+          variant="secondary"
+          size="small"
         >
           <>
             Export results
-            <Icon name="download" />
+            <Icon name="download" size="small" />
           </>
         </Button>
       </div>
@@ -173,8 +176,10 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <div>
-          <h2>{queryName}</h2>
+        <div className={`${baseClass}__query-info-text`}>
+          <h2>
+            <TooltipTruncatedText value={queryName} fixedPositionStrategy />
+          </h2>
           <h3>{queryDescription}</h3>
         </div>
         <PerformanceImpact queryStats={queryStats} queryId={queryId} />

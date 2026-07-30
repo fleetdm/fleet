@@ -1,0 +1,24 @@
+.truncated-text-list {
+  position: relative;
+  min-width: 0;
+
+  &__measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  &__visible {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  &__more {
+    cursor: default;
+  }
+}

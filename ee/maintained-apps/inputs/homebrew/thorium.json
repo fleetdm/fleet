@@ -1,0 +1,10 @@
+{
+  "name": "Thorium Reader",
+  "unique_identifier": "io.github.edrlab.thorium",
+  "token": "thorium",
+  "installer_format": "dmg",
+  "slug": "thorium/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

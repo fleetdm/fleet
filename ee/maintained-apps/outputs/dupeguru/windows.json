@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.3.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'dupeGuru' AND publisher = 'Hardcoded Software';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'dupeGuru' AND publisher = 'Hardcoded Software' AND version_compare(version, '4.3.1') < 0);"
+      },
+      "installer_url": "https://github.com/arsenetar/dupeguru/releases/download/4.3.1/dupeGuru_win64_4.3.1.exe",
+      "install_script_ref": "a5276316",
+      "uninstall_script_ref": "ea31f9ef",
+      "sha256": "28293dada3c88336b2b53aca00adf59f85cabf1362f8386a8ffc6be5e1742836",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "a5276316": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# This app ships as an NSIS (Nullsoft) installer.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    if (-not (Test-Path $exeFilePath)) {\n        Write-Host \"Error: Installer file not found at: $exeFilePath\"\n        Exit 1\n    }\n\n    $processOptions = @{\n        FilePath = \"$exeFilePath\"\n        ArgumentList = \"/S\"\n        PassThru = $true\n        Wait = $true\n        NoNewWindow = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "ea31f9ef": "$displayName = \"dupeGuru\"\n$publisher   = \"Hardcoded Software\"\n$paths = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n$uninstall = $null\nforeach ($p in $paths) {\n  $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n    $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName *\") -and\n    ($publisher -eq \"\" -or $_.Publisher -like \"*$publisher*\")\n  }\n  if ($items) { $uninstall = $items | Select-Object -First 1; break }\n}\nif (-not $uninstall -or -not $uninstall.UninstallString) { Write-Host \"Uninstall entry not found\"; Exit 0 }\n$uninstallString = $uninstall.UninstallString\n$exePath = \"\"\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') { $exePath = $matches[1] }\nelseif ($uninstallString -match '^(.+?\\.exe)(.*)$') { $exePath = $matches[1] }\nelse { Write-Host \"Error: Could not parse uninstall string: $uninstallString\"; Exit 1 }\n$installDir = if ($uninstall.InstallLocation -and (Test-Path -LiteralPath $uninstall.InstallLocation)) { $uninstall.InstallLocation.TrimEnd('\\') } else { (Split-Path -Parent $exePath).TrimEnd('\\') }\n$argumentList = @(\"/S\", \"_?=$installDir\")\ntry {\n  $processOptions = @{ FilePath = $exePath; ArgumentList = $argumentList; NoNewWindow = $true; PassThru = $true; Wait = $true }\n  $process = Start-Process @processOptions\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n  # Only sweep leftovers on a successful uninstall, and never a root/short path\n  if ($exitCode -eq 0 -and $installDir) {\n      $resolvedDir = $null\n      try { $resolvedDir = (Resolve-Path -LiteralPath $installDir -ErrorAction Stop).Path } catch { $resolvedDir = $null }\n      if ($resolvedDir -and ($resolvedDir -match '^[A-Za-z]:\\\\') -and ((($resolvedDir.TrimEnd('\\')) -split '\\\\').Count -ge 3) -and (Test-Path -LiteralPath $resolvedDir)) {\n          Remove-Item -LiteralPath $resolvedDir -Recurse -Force -ErrorAction SilentlyContinue\n      }\n  }\n  Exit $exitCode\n} catch { Write-Host \"Error running uninstaller: $_\"; Exit 1 }\n"
+  }
+}

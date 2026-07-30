@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.14.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Typora' AND publisher = 'typora.io' AND version_compare(version, '1.14.1') < 0);"
+      },
+      "installer_url": "https://downloads.typora.io/windows/typora-setup-x64-1.14.7.exe",
+      "install_script_ref": "cf428c2f",
+      "uninstall_script_ref": "56e4e60f",
+      "sha256": "0bb89b3df038ca09ec0f1af2d67d4779535481f453859d7d9666e9e2d6cafb72",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "56e4e60f": "# Uninstall script for Inno Setup installer.\n$softwareName = \"Typora\"\n$softwareNameLike = \"*$softwareName*\"\n$publisher = \"\"\n\n$keys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem -Path $keys -ErrorAction SilentlyContinue |\n  ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$found = $false\nforeach ($key in $uninstallKeys) {\n  if ($key.DisplayName -like $softwareNameLike -and ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n    $found = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n      $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n      $uninstallExe = $matches[1]\n    } else {\n      $uninstallExe = $uninstallCommand\n    }\n\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n      $installDir = $key.InstallLocation\n    } else {\n      $installDir = Split-Path -Parent $uninstallExe\n    }\n\n    Write-Host \"Uninstaller: $uninstallExe\"\n    Write-Host \"Install dir: $installDir\"\n\n    $process = Start-Process -FilePath $uninstallExe -ArgumentList @(\"/VERYSILENT\", \"/NORESTART\") -PassThru -Wait -NoNewWindow\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    break\n  }\n}\n\nif (-not $found) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\nExit $exitCode\n",
+    "cf428c2f": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Inno Setup installer: install silently for all users\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = @(\"/VERYSILENT\", \"/SUPPRESSMSGBOXES\", \"/NORESTART\", \"/ALLUSERS\")\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

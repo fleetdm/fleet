@@ -9,7 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | SVP of Global Sales                   | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Head of Strategic Growth               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
+| Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_ <br> [Suzy Beck](https://www.linkedin.com/in/suzy-beck/) _([@SuzyBeck](https://github.com/suzybeck))_
 | Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | Solutions Specialist                  | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 
@@ -24,6 +24,11 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Sales forecast
 
 To maintain an accurate picture of our performance and make sure our weekly forecast calls are as productive as possible, every Account Executive (AE) is required to update the AE weekly sales forecast spreadsheet (CONFIDENTIAL DOC - see agenda in calendar event) by **Thursday, 5:00 PM PT**. This data enables leadership to identify risks early and provide the support needed to close deals. Data is reviewed Friday mornings during the weekly **"☕️ Forecast call"**.
+
+
+## Sales territory assignments
+
+For current sales territory assignments, see the [Sales Territory Assignments slide deck (confidential)](https://docs.google.com/presentation/d/1EMXbv-i6IcO/edit?slide=id.p#slide=id.p).
 
 
 ## Responsibilities

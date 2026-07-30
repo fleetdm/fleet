@@ -1,0 +1,10 @@
+{
+  "name": "LinearMouse",
+  "unique_identifier": "com.lujjjh.LinearMouse",
+  "token": "linearmouse",
+  "installer_format": "dmg",
+  "slug": "linearmouse/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

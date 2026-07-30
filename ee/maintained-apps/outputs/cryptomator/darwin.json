@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.19.2",
+      "version": "1.19.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator' AND version_compare(bundle_short_version, '1.19.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.cryptomator' AND version_compare(bundle_short_version, '1.19.3') < 0);"
       },
-      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.2/Cryptomator-1.19.2-arm64.dmg",
+      "installer_url": "https://github.com/cryptomator/cryptomator/releases/download/1.19.3/Cryptomator-1.19.3-arm64.dmg",
       "install_script_ref": "04e0f825",
       "uninstall_script_ref": "68dd4a14",
-      "sha256": "e978a2da545d8aaca1192faf6dadf4c51bdf5e9bdc232a227618401c0b833f9a",
+      "sha256": "0bfe8c6aeb97acf638810e3e576016db510bc7bf71366dc00f3c7eea9a314f23",
       "default_categories": [
         "Security"
       ]

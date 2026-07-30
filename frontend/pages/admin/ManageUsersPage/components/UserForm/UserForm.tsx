@@ -3,7 +3,6 @@ import PATHS from "router/paths";
 
 import { PRIMO_TOOLTIP } from "utilities/constants";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
@@ -15,6 +14,7 @@ import Button from "components/buttons/Button";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import ModalFooter from "components/ModalFooter";
+import { notify } from "components/ToastNotification";
 import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
@@ -150,7 +150,6 @@ const UserForm = ({
   ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
   const priMode = config?.partnerships?.enable_primo;
 
@@ -217,16 +216,34 @@ const UserForm = ({
     setFormErrors(errsToSet);
   };
 
-  const onInputBlur = () => {
-    setFormErrors(
-      validate(
-        formData,
-        canUseSso,
-        isNewUser,
-        !!isSsoEnabled,
-        initiallyPasswordAuth
-      )
+  const onInputBlur = (evt: React.FocusEvent<HTMLElement>) => {
+    // Validate only the field being blurred, not the whole form — otherwise
+    // blurring the autofocused Name field would surface errors on Email and
+    // Password before the user has touched them (#40410). Controls without a
+    // named target (e.g. the MFA checkbox wrapper) have nothing to validate.
+    const name = (evt.target as HTMLInputElement).name;
+    if (!name) {
+      return;
+    }
+    const newErrs = validate(
+      formData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
     );
+    setFormErrors((curErrs) => {
+      const next = { ...curErrs };
+      // @ts-ignore — dynamic field key (matches onInputChange above)
+      if (newErrs[name]) {
+        // @ts-ignore
+        next[name] = newErrs[name];
+      } else {
+        // @ts-ignore
+        delete next[name];
+      }
+      return next;
+    });
   };
 
   const onRadioChange = (formField: string): ((evt: string) => void) => {
@@ -319,12 +336,8 @@ const UserForm = ({
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
 
-    // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
-    // `validate` function
-    if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one fleet for this user.`);
-      return;
-    }
+    // Validate all fields on submit so every field error is surfaced at once.
+    // (Field errors otherwise only appear on that field's blur — #40410.)
     const errs = validate(
       formData,
       canUseSso,
@@ -334,6 +347,12 @@ const UserForm = ({
     );
     if (Object.keys(errs).length > 0) {
       setFormErrors(errs);
+      return;
+    }
+    // separate from `validate` function as it renders a toast notification, incompatible with
+    // pure `validate` function
+    if (!formData.global_role && !formData.teams.length) {
+      notify.error(`Please select at least one fleet for this user.`);
       return;
     }
     onSubmit(addSubmitData());
@@ -449,7 +468,7 @@ const UserForm = ({
           <div className="form-field__label">Account</div>
           <Radio
             className={`${baseClass}__radio-input`}
-            label="Create user"
+            label="Add user"
             id="create-user"
             checked={formData.newUserType !== NewUserType.AdminInvited}
             value={NewUserType.AdminCreated}
@@ -739,7 +758,7 @@ const UserForm = ({
     <ModalFooter
       primaryButtons={
         <>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
           <Button
@@ -748,7 +767,6 @@ const UserForm = ({
             className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
-            disabled={Object.keys(formErrors).length > 0}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>

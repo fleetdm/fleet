@@ -1,1 +1,0 @@
-* Fixed logout/login redirects to respect the URL prefix in subpath deployments.

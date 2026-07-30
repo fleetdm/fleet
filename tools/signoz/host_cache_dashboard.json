@@ -2,6 +2,25 @@
   "title": "Fleet host cache",
   "description": "Observability for the Redis-backed host lookup cache fronting LoadHostByNodeKey and LoadHostByOrbitNodeKey. Shows hit rate, lookup volume by result, error volume by operation, and invalidation volume by write-path reason.",
   "tags": ["redis", "cache", "host-cache"],
+  "variables": {
+    "environment": {
+      "id": "environment",
+      "name": "environment",
+      "description": "Deployment environment to view, auto-discovered from the deployment.environment resource attribute. Fleet always emits deployment.environment (default value 'default', overridable via OTEL_RESOURCE_ATTRIBUTES) so this key exists in every SigNoz instance Fleet reports to, which is what makes the dynamic lookup safe. Defaults to ALL so all environments show.",
+      "type": "DYNAMIC",
+      "dynamicVariablesAttribute": "deployment.environment",
+      "dynamicVariablesSource": "Metrics",
+      "customValue": "",
+      "queryValue": "",
+      "textboxValue": "",
+      "multiSelect": true,
+      "showALLOption": true,
+      "sort": "ASC",
+      "selectedValue": "__all__",
+      "allSelected": true,
+      "order": 0
+    }
+  },
   "layout": [
     { "i": "row-overview",  "x": 0, "y": 0, "w": 12, "h": 1 },
     { "i": "hit-rate",      "x": 0, "y": 1, "w": 4,  "h": 4 },
@@ -24,7 +43,7 @@
       "id": "hit-rate",
       "panelTypes": "graph",
       "title": "Hit rate",
-      "description": "A/B where A = rate of hits + negative_hits (both Redis-served, both avoid MySQL), B = rate of all lookups. Target: >= 80% at steady state once the cache warms. Watch for drops during invalidation storms (mass team transfers, re-enrollments).",
+      "description": "A/B where A = rate of hits + negative_hits (both Redis-served, both avoid MySQL), B = rate of all lookups. Target: >= 90% at steady state once the cache warms. Watch for drops during invalidation storms (mass team transfers, re-enrollments).",
       "yAxisUnit": "percentunit",
       "legendPosition": "bottom",
       "query": {
@@ -47,7 +66,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "result IN ['hit', 'negative_hit']" },
+              "filter": { "expression": "service.name = 'fleet' AND result IN ['hit', 'negative_hit'] AND deployment.environment IN $environment" },
               "groupBy": [],
               "orderBy": [],
               "selectColumns": [],
@@ -67,7 +86,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [],
               "orderBy": [],
               "selectColumns": [],
@@ -84,7 +103,7 @@
         }
       },
       "thresholds": [
-        { "index": "1", "keyIndex": 0, "thresholdColor": "Orange", "thresholdFormat": "Line", "thresholdOperator": "<", "thresholdUnit": "percentunit", "thresholdValue": 0.8 }
+        { "index": "1", "keyIndex": 0, "thresholdColor": "Orange", "thresholdFormat": "Line", "thresholdOperator": "<", "thresholdUnit": "percentunit", "thresholdValue": 0.9 }
       ],
       "selectedLogFields": [],
       "selectedTracesFields": [],
@@ -117,7 +136,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "result", "dataType": "string", "type": "tag" }
               ],
@@ -161,7 +180,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "op", "dataType": "string", "type": "tag" }
               ],
@@ -206,7 +225,7 @@
                   "spaceAggregation": "sum"
                 }
               ],
-              "filter": { "expression": "" },
+              "filter": { "expression": "service.name = 'fleet' AND deployment.environment IN $environment" },
               "groupBy": [
                 { "key": "reason", "dataType": "string", "type": "tag" }
               ],

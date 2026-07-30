@@ -1,0 +1,10 @@
+{
+  "name": "Eclipse Memory Analyzer",
+  "unique_identifier": "org.eclipse.mat.ui.rcp.MemoryAnalyzer",
+  "token": "memoryanalyzer",
+  "installer_format": "dmg",
+  "slug": "memoryanalyzer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

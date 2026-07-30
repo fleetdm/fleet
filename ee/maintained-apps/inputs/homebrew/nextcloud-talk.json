@@ -1,0 +1,10 @@
+{
+  "name": "Nextcloud Talk Desktop",
+  "unique_identifier": "com.nextcloud.talk.mac",
+  "token": "nextcloud-talk",
+  "installer_format": "dmg",
+  "slug": "nextcloud-talk/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

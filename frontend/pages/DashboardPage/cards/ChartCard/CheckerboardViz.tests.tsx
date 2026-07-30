@@ -654,4 +654,151 @@ describe("CheckerboardViz", () => {
     // 11 of 12 rows should be level-0 (only slot 0 has data)
     expect(level0Count).toBe(11);
   });
+
+  describe("current timeframe and future cells", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      // Pin "now" to 9am on Mar 2 — slot 4 (floor(9 / 2)) of the second day
+      // in the generated data. Mar 1 is in the past, Mar 2 slot 4 is current,
+      // and everything after (Mar 2 slots 5+ and all of Mar 3) is the future.
+      jest.setSystemTime(new Date("2026-03-02T09:00:00"));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("outlines exactly the slot that contains 'now' with the current-cell class", async () => {
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCells = container.querySelectorAll(
+        "rect.checkerboard-viz__cell--current"
+      );
+      expect(currentCells).toHaveLength(1);
+    });
+
+    it("shows 'No data' in the tooltip for the current timeframe even when it has a value", async () => {
+      // The current slot carries a non-zero value in the generated data, but
+      // it's still being collected, so the tooltip reads "No data".
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCell = container.querySelector(
+        "rect.checkerboard-viz__cell--current"
+      );
+      fireEvent.mouseEnter(currentCell as Element);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("No data");
+      });
+    });
+
+    it("shows 'No data' (not the formatter output) for future timeframes", async () => {
+      const formatter = jest.fn(
+        ({ value }: { value: number }) => `${value} hosts`
+      );
+      const data = generateData(3);
+      const { container } = renderWithSetup(
+        <CheckerboardViz
+          data={data}
+          selectedDays={14}
+          tooltipFormatter={formatter}
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The last rendered cell is the final slot of the latest day (Mar 3),
+      // which is entirely in the future.
+      const rects = container.querySelectorAll("rect");
+      const futureCell = rects[rects.length - 1];
+      expect(futureCell.getAttribute("aria-label")).toContain("No data");
+
+      fireEvent.mouseEnter(futureCell);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("No data");
+      });
+    });
+
+    it("renders the current timeframe cell at level-0 even when it carries a value", async () => {
+      // The current slot has a non-zero value in the generated data, but it's
+      // still being collected ("No data"), so its fill must match — level-0,
+      // not a graded color. Regression test for #47977.
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      const currentCell = container.querySelector(
+        "rect.checkerboard-viz__cell--current"
+      );
+      expect(currentCell).not.toBeNull();
+      expect(currentCell).toHaveClass("checkerboard-viz__cell--level-0");
+    });
+
+    it("renders future timeframe cells at level-0", async () => {
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The last rendered cell is the final slot of the latest day (Mar 3),
+      // entirely in the future — its fill should match its "No data" tooltip.
+      const rects = container.querySelectorAll("rect");
+      const futureCell = rects[rects.length - 1];
+      expect(futureCell.getAttribute("aria-label")).toContain("No data");
+      expect(futureCell.getAttribute("class")).toContain("--level-0");
+    });
+
+    it("still reports the value for past timeframes", async () => {
+      const data = generateData(3); // every slot has percentage 50
+      const { container } = renderWithSetup(
+        <CheckerboardViz data={data} selectedDays={14} />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+      });
+
+      // The first rendered cell is Mar 1 slot 0 — comfortably in the past.
+      const pastCell = container.querySelector("rect") as SVGRectElement;
+      expect(pastCell.getAttribute("aria-label")).not.toContain("No data");
+
+      fireEvent.mouseEnter(pastCell);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".chart-card__tooltip-value")
+        ).toHaveTextContent("50% of hosts");
+      });
+    });
+  });
 });

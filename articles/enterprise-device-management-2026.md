@@ -1,4 +1,26 @@
-IT teams at large organizations often manage thousands of macOS, Windows, Linux, iOS, and Android devices using separate tools for each operating system. The result is fragmented visibility, inconsistent enforcement, and compliance gaps that grow wider as device counts climb. This guide covers what enterprise device management looks like in 2026, why multi-platform complexity has become the central challenge, and how open-source approaches are reshaping device management.
+# Enterprise device management in 2026: end OS fragmentation
+
+*Four operating systems shouldn't mean four MDM tools, four enrollment flows, and four sets of audit evidence. Here's what enterprise device management looks like when it stops fragmenting along OS lines.*
+
+## Key takeaways
+
+- **Running a separate tool per OS multiplies the work, not the coverage.** Every firewall rule, software package, and baseline gets rebuilt in three or more consoles, and the disconnected dashboards are where visibility gaps and patch lag hide.
+
+- **Enrollment is where fragmentation starts.** Apple, Microsoft, Android, and Linux each hand off devices through a different mechanism, so a single desired configuration turns into four parallel provisioning workflows before you enforce anything.
+
+- **One control satisfies many frameworks only if the evidence is consistent.** SOC 2, HIPAA, PCI-DSS, ISO 27001, and NIST all want inventory, encryption, and audit trails, but "build once, comply many times" breaks down when each platform needs different technical controls and reports evidence differently.
+
+- **State verification beats command acknowledgment.** Most tools confirm a device received an instruction; Fleet's agent independently rechecks what's actually true on the device, so a profile that silently failed to apply doesn't pass as compliant.
+
+- **Governance lives in Git, not a console.** Fleet's configuration is declarative YAML applied through CI/CD, reviewed in pull requests, and drift-corrected on the next run, so your posture is auditable and reversible instead of a click someone made months ago.
+
+- **One platform carries you from visibility to enforcement.** The same tool that reports device state matches software against CVE data, patches and remediates on policy failures, manages software, and ties device posture to conditional access across macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android.
+
+<a purpose="cta-button" href="/device-management">See Fleet across every OS</a>
+
+IT teams at large organizations often manage thousands of macOS, Windows, Linux, iOS, and Android devices with a separate tool for each operating system. The result is fragmented visibility, inconsistent enforcement, and compliance gaps that widen as device counts climb.
+
+This piece covers what enterprise device management looks like in 2026, why multi-platform complexity has become the central challenge, and how open-source, config-as-code approaches are reshaping it. Start with what the practice actually is.
 
 ## What is enterprise device management?
 
@@ -56,15 +78,15 @@ Device posture assessment adds another layer. Before granting or broadening netw
 
 Traditional endpoint management tools wrap operating-system-specific protocols behind a single console. The approach works for basic configuration, software deployment, and compliance reporting. However, many products rely on command acknowledgment as their verification model: the server confirms that a device received an instruction, but doesn't independently recheck device state afterward. Configuration can drift after deployment, GUI-driven administration creates bottlenecks at scale, and Linux support typically lags due to the lack of native MDM protocols.
 
-Fleet combines MDM capabilities with osquery-based visibility and GitOps workflows. For teams that want device management to look more like infrastructure engineering, this model provides a path away from console-only administration.
+Fleet combines MDM capabilities with agent-based visibility and GitOps workflows. For teams that want device management to look more like infrastructure engineering, this model provides a path away from console-only administration.
 
-### osquery-based visibility
+### Real-time visibility with Fleet's agent
 
-Fleet is built on [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems), an open-source agent that exposes operating system data as a relational database, queryable with SQL syntax. You can ask specific questions about device state (installed software, running processes, disk encryption status, user accounts) and get answers in near real-time for interactive investigations.
+Fleet's agent, fleetd, is built on the open-source [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) project, which exposes operating system data as a relational database you can query with SQL. You can ask specific questions about device state (installed software, running processes, disk encryption status, user accounts) and get answers in near real-time for interactive investigations.
 
-The same SQL syntax works across macOS, Windows, and Linux. This goes beyond command acknowledgment because it verifies what is true on a device rather than confirming a command was delivered. During audits, a live query returns ground truth from devices rather than a log entry showing the command was sent.
+The same SQL works across macOS, Windows, and Linux. This goes beyond command acknowledgment because it verifies what is true on a device rather than confirming a command was delivered. During audits, a live query returns ground truth from devices rather than a log entry showing the command was sent.
 
-osquery is strongest as a point-in-time state tool. It also includes evented tables (such as process_events and socket_events) that capture OS-level events. Building a durable historical record typically means combining these with scheduled queries and log aggregation. osquery itself is read-only: it observes and reports but does not push configurations or remediate. Fleet provides the management server that centralizes queries and coordinates across thousands of devices, and Fleet Premium auto-runs remediation scripts and installs software when devices fail Fleet Policy checks. Because Fleet is open source, security teams can audit how it collects data and enforces configuration, which directly supports the compliance story alongside the visibility story.
+The agent is strongest as a point-in-time state tool. It also includes evented tables (such as process_events and socket_events) that capture OS-level events; building a durable historical record typically means combining these with scheduled reports and log aggregation. The agent is read-only on its own: it observes and reports but does not push configurations or remediate. Fleet provides the management server that centralizes reports and coordinates across thousands of devices, and Fleet Premium auto-runs remediation scripts and installs software when devices fail policy checks. Because Fleet is open source, security teams can audit how it collects data and enforces configuration, which supports the compliance story alongside the visibility story.
 
 ### GitOps for device configuration
 
@@ -76,7 +98,7 @@ GitOps requires comfort with Git workflows, YAML, and CI/CD pipelines. Teams alr
 
 ### State verification over command acknowledgment
 
-Together, osquery visibility and GitOps configuration create a two-layer management model. MDM handles enrollment, configuration profile delivery, and management commands. osquery independently verifies that configurations are in place on each device.
+Together, agent-based visibility and GitOps configuration create a two-layer management model. MDM handles enrollment, configuration profile delivery, and management commands. Fleet's agent independently verifies that configurations are in place on each device.
 
 This model can catch failures that might slip through command acknowledgment alone. Examples include a profile that was delivered but did not apply correctly, an encryption process that stalled, or a security setting that a local administrator changed after initial deployment.
 
@@ -88,7 +110,7 @@ For access control workflows, Fleet integrates with Okta and Microsoft Entra ID 
 
 ## Connect multi-platform management to continuous verification
 
-The fragmentation, configuration drift, and audit-evidence gaps the body describes don't disappear when teams add another console. They multiply. Closing that loop takes MDM enforcement, osquery-driven state verification, and fleetctl gitops from a single repository. Doing it across macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android in one place avoids four parallel pipelines.
+Fragmentation, configuration drift, and audit-evidence gaps don't disappear when teams add another console. They multiply. Closing that loop takes MDM enforcement, agent-driven state verification, and fleetctl gitops from a single repository. Doing it across macOS, iOS, iPadOS, Windows, Linux, ChromeOS, and Android in one place avoids four parallel pipelines.
 
 Fleet's [REST API](https://fleetdm.com/docs/rest-api) covers hundreds of endpoints designed to control the product, distinct from APIs that primarily access stored data. That's what makes GitOps viable at full configuration scope. ChromeOS visibility comes via the fleetd Chrome extension.
 

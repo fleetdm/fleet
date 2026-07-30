@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.10.2",
+      "version": "4.10.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniPlan4';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniPlan4' AND version_compare(bundle_short_version, '4.10.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnigroup.OmniPlan4' AND version_compare(bundle_short_version, '4.10.3') < 0);"
       },
-      "installer_url": "https://downloads.omnigroup.com/software/macOS/12/OmniPlan-4.10.2.dmg",
+      "installer_url": "https://downloads.omnigroup.com/software/macOS/12/OmniPlan-4.10.3.dmg",
       "install_script_ref": "30653066",
       "uninstall_script_ref": "fcbfe99a",
-      "sha256": "c213f4c77ff6093e01259dc6c91e7990c27c011b56af055481d3bd2dd022499b",
+      "sha256": "f1b09446978790b0bab8fe7993019f7bee54c2d1faebdc1a385a0794eca0e8d3",
       "default_categories": [
         "Productivity"
       ]

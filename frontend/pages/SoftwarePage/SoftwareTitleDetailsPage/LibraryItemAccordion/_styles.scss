@@ -1,0 +1,264 @@
+.library-item-accordion {
+  display: flex;
+  flex-direction: column;
+
+  &__header {
+    // Explicit border-box: this is a `<div role="button">` (default
+    // `content-box`), and `width: 100%` plus horizontal padding would push
+    // the header past the parent without it.
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    padding: $pad-medium $pad-large $pad-medium $pad-medium;
+    background: $core-fleet-white;
+    border: 0;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      background: $ui-off-white;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $core-focused-outline;
+      outline-offset: -1px;
+    }
+  }
+
+  &__chevron {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+
+    svg {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: rotate(0deg);
+    }
+  }
+
+  &__chevron--open svg {
+    transform: rotate(90deg);
+  }
+
+  // Embedded InstallerDetailsWidget takes the remaining horizontal space
+  // between the chevron and the badges, and shrinks gracefully on narrow rows.
+  &__installer-details {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__header-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  &__badges {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__badge-button {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  // Non-clickable variant of the label badge (rendered when the viewer can't
+  // edit software). Matches the clickable badge's metrics so the header
+  // doesn't shift when the click affordance is removed.
+  &__badge-button--static {
+    padding: $pad-xsmall $pad-small;
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    white-space: nowrap;
+  }
+
+  &__panel {
+    // Explicit border-box: the panel's width is set by `align-items: stretch`
+    // from the accordion container, and without border-box the padding would
+    // push the panel (and every child column) past the right edge.
+    box-sizing: border-box;
+    display: flex;
+    align-items: stretch;
+    // Uniform 1rem column gap; the status block carries an extra 2rem
+    // `margin-right` to reach the 3rem visual separation around its
+    // border-right divider. (Asymmetric per-pair spacing isn't expressible
+    // as a single `gap` value, hence the supplemental margin.)
+    gap: $pad-medium;
+    padding: $pad-large;
+    background: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    > :nth-child(1) {
+      margin-right: $pad-xlarge;
+    }
+  }
+
+  &__status-column {
+    display: flex;
+    align-items: center;
+    gap: $pad-xlarge;
+    padding-right: $pad-medium;
+    border-right: 1px solid $ui-fleet-black-10;
+  }
+
+  &__status-counts {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__status-count {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+
+    // TooltipWrapper's inner element is block by default; force inline-flex
+    // so its bounds match the icon's instead of growing to a line-height box.
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
+  // Info-outline tooltip at the end of the first status row. Same
+  // inline-flex fix so the icon shares a vertical center with the count.
+  &__status-counts-info {
+    margin-left: $pad-medium;
+    align-items: center;
+
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
+  &__details-column {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__data-row {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__data-heading {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
+  &__data-value {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+
+  &__hash-row {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+  }
+
+  &__hash {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    min-width: 0;
+    flex: 0 1 auto;
+  }
+
+  &__actions-column {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-medium;
+    flex-shrink: 0;
+  }
+
+  // The inactive-row tooltip wraps the full-width header; override the
+  // default inline-flex so the header keeps its row layout.
+  &__inactive-tooltip {
+    display: flex;
+
+    .component__tooltip-wrapper__element {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: normal;
+    }
+  }
+
+  &--inactive {
+    .library-item-accordion__header {
+      cursor: default;
+    }
+
+    // `opacity` creates a stacking context that drags tooltip popups down
+    // with it. Apply opacity only to elements that don't host a tooltip;
+    // grey the rest via `color` so any popups inside still render at full
+    // opacity.
+    .library-item-accordion__chevron,
+    .installer-details-widget .graphic,
+    .installer-details-widget .software-icon {
+      opacity: 0.5;
+    }
+
+    .installer-details-widget__title,
+    .installer-details-widget__details {
+      color: $ui-fleet-black-50;
+    }
+
+    .library-item-accordion__header:hover {
+      background: $core-fleet-white;
+    }
+  }
+}
+
+.library-item-accordion-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: 8px;
+  overflow: hidden;
+
+  // Match each header's corner radius to its position in the list so the
+  // focus-visible outline (drawn just inside the header) stays flush with
+  // the list's rounded clip.
+  .library-item-accordion:first-child .library-item-accordion__header {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  // Only round the last header's bottom corners when it sits flush against
+  // the list's bottom edge — i.e. when its panel isn't expanded below it.
+  .library-item-accordion:last-child:not(.library-item-accordion--expanded)
+    .library-item-accordion__header {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .library-item-accordion:last-child.library-item-accordion--expanded
+    .library-item-accordion__panel {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .library-item-accordion:last-child .library-item-accordion__header,
+  .library-item-accordion:last-child .library-item-accordion__panel {
+    border-bottom: 0;
+  }
+}

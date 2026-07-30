@@ -1,0 +1,10 @@
+{
+  "name": "Mactracker",
+  "unique_identifier": "com.mactrackerapp.Mactracker",
+  "token": "mactracker",
+  "installer_format": "zip",
+  "slug": "mactracker/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

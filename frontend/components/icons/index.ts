@@ -73,6 +73,8 @@ import User from "./User";
 import InfoOutline from "./InfoOutline";
 import GitOpsMode from "./GitOpsMode";
 import Android from "./Android";
+import Pin from "./Pin";
+import Tag from "./Tag";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -152,6 +154,8 @@ export const ICON_MAP = {
   "automatic-self-service": AutomaticSelfService,
   user: User,
   "gitops-mode": GitOpsMode,
+  pin: Pin,
+  tag: Tag,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

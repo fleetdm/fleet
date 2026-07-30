@@ -1,0 +1,10 @@
+{
+  "name": "Moonlight",
+  "unique_identifier": "com.moonlight-stream.Moonlight",
+  "token": "moonlight",
+  "installer_format": "dmg",
+  "slug": "moonlight/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

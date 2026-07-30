@@ -1,9 +1,9 @@
 import React from "react";
 import { ICommandResult } from "interfaces/command";
 import CommandResultsModal, {
-  GetIconName,
+  getIconName,
 } from "pages/hosts/components/CommandDetailsModal";
-import { formatDistanceToNow } from "date-fns";
+import { timeAgo } from "utilities/date_format";
 import IconStatusMessage from "components/IconStatusMessage";
 import CustomLink from "components/CustomLink";
 
@@ -17,7 +17,7 @@ const failedEnrollmentProfileContentBody = (
   result: ICommandResult
 ) => {
   const displayTime = result.updated_at
-    ? ` (${formatDistanceToNow(new Date(result.updated_at), {
+    ? ` (${timeAgo(new Date(result.updated_at), {
         includeSeconds: true,
         addSuffix: true,
       })})`
@@ -33,7 +33,7 @@ const failedEnrollmentProfileContentBody = (
     <div>
       <IconStatusMessage
         className={`${baseClass}__status-message`}
-        iconName={GetIconName(result.status)}
+        iconName={getIconName(result.status)}
         message={messageText}
       />
       <p>

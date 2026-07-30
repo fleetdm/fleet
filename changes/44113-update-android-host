@@ -1,1 +1,0 @@
-- Fixed a bug where Android device check-ins could silently revert admin team transfers.

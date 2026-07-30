@@ -1,0 +1,10 @@
+{
+  "name": "MacPacker",
+  "unique_identifier": "com.sarensx.MacPacker",
+  "token": "macpacker",
+  "installer_format": "zip",
+  "slug": "macpacker/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

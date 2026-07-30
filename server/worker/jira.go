@@ -13,6 +13,7 @@ import (
 	"time"
 
 	jira "github.com/andygrunwald/go-jira"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -119,10 +120,11 @@ type JiraClient interface {
 
 // Jira is the job processor for jira integrations.
 type Jira struct {
-	FleetURL      string
-	Datastore     fleet.Datastore
-	Log           *slog.Logger
-	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
+	FleetURL       string
+	Datastore      fleet.Datastore
+	Log            *slog.Logger
+	NewClientFunc  func(*externalsvc.JiraOptions) (JiraClient, error)
+	NewActivitySvc activity_api.NewActivityService
 
 	// mu protects concurrent access to clientsCache, so that the job processor
 	// can potentially be run concurrently.
@@ -262,6 +264,26 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 }
 
+// OnFinalFailure records a failed_automation_ticket host activity once
+// the worker has exhausted all retries for a failing-policy job. Vulnerability
+// jobs are ignored as they are not host- or policy-scoped.
+func (j *Jira) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+	var args jiraArgs
+	if err := json.Unmarshal(argsJSON, &args); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal args")
+	}
+	if args.FailingPolicy == nil {
+		return nil
+	}
+
+	return j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationTicket{
+		PolicyID:      args.FailingPolicy.PolicyID,
+		HostIDList:    args.FailingPolicy.hostIDs(),
+		Type:          "jira",
+		ErrorResponse: jobErr,
+	})
+}
+
 func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	vargs := args.Vulnerability
 	if vargs == nil {
@@ -325,6 +347,16 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
 	}
 	j.Log.DebugContext(ctx, "created jira issue for failing policy", attrs...)
+
+	if err := j.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
+		PolicyID:   args.FailingPolicy.PolicyID,
+		HostIDList: args.FailingPolicy.hostIDs(),
+		Type:       "jira",
+		TicketKey:  createdIssue.Key,
+	}); err != nil {
+		j.Log.WarnContext(ctx, "failed to record jira policy automation queued activity",
+			"policy_id", args.FailingPolicy.PolicyID, "err", err)
+	}
 	return nil
 }
 

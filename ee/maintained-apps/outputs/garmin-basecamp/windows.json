@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.7.5.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Garmin BaseCamp' AND publisher = 'Garmin Ltd. or its subsidiaries';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Garmin BaseCamp' AND publisher = 'Garmin Ltd. or its subsidiaries' AND version_compare(version, '4.7.5.0') < 0);"
+      },
+      "installer_url": "https://download.garmin.com/software/BaseCamp_475.exe",
+      "install_script_ref": "df742bcc",
+      "uninstall_script_ref": "71f96656",
+      "sha256": "12c753fc067acb51b4a28cb01946edfb6a2545e8865fa2a346689526aeba30ca",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "71f96656": "# Uninstalls Garmin BaseCamp (WiX Burn bundle). Runs the cached bundle's\n# QuietUninstallString (/uninstall /quiet).\n\n$softwareNameLike = \"Garmin BaseCamp*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n# WiX Burn: prefer QuietUninstallString; else force /uninstall /quiet onto the bundle exe.\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\nif ($exeArgs -notmatch '(?i)(^|\\s)/uninstall(\\s|$)') { $exeArgs = \"/uninstall $exeArgs\".Trim() }\nif ($exeArgs -notmatch '(?i)(^|\\s)/quiet(\\s|$)') { $exeArgs = \"$exeArgs /quiet\".Trim() }\nif ($exeArgs -notmatch '(?i)/norestart') { $exeArgs = \"$exeArgs /norestart\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n",
+    "df742bcc": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Garmin BaseCamp is a WiX Burn bundle; /quiet /norestart runs it silently and\n# installs machine-wide.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/quiet /norestart\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

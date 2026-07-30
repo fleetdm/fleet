@@ -1,0 +1,10 @@
+{
+  "name": "MQTTX",
+  "unique_identifier": "com.electron.mqttx",
+  "token": "mqttx",
+  "installer_format": "dmg",
+  "slug": "mqttx/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

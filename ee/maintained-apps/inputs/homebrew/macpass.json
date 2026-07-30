@@ -1,0 +1,10 @@
+{
+  "name": "MacPass",
+  "unique_identifier": "com.hicknhacksoftware.MacPass",
+  "token": "macpass",
+  "installer_format": "zip",
+  "slug": "macpass/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -21,6 +21,10 @@ func TestJira(t *testing.T) {
 		case "fail":
 			w.WriteHeader(http.StatusInternalServerError)
 			return
+		case "failbody":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"errorMessages":["project is required"]}`))
+			return
 		case "retrysmall":
 			if countCalls == 1 {
 				w.Header().Add("Retry-After", "1")
@@ -68,6 +72,20 @@ func TestJira(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Status code: 500")
 		require.Equal(t, 6, countCalls)
+	})
+
+	t.Run("failure-includes-response-body", func(t *testing.T) {
+		countCalls = 0
+
+		client, err := NewJiraClient(&JiraOptions{
+			BaseURL:           srv.URL,
+			BasicAuthUsername: "failbody",
+			BasicAuthPassword: "failbody",
+		})
+		require.NoError(t, err)
+		_, err = client.CreateJiraIssue(t.Context(), &jira.Issue{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "project is required")
 	})
 
 	t.Run("retry-after-small", func(t *testing.T) {

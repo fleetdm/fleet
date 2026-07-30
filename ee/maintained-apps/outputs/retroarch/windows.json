@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.22.2",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'RetroArch' AND publisher = 'Libretro';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'RetroArch' AND publisher = 'Libretro' AND version_compare(version, '1.22.2') < 0);"
+      },
+      "installer_url": "https://buildbot.libretro.com/stable/1.22.2/windows/x86_64/RetroArch-Win64-setup.exe",
+      "install_script_ref": "2b4dd196",
+      "uninstall_script_ref": "48536c7d",
+      "sha256": "bb2b95329542d98d951bb381c0dd57e803d846242878895f12d374b87201c1c9",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "2b4dd196": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n  NoNewWindow = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "48536c7d": "# Learn more about .exe uninstall scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$softwareName = \"RetroArch\"\n$softwareNameLike = \"*$softwareName*\"\n$publisher = \"Libretro\"\n\n$userKey = `\n 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$userKey32on64 = `\n 'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey = `\n 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = `\n 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($userKey, $userKey32on64, $machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$foundUninstaller = $false\nforeach ($key in $uninstallKeys) {\n    if ($key.DisplayName -like $softwareNameLike -and\n        ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n        $foundUninstaller = $true\n\n        $uninstallCommand = if ($key.QuietUninstallString) {\n            $key.QuietUninstallString\n        } else {\n            $key.UninstallString\n        }\n\n        # Parse the uninstaller executable path from the uninstall command.\n        $uninstallExe = \"\"\n        if ($uninstallCommand -match '^\"([^\"]+)\"') {\n            $uninstallExe = $matches[1]\n        } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n            $uninstallExe = $matches[1]\n        }\n\n        if ($uninstallExe -eq \"\") {\n            Write-Host \"Could not parse uninstaller path from: $uninstallCommand\"\n            $exitCode = 1\n            break\n        }\n\n        # Determine the install directory.\n        $installDir = \"\"\n        if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n            $installDir = $key.InstallLocation\n        } else {\n            $installDir = Split-Path -Parent $uninstallExe\n        }\n\n        $uninstallArgs = @(\"/S\", \"_?=$installDir\")\n\n        Write-Host \"Uninstall command: $uninstallExe\"\n        Write-Host \"Uninstall args: $uninstallArgs\"\n\n        $processOptions = @{\n            FilePath = $uninstallExe\n            ArgumentList = $uninstallArgs\n            PassThru = $true\n            Wait = $true\n            NoNewWindow = $true\n        }\n\n        $process = Start-Process @processOptions\n        $exitCode = $process.ExitCode\n        Write-Host \"Uninstall exit code: $exitCode\"\n\n        if ($installDir -and (Test-Path $installDir)) {\n            Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n        }\n        break\n    }\n}\n\nif (-not $foundUninstaller) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nExit $exitCode\n"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Tableau Prep",
+  "unique_identifier": "com.tableau.Tableau-Prep-tableau-2026-1",
+  "token": "tableau-prep",
+  "installer_format": "dmg",
+  "slug": "tableau-prep/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

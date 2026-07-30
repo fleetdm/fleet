@@ -85,6 +85,23 @@ describe("PolicyForm - component", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
+  it("caps the policy name input at 255 characters in edit mode", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<PolicyForm {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
   describe("in premium tier", () => {
     beforeEach(() => {
       mockServer.use(labelSummariesHandler);

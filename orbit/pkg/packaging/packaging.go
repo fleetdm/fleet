@@ -67,6 +67,9 @@ type Options struct {
 	DisableUpdates bool
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
+	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
+	// advertising the end-user auth capability to the Fleet server.
+	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
@@ -344,6 +347,18 @@ func writeSecret(opt Options, orbitRoot string) error {
 	}
 
 	return nil
+}
+
+// writeMacOSSecret writes the enroll secret file unless the secret is empty.
+// An empty secret happens with --use-system-configuration, where the secret is
+// resolved at runtime from a configuration profile or the keystore. Writing an
+// empty secret.txt causes it to be read on the device as an empty enroll secret,
+// producing confusing keystore errors during ABM enrollment.
+func writeMacOSSecret(opt Options, orbitRoot string) error {
+	if opt.EnrollSecret == "" {
+		return nil
+	}
+	return writeSecret(opt, orbitRoot)
 }
 
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {

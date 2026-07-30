@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.7.7",
+      "version": "3.7.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity' AND version_compare(bundle_short_version, '3.7.7') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.audacityteam.audacity' AND version_compare(bundle_short_version, '3.7.8') < 0);"
       },
-      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.7/audacity-macOS-3.7.7-arm64.dmg",
+      "installer_url": "https://github.com/audacity/audacity/releases/download/Audacity-3.7.8/audacity-macOS-3.7.8-arm64.dmg",
       "install_script_ref": "c2080584",
       "uninstall_script_ref": "e7aed028",
-      "sha256": "8b3c43a06eef2977bd81fd14f349d93c6295f1760a93fc5bd4dba86c0ec104eb",
+      "sha256": "2888d2bef5321990d3a11507f9b5cf9461831725a50f391fffd558f7404ffcf8",
       "default_categories": [
         "Productivity"
       ]

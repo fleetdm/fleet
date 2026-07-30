@@ -416,28 +416,26 @@ func (ds *Datastore) GetSummaryHostInHouseAppInstalls(ctx context.Context, teamI
 	var dest fleet.VPPAppStatusSummary // Using the vpp struct since it is more appropriate for ipa
 	stmt := `
 WITH
--- select most recent upcoming activities for each host
+-- select most recent upcoming activity per host (per activity type)
 upcoming AS (
-	SELECT
-		ua.host_id,
-		:software_status_pending AS status
-	FROM
-		upcoming_activities ua
-		JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
-		JOIN hosts h ON host_id = h.id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN in_house_app_upcoming_activities ihaua2
-				ON ua2.id = ihaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			ihaua.in_house_app_id = ihaua2.in_house_app_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.activity_type = 'in_house_app_install'
-		AND ua2.id IS NULL
-		AND ihaua.in_house_app_id = :in_house_app_id
-		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	SELECT host_id, status FROM (
+		SELECT
+			ua.host_id,
+			:software_status_pending AS status,
+			ROW_NUMBER() OVER (
+				PARTITION BY ua.host_id, ua.activity_type
+				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
+			) AS rn
+		FROM
+			upcoming_activities ua
+			JOIN in_house_app_upcoming_activities ihaua ON ua.id = ihaua.upcoming_activity_id
+			JOIN hosts h ON ua.host_id = h.id
+		WHERE
+			ua.activity_type = 'in_house_app_install'
+			AND ihaua.in_house_app_id = :in_house_app_id
+			AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+	) ranked
+	WHERE rn = 1
 ),
 
 -- select most recent past activities for each host
@@ -1651,28 +1649,6 @@ WHERE
 	err := sqlx.GetContext(ctx, q, &exists, stmt, globalOrTeamID, bundleIdentifier, platform)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("check %s exists", swType))
-	}
-	return exists == 1, nil
-}
-
-func (ds *Datastore) checkInstallerExistsByName(ctx context.Context, q sqlx.QueryerContext, teamID *uint, name, source, platform string) (bool, error) {
-	const stmt = `
-SELECT 1
-FROM
-	software_titles st
-	INNER JOIN software_installers ON st.id = software_installers.title_id
-		AND software_installers.global_or_team_id = ?
-WHERE
-	st.name = ?
-	AND st.source = ?
-	AND st.extension_for = ''
-	AND software_installers.platform = ?
-`
-
-	var exists int
-	err := sqlx.GetContext(ctx, q, &exists, stmt, ptr.ValOrZero(teamID), name, source, platform)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return false, ctxerr.Wrap(ctx, err, "check installer exists by name")
 	}
 	return exists == 1, nil
 }

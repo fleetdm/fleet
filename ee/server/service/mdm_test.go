@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -440,5 +441,166 @@ func TestClearPasscode(t *testing.T) {
 		ctx := test.UserContext(t.Context(), test.UserAdmin)
 		_, err := svc.ClearPasscode(ctx, 999)
 		require.Error(t, err)
+	})
+}
+
+func TestUpdateABMTokenTeams(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	// Set up the real commander with mocked storage and pusher.
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushProvider := &svcmock.APNSPushProvider{}
+	pushProvider.PushFunc = func(_ context.Context, pushes []*nanomdm_mdm.Push) (map[string]*nanomdm_push.Response, error) {
+		res := make(map[string]*nanomdm_push.Response, len(pushes))
+		for _, p := range pushes {
+			res[p.Token.String()] = &nanomdm_push.Response{Id: "ok"}
+		}
+		return res, nil
+	}
+	pushFactory := &svcmock.APNSPushProviderFactory{}
+	pushFactory.NewPushProviderFunc = func(*tls.Certificate) (nanomdm_push.PushProvider, error) {
+		return pushProvider, nil
+	}
+	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
+	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: &mocksvc.Service{
+		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			return nil
+		},
+	}}
+
+	orgName := "Fake Organization"
+	tokenID := uint(1)
+	abmToken := &fleet.ABMToken{ID: tokenID, OrganizationName: orgName}
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		return abmToken, nil
+	}
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, AppleBusinessManager: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: orgName},
+	})}}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+
+	var updatedAppCfg *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+		updatedAppCfg = cfg
+		return nil
+	}
+
+	validTeamID := new(uint(2))
+	validTeamName := "Valid Team"
+	invalidTeamID := new(uint(3))
+	teamLiteCalls := 0
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		teamLiteCalls++
+		if tid == *validTeamID {
+			return &fleet.TeamLite{ID: *validTeamID, Name: validTeamName}, nil
+		}
+		return nil, &notFoundError{}
+	}
+
+	t.Run("team ids is validated and updated", func(t *testing.T) {
+		teamLiteCalls = 0
+		ds.SaveAppConfigFuncInvoked = false
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		require.NoError(t, err)
+
+		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
+		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		assert.Equal(t, 4, teamLiteCalls)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		assert.Equal(t, validTeamName, appCfgToken.BYODTeam)
+		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
+	})
+
+	t.Run("invalid team id returns error", func(t *testing.T) {
+		teamLiteCalls = 0
+		_, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, invalidTeamID)
+		require.Error(t, err)
+	})
+
+	t.Run("does not validate nil team ids", func(t *testing.T) {
+		teamLiteCalls = 0
+		ds.SaveAppConfigFuncInvoked = false
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+			{OrganizationName: orgName, MacOSTeam: validTeamName, IOSTeam: validTeamName, IpadOSTeam: validTeamName, BYODTeam: validTeamName},
+		})
+		abmToken.MacOSDefaultTeamID = validTeamID
+		abmToken.IOSDefaultTeamID = validTeamID
+		abmToken.IPadOSDefaultTeamID = validTeamID
+		abmToken.BYODDefaultTeamID = validTeamID
+		abmToken.MacOSTeam.Name = validTeamName
+		abmToken.MacOSTeam.ID = *validTeamID
+		abmToken.IOSTeam.Name = validTeamName
+		abmToken.IOSTeam.ID = *validTeamID
+		abmToken.IPadOSTeam.Name = validTeamName
+		abmToken.IPadOSTeam.ID = *validTeamID
+		abmToken.BYODTeam.Name = validTeamName
+		abmToken.BYODTeam.ID = *validTeamID
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, nil, nil, nil, nil)
+		require.NoError(t, err)
+
+		assert.Nil(t, token.BYODDefaultTeamID)
+		assert.Nil(t, token.MacOSDefaultTeamID)
+		assert.Nil(t, token.IOSDefaultTeamID)
+		assert.Nil(t, token.IPadOSDefaultTeamID)
+		assert.Equal(t, 0, teamLiteCalls) // no calls to TeamLite since all team ids are nil
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		// Validate we clear out the "No team"
+		assert.Empty(t, appCfgToken.BYODTeam)
+		assert.Empty(t, appCfgToken.MacOSTeam)
+		assert.Empty(t, appCfgToken.IOSTeam)
+		assert.Empty(t, appCfgToken.IpadOSTeam)
+	})
+
+	t.Run("updates app config with new entry if not present", func(t *testing.T) {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+
+		token, err := svc.UpdateABMTokenTeams(ctx, tokenID, validTeamID, validTeamID, validTeamID, validTeamID)
+		require.NoError(t, err)
+
+		assert.Equal(t, validTeamID, token.BYODDefaultTeamID)
+		assert.Equal(t, validTeamID, token.MacOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IOSDefaultTeamID)
+		assert.Equal(t, validTeamID, token.IPadOSDefaultTeamID)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		var appCfgToken fleet.MDMAppleABMAssignmentInfo
+		for _, tok := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			if tok.OrganizationName == orgName {
+				appCfgToken = tok
+				break
+			}
+		}
+		assert.Equal(t, validTeamName, appCfgToken.BYODTeam)
+		assert.Equal(t, validTeamName, appCfgToken.MacOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IOSTeam)
+		assert.Equal(t, validTeamName, appCfgToken.IpadOSTeam)
 	})
 }

@@ -1,0 +1,12 @@
+{
+  "name": "Shotcut",
+  "slug": "shotcut/windows",
+  "package_identifier": "Meltytech.Shotcut",
+  "unique_identifier": "Shotcut",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/shotcut_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/shotcut_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

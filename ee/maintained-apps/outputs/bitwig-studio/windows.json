@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "6.0.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Bitwig Studio %' AND publisher = 'Bitwig GmbH';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Bitwig Studio %' AND publisher = 'Bitwig GmbH' AND version_compare(version, '6.0.6') < 0);"
+      },
+      "installer_url": "https://www.bitwig.com/dl/Bitwig%20Studio/6.0.6/installer_windows/",
+      "install_script_ref": "8959087b",
+      "uninstall_script_ref": "9b9fc2cf",
+      "sha256": "8b44bf8bd420e3a1938166293dbcae3c9752c88601c6407e9cc904a09528eb6b",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "9b9fc2cf": "$product_code = '{8AFA291D-C7A6-4461-9A6A-A5B38120BAF0}'\n$timeoutSeconds = 300  # 5 minute timeout\n\n# Fleet uninstalls app using product code that's extracted on upload\n$process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n\n# Wait for process with timeout\n$completed = $process.WaitForExit($timeoutSeconds * 1000)\n\nif (-not $completed) {\n    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n    Exit 1603  # ERROR_UNINSTALL_FAILURE\n}\n\n# MSI exit codes that indicate success. 3010 = ERROR_SUCCESS_REBOOT_REQUIRED,\n# 1641 = ERROR_SUCCESS_REBOOT_INITIATED. Treat these as success rather than failure.\n$successCodes = @(0, 3010, 1641)\n\n# Check exit code and output result\nif ($successCodes -contains $process.ExitCode) {\n    Write-Output \"Exit 0\"\n    Exit 0\n} else {\n    Write-Output \"Exit $($process.ExitCode)\"\n    Exit $process.ExitCode\n}\n"
+  }
+}

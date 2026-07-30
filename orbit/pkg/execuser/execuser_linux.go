@@ -83,6 +83,17 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
 	}
+	// Reap the child process in a background goroutine. Orbit runs as root and
+	// only calls Start here (it monitors the desktop process separately, so this
+	// function must return after starting it). Without a corresponding Wait, every
+	// `sudo`/`timeout` child that exits becomes a zombie. When the desktop fails to
+	// start and Orbit respawns it in a loop, these zombies accumulate by the
+	// thousands. See https://github.com/fleetdm/fleet/issues/41796.
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Debug().Err(err).Msg("run cmd wait")
+		}
+	}()
 	return "", nil
 }
 

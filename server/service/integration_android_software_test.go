@@ -1403,6 +1403,143 @@ func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
 	}, http.StatusOK, &addResp2)
 }
 
+func (s *integrationMDMTestSuite) TestAndroidAppConfigFleetVariables() {
+	t := s.T()
+
+	s.enableAndroidMDM(t)
+	s.setVPPTokenForTeam(0)
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Duo"}, nil
+	}
+
+	// ---- Supported variables should be accepted ----
+
+	supportedConfig := json.RawMessage(`{"managedConfiguration": {"deviceId": "$FLEET_VAR_HOST_UUID", "serial": "${FLEET_VAR_HOST_HARDWARE_SERIAL}"}}`)
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    "com.duo.security",
+			Platform:      fleet.AndroidPlatform,
+			Configuration: supportedConfig,
+		},
+		http.StatusOK, &addResp,
+	)
+
+	// Verify the config was stored correctly with variables (not yet substituted)
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID),
+		&getSoftwareTitleRequest{ID: addResp.TitleID},
+		http.StatusOK, &titleResp,
+	)
+	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "$FLEET_VAR_HOST_UUID")
+	require.Contains(t, string(titleResp.SoftwareTitle.AppStoreApp.Configuration), "${FLEET_VAR_HOST_HARDWARE_SERIAL}")
+
+	// ---- Unsupported variables should be rejected ----
+
+	unsupportedConfig := json.RawMessage(`{"managedConfiguration": {"chal": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}}`)
+	r := s.Do("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    "com.unsupported.var",
+			Platform:      fleet.AndroidPlatform,
+			Configuration: unsupportedConfig,
+		},
+		http.StatusBadRequest,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "Unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE")
+
+	// ---- Batch (GitOps) path: unsupported variables rejected ----
+
+	batchUnsupported := []fleet.VPPBatchPayload{
+		{
+			AppStoreID:    "com.batch.unsupported",
+			Platform:      fleet.AndroidPlatform,
+			SelfService:   true,
+			Configuration: json.RawMessage(`{"managedConfiguration": {"url": "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_MyCA"}}`),
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		&batchAssociateAppStoreAppsRequest{Apps: batchUnsupported},
+		http.StatusBadRequest,
+	)
+
+	// ---- Batch (GitOps) path: supported variables accepted ----
+
+	batchSupported := []fleet.VPPBatchPayload{
+		{
+			AppStoreID:    "com.batch.supported",
+			Platform:      fleet.AndroidPlatform,
+			SelfService:   true,
+			Configuration: json.RawMessage(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID"}}`),
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		&batchAssociateAppStoreAppsRequest{Apps: batchSupported, DryRun: true},
+		http.StatusOK,
+	)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidAppConfigCustomHostVitals() {
+	t := s.T()
+
+	s.enableAndroidMDM(t)
+	s.setVPPTokenForTeam(0)
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: "Duo"}, nil
+	}
+
+	vital, err := s.ds.CreateCustomHostVital(context.Background(), t.Name())
+	require.NoError(t, err)
+	vitalToken := fmt.Sprintf("$%s%d", fleet.CustomHostVitalPrefix, vital.ID)
+
+	// ---- Single add: a reference to an unknown vital ID is rejected ----
+
+	r := s.Do("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    "com.unknown.vital",
+			Platform:      fleet.AndroidPlatform,
+			Configuration: json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_999999"}}`),
+		},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "is not defined")
+
+	// ---- Single add: a malformed vital reference is rejected ----
+
+	r = s.Do("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    "com.malformed.vital",
+			Platform:      fleet.AndroidPlatform,
+			Configuration: json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_asset_tag"}}`),
+		},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "Invalid custom host vital reference")
+
+	// ---- Single add: a valid vital reference is accepted ----
+
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{
+			AppStoreID:    "com.valid.vital",
+			Platform:      fleet.AndroidPlatform,
+			Configuration: json.RawMessage(fmt.Sprintf(`{"managedConfiguration": {"assetTag": "%s"}}`, vitalToken)),
+		},
+		http.StatusOK, &addResp,
+	)
+
+	// ---- Update: a reference to an unknown vital ID is rejected ----
+
+	r = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{
+			Configuration: json.RawMessage(`{"managedConfiguration": {"assetTag": "$FLEET_HOST_VITAL_999999"}}`),
+		},
+		http.StatusUnprocessableEntity,
+	)
+	require.Contains(t, extractServerErrorText(r.Body), "is not defined")
+}
+
 func (s *integrationMDMTestSuite) TestAndroidPubSubStatusReport_MissingHardwareInfo() {
 	ctx := context.Background()
 	t := s.T()

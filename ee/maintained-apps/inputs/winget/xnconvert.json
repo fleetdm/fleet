@@ -1,0 +1,12 @@
+{
+  "name": "XnSoft XnConvert",
+  "slug": "xnconvert/windows",
+  "package_identifier": "XnSoft.XnConvert",
+  "unique_identifier": "XnConvert",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/xnconvert_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/xnconvert_uninstall.ps1"
+}

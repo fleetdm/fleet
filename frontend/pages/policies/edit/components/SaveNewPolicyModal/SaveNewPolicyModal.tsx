@@ -20,6 +20,7 @@ import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { ITeamConfig } from "interfaces/team";
 import useDeepEffect from "hooks/useDeepEffect";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import configAPI from "services/entities/config";
 import teamPoliciesAPI from "services/entities/team_policies";
@@ -282,7 +283,7 @@ const SaveNewPolicyModal = ({
         >
           <div className="autofill-tooltip-wrapper">
             <Button
-              variant="inverse"
+              variant="subdued"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
@@ -342,6 +343,7 @@ const SaveNewPolicyModal = ({
           label="Name"
           autofocus
           disabled={disableForm}
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"
@@ -389,7 +391,7 @@ const SaveNewPolicyModal = ({
         ) : (
           <div className={`${baseClass}__add-automations`}>
             <Button
-              variant="text-icon"
+              variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
             >
@@ -452,7 +454,7 @@ const SaveNewPolicyModal = ({
             className={`${baseClass}__button--modal-cancel`}
             type="button"
             onClick={() => setIsSaveNewPolicyModalOpen(false)}
-            variant="inverse"
+            variant="secondary"
           >
             Cancel
           </Button>

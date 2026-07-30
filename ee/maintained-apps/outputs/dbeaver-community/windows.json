@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.1.0",
+      "version": "26.1.3",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'DBeaver %' AND publisher = 'DBeaver Corp' AND version_compare(version, '26.1.3') < 0);"
       },
-      "installer_url": "https://github.com/dbeaver/dbeaver/releases/download/26.1.0/dbeaver-ce-26.1.0-windows-x86_64.exe",
+      "installer_url": "https://github.com/dbeaver/dbeaver/releases/download/26.1.3/dbeaver-ce-26.1.3-windows-x86_64.exe",
       "install_script_ref": "44838cfb",
       "uninstall_script_ref": "7c58ef20",
-      "sha256": "8324abdd35bf3e96f0447d57c025774663894f5c917e1f853203d4c9c4bf0844",
+      "sha256": "df3e522e3dbd4e6a7f91dcd8e422a0be13220d2e895a681b5b6732adb518297d",
       "default_categories": [
         "Developer tools"
       ]

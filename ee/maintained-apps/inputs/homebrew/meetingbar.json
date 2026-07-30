@@ -1,0 +1,10 @@
+{
+  "name": "MeetingBar",
+  "unique_identifier": "leits.MeetingBar",
+  "token": "meetingbar",
+  "installer_format": "dmg",
+  "slug": "meetingbar/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

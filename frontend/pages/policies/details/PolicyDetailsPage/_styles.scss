@@ -12,11 +12,15 @@
   }
 
   &__name-description,
-  &__platform-list,
-  &__labels-section {
+  &__platform-list {
     display: flex;
     flex-direction: column;
     gap: $pad-small;
+  }
+
+  &__name-description {
+    flex: 1;
+    min-width: 0;
   }
 
   &__platform-list {
@@ -35,15 +39,15 @@
     display: flex;
     align-items: center;
     gap: $pad-small;
+    overflow: hidden;
+
+    .tooltip-truncated-text {
+      min-width: 0;
+    }
 
     .critical-policy-icon {
       flex-shrink: 0;
     }
-  }
-
-  // Override DataSet 4px gap to 8px for all instances on this page
-  .data-set {
-    gap: $pad-small;
   }
 
   &__author-info {
@@ -58,17 +62,51 @@
     gap: $pad-xsmall;
   }
 
-  &__labels-help-text {
-    margin: 0;
-    font-weight: $regular;
+  &__automations--multi {
+    // With more than one automation, floor the DataSet at 300px so
+    // TruncatedTextList has room to render before collapsing to a "+N more"
+    // pill; combined with `max-width` below and `flex-wrap` on __properties,
+    // the DataSet stays a fixed 300px and either fits inline or wraps
+    // cleanly to its own row.
+    min-width: 300px;
   }
 
-  &__labels-list {
+  &__automations {
+    // Cap the DataSet width so a long list doesn't push __properties to a
+    // second row when the first still has room — content beyond the cap
+    // falls into TruncatedTextList's "+N more" pill.
+    max-width: 300px;
+
+    .software-icon,
+    .graphic {
+      margin-right: $pad-xsmall;
+      flex-shrink: 0;
+    }
+  }
+
+  &__resolve dd {
+    white-space: normal;
+  }
+
+  &__details {
+    .data-set {
+      gap: $pad-small;
+    }
+
     display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    padding: $pad-xlarge;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+  }
+
+  &__properties {
+    display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
-    gap: $pad-small;
-    list-style: none;
-    margin: 0;
-    padding: 0;
+    justify-content: flex-start;
+    gap: $pad-medium $pad-xlarge;
   }
 }

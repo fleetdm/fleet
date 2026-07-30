@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.22.0",
+      "version": "7.23.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH' AND version_compare(version, '7.22.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'WinRAR %' AND publisher = 'win.rar GmbH' AND version_compare(version, '7.23.0') < 0);"
       },
-      "installer_url": "https://www.rarlab.com/rar/winrar-x64-722.exe",
+      "installer_url": "https://www.rarlab.com/rar/winrar-x64-723.exe",
       "install_script_ref": "5879db33",
       "uninstall_script_ref": "48a0291b",
-      "sha256": "d669f4e15e9b8fde6e6dcc47697fc5a38b77e1fd5c608cf6423e4eba8df62498",
+      "sha256": "8ff0daf3ed564cc743c0e23ff2e253997ffc74460f9673f0b6dd037b2db4ce7b",
       "default_categories": [
         "Productivity"
       ]

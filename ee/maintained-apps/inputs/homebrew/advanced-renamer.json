@@ -1,0 +1,10 @@
+{
+  "name": "Advanced Renamer",
+  "unique_identifier": "com.HulubuluSoftware.AdvancedRenamer",
+  "token": "advanced-renamer",
+  "installer_format": "dmg",
+  "slug": "advanced-renamer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

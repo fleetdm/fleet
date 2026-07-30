@@ -15,6 +15,12 @@ const CreateLinuxKeyModal = ({
 }: ICreateLinuxKeyModal) => {
   const renderModalBody = () => (
     <>
+      <p>
+        On Ubuntu with TPM-backed disk encryption, Fleet backs up your recovery
+        key automatically in the background — no further action is needed. The
+        yellow <b>Disk Encryption</b> banner will clear within 1 hour.
+      </p>
+      <p>If a pop-up appears asking for your passphrase, follow these steps:</p>
       <ol>
         <li>
           Wait 30 seconds for the <b>Enter disk encryption passphrase</b> pop-up

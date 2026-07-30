@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.22.3",
+      "version": "1.23.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE' AND version_compare(version, '1.22.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Rancher Desktop' AND publisher = 'SUSE' AND version_compare(version, '1.23.1') < 0);"
       },
-      "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.22.3/Rancher.Desktop.Setup.1.22.3.msi",
+      "installer_url": "https://github.com/rancher-sandbox/rancher-desktop/releases/download/v1.23.1/Rancher.Desktop.Setup.1.23.1.msi",
       "install_script_ref": "5189ac09",
       "uninstall_script_ref": "da741b06",
-      "sha256": "d0918c3e99d2918d84d739e47df12964b2d75ccdf3f9da769b6d4b47ede187cf",
+      "sha256": "65c2daa6e7d6b5dbd172d51f9eb72d4a318869deb722a99decc82e87ae068102",
       "default_categories": [
         "Developer tools"
       ],

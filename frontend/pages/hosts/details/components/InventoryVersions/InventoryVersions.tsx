@@ -14,20 +14,7 @@ import {
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
-
-const generateVulnerabilitiesValue = (vulnerabilities: string[]) => {
-  const first3 = vulnerabilities.slice(0, 3);
-  const rest = vulnerabilities.slice(3);
-
-  const first3Text = first3.join(", ");
-  const restText = `, +${rest.length} more`;
-
-  return (
-    <>
-      <span>{`${first3Text}${rest.length > 0 ? restText : ""}`}</span>
-    </>
-  );
-};
+import TruncatedTextList from "components/TruncatedTextList";
 
 const baseClass = "inventory-versions";
 
@@ -97,15 +84,14 @@ const InventoryVersion = ({
             textOnly
           />
         )}
-      </div>
-      {vulnerabilities && vulnerabilities.length !== 0 && (
-        <div className={`${baseClass}__row`}>
+        {vulnerabilities && vulnerabilities.length !== 0 && (
           <DataSet
+            className={`${baseClass}__vulnerabilities`}
             title="Vulnerabilities"
-            value={generateVulnerabilitiesValue(vulnerabilities)}
+            value={<TruncatedTextList items={vulnerabilities} />}
           />
-        </div>
-      )}
+        )}
+      </div>
       {!!installedPaths?.length &&
         installedPaths.map((path) => {
           // Find the signature info for this path

@@ -433,7 +433,9 @@ var (
 		},
 		{
 			matches: func(s *fleet.Software) bool {
-				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+				return citrixName.MatchString(s.Name) || s.Name == "Citrix Workspace.app" ||
+					(s.Source == "programs" && s.Vendor == "Citrix Systems, Inc." &&
+						strings.HasPrefix(s.Name, "Citrix Workspace"))
 			},
 			mutate: func(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
 				parts := strings.Split(s.Version, ".")

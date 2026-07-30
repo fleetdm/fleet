@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.0.0",
+      "version": "3.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI' AND version_compare(bundle_short_version, '3.0.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'no.blogspot.RsyncUI' AND version_compare(bundle_short_version, '3.0.2') < 0);"
       },
-      "installer_url": "https://github.com/rsyncOSX/RsyncUI/releases/download/v3.0.0/RsyncUI.3.0.0.dmg",
+      "installer_url": "https://github.com/rsyncOSX/RsyncUI/releases/download/v3.0.2/RsyncUI.3.0.2.dmg",
       "install_script_ref": "18009020",
       "uninstall_script_ref": "71459de0",
-      "sha256": "62810f5852358a2e85008baefb45b0fbb1c6273d3eecbceb256c768c90175c2a",
+      "sha256": "21f40b2c389be6530a53a2a6a2b981f6c76a73d84492cbe2909519f9bdb885b4",
       "default_categories": [
         "Productivity"
       ]

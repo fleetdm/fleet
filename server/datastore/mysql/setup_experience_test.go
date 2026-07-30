@@ -40,6 +40,9 @@ func TestSetupExperience(t *testing.T) {
 		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
 		{"PolicyGate", testSetupExperiencePolicyGate},
 		{"PolicyGateResultLookups", testSetupExperiencePolicyGateResultLookups},
+		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
+		{"CrossPlatformPyScripts", testSetupExperienceCrossPlatformPyScripts},
+		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
 	}
 
 	for _, c := range cases {
@@ -511,9 +514,9 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 	})
 
 	// Create some scripts and add them to setup experience
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script1", ScriptContents: "SCRIPT 1", TeamID: &team1.ID})
 	require.NoError(t, err)
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "SCRIPT 2", TeamID: &team2.ID})
 	require.NoError(t, err)
 
 	script1, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
@@ -1208,7 +1211,7 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, count)
 	assert.NotNil(t, meta)
 
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{
 		TeamID:         &team1.ID,
 		Name:           "the script.sh",
 		ScriptContents: "hello",
@@ -1638,7 +1641,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo foo",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	_, err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// get the script for team1
@@ -1660,7 +1663,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo bar",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScript2)
+	_, err = ds.SetSetupExperienceScript(ctx, wantScript2)
 	require.NoError(t, err)
 
 	// get the script for team2
@@ -1682,7 +1685,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo bar",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam)
+	_, err = ds.SetSetupExperienceScript(ctx, wantScriptNoTeam)
 	require.NoError(t, err)
 
 	// get the script nil team id is equivalent to team id 0
@@ -1699,16 +1702,16 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.Equal(t, wantScriptNoTeam.ScriptContents, string(b))
 
 	// try to create another with name "script" and no team id. Should succeed
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script", ScriptContents: "echo baz"})
 	require.NoError(t, err)
 
 	// try to create another script with no team id and a different name. Should succeed
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{Name: "script2", ScriptContents: "echo baz"})
 	require.NoError(t, err)
 
 	// try to add a script for a team that doesn't exist
 	var fkErr fleet.ForeignKeyError
-	err = ds.SetSetupExperienceScript(ctx, &fleet.Script{TeamID: ptr.Uint(42), Name: "script", ScriptContents: "echo baz"})
+	_, err = ds.SetSetupExperienceScript(ctx, &fleet.Script{TeamID: new(uint(42)), Name: "script", ScriptContents: "echo baz"})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &fkErr)
 
@@ -1730,7 +1733,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err) // TODO: confirm if we want to return not found on deletes
 
 	// add same script for team1 again(even though there will be no update since it doesn't exist)
-	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	_, err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// get the script for team1
@@ -1746,7 +1749,7 @@ func testSetupExperienceScriptCRUD(t *testing.T, ds *Datastore) {
 	require.Equal(t, oldScript1.ScriptContentID, newScript1.ScriptContentID)
 
 	// add same script for team1 again
-	err = ds.SetSetupExperienceScript(ctx, wantScript1)
+	_, err = ds.SetSetupExperienceScript(ctx, wantScript1)
 	require.NoError(t, err)
 
 	// Verify that the script contents remained the same
@@ -1789,13 +1792,14 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo updated foo",
 	}
 
-	err = ds.SetSetupExperienceScript(ctx, initialScript1)
+	changed, err := ds.SetSetupExperienceScript(ctx, initialScript1)
 	require.NoError(t, err)
+	require.True(t, changed, "creating a script is a change")
 	team1OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.NotNil(t, team1OriginalScript)
 
-	err = ds.SetSetupExperienceScript(ctx, initialScript2)
+	_, err = ds.SetSetupExperienceScript(ctx, initialScript2)
 	require.NoError(t, err)
 	team2OriginalScript, err := ds.GetSetupExperienceScript(ctx, &team2.ID)
 	require.NoError(t, err)
@@ -1827,8 +1831,9 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team2OriginalScript.ID, *host2OriginalItems[0].SetupExperienceScriptID)
 
 	// "Update" the script for team1 with its original contents which should cause no change to the enqueued execution
-	err = ds.SetSetupExperienceScript(ctx, initialScript1)
+	changed, err = ds.SetSetupExperienceScript(ctx, initialScript1)
 	require.NoError(t, err)
+	require.False(t, changed, "re-submitting identical content is a no-op")
 
 	team1UpdatedScript, err := ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
@@ -1848,8 +1853,9 @@ func testUpdateSetupExperienceScriptWhileEnqueued(t *testing.T, ds *Datastore) {
 	require.Equal(t, team2OriginalScript.ID, *host2NewItems[0].SetupExperienceScriptID)
 
 	// update script for team1 which should delete the enqueued execution
-	err = ds.SetSetupExperienceScript(ctx, updatedScript1)
+	changed, err = ds.SetSetupExperienceScript(ctx, updatedScript1)
 	require.NoError(t, err)
+	require.True(t, changed, "replacing content is a change")
 
 	team1UpdatedScript, err = ds.GetSetupExperienceScript(ctx, &team1.ID)
 	require.NoError(t, err)
@@ -2088,7 +2094,7 @@ func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 		ScriptContents: "echo hello",
 	}
 
-	err := ds.SetSetupExperienceScript(ctx, script)
+	_, err := ds.SetSetupExperienceScript(ctx, script)
 	require.NoError(t, err)
 
 	scriptByTeamID, err := ds.GetSetupExperienceScript(ctx, nil)
@@ -2562,4 +2568,355 @@ func testSetupExperiencePolicyGateResultLookups(t *testing.T, ds *Datastore) {
 		})
 		require.True(t, updatedAt.Before(enrolledAt), "policy_updated_at must be reset to a stale value so the full policy set re-runs")
 	})
+}
+
+func testSetupExperienceCrossPlatformShScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-cross-plat"})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// .sh scripts are stored as platform='linux' but can also run on darwin.
+	tfrSh, err := fleet.NewTempFileReader(strings.NewReader("#!/bin/sh\necho hello"), t.TempDir)
+	require.NoError(t, err)
+	_, shTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "#!/bin/sh\necho install",
+		InstallerFile:   tfrSh,
+		StorageID:       "storage-sh-cross",
+		Filename:        "cross.sh",
+		Title:           "Cross Platform Script",
+		Version:         "1.0",
+		Source:          "sh_packages",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        "linux",
+		Extension:       "sh",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	tfrPkg, err := fleet.NewTempFileReader(strings.NewReader("pkg content"), t.TempDir)
+	require.NoError(t, err)
+	_, macosTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "installer -pkg mac.pkg -target /",
+		UninstallScript: "rm -rf /Applications/mac.app",
+		InstallerFile:   tfrPkg,
+		StorageID:       "storage-pkg-cross",
+		Filename:        "mac.pkg",
+		Title:           "Mac App",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		Extension:       "pkg",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	t.Run("sh appears in both linux and darwin listings", func(t *testing.T) {
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		linuxNames := make([]string, 0, len(linuxTitles))
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil {
+				linuxNames = append(linuxNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, linuxNames, "cross.sh")
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		macosNames := make([]string, 0, len(macosTitles))
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil {
+				macosNames = append(macosNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, macosNames, "cross.sh")
+		assert.Contains(t, macosNames, "mac.pkg")
+	})
+
+	t.Run("saving macOS selection does not clear Linux native selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID, macosTitleID})
+		require.NoError(t, err)
+
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var linuxShSelected bool
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" {
+				linuxShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.True(t, linuxShSelected)
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		selectedNames := make([]string, 0)
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.InstallDuringSetup != nil && *tt.SoftwarePackage.InstallDuringSetup {
+				selectedNames = append(selectedNames, tt.SoftwarePackage.Name)
+			}
+		}
+		assert.Contains(t, selectedNames, "cross.sh")
+		assert.Contains(t, selectedNames, "mac.pkg")
+	})
+
+	t.Run("clearing macOS selection does not clear Linux native selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{})
+		require.NoError(t, err)
+
+		linuxTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var linuxShSelected bool
+		for _, tt := range linuxTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" {
+				linuxShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.True(t, linuxShSelected)
+
+		macosTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		var macosShSelected bool
+		for _, tt := range macosTitles {
+			if tt.SoftwarePackage != nil && tt.SoftwarePackage.Name == "cross.sh" && tt.SoftwarePackage.InstallDuringSetup != nil {
+				macosShSelected = *tt.SoftwarePackage.InstallDuringSetup
+			}
+		}
+		assert.False(t, macosShSelected)
+	})
+
+	t.Run("darwin host enqueues cross-selected .sh", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+
+		darwinUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "darwin-host-" + darwinUUID,
+			UUID:          darwinUUID,
+			Platform:      "darwin",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-darwin-" + darwinUUID),
+			NodeKey:       new("nk-darwin-" + darwinUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", darwinUUID, team.ID)
+		require.NoError(t, err)
+		assert.True(t, enrolled)
+
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &names,
+				`SELECT name FROM setup_experience_status_results WHERE host_uuid = ?`,
+				darwinUUID)
+		})
+		assert.Contains(t, names, "Cross Platform Script")
+	})
+
+	t.Run("linux host is unaffected by darwin-only cross selection", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{shTitleID})
+		require.NoError(t, err)
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{})
+		require.NoError(t, err)
+
+		linuxUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "linux-host-" + linuxUUID,
+			UUID:          linuxUUID,
+			Platform:      "debian",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-linux-" + linuxUUID),
+			NodeKey:       new("nk-linux-" + linuxUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "linux", "debian", linuxUUID, team.ID)
+		require.NoError(t, err)
+		assert.False(t, enrolled)
+	})
+}
+
+// testEnqueueSetupExperienceFirstAddedPerTitle verifies that when a title has more than one active
+// package flagged for setup experience, only the first-added package is queued (no double-queue).
+// testSetupExperienceCrossPlatformPyScripts guards the EnqueueSetupExperienceItems predicates
+// (linux distro-agnostic clause + darwin cross-platform union) so they include .py, not just
+// .sh — a .py installer is platform='linux' but runs on both Linux and macOS.
+func testSetupExperienceCrossPlatformPyScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-cross-plat-py"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Bob", "bob-py@example.com", true)
+
+	tfrPy, err := fleet.NewTempFileReader(strings.NewReader("#!/usr/bin/env python3\nprint('hello')"), t.TempDir)
+	require.NoError(t, err)
+	_, pyTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "#!/usr/bin/env python3\nprint('install')",
+		InstallerFile:   tfrPy,
+		StorageID:       "storage-py-cross",
+		Filename:        "cross.py",
+		Title:           "Cross Platform Py Script",
+		Version:         "1.0",
+		Source:          "py_packages",
+		UserID:          user.ID,
+		TeamID:          &team.ID,
+		Platform:        "linux",
+		Extension:       "py",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	t.Run("py appears in both linux and darwin listings", func(t *testing.T) {
+		for _, platform := range []string{"linux", "darwin"} {
+			titles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, platform, team.ID, fleet.ListOptions{})
+			require.NoError(t, err)
+			names := make([]string, 0, len(titles))
+			for _, tt := range titles {
+				if tt.SoftwarePackage != nil {
+					names = append(names, tt.SoftwarePackage.Name)
+				}
+			}
+			assert.Contains(t, names, "cross.py", "cross.py should be selectable for %s setup experience", platform)
+		}
+	})
+
+	t.Run("darwin host enqueues cross-selected .py", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{pyTitleID})
+		require.NoError(t, err)
+
+		darwinUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "darwin-py-" + darwinUUID,
+			UUID:          darwinUUID,
+			Platform:      "darwin",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-darwin-py-" + darwinUUID),
+			NodeKey:       new("nk-darwin-py-" + darwinUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", darwinUUID, team.ID)
+		require.NoError(t, err)
+		assert.True(t, enrolled)
+
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &names,
+				`SELECT name FROM setup_experience_status_results WHERE host_uuid = ?`, darwinUUID)
+		})
+		assert.Contains(t, names, "Cross Platform Py Script", "darwin host should enqueue the cross-selected .py package")
+	})
+
+	t.Run("linux host enqueues native .py", func(t *testing.T) {
+		err := ds.SetSetupExperienceSoftwareTitles(ctx, "linux", team.ID, []uint{pyTitleID})
+		require.NoError(t, err)
+
+		linuxUUID := uuid.NewString()
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "linux-py-" + linuxUUID,
+			UUID:          linuxUUID,
+			Platform:      "debian",
+			TeamID:        &team.ID,
+			OsqueryHostID: new("oq-linux-py-" + linuxUUID),
+			NodeKey:       new("nk-linux-py-" + linuxUUID),
+		})
+		require.NoError(t, err)
+
+		enrolled, err := ds.EnqueueSetupExperienceItems(ctx, "linux", "debian", linuxUUID, team.ID)
+		require.NoError(t, err)
+		assert.True(t, enrolled)
+
+		var names []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &names,
+				`SELECT name FROM setup_experience_status_results WHERE host_uuid = ?`, linuxUUID)
+		})
+		assert.Contains(t, names, "Cross Platform Py Script", "linux host should enqueue the native .py package")
+	})
+}
+
+func testEnqueueSetupExperienceFirstAddedPerTitle(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "se-multi-pkg"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "SE Admin", "se-admin@example.com", true)
+
+	newPkg := func(storage, filename string) uint {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+		require.NoError(t, err)
+		id, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:    "install",
+			InstallerFile:    tfr,
+			StorageID:        storage,
+			Filename:         filename,
+			Title:            "MultiPkgTitle",
+			Version:          "1.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.multipkg",
+			UserID:           user.ID,
+			TeamID:           &team.ID,
+			Platform:         string(fleet.MacOSPlatform),
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+		return id
+	}
+
+	// Two packages under the same title (same bundle id, different content hash), both flagged for setup.
+	firstAddedID := newPkg("storage-a", "pkgA.pkg")
+	secondID := newPkg("storage-b", "pkgB.pkg")
+	require.Less(t, firstAddedID, secondID)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id IN (?, ?)", firstAddedID, secondID)
+		return err
+	})
+
+	hostUUID := "multi-pkg-host"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-multi-pkg",
+		OsqueryHostID:  new("osquery-multi-pkg"),
+		NodeKey:        new("node-key-multi-pkg"),
+		UUID:           hostUUID,
+		Platform:       "darwin",
+		HardwareSerial: "multi-pkg-serial",
+	})
+	require.NoError(t, err)
+
+	assertSinglePackageQueued := func() {
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, team.ID)
+		require.NoError(t, err)
+		var installerResults []*fleet.SetupExperienceStatusResult
+		for _, r := range results {
+			if r.SoftwareInstallerID != nil {
+				installerResults = append(installerResults, r)
+			}
+		}
+		require.Len(t, installerResults, 1, "a multi-package title should queue exactly one package during setup")
+		require.Equal(t, firstAddedID, *installerResults[0].SoftwareInstallerID, "the first-added package should be queued")
+	}
+
+	enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	assertSinglePackageQueued()
+
+	// Re-enqueue stays a single row (idempotent, still no double-queue).
+	enqueued, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", hostUUID, team.ID)
+	require.NoError(t, err)
+	require.True(t, enqueued)
+	assertSinglePackageQueued()
 }

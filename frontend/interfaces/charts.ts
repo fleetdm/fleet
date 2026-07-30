@@ -14,6 +14,58 @@ export interface IDataSet {
   relativeScale?: boolean;
 }
 
+// CVE chart software categories. Values must match the backend api.CVECategory*
+// keys. The "os" category covers operating-system vulnerabilities and the Linux
+// kernel. Descriptions mirror the Figma sub-labels.
+export const CVE_SOFTWARE_CATEGORIES = [
+  {
+    value: "os",
+    label: "Operating system (OS)",
+    tooltipLabel: "OS",
+    description: "",
+  },
+  {
+    value: "browsers",
+    label: "Browsers",
+    tooltipLabel: "Browsers",
+    description: "Google Chrome, Safari, Mozilla Firefox, Brave, and Opera",
+  },
+  {
+    value: "office",
+    label: "Microsoft Office",
+    tooltipLabel: "Microsoft Office",
+    description: "Word, Excel, PowerPoint, and Outlook",
+  },
+  {
+    value: "adobe",
+    label: "Adobe",
+    tooltipLabel: "Adobe",
+    description: "Acrobat, Flash, and Shockwave Player",
+  },
+] as const;
+
+export const ALL_CVE_SOFTWARE_CATEGORY_VALUES = CVE_SOFTWARE_CATEGORIES.map(
+  (c) => c.value as string
+);
+
+// Persisted, GitOps-managed default filter state for the Vulnerability exposure
+// (CVE) chart, surfaced under features.vulnerability_exposure_historical_reporting.
+// Every field is optional: an omitted (undefined) field means "use the chart's
+// built-in default" for that control, while a present field seeds it. EPSS
+// bounds are expressed as 0–100 (matching the UI; the chart API call converts
+// to 0–1). Categories use the CVE_SOFTWARE_CATEGORIES values. cvss_min/cvss_max
+// are persisted but not yet consumed by the dashboard (the severity control
+// lands in #47326).
+export interface IVulnExposureFilterDefaults {
+  software_filters?: string[];
+  cvss_min?: number;
+  cvss_max?: number;
+  epss_min?: number;
+  epss_max?: number;
+  has_known_exploit?: boolean;
+  exclude_vulnerabilities?: string[];
+}
+
 export interface IFormattedDataPoint {
   timestamp: string;
   label: string;

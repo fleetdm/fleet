@@ -11,8 +11,10 @@ package santa
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -80,6 +82,8 @@ type santaStatus struct {
 
 func StatusColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
+		table.IntegerColumn("daemon_reachable"),
+		table.TextColumn("error"),
 		table.IntegerColumn("file_logging"),
 		table.IntegerColumn("watchdog_ram_events"),
 		table.TextColumn("log_type"),
@@ -127,9 +131,16 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	cmd := execCommandContext(ctx, "/usr/local/bin/santactl", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		// Gracefully return an empty result if santactl fails
+		// santactl exits non-zero when the Santa daemon is unreachable (e.g. Full Disk
+		// Access not granted, system extension waiting for user approval, daemon crashed).
+		// Surface this as a row with daemon_reachable = 0 and the santactl error instead
+		// of returning zero rows, so operators get a signal that the daemon is degraded
+		// and can see why.
 		log.Debug().Err(err).Msg("failed to run santactl status --json")
-		return []map[string]string{}, nil
+		return []map[string]string{{
+			"daemon_reachable": "0",
+			"error":            santactlError(output, err),
+		}}, nil
 	}
 
 	var status santaStatus
@@ -138,6 +149,8 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	}
 
 	row := map[string]string{
+		"daemon_reachable":                "1",
+		"error":                           "",
 		"file_logging":                    boolToIntString(status.Daemon.FileLogging),
 		"watchdog_ram_events":             strconv.Itoa(status.Daemon.WatchdogRamEvents),
 		"log_type":                        status.Daemon.LogType,
@@ -181,6 +194,22 @@ func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]str
 	}
 
 	return []map[string]string{row}, nil
+}
+
+func santactlError(output []byte, err error) string {
+	var exitErr *exec.ExitError
+	// santactl writes its daemon-communication error to stderr (captured in
+	// exec.ExitError.Stderr because cmd.Stderr is unset), so prefer that; fall back to
+	// stdout and finally the raw exec error.
+	if errors.As(err, &exitErr) {
+		if msg := strings.TrimSpace(string(exitErr.Stderr)); msg != "" {
+			return msg
+		}
+	}
+	if msg := strings.TrimSpace(string(output)); msg != "" {
+		return msg
+	}
+	return err.Error()
 }
 
 func boolToIntString(b bool) string {

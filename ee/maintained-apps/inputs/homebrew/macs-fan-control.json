@@ -1,0 +1,10 @@
+{
+  "name": "Macs Fan Control",
+  "unique_identifier": "com.crystalidea.macsfancontrol",
+  "token": "macs-fan-control",
+  "installer_format": "zip",
+  "slug": "macs-fan-control/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

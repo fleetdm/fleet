@@ -216,6 +216,12 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+		return false, nil
+	}
+	ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+		return false, nil
+	}
 
 	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 		return []string{"foobar"}, nil
@@ -332,6 +338,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -378,6 +385,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
+		WindowsSettings:             fleet.WindowsSettings{ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(false)}},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -768,6 +776,12 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
 		}
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return false, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
+		}
 
 		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 			return []string{"foobar"}, nil
@@ -892,7 +906,7 @@ spec:
 
 		// appconfig macos setup assistant
 		name := writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `uploading apple setup assistant: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -900,7 +914,7 @@ spec:
 		assert.False(t, ds.SaveAppConfigFuncInvoked)
 
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "https://example.com", ""))
-		runAppCheckErr(t, []string{"apply", "-f", name}, `applying fleet config: missing or invalid license`)
+		runAppCheckErr(t, []string{"apply", "-f", name}, `verifying bootstrap package: missing or invalid license`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
 		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
@@ -1162,9 +1176,9 @@ spec:
 			expectedErr error
 		}{
 			{"signed.pkg", nil},
-			{"unsigned.pkg", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
-			{"invalid.tar.gz", errors.New("applying fleet config: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
-			{"wrong-toc.pkg", errors.New("applying fleet config: checking package signature: decompressing TOC: unexpected EOF")},
+			{"unsigned.pkg", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The macos_bootstrap_package must be signed. Learn how to sign the package in the Fleet documentation: https://fleetdm.com/learn-more-about/setup-experience/bootstrap-package")},
+			{"invalid.tar.gz", errors.New("verifying bootstrap package: Couldn’t edit macos_bootstrap_package. The file must be a package (.pkg).")},
+			{"wrong-toc.pkg", errors.New("verifying bootstrap package: checking package signature: decompressing TOC: unexpected EOF")},
 		}
 
 		for _, c := range cases {

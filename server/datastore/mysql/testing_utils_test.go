@@ -464,6 +464,12 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		"DELETE FROM software_categories WHERE team_id != 0")
 	require.NoError(t, err)
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
+	// Clear the in-process software title cache so it doesn't retain entries
+	// for titles that were just truncated from the database.
+	ds.clearKnownSoftwareTitleKeys()
+	// Same for the Windows Fleet-maintained app cache, which would otherwise leak
+	// across test cases that share a Datastore.
+	ds.clearWindowsFMAMatchesCache()
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient
@@ -958,3 +964,7 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	require.NoError(t, err)
 	return activities
 }
+
+// errOnly adapts RecordPolicyQueryExecutions' (stalePolicyIDs, error) return
+// for assertions that only care about the error.
+func errOnly(_ []uint, err error) error { return err }

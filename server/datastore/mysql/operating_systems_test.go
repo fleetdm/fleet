@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,6 +60,27 @@ func TestListOperatingSystemsForPlatform(t *testing.T) {
 	list, err = ds.ListOperatingSystemsForPlatform(ctx, "foo")
 	require.NoError(t, err)
 	require.Len(t, list, 0)
+
+	// Results are sorted by version
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for _, v := range []string{
+			"16 (2026-05-01)", "14 (2025-06-01)", "16 (2026-01-01)", "14 (2025-03-01)",
+		} {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO operating_systems (name, version, arch, kernel_version, platform, os_version_id) VALUES (?, ?, '', '', ?, 0) ON DUPLICATE KEY UPDATE id=id`,
+				"Android", v, "android"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	list, err = ds.ListOperatingSystemsForPlatform(ctx, "android")
+	require.NoError(t, err)
+	require.Len(t, list, 4)
+	for i := 1; i < len(list); i++ {
+		require.LessOrEqual(t, list[i-1].Version, list[i].Version,
+			"expected sorted order, got %q before %q", list[i-1].Version, list[i].Version)
+	}
 }
 
 func TestUpdateHostOperatingSystem(t *testing.T) {

@@ -1,96 +1,109 @@
-# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
-# variable
-$softwareName = $PACKAGE_ID
+# Okta Verify installs as a WiX Burn bundle. Prefer the bundle's registry
+# uninstaller so all chained packages are removed, and fall back to the cached
+# bootstrapper under Package Cache when the registry command is unavailable.
 
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*Okta Verify*"
+$productCode = "{008b801f-b8a1-40df-911b-a77c60e029c7}"
+$displayNameLike = "Okta Verify*"
+$publisherLike = "Okta*"
+$expectedExitCodes = @(0, 1641, 3010)
 
-# WiX Burn bootstrapper uses /quiet for silent uninstall
-$uninstallArgs = "/quiet /norestart"
+function Split-UninstallCommand {
+    param([string]$raw)
+
+    if ($raw -match '^\s*"([^"]+)"\s*(.*)$') {
+        return @($matches[1], $matches[2].Trim())
+    }
+    if ($raw -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+        return @($matches[1], $matches[2].Trim())
+    }
+    if ($raw -match '^\s*(\S+)\s*(.*)$') {
+        return @($matches[1], $matches[2].Trim())
+    }
+
+    throw "Could not parse uninstall string: $raw"
+}
+
+function Invoke-Uninstaller {
+    param([string]$exePath, [string]$existingArgs)
+
+    if ($exePath -match '(?i)(^|\\)msiexec(\.exe)?$') {
+        $existingArgs = ($existingArgs -replace '(?i)/i', '/x') -replace '(?i)/uninstall', ''
+        if ($existingArgs -notmatch '(?i)/x') { $existingArgs = ("/x $existingArgs").Trim() }
+        if ($existingArgs -notmatch '(?i)/q(n|uiet)?') { $existingArgs = ("$existingArgs /qn").Trim() }
+        if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
+    } else {
+        if ($existingArgs -notmatch '(?i)/uninstall') { $existingArgs = ("$existingArgs /uninstall").Trim() }
+        if ($existingArgs -notmatch '(?i)/quiet') { $existingArgs = ("$existingArgs /quiet").Trim() }
+        if ($existingArgs -notmatch '(?i)/norestart') { $existingArgs = ("$existingArgs /norestart").Trim() }
+    }
+
+    Write-Host "Uninstall command: $exePath"
+    Write-Host "Uninstall args: $existingArgs"
+
+    $process = Start-Process -FilePath $exePath -ArgumentList $existingArgs -NoNewWindow -PassThru -Wait
+    return $process.ExitCode
+}
 
 $paths = @(
-  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
 
-$exitCode = 0
-
-try {
-
-[array]$uninstallKeys = Get-ChildItem `
-    -Path $paths `
-    -ErrorAction SilentlyContinue |
-        ForEach-Object { Get-ItemProperty $_.PSPath }
-
-$foundUninstaller = $false
-foreach ($key in $uninstallKeys) {
-    # If needed, add -notlike to the comparison to exclude certain similar
-    # software
-    if ($key.DisplayName -like $softwareNameLike) {
-        $foundUninstaller = $true
-        # Get the uninstall command. Some uninstallers do not include
-        # 'QuietUninstallString' and require a flag to run silently.
-        $uninstallCommand = if ($key.QuietUninstallString) {
-            $key.QuietUninstallString
-        } else {
-            $key.UninstallString
+$candidates = @()
+foreach ($p in $paths) {
+    foreach ($keyName in @($productCode, $productCode.Trim('{}'))) {
+        $keyPath = "$p\$keyName"
+        if (Test-Path $keyPath) {
+            $entry = Get-ItemProperty $keyPath -ErrorAction SilentlyContinue
+            if ($entry) { $candidates += $entry }
         }
+    }
 
-        # The uninstall command may contain command and args, like:
-        # "C:\Program Files\Software\uninstall.exe" /quiet
-        # Split the command and args
-        $splitArgs = $uninstallCommand.Split('"')
-        if ($splitArgs.Length -gt 1) {
-            if ($splitArgs.Length -eq 3) {
-                $existingArgs = $splitArgs[2].Trim()
-                if ($existingArgs -notmatch '/quiet') {
-                    $uninstallArgs = "$existingArgs /quiet /norestart".Trim()
-                } else {
-                    $uninstallArgs = $existingArgs
-                }
-            } elseif ($splitArgs.Length -gt 3) {
-                Throw `
-                    "Uninstall command contains multiple quoted strings. " +
-                        "Please update the uninstall script.`n" +
-                        "Uninstall command: $uninstallCommand"
-            }
-            $uninstallCommand = $splitArgs[1]
-        } else {
-            if ($uninstallCommand -notmatch '/quiet') {
-                $uninstallArgs = "/quiet /norestart"
-            } else {
-                $uninstallArgs = ""
-            }
-        }
-        Write-Host "Uninstall command: $uninstallCommand"
-        Write-Host "Uninstall args: $uninstallArgs"
-
-        $processOptions = @{
-            FilePath = $uninstallCommand
-            PassThru = $true
-            Wait = $true
-        }
-
-        if ($uninstallArgs -ne '') {
-            $processOptions.ArgumentList = $uninstallArgs
-        }
-
-        $process = Start-Process @processOptions
-        $exitCode = $process.ExitCode
-        Write-Host "Uninstall exit code: $exitCode"
-        break
+    $candidates += Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
+        $_.DisplayName -like $displayNameLike -and $_.Publisher -like $publisherLike
     }
 }
 
-if (-not $foundUninstaller) {
-    Write-Host "Uninstall entry not found for $softwareNameLike"
-    Exit 0
+$entry = $candidates | Where-Object { $_.QuietUninstallString } | Select-Object -First 1
+if (-not $entry) {
+    $entry = $candidates | Where-Object {
+        $_.UninstallString -and $_.UninstallString -notmatch '(?i)msiexec'
+    } | Select-Object -First 1
+}
+if (-not $entry) {
+    $entry = $candidates | Where-Object { $_.UninstallString } | Select-Object -First 1
 }
 
-Exit $exitCode
+$exitCode = $null
 
+try {
+    Stop-Process -Name "OktaVerify", "Okta Verify" -Force -ErrorAction SilentlyContinue
+
+    if ($entry) {
+        $raw = if ($entry.QuietUninstallString) { $entry.QuietUninstallString } else { $entry.UninstallString }
+        $commandParts = Split-UninstallCommand -raw $raw
+        $exitCode = Invoke-Uninstaller -exePath $commandParts[0] -existingArgs $commandParts[1]
+    }
+
+    if ($null -eq $exitCode) {
+        foreach ($cacheKey in @($productCode, $productCode.Trim('{}'))) {
+            $cached = Get-ChildItem -Path "C:\ProgramData\Package Cache\$cacheKey" -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($cached) {
+                $exitCode = Invoke-Uninstaller -exePath $cached.FullName -existingArgs ""
+                break
+            }
+        }
+    }
+
+    if ($null -eq $exitCode) {
+        Write-Host "Uninstall entry not found for $displayNameLike"
+        Exit 0
+    }
+
+    Write-Host "Uninstall exit code: $exitCode"
+    if ($expectedExitCodes -contains $exitCode) { Exit 0 }
+    Exit $exitCode
 } catch {
-    Write-Host "Error: $_"
+    Write-Host "Error running uninstaller: $_"
     Exit 1
 }

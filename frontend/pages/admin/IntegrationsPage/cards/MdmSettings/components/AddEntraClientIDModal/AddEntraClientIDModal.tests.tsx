@@ -5,10 +5,19 @@ import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";
 import { createCustomRenderer } from "test/test-utils";
 import configAPI from "services/entities/config";
+import { notify } from "components/ToastNotification";
 
 import AddEntraClientIdModal from "./AddEntraClientIDModal";
 
 jest.mock("services/entities/config");
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 // A valid (version 4) UUID stored in upper-case, as it might be after being added via GitOps or the API.
 const EXISTING_UPPERCASE_ID = "6D8769E6-0F8B-418D-B385-1A53968781C9";
@@ -20,9 +29,6 @@ const createTestMockData = (configOverrides: Partial<IConfig>) => ({
       config: createMockConfig(configOverrides),
       setConfig: jest.fn(),
     },
-    notification: {
-      renderFlash: jest.fn(),
-    },
   },
 });
 
@@ -32,13 +38,11 @@ describe("AddEntraClientIdModal", () => {
   });
 
   it("rejects a case-insensitive duplicate of an existing client ID without calling the API", async () => {
-    const renderFlash = jest.fn();
     const mockData = createTestMockData({
       mdm: createMockMdmConfig({
         windows_entra_client_ids: [EXISTING_UPPERCASE_ID],
       }),
     });
-    mockData.context.notification.renderFlash = renderFlash;
 
     const render = createCustomRenderer(mockData);
     const { user } = render(<AddEntraClientIdModal onExit={jest.fn()} />);
@@ -50,8 +54,7 @@ describe("AddEntraClientIdModal", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
 
     await waitFor(() => {
-      expect(renderFlash).toHaveBeenCalledWith(
-        "error",
+      expect(notify.error).toHaveBeenCalledWith(
         "Couldn't add client ID. Client ID already exists."
       );
     });

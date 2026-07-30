@@ -1,0 +1,10 @@
+{
+  "name": "TeXShop",
+  "unique_identifier": "edu.uo.texshop.tex",
+  "token": "texshop",
+  "installer_format": "zip",
+  "slug": "texshop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

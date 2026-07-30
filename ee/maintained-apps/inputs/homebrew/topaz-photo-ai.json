@@ -1,0 +1,10 @@
+{
+  "name": "Topaz Photo AI",
+  "unique_identifier": "com.topazlabs.TopazPhotoAI",
+  "token": "topaz-photo-ai",
+  "installer_format": "pkg",
+  "slug": "topaz-photo-ai/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Notesnook",
+  "unique_identifier": "com.streetwriters.notesnook",
+  "token": "notesnook",
+  "installer_format": "dmg",
+  "slug": "notesnook/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

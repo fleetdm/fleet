@@ -21,12 +21,6 @@
     font-size: $xx-small;
   }
 
-  .list-item__actions {
-    .button--icon {
-      @include bordered-icon-button;
-    }
-  }
-
   .list-item__actions-wrap {
     display: flex;
     flex-shrink: 0;
@@ -37,6 +31,35 @@
   @include breakpoint(smalldesk) {
     .list-item__main-content .graphic {
       display: none;
+    }
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    // The global body font-size ($medium) would otherwise inflate the name's
+    // line-box strut and baseline-bias the 14px title downward, making the
+    // centered user-scope icon look high. Match the title size so the strut
+    // tracks the text.
+    font-size: $x-small;
+
+    // let the name shrink/truncate; keep the user-scope icon at its natural size
+    .component__tooltip-wrapper:first-child {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .profile-list-item__scope-tooltip {
+      flex-shrink: 0;
+
+      // Center the icon as a flex box rather than inside the tooltip element's
+      // text line box, which would baseline-align it and push it above center.
+      .component__tooltip-wrapper__element {
+        display: flex;
+        align-items: center;
+      }
     }
   }
 

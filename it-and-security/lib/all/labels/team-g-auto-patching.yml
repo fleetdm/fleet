@@ -1,0 +1,10 @@
+- name: "Team: g-auto-patching"
+  description: Workstations used by team g-auto-patching
+  label_membership_type: manual
+  hosts:
+    - "1742" # George
+    - "1419" # Carlo
+    - "1429" # Rachel
+    - "841" # Jonathan
+    - "1481" # Marko
+    - "1595" # Brayan

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.37.1",
+      "version": "1.39.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather' AND version_compare(bundle_short_version, '1.37.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gather.Gather' AND version_compare(bundle_short_version, '1.39.2') < 0);"
       },
-      "installer_url": "https://github.com/gathertown/gather-town-desktop-releases/releases/download/v1.37.1/Gather-1.37.1-arm64-mac.zip",
+      "installer_url": "https://github.com/gathertown/gather-town-desktop-releases/releases/download/v1.39.2/Gather-1.39.2-arm64-mac.zip",
       "install_script_ref": "e494e208",
       "uninstall_script_ref": "b64dd64c",
-      "sha256": "50ba0fb5fc81ac1ff5b15d383f253a7693cf32d9dc96ffd5896e78e2666e9ee0",
+      "sha256": "292a6f5d7f20a865218055fd3de75f2facc4ce07ca8a35854e348ec069b7cd2f",
       "default_categories": [
         "Developer tools"
       ]

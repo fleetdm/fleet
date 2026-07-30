@@ -20,7 +20,7 @@ Below is the end user experience for Linux. Check out the separate video for [Wi
    <iframe src="https://www.youtube.com/embed/UZAqw4pg9xE?si=rMhbfImonY4Avb06" frameborder="0" allowfullscreen></iframe>
 </div>
 
-## End user authentication
+## Require IdP authentication
 
 ### End user experience
 
@@ -28,11 +28,11 @@ Fleet automatically opens the default web browser and directs the end user to lo
 
 If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
 
-Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
-When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, end user authentication won’t be enforced when it re-enrolls.
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
+> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, IdP authentication won't be enforced.
 
 ## Install software
 
@@ -46,7 +46,7 @@ The browser can be closed, and the installation will continue in the background.
 
 For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian hosts. `.rpm` packages are only installed on Fedora, CentOS, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
 
-If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
 To replace the Fleet logo with your organization's logo:
 
@@ -57,6 +57,16 @@ To replace the Fleet logo with your organization's logo:
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 > Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
+
+### Policies are checked before install
+
+On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the software has associated policies and the host passes all of them, Fleet skips the install. If the host fails any of them, Fleet installs the software. Software without associated policies is always installed.
+
+To associate a policy with software, use the policy's **Install software** automation. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+A policy only counts toward the decision if it applies to the host. For example, a policy scoped to labels that exclude the host is ignored. If none of the associated policies apply to the host, or the host doesn't report policy results within 30 minutes of enrolling, Fleet installs the software.
+
+A skipped install counts as a success. It shows as **Installed** on the end user's setup progress page, it doesn't create an install activity, and it never triggers **Cancel setup if software fails**.
 
 ### Cancel setup if software fails (Windows)
 

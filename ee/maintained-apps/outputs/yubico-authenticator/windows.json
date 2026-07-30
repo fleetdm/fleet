@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.3.3",
+      "version": "7.4.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Yubico Authenticator' AND publisher = 'Yubico AB';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yubico Authenticator' AND publisher = 'Yubico AB' AND version_compare(version, '7.3.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Yubico Authenticator' AND publisher = 'Yubico AB' AND version_compare(version, '7.4.1') < 0);"
       },
-      "installer_url": "https://github.com/Yubico/yubioath-flutter/releases/download/7.3.3/yubico-authenticator-7.3.3-win64.msi",
+      "installer_url": "https://github.com/Yubico/yubioath-flutter/releases/download/7.4.1/yubico-authenticator-7.4.1-win64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "da50bb65",
-      "sha256": "30ddca325291b6b94a4dcdd650575b318412084109ac09b093f764b94b9a4a84",
+      "sha256": "fd3a4beee31b07ce6acb67f8b9f46b75daf15b669bd034b7582171743e0436ad",
       "default_categories": [
         "Productivity"
       ],

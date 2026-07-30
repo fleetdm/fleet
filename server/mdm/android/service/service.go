@@ -491,13 +491,21 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 		}
 	}
 
-	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
-
 	fullyManaged := false
 	fullyManagedParam := r.URL.Query().Get("fully_managed")
 	if fullyManagedParam == "true" || fullyManagedParam == "1" {
 		fullyManaged = true
 	}
+
+	if idpUUID := r.URL.Query().Get("idp_uuid"); idpUUID != "" {
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      idpUUID,
+			FullyManaged: fullyManaged,
+		}, nil
+	}
+
+	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
 
 	if err == http.ErrNoCookie {
 		// We do not fail here if no cookie is found, we validate later down the line if it's required

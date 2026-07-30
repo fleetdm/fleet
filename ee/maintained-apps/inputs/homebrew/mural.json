@@ -1,0 +1,10 @@
+{
+  "name": "MURAL",
+  "unique_identifier": "co.mural.macOS",
+  "token": "mural",
+  "installer_format": "dmg",
+  "slug": "mural/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

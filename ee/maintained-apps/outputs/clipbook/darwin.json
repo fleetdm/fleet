@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.35.0",
+      "version": "1.36.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '1.35.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ikryanov.clipbook' AND version_compare(bundle_short_version, '1.36.0') < 0);"
       },
-      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-1.35.0-arm64.dmg",
+      "installer_url": "https://f005.backblazeb2.com/file/clipbook/ClipBook-1.36.0-arm64.dmg",
       "install_script_ref": "c4fc5697",
       "uninstall_script_ref": "ac8f913f",
-      "sha256": "31de4c4cd1a1a2f6e79fbb04f2ef6d6e8df172d3a2c251a2960d2b9720e6f580",
+      "sha256": "d59ad57f6bb8026c026e392e996eea2523fc8c9180e6a48be4981a491764d767",
       "default_categories": [
         "Utilities"
       ]

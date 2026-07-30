@@ -17,26 +17,30 @@ import (
 	"pgregory.net/rapid"
 )
 
-// Property-based tests for handleESPRelease. They cover the wait-gate decision and the universal block/release
+// Property-based tests for handleESPRelease. They cover the wait-gate decision and the universal block/warn/release
 // command-shape invariants in a single combined property check.
 //
 // The spec function pbtESPSpec computes the expected (decision, observedHasFailure) from the inputs without
 // referencing the production code. We then run getESPCommands against a mock datastore and assert:
 //
-//   - Decision (wait/block/release) matches the spec.
+//   - Decision (wait/block/warn/release) matches the spec.
 //   - Wait → no side effects (no cancel, no persist, no CAS).
-//   - Block path command shape: BlockInStatusPage=1, AllowCollectLogsButton, TimeOutUntilSyncFailure=1,
-//     reason-specific CustomErrorText, NO ServerHasFinishedProvisioning, NO InstallationState.
+//   - Block-flavored command shape (hard block AND warn/soft block): AllowCollectLogsButton,
+//     TimeOutUntilSyncFailure=1, NO ServerHasFinishedProvisioning, NO InstallationState. They differ in
+//     BlockInStatusPage (block: 1 = Reset PC; warn: 5 = Reset PC + Continue Anyway) and CustomErrorText
+//     (block: reason-specific static text; warn: dynamic failed-software list).
 //   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning plus
-//     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope
-//     Provider node is created during the hold phase via Add commands so the user-scope SHFP write
-//     lands instead of being 405-rejected.
+//     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope write is
+//     rejected with 405 until the device's user MDM context initializes, so the release path does NOT CAS to
+//     None: the enrollment stays Active and the Replace is re-sent until a 200 ack (handleESPUserReleaseRetry).
 //   - Persisted CommandUUIDs equal inline CmdID.Value (the ack-clearing invariant).
 //   - Persist runs as a single batched call (a regression that loops single inserts would split CustomErrorText
 //     and the block flags across multiple TX boundaries).
 //   - Cancel block fires iff (timedOut || (observedHasFailure && requireAll)); when it fires,
 //     CancelHostUpcomingActivity is called once per Pending/Running row in input. Cancel-upcoming runs strictly
-//     before cancel-status; both run strictly before persist; persist runs strictly before CAS.
+//     before cancel-status; both run strictly before persist; persist runs strictly before CAS on the block
+//     paths (the release path defers the CAS to the ack). The warn path never cancels: all items already
+//     reached a terminal state and the user may continue.
 //
 // Order independence is implicit: pbtESPSpec is a pure function of the multiset of statuses (no positional
 // dependency) and rapid samples many orderings, so any introduced order-dependence in production code
@@ -75,12 +79,22 @@ func newPBTESPSvc(
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		ac := &fleet.AppConfig{}
+		ac.MDM.WindowsEnabledAndConfigured = true
 		ac.MDM.MacOSSetup.RequireAllSoftwareWindows = requireAll
 		return ac, nil
 	}
 
-	// Skip Stages 1 and 2: profiles are out of PBT scope.
-	ds.ListMDMWindowsProfilesToInstallForHostFunc = func(ctx context.Context, hUUID string) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// Profiles are out of PBT scope.
+	ds.GetWindowsMDMHostForReconcileFunc = func(ctx context.Context, hUUID string) (*fleet.WindowsHostReconcileInfo, error) {
+		return &fleet.WindowsHostReconcileInfo{HostID: 1, UUID: hUUID}, nil
+	}
+	ds.ListWindowsProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.WindowsProfileForReconcile, error) {
+		return nil, nil
+	}
+	ds.BulkGetHostLabelMembershipsFunc = func(ctx context.Context, hostIDs, labelIDs []uint) (map[uint]map[uint]struct{}, error) {
+		return nil, nil
+	}
+	ds.BulkGetHostMDMWindowsProfilesByUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string][]*fleet.MDMWindowsProfilePayload, error) {
 		return nil, nil
 	}
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hUUID string) ([]fleet.HostMDMWindowsProfile, error) {
@@ -131,6 +145,9 @@ func newPBTESPSvc(
 		trace.callOrder = append(trace.callOrder, "cas")
 		return true, nil
 	}
+	ds.MDMWindowsGetESPReleaseAckStatusFunc = func(ctx context.Context, enrollmentID uint, targetLocURI, cmdUUIDPrefix string) (*fleet.MDMWindowsESPReleaseAckStatus, error) {
+		return &fleet.MDMWindowsESPReleaseAckStatus{}, nil
+	}
 
 	svc := &Service{ds: ds, logger: pbtESPLogger}
 	svc.SetActivityService(&mock.MockActivityService{})
@@ -150,15 +167,22 @@ func newPBTESPSvc(
 type pbtESPDecision string
 
 const (
-	pbtESPWait    pbtESPDecision = "wait"
-	pbtESPBlock   pbtESPDecision = "block"
+	pbtESPWait pbtESPDecision = "wait"
+	// pbtESPBlock is the hard block: failure UI with Reset PC only, remaining items cancelled.
+	pbtESPBlock pbtESPDecision = "block"
+	// pbtESPWarn is the soft block: failure UI listing failed software with a Continue Anyway option, no cancellation.
+	pbtESPWarn    pbtESPDecision = "warn"
 	pbtESPRelease pbtESPDecision = "release"
 )
 
-// pbtESPSpec computes the expected outcome from the inputs without referencing production code. It returns
-// the decision and the hasSoftwareFailure that production would observe. The latter differs from "results
-// contain Failure" when timedOut is true, because Stage 3 is skipped in that case so the production variable
-// stays at its zero value.
+// pbtESPSpec computes the expected outcome from the inputs without referencing production code. It returns the
+// decision and the hasSoftwareFailure that production would observe.
+//
+// observedHasFailure equals "the inputs contain a Failure row" on every path except one: a require_all=true timeout.
+// When the device times out, production finalizes immediately instead of examining each setup-experience result. The
+// require_all=false timeout path still examines the results so it can list the failed software, so observedHasFailure
+// reflects the inputs there. The require_all=true timeout path does not re-examine them (a real failure would already
+// have hard-blocked on an earlier check-in), so observedHasFailure stays false there even when a failure is present.
 func pbtESPSpec(
 	statuses []fleet.SetupExperienceStatusResultStatus, timedOut, requireAll bool,
 ) (decision pbtESPDecision, observedHasFailure bool) {
@@ -172,14 +196,16 @@ func pbtESPSpec(
 		}
 	}
 	if timedOut {
-		// Wait gates skipped; finalize directly. observedHasFailure stays at its zero value because Stage 3
-		// never ran.
+		// Wait gates skipped; finalize directly. require_all=true is not re-scanned for failures (it would have
+		// hard-blocked earlier), so observedHasFailure stays false and it hard-blocks with the timeout text.
 		if requireAll {
 			return pbtESPBlock, false
 		}
-		return pbtESPRelease, false
+		// require_all=false is scanned: it soft-blocks either way (lists failures if any, else timeout text).
+		// observedHasFailure reflects whether the scan saw a Failure row.
+		return pbtESPWarn, inputHasFailure
 	}
-	// !timedOut: Stage 3 ran. observedHasFailure = inputHasFailure.
+	// Not timed out: production examined every setup-experience result, so observedHasFailure = inputHasFailure.
 	if inputAnyInFlight {
 		if !inputHasFailure {
 			return pbtESPWait, inputHasFailure
@@ -189,8 +215,13 @@ func pbtESPSpec(
 		}
 		return pbtESPBlock, inputHasFailure // short-circuit: failure + require_all + in-flight siblings -> block now
 	}
-	if inputHasFailure && requireAll {
-		return pbtESPBlock, inputHasFailure
+	if inputHasFailure {
+		if requireAll {
+			return pbtESPBlock, inputHasFailure
+		}
+		// Software failed but require_all=false: soft block. The user sees the failure UI listing the failed
+		// software but may continue to the desktop.
+		return pbtESPWarn, inputHasFailure
 	}
 	return pbtESPRelease, inputHasFailure
 }
@@ -205,6 +236,7 @@ func pbtFindCmdByLocURI(cmds []*fleet.SyncMLCmd, substr string) *fleet.SyncMLCmd
 	return nil
 }
 
+// TestPBT_HandleESPRelease tests releases due to software failures or timeout. It does not test the happy path (which requires an Ack from device). The happy path is covered by other tests.
 func TestPBT_HandleESPRelease(t *testing.T) {
 	statusGen := rapid.SampledFrom([]fleet.SetupExperienceStatusResultStatus{
 		fleet.SetupExperienceStatusPending,
@@ -220,8 +252,16 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 		requireAll := rapid.Bool().Draw(rt, "requireAll")
 
 		expected, observedHasFailure := pbtESPSpec(statuses, timedOut, requireAll)
+		// expectedFailedNames mirrors the mock fixture naming (row i is "item-i") for the Failure rows, in input
+		// order. Only the warn path consumes it (dynamic CustomErrorText).
+		var expectedFailedNames []string
+		for i, s := range statuses {
+			if s == fleet.SetupExperienceStatusFailure {
+				expectedFailedNames = append(expectedFailedNames, fmt.Sprintf("item-%d", i))
+			}
+		}
 		svc, device, trace := newPBTESPSvc(statuses, timedOut, requireAll)
-		cmds, err := svc.getESPCommands(t.Context(), device)
+		cmds, err := svc.getESPCommands(t.Context(), device, nil)
 		require.NoErrorf(rt, err, "statuses=%v timedOut=%v requireAll=%v", statuses, timedOut, requireAll)
 
 		if expected == pbtESPWait {
@@ -254,55 +294,60 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 		require.Equalf(rt, 1, persistCount, "persist must be a single batched call; callOrder=%v", trace.callOrder)
 
 		switch expected {
-		case pbtESPBlock:
-			// Block path NEVER includes ServerHasFinishedProvisioning -- that command would tell Windows the
-			// ESP succeeded and proceed past the failure UI. Also NEVER InstallationState alone (VM testing
-			// confirmed setting it on the parent PolicyProviders node without per-tracker state from #43776
-			// does not escalate the failure UI).
+		case pbtESPBlock, pbtESPWarn:
+			// Block-flavored paths (hard block and warn/soft block) NEVER include ServerHasFinishedProvisioning --
+			// that command would tell Windows the ESP succeeded and proceed past the failure UI. Also NEVER
+			// InstallationState alone (VM testing confirmed setting it on the parent PolicyProviders node without
+			// per-tracker state from #43776 does not escalate the failure UI).
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-				"block path must NOT include ServerHasFinishedProvisioning")
+				"%s path must NOT include ServerHasFinishedProvisioning", expected)
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "InstallationState"),
-				"block path uses the timeout-based trigger, not InstallationState")
+				"%s path uses the timeout-based trigger, not InstallationState", expected)
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "WasDeviceSuccessfullyProvisioned"),
-				"block path must NOT include WasDeviceSuccessfullyProvisioned (verified on Win11 26200: the "+
-					"documented path does not render failure UI on non-Sidecar MDM)")
+				"%s path must NOT include WasDeviceSuccessfullyProvisioned (verified on Win11 26200: the "+
+					"documented path does not render failure UI on non-Sidecar MDM)", expected)
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "IsSyncDone"),
-				"block path must NOT include IsSyncDone (verified on Win11 26200: the documented path does not "+
-					"render failure UI on non-Sidecar MDM)")
-			// Block path always includes BlockInStatusPage=1 (Reset PC), AllowCollectLogsButton, and
-			// TimeOutUntilSyncFailure=1 (one minute, forces failure UI).
+				"%s path must NOT include IsSyncDone (verified on Win11 26200: the documented path does not "+
+					"render failure UI on non-Sidecar MDM)", expected)
+			// The hard block offers Reset PC only (1); the warn path adds Continue Anyway (5 = 1|4).
+			expectedButtons := "1"
+			expectedErrorText := microsoft_mdm.ESPTimeoutErrorText
+			switch {
+			case expected == pbtESPWarn:
+				expectedButtons = "5"
+				// Warn lists failed software when any failed; otherwise (require_all=false timeout, nothing failed) it
+				// shows the timeout text. Both keep Continue Anyway.
+				if observedHasFailure {
+					expectedErrorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(expectedFailedNames)
+				}
+			case observedHasFailure:
+				expectedErrorText = microsoft_mdm.ESPSoftwareFailureErrorText
+			}
 			blockCmd := pbtFindCmdByLocURI(cmds, "BlockInStatusPage")
-			require.NotNilf(rt, blockCmd, "block path must include BlockInStatusPage")
+			require.NotNilf(rt, blockCmd, "%s path must include BlockInStatusPage", expected)
 			require.NotNilf(rt, blockCmd.Items[0].Data, "BlockInStatusPage must have data")
-			assert.Equalf(rt, "1", blockCmd.Items[0].Data.Content,
-				"BlockInStatusPage must be 1 (Reset PC) per DMClient CSP docs")
+			assert.Equalf(rt, expectedButtons, blockCmd.Items[0].Data.Content,
+				"BlockInStatusPage must match the %s flavor's recovery buttons per DMClient CSP bit flags", expected)
 			assert.NotNilf(rt, pbtFindCmdByLocURI(cmds, "AllowCollectLogsButton"),
-				"block path must include AllowCollectLogsButton")
+				"%s path must include AllowCollectLogsButton", expected)
 			timeoutCmd := pbtFindCmdByLocURI(cmds, "TimeOutUntilSyncFailure")
-			require.NotNilf(rt, timeoutCmd, "block path must include TimeOutUntilSyncFailure")
+			require.NotNilf(rt, timeoutCmd, "%s path must include TimeOutUntilSyncFailure", expected)
 			require.NotNilf(rt, timeoutCmd.Items[0].Data, "TimeOutUntilSyncFailure must have data")
 			assert.Equalf(rt, "1", timeoutCmd.Items[0].Data.Content,
 				"TimeOutUntilSyncFailure must be 1 minute (force quick failure)")
-			// errorText is software-failure text iff observedHasFailure (Stage 3 ran AND saw a Failure); else
-			// timeout text. The pure-timeout path lands here too with observedHasFailure=false.
 			errCmd := pbtFindCmdByLocURI(cmds, "CustomErrorText")
-			require.NotNilf(rt, errCmd, "block path must include CustomErrorText")
+			require.NotNilf(rt, errCmd, "%s path must include CustomErrorText", expected)
 			require.NotNilf(rt, errCmd.Items[0].Data, "CustomErrorText must have data")
-			if observedHasFailure {
-				assert.Equalf(rt, microsoft_mdm.ESPSoftwareFailureErrorText, errCmd.Items[0].Data.Content,
-					"block on software failure must use software-failure error text")
-			} else {
-				assert.Equalf(rt, microsoft_mdm.ESPTimeoutErrorText, errCmd.Items[0].Data.Content,
-					"block on pure timeout must use timeout error text")
-			}
+			assert.Equalf(rt, expectedErrorText, errCmd.Items[0].Data.Content,
+				"%s path must carry the expected error text", expected)
 		case pbtESPRelease:
 			// Release path NEVER includes CustomErrorText -- the failure UI never renders on a release, so
 			// any error text would be dead state on the DMClient node.
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "CustomErrorText"),
 				"release path must NOT include CustomErrorText")
 			// Release writes ServerHasFinishedProvisioning at BOTH Device and User scope. Device scope completes
-			// the Device setup phase; User scope completes Account setup. The User-scope write requires the
-			// user-scope DMClient Provider node to have been created earlier via the hold-phase Add commands.
+			// the Device setup phase; User scope completes Account setup. The User-scope write is rejected with
+			// 405 until the user MDM context initializes, which is why its ack gates the Active -> None CAS.
 			shfpDeviceFound, shfpUserFound := false, false
 			for _, c := range cmds {
 				uri := c.GetTargetURI()
@@ -367,8 +412,16 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			}
 		}
 		require.NotEqualf(rt, -1, firstPersist, "persist must run for non-wait outcomes")
-		require.NotEqualf(rt, -1, firstCas, "CAS must run for non-wait outcomes")
-		require.Lessf(rt, firstPersist, firstCas, "persist must run before CAS; callOrder=%v", trace.callOrder)
+		// CAS Active -> None runs only on the block-flavored paths. The release path stays Active: the
+		// transition is deferred until the device acks the user-scope ServerHasFinishedProvisioning Replace
+		// with a 200 (handleESPUserReleaseRetry on a later checkin).
+		if expected == pbtESPRelease {
+			require.Equalf(rt, -1, firstCas,
+				"release path must NOT CAS to None before the user-scope release ack; callOrder=%v", trace.callOrder)
+		} else {
+			require.NotEqualf(rt, -1, firstCas, "CAS must run for block outcomes")
+			require.Lessf(rt, firstPersist, firstCas, "persist must run before CAS; callOrder=%v", trace.callOrder)
+		}
 		if lastCancelUpcoming != -1 && firstCancelStatus != -1 {
 			require.Lessf(rt, lastCancelUpcoming, firstCancelStatus,
 				"cancel-upcoming must run before cancel-status; callOrder=%v", trace.callOrder)

@@ -39,5 +39,6 @@ func ValidateSecretVariableName(name string) error {
 type SecretVariableIdentifier struct {
 	ID        uint   `json:"id" db:"id"`
 	Name      string `json:"name" name:"name"`
+	CreatedAt string `json:"created_at" db:"created_at"`
 	UpdatedAt string `json:"updated_at" db:"updated_at"`
 }

@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 
 import { IMdmAbToken } from "interfaces/mdm";
 import useGitOpsMode from "hooks/useGitOpsMode";
 
 import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import { generateTableConfig } from "./AppleBusinessManagerTableConfig";
 
@@ -23,6 +24,13 @@ const AppleBusinessManagerTable = ({
   onDeleteToken,
 }: IAppleBusinessManagerTableProps) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
+  const [searchQuery, setSearchQuery] = useState("");
+  const normalizedQuery = searchQuery.toLowerCase();
+  const filteredAbTokens = normalizedQuery
+    ? abTokens.filter((token) =>
+        token.org_name.toLowerCase().includes(normalizedQuery)
+      )
+    : abTokens;
 
   const onSelectAction = (action: string, abmToken: IMdmAbToken) => {
     switch (action) {
@@ -46,18 +54,25 @@ const AppleBusinessManagerTable = ({
     repoURL
   );
 
+  const onQueryChange = (queryData: ITableQueryData) => {
+    setSearchQuery(queryData.searchQuery);
+  };
+
   return (
     <TableContainer<IMdmAbToken>
       columnConfigs={tableConfig}
       defaultSortHeader="org_name"
-      disableTableHeader
       disablePagination
       showMarkAllPages={false}
       isAllPagesSelected={false}
       emptyComponent={() => <></>}
       isLoading={false}
-      data={abTokens}
+      data={filteredAbTokens}
       className={baseClass}
+      searchable
+      inputPlaceHolder="Search by organization name"
+      searchQuery={searchQuery}
+      onQueryChange={onQueryChange}
     />
   );
 };

@@ -1,0 +1,10 @@
+{
+  "name": "Any.do",
+  "unique_identifier": "com.anydo.mac",
+  "token": "anydo",
+  "installer_format": "dmg",
+  "slug": "anydo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

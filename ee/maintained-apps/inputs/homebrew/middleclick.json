@@ -1,0 +1,10 @@
+{
+  "name": "MiddleClick",
+  "unique_identifier": "art.ginzburg.MiddleClick",
+  "token": "middleclick",
+  "installer_format": "zip",
+  "slug": "middleclick/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

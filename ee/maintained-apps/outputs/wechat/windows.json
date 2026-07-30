@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "3.9.12.57",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'WeChat' AND publisher = '腾讯科技(深圳)有限公司';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'WeChat' AND publisher = '腾讯科技(深圳)有限公司' AND version_compare(version, '3.9.12.57') < 0);"
+      },
+      "installer_url": "https://dldir1v6.qq.com/weixin/Windows/WeChatSetup.exe",
+      "install_script_ref": "fcde0972",
+      "uninstall_script_ref": "dbed45b8",
+      "sha256": "c29fc05630cfc95ef6483f6b5b52aabfe74265bb260e210e78ae437d305d8990",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "dbed45b8": "# Uninstall script for NSIS installer.\n$softwareName = \"WeChat\"\n$softwareNameLike = \"*${softwareName}*\"\n$publisher = \"\"\n\n$keys = @(\n  'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n  'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n)\n\n$exitCode = 0\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem -Path $keys -ErrorAction SilentlyContinue |\n  ForEach-Object { Get-ItemProperty $_.PSPath }\n\n$found = $false\nforeach ($key in $uninstallKeys) {\n  if ($key.DisplayName -like $softwareNameLike -and ($publisher -eq \"\" -or $key.Publisher -like \"*$publisher*\")) {\n    $found = $true\n\n    $uninstallCommand = if ($key.QuietUninstallString) { $key.QuietUninstallString } else { $key.UninstallString }\n\n    # Parse the uninstaller exe path out of the command\n    if ($uninstallCommand -match '^\"([^\"]+)\"') {\n      $uninstallExe = $matches[1]\n    } elseif ($uninstallCommand -match '^(.+?\\.exe)') {\n      $uninstallExe = $matches[1]\n    } else {\n      $uninstallExe = $uninstallCommand\n    }\n\n    # Determine the install directory\n    if ($key.InstallLocation -and (Test-Path $key.InstallLocation)) {\n      $installDir = $key.InstallLocation\n    } else {\n      $installDir = Split-Path -Parent $uninstallExe\n    }\n\n    Write-Host \"Uninstaller: $uninstallExe\"\n    Write-Host \"Install dir: $installDir\"\n\n    $process = Start-Process -FilePath $uninstallExe -ArgumentList @(\"/S\", \"_?=$installDir\") -PassThru -Wait -NoNewWindow\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n    break\n  }\n}\n\nif (-not $found) {\n  Write-Host \"Uninstall entry not found\"\n  Exit 0\n}\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n\nExit $exitCode\n",
+    "fcde0972": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# NSIS installer: /S installs silently\n$processOptions = @{\n  FilePath     = \"$exeFilePath\"\n  ArgumentList = @(\"/S\")\n  PassThru     = $true\n  Wait         = $true\n  NoNewWindow  = $true\n}\n\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

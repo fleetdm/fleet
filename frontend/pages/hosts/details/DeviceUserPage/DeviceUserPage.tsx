@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
@@ -7,7 +7,6 @@ import { AxiosError } from "axios";
 
 import { pick } from "lodash";
 
-import { NotificationContext } from "context/notification";
 import classNames from "classnames";
 
 import deviceUserAPI, {
@@ -41,7 +40,7 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import FlashMessage from "components/FlashMessage";
+import { notify } from "components/ToastNotification";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
@@ -115,6 +114,9 @@ interface IDeviceUserPageProps {
     pathname: string;
     query: {
       vulnerable?: string;
+      exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -135,10 +137,6 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
-
-  const { renderFlash, notification, hideFlash } = useContext(
-    NotificationContext
-  );
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -313,8 +311,7 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              renderFlash(
-                "error",
+              notify.error(
                 `This host is offline. Please try refetching host vitals later.`
               );
             }
@@ -335,8 +332,7 @@ const DeviceUserPage = ({
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                renderFlash(
-                  "error",
+                notify.error(
                   `This host is offline. Please try refetching host vitals later.`
                 );
               }
@@ -347,9 +343,8 @@ const DeviceUserPage = ({
                 responseHost.platform === "ios" ||
                 responseHost.platform === "ipados";
               if (!isIOSOrIPadOS) {
-                renderFlash(
-                  "error",
-                  "We're having trouble fetching fresh vitals for this host. Please try again later."
+                notify.error(
+                  "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
                 );
               }
             }
@@ -521,16 +516,12 @@ const DeviceUserPage = ({
         refetchExtensions();
       }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
     } catch (error) {
-      renderFlash("error", getErrorMessage(error, host.display_name));
+      notify.error(getErrorMessage(error, host.display_name), {
+        response: error,
+      });
       resetHostRefetchStates();
     }
-  }, [
-    host,
-    deviceAuthToken,
-    refetchDupDetails,
-    refetchExtensions,
-    renderFlash,
-  ]);
+  }, [host, deviceAuthToken, refetchDupDetails, refetchExtensions]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
@@ -576,7 +567,7 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      renderFlash("error", "Failed to trigger key creation.");
+      notify.error("Failed to trigger key creation.", { response: e });
       setShowCreateLinuxKeyModal(false);
     } finally {
       setIsTriggeringCreateLinuxKey(false);
@@ -813,8 +804,6 @@ const DeviceUserPage = ({
                   className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
-                  disableFullNameTooltip
-                  disableGroupsTooltip
                 />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
@@ -845,6 +834,7 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseHostSoftwareQueryParams(location.query)}
                     isMyDevicePage
+                    isPremiumTier={isPremiumTier}
                     platform={host.platform}
                     hostTeamId={host.team_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
@@ -954,12 +944,6 @@ const DeviceUserPage = ({
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}
-      <FlashMessage
-        fullWidth
-        notification={notification}
-        onRemoveFlash={hideFlash}
-        pathname={location.pathname}
-      />
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
@@ -967,7 +951,7 @@ const DeviceUserPage = ({
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
                   {isLoadingDupDetails ? (
-                    <Spinner includeContainer={false} centered={false} />
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}
@@ -1008,14 +992,12 @@ const DeviceUserPage = ({
             setIsLoadingBypass(true);
             try {
               await bypassConditionalAccess(deviceAuthToken);
-              renderFlash(
-                "success",
+              notify.success(
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
               refetchDupDetails();
             } catch {
-              renderFlash(
-                "error",
+              notify.error(
                 `Couldn't restore access. Please click "Refetch" and try again.`
               );
             } finally {

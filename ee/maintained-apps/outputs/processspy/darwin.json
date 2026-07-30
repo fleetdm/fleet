@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.13.4",
+      "version": "1.14.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy' AND version_compare(bundle_short_version, '1.13.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.itone.ProcessSpy' AND version_compare(bundle_short_version, '1.14.0') < 0);"
       },
-      "installer_url": "https://process-spy.app/archive/ProcessSpy_1.13.4.dmg",
+      "installer_url": "https://process-spy.app/archive/ProcessSpy_1.14.0.dmg",
       "install_script_ref": "8cc3c9e8",
       "uninstall_script_ref": "0ab29be3",
-      "sha256": "1514f0f247be5b0ca390d00f2c959c808c8bc5f0f023a08d0bfbbe3922c2673f",
+      "sha256": "628f72b63846547618a97c64f94efa41956ef4f5e2d95ec08b0e942964c87730",
       "default_categories": [
         "Productivity"
       ]

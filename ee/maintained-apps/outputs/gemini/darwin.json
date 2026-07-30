@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.10.0",
+      "version": "2.10.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2' AND version_compare(bundle_short_version, '2.10.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.macpaw.site.Gemini2' AND version_compare(bundle_short_version, '2.10.1') < 0);"
       },
-      "installer_url": "https://dl.devmate.com/com.macpaw.site.Gemini2/405/1774975750/Gemini2-405.zip",
+      "installer_url": "https://dl.devmate.com/com.macpaw.site.Gemini2/406/1781745541/Gemini2-406.zip",
       "install_script_ref": "f69da180",
       "uninstall_script_ref": "0ee76fb2",
-      "sha256": "c3201c9bc191ddc440742005a0b3b785bd8ae55078c609a6253a3603ab265270",
+      "sha256": "c96dff8fa9f02becfab943a7e5b9c67eb054f1c7b41fb62b5caa5ef0536852dc",
       "default_categories": [
         "Utilities"
       ]

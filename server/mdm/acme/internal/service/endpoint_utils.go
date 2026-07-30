@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -34,10 +36,17 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) er
 func acmeErrorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	var acmeErr *types.ACMEError
 	if !errors.As(err, &acmeErr) {
-		// TODO: If we can get access to a logger, we can log the details here, to help troubleshoot service errors.
-		// if it's not already an ACME error, it is because it is an internal server
-		// error (or a dev error, for 4xx we should always return ACMEError).
-		acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
+
+		// Check if it's a client error, if so then return a MalformedError to avoid returning a 500.
+		var clientErr platform_errors.ErrWithIsClientError
+		if errors.As(err, &clientErr) && clientErr.IsClientError() {
+			acmeErr = types.MalformedError(fmt.Sprintf("The request was malformed: %s", clientErr.Error()))
+		} else {
+			// TODO: If we can get access to a logger, we can log the details here, to help troubleshoot service errors.
+			// if it's not a client error, it is because it is an internal server
+			// error (or a dev error, for 4xx we should always return ACMEError).
+			acmeErr = types.InternalServerError("") // not passing err.Error() as we don't want to leak internal details
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/problem+json")

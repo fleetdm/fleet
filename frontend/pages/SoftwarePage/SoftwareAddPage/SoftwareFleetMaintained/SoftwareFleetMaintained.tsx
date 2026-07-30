@@ -40,12 +40,10 @@ interface ISoftwareFleetMaintainedProps {
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-/** Team decision to avoid UI pagination because API needs revamp to properly
- * handle pagination serverside, so rather break API than add more helper logic to
- * handle clientside pagination when we know API will be revamped and would need
- * to convert back to serverside after API fix.
- */
-const DEFAULT_PAGE_SIZE = 999;
+// The list is paginated server-side by app (an app's macOS and Windows entries
+// are combined into a single row). 100 apps per page keeps the full library
+// reachable without an unbounded response.
+const DEFAULT_PAGE_SIZE = 100;
 const DEFAULT_PAGE = 0;
 
 const SoftwareFleetMaintained = ({
@@ -65,6 +63,18 @@ const SoftwareFleetMaintained = ({
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
+  // Platform and "hide added apps" are filtered server-side. Map the UI's
+  // platform value ("macos"/"windows") to the API's ("darwin"/"windows") and
+  // the status toggle to the `available` flag. Undefined values are omitted
+  // from the request.
+  let apiPlatform: "darwin" | "windows" | undefined;
+  if (platform === "macos") {
+    apiPlatform = "darwin";
+  } else if (platform === "windows") {
+    apiPlatform = "windows";
+  }
+  const availableOnly = status === "available" ? true : undefined;
+
   const { data, isLoading, isFetching, isError } = useQuery<
     ISoftwareFleetMaintainedAppsResponse,
     AxiosError,
@@ -80,6 +90,8 @@ const SoftwareFleetMaintained = ({
         order_direction,
         order_key,
         team_id: currentTeamId,
+        platform: apiPlatform,
+        available: availableOnly,
       },
     ],
     ({ queryKey: [queryKey] }) => {

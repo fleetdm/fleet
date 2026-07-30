@@ -1,0 +1,10 @@
+{
+  "name": "LosslessCut",
+  "unique_identifier": "no.mifi.losslesscut-mac",
+  "token": "losslesscut",
+  "installer_format": "dmg",
+  "slug": "losslesscut/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -247,6 +247,108 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			})
 		})
 
+		t.Run("when idp_uuid is passed as query param", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, true)
+			setupAndroidEnterprise()
+			idpEmail := "queryparam@local.com"
+			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "queryparam",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), idpEmail)
+			require.NoError(t, err)
+
+			// Pass idp_uuid as query parameter (no cookie). This is the path
+			// used after the BYOD cookie is cleared for fully-managed Android.
+			resp := s.DoRawWithHeaders(t, "GET",
+				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, idpAccount.UUID),
+				nil, http.StatusOK, nil,
+			)
+			defer resp.Body.Close()
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			var etr android.EnrollmentTokenResponse
+			err = json.Unmarshal(bodyBytes, &etr)
+			require.NoError(t, err)
+
+			decoded, err := base64.StdEncoding.DecodeString(etr.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when idp_uuid query param takes precedence over cookie", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, true)
+			setupAndroidEnterprise()
+
+			// Create two IdP accounts
+			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "cookie-user",
+				Email:    "cookie@local.com",
+			})
+			require.NoError(t, err)
+			cookieAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), "cookie@local.com")
+			require.NoError(t, err)
+
+			err = s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "param-user",
+				Email:    "param@local.com",
+			})
+			require.NoError(t, err)
+			paramAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), "param@local.com")
+			require.NoError(t, err)
+
+			// Send both cookie and query param with different UUIDs
+			resp := s.DoRawWithHeaders(t, "GET",
+				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, paramAccount.UUID),
+				nil, http.StatusOK, map[string]string{
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, cookieAccount.UUID),
+				},
+			)
+			defer resp.Body.Close()
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			var etr android.EnrollmentTokenResponse
+			err = json.Unmarshal(bodyBytes, &etr)
+			require.NoError(t, err)
+
+			decoded, err := base64.StdEncoding.DecodeString(etr.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			// Query param UUID should win over cookie UUID
+			require.Equal(t, paramAccount.UUID, enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
 		t.Run("when fully_managed is true", func(t *testing.T) {
 			enableAndroidMDM()
 			createTeamAndSecret(globalSecret, globalSecret, false)

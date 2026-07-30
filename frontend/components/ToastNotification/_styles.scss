@@ -1,0 +1,224 @@
+// ToastNotification — Sonner headless toast. Each toast renders our own
+// <ToastCard/> via toast.custom(), so all card styling below is ours.
+
+$toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
+$toast-notification-action-size: 36px;
+$toast-notification-width: 500px;
+
+.toast-notification {
+  // Sonner sizes each toast <li> from --width on the wrapper.
+  --width: #{$toast-notification-width};
+
+  // Sonner sets an inline height at mount and never re-measures, so the card
+  // can't grow when our panel expands. Force auto so it grows with content.
+  [data-sonner-toast] {
+    height: auto !important;
+  }
+
+  &__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: $toast-notification-width;
+    padding: $pad-smedium $pad-medium;
+    // Faint accent wash over white, fading out by the midpoint.
+    background: linear-gradient(
+        145deg,
+        rgba(var(--card-accent-rgb), 0.05),
+        transparent 50%
+      ),
+      $core-fleet-white;
+    color: $core-fleet-black;
+    border: 0;
+    border-radius: $border-radius-large;
+    box-shadow: $toast-notification-shadow;
+    box-sizing: border-box;
+    font-size: $x-small;
+    font-family: "Inter", sans-serif;
+    line-height: $line-height;
+
+    gap: 0;
+    &--open {
+      gap: $pad-smedium;
+    }
+
+    // Full colour drives the border gradient; the raw RGB channels feed rgba()
+    // in the background (CSS can't extract channels from a hex custom property).
+    --card-accent: #{$ui-fleet-black-25};
+    --card-accent-rgb: 197, 199, 209; // $ui-fleet-black-25
+
+    &--success {
+      --card-accent: #{$ui-success};
+      --card-accent-rgb: 61, 182, 123; // $ui-success
+    }
+
+    &--error {
+      --card-accent: #{$ui-error};
+      --card-accent-rgb: 214, 108, 123; // $ui-error
+    }
+
+    // Gradient border via a masked pseudo-element (border-image ignores radius).
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px; // border thickness
+      background: linear-gradient(
+          145deg,
+          rgba(var(--card-accent-rgb), 0.4),
+          $ui-fleet-black-10
+        ),
+        $core-fleet-white;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-small;
+    width: 100%;
+  }
+
+  &__icon-message {
+    display: flex;
+    // Top-align so the icon tracks the first line when the message wraps; the
+    // one-line-tall icon box below keeps a single-line message centered.
+    align-items: flex-start;
+    gap: $pad-small;
+    min-width: 0; // allow the message to shrink / wrap
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    // One line tall with the glyph centered: reads as centered on a single
+    // line, pins to the first line when the message wraps.
+    height: calc(#{$x-small} * #{$line-height});
+
+    // Fleet's <Icon> wraps the SVG in <div class="icon">.
+    .icon {
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+    }
+  }
+
+  &__message {
+    margin: 0;
+    font-size: $x-small;
+    font-weight: $regular;
+    line-height: $line-height;
+    color: $ui-fleet-black-75;
+    word-break: break-word;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    flex-shrink: 0;
+  }
+
+  &__action-button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    margin: 0;
+    padding: $pad-small;
+    width: $toast-notification-action-size;
+    height: $toast-notification-action-size;
+    cursor: pointer;
+    color: $ui-fleet-black-75;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: $border-radius;
+    transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+
+    &:hover,
+    &:focus-visible {
+      background-color: $ui-fleet-black-5;
+      color: $core-fleet-black;
+      outline: none;
+    }
+  }
+
+  &__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 200ms ease-in-out;
+
+    &--open {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
+    border-top: 1px solid $ui-fleet-black-5;
+    padding-top: $pad-medium;
+  }
+
+  &__panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-small;
+  }
+
+  &__panel-label {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  // Light JSON block — overrides the global dark `pre` to match the ace-fleet
+  // editor theme.
+  &__json-block {
+    margin: 0;
+    max-height: 200px;
+    overflow: auto;
+    box-sizing: border-box;
+    background-color: $ui-off-white;
+    color: $core-fleet-black;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    padding: $pad-smedium;
+    font-size: $xx-small;
+
+    // Token colours darkened from the ace-fleet theme for light-bg contrast.
+    .key {
+      color: $ui-fleet-black-75;
+    }
+
+    .string {
+      color: #2e8b57;
+    }
+
+    .number {
+      color: #b5651d;
+    }
+
+    .boolean {
+      color: #4271ae;
+    }
+
+    .null {
+      color: #6b4290;
+    }
+  }
+}

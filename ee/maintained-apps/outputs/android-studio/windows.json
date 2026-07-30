@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.1.1.8",
+      "version": "2026.1.2.10",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2026.1.1.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Android Studio' AND publisher = 'Google LLC' AND version_compare(version, '2026.1.2.10') < 0);"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.1.8/android-studio-quail1-windows.exe",
+      "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2026.1.2.10/android-studio-quail2-windows.exe",
       "install_script_ref": "36676cba",
       "uninstall_script_ref": "c48a6948",
-      "sha256": "df998400b6ad20a3e172ca3d3d1420230d2ff6e37c9bbaa830bb3a146ae2b6cf",
+      "sha256": "938fd37c6029c2bdff8b62bed4fb8c87a260bebe2dc7da12d3f79b3af432829e",
       "default_categories": [
         "Developer tools"
       ]

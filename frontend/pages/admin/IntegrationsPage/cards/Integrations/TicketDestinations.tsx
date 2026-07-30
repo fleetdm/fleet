@@ -1,7 +1,6 @@
-import React, { useState, useContext, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
 import {
   IJiraIntegration,
@@ -21,6 +20,7 @@ import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import AddTicketDestinationModal from "./components/AddIntegrationModal";
@@ -41,8 +41,6 @@ const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
 const TicketDestinations = (): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [
     showAddTicketDestinationModal,
     setShowAddTicketDestinationModal,
@@ -126,8 +124,7 @@ const TicketDestinations = (): JSX.Element => {
       configAPI
         .update({ integrations: destination() })
         .then(() => {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully added{" "}
               <b>
@@ -149,8 +146,7 @@ const TicketDestinations = (): JSX.Element => {
                 "duplicate Jira integration"
               )
             ) {
-              renderFlash(
-                "error",
+              notify.error(
                 <>
                   Could not add{" "}
                   <b>
@@ -165,25 +161,26 @@ const TicketDestinations = (): JSX.Element => {
                         .group_id}
                   </b>
                   . This integration already exists
-                </>
+                </>,
+                { response: addError }
               );
             } else {
-              renderFlash("error", VALIDATION_FAILED_ERROR);
+              notify.error(VALIDATION_FAILED_ERROR, { response: addError });
             }
           } else if (addError.data?.message.includes("Bad request")) {
-            renderFlash("error", BAD_REQUEST_ERROR);
+            notify.error(BAD_REQUEST_ERROR, { response: addError });
           } else if (addError.data?.message.includes("Unknown Error")) {
-            renderFlash("error", UNKNOWN_ERROR);
+            notify.error(UNKNOWN_ERROR, { response: addError });
           } else {
-            renderFlash(
-              "error",
+            notify.error(
               <>
                 Could not add{" "}
                 <b>
                   {integrationSubmitData[integrationSubmitData.length - 1].url}
                 </b>
                 . Please try again.
-              </>
+              </>,
+              { response: addError }
             );
           }
         })
@@ -217,8 +214,7 @@ const TicketDestinations = (): JSX.Element => {
       setIsUpdatingIntegration(true);
       deleteIntegrationDestination()
         .then(() => {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully deleted{" "}
               <b>
@@ -230,9 +226,8 @@ const TicketDestinations = (): JSX.Element => {
           );
           refetchIntegrations();
         })
-        .catch(() => {
-          renderFlash(
-            "error",
+        .catch((deleteError: unknown) => {
+          notify.error(
             <>
               Could not delete{" "}
               <b>
@@ -241,7 +236,8 @@ const TicketDestinations = (): JSX.Element => {
                   integrationEditing.groupId?.toString()}
               </b>
               . Please try again.
-            </>
+            </>,
+            { response: deleteError }
           );
         })
         .finally(() => {
@@ -314,7 +310,7 @@ const TicketDestinations = (): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Ticket destinations" className={baseClass}>
+    <SettingsSection title="Ticketing" className={baseClass}>
       <PageDescription
         content={
           <>

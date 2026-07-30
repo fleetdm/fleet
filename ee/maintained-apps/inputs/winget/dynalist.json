@@ -1,0 +1,14 @@
+{
+  "name": "Dynalist",
+  "slug": "dynalist/windows",
+  "package_identifier": "Dynalist.Dynalist",
+  "unique_identifier": "Dynalist",
+  "installer_arch": "neutral",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dynalist_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dynalist_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

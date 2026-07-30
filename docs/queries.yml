@@ -5022,3 +5022,21 @@ spec:
   purpose: Detection
   tags: MITRE, ATT&CK, threat detection
   contributors: teoseller,tux234
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get users with secure token
+  platform: darwin
+  description: Lists local user accounts (UID 501 and above) and indicates whether each has a secure token, which is required for FileVault access on macOS.
+  query: |-
+    SELECT
+      u.uid,
+      u.username,
+      CASE WHEN fu.uuid IS NOT NULL THEN 1 ELSE 0 END AS has_secure_token
+    FROM users u
+    LEFT JOIN filevault_users fu ON fu.uuid = u.uuid
+    WHERE u.uid >= 501;
+  purpose: Informational
+  tags: filevault, users
+  contributors: kitzy,jakestenger

@@ -1,0 +1,10 @@
+{
+  "name": "Actual",
+  "unique_identifier": "com.actualbudget.actual",
+  "token": "actual",
+  "installer_format": "dmg",
+  "slug": "actual/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
