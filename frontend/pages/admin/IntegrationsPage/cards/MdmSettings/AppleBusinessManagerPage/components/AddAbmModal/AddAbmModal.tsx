@@ -65,7 +65,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         accept=".p7m"
         message="AB token (.p7m)"
         graphicName="file-p7m"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         buttonMessage={isUploading ? "Uploading..." : "Upload"}
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}

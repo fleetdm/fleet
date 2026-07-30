@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.0.4033.57",
+      "version": "8.1.4087.61",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.' AND version_compare(version, '8.0.4033.57') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Vivaldi' AND publisher = 'Vivaldi Technologies AS.' AND version_compare(version, '8.1.4087.61') < 0);"
       },
-      "installer_url": "https://downloads.vivaldi.com/stable/Vivaldi.8.0.4033.57.x64.exe",
+      "installer_url": "https://downloads.vivaldi.com/stable/Vivaldi.8.1.4087.61.x64.exe",
       "install_script_ref": "d5d49757",
       "uninstall_script_ref": "4e1acf1b",
-      "sha256": "d12c511ebe3f99f15fee95933641b36dd49557e3f4fec756afc3dd02da11d141",
+      "sha256": "5f897427cb9caee96751b8b4a08eefb83898008fb5d9ad7e5d1323a1b4b55179",
       "default_categories": [
         "Browsers"
       ]

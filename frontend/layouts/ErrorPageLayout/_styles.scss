@@ -1,0 +1,40 @@
+.error-page {
+  @include gradient-background;
+
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $pad-xxlarge;
+  padding: $pad-xxlarge $pad-large;
+  text-align: center;
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__status-code {
+    margin: 0;
+    font-size: 76px;
+    font-weight: $bold;
+    line-height: 1.5;
+    color: $core-fleet-black;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: $large;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__message {
+    margin: 0;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+}

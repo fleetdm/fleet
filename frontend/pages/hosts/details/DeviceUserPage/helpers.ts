@@ -1,4 +1,5 @@
 import { ISetupStep } from "interfaces/setup";
+import { SCRIPT_PACKAGE_SOURCES } from "interfaces/software";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
@@ -39,12 +40,12 @@ export const getFailedSoftwareInstall = (
   return firstWithError ?? failedSoftware[0];
 };
 
-/** Checks if the software is a script-only package (sh or ps1)
+/** Checks if the software is a script-only package (sh, ps1, or py)
  * by examining the source field from the API */
 export const isSoftwareScriptSetup = (s: ISetupStep) => {
   if (!s.source) return false;
 
-  return s.source === "sh_packages" || s.source === "ps1_packages";
+  return SCRIPT_PACKAGE_SOURCES.includes(s.source);
 };
 
 // Hosts after enrollment during which we suppress the "host is offline" banner.

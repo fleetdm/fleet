@@ -1,0 +1,1 @@
+* Updated the 500 and 403 error pages to match the design system and reuse the app navigation so the 500 page no longer shows broken image elements.

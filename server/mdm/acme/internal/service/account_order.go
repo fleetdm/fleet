@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"go.step.sm/crypto/jose"
 )
 
@@ -193,9 +195,16 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	if err != nil {
 		return nil, types.BadCSRError("CSR signature is invalid")
 	}
-	// Update the CSR common name and OU to match Fleet-issued SCEP certs
+	// Normalize the common name and OU to match Fleet-issued SCEP certs. Preserve Fleet's
+	// new-enrollment marker OU when the device presents it: it rides the enrollment profile's ACME
+	// Subject and lets the MDM checkin handler tell a fresh enrollment from a SCEP renewal (see
+	// certIsFromNewEnrollment in server/service/apple_mdm.go).
+	newEnrollment := slices.Contains(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
 	parsedCSR.Subject.CommonName = "Fleet Identity"
 	parsedCSR.Subject.OrganizationalUnit = []string{"fleet"}
+	if newEnrollment {
+		parsedCSR.Subject.OrganizationalUnit = append(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+	}
 
 	signer, err := s.providers.CSRSigner(ctx)
 	if err != nil {

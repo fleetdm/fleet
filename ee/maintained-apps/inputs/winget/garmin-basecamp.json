@@ -1,0 +1,15 @@
+{
+  "name": "Garmin BaseCamp",
+  "slug": "garmin-basecamp/windows",
+  "package_identifier": "Garmin.BaseCamp",
+  "unique_identifier": "Garmin BaseCamp",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/garmin-basecamp_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/garmin-basecamp_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ],
+  "program_publisher": "Garmin Ltd. or its subsidiaries"
+}

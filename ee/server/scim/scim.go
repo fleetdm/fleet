@@ -450,9 +450,16 @@ func LastRequestMiddleware(ds fleet.Datastore, logger *slog.Logger, next http.Ha
 		switch {
 		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
 			status = "success"
-		case multi.statusCode == http.StatusUnauthorized:
-			// We do not save unauthenticated error details; we simply log them.
-			logger.InfoContext(r.Context(), "unauthenticated request",
+		case multi.statusCode == http.StatusUnauthorized || multi.statusCode == http.StatusForbidden:
+			// We do not save authentication (401) or authorization (403) failures; we
+			// simply log them. Otherwise an authenticated-but-unauthorized user (e.g. an
+			// observer) could overwrite the admin-visible last_request telemetry with
+			// their rejected attempts.
+			msg := "unauthenticated request"
+			if multi.statusCode == http.StatusForbidden {
+				msg = "unauthorized request"
+			}
+			logger.InfoContext(r.Context(), msg,
 				"origin", r.Header.Get("Origin"),
 				"ip", r.RemoteAddr,
 				"method", r.Method,

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "10.4.5606",
+      "version": "10.4.5647",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.' AND version_compare(version, '10.4.5606') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'eM Client' AND publisher = 'eM Client s.r.o.' AND version_compare(version, '10.4.5647') < 0);"
       },
-      "installer_url": "https://www.emclient.com/dist/v10.4.5606/setup.msi",
+      "installer_url": "https://www.emclient.com/dist/v10.4.5647/setup.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "04c930bd",
-      "sha256": "9f08f2cbb5a87c1c4950788f4fceffb4edfbe96d8e0940487b28c0884f99b993",
+      "sha256": "a18312a96824208215f4605f2913a0785adb7d223a2c305fa2f7af224499b49a",
       "default_categories": [
         "Communication"
       ],

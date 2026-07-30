@@ -3,7 +3,7 @@
    "slug": "chatgpt/darwin",
    "unique_identifier": "com.openai.chat",
    "token": "chatgpt",
-   "installer_format": "dmg",
+   "installer_format": "zip",
    "default_categories": [
       "Productivity"
    ]

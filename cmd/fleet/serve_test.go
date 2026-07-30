@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -119,18 +120,20 @@ func TestMaybeSendStatistics(t *testing.T) {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
 				},
 			},
-			HostsEnrolledByOrbitVersion:   []fleet.HostsCountByOrbitVersion{},
-			HostsEnrolledByOsqueryVersion: []fleet.HostsCountByOsqueryVersion{},
-			StoredErrors:                  []byte(`[]`),
-			Organization:                  "Fleet",
-			AIFeaturesDisabled:            true,
-			MaintenanceWindowsEnabled:     true,
-			MaintenanceWindowsConfigured:  true,
-			NumHostsFleetDesktopEnabled:   1984,
-			FleetMaintainedAppsMacOS:      []string{"1password/darwin"},
-			FleetMaintainedAppsWindows:    []string{"google-chrome/windows"},
-			GitOpsModeEnabled:             true,
-			GitOpsModeExceptions:          []string{"labels", "software", "secrets"},
+			HostsEnrolledByOrbitVersion:     []fleet.HostsCountByOrbitVersion{},
+			HostsEnrolledByOsqueryVersion:   []fleet.HostsCountByOsqueryVersion{},
+			StoredErrors:                    []byte(`[]`),
+			Organization:                    "Fleet",
+			AIFeaturesDisabled:              true,
+			MaintenanceWindowsEnabled:       true,
+			MaintenanceWindowsConfigured:    true,
+			NumHostsFleetDesktopEnabled:     1984,
+			FleetMaintainedAppsMacOS:        []string{"1password/darwin"},
+			FleetMaintainedAppsWindows:      []string{"google-chrome/windows"},
+			GitOpsModeEnabled:               true,
+			GitOpsModeExceptions:            []string{"labels", "software", "secrets"},
+			NumHostsFleetMDMEnrolledMacOS:   12,
+			NumHostsFleetMDMEnrolledWindows: 34,
 		}, true, nil
 	}
 	recorded := false
@@ -149,7 +152,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"googleWorkspaceConfigured":false,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"]}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"googleWorkspaceConfigured":false,"numHostsFleetDesktopEnabled":1984,"fleetMaintainedAppsMacOS":["1password/darwin"],"fleetMaintainedAppsWindows":["google-chrome/windows"],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":false,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":false,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -1470,6 +1473,49 @@ func TestGetTLSConfigInvalidProfile(t *testing.T) {
 	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
 	require.Contains(t, capturedErr.Error(), "is invalid")
 	require.Equal(t, "set TLS profile", capturedMsg)
+}
+
+func TestNetworkBlockingModeFor(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name           string
+		devModeEnabled bool
+		serverConfig   config.ServerConfig
+		expectedMode   fleethttp.NetworkBlockingMode
+	}{
+		{
+			name:         "production default blocks everything",
+			serverConfig: config.ServerConfig{},
+			expectedMode: fleethttp.BlockingFull,
+		},
+		{
+			name:         "allow_private_network_integrations allows private networks only",
+			serverConfig: config.ServerConfig{AllowPrivateNetworkIntegrations: true},
+			expectedMode: fleethttp.BlockingPrivateAllowed,
+		},
+		{
+			name:         "bypass_network_blocking bypasses all filtering",
+			serverConfig: config.ServerConfig{BypassNetworkBlocking: true},
+			expectedMode: fleethttp.BlockingBypassAll,
+		},
+		{
+			name:         "bypass_network_blocking takes precedence over allow_private_network_integrations",
+			serverConfig: config.ServerConfig{BypassNetworkBlocking: true, AllowPrivateNetworkIntegrations: true},
+			expectedMode: fleethttp.BlockingBypassAll,
+		},
+		{
+			name:           "dev mode bypasses all filtering regardless of config",
+			devModeEnabled: true,
+			serverConfig:   config.ServerConfig{},
+			expectedMode:   fleethttp.BlockingBypassAll,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expectedMode, networkBlockingModeFor(c.devModeEnabled, c.serverConfig))
+		})
+	}
 }
 
 func TestInitLicense(t *testing.T) {

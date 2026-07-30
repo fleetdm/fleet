@@ -38,7 +38,27 @@ func (svc *Service) GetQuery(ctx context.Context, id uint) (*fleet.Query, error)
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	svc.filterQueryPacksForUser(ctx, query)
 	return query, nil
+}
+
+// filterQueryPacksForUser removes from the given queries the packs that the
+// requesting user is not authorized to read. Packs are associated to queries
+// by name (see loadPacksForQueries), so a query's Packs field may include
+// packs of same-named queries scoped to teams the user has no access to.
+func (svc *Service) filterQueryPacksForUser(ctx context.Context, queries ...*fleet.Query) {
+	for _, query := range queries {
+		if len(query.Packs) == 0 {
+			continue
+		}
+		authorizedPacks := make([]fleet.Pack, 0, len(query.Packs))
+		for _, pack := range query.Packs {
+			if err := svc.authz.Authorize(ctx, &pack, fleet.ActionRead); err == nil {
+				authorizedPacks = append(authorizedPacks, pack)
+			}
+		}
+		query.Packs = authorizedPacks
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -115,6 +135,8 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	if err != nil {
 		return nil, 0, 0, nil, err
 	}
+
+	svc.filterQueryPacksForUser(ctx, queries...)
 
 	return queries, count, inheritedCount, meta, nil
 }
@@ -476,6 +498,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
 	}
 
+	svc.filterQueryPacksForUser(ctx, query)
 	return query, nil
 }
 

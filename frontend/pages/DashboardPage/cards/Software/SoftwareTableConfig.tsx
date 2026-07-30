@@ -77,6 +77,7 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
           queryParams={{ software_id: cellProps.cell.value, fleet_id: teamId }} // TODO: Should redirect with the current team id?
           className="software-link"
           condensed
+          rowHover
         />
       );
     },

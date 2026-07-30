@@ -12,8 +12,6 @@ interface ISpinnerProps {
   size?: Size;
   /** The size of the spinner padding. `"medium"` 120px (default), `"small"` 60px */
   verticalPadding?: PaddingSize;
-  /** Include the background container styling for the spinner. defaults: `true` */
-  includeContainer?: boolean;
   /** Center the spinner in its parent. defaults: `true` */
   centered?: boolean;
   className?: string;
@@ -34,7 +32,6 @@ const Spinner = ({
   white,
   size = "medium",
   verticalPadding = "medium",
-  includeContainer = true,
   centered = true,
   className,
   variant = undefined,
@@ -56,7 +53,6 @@ const Spinner = ({
     white,
     centered,
     "small-padding": verticalPadding === "small",
-    "include-container": includeContainer && variant !== "mobile",
     "mobile-view": variant === "mobile",
   });
   return (

@@ -274,6 +274,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	HostNameTemplate optjson.String `json:"name_template"`
+
 	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -285,6 +287,11 @@ type MDM struct {
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
 	AndroidSettings             AndroidSettings `json:"android_settings"`
+
+	// AppleAccountProvisioning holds the macOS local account provisioning /
+	// Platform SSO password sync configuration. The IdP client secret is stored
+	// in mdm_config_assets, not in this JSON; only the masked value is returned.
+	AppleAccountProvisioning AppleAccountProvisioning `json:"apple_account_provisioning"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -492,6 +499,14 @@ type MacOSSettings struct {
 	CustomSettings                 []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
 	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
+	// Assets is a slice of Apple DDM asset (com.apple.asset) declaration file
+	// paths. Unlike CustomSettings, assets are not stored on the AppConfig/team
+	// spec: this field is only populated while parsing a GitOps file so the
+	// assets can be applied via their own batch endpoint. It is intentionally
+	// omitted from FromMap; ToMap includes it only so the key passes the team
+	// spec's strict key validation (see applyTeamSpecsRequest.DecodeBody).
+	Assets []MDMProfileSpec `json:"assets,omitempty"`
+
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
@@ -503,6 +518,7 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
+		"assets":                 s.Assets,
 	}
 }
 
@@ -818,6 +834,13 @@ func (c *AppConfig) Obfuscate() {
 	}
 	for _, gwIntegration := range c.Integrations.GoogleWorkspace {
 		gwIntegration.ApiKey.SetMasked()
+	}
+	// The Apple account provisioning IdP client secret lives in
+	// mdm_config_assets, never in the AppConfig JSON. Surface the masked value
+	// whenever the feature is configured (token URL present implies a stored
+	// secret), so the API never leaks it but still signals it's set.
+	if c.MDM.AppleAccountProvisioning.Configured() || c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret.Value != "" {
+		c.MDM.AppleAccountProvisioning.OAuthIdPClientSecret = optjson.SetString(MaskedPassword)
 	}
 	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
 	// if c.Integrations.NDESSCEPProxy.Valid {
@@ -1911,9 +1934,6 @@ type LicenseInfo struct {
 	Note string `json:"note,omitempty"`
 	// AllowDisableTelemetry allows specific customers to not send analytics
 	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
-	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
-	// Currently only used to display UI features only present on cloud instances.
-	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -2096,10 +2116,32 @@ func (v *Version) AuthzType() string {
 	return "version"
 }
 
+// ManagedLocalAccountSettings configures the hidden managed local admin account for one platform.
+// Future fields (username, password policy) land here.
+type ManagedLocalAccountSettings struct {
+	Enabled optjson.Bool `json:"enabled"`
+}
+
+// MarshalJSON defaults the enabled flag to false when it was never set, so every serialization
+// path (API responses, stored config JSON, spec exports, GitOps payloads) emits a boolean
+// rather than null. Request payloads are unaffected: clients send raw JSON, not this struct.
+func (m ManagedLocalAccountSettings) MarshalJSON() ([]byte, error) {
+	if !m.Enabled.Valid {
+		m.Enabled = optjson.SetBool(false)
+	}
+	// the alias type has no methods, so marshaling it avoids infinite recursion into this MarshalJSON
+	type alias ManagedLocalAccountSettings
+	return json.Marshal(alias(m))
+}
+
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+
+	// ManagedLocalAccountSettings configures the hidden managed local admin account created by
+	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
+	ManagedLocalAccountSettings ManagedLocalAccountSettings `json:"managed_local_account_settings"`
 }
 
 func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {

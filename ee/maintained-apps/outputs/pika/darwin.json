@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.7.0",
+      "version": "1.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika' AND version_compare(bundle_short_version, '1.7.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhighfives.Pika' AND version_compare(bundle_short_version, '1.9.0') < 0);"
       },
-      "installer_url": "https://github.com/superhighfives/pika/releases/download/1.7.0/Pika-1.7.0.dmg",
+      "installer_url": "https://github.com/superhighfives/pika/releases/download/1.9.0/Pika-1.9.0.dmg",
       "install_script_ref": "9feeb59d",
       "uninstall_script_ref": "dc2748e7",
-      "sha256": "2d6372c676d5cd5c4bc6600eee12a8cf090e25d7d7f805c381f6ba247f307571",
+      "sha256": "082ca16bdf7f4bf91f41c1d855cbaf7911c3a7c9f076bbe3f663af2f543de222",
       "default_categories": [
         "Productivity"
       ]

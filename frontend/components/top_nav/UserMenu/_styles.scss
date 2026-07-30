@@ -1,1 +1,8 @@
-// Styles for user-menu are defined inline via react-select's `styles` prop.
+// Most styles for user-menu are defined inline via react-select's `styles` prop.
+
+.user-menu {
+  &__divider {
+    border-top: 1px solid $ui-fleet-black-10;
+    margin: $pad-xsmall 0;
+  }
+}

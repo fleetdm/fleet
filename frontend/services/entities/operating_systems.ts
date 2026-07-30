@@ -9,6 +9,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
+  "linux",
   "chrome",
   "ios",
   "ipados",

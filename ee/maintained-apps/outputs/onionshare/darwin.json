@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.6.4",
+      "version": "2.6.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare' AND version_compare(bundle_short_version, '2.6.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare' AND version_compare(bundle_short_version, '2.6.5') < 0);"
       },
-      "installer_url": "https://onionshare.org/dist/2.6.4/OnionShare-2.6.4.dmg",
+      "installer_url": "https://onionshare.org/dist/2.6.5/OnionShare-2.6.5.dmg",
       "install_script_ref": "17c365cb",
       "uninstall_script_ref": "fa11936f",
-      "sha256": "2c034b3bbe8128a7c033dbd69ebaf4a8ea2a5988e83dc65d3fa787f7fdf308f5",
+      "sha256": "4426a52c9668799b4b1fa3823936e378f93ba01688b7e881bfdcf529e1b5c633",
       "default_categories": [
         "Communication"
       ]

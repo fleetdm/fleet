@@ -18,6 +18,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_updates:
         update_new_hosts: null
@@ -38,15 +39,17 @@ spec:
         configuration_profiles: null
       windows_settings:
         configuration_profiles: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         configuration_profiles: null
         certificates: null
       setup_experience:
         macos_bootstrap_package:
-        enable_create_local_admin_account:
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
         apple_enable_release_device_manually: false
-        end_user_local_account_type:
+        end_user_local_account_type: admin
         lock_end_user_info: false
         apple_setup_assistant:
         macos_manual_agent_install:
@@ -76,6 +79,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: false
+      name_template: null
       windows_require_bitlocker_pin: null
       macos_updates:
         update_new_hosts: null
@@ -96,15 +100,17 @@ spec:
         custom_settings: null
       windows_settings:
         custom_settings: null
+        managed_local_account_settings:
+          enabled: false
       android_settings:
         custom_settings: null
         certificates: null
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
-        enable_managed_local_account:
+        enable_managed_local_account: false
         enable_release_device_manually: false
-        end_user_local_account_type:
+        end_user_local_account_type: admin
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:
@@ -147,6 +153,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      name_template: null
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
@@ -166,10 +173,10 @@ spec:
         certificates:
       setup_experience:
         macos_bootstrap_package:
-        enable_create_local_admin_account:
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
         apple_enable_release_device_manually: false
-        end_user_local_account_type:
+        end_user_local_account_type: admin
         lock_end_user_info: false
         apple_setup_assistant:
         macos_manual_agent_install:
@@ -206,6 +213,7 @@ spec:
     mdm:
       enable_disk_encryption: false
       enable_recovery_lock_password: true
+      name_template: null
       windows_require_bitlocker_pin: null
       ios_updates:
         minimum_version: "17.5"
@@ -226,9 +234,9 @@ spec:
       macos_setup:
         bootstrap_package:
         enable_end_user_authentication: false
-        enable_managed_local_account:
+        enable_managed_local_account: false
         enable_release_device_manually: false
-        end_user_local_account_type:
+        end_user_local_account_type: admin
         lock_end_user_info: false
         macos_setup_assistant:
         manual_agent_install:

@@ -1,9 +1,17 @@
 .os-settings-name-cell {
   display: flex;
+  align-items: center;
   gap: $pad-small;
 
   &__scope-tooltip {
     text-align: center;
+
+    // Render the icon as a flex box rather than inside the tooltip element's
+    // text line box, which would baseline-align it and push it above center.
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -302,6 +303,16 @@ func TestTeamMDMCopy(t *testing.T) {
 		)
 		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
+
+	t.Run("copy HostNameTemplate", func(t *testing.T) {
+		tm := &TeamMDM{HostNameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		clone := tm.Copy()
+		require.Equal(t, tm.HostNameTemplate, clone.HostNameTemplate)
+
+		// mutating the copy must not affect the original (plain-string value copy)
+		clone.HostNameTemplate = "changed"
+		require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", tm.HostNameTemplate)
+	})
 }
 
 func TestTeamConfigCopy(t *testing.T) {
@@ -383,5 +394,39 @@ func TestTeamConfigCopy(t *testing.T) {
 		*tc.Features.DetailQueryOverrides["key1"] = "modified"
 		require.True(t, clone.Features.EnableHostUsers)
 		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+	})
+}
+
+// TestTeamMarshalJSONMacOSSetupDefaults verifies that a team whose stored
+// config predates the managed local account keys (e.g. created in 4.84.0)
+// serializes with the "admin" default rather than null, matching what
+// AppConfig.MarshalJSON serves for the global config (#49346).
+func TestTeamMarshalJSONMacOSSetupDefaults(t *testing.T) {
+	t.Run("missing keys fall back to admin default", func(t *testing.T) {
+		var team Team // MacOSSetup keys unset (Valid == false)
+
+		b, err := json.Marshal(team)
+		require.NoError(t, err)
+
+		var got Team
+		require.NoError(t, json.Unmarshal(b, &got))
+		require.True(t, got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+		require.Equal(t, "admin", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	})
+
+	t.Run("explicit values are preserved", func(t *testing.T) {
+		var team Team
+		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("standard")
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(true)
+
+		b, err := json.Marshal(team)
+		require.NoError(t, err)
+
+		var got Team
+		require.NoError(t, json.Unmarshal(b, &got))
+		require.Equal(t, "standard", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	})
 }

@@ -181,7 +181,7 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 			gu.ID = ex.ID
 			extIDToScimUserID[extID] = ex.ID
 			if scimUserNeedsUpdate(ex, gu) {
-				if err := ds.ReplaceScimUser(ctx, gu); err != nil {
+				if _, err := ds.ReplaceScimUser(ctx, gu); err != nil {
 					// Best-effort: log and skip this user so one bad record doesn't
 					// abort the whole sync.
 					failed++
@@ -214,7 +214,7 @@ func syncGoogleWorkspaceUsers(ctx context.Context, ds fleet.Datastore, gwUsers [
 		if _, ok := seen[extID]; ok {
 			continue
 		}
-		if err := ds.DeleteScimUser(ctx, ex.ID); err != nil {
+		if _, err := ds.DeleteScimUser(ctx, ex.ID); err != nil {
 			failed++
 			logger.ErrorContext(ctx, "google workspace sync: failed to delete user no longer in directory",
 				"scim_user_id", ex.ID, "external_id", extID, "err", err)

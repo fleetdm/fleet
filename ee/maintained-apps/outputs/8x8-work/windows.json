@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.34.1",
+      "version": "8.35.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.' AND version_compare(version, '8.34.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '8x8 Work' AND publisher = '8x8 Inc.' AND version_compare(version, '8.35.2') < 0);"
       },
-      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-64-msi-v8.34.1-11.msi",
+      "installer_url": "https://work-desktop-assets.8x8.com/prod-publish/ga/work-64-msi-v8.35.2-6.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "3f17b97d",
-      "sha256": "a5b4ed9ef3e00a9e41a50654a9a01e6d83c7de28ed62f01ffab61f238454b469",
+      "sha256": "36da12afc9f6abaadefd3d7b75178d807e9f275ea29087e6775add5c180ac6ff",
       "default_categories": [
         "Communication"
       ],

@@ -1,10 +1,6 @@
 # Block and monitor EDR Freeze on macOS with Santa and Fleet
 
-*EDR Freeze suspends a security tool instead of killing it, so the process looks healthy while it quietly stops working. Santa 2026.3 can block it on macOS, and Fleet lets you ship the fix and watch for the attack across every host.*
-
-EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The same idea works on macOS: anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call, and a suspended agent still looks healthy in every monitoring tool while an attacker slips actions past its checks or floods its event queue.
-
-The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS, added the `AntiSuspendSigningIDs` configuration key in version 2026.3, and Fleet gives you the delivery pipeline and the visibility to go with it. Here's how the attack works and how to close it.
+*EDR Freeze suspends a security tool instead of killing it, so the process looks healthy while it quietly stops working. Thanks to the team at [North Pole Security](https://northpole.security/), Santa 2026.3 can block it on macOS, and Fleet lets you ship the fix and watch for the attack across every host.*
 
 ## Key takeaways
 
@@ -17,9 +13,13 @@ The good news is that the fix is well understood, and you can ship and monitor i
 
 <a purpose="cta-button" href="https://fleetdm.com/articles/deploy-santa-with-fleet-gitops-and-skip-the-sync-server">Deploy Santa with Fleet</a>
 
+EDR Freeze started life on Windows — pause a security product so it stops alerting or responding, without crashing or uninstalling it. The same idea works on macOS: anything built on Apple's Endpoint Security framework can be frozen with the `pid_suspend` system call, and a suspended agent still looks healthy in every monitoring tool while an attacker slips actions past its checks or floods its event queue.
+
+The good news is that the fix is well understood, and you can ship and monitor it through Fleet today. Santa, the open-source binary authorization agent for macOS maintained by [North Pole Security](https://northpole.security/), added the `AntiSuspendSigningIDs` configuration key in version 2026.3, and Fleet gives you the delivery pipeline and the visibility to go with it. Here's how the attack works and how to close it.
+
 ## How EDR Freeze works on macOS
 
-`pid_suspend` is a long-standing macOS system call. It has been around since Snow Leopard 10.6 and predates the Endpoint Security framework, so it isn't going anywhere. It works at the Mach task level, beneath the BSD process layer that most software deals with. Called against a process, the kernel freezes every thread in the underlying task and pauses scheduling until something calls `pid_resume`.
+North Pole Security, the maintainers of Santa, [broke down the macOS variant of EDR Freeze in detail](https://northpole.security/blog/edr-freeze). The short version: `pid_suspend` is a long-standing macOS system call. It has been around since Snow Leopard 10.6 and predates the Endpoint Security framework, so it isn't going anywhere. It works at the Mach task level, beneath the BSD process layer that most software deals with. Called against a process, the kernel freezes every thread in the underlying task and pauses scheduling until something calls `pid_resume`.
 
 A suspended security agent can't pull events off its queue or respond to them, because its threads aren't running. Yet `ps` and Activity Monitor still list the process as present, so from the outside everything looks normal.
 
@@ -184,6 +184,8 @@ The fastest path is to work through the [Santa deployment series](https://fleetd
 - [santa_denied table](https://fleetdm.com/tables/santa_denied)
 - [santa_allowed table](https://fleetdm.com/tables/santa_allowed)
 - [Santa on GitHub](https://github.com/northpolesec/santa)
+- [North Pole Security's EDR Freeze breakdown](https://northpole.security/blog/edr-freeze)
+- [North Pole Security blog](https://northpole.security/blog)
 
 <meta name="articleTitle" value="Block and monitor EDR Freeze on macOS with Santa and Fleet">
 <meta name="authorFullName" value="Dhruv Majumdar">

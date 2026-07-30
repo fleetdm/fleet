@@ -1,12 +1,15 @@
 import React from "react";
-import { screen, render } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
+import { createCustomRenderer } from "test/test-utils";
 
 import { createMockHostEndUser } from "__mocks__/hostMock";
 
 import User from ".";
 
 describe("User card", () => {
+  const render = createCustomRenderer();
+
   describe("IdP data", () => {
     it("renders the username, full name, groups, and department fields", () => {
       const endUsers = [createMockHostEndUser()];
@@ -44,6 +47,30 @@ describe("User card", () => {
       );
       expect(screen.queryByText("Add user")).toBeNull();
       expect(screen.getByText("Edit user")).toBeInTheDocument();
+    });
+
+    describe("Tooltips", () => {
+      it.each([
+        [
+          "Full name (IdP)",
+          'This is the "givenName + familyName" from your IdP.',
+        ],
+        [
+          "Department (IdP)",
+          'This is the "department" collected from your IdP.',
+        ],
+      ])("always renders the tooltip for %s", async (field, tooltipContent) => {
+        const { user } = render(
+          <User endUsers={[]} onClickUpdateUser={noop} />
+        );
+
+        await user.hover(screen.getByText(field));
+        await waitFor(() => {
+          const tooltip = screen.getByRole("tooltip");
+          expect(tooltip).toBeInTheDocument();
+          expect(tooltip.textContent).toBe(tooltipContent);
+        });
+      });
     });
   });
 

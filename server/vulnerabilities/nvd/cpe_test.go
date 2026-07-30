@@ -675,6 +675,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "org.mozilla.firefox",
 			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
 		},
+		{ // Firefox Developer Edition tracks standard Firefox; its bundle's product
+			// token isn't a real NVD product, so a translation maps it to mozilla:firefox (#48689).
+			software: fleet.Software{
+				Name:             "Firefox Developer Edition.app",
+				Source:           "apps",
+				Version:          "105.0.1",
+				Vendor:           "",
+				BundleIdentifier: "org.mozilla.firefoxdeveloperedition",
+			}, cpe: "cpe:2.3:a:mozilla:firefox:105.0.1:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Google Chrome.app",

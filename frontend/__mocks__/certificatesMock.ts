@@ -68,6 +68,7 @@ export const createMockCertificateAuthorityPartial = (
 const DEFAULT_ANDROID_CERT_MOCK: ICertificate = {
   id: 1,
   name: "Test Android Certificate",
+  subject_name: "CN=test@example.com, O=Test Inc.",
   certificate_authority_id: 1,
   certificate_authority_name: "Test CA",
   created_at: "2021-08-19T02:02:17Z",

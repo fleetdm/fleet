@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "15.1.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Graphviz' AND publisher = 'Graphviz';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Graphviz' AND publisher = 'Graphviz' AND version_compare(version, '15.1.0') < 0);"
+      },
+      "installer_url": "https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/15.1.0/windows_10_cmake_Release_graphviz-install-15.1.0-win64.exe",
+      "install_script_ref": "8456d4ce",
+      "uninstall_script_ref": "f6831952",
+      "sha256": "45f20128e6b86e54eb3c2f0ac94d4232d33b9c8a7a81ac171c3d393b8d19bcdc",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "8456d4ce": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n#\n# Graphviz is a Nullsoft (NSIS) installer declaring machine scope; /S runs it\n# silently and installs machine-wide to Program Files.\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n$process = Start-Process -FilePath \"$exeFilePath\" -ArgumentList \"/S\" -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Install exit code: $exitCode\"\n\n# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated\nif ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "f6831952": "# Uninstalls Graphviz. Locates the NSIS uninstaller from the registry by\n# DisplayName and runs it silently with /S.\n\n$softwareNameLike = \"Graphviz*\"\n\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n$machineKey32on64 = 'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n\n$exitCode = $null\n\ntry {\n\n[array]$uninstallKeys = Get-ChildItem `\n    -Path @($machineKey, $machineKey32on64) `\n    -ErrorAction SilentlyContinue |\n        ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue }\n\n$selected = $uninstallKeys |\n    Where-Object { $_.DisplayName -like $softwareNameLike } |\n    Select-Object -First 1\nif (-not $selected -or -not $selected.UninstallString) {\n    Write-Host \"Uninstall entry not found for $softwareNameLike\"\n    Exit 1\n}\n\n$raw = if ($selected.QuietUninstallString) { $selected.QuietUninstallString } else { $selected.UninstallString }\n\n# Parse exe + args (quoted / unquoted / bare).\nif ($raw -match '^\\s*\"([^\"]+)\"\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} elseif ($raw -match '(?i)^\\s*(.+?\\.exe)\\s*(.*)$') {\n    $exe = $matches[1]; $exeArgs = $matches[2].Trim()\n} else {\n    $exe = $raw; $exeArgs = \"\"\n}\n\n# NSIS uninstallers require /S for a silent uninstall.\nif ($exeArgs -notmatch '(?i)(^|\\s)/S(\\s|$)') { $exeArgs = \"$exeArgs /S\".Trim() }\n\nWrite-Host \"Uninstall command: $exe\"\nWrite-Host \"Uninstall args: $exeArgs\"\n$process = Start-Process -FilePath $exe -ArgumentList $exeArgs -PassThru -Wait\n$exitCode = $process.ExitCode\nWrite-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n\nif ($exitCode -eq 0 -or $exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }\nExit $exitCode\n"
+  }
+}

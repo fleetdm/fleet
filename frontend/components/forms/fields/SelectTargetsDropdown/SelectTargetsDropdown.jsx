@@ -236,7 +236,7 @@ class SelectTargetsDropdown extends Component {
         type="button"
         className="target-select__clear"
         onMouseDown={(e) => e.preventDefault()}
-        variant="inverse"
+        variant="subdued"
       >
         <Icon name="close" />
       </Button>

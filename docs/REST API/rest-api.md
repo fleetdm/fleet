@@ -517,6 +517,10 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ## Activities
 
++ [List activities](#list-activities)
++ [List policy automation activities](#list-policy-automation-activities)
++ [Reset policy results](#reset-policy-results)
+
 ### List activities
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
@@ -609,6 +613,156 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 }
 
 ```
+
+### List policy automation activities
+
+`GET /api/v1/fleet/policies/:id/automation_activities`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The policy ID. |
+| status   | string | path | Optional filter by automation status. Either "success" or "error" |
+| query   | string | path | Search query to filter by. Can search by host's name. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
+| order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, and `activity_type`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/policies/12/automation_activities?query=Anna's%20MacBook`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 412,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "failed_webhook_policy_automation",
+      "fleet_initiated": true,
+      "details": {
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "error",
+      "output": null
+    },
+    {
+      "created_at": "2023-07-27T14:34:22Z",
+      "id": 410,
+      "actor_full_name": "Anna Chao",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "fleet_initiated": false,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "script_name": "remediate-gatekeeper.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": "Gatekeeper enabled\n"
+    },
+    {
+      "created_at": "2023-07-27T14:33:01Z",
+      "id": 407,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_software",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 11,
+        "host_display_name": "Marco's Windows",
+        "install_uuid": "23c18ea1-8cd7-4af4-a1d8-f2666993a66b",
+        "software_title": "1Password",
+        "software_package": "1Password.msi",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 11,
+      "host_display_name": "Marco's Windows",
+      "status": "error",
+      "output": "Installing software...\nFailed\nExit code: 1"
+    },
+    {
+      "created_at": "2023-07-27T14:31:47Z",
+      "id": 404,
+      "actor_full_name": "Fleet",
+      "actor_id": null,
+      "actor_gravatar": "",
+      "actor_email": "",
+      "type": "installed_app_store_app",
+      "fleet_initiated": true,
+      "details": {
+        "host_id": 10,
+        "host_display_name": "Anna's MacBook Pro",
+        "software_title": "Logic Pro",
+        "app_store_id": "1234567",
+        "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+        "policy_id": 42,
+        "policy_name": "Gatekeeper enabled"
+      },
+      "host_id": 10,
+      "host_display_name": "Anna's MacBook Pro",
+      "status": "success",
+      "output": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Reset policy results
+
+Clears a policy's pass/fail results, identical to the side effect of editing its query. Immediately sets `passing_host_count` and `failing_host_count` to `0` and wipes membership records so the counts remain `0` until hosts re-report. Pass the `host_id` query parameter to instead reset only a single host's result for the policy.
+
+`POST /api/v1/fleet/policies/:policy_id/reset`
+
+#### Parameters
+
+| Name      | Type    | In   | Description                                                                                   |
+| --------- | ------- | ---- | --------------------------------------------------------------------------------------------- |
+| policy_id | integer | path | **Required.** The policy's ID.                                                                |
+| host_id   | integer | query | When set, resets only this host's result for the policy instead of resetting all hosts.      |
+
+#### Example
+
+`POST /api/v1/fleet/policies/123/reset?host_id=42`
+
+##### Default response
+
+`Status: 200`
+
+#### Errors
+
+| Status | Description                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| 403    | The authenticated user does not have write access to the policy.       |
+| 404    | No policy with the given `policy_id` exists.                           |
 
 ---
 
@@ -1843,6 +1997,22 @@ None.
          }
       }
     ],
+    "google_workspace": [
+      {
+        "domain": "example.com",
+        "impersonated_user_email": "admin@example.com",
+        "api_key_json": {
+           "type": "service_account",
+           "project_id": "fleet-idp-sync",
+           "private_key_id": "<private key id>",
+           "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+           "client_email": "fleet-idp-sync@fleet-idp-sync.iam.gserviceaccount.com",
+           "client_id": "<client id>",
+           "token_uri": "https://oauth2.googleapis.com/token",
+           "universe_domain": "googleapis.com"
+         }
+      }
+    ],
     "jira": [],
     "zendesk": []
   },
@@ -2165,6 +2335,13 @@ Modifies the Fleet's configuration with the supplied information.
     "google_calendar": [
       {
         "domain": "",
+        "api_key_json": null
+      }
+    ],
+    "google_workspace": [
+      {
+        "domain": "",
+        "impersonated_user_email": "",
         "api_key_json": null
       }
     ],
@@ -2530,6 +2707,7 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
 
 <br/>
 
@@ -2578,6 +2756,20 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.google_workspace
+
+_Available in Fleet Premium._
+
+`integrations.google_workspace` is an array of objects with the following structure. When set, Fleet syncs identity provider (IdP) host vitals from your Google Workspace directory, and SCIM provisioning is ignored.
+
+| Name                    | Type   | Description   |
+| ----------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| domain                  | string | Your Google Workspace primary domain whose directory is synced.                                                              |
+| impersonated_user_email | string | A Google Workspace admin the service account impersonates via domain-wide delegation.                                        |
+| api_key_json            | object | The service account JSON key (with domain-wide delegation enabled) used to authenticate to the Google Workspace directory.   |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -2597,6 +2789,13 @@ _Available in Fleet Premium._
     "google_calendar": [
       {
         "domain": "https://domain.com",
+        "api_key_json": "<API KEY JSON>"
+      }
+    ],
+    "google_workspace": [
+      {
+        "domain": "example.com",
+        "impersonated_user_email": "admin@example.com",
         "api_key_json": "<API KEY JSON>"
       }
     ]
@@ -2837,7 +3036,7 @@ _Available in Fleet Premium._
 }
 ```
 
-#### Features
+#### features
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2846,7 +3045,7 @@ _Available in Fleet Premium._
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 | historical_data                   | object | Per-dataset toggles for historical data collection used by the dashboard charts. See [Historical data](#historical-data) below.        |
 
-##### Historical data
+##### features.historical_data
 
 `features.historical_data` controls whether each dashboard chart's
 historical data is collected. Both sub-keys default to `true`. A dataset
@@ -8113,9 +8312,9 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
 | host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
-| page                      | integer | query | Page number of the results to fetch.                                      |
-| per_page                  | integer | query | Results per page. Default is `10`.                                        |
-| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
+| page                      | integer | query | Page number of the results to fetch. Maximum is `100`.                    |
+| per_page                  | integer | query | Results per page. Default is `10`. Maximum is 1,000 records. |
+| order_key                 | string  | query | What to order results by. Allowed values: `host_uuid`, `command_uuid`, `status`, `updated_at`, `request_type`, `hostname`. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
@@ -9227,6 +9426,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 | order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -9302,6 +9502,7 @@ _Available in Fleet Premium_
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 
 #### Example (default usage)
@@ -9500,6 +9701,7 @@ _Available in Fleet Premium_
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | query                 | string | query | Search query keywords. Searchable fields include `name`.  |
+| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -9530,6 +9732,7 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | merge_inherited     | boolean | query | If `true`, will include inherited ("All fleets") policies in the count. |
 | automation_type       | string | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
+| platform           | string | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
 
 #### Example
 
@@ -11604,6 +11807,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Create Fleet-maintained app](#create-fleet-maintained-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
+- [Install self-service software by Fleet Desktop token](#install-self-service-software-by-fleet-desktop-token)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
 - [Delete software](#delete-software)
@@ -11965,6 +12169,32 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+For Fleet-maintained apps, the `software_package` object includes two additional fields:
+
+- `pinned_version`: The version the app is pinned to — a specific version (e.g. `"149.0.7827.54"`) or a caret major-version constraint (e.g. `"^147"`). Omitted when the app automatically updates to the latest version.
+- `fleet_maintained_versions`: The versions Fleet has cached and that are available to pin or roll back to. Each entry includes `id`, `version`, and `uploaded_at`. For example:
+```json
+"software_package": {
+  "name": "GoogleChrome.pkg",
+  "version": "149.0.7827.54",
+  "platform": "darwin",
+  "fleet_maintained_app_id": 12,
+  "pinned_version": "149.0.7827.54",
+  "fleet_maintained_versions": [
+    {
+      "id": 36818,
+      "version": "149.0.7827.54",
+      "uploaded_at": "2026-06-04T17:47:23Z"
+    },
+    {
+      "id": 36817,
+      "version": "148.0.7794.0",
+      "uploaded_at": "2026-05-21T11:02:55Z"
+    }
+  ]
+}
+```
+
 For in-house iOS apps, the `software_package` field is populated with package information.
 
 For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_app` is populated with information from the store. For example:
@@ -12184,9 +12414,9 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | software        | file    | body | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`. |
 | fleet_id         | integer | body | The fleet ID. Adds a software package to the specified fleet. If not specified, it will add the software for "Unassigned" hosts. |
 | install_script  | string | body | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| uninstall_script  | string | body | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
@@ -12273,13 +12503,13 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | display_name    | string  | body | Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
-| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
-| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
+| post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
-| version | string | body | Only available for Fleet-maintained apps. Pins the app to specific or major version. Available versions are listed in the Fleet UI under Actions > Edit software. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). To pin to the major version, use a caret (`^`) constraint. You can specify only the major version, without the minor and patch versions. For example, `"⁠^147"` means that Fleet will continuously download the latest version until the app updates to 148.0. |
+| version | string | body | Only available for Fleet-maintained apps. Pins the app to a specific or major version. Available versions are listed in the Fleet UI under **Actions > Versions**. To pin to a major version, use a caret (`^`) constraint and specify only the major version, without the minor and patch versions. For example, `"^147"` means Fleet continuously updates to the latest version until the app reaches 148.0. Set `version` to an empty string (`""`) to switch back to automatically updating to the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). `version` can't be changed in the same request as other fields; omit it to leave the current pin unchanged. |
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -12912,6 +13142,27 @@ Uninstalls software from a host.
 #### Example
 
 `POST /api/v1/fleet/hosts/123/software/3435/uninstall`
+
+##### Default response
+
+`Status: 202`
+
+### Install self-service software by Fleet Desktop token
+
+Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
+
+`POST /api/v1/fleet/device/:token/software/install/:software_title_id`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | **Required**. The host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| software_title_id | string | path | **Required**. The software title's ID. |
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
 
 ##### Default response
 
@@ -13770,30 +14021,6 @@ _Available in Fleet Premium_
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
 | features                                                | object  | body | Per-fleet feature toggles. v1 accepts only the `historical_data` sub-field; other `features` sub-fields are writable per-fleet only via GitOps. See [features.historical_data](#features-historical-data) below. |
 
-##### features.historical_data
-
-Sub-keys mirror the global `features.historical_data` shape and default to
-`true`. A dataset is collected for a host in this fleet only when both the
-global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
-the PATCH body retain their current stored value.
-
-| Name              | Type    | Description                                                                                                |
-| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
-| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
-
-###### Example request body
-
-```json
-{
-  "features": {
-    "historical_data": {
-      "vulnerabilities": false
-    }
-  }
-}
-```
-
 #### Example (transfer hosts to a fleet)
 
 `PATCH /api/v1/fleet/fleets/1`
@@ -14166,6 +14393,30 @@ Returned when the requested name only differs from another fleet's name by lette
   "host_expiry_settings": {
     "host_expiry_enabled": true,
     "host_expiry_window": 7
+  }
+}
+```
+
+##### features.historical_data
+
+Sub-keys mirror the global `features.historical_data` shape and default to
+`true`. A dataset is collected for a host in this fleet only when both the
+global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
+the PATCH body retain their current stored value.
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
+| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
+
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
   }
 }
 ```
@@ -15727,7 +15978,9 @@ Lists all custom variables that can be used in scripts and profiles prefixed wit
   "custom_variables": [
     {
       "id": 123,
-      "name": "SOME_API_TOKEN"
+      "name": "SOME_API_TOKEN",
+      "created_at": "2020-11-13T22:57:12Z",
+      "updated_at": "2020-11-13T22:57:12Z"
     }
   ],
   "meta": {

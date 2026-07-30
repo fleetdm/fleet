@@ -1,0 +1,10 @@
+{
+  "name": "Egnyte WebEdit",
+  "slug": "egnyte-webedit/windows",
+  "package_identifier": "Egnyte.EgnyteWebEdit",
+  "unique_identifier": "Egnyte WebEdit",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

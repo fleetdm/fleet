@@ -10,13 +10,30 @@
   &__team-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: $pad-medium;
   }
 
   &__team-details {
     display: flex;
     align-items: center;
+    min-width: 0;
+    flex: 1;
+    h1 {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
     .form-field--dropdown {
       margin-bottom: 0;
+    }
+  }
+
+  .action-buttons {
+    flex-shrink: 0;
+    button {
+      white-space: nowrap;
     }
   }
 

@@ -206,7 +206,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSManagedLocalAccount bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -280,7 +280,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 	if payload.EnableManagedLocalAccount != nil {
 		if !ac.MDM.MacOSSetup.EnableManagedLocalAccount.Valid || ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value != *payload.EnableManagedLocalAccount {
 			ac.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(*payload.EnableManagedLocalAccount)
-			didUpdateManagedLocalAccount = true
+			didUpdateMacOSManagedLocalAccount = true
 			didUpdate = true
 		}
 	}
@@ -300,8 +300,8 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 				return err
 			}
 		}
-		if didUpdateManagedLocalAccount {
-			if err := svc.updateMacOSSetupEnableManagedLocalAccount(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, nil, nil); err != nil {
+		if didUpdateMacOSManagedLocalAccount {
+			if err := svc.logEnableManagedLocalAccountActivity(ctx, ac.MDM.MacOSSetup.EnableManagedLocalAccount.Value, "darwin", nil, nil); err != nil {
 				return err
 			}
 		}
@@ -326,15 +326,16 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
-func (svc *Service) updateMacOSSetupEnableManagedLocalAccount(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+// logEnableManagedLocalAccountActivity logs the enabled/disabled managed local account activity for one platform's toggle ("darwin" or "windows").
+func (svc *Service) logEnableManagedLocalAccountActivity(ctx context.Context, enable bool, platform string, teamID *uint, teamName *string) error {
 	var act fleet.ActivityDetails
 	if enable {
-		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeEnabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	} else {
-		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName}
+		act = fleet.ActivityTypeDisabledManagedLocalAccount{TeamID: teamID, TeamName: teamName, Platform: platform}
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for macos enable managed local account change")
+		return ctxerr.Wrap(ctx, err, "create activity for enable managed local account change")
 	}
 	return nil
 }
@@ -1126,7 +1127,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 	}
 
 	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
-		UUID:     ssoRequestData.HostUUID,
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
@@ -1578,6 +1578,7 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 		string(mdmAssets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 		accessRights,
+		true, // fresh enrollment (manual profile download)
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -1635,6 +1636,11 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		return err
 	}
 
+	token, err := svc.ds.GetABMTokenByID(ctx, tokenID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting ABM token to delete")
+	}
+
 	if err := svc.ds.DeleteABMToken(ctx, tokenID); err != nil {
 		return ctxerr.Wrap(ctx, err, "removing ABM token")
 	}
@@ -1644,18 +1650,25 @@ func (svc *Service) DeleteABMToken(ctx context.Context, tokenID uint) error {
 		return ctxerr.Wrap(ctx, err, "getting ABM token count")
 	}
 
-	if count == 0 {
-		// flip the app config flag
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving app config")
-		}
-
-		appCfg.MDM.AppleBMEnabledAndConfigured = false
-		return svc.ds.SaveAppConfig(ctx, appCfg)
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
-	return nil
+	// remove the AB entry in appConfig
+	for i, t := range appCfg.MDM.AppleBusinessManager.Value {
+		if t.OrganizationName == token.OrganizationName {
+			appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value[:i], appCfg.MDM.AppleBusinessManager.Value[i+1:]...)
+			break
+		}
+	}
+
+	if count == 0 {
+		// flip the app config flag
+		appCfg.MDM.AppleBMEnabledAndConfigured = false
+	}
+
+	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
 
 func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -1770,6 +1783,7 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
 	}
 
+	var found bool
 	for i, appCfgToken := range appCfg.MDM.AppleBusinessManager.Value {
 		if appCfgToken.OrganizationName == token.OrganizationName {
 
@@ -1793,11 +1807,44 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 
 			// update the app config with the new team names
 			appCfg.MDM.AppleBusinessManager.Value[i] = appCfgToken
-			if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
-			}
+			found = true
 			break
 		}
+	}
+
+	if !appCfg.MDM.AppleBusinessManager.Set || !appCfg.MDM.AppleBusinessManager.Valid {
+		appCfg.MDM.AppleBusinessManager = optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{})
+	}
+
+	if !found {
+		// create a new entry if app config doesn't have one.
+		byodTeam := token.BYODTeam.Name
+		if byodTeam == fleet.TeamNameNoTeam {
+			byodTeam = ""
+		}
+		macosTeam := token.MacOSTeam.Name
+		if macosTeam == fleet.TeamNameNoTeam {
+			macosTeam = ""
+		}
+		iosTeam := token.IOSTeam.Name
+		if iosTeam == fleet.TeamNameNoTeam {
+			iosTeam = ""
+		}
+		ipadosTeam := token.IPadOSTeam.Name
+		if ipadosTeam == fleet.TeamNameNoTeam {
+			ipadosTeam = ""
+		}
+		appCfg.MDM.AppleBusinessManager.Value = append(appCfg.MDM.AppleBusinessManager.Value, fleet.MDMAppleABMAssignmentInfo{
+			OrganizationName: token.OrganizationName,
+			BYODTeam:         byodTeam,
+			MacOSTeam:        macosTeam,
+			IOSTeam:          iosTeam,
+			IpadOSTeam:       ipadosTeam,
+		})
+	}
+
+	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving app config after ABM token team update")
 	}
 
 	return token, nil

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -8,10 +8,11 @@ import Select, {
 } from "react-select-5";
 
 import { IUser } from "interfaces/user";
-import { ITeam, ITeamSummary } from "interfaces/team";
+import { ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
-import { getSortedTeamOptions } from "utilities/helpers";
+import permissions from "utilities/permissions";
+import { AppContext } from "context/app";
 
 import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";
@@ -61,20 +62,29 @@ const CustomOption: React.FC<
   const { innerRef, data, isFocused, isKeyboardFocus } = props;
 
   return (
-    <components.Option
-      {...props}
-      isFocused={isKeyboardFocus ? isFocused : false} // work around to not preselect first option unless keyboarding
-    >
-      <div
-        className={`${baseClass}__option`}
-        ref={innerRef}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        tabIndex={0}
-        role="menuitem"
+    <>
+      {data.hasDividerBefore && (
+        <div
+          className={`${baseClass}__divider`}
+          aria-hidden="true"
+          role="presentation"
+        />
+      )}
+      <components.Option
+        {...props}
+        isFocused={isKeyboardFocus ? isFocused : false} // work around to not preselect first option unless keyboarding
       >
-        {data.label}
-      </div>
-    </components.Option>
+        <div
+          className={`${baseClass}__option`}
+          ref={innerRef}
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          role="menuitem"
+        >
+          {data.label}
+        </div>
+      </components.Option>
+    </>
   );
 };
 
@@ -86,6 +96,10 @@ const UserMenu = ({
   currentUser,
   currentTeam,
 }: IUserMenuProps): JSX.Element => {
+  const { availableTeams, isPremiumTier, isSandboxMode } = useContext(
+    AppContext
+  );
+
   // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
@@ -110,70 +124,106 @@ const UserMenu = ({
     };
   }, []);
 
-  const dropdownItems = [
+  const dropdownItems: IDropdownOption[] = [
     {
-      label: "My account",
-      value: "my-account",
-      onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
-    },
-    {
-      label: "Documentation",
-      value: "documentation",
-      onClick: () => {
-        window.open("https://fleetdm.com/docs", "_blank");
-      },
-    },
-    {
-      label: "Sign out",
-      value: "sign-out",
-      onClick: onLogout,
+      label: "Labels",
+      value: "labels",
+      onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
     },
   ];
 
   if (isGlobalAdmin) {
-    const manageUserNavItem = {
-      label: "Users",
-      value: "manage-users",
-      onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
-    };
-    dropdownItems.unshift(manageUserNavItem);
-  }
-
-  const manageLabelsMenuItem = {
-    label: "Labels",
-    value: "labels",
-    onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
-  };
-  dropdownItems.unshift(manageLabelsMenuItem);
-
-  if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
-    let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
-    if (currentUser.global_role !== "admin") {
-      const userAdminTeams = currentUser.teams.filter(
-        (thisTeam: ITeam) => thisTeam.role === "admin"
-      );
-      clickHandler = () => {
-        const currentTeamIsAdmin =
-          currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
-        if (currentTeamIsAdmin) {
-          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
-        } else {
-          // Not an admin of the current team — redirect to the first team the
-          // user is an admin of.
-          const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
-          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
-        }
-      };
+    if (!isSandboxMode) {
+      dropdownItems.push({
+        label: "Organization settings",
+        value: "organization-settings",
+        hasDividerBefore: true,
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION),
+      });
+    } else {
+      dropdownItems.push({
+        label: "Integrations",
+        value: "integrations",
+        hasDividerBefore: true,
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_INTEGRATIONS),
+      });
     }
 
-    const adminMenuItem = {
-      label: "Settings",
-      value: "settings",
-      onClick: clickHandler,
+    if (!isSandboxMode) {
+      dropdownItems.push({
+        label: "Integrations",
+        value: "integrations",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_INTEGRATIONS),
+      });
+      dropdownItems.push({
+        label: "Users",
+        value: "users",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
+      });
+    }
+
+    if (isPremiumTier) {
+      dropdownItems.push({
+        label: "Fleets",
+        value: "fleets",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_FLEETS),
+      });
+    }
+  } else if (currentUser && isAnyTeamAdmin) {
+    // Resolved at click time so availableTeams is guaranteed to be loaded.
+    const getTargetTeamId = () => {
+      const currentTeamIsAdmin =
+        currentTeam && permissions.isTeamAdmin(currentUser, currentTeam.id);
+      // Use the current team if the user is an admin of it, otherwise fall back
+      // to the first team (alphabetical) the user is an admin of.
+      // availableTeams is pre-sorted alphabetically by AppContext.
+      return currentTeamIsAdmin
+        ? currentTeam.id
+        : availableTeams?.find((t) =>
+            permissions.isTeamAdmin(currentUser, t.id)
+          )?.id;
     };
 
-    dropdownItems.unshift(adminMenuItem);
+    dropdownItems.push({
+      label: "Users",
+      value: "team-users",
+      hasDividerBefore: true,
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(getTargetTeamId())),
+    });
+    dropdownItems.push({
+      label: "Agent options",
+      value: "team-agent-options",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_OPTIONS(getTargetTeamId())),
+    });
+    dropdownItems.push({
+      label: "Settings",
+      value: "team-settings",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_SETTINGS(getTargetTeamId())),
+    });
   }
+
+  dropdownItems.push({
+    label: "My account",
+    value: "my-account",
+    hasDividerBefore: true,
+    onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
+  });
+  dropdownItems.push({
+    label: "Documentation",
+    value: "documentation",
+    onClick: () => {
+      window.open("https://fleetdm.com/docs", "_blank");
+    },
+  });
+  dropdownItems.push({
+    label: "Sign out",
+    value: "sign-out",
+    hasDividerBefore: true,
+    onClick: onLogout,
+  });
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
     control: (provided, state) => ({
@@ -243,9 +293,6 @@ const UserMenu = ({
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-fleet-black-5"],
-      },
-      "&:last-child, &:nth-last-of-type(2)": {
-        borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
       },
     }),
   };

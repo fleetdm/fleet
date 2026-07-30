@@ -94,7 +94,7 @@ const generateColumnConfigs = (
       return (
         <Button
           className={`${baseClass}__details-cell`}
-          variant="text-icon"
+          variant="subdued"
           onClick={() => onShowDetails(activity)}
         >
           <span className={`${baseClass}__details-text`}>

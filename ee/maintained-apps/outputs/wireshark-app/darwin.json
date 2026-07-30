@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.6.6",
+      "version": "4.6.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.wireshark.Wireshark';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.wireshark.Wireshark' AND version_compare(bundle_short_version, '4.6.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.wireshark.Wireshark' AND version_compare(bundle_short_version, '4.6.7') < 0);"
       },
-      "installer_url": "https://www.wireshark.org/download/osx/all-versions/Wireshark%204.6.6.dmg",
+      "installer_url": "https://www.wireshark.org/download/osx/all-versions/Wireshark%204.6.7.dmg",
       "install_script_ref": "25b386c2",
       "uninstall_script_ref": "53f12e6d",
-      "sha256": "e4825322d64c9b7e06f5e4bc7be3094bc0d5cd9e8b593eee06b99151fbf7e005",
+      "sha256": "f2dc93c67f6863ccc0ba54ff82e8d9ce4a8139e6d4838212eca8b1a119020786",
       "default_categories": [
         "Developer tools"
       ]

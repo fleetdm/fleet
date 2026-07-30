@@ -1,24 +1,29 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import softwareAPI from "services/entities/software";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { AppContext } from "context/app";
+import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
 import { notify } from "components/ToastNotification";
+import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
+import InfoBanner from "components/InfoBanner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import InfoBanner from "components/InfoBanner";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
@@ -27,6 +32,25 @@ import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageFor
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-custom-package";
+
+/** Shared GitOps-mode banner for the custom-package flows. Rendered by this
+ * page (single-package add) and by `PackageForm`'s multi-package Add modal. */
+export const GitOpsCustomPackageBanner = () => (
+  <InfoBanner
+    icon="info-outline"
+    iconColor="ui-fleet-black-50"
+    borderRadius="medium"
+  >
+    Add custom packages in GitOps mode so Fleet can host your software. After
+    adding, copy its SHA-256 hash into your YAML so the next GitOps workflow
+    doesn&apos;t delete it.{" "}
+    <CustomLink
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/software-yaml`}
+      text="YAML docs"
+      newTab
+    />
+  </InfoBanner>
+);
 
 interface ISoftwarePackageProps {
   currentTeamId: number;
@@ -72,26 +96,8 @@ const SoftwareCustomPackage = ({
     }
   );
 
-  useEffect(() => {
-    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Next line with e.returnValue is included for legacy support
-      // e.g.Chrome / Edge < 119
-      e.returnValue = true;
-    };
-
-    // set up event listener to prevent user from leaving page while uploading
-    if (uploadDetails) {
-      addEventListener("beforeunload", beforeUnloadHandler);
-    } else {
-      removeEventListener("beforeunload", beforeUnloadHandler);
-    }
-
-    // clean up event listener and timeout on component unmount
-    return () => {
-      removeEventListener("beforeunload", beforeUnloadHandler);
-    };
-  }, [uploadDetails]);
+  // Block tab close / hard navigation while an upload is in flight.
+  useBlockNavigation(!!uploadDetails);
 
   const onClickPreviewEndUserExperience = (isIosOrIpadosApp = false) => {
     setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
@@ -150,7 +156,6 @@ const SoftwareCustomPackage = ({
 
       const newQueryParams: QueryParams = {
         fleet_id: currentTeamId,
-        gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(
         getPathWithQueryParams(
@@ -159,7 +164,9 @@ const SoftwareCustomPackage = ({
         )
       );
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      notify.error(getErrorMessage(e, formData.software?.name), {
+        response: e,
+      });
     }
     setUploadDetails(null);
   };
@@ -175,13 +182,7 @@ const SoftwareCustomPackage = ({
 
     return (
       <>
-        {gitOpsModeEnabled && (
-          <InfoBanner borderRadius="medium">
-            Add custom packages in GitOps mode so Fleet can host your software.
-            After adding, copy its SHA-256 hash into your YAML so the next
-            GitOps workflow doesn&apos;t delete it.
-          </InfoBanner>
-        )}
+        {gitOpsModeEnabled && <GitOpsCustomPackageBanner />}
         <PackageForm
           labels={labels || []}
           showSchemaButton={!isSidePanelOpen}

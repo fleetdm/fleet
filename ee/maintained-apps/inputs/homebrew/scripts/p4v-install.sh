@@ -3,7 +3,8 @@
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
-  if ! osascript -e "application id \"$bundle_id\" is running" >/dev/null 2>&1; then return; fi
+  local app_running; app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then return; fi
   local console_user; console_user=$(stat -f "%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then echo "Skipping quit for '$bundle_id'."; return; fi
   echo "Quitting '$bundle_id'..."

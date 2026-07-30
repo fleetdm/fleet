@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.4.3",
+      "version": "1.5.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.gitup.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.gitup.mac' AND version_compare(bundle_short_version, '1.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.gitup.mac' AND version_compare(bundle_short_version, '1.5.0') < 0);"
       },
-      "installer_url": "https://github.com/git-up/GitUp/releases/download/v1.4.3/GitUp.zip",
+      "installer_url": "https://github.com/git-up/GitUp/releases/download/v1.5.0/GitUp.zip",
       "install_script_ref": "49ccc983",
       "uninstall_script_ref": "89a86e29",
-      "sha256": "f0f1896dae7a17e3f51f6872cc57a79061ab3f47692d64b5a8216cfb6dddb4dc",
+      "sha256": "5e1d915ed533334e1691f9c01eb3cb9d2e5f459fb7aa2631b71120ff59ad585b",
       "default_categories": [
         "Productivity"
       ]

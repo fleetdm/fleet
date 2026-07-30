@@ -128,6 +128,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
@@ -284,6 +285,12 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		}
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
+		}
+		ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (bool, error) {
+			return false, nil
+		}
+		ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+			return false, nil
 		}
 		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 			return nil, &eeservice.NotFoundError{}

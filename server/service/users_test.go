@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -994,6 +997,89 @@ func TestResetPassword(t *testing.T) {
 	}
 }
 
+// TestResetPasswordConcurrent verifies that a single password reset token can be
+// consumed by at most one concurrent request. Firing many requests with the same
+// valid token and distinct new passwords must result in exactly one success; the
+// rest must fail because the token has already been consumed.
+func TestResetPasswordConcurrent(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	createTestUsers(t, ds)
+
+	const token = "concurrent-reset-token"
+	_, err := ds.NewPasswordResetRequest(t.Context(), &fleet.PasswordResetRequest{
+		ExpiresAt: time.Now().Add(time.Hour * 24),
+		UserID:    1,
+		Token:     token,
+	})
+	require.NoError(t, err)
+
+	const n = 10
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			// Each request sets a distinct new password so none is rejected by
+			// the "cannot reuse old password" check.
+			pw := fmt.Sprintf("racePassword%d!", i)
+			<-start
+			errs[i] = svc.ResetPassword(ctx, token, pw)
+		}(i)
+	}
+	close(start)
+	wg.Wait()
+
+	var succeeded int
+	for _, e := range errs {
+		if e == nil {
+			succeeded++
+		}
+	}
+	require.Equal(t, 1, succeeded, "exactly one concurrent reset should succeed for a single-use token")
+}
+
+// TestResetPasswordTokenSurvivesRejection verifies that a reset request rejected by
+// validation (a password that is too weak, or a reused current password) does NOT
+// consume the token. The user can retry with the same token and a valid password.
+// This guards the deliberate ordering in ResetPassword: the token is consumed only
+// after all read-only validation has passed.
+func TestResetPasswordTokenSurvivesRejection(t *testing.T) {
+	ds := mysqltest.CreateMySQLDS(t)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	createTestUsers(t, ds) // user ID 1's current password is test.GoodPassword
+
+	const token = "survives-rejection-token"
+	_, err := ds.NewPasswordResetRequest(t.Context(), &fleet.PasswordResetRequest{
+		ExpiresAt: time.Now().Add(time.Hour * 24),
+		UserID:    1,
+		Token:     token,
+	})
+	require.NoError(t, err)
+
+	// A password that fails the strength requirements is rejected before consuming the token.
+	require.Error(t, svc.ResetPassword(ctx, token, "short"))
+
+	// A password that satisfies the strength requirements but is too long for bcrypt to
+	// hash is rejected before consuming the token. Hashing happens after the strength
+	// check, so without hashing-before-consume this rejection would burn the token.
+	tooLong := "aA1!" + strings.Repeat("x", 60) // 64 chars: has a number and symbol, exceeds bcrypt's limit
+	require.Error(t, svc.ResetPassword(ctx, token, tooLong))
+
+	// Reusing the current password is rejected before consuming the token.
+	require.Error(t, svc.ResetPassword(ctx, token, test.GoodPassword))
+
+	// The token was not burned by the rejected attempts: a valid new password succeeds.
+	require.NoError(t, svc.ResetPassword(ctx, token, test.GoodPassword2))
+
+	// After a successful reset the token is consumed and can no longer be used.
+	require.Error(t, svc.ResetPassword(ctx, token, test.GoodPassword))
+}
+
 func refreshCtx(t *testing.T, ctx context.Context, user *fleet.User, ds fleet.Datastore, session *fleet.Session) context.Context {
 	reloadedUser, err := ds.UserByEmail(ctx, user.Email)
 	require.NoError(t, err)
@@ -1828,30 +1914,28 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 			return nil, errors.New("user not found")
 		}
 
-		ds.SaveUserFunc = func(ctx context.Context, u *fleet.User) error {
-			return nil
-		}
-
-		var deletedPasswordResetForUserID uint
-		ds.DeletePasswordResetRequestsForUserFunc = func(ctx context.Context, userID uint) error {
-			deletedPasswordResetForUserID = userID
-			return nil
-		}
-
-		var destroyedSessionsForUserID uint
-		ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, userID uint) error {
-			destroyedSessionsForUserID = userID
+		// Consuming the token, saving the password, and clearing the user's other reset
+		// links and sessions now happen atomically inside the datastore, so the service
+		// delegates to a single ResetPassword call.
+		var (
+			passedToken string
+			passedUser  *fleet.User
+		)
+		ds.ResetPasswordFunc = func(ctx context.Context, token string, u *fleet.User) error {
+			passedToken = token
+			passedUser = u
 			return nil
 		}
 
 		err = svc.ResetPassword(ctx, resetToken, test.GoodPassword2)
 		require.NoError(t, err)
 
-		assert.True(t, ds.DeletePasswordResetRequestsForUserFuncInvoked, "DeletePasswordResetRequestsForUser should be called")
-		assert.Equal(t, targetUser.ID, deletedPasswordResetForUserID, "should delete password reset tokens for the correct user")
-
-		assert.True(t, ds.DestroyAllSessionsForUserFuncInvoked, "DestroyAllSessionsForUser should be called")
-		assert.Equal(t, targetUser.ID, destroyedSessionsForUserID, "should destroy sessions for the correct user")
+		require.True(t, ds.ResetPasswordFuncInvoked, "ResetPassword should be called")
+		assert.Equal(t, resetToken, passedToken, "should consume the provided token")
+		require.NotNil(t, passedUser)
+		assert.Equal(t, targetUser.ID, passedUser.ID, "should reset the correct user")
+		// The password must already be hashed before it reaches the datastore transaction.
+		require.NoError(t, passedUser.ValidatePassword(test.GoodPassword2), "new password should be hashed before the reset transaction")
 	})
 
 	t.Run("PerformRequiredPasswordReset clears other sessions but keeps current", func(t *testing.T) {
@@ -1906,4 +1990,75 @@ func TestPasswordChangeClearsTokensAndSessions(t *testing.T) {
 		assert.True(t, ds.DestroySessionFuncInvoked, "DestroySession should be called")
 		assert.Equal(t, []uint{otherSession.ID}, destroyedSessionIDs, "should only destroy the other session, not the current one")
 	})
+}
+
+// TestListUsersFiltersTeamsToRequesterScope verifies that a team-scoped admin
+// listing users does not receive team memberships (IDs/names/roles) for teams
+// the requester has no role in. Regression test for the cross-team data
+// exposure on GET /api/latest/fleet/users for shared multi-team users.
+func TestListUsersFiltersTeamsToRequesterScope(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// A user shared across team 1 and team 2, as returned by the datastore
+	// (ds.ListUsers always loads the user's full team list).
+	sharedUserTeams := []fleet.UserTeam{
+		{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
+		{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
+	}
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{
+			ID:    10,
+			Teams: append([]fleet.UserTeam{}, sharedUserTeams...),
+		}}, nil
+	}
+
+	// Requester is an admin of team 1 only, listing users of team 1.
+	teamOneAdmin := &fleet.User{
+		ID:    1,
+		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: teamOneAdmin})
+
+	resp, err := listUsersEndpoint(ctx, &listUsersRequest{
+		ListOptions: fleet.UserListOptions{TeamID: 1},
+	}, svc)
+	require.NoError(t, err)
+
+	lr, ok := resp.(listUsersResponse)
+	require.True(t, ok)
+	require.NoError(t, lr.Err)
+	require.Len(t, lr.Users, 1)
+
+	// The requester must only see team 1 (in scope), never team 2.
+	require.Len(t, lr.Users[0].Teams, 1)
+	require.Equal(t, uint(1), lr.Users[0].Teams[0].ID)
+}
+
+// TestListUsersGlobalRequesterSeesAllTeams verifies the filter does not strip
+// teams for a global-role requester, who is authorized to see all teams.
+func TestListUsersGlobalRequesterSeesAllTeams(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return []*fleet.User{{
+			ID: 10,
+			Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: 1, Name: "Team 1"}, Role: fleet.RoleObserver},
+				{Team: fleet.Team{ID: 2, Name: "Team 2"}, Role: fleet.RoleObserver},
+			},
+		}}, nil
+	}
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
+
+	resp, err := listUsersEndpoint(ctx, &listUsersRequest{}, svc)
+	require.NoError(t, err)
+
+	lr, ok := resp.(listUsersResponse)
+	require.True(t, ok)
+	require.NoError(t, lr.Err)
+	require.Len(t, lr.Users, 1)
+	require.Len(t, lr.Users[0].Teams, 2)
 }

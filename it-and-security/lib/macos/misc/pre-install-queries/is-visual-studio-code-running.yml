@@ -1,1 +1,0 @@
-- query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE path LIKE '/Applications/Visual Studio Code.app/%');

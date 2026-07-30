@@ -1,0 +1,1 @@
+- Fixed an issue where premium MDM calls was being made on a Fleet Free license.

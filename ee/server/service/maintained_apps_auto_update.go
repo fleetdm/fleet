@@ -117,12 +117,11 @@ func promoteFleetMaintainedApp(ctx context.Context, ds fleet.Datastore, logger *
 		TeamID:  c.TeamID,
 		TitleID: c.TitleID,
 	}
+	// SetFleetMaintainedAppActiveInstaller atomically flips the active installer,
+	// re-points policies, and redirects installs frozen on the old version to the
+	// new one, so a host never installs a version other than the one displayed.
 	if err := ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, target.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting active installer")
-	}
-	// Cancel pending installs of the version we advanced away from.
-	if err := ds.ProcessInstallerUpdateSideEffects(ctx, c.InstallerID, true, false); err != nil {
-		return ctxerr.Wrap(ctx, err, "processing installer update side effects")
 	}
 
 	logger.InfoContext(ctx, "advanced fleet-maintained app to newer cached version",
@@ -167,11 +166,11 @@ func downloadNewVersionIfEligible(
 		if pin != "" && !versionMatchesMajor(app.Version, strings.TrimPrefix(pin, "^")) {
 			return nil
 		}
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
+		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, app.Version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
+		if versionExists {
 			return nil
 		}
 	}
@@ -253,11 +252,11 @@ func downloadNewVersionIfEligible(
 		return nil
 	}
 	if version != app.Version {
-		has, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
+		versionExists, _, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		if has {
+		if versionExists {
 			return nil
 		}
 	}

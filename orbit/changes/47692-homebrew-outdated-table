@@ -1,0 +1,1 @@
+* Added the `homebrew_outdated` table to fleetd for querying outdated Homebrew packages (formulae and casks) on macOS, exposing installed and latest-available versions.

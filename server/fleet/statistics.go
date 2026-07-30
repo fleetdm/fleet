@@ -82,6 +82,11 @@ type StatisticsPayload struct {
 	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
 	// Exceptions are persisted independently of GitOpsModeEnabled.
 	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
+
+	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
+	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
 }
 
 type HostsCountByOrbitVersion struct {

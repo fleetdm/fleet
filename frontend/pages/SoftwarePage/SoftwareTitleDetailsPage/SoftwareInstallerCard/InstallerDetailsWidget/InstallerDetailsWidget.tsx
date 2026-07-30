@@ -8,7 +8,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
-import { InstallerType } from "interfaces/software";
+import { InstallerType, SoftwareSource } from "interfaces/software";
 
 import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
 
@@ -74,6 +74,8 @@ interface IInstallerDetailsWidgetProps {
   isFma: boolean;
   isLatestFmaVersion?: boolean;
   isScriptPackage: boolean;
+  /** Software source, used to pick the file icon (e.g. `file-py` for `py_packages`). */
+  source?: SoftwareSource;
   androidPlayStoreId?: string;
   customDetails?: string;
   /** Suppress the leading installer-type label ("Custom package", "App Store (VPP)",
@@ -99,6 +101,7 @@ const InstallerDetailsWidget = ({
   isFma,
   isLatestFmaVersion = false,
   isScriptPackage,
+  source,
   androidPlayStoreId,
   customDetails,
   hideInstallerType = false,
@@ -112,6 +115,9 @@ const InstallerDetailsWidget = ({
         return <SoftwareIcon name="androidPlayStore" size="medium" />;
       }
       return <SoftwareIcon name="appleAppStore" size="medium" />;
+    }
+    if (source === "py_packages") {
+      return <Graphic name="file-py" />;
     }
     return <Graphic name="file-pkg" />;
   };

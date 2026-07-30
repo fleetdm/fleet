@@ -1,0 +1,13 @@
+{
+  "name": "DYMO ID",
+  "slug": "dymo-id/windows",
+  "package_identifier": "DYMO.DYMOID",
+  "unique_identifier": "DYMO ID",
+  "program_publisher": "Sanford, L.P.",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/dymo-id_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/dymo-id_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

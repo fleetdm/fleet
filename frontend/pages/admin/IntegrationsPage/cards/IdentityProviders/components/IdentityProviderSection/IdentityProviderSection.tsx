@@ -147,7 +147,7 @@ const IdentityProviderSection = () => {
     return null;
   };
   return (
-    <SettingsSection title="Identity provider (IdP)">
+    <SettingsSection title="User mapping">
       <PageDescription
         content={
           <>

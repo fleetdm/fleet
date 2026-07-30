@@ -1,0 +1,15 @@
+{
+  "name": "Infix PDF Editor",
+  "slug": "infix-pdf-editor/windows",
+  "package_identifier": "Iceni.InfixPDFEditor",
+  "unique_identifier": "Infix PDF Editor",
+  "program_publisher": "Iceni Technology",
+  "installer_arch": "x86",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/infix-pdf-editor_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/infix-pdf-editor_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

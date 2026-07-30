@@ -381,6 +381,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					if err := fleet.ValidateAndroidAppConfiguration(payload.Configuration); err != nil {
 						return nil, nil, err
 					}
+					if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+						if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+							return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+						}
+						return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+					}
 				}
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
@@ -814,6 +820,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		if strings.HasPrefix(appID.AdamID, fleet.AndroidWebAppPrefix) && appID.Configuration != nil {
 			return 0, "", fleet.NewInvalidArgumentError("configuration", "Couldn't add. Android web apps don't support configurations.")
+		}
+
+		if appID.Configuration != nil {
+			if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(appID.Configuration)}); err != nil {
+				if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+					return 0, "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+				}
+				return 0, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+			}
 		}
 
 		appID.SelfService = true
@@ -1323,6 +1338,13 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			return nil, nil, fleet.NewInvalidArgumentError("configuration", "Couldn't edit. Android web apps don't support configurations.")
 		}
 
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(payload.Configuration)}); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return nil, nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
+			return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
+		}
+
 		// check if configuration has changed
 		androidConfigChanged, err = svc.ds.HasAndroidAppConfigurationChanged(ctx, meta.AdamID, ptr.ValOrZero(teamID), payload.Configuration)
 		if err != nil {
@@ -1539,11 +1561,60 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 }
 
 func (svc *Service) GetVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+	// The Add software > App Store picker reads the token list, so this must be
+	// readable by the same roles that can read App Store apps
+	// (fleet.VPPApp/installable_entity), not just admins. Global roles can read
+	// every token; team-scoped users can only read tokens assigned to a team
+	// where they have read access (plus "All teams" tokens).
+	globalRead := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead)
+
+	// Collect the teams where a team-scoped user has read access. Left empty for
+	// global readers since they can see everything.
+	readableTeams := make(map[uint]struct{})
+	if globalRead != nil {
+		if user := authz.UserFromContext(ctx); user != nil {
+			for _, t := range user.Teams {
+				teamID := t.ID
+				if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: &teamID}, fleet.ActionRead); err == nil {
+					readableTeams[teamID] = struct{}{}
+				}
+			}
+		}
+
+		// No read access globally or on any team: return the forbidden error.
+		if len(readableTeams) == 0 {
+			return nil, globalRead
+		}
+	}
+
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	return svc.ds.ListVPPTokens(ctx)
+	// Global readers get every token unchanged.
+	if globalRead == nil {
+		return tokens, nil
+	}
+
+	filtered := make([]*fleet.VPPTokenDB, 0, len(tokens))
+	for _, tok := range tokens {
+		// A non-nil, empty Teams slice means the token is assigned to "All
+		// teams" and is visible to any user with read access. A nil slice means
+		// the token is unassigned and only global readers should see it.
+		if tok.Teams != nil && len(tok.Teams) == 0 {
+			filtered = append(filtered, tok)
+			continue
+		}
+		for _, tt := range tok.Teams {
+			if _, ok := readableTeams[tt.ID]; ok {
+				filtered = append(filtered, tok)
+				break
+			}
+		}
+	}
+
+	return filtered, nil
 }
 
 func (svc *Service) DeleteVPPToken(ctx context.Context, tokenID uint) error {

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "3.16.0",
+      "version": "3.16.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC' AND version_compare(version, '3.16.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Proxyman' AND publisher = 'Proxyman LLC' AND version_compare(version, '3.16.1') < 0);"
       },
-      "installer_url": "https://assets.proxyman.com/windows/3.16.0/build/Proxyman%20Setup%203.16.0.exe",
+      "installer_url": "https://assets.proxyman.com/windows/3.16.1/build/Proxyman%20Setup%203.16.1.exe",
       "install_script_ref": "46c673e8",
       "uninstall_script_ref": "d1d99ad9",
-      "sha256": "fa25ae25eaaaf72a76c11bdc13b8de3a4a5b7dda2df268b067ee6c482ee3ca7c",
+      "sha256": "6807f67c1b7650e5f1f57f26a2c8b8666201ec89f54cc2df7a5fbc180f095ef2",
       "default_categories": [
         "Developer tools"
       ]

@@ -11,9 +11,10 @@ import (
 
 func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
-		name    string
-		profile MDMWindowsConfigProfile
-		wantErr string
+		name                      string
+		profile                   MDMWindowsConfigProfile
+		allowCustomDiskEncryption bool
+		wantErr                   string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -76,6 +77,19 @@ func TestValidateUserProvided(t *testing.T) {
 <Replace>
   <Item>
     <Target><LocURI>./Vendor/MSFT/BitLocker/Foo</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			name: "Reserved LocURI with scope-less prefix",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Vendor/MSFT/BitLocker/RequireDeviceEncryption</LocURI></Target>
   </Item>
 </Replace>
 `),
@@ -702,6 +716,21 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
 		},
 		{
+			name: fmt.Sprintf("scope-less SCEP LocURI is treated as Device SCEP (missing $FLEET_VAR_%s rejected)", FleetVarSCEPWindowsCertificateID),
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				<Add>
+					<Item>
+						<Target>
+							<LocURI>Vendor/MSFT/ClientCertificateInstall/SCEP/bogus-id-that-is-not-fleet-var/Install/CAThumbprint</LocURI>
+						</Target>
+					</Item>
+				</Add>
+				`),
+			},
+			wantErr: fmt.Sprintf("You must use \"$FLEET_VAR_%s\" after \"ClientCertificateInstall/SCEP/\".", FleetVarSCEPWindowsCertificateID),
+		},
+		{
 			name: "SCEP Profile with missing required LocURI",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
@@ -928,11 +957,25 @@ func TestValidateUserProvided(t *testing.T) {
 			},
 			wantErr: "",
 		},
+		{
+			name: "BitLocker LocURI allowed when custom disk encryption is enabled",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>./Device/Vendor/MSFT/BitLocker/Foo</LocURI></Target>
+  </Item>
+</Replace>
+`),
+			},
+			allowCustomDiskEncryption: true,
+			wantErr:                   "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.profile.ValidateUserProvided()
+			err := tt.profile.ValidateUserProvided(tt.allowCustomDiskEncryption)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {
