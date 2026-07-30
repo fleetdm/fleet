@@ -136,6 +136,8 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 
 4. **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline.
 
+5. **Product changes**: If the PR changes the product (UI, user-facing behavior, or workflows), the EM assigns it to the relevant Product Designer (PD) for review before merging.
+
 
 #### Merge a community pull request
 
