@@ -469,6 +469,11 @@ func TestNormalizeInstallerFilename(t *testing.T) {
 		`sudo installer -pkg "$TMPDIR"/`+ph+` -target / -applyChoiceChangesXML "$X"`,
 		normalizeInstallerFilename(`sudo installer -pkg "$TMPDIR"/Foo-1.0.pkg -target / -applyChoiceChangesXML "$X"`, "Foo-1.0.pkg"))
 
+	// Unquoted form must not prefix-match a longer path that only starts with the filename.
+	require.Equal(t,
+		`sudo installer -pkg "$TMPDIR"/dmg_mount_XXXXXX -target /`,
+		normalizeInstallerFilename(`sudo installer -pkg "$TMPDIR"/dmg_mount_XXXXXX -target /`, "dmg"))
+
 	// Empty filename is a no-op.
 	require.Equal(t, "unchanged", normalizeInstallerFilename("unchanged", ""))
 }

@@ -418,6 +418,9 @@ func normalizeInstallerFilename(script, filename string) string {
 	// basename (e.g. "dmg") would otherwise rewrite free-floating occurrences such
 	// as /tmp/dmg_mount_XXXXXX.
 	script = strings.ReplaceAll(script, `"$TMPDIR/`+filename+`"`, `"$TMPDIR/`+placeholder+`"`)
-	script = strings.ReplaceAll(script, `"$TMPDIR"/`+filename, `"$TMPDIR"/`+placeholder)
+	// The unquoted (choices) form is always followed by " -target", so bound the
+	// match with the trailing space; otherwise a filename would prefix-match a
+	// longer path that merely starts with it.
+	script = strings.ReplaceAll(script, `"$TMPDIR"/`+filename+" ", `"$TMPDIR"/`+placeholder+" ")
 	return script
 }
