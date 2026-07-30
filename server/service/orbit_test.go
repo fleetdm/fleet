@@ -1812,3 +1812,79 @@ func TestGetOrbitConfigHostDataCacheWithPendingWork(t *testing.T) {
 	require.Equal(t, []string{"exec-1", "exec-2"}, cfg.Notifications.PendingScriptExecutionIDs)
 	require.Equal(t, []string{"install-1", "install-2"}, cfg.Notifications.PendingSoftwareInstallerIDs)
 }
+
+// TestGetOrbitConfigDBCallBudget is a guardrail test that tracks the exact set
+// of datastore methods called during a GetOrbitConfig request. If a new DB call
+// is added to GetOrbitConfig without updating this test, it will fail --
+// forcing the author to decide whether the new call should be added to the
+// orbitHostCache or left uncached with justification.
+//
+// The test uses a no-team, non-MDM, non-LUKS host (the baseline hot path) so
+// it covers the minimum set of DB calls that fire on every single orbit
+// check-in. Conditional calls (team agent options, MDM config, nudge, setup
+// assistant, etc.) are not counted here because they only fire for specific
+// host configurations.
+func TestGetOrbitConfigDBCallBudget(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+	host := &fleet.Host{
+		OsqueryHostID: ptr.String("test"),
+		ID:            1,
+		Platform:      "ubuntu",
+	}
+
+	// Set up the minimal mocks required for a no-team, non-MDM host.
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return nil, nil
+	}
+	ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		return nil, nil
+	}
+	ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+		return nil, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	ctx = test.HostContext(ctx, host)
+	_, err := svc.GetOrbitConfig(ctx)
+	require.NoError(t, err)
+
+	// ---- DB call budget ----
+	// These are ALL the datastore methods that should be called for a baseline
+	// (no-team, non-MDM, non-LUKS) host. The cache is disabled in tests, so
+	// every call goes to the DB.
+	//
+	// If you are adding a new DB call to GetOrbitConfig:
+	//   1. Add the mock above so the test doesn't panic.
+	//   2. Add it to the "expected" list below.
+	//   3. Consider whether it should be added to orbitHostCacheEntry in
+	//      getOrbitHostData() to avoid adding a per-host DB read on every
+	//      30s orbit check-in.
+
+	// Cached by getOrbitHostData (these 3 fire on every call but are served
+	// from cache in production after the first miss):
+	require.True(t, ds.GetHostMDMFuncInvoked, "GetHostMDM should be called (cached)")
+	require.True(t, ds.ListReadyToExecuteScriptsForHostFuncInvoked, "ListReadyToExecuteScriptsForHost should be called (cached)")
+	require.True(t, ds.ListReadyToExecuteSoftwareInstallsFuncInvoked, "ListReadyToExecuteSoftwareInstalls should be called (cached)")
+
+	// Always called, not cached (cheap or already has its own cache):
+	require.True(t, ds.AppConfigFuncInvoked, "AppConfig should be called (has its own 1s cache)")
+
+	// Conditionally called for this host path:
+	// (GetHostAwaitingConfiguration is only called for macOS + MDM, but our
+	// host is ubuntu so it should NOT be called)
+
+	// NOT called for baseline host -- if any of these fire, a new uncached
+	// call was added and needs review:
+	require.False(t, ds.TeamAgentOptionsFuncInvoked, "TeamAgentOptions should not be called for no-team host")
+	require.False(t, ds.TeamMDMConfigFuncInvoked, "TeamMDMConfig should not be called for no-team host")
+	require.False(t, ds.GetHostOperatingSystemFuncInvoked, "GetHostOperatingSystem should not be called for non-MDM host")
+	require.False(t, ds.IsHostPendingEscrowFuncInvoked, "IsHostPendingEscrow should not be called for non-LUKS host")
+	require.False(t, ds.ClearPendingEscrowFuncInvoked, "ClearPendingEscrow should not be called for non-LUKS host")
+}
