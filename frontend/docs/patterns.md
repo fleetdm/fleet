@@ -1129,7 +1129,7 @@ Visible toasts are dismissed automatically on URL change.
 
 ```tsx
 // first notify
-notify.error("Something went wrong");
+notify.success("Package successfully added.");
 // then push
 router.push(newPath);
 ```
