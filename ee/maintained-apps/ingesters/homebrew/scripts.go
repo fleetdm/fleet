@@ -49,9 +49,10 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
 				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
-	# restore the previous version so a failed install doesn't leave the host with nothing
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/%[1]s"
 	if [ -d "$TMPDIR/%[1]s.bkp" ]; then
-		sudo rm -rf "$APPDIR/%[1]s"
 		sudo mv "$TMPDIR/%[1]s.bkp" "$APPDIR/%[1]s"
 	fi
 	exit 1

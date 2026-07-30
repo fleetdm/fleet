@@ -91,11 +91,19 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 		InstallerFormat:  "dmg",
 	}, cask)
 	require.NoError(t, err)
-	// A failed move-aside must not fall through to a copy that nests into the old app.
+	// A failed move-aside must not fall through to a copy that merges stale files into the old app.
 	require.Contains(t, script, `sudo mv "$APPDIR/Foo.app" "$TMPDIR/Foo.app.bkp" || exit $?`)
-	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR"; then`)
-	require.Contains(t, script, `sudo mv "$TMPDIR/Foo.app.bkp" "$APPDIR/Foo.app"`)
-	require.Contains(t, script, "exit 1")
+	// On copy failure the partial copy is removed (even on a fresh install with
+	// no backup), the previous version is restored, and the script exits non-zero.
+	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR"; then
+	# remove the partial copy so a failed install isn't inventoried as the new
+	# version, then restore the previous version if there was one
+	sudo rm -rf "$APPDIR/Foo.app"
+	if [ -d "$TMPDIR/Foo.app.bkp" ]; then
+		sudo mv "$TMPDIR/Foo.app.bkp" "$APPDIR/Foo.app"
+	fi
+	exit 1
+fi`)
 }
 
 func TestShellSingleQuote(t *testing.T) {
