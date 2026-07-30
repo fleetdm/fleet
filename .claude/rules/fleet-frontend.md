@@ -116,7 +116,7 @@ Cap free-text inputs' `maxLength` to the backend column length (check `server/da
 - Re-validate on blur of a dirty field, never on keystroke.
 - Error text renders in the field's label slot via `FormField` (replaces the label). No separate error line below the input.
 - Field-specific server errors: render inline AND fire a toast (long forms may scroll the field off-screen).
-- Copy: verb + object + constraint. `Enter your email`, not `Email is required`. No terminal periods.
+- Copy: verb + object + constraint. `Enter your email`, not `Email is required`. No terminal periods on field errors (toasts for system/transport errors are the carve-out).
 
 ## Lists & rows
 User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.

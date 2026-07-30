@@ -335,9 +335,10 @@ Forms use a pure `validate` function whose input is the current form data and wh
 ```tsx
 const validate = (formData: IFormData): Record<string, string> => {
   const errors: Record<string, string> = {};
-  if (!formData.email.trim()) {
+  const email = formData.email.trim();
+  if (!email) {
     errors.email = "Enter your email";
-  } else if (!isValidEmail(formData.email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = "Enter a valid email";
   }
   return errors;
@@ -352,12 +353,12 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - Never show a field's error before the field is dirty.
 - On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
-- On submit, validate every field regardless of dirty state, show inline errors on all invalid fields simultaneously, then return without submitting. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
+- On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
 #### When errors clear
 
-- On focus (click-in) of a field that has an error, clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
+- On focus of a field that has an error (via click, tab, or programmatic focus), clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
 - Re-validate on blur, not on keystroke.
 - Typing in one field never clears errors on other fields. Clearing is per-field.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
@@ -380,11 +381,11 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 - Field-specific server errors (e.g. "email already taken") render inline on the field via the same `error` prop as client-side errors, AND fire a toast with the error message. Submit stays enabled. The toast is intentional even when the inline error is visible — forms can be long enough that the errored field is scrolled off-screen after submission.
 - Cross-field or global server errors (e.g. `formatErrorResponse` `.base`) surface as a toast only. No inline surface.
 - When the user focuses a field that has a server-set error, clear it immediately — same rule as client-side.
-- Multiple field errors returned by the server: iterate the error map and set all inline. Prefer a single summary toast when there are many.
+- Multiple field errors returned by the server: iterate the error map and set all inline. Each field-specific error still gets its own toast per the rule above.
 
 #### Conditional / dependent validation
 
-- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule.
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field after the mismatch error is set does not re-run the cross-field check; the error stays until the confirmation field is edited or re-blurred.
 - Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
@@ -392,7 +393,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 #### Optional and disabled fields
 
 - Empty optional fields never show an error.
-- An optional field that has a value with a format constraint (e.g. an optional email field) validates the format. On invalid, show an inline error, but do not disable submit.
+- An optional field that has a value with a format constraint (e.g. an optional email field) validates the format on blur and shows an inline error on invalid. (Submit-button disable follows the general rule at [Submit button state](#submit-button-state) — the button stays enabled.)
 - Disabled fields skip validation entirely. A disabled field is never in an error state, regardless of its value.
 
 #### Input hygiene
@@ -443,10 +444,10 @@ Rules:
 - Present tense, active voice. Not `must be completed`, not `was not provided`.
 - Article discipline: `your` for the user's own data (`your email`, `your name`); `a` for a value the user is constructing (`a valid URL`, `a password`).
 - One sentence per error. If it needs a second sentence, the constraint probably belongs in help text below the field, not in the error.
-- **No terminal periods.** The error renders in the label slot, and labels don't end with periods.
+- **No terminal periods on field errors.** They render in the label slot, and labels don't end with periods. (System/transport errors in toasts — see below — are the one place periods appear.)
 - See [Terminology](../../.claude/rules/fleet-frontend.md#terminology) for `fleet` vs `team` and other renaming rules.
 
-For errors the user can't fix by editing the field — server failures, timeouts, network errors — use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place where periods appear (two sentences).
+System/transport errors (server failures, timeouts, network errors — things the user can't fix by editing a field) render as toasts, not inline, and use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place periods appear (two sentences). Field-specific server errors — e.g. `"email already taken"` per [Server-side errors](#server-side-errors) — stay in the verb + object register.
 
 ## Tier modes
 
