@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.48.1",
+      "version": "0.48.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty' AND version_compare(bundle_short_version, '0.48.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'net.kovidgoyal.kitty' AND version_compare(bundle_short_version, '0.48.2') < 0);"
       },
-      "installer_url": "https://github.com/kovidgoyal/kitty/releases/download/v0.48.1/kitty-0.48.1.dmg",
+      "installer_url": "https://github.com/kovidgoyal/kitty/releases/download/v0.48.2/kitty-0.48.2.dmg",
       "install_script_ref": "113bbbcb",
       "uninstall_script_ref": "6b9c4431",
-      "sha256": "6d4e683945815e9d5ca42eac9480a3692258cf6145c823b92623f54b5dfa4b36",
+      "sha256": "f804f58ee4b69c76f84eb3281e140748269a63f3f4a816015a8dec2a06d2b195",
       "default_categories": [
         "Developer tools"
       ]
