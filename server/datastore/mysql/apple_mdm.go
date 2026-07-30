@@ -8793,11 +8793,12 @@ func (ds *Datastore) ListAppleOSUpdateHostsForReconcile(ctx context.Context, cur
 }
 
 func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error {
-	targetsToResend := make([]*fleet.ComputedAppleSoftwareUpdateHost, 0, len(targets))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		targetsToResend := make([]*fleet.ComputedAppleSoftwareUpdateHost, 0, len(targets))
 
-	executeBatch := func(valuePart string, args []any) error {
-		valuePart = strings.TrimPrefix(valuePart, ",")
-		stmt := fmt.Sprintf(`
+		executeBatch := func(valuePart string, args []any) error {
+			valuePart = strings.TrimPrefix(valuePart, ",")
+			stmt := fmt.Sprintf(`
 		INSERT INTO host_mdm_apple_os_updates (host_uuid, target_os_version, target_deadline, resolved_at)
 		VALUES %s
 			ON DUPLICATE KEY UPDATE
@@ -8806,58 +8807,59 @@ func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targe
 				resolved_at = VALUES(resolved_at)
 		`, valuePart)
 
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting apple os update targets")
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upserting apple os update targets")
+			}
+
+			return nil
 		}
 
+		updateGenerateValueArgs := func(target *fleet.ComputedAppleSoftwareUpdateHost) (string, []any) {
+			if target.Resend {
+				targetsToResend = append(targetsToResend, target)
+			}
+			resolvedAt := sql.NullTime{Valid: target.ResolvedAt != nil}
+			if resolvedAt.Valid {
+				resolvedAt.Time = *target.ResolvedAt
+			}
+			return ",(?, ?, ?, ?)", []any{
+				target.HostUUID,
+				target.TargetOSVersion,
+				target.TargetDeadline,
+				resolvedAt,
+			}
+		}
+
+		if err := batchProcessDB(targets, 1000, updateGenerateValueArgs, executeBatch); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch processing apple os update targets")
+		}
+
+		if len(targetsToResend) == 0 {
+			return nil
+		}
+
+		var sb strings.Builder
+		sb.WriteString("UPDATE host_mdm_apple_declarations SET status=NULL, variables_updated_at = CASE host_uuid ")
+		args := make([]any, 0, len(targetsToResend)*2+len(targetsToResend))
+		for _, hu := range targetsToResend {
+			sb.WriteString("WHEN ? THEN ? ")
+			args = append(args, hu.HostUUID, hu.ResolvedAt)
+		}
+		sb.WriteString("END WHERE host_uuid IN (?)")
+		uuids := make([]string, len(targetsToResend))
+		for i, hu := range targetsToResend {
+			uuids[i] = hu.HostUUID
+		}
+		args = append(args, uuids)
+		stmt, args, err := sqlx.In(sb.String(), args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sql for updating apple os update hosts to resend")
+		}
+		stmt += ` AND declaration_name IN (?, ?, ?)`
+		args = append(args, common_mdm.FleetMacOSUpdatesProfileName, common_mdm.FleetIOSUpdatesProfileName, common_mdm.FleetIPadOSUpdatesProfileName)
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apple os update hosts to resend")
+		}
 		return nil
-	}
-
-	updateGenerateValueArgs := func(target *fleet.ComputedAppleSoftwareUpdateHost) (string, []any) {
-		if target.Resend {
-			targetsToResend = append(targetsToResend, target)
-		}
-		resolvedAt := sql.NullTime{Valid: target.ResolvedAt != nil}
-		if resolvedAt.Valid {
-			resolvedAt.Time = *target.ResolvedAt
-		}
-		return ",(?, ?, ?, ?)", []any{
-			target.HostUUID,
-			target.TargetOSVersion,
-			target.TargetDeadline,
-			resolvedAt,
-		}
-	}
-
-	if err := batchProcessDB(targets, 1000, updateGenerateValueArgs, executeBatch); err != nil {
-		return ctxerr.Wrap(ctx, err, "batch processing apple os update targets")
-	}
-
-	if len(targetsToResend) == 0 {
-		return nil
-	}
-
-	var sb strings.Builder
-	sb.WriteString("UPDATE host_mdm_apple_declarations SET status=NULL, variables_updated_at = CASE host_uuid ")
-	args := make([]any, 0, len(targetsToResend)*2+len(targetsToResend))
-	for _, hu := range targetsToResend {
-		sb.WriteString("WHEN ? THEN ? ")
-		args = append(args, hu.HostUUID, hu.ResolvedAt)
-	}
-	sb.WriteString("END WHERE host_uuid IN (?)")
-	uuids := make([]string, len(targetsToResend))
-	for i, hu := range targetsToResend {
-		uuids[i] = hu.HostUUID
-	}
-	args = append(args, uuids)
-	stmt, args, err := sqlx.In(sb.String(), args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building sql for updating apple os update hosts to resend")
-	}
-	stmt += ` AND declaration_name IN (?, ?, ?)`
-	args = append(args, common_mdm.FleetMacOSUpdatesProfileName, common_mdm.FleetIOSUpdatesProfileName, common_mdm.FleetIPadOSUpdatesProfileName)
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating apple os update hosts to resend")
-	}
-	return nil
+	})
 }
