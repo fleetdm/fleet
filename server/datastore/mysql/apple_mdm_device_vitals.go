@@ -112,77 +112,77 @@ func newDeviceVitalsRow(ctx context.Context, hostUUID string, vitals fleet.MDMAp
 	return row, nil
 }
 
-const deviceVitalsUpdateStmt = `
-	UPDATE host_mdm_apple_device_vitals SET
-		udid = :udid,
-		model_number = :model_number,
-		modem_firmware_version = :modem_firmware_version,
-		supplemental_build_version = :supplemental_build_version,
-		supplemental_os_version_extra = :supplemental_os_version_extra,
-		bluetooth_mac = :bluetooth_mac,
-		wifi_mac = :wifi_mac,
-		eas_device_identifier = :eas_device_identifier,
-		itunes_store_account_hash = :itunes_store_account_hash,
-		push_token = :push_token,
-		battery_level = :battery_level,
-		cellular_technology = :cellular_technology,
-		app_analytics_enabled = :app_analytics_enabled,
-		awaiting_configuration = :awaiting_configuration,
-		data_roaming_enabled = :data_roaming_enabled,
-		diagnostic_submission_enabled = :diagnostic_submission_enabled,
-		is_cloud_backup_enabled = :is_cloud_backup_enabled,
-		is_device_locator_service_enabled = :is_device_locator_service_enabled,
-		is_do_not_disturb_in_effect = :is_do_not_disturb_in_effect,
-		is_mdm_lost_mode_enabled = :is_mdm_lost_mode_enabled,
-		is_network_tethered = :is_network_tethered,
-		itunes_store_account_is_active = :itunes_store_account_is_active,
-		personal_hotspot_enabled = :personal_hotspot_enabled,
-		last_cloud_backup_date = :last_cloud_backup_date,
-		accessibility_settings = :accessibility_settings,
-		organization_info = :organization_info,
-		mdm_options = :mdm_options,
-		device_properties_attestation = :device_properties_attestation
-	WHERE host_uuid = :host_uuid`
-
-const deviceVitalsInsertStmt = `
-	INSERT INTO host_mdm_apple_device_vitals (
-		host_uuid, udid, model_number, modem_firmware_version, supplemental_build_version,
-		supplemental_os_version_extra, bluetooth_mac, wifi_mac, eas_device_identifier,
-		itunes_store_account_hash, push_token, battery_level, cellular_technology,
-		app_analytics_enabled, awaiting_configuration, data_roaming_enabled,
-		diagnostic_submission_enabled, is_cloud_backup_enabled, is_device_locator_service_enabled,
-		is_do_not_disturb_in_effect, is_mdm_lost_mode_enabled, is_network_tethered,
-		itunes_store_account_is_active, personal_hotspot_enabled, last_cloud_backup_date,
-		accessibility_settings, organization_info, mdm_options, device_properties_attestation
-	) VALUES (
-		:host_uuid, :udid, :model_number, :modem_firmware_version, :supplemental_build_version,
-		:supplemental_os_version_extra, :bluetooth_mac, :wifi_mac, :eas_device_identifier,
-		:itunes_store_account_hash, :push_token, :battery_level, :cellular_technology,
-		:app_analytics_enabled, :awaiting_configuration, :data_roaming_enabled,
-		:diagnostic_submission_enabled, :is_cloud_backup_enabled, :is_device_locator_service_enabled,
-		:is_do_not_disturb_in_effect, :is_mdm_lost_mode_enabled, :is_network_tethered,
-		:itunes_store_account_is_active, :personal_hotspot_enabled, :last_cloud_backup_date,
-		:accessibility_settings, :organization_info, :mdm_options, :device_properties_attestation
-	)`
-
 // SetOrUpdateHostMDMAppleDeviceVitals persists the iOS/iPadOS vitals parsed
 // from a DeviceInformation command ack: an update-then-insert-on-no-match of
 // host_mdm_apple_device_vitals (most refetches are updates after the first),
 // plus a replace of the host's host_mdm_apple_service_subscriptions rows, in
 // a single transaction.
 func (ds *Datastore) SetOrUpdateHostMDMAppleDeviceVitals(ctx context.Context, hostUUID string, vitals fleet.MDMAppleDeviceVitals) error {
+	const updateStmt = `
+		UPDATE host_mdm_apple_device_vitals SET
+			udid = :udid,
+			model_number = :model_number,
+			modem_firmware_version = :modem_firmware_version,
+			supplemental_build_version = :supplemental_build_version,
+			supplemental_os_version_extra = :supplemental_os_version_extra,
+			bluetooth_mac = :bluetooth_mac,
+			wifi_mac = :wifi_mac,
+			eas_device_identifier = :eas_device_identifier,
+			itunes_store_account_hash = :itunes_store_account_hash,
+			push_token = :push_token,
+			battery_level = :battery_level,
+			cellular_technology = :cellular_technology,
+			app_analytics_enabled = :app_analytics_enabled,
+			awaiting_configuration = :awaiting_configuration,
+			data_roaming_enabled = :data_roaming_enabled,
+			diagnostic_submission_enabled = :diagnostic_submission_enabled,
+			is_cloud_backup_enabled = :is_cloud_backup_enabled,
+			is_device_locator_service_enabled = :is_device_locator_service_enabled,
+			is_do_not_disturb_in_effect = :is_do_not_disturb_in_effect,
+			is_mdm_lost_mode_enabled = :is_mdm_lost_mode_enabled,
+			is_network_tethered = :is_network_tethered,
+			itunes_store_account_is_active = :itunes_store_account_is_active,
+			personal_hotspot_enabled = :personal_hotspot_enabled,
+			last_cloud_backup_date = :last_cloud_backup_date,
+			accessibility_settings = :accessibility_settings,
+			organization_info = :organization_info,
+			mdm_options = :mdm_options,
+			device_properties_attestation = :device_properties_attestation
+		WHERE host_uuid = :host_uuid`
+
+	const insertStmt = `
+		INSERT INTO host_mdm_apple_device_vitals (
+			host_uuid, udid, model_number, modem_firmware_version, supplemental_build_version,
+			supplemental_os_version_extra, bluetooth_mac, wifi_mac, eas_device_identifier,
+			itunes_store_account_hash, push_token, battery_level, cellular_technology,
+			app_analytics_enabled, awaiting_configuration, data_roaming_enabled,
+			diagnostic_submission_enabled, is_cloud_backup_enabled, is_device_locator_service_enabled,
+			is_do_not_disturb_in_effect, is_mdm_lost_mode_enabled, is_network_tethered,
+			itunes_store_account_is_active, personal_hotspot_enabled, last_cloud_backup_date,
+			accessibility_settings, organization_info, mdm_options, device_properties_attestation
+		) VALUES (
+			:host_uuid, :udid, :model_number, :modem_firmware_version, :supplemental_build_version,
+			:supplemental_os_version_extra, :bluetooth_mac, :wifi_mac, :eas_device_identifier,
+			:itunes_store_account_hash, :push_token, :battery_level, :cellular_technology,
+			:app_analytics_enabled, :awaiting_configuration, :data_roaming_enabled,
+			:diagnostic_submission_enabled, :is_cloud_backup_enabled, :is_device_locator_service_enabled,
+			:is_do_not_disturb_in_effect, :is_mdm_lost_mode_enabled, :is_network_tethered,
+			:itunes_store_account_is_active, :personal_hotspot_enabled, :last_cloud_backup_date,
+			:accessibility_settings, :organization_info, :mdm_options, :device_properties_attestation
+		)`
+
 	row, err := newDeviceVitalsRow(ctx, hostUUID, vitals)
 	if err != nil {
 		return err
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		result, err := sqlx.NamedExecContext(ctx, tx, deviceVitalsUpdateStmt, row)
+		result, err := sqlx.NamedExecContext(ctx, tx, updateStmt, row)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update host mdm apple device vitals")
 		}
 		if affected, _ := result.RowsAffected(); affected == 0 {
-			if _, err := sqlx.NamedExecContext(ctx, tx, deviceVitalsInsertStmt, row); err != nil {
+			if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, row); err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host mdm apple device vitals")
 			}
 		}
@@ -273,31 +273,31 @@ func replaceHostMDMAppleServiceSubscriptions(ctx context.Context, tx sqlx.ExtCon
 	return nil
 }
 
-const deviceVitalsSelectStmt = `
-	SELECT
-		host_uuid, udid, model_number, modem_firmware_version, supplemental_build_version,
-		supplemental_os_version_extra, bluetooth_mac, wifi_mac, eas_device_identifier,
-		itunes_store_account_hash, push_token, battery_level, cellular_technology,
-		app_analytics_enabled, awaiting_configuration, data_roaming_enabled,
-		diagnostic_submission_enabled, is_cloud_backup_enabled, is_device_locator_service_enabled,
-		is_do_not_disturb_in_effect, is_mdm_lost_mode_enabled, is_network_tethered,
-		itunes_store_account_is_active, personal_hotspot_enabled, last_cloud_backup_date,
-		accessibility_settings, organization_info, mdm_options, device_properties_attestation
-	FROM host_mdm_apple_device_vitals
-	WHERE host_uuid = ?`
-
-const serviceSubscriptionsSelectStmt = `
-	SELECT
-		host_uuid, slot, carrier_settings_version, current_carrier_network, current_mcc, current_mnc,
-		eid, iccid, imei, is_data_preferred, is_roaming, is_voice_preferred, label, label_id, meid,
-		phone_number, subscriber_carrier_network
-	FROM host_mdm_apple_service_subscriptions
-	WHERE host_uuid = ?
-	ORDER BY slot`
-
 func (ds *Datastore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *fleet.Host) error {
+	const vitalsStmt = `
+		SELECT
+			host_uuid, udid, model_number, modem_firmware_version, supplemental_build_version,
+			supplemental_os_version_extra, bluetooth_mac, wifi_mac, eas_device_identifier,
+			itunes_store_account_hash, push_token, battery_level, cellular_technology,
+			app_analytics_enabled, awaiting_configuration, data_roaming_enabled,
+			diagnostic_submission_enabled, is_cloud_backup_enabled, is_device_locator_service_enabled,
+			is_do_not_disturb_in_effect, is_mdm_lost_mode_enabled, is_network_tethered,
+			itunes_store_account_is_active, personal_hotspot_enabled, last_cloud_backup_date,
+			accessibility_settings, organization_info, mdm_options, device_properties_attestation
+		FROM host_mdm_apple_device_vitals
+		WHERE host_uuid = ?`
+
+	const subscriptionsStmt = `
+		SELECT
+			host_uuid, slot, carrier_settings_version, current_carrier_network, current_mcc, current_mnc,
+			eid, iccid, imei, is_data_preferred, is_roaming, is_voice_preferred, label, label_id, meid,
+			phone_number, subscriber_carrier_network
+		FROM host_mdm_apple_service_subscriptions
+		WHERE host_uuid = ?
+		ORDER BY slot`
+
 	var row deviceVitalsRow
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, deviceVitalsSelectStmt, host.UUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, vitalsStmt, host.UUID)
 	switch err {
 	case nil:
 		host.UDID = row.UDID
@@ -360,7 +360,7 @@ func (ds *Datastore) LoadHostMDMAppleDeviceVitals(ctx context.Context, host *fle
 	}
 
 	var subs []fleet.MDMAppleServiceSubscription
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &subs, serviceSubscriptionsSelectStmt, host.UUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &subs, subscriptionsStmt, host.UUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host mdm apple service subscriptions")
 	}
 	host.ServiceSubscriptions = subs

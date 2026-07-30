@@ -4,7 +4,6 @@ import { createCustomRenderer } from "test/test-utils";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
-
 import { HostPlatform } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Vitals from "./Vitals";
@@ -730,6 +729,47 @@ describe("Agent data", () => {
     expect(screen.getByText("Agent")).toBeInTheDocument();
     await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
     expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
+  });
+});
+
+describe("Last restarted vital", () => {
+  it.each(["darwin", "windows", "ubuntu"])(
+    "renders Last restarted for supported platform: %s",
+    (platform) => {
+      const mockHost = createMockHost({
+        platform: platform as HostPlatform,
+        last_restarted_at: "2023-01-01T00:00:00Z",
+      });
+
+      render(<Vitals vitalsData={mockHost} />);
+
+      expect(screen.getByText("Last restarted")).toBeInTheDocument();
+    }
+  );
+
+  it.each(["chrome", "ios", "ipados", "android"])(
+    "does not render Last restarted for unsupported platform: %s",
+    (platform) => {
+      const mockHost = createMockHost({
+        platform: platform as HostPlatform,
+        last_restarted_at: "2023-01-01T00:00:00Z",
+      });
+
+      render(<Vitals vitalsData={mockHost} />);
+
+      expect(screen.queryByText("Last restarted")).not.toBeInTheDocument();
+    }
+  );
+});
+
+describe("Munki version vital", () => {
+  it("renders the Munki version vital when its value is a normal version string", () => {
+    const mockHost = createMockHost({ platform: "darwin" });
+
+    render(<Vitals vitalsData={mockHost} munki={{ version: "5.5.1" }} />);
+
+    expect(screen.getByText("Munki version")).toBeInTheDocument();
+    expect(screen.getByText("5.5.1")).toBeInTheDocument();
   });
 });
 

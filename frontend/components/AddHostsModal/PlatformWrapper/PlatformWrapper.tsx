@@ -382,7 +382,6 @@ const PlatformWrapper = ({
             showText="Plain osquery"
             caretPosition="after"
             onClick={() => setShowPlainOsquery((prev) => !prev)}
-            variant="secondary"
           />
           {showPlainOsquery && (
             <>

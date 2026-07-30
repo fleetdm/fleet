@@ -1693,17 +1693,29 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do not contain a setup_experience section
 	_, ok := controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
+	// The disabled Windows managed local account is not emitted (absent key means disabled).
+	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
+		require.NotContains(t, windowsSection, "managed_local_account_settings")
+	}
 
-	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
+	// and the Windows managed local account enabled.
 	mdmConfig = fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableEndUserAuthentication: true,
+		},
+		WindowsSettings: fleet.WindowsSettings{
+			ManagedLocalAccountSettings: fleet.ManagedLocalAccountSettings{Enabled: optjson.SetBool(true)},
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
+	// The enabled Windows managed local account is emitted.
+	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
+	require.True(t, ok, "expected a windows_settings section")
+	require.Equal(t, map[string]any{"enabled": true}, windowsSettings["managed_local_account_settings"])
 
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,

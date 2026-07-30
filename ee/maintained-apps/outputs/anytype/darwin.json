@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "0.56.0",
+      "version": "0.56.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anytype.anytype' AND version_compare(bundle_short_version, '0.56.1') < 0);"
       },
-      "installer_url": "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-0.56.0-mac-arm64.dmg",
+      "installer_url": "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-0.56.1-mac-arm64.dmg",
       "install_script_ref": "0969d326",
       "uninstall_script_ref": "9bb6a998",
-      "sha256": "fa643fc6b1cd71a134ac91ab01986edf54e602aa4e83e9bbee8cb0a127fc9439",
+      "sha256": "9f160b2ac424d13aa322b8c09619888b77fb68f7d0ecab2f0ba3f62831714f63",
       "default_categories": [
         "Security"
       ]

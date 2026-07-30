@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import {
@@ -73,7 +73,7 @@ const GlobalHostStatusWebhook = ({
     setFormErrors({});
   };
 
-  const validateForm = () => {
+  const getFormErrors = (): IGlobalHostStatusWebhookFormErrors => {
     const errors: IGlobalHostStatusWebhookFormErrors = {};
 
     if (enableHostStatusWebhook) {
@@ -84,12 +84,14 @@ const GlobalHostStatusWebhook = ({
       }
     }
 
-    setFormErrors(errors);
+    return errors;
   };
 
-  useEffect(() => {
-    validateForm();
-  }, [enableHostStatusWebhook]);
+  // Runs on blur only — enabling the webhook must not surface an error before
+  // the user has had a chance to enter a URL (#40410).
+  const validateForm = () => {
+    setFormErrors(getFormErrors());
+  };
 
   const toggleHostStatusWebhookPreviewModal = () => {
     setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
@@ -98,6 +100,12 @@ const GlobalHostStatusWebhook = ({
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errors = getFormErrors();
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
 
     // Formatting of API not UI
     const formDataToSubmit = {
