@@ -3495,15 +3495,16 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 			// For FMA installers, skip the insert if this exact version is already cached
 			// for this team+title. This prevents duplicate rows from repeated batch sets
-			// that re-download the same latest version.
+			// that re-download the same latest version. Match on storage_id too so a
+			// rebuilt package (same version, new hash) is upserted rather than skipped.
 			var skipInsert bool
 			var existingID uint
 			if installer.FleetMaintainedAppID != nil {
 				err := sqlx.GetContext(ctx, tx, &existingID, `
 					SELECT id FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ?
+					WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND version = ? AND storage_id = ?
 					LIMIT 1
-				`, globalOrTeamID, titleID, installer.Version)
+				`, globalOrTeamID, titleID, installer.Version, installer.StorageID)
 				if err == nil {
 					skipInsert = true
 				} else if !errors.Is(err, sql.ErrNoRows) {

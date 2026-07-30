@@ -59,7 +59,7 @@
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
-    gap: $pad-small;
+    gap: $gap-action-elements;
 
     .renew-cert-modal__request-button {
       margin: 0;

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.0.228",
+      "version": "1.0.242",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop' AND version_compare(bundle_short_version, '1.0.228') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop' AND version_compare(bundle_short_version, '1.0.242') < 0);"
       },
-      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/darwin-arm64/signed/1.0.228/kiro-ide-1.0.228-stable-darwin-arm64.dmg",
+      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/darwin-arm64/signed/1.0.242/kiro-ide-1.0.242-stable-darwin-arm64.dmg",
       "install_script_ref": "28c3d1eb",
       "uninstall_script_ref": "4678d87f",
-      "sha256": "87d459b32f45a5fbad0e9faccff0cdecfcefbdc2fff136fddd75021549a79c26",
+      "sha256": "70e96dcca936a39c014aa48af433ae9e9a63a21d44d4c4804d817b2f430713d2",
       "default_categories": [
         "Developer tools"
       ]

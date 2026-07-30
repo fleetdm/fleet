@@ -131,7 +131,7 @@ The CEO's calendar should reflect the following schedule for travel:
   - Calendar event name: Get water and boarding
 - Airline flight calendar event
   - The airline website will either offer to download the flight or have it emailed. After you download the flights from the airline website, import it to the CEO's calendar (this is in the calendar settings) or send it to the CEO's email. (For either option, there is either a calendar icon to click or a button that says "add to calendar".)
-  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
+  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABBREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
   - For connecting flights, when there is a time gap between flights, fill the gap with a calendar event named: Find next gate
 - Time block to get water and bags (this is after the CEO lands from the flight),
   - 30 minutes

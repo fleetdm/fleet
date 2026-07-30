@@ -1175,5 +1175,44 @@ func TestMDMAppleCommanderDeviceInformation(t *testing.T) {
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 
 	require.Equal(t, "DeviceInformation", gotCommand.Command.RequestType)
-	require.Equal(t, DeviceInformationQueryKeys, gotCommand.Command.Queries)
+	// Compared against an explicit, independent list (not the package's own
+	// deviceInformationQueryKeys var) so an accidental edit to that var would
+	// actually be caught here.
+	require.Equal(t, []string{
+		"DeviceName",
+		"DeviceCapacity",
+		"AvailableDeviceCapacity",
+		"OSVersion",
+		"SupplementalOSVersionExtra",
+		"WiFiMAC",
+		"ProductName",
+		"IsMDMLostModeEnabled",
+		"TimeZone",
+		"AccessibilitySettings",
+		"AppAnalyticsEnabled",
+		"AwaitingConfiguration",
+		"BatteryLevel",
+		"BluetoothMAC",
+		"CellularTechnology",
+		"DataRoamingEnabled",
+		"DevicePropertiesAttestation",
+		"DiagnosticSubmissionEnabled",
+		"EASDeviceIdentifier",
+		"IsCloudBackupEnabled",
+		"IsDeviceLocatorServiceEnabled",
+		"IsDoNotDisturbInEffect",
+		"IsNetworkTethered",
+		"iTunesStoreAccountHash",
+		"iTunesStoreAccountIsActive",
+		"LastCloudBackupDate",
+		"MDMOptions",
+		"ModelNumber",
+		"ModemFirmwareVersion",
+		"OrganizationInfo",
+		"PersonalHotspotEnabled",
+		"PushToken",
+		"ServiceSubscriptions",
+		"SupplementalBuildVersion",
+		"UDID",
+	}, gotCommand.Command.Queries)
 }
