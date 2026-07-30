@@ -227,8 +227,6 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 	// An empty <LocURI></LocURI> or whitespace-only LocURI produces no non-whitespace CharData, so locURIHasContent
 	// stays false and we reject here before any further validation runs.
 	if elementName == "LocURI" && !v.locURIHasContent {
-		v.currentElement = ""
-		v.locURIAccumulator.Reset()
 		return errors.New("<LocURI> can't be empty.")
 	}
 
@@ -241,16 +239,12 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 		// Check for Fleet-reserved LocURIs (e.g. BitLocker, Windows Updates). Runs first so users
 		// get the specific "managed by Fleet" error instead of a generic format error.
 		if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
-			v.currentElement = ""
-			v.locURIHasContent = false
 			return err
 		}
 
 		// Validate structural format rules (must start with "./", no invalid characters, etc.)
 		// that real Windows devices enforce with status 400.
 		if err := validateLocURIFormat(locURI); err != nil {
-			v.currentElement = ""
-			v.locURIHasContent = false
 			return err
 		}
 
@@ -258,14 +252,10 @@ func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
 		// <Exec> command (certificate operations) or a non-Exec command (Add/Replace).
 		if v.isInExec() {
 			if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
-				v.currentElement = ""
-				v.locURIHasContent = false
 				return err
 			}
 		} else {
 			if err := v.scepValidator.validateLocURI(locURI); err != nil {
-				v.currentElement = ""
-				v.locURIHasContent = false
 				return err
 			}
 		}
