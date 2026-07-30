@@ -153,14 +153,6 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 		return ctxerr.Wrap(ctx, err, "clear removed maintained apps during refresh")
 	}
 
-	// Normalizing existing software names to the canonical catalog names is deliberately
-	// not done here. It runs on its own schedule (CronMacOSMaintainedAppNames), because
-	// doing it here tied it to a successful fetch: a fetch that failed, or that errored
-	// part way through the upserts above, skipped the rename pass entirely and left the
-	// names the previous fetch had already recorded uncorrected. Ingestion applies the
-	// canonical name to newly reported software on its own, so nothing here depends on the
-	// pass having run.
-
 	return nil
 }
 
