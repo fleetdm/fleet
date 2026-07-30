@@ -167,8 +167,11 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant === "grey-pill";
     // Icons: 16px on default-size buttons, 12px on small-size buttons.
     const iconSize = size === "small" ? "small" : "medium";
-    // Default (green) buttons have white text — icons should match.
-    const iconColor = variant === "default" ? "core-fleet-white" : undefined;
+    // Default (green) and alert (red) buttons have white text — icons should match.
+    const iconColor =
+      variant === "default" || variant === "alert"
+        ? "core-fleet-white"
+        : undefined;
 
     return (
       <button

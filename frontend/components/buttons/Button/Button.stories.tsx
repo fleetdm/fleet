@@ -68,21 +68,12 @@ const createLoadingVariant = (variant: ButtonVariant): Story => ({
 
 // Variants with loading state
 export const DefaultVariant = createLoadingVariant("default");
-export const DefaultIconBeforeVariant = Template("default", undefined, {
-  leftIcon: "plus",
-});
+// Used for Action dropdown triggers in the product.
 export const DefaultIconAfterVariant = Template("default", undefined, {
   rightIcon: "chevron-right",
 });
-export const DefaultSmallIconBeforeVariant = Template("default", undefined, {
-  size: "small",
-  leftIcon: "plus",
-});
 
 export const AlertVariant = createLoadingVariant("alert");
-export const AlertIconBeforeVariant = Template("alert", undefined, {
-  leftIcon: "trash",
-});
 
 // Bordered secondary button — see #35329
 export const SecondaryVariant = Template("secondary");
