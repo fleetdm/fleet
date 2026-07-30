@@ -2817,13 +2817,6 @@
     },
     {
       "name": "Dynalist",
-      "slug": "dynalist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.dynalist",
-      "description": "Dynalist is an app for outlining app for your work."
-    },
-    {
-      "name": "Dynalist",
       "slug": "dynalist/windows",
       "platform": "windows",
       "unique_identifier": "Dynalist",
