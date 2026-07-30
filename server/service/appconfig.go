@@ -1973,20 +1973,29 @@ func (svc *Service) validateMDM(
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
 	updatingMacOSDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+	// deadline_days is the "latest" mode counterpart of deadline, so it has to
+	// gate on the license too: without it a lapsed-premium instance that already
+	// enforces "latest" could still edit the deadline.
+	updatingMacOSDeadlineDays := mdm.MacOSUpdates.DeadlineDays.Valid &&
+		mdm.MacOSUpdates.DeadlineDays != oldMdm.MacOSUpdates.DeadlineDays
 	// IOSUpdates
 	updatingIOSVersion := mdm.IOSUpdates.MinimumVersion.Value != "" &&
 		mdm.IOSUpdates.MinimumVersion != oldMdm.IOSUpdates.MinimumVersion
 	updatingIOSDeadline := mdm.IOSUpdates.Deadline.Value != "" &&
 		mdm.IOSUpdates.Deadline != oldMdm.IOSUpdates.Deadline
+	updatingIOSDeadlineDays := mdm.IOSUpdates.DeadlineDays.Valid &&
+		mdm.IOSUpdates.DeadlineDays != oldMdm.IOSUpdates.DeadlineDays
 	// IPadOSUpdates
 	updatingIPadOSVersion := mdm.IPadOSUpdates.MinimumVersion.Value != "" &&
 		mdm.IPadOSUpdates.MinimumVersion != oldMdm.IPadOSUpdates.MinimumVersion
 	updatingIPadOSDeadline := mdm.IPadOSUpdates.Deadline.Value != "" &&
 		mdm.IPadOSUpdates.Deadline != oldMdm.IPadOSUpdates.Deadline
+	updatingIPadOSDeadlineDays := mdm.IPadOSUpdates.DeadlineDays.Valid &&
+		mdm.IPadOSUpdates.DeadlineDays != oldMdm.IPadOSUpdates.DeadlineDays
 
-	if updatingMacOSVersion || updatingMacOSDeadline ||
-		updatingIOSVersion || updatingIOSDeadline ||
-		updatingIPadOSVersion || updatingIPadOSDeadline {
+	if updatingMacOSVersion || updatingMacOSDeadline || updatingMacOSDeadlineDays ||
+		updatingIOSVersion || updatingIOSDeadline || updatingIOSDeadlineDays ||
+		updatingIPadOSVersion || updatingIPadOSDeadline || updatingIPadOSDeadlineDays {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !lic.IsPremium() {

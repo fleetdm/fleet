@@ -1298,6 +1298,22 @@ func TestMDMConfig(t *testing.T) {
 			}),
 		},
 		{
+			// A lapsed-premium instance can still have "latest" stored, so editing
+			// only deadline_days must hit the license gate like any other OS update
+			// change would.
+			name:        "deadlineDaysFree",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: licenseErr,
+		},
+		{
 			name:          "ssoFree",
 			licenseTier:   "free",
 			findTeam:      true,
@@ -1578,6 +1594,11 @@ func TestMDMConfig(t *testing.T) {
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
+			}
+			// Reached whenever OS updates are configured, including "latest" mode,
+			// before the license gate runs.
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
 			}
 			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 				if tt.findTeam {
