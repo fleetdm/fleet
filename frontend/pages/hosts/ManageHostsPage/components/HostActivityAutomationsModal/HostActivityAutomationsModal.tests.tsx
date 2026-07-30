@@ -122,6 +122,32 @@ describe("HostActivityAutomationsModal", () => {
     expect(screen.queryByText(/"activity_id"/)).not.toBeInTheDocument();
   });
 
+  it("blocks saving in GitOps mode", async () => {
+    const onSubmit = jest.fn();
+    const config = createMockConfig();
+    config.gitops = { ...config.gitops, gitops_mode_enabled: true };
+    const render = createCustomRenderer({
+      context: { app: { config } },
+    });
+
+    const { user } = render(
+      <HostActivityAutomationsModal
+        {...defaultProps}
+        onSubmit={onSubmit}
+        automationSettings={{
+          enable_host_activities_webhook: true,
+          destination_url: "https://example.com/hook",
+        }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    // The Modal's Enter handler must not submit either.
+    await user.keyboard("{Enter}");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("disables inputs in GitOps mode", () => {
     const config = createMockConfig();
     config.gitops = { ...config.gitops, gitops_mode_enabled: true };

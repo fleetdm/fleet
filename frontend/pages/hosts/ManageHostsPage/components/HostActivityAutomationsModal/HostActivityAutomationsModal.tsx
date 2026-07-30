@@ -8,6 +8,7 @@ import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { syntaxHighlight } from "utilities/helpers";
@@ -93,6 +94,9 @@ const HostActivityAutomationsModal = ({
   };
 
   const onModalSubmit = () => {
+    if (gitOpsModeEnabled) {
+      return;
+    }
     const newErrors = validateForm(formData);
     setFormErrors(newErrors);
     if (Object.keys(newErrors).length === 0) {
@@ -179,15 +183,20 @@ const HostActivityAutomationsModal = ({
         />
         {showExamplePayload && renderExamplePayload()}
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            onClick={onModalSubmit}
-            className="save-loading"
-            isLoading={isUpdating}
-            disabled={Object.keys(formErrors).length > 0}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                onClick={onModalSubmit}
+                className="save-loading"
+                isLoading={isUpdating}
+                disabled={disableChildren || Object.keys(formErrors).length > 0}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onExit} variant="secondary">
             Cancel
           </Button>
