@@ -1190,7 +1190,9 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				softwareCount := numberWithPluralization(len(software), "software package", "software packages")
-				logfn(applyingTeamFormat, softwareCount, tmName)
+				if !opts.DryRun {
+					logfn(applyingTeamFormat, softwareCount, tmName)
+				}
 				installers, deletedInstallers, categories, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions, logfn)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for fleet %q: %w", tmName, err)
@@ -3124,7 +3126,9 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	softwareCount := numberWithPluralization(len(swPkgPayload), "software package", "software packages")
-	logFn(applyingTeamFormat, softwareCount, "'Unassigned'")
+	if !dryRun {
+		logFn(applyingTeamFormat, softwareCount, "'Unassigned'")
+	}
 	softwareInstallers, deletedInstallers, installerCategories, err := c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun}, logFn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
