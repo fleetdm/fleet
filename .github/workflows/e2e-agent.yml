@@ -267,8 +267,19 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        # Instance identifier is needed because macOS runners share UUIDs
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}
+        # Instance identifier is needed because macOS runners share UUIDs.
+        # Retry a few times: downloading fleetd components from the TUF server
+        # occasionally times out on macOS runners.
+        for attempt in 1 2 3; do
+          if fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --desktop-channel=${{ matrix.desktop-channel }} --fleet-desktop --debug --host-identifier=instance --disable-updates=${{ matrix.disable-updates }}; then
+            break
+          elif [ "$attempt" = "3" ]; then
+            echo "fleetctl package failed after $attempt attempts"
+            exit 1
+          fi
+          echo "fleetctl package failed (attempt $attempt), retrying in 10s..."
+          sleep 10
+        done
         sudo installer -pkg fleet-osquery.pkg -target /
         ENROLLMENT_START=$(date +%s)
         until fleetctl get hosts | grep -iF $(hostname -s);
@@ -345,8 +356,10 @@ jobs:
         ARCH=$(uname -m)
         if [ "$ARCH" = "x86_64" ]; then FLEET_ARCH="amd64"; else FLEET_ARCH="arm64"; fi
         # --transient: newer runner images don't allow hostnamed to write /etc/hostname;
-        # the kernel hostname is all osquery and `hostname -s` read anyway.
-        sudo hostnamectl set-hostname --transient ubuntu-${ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
+        # the kernel hostname is all osquery and `hostname -s` read anyway. Use
+        # FLEET_ARCH (amd64/arm64) because transient hostnames must be valid internet
+        # hostnames — the underscore in `uname -m` output (x86_64) is rejected.
+        sudo hostnamectl set-hostname --transient ubuntu-${FLEET_ARCH}-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-${{ matrix.disable-updates }}
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
         echo $SECRET_JSON
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
