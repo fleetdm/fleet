@@ -2351,6 +2351,18 @@ func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]
 	return out, nil
 }
 
+// batchNeedsWindowsTitleReconcile reports whether a batch added any Fleet-maintained app,
+// in which case Windows software titles may need merging onto the installers' titles.
+//
+// Keyed on the maintained-app link alone rather than also on the platform: the reconcile
+// is a no-op for non-Windows apps, so an unnecessary run costs one indexed scan, whereas a
+// missed run leaves the uninstall action hidden until the next periodic pass.
+func batchNeedsWindowsTitleReconcile(installers []*fleet.UploadSoftwareInstallerPayload) bool {
+	return slices.ContainsFunc(installers, func(i *fleet.UploadSoftwareInstallerPayload) bool {
+		return i != nil && i.FleetMaintainedAppID != nil
+	})
+}
+
 func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	// check if exists in the installer store
 	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
@@ -3709,9 +3721,7 @@ func (svc *Service) softwareBatchUpload(
 	// scan, whereas a missed run leaves the uninstall action hidden until the next
 	// periodic pass. Not worth depending on Platform being populated this far down the
 	// batch payload chain to save that.
-	if slices.ContainsFunc(softwareInstallers, func(i *fleet.UploadSoftwareInstallerPayload) bool {
-		return i != nil && i.FleetMaintainedAppID != nil
-	}) {
+	if batchNeedsWindowsTitleReconcile(softwareInstallers) {
 		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
 			svc.logger.WarnContext(ctx, "reconciling Windows software titles after a software batch",
 				"team_id", teamID,

@@ -719,6 +719,59 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
+// TestBatchNeedsWindowsTitleReconcile pins the predicate that decides whether a GitOps
+// batch kicks the Windows title reconcile. A false negative here is invisible: the batch
+// succeeds, the uninstall action stays hidden, and nothing surfaces until the periodic
+// pass runs up to an hour later.
+func TestBatchNeedsWindowsTitleReconcile(t *testing.T) {
+	fmaID := uint(7)
+
+	cases := []struct {
+		name       string
+		installers []*fleet.UploadSoftwareInstallerPayload
+		want       bool
+	}{
+		{"empty batch", nil, false},
+		{
+			"custom installers only",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Other", Platform: "darwin"},
+			},
+			false,
+		},
+		{
+			"maintained app present",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Granola", Platform: "windows", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			// Deliberately still true: the platform is not part of the decision, since it
+			// is not reliably populated this far down the batch payload chain and the
+			// reconcile is a no-op for non-Windows apps anyway.
+			"maintained app with no platform set",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Granola", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			"nil entries are skipped",
+			[]*fleet.UploadSoftwareInstallerPayload{nil, {Title: "Custom"}},
+			false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, batchNeedsWindowsTitleReconcile(c.installers))
+		})
+	}
+}
+
 func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	t.Helper()
 	authorizer, err := authz.NewAuthorizer()
