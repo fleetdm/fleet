@@ -48,6 +48,8 @@ const (
 	defaultTeamFeaturesExpiration      = 1 * time.Minute
 	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	teamLiteKey                        = "TeamLite:team:%d"
+	defaultTeamLiteExpiration          = 1 * time.Minute
 	defaultTeamConfigKey               = "DefaultTeamConfig"
 	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
@@ -126,6 +128,7 @@ type cachedMysql struct {
 	teamAgentOptionsExp     time.Duration
 	teamFeaturesExp         time.Duration
 	teamMDMConfigExp        time.Duration
+	teamLiteExp             time.Duration
 	defaultTeamConfigExp    time.Duration
 	queryByNameExp          time.Duration
 	queryResultsCountExp    time.Duration
@@ -196,6 +199,12 @@ func WithMDMConfigAssetExpiration(d time.Duration) Option {
 	}
 }
 
+func WithTeamLiteExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.teamLiteExp = d
+	}
+}
+
 func WithDefaultTeamConfigExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.defaultTeamConfigExp = d
@@ -218,6 +227,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamAgentOptionsExp:     defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:         defaultTeamFeaturesExpiration,
 		teamMDMConfigExp:        defaultTeamMDMConfigExpiration,
+		teamLiteExp:             defaultTeamLiteExpiration,
 		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
 		queryByNameExp:          defaultQueryByNameExpiration,
 		queryResultsCountExp:    defaultQueryResultsCountExpiration,
@@ -363,6 +373,29 @@ func (ds *cachedMysql) TeamMDMConfig(ctx context.Context, teamID uint) (*fleet.T
 	return cfg, nil
 }
 
+// TeamLite is cached because it is read on hot paths (host activities webhook
+// lookup on every host-linked activity, orbit enroll). Writes go through
+// SaveTeam/DeleteTeam below, which invalidate the entry; the TTL bounds
+// staleness for the rare direct-SQL team config updates.
+func (ds *cachedMysql) TeamLite(ctx context.Context, teamID uint) (*fleet.TeamLite, error) {
+	key := fmt.Sprintf(teamLiteKey, teamID)
+
+	if x, found := ds.c.Get(ctx, key); found {
+		if team, ok := x.(*fleet.TeamLite); ok {
+			return team, nil
+		}
+	}
+
+	team, err := ds.Datastore.TeamLite(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, team, ds.teamLiteExp)
+
+	return team, nil
+}
+
 func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	team, err := ds.Datastore.SaveTeam(ctx, team)
 	if err != nil {
@@ -376,6 +409,9 @@ func (ds *cachedMysql) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.T
 	ds.c.Set(ctx, agentOptionsKey, (*rawJSONMessage)(team.Config.AgentOptions), ds.teamAgentOptionsExp)
 	ds.c.Set(ctx, featuresKey, &team.Config.Features, ds.teamFeaturesExp)
 	ds.c.Set(ctx, mdmConfigKey, &team.Config.MDM, ds.teamMDMConfigExp)
+	// Delete rather than set: TeamLite includes fields (e.g. filename) that a
+	// partial save may not carry; let the next read repopulate.
+	ds.c.Delete(fmt.Sprintf(teamLiteKey, team.ID))
 
 	return team, nil
 }
@@ -393,6 +429,7 @@ func (ds *cachedMysql) DeleteTeam(ctx context.Context, teamID uint) error {
 	ds.c.Delete(agentOptionsKey)
 	ds.c.Delete(featuresKey)
 	ds.c.Delete(mdmConfigKey)
+	ds.c.Delete(fmt.Sprintf(teamLiteKey, teamID))
 
 	return nil
 }

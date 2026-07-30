@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -301,6 +302,74 @@ type HostActivitiesWebhookSettings struct {
 	DestinationURL string `json:"destination_url"`
 }
 
+// HostActivitiesWebhookLookup is the subset of Datastore reads needed to
+// resolve the host-activities webhooks of the fleets a set of hosts belong to.
+type HostActivitiesWebhookLookup interface {
+	ListHostsLiteByIDs(ctx context.Context, ids []uint) ([]*Host, error)
+	DefaultTeamConfig(ctx context.Context) (*TeamConfig, error)
+	TeamLite(ctx context.Context, tid uint) (*TeamLite, error)
+}
+
+// ResolveHostActivitiesWebhooks returns the enabled host-activities webhook
+// settings of the fleets the given hosts belong to, deduplicated by fleet and
+// by destination URL so one activity yields at most one delivery per endpoint.
+func ResolveHostActivitiesWebhooks(ctx context.Context, ds HostActivitiesWebhookLookup, hostIDs []uint) ([]HostActivitiesWebhookSettings, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+
+	hosts, err := ds.ListHostsLiteByIDs(ctx, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Dedup by fleet: team ID 0 is reserved for "No fleet" so a nil TeamID maps
+	// to key 0 without colliding with a real fleet.
+	seenTeamIDs := make(map[uint]struct{})
+	seenURLs := make(map[string]struct{})
+	var settings []HostActivitiesWebhookSettings
+	for _, host := range hosts {
+		var teamKey uint
+		if host.TeamID != nil {
+			teamKey = *host.TeamID
+		}
+		if _, ok := seenTeamIDs[teamKey]; ok {
+			continue
+		}
+		seenTeamIDs[teamKey] = struct{}{}
+
+		var webhook *HostActivitiesWebhookSettings
+		if teamKey == 0 {
+			config, err := ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return nil, err
+			}
+			webhook = config.WebhookSettings.HostActivitiesWebhook
+		} else {
+			team, err := ds.TeamLite(ctx, teamKey)
+			if err != nil {
+				// The host's fleet may have been deleted between the activity and
+				// this lookup; skip rather than fail the activity creation.
+				if IsNotFound(err) {
+					continue
+				}
+				return nil, err
+			}
+			webhook = team.Config.WebhookSettings.HostActivitiesWebhook
+		}
+
+		if webhook != nil && webhook.Enable && webhook.DestinationURL != "" {
+			if _, dup := seenURLs[webhook.DestinationURL]; dup {
+				continue
+			}
+			seenURLs[webhook.DestinationURL] = struct{}{}
+			settings = append(settings, *webhook)
+		}
+	}
+
+	return settings, nil
+}
+
 // DefaultTeam represents the limited team information returned for team ID 0
 type DefaultTeam struct {
 	ID                uint   `json:"id"`
@@ -546,6 +615,56 @@ func (t *TeamConfig) Copy() *TeamConfig {
 
 // Clone implements the Cloner interface for cache support
 func (t *TeamConfig) Clone() (Cloner, error) {
+	return t.Copy(), nil
+}
+
+// Copy creates a deep copy of the TeamConfigLite.
+func (t *TeamConfigLite) Copy() *TeamConfigLite {
+	clone := *t
+
+	if t.AgentOptions != nil {
+		agentOptionsCopy := make(json.RawMessage, len(*t.AgentOptions))
+		copy(agentOptionsCopy, *t.AgentOptions)
+		clone.AgentOptions = &agentOptionsCopy
+	}
+
+	if t.WebhookSettings.HostStatusWebhook != nil {
+		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
+		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if t.WebhookSettings.HostActivitiesWebhook != nil {
+		hostActivitiesCopy := *t.WebhookSettings.HostActivitiesWebhook
+		clone.WebhookSettings.HostActivitiesWebhook = &hostActivitiesCopy
+	}
+	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
+		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
+		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	}
+
+	clone.Integrations = t.Integrations.Copy()
+	clone.MDM = *t.MDM.Copy()
+
+	return &clone
+}
+
+// Copy creates a deep copy of the TeamLite.
+func (t *TeamLite) Copy() *TeamLite {
+	if t == nil {
+		return nil
+	}
+
+	clone := *t
+	if t.Filename != nil {
+		filenameCopy := *t.Filename
+		clone.Filename = &filenameCopy
+	}
+	clone.Config = *t.Config.Copy()
+
+	return &clone
+}
+
+// Clone implements the Cloner interface for cache support
+func (t *TeamLite) Clone() (Cloner, error) {
 	return t.Copy(), nil
 }
 

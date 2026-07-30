@@ -312,6 +312,22 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		require.ElementsMatch(t, []string{"https://example.com/a", "https://example.com/no-team"}, urls)
 	})
 
+	t.Run("fleets sharing a destination URL yield one entry", func(t *testing.T) {
+		ds := newDS(
+			[]*fleet.Host{hostInTeam(1, &teamID1), hostInTeam(2, &teamID2)},
+			map[uint]*fleet.HostActivitiesWebhookSettings{
+				teamID1: enabled("https://example.com/shared"),
+				teamID2: enabled("https://example.com/shared"),
+			},
+			nil,
+		)
+		svc := &Service{ds: ds}
+		settings, err := svc.GetHostActivitiesWebhookSettings(newLicenseCtx(t, fleet.TierPremium), []uint{1, 2})
+		require.NoError(t, err)
+		require.Len(t, settings, 1)
+		require.Equal(t, "https://example.com/shared", settings[0].DestinationURL)
+	})
+
 	t.Run("no-team host uses the default team config", func(t *testing.T) {
 		ds := newDS([]*fleet.Host{hostInTeam(1, nil)}, nil, enabled("https://example.com/no-team"))
 		svc := &Service{ds: ds}

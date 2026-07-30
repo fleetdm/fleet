@@ -21,68 +21,23 @@ func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.Act
 }
 
 // GetHostActivitiesWebhookSettings returns the enabled host-activities webhook
-// settings of the fleets the given hosts belong to, deduplicated by fleet.
-// Like GetActivitiesWebhookSettings, it reads settings without an authz check
-// because it is an internal provider hook for the activity bounded context,
-// not an endpoint.
+// settings of the fleets the given hosts belong to, deduplicated by fleet and
+// destination URL. Like GetActivitiesWebhookSettings, it reads settings
+// without an authz check because it is an internal provider hook for the
+// activity bounded context, not an endpoint.
 //
 // Perf note: this runs for every host-linked activity on Premium, enabled or
-// not. DefaultTeamConfig is served from the datastore cache but TeamLite is
-// not, so named-fleet hosts cost one lite host read plus one team read per
-// activity. Accepted for v1 (#50217); if it shows up in profiles, cache the
-// per-fleet webhook config instead of adding short-circuit state here.
+// not. The team-config reads are served from the datastore cache
+// (DefaultTeamConfig and TeamLite); the hosts-lite read stays uncached by
+// design, since the host→fleet mapping must be fresh for routing.
 func (svc *Service) GetHostActivitiesWebhookSettings(ctx context.Context, hostIDs []uint) ([]fleet.HostActivitiesWebhookSettings, error) {
 	if !license.IsPremium(ctx) {
 		return nil, nil
 	}
-	if len(hostIDs) == 0 {
-		return nil, nil
-	}
-
-	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+	settings, err := fleet.ResolveHostActivitiesWebhooks(ctx, svc.ds, hostIDs)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list hosts for host activities webhook")
+		return nil, ctxerr.Wrap(ctx, err, "resolve host activities webhooks")
 	}
-
-	// Dedup by fleet: team ID 0 is reserved for "No fleet" so a nil TeamID maps
-	// to key 0 without colliding with a real fleet.
-	seenTeamIDs := make(map[uint]struct{})
-	var settings []fleet.HostActivitiesWebhookSettings
-	for _, host := range hosts {
-		var teamKey uint
-		if host.TeamID != nil {
-			teamKey = *host.TeamID
-		}
-		if _, ok := seenTeamIDs[teamKey]; ok {
-			continue
-		}
-		seenTeamIDs[teamKey] = struct{}{}
-
-		var webhook *fleet.HostActivitiesWebhookSettings
-		if teamKey == 0 {
-			config, err := svc.ds.DefaultTeamConfig(ctx)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get default team config for host activities webhook")
-			}
-			webhook = config.WebhookSettings.HostActivitiesWebhook
-		} else {
-			team, err := svc.ds.TeamLite(ctx, teamKey)
-			if err != nil {
-				// The host's fleet may have been deleted between the activity and
-				// this lookup; skip rather than fail the activity creation.
-				if fleet.IsNotFound(err) {
-					continue
-				}
-				return nil, ctxerr.Wrap(ctx, err, "get team for host activities webhook")
-			}
-			webhook = team.Config.WebhookSettings.HostActivitiesWebhook
-		}
-
-		if webhook != nil && webhook.Enable && webhook.DestinationURL != "" {
-			settings = append(settings, *webhook)
-		}
-	}
-
 	return settings, nil
 }
 

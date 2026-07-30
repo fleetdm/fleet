@@ -1036,6 +1036,27 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					_, err = GitOpsFromFile(noTeamPath5d, noTeamBasePath5d, nil, nopLogf)
 					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook' must be an object or null")
 
+					// No team with a string-valued enable flag should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: \"true\"\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5e, noTeamBasePath5e := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5e, noTeamBasePath5e, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.enable_host_activities_webhook' must be a boolean")
+
+					// No team with a misspelled key should fail instead of silently disabling
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activity_webhook: true\n      destination_url: https://example.com/webhook\n"
+					noTeamPath5f, noTeamBasePath5f := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5f, noTeamBasePath5f, nil, nopLogf)
+					require.ErrorContains(t, err, "unsupported option 'enable_host_activity_webhook' in settings.webhook_settings.host_activities_webhook")
+
+					// No team with a non-string destination_url should fail
+					config = getConfig([]string{"name", "settings"})
+					config += "name: No team\nsettings:\n  webhook_settings:\n    host_activities_webhook:\n      enable_host_activities_webhook: true\n      destination_url: 123\n"
+					noTeamPath5g, noTeamBasePath5g := createNamedFileOnTempDir(t, "no-team.yml", config)
+					_, err = GitOpsFromFile(noTeamPath5g, noTeamBasePath5g, nil, nopLogf)
+					require.ErrorContains(t, err, "'settings.webhook_settings.host_activities_webhook.destination_url' must be a string")
+
 					// 'No team' file with invalid name.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
