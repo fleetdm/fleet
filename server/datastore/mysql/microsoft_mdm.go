@@ -254,8 +254,7 @@ func (ds *Datastore) MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx context.
 }
 
 // MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the most recent unlinked (host_uuid = "") Windows MDM
-// enrollment whose device-reported SMBIOS serial matches. The read honors ctxdb.RequirePrimary: the orbit enrollment
-// path calls this right after the enrollment row was updated with the serial, so a replica read could miss it.
+// enrollment whose device-reported SMBIOS serial matches.
 func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	if hardwareSerial == "" {
 		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty hardware serial"))
@@ -295,8 +294,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx c
 }
 
 // GetWindowsEnrollmentDefaultFleet returns the configured default fleet for new user-driven Windows MDM enrollments.
-// Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the
-// FK).
+// Returns (nil, "") when no default is configured (including when the referenced fleet was deleted, which nulls the FK).
 func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uint, string, error) {
 	var row struct {
 		TeamID   *uint   `db:"team_id"`
@@ -319,8 +317,7 @@ func (ds *Datastore) GetWindowsEnrollmentDefaultFleet(ctx context.Context) (*uin
 	return row.TeamID, *row.TeamName, nil
 }
 
-// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM
-// enrollments.
+// SetWindowsEnrollmentDefaultFleet sets (or clears, with nil) the default fleet for new user-driven Windows MDM enrollments.
 func (ds *Datastore) SetWindowsEnrollmentDefaultFleet(ctx context.Context, fleetID *uint) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO windows_enrollment_config (id, team_id) VALUES (1, ?)

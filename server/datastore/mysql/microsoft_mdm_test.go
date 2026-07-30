@@ -8071,13 +8071,22 @@ func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore)
 	require.True(t, fleet.IsNotFound(err))
 
 	// Once the enrollment is linked, the serial lookup no longer returns it.
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`,
-		"22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
+	updated, err := ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, "22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
 	require.NoError(t, err)
+	require.True(t, updated)
 	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-1")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// With two unlinked enrollments sharing a serial, the most recent one wins. created_at has second precision, so
+	// back-to-back inserts can tie; the id DESC tiebreak makes insertion order decisive either way.
+	olderTwin := newEnrollment("")
+	newerTwin := newEnrollment("")
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, olderTwin.MDMDeviceID, "SER-3"))
+	require.NoError(t, ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, newerTwin.MDMDeviceID, "SER-3"))
+	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, "SER-3")
+	require.NoError(t, err)
+	require.Equal(t, newerTwin.MDMDeviceID, got.MDMDeviceID)
 }
 
 func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
@@ -8098,6 +8107,16 @@ func testWindowsEnrollmentDefaultFleet(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamID)
 	require.Equal(t, team.ID, *teamID)
 	require.Equal(t, "Windows Workstations", teamName)
+
+	// The name is resolved at read time via the join, so a rename shows up without touching the setting.
+	team.Name = "Windows Laptops"
+	_, err = ds.SaveTeam(ctx, team)
+	require.NoError(t, err)
+	teamID, teamName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, teamID)
+	require.Equal(t, team.ID, *teamID)
+	require.Equal(t, "Windows Laptops", teamName)
 
 	// Clear with nil.
 	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
