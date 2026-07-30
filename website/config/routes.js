@@ -645,7 +645,11 @@ module.exports.routes = {
   },
 
   'GET /capex-savings': {
-    action: 'view-capex-savings'
+    action: 'view-capex-savings',
+    locals: {
+      pageTitleForMeta: 'Capex savings',
+      pageDescriptionForMeta: 'Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don\'t, and safely defer refresh cycles.',
+    }
   },
 
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
