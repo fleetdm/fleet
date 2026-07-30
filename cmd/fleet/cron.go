@@ -2331,7 +2331,21 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.SyncAppsList(ctx, ds)
+			if err := maintained_apps.SyncAppsList(ctx, ds); err != nil {
+				return err
+			}
+
+			// A name the catalog just changed applies now rather than whenever
+			// CronMacOSMaintainedAppNames next runs. That schedule stays the authority, so
+			// this is best effort: the apps are stored at this point, and failing the sync
+			// over a rename the other schedule will redo would be the wrong trade. Running
+			// it only after a successful sync is the point -- a failed or partial fetch must
+			// not decide whether the rename pass happens, which is why it is a schedule of
+			// its own and no longer a step in here.
+			if err := ds.ReconcileMaintainedAppSoftwareNames(ctx); err != nil {
+				logger.WarnContext(ctx, "reconciling macOS maintained app software names after a catalog refresh", "err", err)
+			}
+			return nil
 		}),
 	)
 
@@ -2369,6 +2383,41 @@ func newWindowsMaintainedAppTitlesSchedule(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("reconcile_windows_maintained_app_titles", func(ctx context.Context) error {
 			return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+// Deliberately not a job on the Fleet-maintained apps schedule, for the same reasons as
+// newWindowsMaintainedAppTitlesSchedule: it reads only local software and software title
+// state, so it must keep running when the catalog fetch fails. Previously this ran inside
+// the catalog sync, which meant a failed or partial fetch also skipped the rename pass and
+// left names the previous fetch had already recorded uncorrected until a later sync
+// succeeded.
+//
+// Back-dating the first run also gives the pass a run shortly after startup, which is what
+// heals names that are already mismatched when a server upgrades.
+func newMacOSMaintainedAppNamesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMacOSMaintainedAppNames)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
 		}),
 	)
 

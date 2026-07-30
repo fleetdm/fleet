@@ -53,75 +53,204 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
+// maintainedAppNameReconcileBatchSize caps how many rows a single reconcile UPDATE
+// touches. Each batch is its own autocommit statement, so this bounds how long
+// InnoDB holds row locks on software / software_titles. A var so tests can lower it.
+var maintainedAppNameReconcileBatchSize = 500
+
 // ReconcileMaintainedAppSoftwareNames renames macOS software_titles and software rows
 // to the canonical Fleet-maintained app name (e.g. "Code" -> "Microsoft Visual Studio
 // Code"). Inventory and the installer already share a title via bundle_identifier, so
-// only the name needs correcting. Called once per catalog sync, which is the right
-// trigger because the canonical names come from that catalog; set-based and idempotent.
+// only the name needs correcting. Batched and idempotent.
+//
+// Runs on its own schedule (CronMacOSMaintainedAppNames) rather than as a step in the
+// catalog sync. Tying it to the sync meant a failed fetch, or one that errored part way
+// through its upserts, skipped the pass and left names the previous fetch had already
+// recorded uncorrected. The refresh still calls it on success, so a name the catalog just
+// changed applies immediately rather than on the next tick; the schedule is what covers a
+// refresh that failed.
 //
 // A bundle identifier is not unique across apps (Firefox and Firefox ESR both use
 // org.mozilla.firefox), so renaming by identifier alone is ambiguous: it renames first
 // by the precise installer link, then by bundle identifier but only where it maps to a
 // single app name.
 //
+// The writes deliberately avoid `UPDATE ... JOIN (<derived table>)`. The catalog subqueries
+// need GROUP BY, so MySQL materializes them, and at scale the optimizer flips to scanning the
+// target table once per materialized row. An UPDATE locks every row it reads -- the WHERE
+// filter is applied after the row is locked -- so that plan takes exclusive next-key locks on
+// all of software and software_titles, which blocks any insert needing a shared lock on a
+// software_titles row. That took down the software install endpoints, which reach
+// software_titles through their foreign keys.
+//
+// Discovery is a different matter and does join. That hazard is specific to UPDATE: a SELECT
+// here is a non-locking consistent read. So each pass finds its mismatched rows in one query
+// and then renames them by primary key in bounded batches, each batch its own statement, so
+// locks stay on a handful of rows and never span batches. Every UPDATE re-checks `name <> ?`,
+// which keeps the pass idempotent.
+//
 // Windows needs a merge rather than a rename and does not depend on the catalog, so it
 // runs separately. See ReconcileWindowsMaintainedAppSoftwareTitles.
 func (ds *Datastore) ReconcileMaintainedAppSoftwareNames(ctx context.Context) error {
-	// title_id -> name, for titles linked to a single FMA via their installer.
-	// GROUP BY also collapses a title's per-team installer rows to avoid fan-out.
-	const titleNameByFMA = `
+	// Reads go to the primary: the catalog refresh calls this straight after upserting those
+	// rows, so a replica may not have them yet and a freshly published name would be missed
+	// until the schedule's next tick. These are index lookups, not scans, and take no locks.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+
+	var renamedTitles, renamedSoftware int64
+
+	// Pass 1 renames via the precise installer link, pass 2 by bundle identifier where it maps
+	// to a single app. They run in order, each discovering only after the previous has applied,
+	// so where the two disagree the identifier wins and pass 2 never re-attempts what pass 1
+	// already fixed.
+	//
+	// Within a pass the title is renamed before its software rows and each write commits on its
+	// own, so a failure part-way can leave a title carrying the canonical name while its
+	// software rows still carry the reported one. That window is preferred over the
+	// alternative: one transaction spanning every write is what caused the lock contention this
+	// pass was rewritten to avoid. The next run repairs it.
+	steps := []struct {
+		label      string
+		selectStmt string
+		updateStmt string
+		renamed    *int64
+	}{
+		{"software_titles by installer link", mismatchedTitlesByInstallerLink, updateSoftwareTitleNames, &renamedTitles},
+		{"software by installer link", mismatchedSoftwareByInstallerLink, updateSoftwareNames, &renamedSoftware},
+		{"software_titles by bundle identifier", mismatchedTitlesByIdentifier, updateSoftwareTitleNames, &renamedTitles},
+		{"software by bundle identifier", mismatchedSoftwareByIdentifier, updateSoftwareNames, &renamedSoftware},
+	}
+
+	for _, step := range steps {
+		var rows []struct {
+			ID   uint   `db:"id"`
+			Name string `db:"name"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(primaryCtx), &rows, step.selectStmt); err != nil {
+			return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: find %s", step.label)
+		}
+		if len(rows) == 0 {
+			continue
+		}
+
+		// One UPDATE carries one name, so group the ids by the name they should get. Grouping is
+		// an exact map lookup, never a comparison, so it cannot disagree with the
+		// collation-sensitive `name <> ?` that the UPDATE itself applies.
+		idsByName := make(map[string][]uint, len(rows))
+		for _, r := range rows {
+			idsByName[r.Name] = append(idsByName[r.Name], r.ID)
+		}
+
+		for name, ids := range idsByName {
+			if err := common_mysql.BatchProcessSimple(ids, maintainedAppNameReconcileBatchSize, func(batch []uint) error {
+				stmt, args, err := sqlx.In(step.updateStmt, name, batch, name)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build rename statement")
+				}
+				n, err := ds.renameWithRetry(ctx, stmt, args...)
+				if err != nil {
+					return err
+				}
+				*step.renamed += n
+				return nil
+			}); err != nil {
+				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: rename %s", step.label)
+			}
+		}
+	}
+
+	if (renamedTitles > 0 || renamedSoftware > 0) && ds.logger != nil {
+		ds.logger.InfoContext(ctx, "reconciled Fleet-maintained app software names",
+			"software_titles_renamed", renamedTitles, "software_renamed", renamedSoftware)
+	}
+
+	return nil
+}
+
+// Statements for ReconcileMaintainedAppSoftwareNames.
+//
+// The join order is pinned with STRAIGHT_JOIN so the materialized catalog is always the outer
+// table and each software row is reached by index: ~960 index lookups inside one query rather
+// than one query per catalog entry. Left to itself the optimizer can pick the
+// scan-per-catalog-row plan instead, which is what made the original UPDATE examine ~106M
+// rows. The name comparison stays in SQL so it uses the columns' utf8mb4_unicode_ci
+// collation; comparing in Go would be byte-exact, disagree with the UPDATE's own predicate,
+// and re-select case-only differences on every run.
+//
+// additional_identifier is 1 for ios_apps and 2 for ipados_apps, so requiring 0 keeps a macOS
+// app's canonical name off its iOS and iPadOS sibling titles, which are distinct products
+// that happen to share a bundle identifier. `software` has no such column, so it excludes
+// those sources directly.
+const (
+	// title_id -> name, for titles linked to a single app via their installer. GROUP BY also
+	// collapses a title's per-team installer rows to avoid fan-out.
+	catalogNamesByTitle = `
 		SELECT si.title_id, MIN(fma.name) AS name
 		FROM software_installers si
 		JOIN fleet_maintained_apps fma
 			ON fma.id = si.fleet_maintained_app_id AND fma.platform = 'darwin'
+		WHERE si.title_id IS NOT NULL
 		GROUP BY si.title_id
 		HAVING COUNT(DISTINCT fma.name) = 1`
 
-	// darwin bundle identifiers mapping to exactly one FMA name; shared ones are excluded.
-	const unambiguousByIdentifier = `
+	// darwin bundle identifiers mapping to exactly one app name; shared ones are excluded.
+	catalogNamesByIdentifier = `
 		SELECT unique_identifier, MIN(name) AS name
 		FROM fleet_maintained_apps
 		WHERE platform = 'darwin'
 		GROUP BY unique_identifier
 		HAVING COUNT(DISTINCT name) = 1`
 
-	updates := []struct {
-		label string
-		stmt  string
-	}{
-		// Pass 1: precise, via installer link.
-		{"software_titles by installer link", `
-			UPDATE software_titles st
-				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = st.id
-			SET st.name = fma.name
-			WHERE st.name <> fma.name`},
-		{"software by installer link", `
-			UPDATE software s
-				JOIN (` + titleNameByFMA + `) fma ON fma.title_id = s.title_id
-			SET s.name = fma.name
-			WHERE s.name <> fma.name`},
+	mismatchedTitlesByInstallerLink = `
+		SELECT st.id, fma.name
+		FROM (` + catalogNamesByTitle + `) fma
+		STRAIGHT_JOIN software_titles st ON st.id = fma.title_id
+		WHERE st.name <> fma.name`
 
-		// Pass 2: by bundle identifier, unambiguous only.
-		{"software_titles by bundle identifier", `
-			UPDATE software_titles st
-				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = st.bundle_identifier
-			SET st.name = fma.name
-			WHERE st.name <> fma.name`},
-		{"software by bundle identifier", `
-			UPDATE software s
-				JOIN (` + unambiguousByIdentifier + `) fma ON fma.unique_identifier = s.bundle_identifier
-			SET s.name = fma.name
-			WHERE s.name <> fma.name`},
-	}
+	mismatchedSoftwareByInstallerLink = `
+		SELECT s.id, fma.name
+		FROM (` + catalogNamesByTitle + `) fma
+		STRAIGHT_JOIN software s ON s.title_id = fma.title_id
+		WHERE s.name <> fma.name`
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, u := range updates {
-			if _, err := tx.ExecContext(ctx, u.stmt); err != nil {
-				return ctxerr.Wrapf(ctx, err, "reconcile maintained app names: %s", u.label)
-			}
+	mismatchedTitlesByIdentifier = `
+		SELECT st.id, fma.name
+		FROM (` + catalogNamesByIdentifier + `) fma
+		STRAIGHT_JOIN software_titles st
+			ON st.bundle_identifier = fma.unique_identifier AND st.additional_identifier = 0
+		WHERE st.name <> fma.name`
+
+	mismatchedSoftwareByIdentifier = `
+		SELECT s.id, fma.name
+		FROM (` + catalogNamesByIdentifier + `) fma
+		STRAIGHT_JOIN software s
+			ON s.bundle_identifier = fma.unique_identifier
+			AND s.source NOT IN ('ios_apps', 'ipados_apps')
+		WHERE s.name <> fma.name`
+
+	updateSoftwareTitleNames = `UPDATE software_titles SET name = ? WHERE id IN (?) AND name <> ?`
+
+	updateSoftwareNames = `UPDATE software SET name = ? WHERE id IN (?) AND name <> ?`
+)
+
+// renameWithRetry runs one rename statement, retrying the transient lock errors that
+// concurrent software ingestion can produce. The batches are small and each runs in its own
+// transaction, so the retry never widens the lock scope.
+func (ds *Datastore) renameWithRetry(ctx context.Context, stmt string, args ...any) (int64, error) {
+	var renamed int64
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rename rows")
 		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count renamed rows")
+		}
+		renamed = n
 		return nil
 	})
+	return renamed, err
 }
 
 // ReconcileWindowsMaintainedAppSoftwareTitles collapses versioned Windows program

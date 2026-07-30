@@ -310,6 +310,10 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newWindowsMaintainedAppTitlesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
+	deps.register("failed to register macos maintained app names schedule", func() (fleet.CronSchedule, error) {
+		return newMacOSMaintainedAppNamesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+	})
+
 	deps.register("failed to register maintained apps auto-update schedule", func() (fleet.CronSchedule, error) {
 		return newMaintainedAppsAutoUpdateSchedule(ctx, deps.instanceID, deps.ds, deps.softwareInstallStore, deps.logger)
 	})

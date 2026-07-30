@@ -40,6 +40,12 @@ const (
 	// separate from CronCleanupsThenAggregation so it can run shortly after startup
 	// without changing the startup behaviour of that schedule's other jobs.
 	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
+	// CronMacOSMaintainedAppNames renames macOS software and software titles to the
+	// canonical Fleet-maintained app name. Separate from CronMaintainedApps for the same
+	// reasons as CronWindowsMaintainedAppTitles: it reads only local software and title
+	// state, so a failed catalog fetch must not stop it from repairing names the previous
+	// fetch already recorded.
+	CronMacOSMaintainedAppNames CronScheduleName = "macos_maintained_app_names"
 	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
 	// installer to the newest cached version its pin state allows. Premium only;
 	// runs every 1h.
