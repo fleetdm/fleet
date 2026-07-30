@@ -114,26 +114,27 @@ All conversation about an unfixed vulnerability stays in the confidential repo â
 
 ### Community contributions
 
+Fleet values every community contribution. We want to be upfront about how our engineering workflow has evolved so contributors know what to expect.
+
+Fleet uses AI tools extensively to accelerate code development. This means that writing code is no longer the team's bottleneck. Instead, the primary engineering work has shifted to deep code review: understanding the design, evaluating architecture decisions, assessing security implications, and ensuring the team fully owns every line that ships. Fleet is committed to understanding every line of code that goes into the product, regardless of who wrote it.
+
+Because of this shift, contributed code, while genuinely appreciated, does not save the team as much development time as it once did. The review effort is the same whether code was written by a contributor or by the team itself. This is not a reflection of the quality of contributions. It is a reflection of the depth of review Fleet requires before merging any change. Larger or more complex PRs may take longer to review as the team fits them into their planned work.
+
 #### Review a community pull request
 
-If you're assigned a community pull request (PR) for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, member of the Customer Success team, etc.
-
-If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
+The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
 If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
 
 Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
 
-**For PRs that change the product:**
+1. **On-call triage**: All community PRs are first reviewed by the on-call engineer. The on-call engineer routes the PR to the appropriate product group.
 
-- Assign the PR to the appropriate Product Designer (PD).
-- @ mention the relevant PD in a comment on the PR.
+2. **EM assessment**: The Engineering Manager (EM) of the owning product group evaluates the size, complexity, and review effort required.
 
-The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
+3. **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
 
-- Set the PR to draft.
-- Immediately decide whether to prioritize a [user story or quick win](https://fleetdm.com/handbook/company/product-groups#work-items) and bring it through drafting or put the change to the side (not prioritize).
-- Thank the contributor for their hard work, notify them on whether their change was prioritized or put to the side. If the change was put to the side, ask the contributor to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=) that describes the change, let them know that it only means the change has been rejected _at that time_, and close the PR.
+4. **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline.
 
 
 #### Merge a community pull request
