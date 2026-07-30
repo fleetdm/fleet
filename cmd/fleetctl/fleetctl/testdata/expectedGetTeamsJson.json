@@ -57,9 +57,9 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
-          "enable_create_local_admin_account": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -70,7 +70,10 @@
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": null
+          "configuration_profiles": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": null,
@@ -138,9 +141,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": null,
+          "enable_managed_local_account": false,
           "enable_release_device_manually": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
@@ -158,7 +161,10 @@
         "name_template": "",
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "custom_settings": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": null,
@@ -254,9 +260,9 @@
         "setup_experience": {
           "apple_enable_release_device_manually": false,
           "apple_setup_assistant": null,
-          "enable_create_local_admin_account": null,
+          "enable_create_local_admin_account": false,
           "enable_end_user_authentication": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_bootstrap_package": null,
           "macos_manual_agent_install": null,
@@ -267,7 +273,10 @@
         },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "configuration_profiles": null
+          "configuration_profiles": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -350,9 +359,9 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
-          "enable_managed_local_account": null,
+          "enable_managed_local_account": false,
           "enable_release_device_manually": false,
-          "end_user_local_account_type": null,
+          "end_user_local_account_type": "admin",
           "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
@@ -370,7 +379,10 @@
         "name_template": "",
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "custom_settings": null,
+          "managed_local_account_settings": {
+            "enabled": false
+          }
         },
         "windows_updates": {
           "deadline_days": 7,

@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "9.9.4",
+      "version": "9.9.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.SiberSystems.RoboForm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.SiberSystems.RoboForm' AND version_compare(bundle_short_version, '9.9.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.SiberSystems.RoboForm' AND version_compare(bundle_short_version, '9.9.5') < 0);"
       },
       "installer_url": "https://www.roboform.com/dist/roboform-mac-v9.dmg",
       "install_script_ref": "b30c1801",
