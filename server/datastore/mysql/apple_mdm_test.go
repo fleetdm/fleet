@@ -8165,9 +8165,9 @@ func testMDMAppleUpsertHostPersonalEnrollment(t *testing.T, ds *Datastore) {
 }
 
 // testMDMAppleUpsertHostRestoresServerURLOnReenroll guards host_mdm.server_url
-// and mdm_id through unenroll → re-enroll. MDMTurnOff clears those columns;
+// and mdm_id through unenroll -> re-enroll. MDMTurnOff clears those columns;
 // MDMAppleUpsertHost must rewrite them on conflict. Without that, iOS/iPadOS
-// hosts keep server_url='' forever (no osquery to refresh MDM details).
+// hosts keep an empty server_url forever (no osquery to refresh MDM details).
 // Regression for https://github.com/fleetdm/fleet/issues/50187
 func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -8220,7 +8220,7 @@ func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datasto
 		require.Empty(t, afterTurnOff.ServerURL)
 		require.Nil(t, afterTurnOff.MDMID)
 
-		// Re-enroll hits updateMDMAppleHostDB → upsertMDMAppleHostMDMInfoDB with
+		// Re-enroll hits updateMDMAppleHostDB -> upsertMDMAppleHostMDMInfoDB with
 		// an existing host_mdm row (ON DUPLICATE KEY UPDATE path).
 		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
 			UUID:           uuid,
