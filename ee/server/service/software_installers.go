@@ -3694,6 +3694,32 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	// Windows programs report the version inside their name, so software already
+	// inventoried for an app in this batch sits under a versioned software title rather
+	// than the one its installer now owns, and the uninstall action stays hidden until
+	// they are merged. Matches what the single-add path does, so a team managed through
+	// GitOps is not left waiting for the periodic pass.
+	//
+	// Once for the whole batch rather than per installer: the pass covers every added app
+	// in one scan. Best effort, since the installers are committed at this point and the
+	// periodic pass will redo it.
+	//
+	// Triggered by the maintained-app link alone rather than also checking the platform.
+	// The pass is a no-op for non-Windows apps, so an unnecessary run costs one indexed
+	// scan, whereas a missed run leaves the uninstall action hidden until the next
+	// periodic pass. Not worth depending on Platform being populated this far down the
+	// batch payload chain to save that.
+	if slices.ContainsFunc(softwareInstallers, func(i *fleet.UploadSoftwareInstallerPayload) bool {
+		return i != nil && i.FleetMaintainedAppID != nil
+	}) {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(ctx, "reconciling Windows software titles after a software batch",
+				"team_id", teamID,
+				"err", err,
+			)
+		}
+	}
+
 	// Reconcile cross-platform setup experience selections when the incoming
 	// batch mentions them. A batch that never touches setup_experience_platform
 	// leaves the cross-table alone so UI-set selections aren't clobbered.
