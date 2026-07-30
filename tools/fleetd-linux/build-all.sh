@@ -52,4 +52,4 @@ docker build -t fleetd-ubuntu-24.04 --platform=linux/amd64 -f ./ubuntu-24.04/Doc
 docker build -t fleetd-fedora-43 --platform=linux/amd64 -f ./fedora-43/Dockerfile .
 docker build -t fleetd-debian-13.4 --platform=linux/amd64 -f ./debian-13.4/Dockerfile .
 docker build -t fleetd-cachyos --platform=linux/amd64 -f ./cachyos/Dockerfile .
-docker build -t fleetd-omarchy --platform=linux/amd64 -f ./omarchy/Dockerfile .
+docker build -t fleetd-fake-omarchy --platform=linux/amd64 -f ./fake-omarchy/Dockerfile .

@@ -38,8 +38,8 @@ services:
     environment: *default-environment
     cap_add: *default-caps
     restart: unless-stopped
-  omarchy-fleetd:
-    image: "fleetd-omarchy"
+  fake-omarchy-fleetd:
+    image: "fleetd-fake-omarchy"
     platform: *default-platform
     environment: *default-environment
     cap_add: *default-caps

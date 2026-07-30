@@ -1,9 +1,14 @@
 FROM archlinux:latest
 
-# Omarchy ships its own /etc/os-release via the omarchy-settings package, and
-# there is no official Omarchy container image. Reproduce that file on an Arch
-# base so the "omarchy" platform string is exercised end to end. Values match
-# https://github.com/omacom-io/omarchy-pkgs pkgbuilds/omarchy-settings/PKGBUILD
+# This is NOT a real Omarchy install: Omarchy publishes no container image, and
+# Omarchy is a desktop environment on top of Arch that osquery only tells apart
+# by /etc/os-release. Omarchy ships that file via its omarchy-settings package,
+# so writing it onto an Arch base is enough to exercise the "omarchy" platform
+# string end to end. Anything that depends on Omarchy's actual packages or
+# desktop session needs a real host instead.
+#
+# Values match https://github.com/omacom-io/omarchy-pkgs
+# pkgbuilds/omarchy-settings/PKGBUILD
 RUN printf '%s\n' \
 	'NAME="Omarchy"' \
 	'PRETTY_NAME="Omarchy"' \
