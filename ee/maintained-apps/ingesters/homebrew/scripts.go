@@ -46,7 +46,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 				}
 				appPath := appItem.String
 				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
-	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp" || exit $?
 fi`, appPath)
 				sb.Writef(`if ! sudo cp -R "$TMPDIR/%[1]s" "$APPDIR"; then
 	# restore the previous version so a failed install doesn't leave the host with nothing
@@ -427,7 +427,7 @@ cat << EOF > "$CHOICE_XML"
 %s
 EOF
 
-sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
+sudo installer -pkg "$TMPDIR/%s" -target / -applyChoiceChangesXML "$CHOICE_XML" || exit $?
 `, choiceXML, pkg)
 
 	return nil

@@ -70,6 +70,8 @@ func TestInstallScriptPkgWithChoicesPropagatesExitCode(t *testing.T) {
 	}, cask)
 	require.NoError(t, err)
 	require.Contains(t, script, `-applyChoiceChangesXML "$CHOICE_XML" || exit $?`)
+	// The pkg filename must stay inside the quotes so filenames with spaces don't word-split.
+	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/Foo-1.0.pkg" -target /`)
 }
 
 // TestInstallScriptAppCopyPropagatesAndRestores is the cp -R equivalent: a
@@ -89,6 +91,8 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 		InstallerFormat:  "dmg",
 	}, cask)
 	require.NoError(t, err)
+	// A failed move-aside must not fall through to a copy that nests into the old app.
+	require.Contains(t, script, `sudo mv "$APPDIR/Foo.app" "$TMPDIR/Foo.app.bkp" || exit $?`)
 	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR"; then`)
 	require.Contains(t, script, `sudo mv "$TMPDIR/Foo.app.bkp" "$APPDIR/Foo.app"`)
 	require.Contains(t, script, "exit 1")
