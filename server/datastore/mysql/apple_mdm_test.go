@@ -108,6 +108,7 @@ func TestMDMApple(t *testing.T) {
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
 		{"MDMAppleProfilesOnIOSIPadOS", testMDMAppleProfilesOnIOSIPadOS},
 		{"ReconcileAppleProfilesDuplicateHostUUID", testReconcileAppleProfilesDuplicateHostUUID},
+		{"AppleOSUpdatesReconcile", testAppleOSUpdatesReconcile},
 		{"GetEnrollmentIDsWithPendingMDMAppleCommands", testGetEnrollmentIDsWithPendingMDMAppleCommands},
 		{"MDMAppleBootstrapPackageWithS3", testMDMAppleBootstrapPackageWithS3},
 		{"GetAndUpdateABMToken", testMDMAppleGetAndUpdateABMToken},
@@ -14073,4 +14074,142 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
 		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
 	require.Zero(t, varCount)
+}
+
+func testAppleOSUpdatesReconcile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "os-updates-team"})
+	require.NoError(t, err)
+
+	newHost := func(hostUUID, platform, deviceID string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(hostUUID),
+			NodeKey:         ptr.String(hostUUID),
+			UUID:            hostUUID,
+			Hostname:        hostUUID,
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.InsertAppleSoftwareUpdateDeviceID(ctx, hostUUID, deviceID))
+		return h
+	}
+
+	// UUIDs are chosen so that lexical host_uuid order is mac-team, mac-noteam, ios-noteam.
+	hMacTeam := newHost("aaa-mac-team", "darwin", "Mac14,2")
+	hMacNoTeam := newHost("bbb-mac-noteam", "darwin", "Mac14,2")
+	hIOSNoTeam := newHost("ccc-ios-noteam", "ios", "iPhone15,2")
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hMacTeam.ID})))
+
+	latest := func(darwin, ios, ipados map[uint]uint) map[string]map[uint]uint {
+		return map[string]map[uint]uint{"darwin": darwin, "ios": ios, "ipados": ipados}
+	}
+	uuidsOf := func(hosts []*fleet.AppleSoftwareUpdateHost) []string {
+		out := make([]string, len(hosts))
+		for i, h := range hosts {
+			out[i] = h.HostUUID
+		}
+		return out
+	}
+
+	t.Run("ListForReconcile filters by team and platform", func(t *testing.T) {
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]uint{team.ID: 2}, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacTeam.UUID}, uuidsOf(got))
+		require.Equal(t, "darwin", got[0].Platform)
+		require.EqualValues(t, team.ID, got[0].TeamID)
+	})
+
+	t.Run("ListForReconcile matches no-team hosts via team_id 0", func(t *testing.T) {
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(map[uint]uint{0: 2}, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacNoTeam.UUID}, uuidsOf(got))
+		require.EqualValues(t, 0, got[0].TeamID)
+	})
+
+	t.Run("ListForReconcile returns hosts with an existing target even without a latest team", func(t *testing.T) {
+		deadline := time.Now().UTC().Truncate(time.Microsecond)
+		require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+			AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{HostUUID: hIOSNoTeam.UUID, TargetOSVersion: "18.1", TargetDeadline: &deadline},
+		}}))
+		// No teams have latest configured, but the iOS host now has a target set,
+		// so the reconciler must still revisit it (to potentially clear it).
+		got, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 100, latest(nil, nil, nil))
+		require.NoError(t, err)
+		require.Equal(t, []string{hIOSNoTeam.UUID}, uuidsOf(got))
+		require.Equal(t, "18.1", got[0].TargetOSVersion)
+		require.NotNil(t, got[0].TargetDeadline)
+		require.True(t, deadline.Equal(*got[0].TargetDeadline))
+	})
+
+	t.Run("ListForReconcile paginates by host_uuid cursor", func(t *testing.T) {
+		all := latest(map[uint]uint{team.ID: 2, 0: 2}, map[uint]uint{0: 2}, nil)
+		page1, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, "", 2, all)
+		require.NoError(t, err)
+		require.Equal(t, []string{hMacTeam.UUID, hMacNoTeam.UUID}, uuidsOf(page1))
+
+		page2, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, page1[len(page1)-1].HostUUID, 2, all)
+		require.NoError(t, err)
+		require.Equal(t, []string{hIOSNoTeam.UUID}, uuidsOf(page2))
+	})
+
+	t.Run("SetTargetsAndResend upserts targets and resets only the OS-update declaration", func(t *testing.T) {
+		// Seed two declarations on the mac team host: one OS-update declaration
+		// (status should be reset for resend) and one unrelated declaration
+		// (must be left untouched).
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			for _, d := range []struct{ ident, name string }{
+				{"os-updates", fleetmdm.FleetMacOSUpdatesProfileName},
+				{"other", "Some Other Profile"},
+			} {
+				if _, err := q.ExecContext(ctx,
+					`INSERT INTO host_mdm_apple_declarations (host_uuid, status, operation_type, token, declaration_identifier, declaration_uuid, declaration_name, scope) VALUES (?, ?, ?, UNHEX(REPEAT('00', 16)), ?, ?, ?, 'System')`,
+					hMacTeam.UUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall, d.ident, uuid.NewString(), d.name); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+		resolvedAt := time.Now().UTC().Truncate(time.Microsecond)
+		deadline := resolvedAt.Add(48 * time.Hour)
+		require.NoError(t, ds.SetAppleOSUpdateTargetsAndResend(ctx, []*fleet.ComputedAppleSoftwareUpdateHost{{
+			AppleSoftwareUpdateHost: fleet.AppleSoftwareUpdateHost{
+				HostUUID: hMacTeam.UUID, TargetOSVersion: "15.1", TargetDeadline: &deadline, ResolvedAt: &resolvedAt,
+			},
+			Resend: true,
+		}}))
+
+		var row fleet.AppleSoftwareUpdateHost
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row,
+				`SELECT host_uuid, target_os_version, target_deadline, resolved_at FROM host_mdm_apple_os_updates WHERE host_uuid = ?`, hMacTeam.UUID)
+		})
+		require.Equal(t, "15.1", row.TargetOSVersion)
+		require.NotNil(t, row.TargetDeadline)
+		require.True(t, deadline.Equal(*row.TargetDeadline))
+		require.NotNil(t, row.ResolvedAt)
+		require.True(t, resolvedAt.Equal(*row.ResolvedAt))
+
+		var decls []struct {
+			Name   string  `db:"declaration_name"`
+			Status *string `db:"status"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &decls,
+				`SELECT declaration_name, status FROM host_mdm_apple_declarations WHERE host_uuid = ? ORDER BY declaration_name`, hMacTeam.UUID)
+		})
+		byName := map[string]*string{}
+		for _, d := range decls {
+			byName[d.Name] = d.Status
+		}
+		require.Contains(t, byName, fleetmdm.FleetMacOSUpdatesProfileName)
+		require.Nil(t, byName[fleetmdm.FleetMacOSUpdatesProfileName], "OS-update declaration status should be reset to NULL for resend")
+		require.Contains(t, byName, "Some Other Profile")
+		require.NotNil(t, byName["Some Other Profile"], "unrelated declaration should be untouched")
+	})
 }

@@ -1818,3 +1818,53 @@ type ABReleaseDeviceAuthz struct {
 func (a ABReleaseDeviceAuthz) AuthzType() string {
 	return "mdm_ab_release"
 }
+
+// OSUpdateAsset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
+// Example:
+//
+//	{
+//	    "ProductVersion": "14.6.1",
+//	    "Build": "23G93",
+//	    "PostingDate": "2024-08-07",
+//	    "ExpirationDate": "2024-11-11",
+//	    "SupportedDevices": [
+//	        "J132AP",
+//	        "VMA2MACOSAP",
+//	        "VMM-x86_64"
+//	    ]
+//	}
+//
+// [1]: http://gdmf.apple.com/v2/pmv
+// [2]:
+// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
+type OSUpdateAsset struct {
+	ProductVersion   string   `json:"ProductVersion"`
+	Build            string   `json:"Build"`
+	PostingDate      string   `json:"PostingDate"`
+	ExpirationDate   string   `json:"ExpirationDate"`
+	SupportedDevices []string `json:"SupportedDevices"`
+}
+
+type AppleSoftwareUpdateAsset struct {
+	ProductVersion   string          `db:"product_version"`
+	Build            string          `db:"build"`
+	PostingDate      string          `db:"posting_date"`
+	ExpirationDate   string          `db:"expiration_date"`
+	SupportedDevices JSONStringArray `db:"supported_devices"`
+	FirstSeenAt      time.Time       `db:"first_seen_at"`
+}
+
+type AppleSoftwareUpdateHost struct {
+	HostUUID               string     `db:"host_uuid"`
+	SoftwareUpdateDeviceID string     `db:"software_update_device_id"`
+	TargetOSVersion        string     `db:"target_os_version"`
+	TargetDeadline         *time.Time `db:"target_deadline"`
+	ResolvedAt             *time.Time `db:"resolved_at"`
+	TeamID                 uint       `db:"team_id"`
+	Platform               string     `db:"platform"`
+}
+
+type ComputedAppleSoftwareUpdateHost struct {
+	AppleSoftwareUpdateHost
+	Resend bool
+}

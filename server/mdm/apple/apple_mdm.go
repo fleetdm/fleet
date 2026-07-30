@@ -2489,3 +2489,185 @@ func MDMPushCertTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, 
 
 	return mdmPushCertTopic, nil
 }
+
+func HandleAppleMDMOSUpdates(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+	lastUpdatedAt, err := ds.GetLastAppleOSUpdatesUpdate(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get last apple os updates update")
+	}
+
+	if lastUpdatedAt == nil || time.Since(*lastUpdatedAt) > 24*time.Hour {
+		logger.InfoContext(ctx, "pulling fresh apple os updates from gdmf")
+
+		assetMetadata, err := gdmf.GetAssetMetadata()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting asset metadata from GDMF")
+		}
+
+		err = ds.UpsertAppleOSUpdates(ctx, map[string][]fleet.OSUpdateAsset{
+			"macos": assetMetadata.AssetSets.MacOS,
+			"ios":   assetMetadata.AssetSets.IOS,
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting apple os updates")
+		}
+	} else {
+		logger.InfoContext(ctx, "apple os updates are less than 24 hours old, not pulling new os updates", "last_updated_at", *lastUpdatedAt)
+	}
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	// Get a list of all teams that has latest configured for macOS, iOS, or iPadOS.
+	// We use admin global role to have access to all teams.
+	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{User: &fleet.User{
+		GlobalRole: new("admin"),
+	}}, fleet.ListOptions{})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing teams")
+	}
+
+	// platform -> map of team_id -> deadline_days
+	teamsWithLatest := map[string]map[uint]uint{}
+	teamsWithLatest["darwin"] = map[uint]uint{}
+	teamsWithLatest["ios"] = map[uint]uint{}
+	teamsWithLatest["ipados"] = map[uint]uint{}
+
+	for _, team := range teams {
+		if team.Config.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
+			teamsWithLatest["darwin"][team.ID] = 2 // TODO: team.Config.MDM.MacOSUpdates.DeadlineDays
+		}
+		if team.Config.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
+			teamsWithLatest["ios"][team.ID] = 2 // TODO: team.Config.MDM.IOSUpdates.DeadlineDays
+		}
+		if team.Config.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
+			teamsWithLatest["ipados"][team.ID] = 2 // TODO: team.Config.MDM.IPadOSUpdates.DeadlineDays
+		}
+	}
+
+	// We will replace 0 with NULL check when looking up hosts to reconcile and checking the team_id column
+	if appCfg.MDM.MacOSUpdates.MinimumVersion.Value == "latest" {
+		teamsWithLatest["darwin"][0] = 2 // TODO: appCfg.MDM.MacOSUpdates.DeadlineDays
+	}
+	if appCfg.MDM.IOSUpdates.MinimumVersion.Value == "latest" {
+		teamsWithLatest["ios"][0] = 2 // TODO: appCfg.MDM.IOSUpdates.DeadlineDays
+	}
+	if appCfg.MDM.IPadOSUpdates.MinimumVersion.Value == "latest" {
+		teamsWithLatest["ipados"][0] = 2 // TODO: appCfg.MDM.IPadOSUpdates.DeadlineDays
+	}
+
+	updateAssets, err := ds.ListAppleOSUpdateAssets(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing apple os update assets")
+	}
+	const batchSize = 1000
+	var cursor string
+	for {
+		hostBatch, err := ds.ListAppleOSUpdateHostsForReconcile(ctx, cursor, batchSize, teamsWithLatest)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "listing apple os update hosts for reconcile")
+		}
+		if len(hostBatch) == 0 {
+			break
+		}
+		logger.InfoContext(ctx, "recomputing target os version and deadline for hosts", "cursor", cursor, "end_cursor", hostBatch[len(hostBatch)-1].HostUUID, "count", len(hostBatch))
+
+		targets := computeOSUpdatesTarget(ctx, logger, hostBatch, updateAssets, teamsWithLatest)
+		logger.InfoContext(ctx, "updating target os version and deadline for hosts", "count", len(targets))
+		if err := ds.SetAppleOSUpdateTargetsAndResend(ctx, targets); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting apple os update targets and resending profiles")
+		}
+
+		cursor = hostBatch[len(hostBatch)-1].HostUUID
+	}
+
+	return nil
+}
+
+func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*fleet.AppleSoftwareUpdateHost, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset, teamsWithLatest map[string]map[uint]uint) []*fleet.ComputedAppleSoftwareUpdateHost {
+	var computedHosts []*fleet.ComputedAppleSoftwareUpdateHost
+	for _, host := range hosts {
+
+		var updateAssetsPlatform string
+		if host.Platform == "darwin" {
+			updateAssetsPlatform = "macos"
+		} else {
+			updateAssetsPlatform = "ios" // covers iPhone, iPad, iPod
+		}
+
+		// teamsWithLatest is configured per platform, one for macos, ios, ipados.
+		teamsWithLatestForPlatform, ok := teamsWithLatest[host.Platform]
+		if !ok {
+			logger.DebugContext(ctx, "unsupported os update platform", "platform", host.Platform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		deadlineDays, ok := teamsWithLatestForPlatform[host.TeamID]
+		if !ok {
+			// Host no longer has a team with latest set. Clear the target version and deadline, do NOT mark for resend as the reconciler will handle complete removal of profile.
+			host.TargetOSVersion = ""
+			host.TargetDeadline = nil
+			host.ResolvedAt = nil
+			computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+				AppleSoftwareUpdateHost: *host,
+				Resend:                  false,
+			})
+			continue
+		}
+
+		// Host has a team with latest set. Compute the target OS version and deadline.
+
+		// Look up latest OS version from updateAssets
+		assets, ok := updateAssets[updateAssetsPlatform]
+		if !ok || len(assets) == 0 {
+			logger.DebugContext(ctx, "no update assets found for platform", "platform", updateAssetsPlatform, "host_uuid", host.HostUUID)
+			continue
+		}
+
+		var latestAsset *fleet.AppleSoftwareUpdateAsset
+		for _, asset := range assets {
+			if !slices.Contains(asset.SupportedDevices, host.SoftwareUpdateDeviceID) {
+				continue
+			}
+
+			if latestAsset == nil {
+				latestAsset = &asset
+			} else {
+				// Current latest is less than this asset, so update latestAsset to this one
+				if less, _ := IsLessThanVersion(latestAsset.ProductVersion, asset.ProductVersion); less {
+					latestAsset = &asset
+				}
+			}
+		}
+
+		if latestAsset == nil {
+			logger.DebugContext(ctx, "no update asset found for host's device id", "host_uuid", host.HostUUID, "device_id", host.SoftwareUpdateDeviceID)
+			continue
+		}
+
+		startDate, _ := time.Parse(time.DateOnly, latestAsset.PostingDate)
+		if latestAsset.FirstSeenAt.After(startDate) {
+			startDate = latestAsset.FirstSeenAt
+		}
+		targetDeadline := startDate.Add(time.Duration(deadlineDays) * 24 * time.Hour)
+
+		if latestAsset.ProductVersion == host.TargetOSVersion && (host.TargetDeadline != nil && targetDeadline.Equal(*host.TargetDeadline)) {
+			logger.DebugContext(ctx, "host target version and deadline unchanged", "host_uuid", host.HostUUID, "target_version", host.TargetOSVersion, "target_deadline", host.TargetDeadline)
+			continue
+		}
+
+		logger.DebugContext(ctx, "host target version and/or deadline changed", "host_uuid", host.HostUUID, "old_target_version", host.TargetOSVersion, "new_target_version", latestAsset.ProductVersion, "old_target_deadline", host.TargetDeadline, "new_target_deadline", targetDeadline)
+
+		host.TargetOSVersion = latestAsset.ProductVersion
+		host.TargetDeadline = &targetDeadline
+		host.ResolvedAt = new(time.Now())
+
+		computedHosts = append(computedHosts, &fleet.ComputedAppleSoftwareUpdateHost{
+			AppleSoftwareUpdateHost: *host,
+			Resend:                  true,
+		})
+	}
+	return computedHosts
+}

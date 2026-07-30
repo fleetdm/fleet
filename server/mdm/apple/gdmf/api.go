@@ -22,38 +22,12 @@ import (
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
 
-// Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
-// Example:
-//
-//	{
-//	    "ProductVersion": "14.6.1",
-//	    "Build": "23G93",
-//	    "PostingDate": "2024-08-07",
-//	    "ExpirationDate": "2024-11-11",
-//	    "SupportedDevices": [
-//	        "J132AP",
-//	        "VMA2MACOSAP",
-//	        "VMM-x86_64"
-//	    ]
-//	}
-//
-// [1]: http://gdmf.apple.com/v2/pmv
-// [2]:
-// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-type Asset struct {
-	ProductVersion   string   `json:"ProductVersion"`
-	Build            string   `json:"Build"`
-	PostingDate      string   `json:"PostingDate"`
-	ExpirationDate   string   `json:"ExpirationDate"`
-	SupportedDevices []string `json:"SupportedDevices"`
-}
-
 // AssetSets represents the metadata for a set of assets in the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type AssetSets struct {
-	IOS   []Asset `json:"iOS"`
-	MacOS []Asset `json:"macOS"`
+	IOS   []fleet.OSUpdateAsset `json:"iOS"`
+	MacOS []fleet.OSUpdateAsset `json:"macOS"`
 	// VisionOS []Asset `json:"visionOS"` // Fleet doesn't support visionOS yet
 	// XROS     []Asset `json:"xrOS"`    // Fleet doesn't support xrOS yet
 }
@@ -117,7 +91,7 @@ func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string
 // PublicAssetSets. If no matching asset is found, an error is returned.
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
+func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*fleet.OSUpdateAsset, error) {
 	am, err := GetAssetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
