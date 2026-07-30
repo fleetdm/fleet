@@ -8236,41 +8236,65 @@ func testMDMAppleUpsertHostRestoresServerURLOnReenroll(t *testing.T, ds *Datasto
 		require.NotNil(t, afterReenroll.MDMID, "platform %s", platform)
 		require.False(t, afterReenroll.InstalledFromDEP, "platform %s", platform)
 	}
+
+	// DEP sync inserts installed_from_dep=1 with enrolled=0; real enrollment upserts
+	// with fromSync=false. installed_from_dep must survive that conflict update.
+	depUUID := "reenroll-server-url-dep"
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           depUUID,
+		HardwareSerial: "serial-" + depUUID,
+		HardwareModel:  "test-model",
+		Platform:       "ios",
+	}, false)
+	require.NoError(t, err)
+	depHost, err := ds.HostByIdentifier(ctx, depUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_mdm SET enrolled = 0, installed_from_dep = 1, server_url = '', mdm_id = NULL WHERE host_id = ?`,
+			depHost.ID)
+		return err
+	})
+	err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
+		UUID:           depUUID,
+		HardwareSerial: "serial-" + depUUID,
+		HardwareModel:  "test-model",
+		Platform:       "ios",
+	}, false)
+	require.NoError(t, err)
+	afterDEPEnroll := readHostMDM(depHost.ID)
+	require.True(t, afterDEPEnroll.Enrolled)
+	require.Equal(t, expectedServerURL, afterDEPEnroll.ServerURL)
+	require.NotNil(t, afterDEPEnroll.MDMID)
+	require.True(t, afterDEPEnroll.InstalledFromDEP)
 }
 
-// testUpsertMDMAppleHostMDMInfoDBSQLColumnParity fails if a column is added to the
-// host_mdm INSERT in upsertMDMAppleHostMDMInfoDB but not to ON DUPLICATE KEY UPDATE
-// (except host_id, which is the primary key). That regression left iOS/iPadOS
-// server_url empty after re-enroll; see #50187 and testMDMAppleUpsertHostRestoresServerURLOnReenroll.
+// testUpsertMDMAppleHostMDMInfoDBSQLColumnParity guards the host_mdm ON DUPLICATE
+// KEY UPDATE column set in upsertMDMAppleHostMDMInfoDB. server_url/mdm_id must be
+// rewritten so re-enroll after MDMTurnOff restores them (#50187); installed_from_dep
+// and is_server must not be rewritten or DEP sync → enroll flips automatic to manual.
 func testUpsertMDMAppleHostMDMInfoDBSQLColumnParity(t *testing.T, _ *Datastore) {
 	src, err := os.ReadFile("apple_mdm.go")
 	require.NoError(t, err)
 
 	fn := extractGoFuncBody(t, string(src), "func upsertMDMAppleHostMDMInfoDB")
-	// Bind INSERT and UPDATE from the host_mdm statement only (the function also
-	// upserts mobile_device_management_solutions).
 	re := regexp.MustCompile("(?s)INSERT INTO host_mdm \\(([^)]+)\\) VALUES %s\\s+ON DUPLICATE KEY UPDATE\\s+([^`]+)`")
 	m := re.FindStringSubmatch(fn)
 	require.Len(t, m, 3, "host_mdm INSERT/ON DUPLICATE KEY UPDATE statement not found")
 
-	insertCols := splitSQLIdents(t, m[1])
-	updateCols := splitSQLUpdateLHS(t, m[2])
-
-	insertSet := make(map[string]struct{}, len(insertCols))
-	for _, c := range insertCols {
-		if c == "host_id" {
-			continue // PK; not rewritten on conflict
-		}
-		insertSet[c] = struct{}{}
-	}
-	updateSet := make(map[string]struct{}, len(updateCols))
-	for _, c := range updateCols {
+	updateSet := make(map[string]struct{})
+	for _, c := range splitSQLUpdateLHS(t, m[2]) {
 		updateSet[c] = struct{}{}
 	}
 
-	require.Equal(t, insertSet, updateSet,
-		"upsertMDMAppleHostMDMInfoDB must ON DUPLICATE KEY UPDATE every INSERT column except host_id; "+
-			"add the new column to both sides of the upsert")
+	for _, c := range []string{"enrolled", "server_url", "mdm_id", "is_personal_enrollment"} {
+		_, ok := updateSet[c]
+		require.True(t, ok, "ON DUPLICATE KEY UPDATE must rewrite %s", c)
+	}
+	for _, c := range []string{"installed_from_dep", "is_server", "host_id"} {
+		_, ok := updateSet[c]
+		require.False(t, ok, "ON DUPLICATE KEY UPDATE must not rewrite %s", c)
+	}
 }
 
 func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
@@ -8296,18 +8320,6 @@ func extractGoFuncBody(t *testing.T, src, funcPrefix string) string {
 	return ""
 }
 
-func splitSQLIdents(t *testing.T, list string) []string {
-	t.Helper()
-	parts := strings.Split(list, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		require.NotEmpty(t, p)
-		out = append(out, p)
-	}
-	return out
-}
-
 func splitSQLUpdateLHS(t *testing.T, clause string) []string {
 	t.Helper()
 	parts := strings.Split(clause, ",")
@@ -8318,7 +8330,7 @@ func splitSQLUpdateLHS(t *testing.T, clause string) []string {
 			continue
 		}
 		eq := strings.Index(p, "=")
-		require.Greater(t, eq, 0, "assignment %q", p)
+		require.Positive(t, eq, "assignment %q", p)
 		out = append(out, strings.TrimSpace(p[:eq]))
 	}
 	require.NotEmpty(t, out)
