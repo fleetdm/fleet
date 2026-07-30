@@ -29,6 +29,71 @@ func TestInstallScriptDmgExtractUsesYesPipe(t *testing.T) {
 	require.Contains(t, script, `hdiutil detach "$MOUNT_POINT" || true`)
 }
 
+// TestInstallScriptPkgPropagatesInstallerExitCode guards against a regression
+// where a failing `installer -pkg` was reported as a successful install because
+// its exit code was discarded and the script ended on `relaunch_application`,
+// which always exits 0.
+func TestInstallScriptPkgPropagatesInstallerExitCode(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "pkg",
+	}, cask)
+	require.NoError(t, err)
+	require.Contains(t, script, `sudo installer -pkg "$TMPDIR/Foo-1.0.pkg" -target / || exit $?`)
+	// relaunch still runs, but only after the install command's exit code is checked.
+	require.Contains(t, script, "relaunch_application 'com.example.Foo'")
+}
+
+// TestInstallScriptPkgWithChoicesPropagatesExitCode is the choices variant of the
+// above (e.g. Microsoft apps), which installs via -applyChoiceChangesXML.
+func TestInstallScriptPkgWithChoicesPropagatesExitCode(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{Pkg: []optjson.StringOr[*brewPkgChoices]{
+				{String: "Foo-1.0.pkg"},
+				{IsOther: true, Other: &brewPkgChoices{Choices: []brewPkgConfig{}}},
+			}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "pkg",
+	}, cask)
+	require.NoError(t, err)
+	require.Contains(t, script, `-applyChoiceChangesXML "$CHOICE_XML" || exit $?`)
+}
+
+// TestInstallScriptAppCopyPropagatesAndRestores is the cp -R equivalent: a
+// failing copy must exit non-zero and restore the app it moved aside, so a
+// failed install neither reports success nor leaves the host without a working
+// app.
+func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		},
+	}
+
+	script, err := installScriptForApp(inputApp{
+		Token:            "foo",
+		UniqueIdentifier: "com.example.Foo",
+		InstallerFormat:  "dmg",
+	}, cask)
+	require.NoError(t, err)
+	require.Contains(t, script, `if ! sudo cp -R "$TMPDIR/Foo.app" "$APPDIR"; then`)
+	require.Contains(t, script, `sudo mv "$TMPDIR/Foo.app.bkp" "$APPDIR/Foo.app"`)
+	require.Contains(t, script, "exit 1")
+}
+
 func TestShellSingleQuote(t *testing.T) {
 	for in, want := range map[string]string{
 		"":                      `''`,

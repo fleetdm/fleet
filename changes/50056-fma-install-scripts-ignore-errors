@@ -1,0 +1,1 @@
+- Fixed a bug where a failed macOS Fleet-maintained app install could be reported as successfully installed because the generated install script did not check the exit code of the command that installed the app.
