@@ -18,8 +18,11 @@ COPY fleet-osquery_amd64.pkg.tar.zst /
 COPY run-fleetd.sh /
 RUN chmod +x /run-fleetd.sh
 
-RUN pacman -Sy --noconfirm --needed ca-certificates
-
-RUN pacman -U --noconfirm /fleet-osquery_amd64.pkg.tar.zst
+# Arch does not support partial upgrades: refreshing the package databases with
+# -Sy and then installing a package that pulls newer dependencies can leave the
+# system inconsistent. Upgrade with -Syu and install fleetd in the same layer so
+# both steps succeed or fail together.
+RUN pacman -Syu --noconfirm --needed ca-certificates \
+	&& pacman -U --noconfirm /fleet-osquery_amd64.pkg.tar.zst
 
 ENTRYPOINT ["/run-fleetd.sh"]
