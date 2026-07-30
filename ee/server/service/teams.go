@@ -1431,10 +1431,16 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "enroll secret must not be empty"), "validate secrets")
 			}
 		}
-		// TODO: should we be we validating the other Apple platforms? if so, we should also include
-		// ValidateMDMSettingsAppleSupportedOSVersion for each platform
+		// TODO: we should also include ValidateMDMSettingsAppleSupportedOSVersion for
+		// each platform here, as the API paths do.
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_updates", err.Error()))
+		}
+		if err := spec.MDM.IOSUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("ios_updates", err.Error()))
+		}
+		if err := spec.MDM.IPadOSUpdates.Validate(); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("ipados_updates", err.Error()))
 		}
 		if err := spec.MDM.WindowsUpdates.Validate(); err != nil {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_updates", err.Error()))

@@ -1600,3 +1600,123 @@ func TestModifyTeamOSUpdatesDeadlineDays(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyTeamSpecsOSUpdatesValidation(t *testing.T) {
+	// GitOps applies team settings through editTeamFromSpec, which validates each
+	// Apple platform's OS update settings. All three must reject invalid settings,
+	// keyed by the platform that is at fault.
+	latest := func(days optjson.Int) fleet.AppleOSUpdateSettings {
+		return fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+			DeadlineDays:   days,
+		}
+	}
+	valid := latest(optjson.SetInt(14))
+	missingDays := latest(optjson.Int{})
+
+	testCases := []struct {
+		name    string
+		mdm     fleet.TeamSpecMDM
+		wantErr string
+	}{
+		{
+			name: "all platforms valid",
+			mdm:  fleet.TeamSpecMDM{MacOSUpdates: valid, IOSUpdates: valid, IPadOSUpdates: valid},
+		},
+		{
+			name:    "macos missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{MacOSUpdates: missingDays},
+			wantErr: "macos_updates",
+		},
+		{
+			name:    "ios missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{IOSUpdates: missingDays},
+			wantErr: "ios_updates",
+		},
+		{
+			name:    "ipados missing deadline_days",
+			mdm:     fleet.TeamSpecMDM{IPadOSUpdates: missingDays},
+			wantErr: "ipados_updates",
+		},
+		{
+			name:    "macos deadline with latest",
+			mdm:     fleet.TeamSpecMDM{MacOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion), Deadline: optjson.SetString("2026-09-01"), DeadlineDays: optjson.SetInt(14)}},
+			wantErr: "macos_updates",
+		},
+		{
+			// Not a "latest" case: a half-configured block was accepted before iOS
+			// was validated here, then enforced nothing because Configured() needs
+			// both fields. Existing fleet files like this now fail the apply.
+			name:    "ios version without deadline",
+			mdm:     fleet.TeamSpecMDM{IOSUpdates: fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("17.5")}},
+			wantErr: "ios_updates",
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockSvc := &svcmock.Service{}
+			mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+				return nil
+			}
+
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+			}
+			ds.TeamByNameFunc = func(_ context.Context, name string) (*fleet.Team, error) {
+				return &fleet.Team{ID: 1, Name: name}, nil
+			}
+			ds.TeamConflictsWithNameFunc = func(context.Context, string, uint) (*fleet.Team, error) {
+				return nil, nil
+			}
+			ds.IsEnrollSecretAvailableFunc = func(context.Context, string, bool, *uint) (bool, error) {
+				return true, nil
+			}
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				return team, nil
+			}
+			ds.HasAppleUpdateConfigProfileConfiguredFunc = func(context.Context, uint) (bool, error) {
+				return false, nil
+			}
+			ds.LabelIDsByNameFunc = func(_ context.Context, names []string, _ fleet.TeamFilter) (map[string]uint, error) {
+				ids := make(map[string]uint, len(names))
+				for i, name := range names {
+					ids[name] = uint(i + 1) //nolint:gosec
+				}
+				return ids, nil
+			}
+			ds.SetOrUpdateMDMAppleDeclarationFunc = func(_ context.Context, decl *fleet.MDMAppleDeclaration,
+				_ []fleet.FleetVarName,
+			) (*fleet.MDMAppleDeclaration, error) {
+				decl.DeclarationUUID = "decl-uuid"
+				return decl, nil
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			_, err := svc.ApplyTeamSpecs(ctx,
+				[]*fleet.TeamSpec{{Name: "team-1", MDM: tc.mdm}},
+				fleet.ApplyTeamSpecOptions{})
+
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.ErrorContains(t, err, tc.wantErr,
+				"the error must name the platform whose settings are invalid")
+			require.False(t, ds.SaveTeamFuncInvoked, "an invalid spec must not be persisted")
+		})
+	}
+}
