@@ -129,7 +129,7 @@ func (c *Client) applySoftwareInstallers(
 			_, printedStart := printedDownloading[packageProgress.Name]
 			if !printedStart {
 				printedDownloading[packageProgress.Name] = struct{}{}
-				logFn(downloadingSoftwareFormat, packageProgress.Name)
+				logFn("[+] downloading software package - %s ...\n", packageProgress.Name)
 			}
 
 			_, printedFinish := printedResult[packageProgress.Name]
@@ -139,10 +139,10 @@ func (c *Client) applySoftwareInstallers(
 			switch packageProgress.Status {
 			case fleet.SoftwarePackageDownloadFailed:
 				printedResult[packageProgress.Name] = struct{}{}
-				logFn(failedSoftwareFormat, packageProgress.Name)
+				logFn("Error: could not download software package %s\n", packageProgress.Name)
 			case fleet.SoftwarePackageDownloadFinished:
 				printedResult[packageProgress.Name] = struct{}{}
-				logFn(downloadedSoftwareFormat, packageProgress.Name)
+				logFn("[+] downloaded software package - %s\n", packageProgress.Name)
 			}
 		}
 	}

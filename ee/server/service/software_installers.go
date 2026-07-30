@@ -3070,6 +3070,11 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
+	// Every write sends the whole slice, so it needs a lock, not just one index per goroutine.
+	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
+	var downloadProgressMutex sync.Mutex
+	var lastDownloadProgressJSON string
+
 	// Periodically refresh the expiration on the batch install process so that, even when downloading/uploading
 	// large installers, we ensure the server doesn't lose track of the batch. This way, the only time a batch times
 	// out is if the server goes offline during running the batch.
@@ -3085,6 +3090,20 @@ func (svc *Service) softwareBatchUpload(
 				return
 			case <-ticker.C:
 				_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime)
+
+				downloadProgressMutex.Lock()
+				progressJSON := lastDownloadProgressJSON
+				downloadProgressMutex.Unlock()
+				if progressJSON != "" {
+					_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, progressJSON, 10*time.Minute)
+				}
+
+				categoriesKey := batchSoftwarePrefix + requestUUID + batchSoftwareCategoriesSuffix
+				if categoriesJSON, err := svc.keyValueStore.Get(ctx, categoriesKey); err == nil && categoriesJSON != nil {
+					_ = svc.keyValueStore.Set(ctx, categoriesKey, *categoriesJSON, 10*time.Minute)
+				}
+				// The deleted key is only written once the downloads are done, and refreshed
+				// again as the batch completes, so it doesn't need this.
 			}
 		}
 	}()
@@ -3137,7 +3156,6 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	var g errgroup.Group
-	// Raising this limit interleaves the per-package progress a gitops run prints.
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
 	// the reason for this struct with extra installers support is that:
@@ -3157,46 +3175,32 @@ func (svc *Service) softwareBatchUpload(
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
 
-	// The whole slice is read on every write, so unlike the slices above, writing only to
-	// your own index isn't enough if the goroutine limit is ever raised. The write itself
-	// happens outside the lock so it never holds up another download.
-	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
-	var downloadProgressMutex sync.Mutex
 	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
 		downloadProgressMutex.Lock()
-		// Only a package that is still downloading can fail a download.
-		if status == fleet.SoftwarePackageDownloadFailed && downloadProgress[payloadIndex].Status != fleet.SoftwarePackageDownloadStarted {
-			downloadProgressMutex.Unlock()
-			return
-		}
 		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
 			Name:   softwarePackageProgressName(payloads[payloadIndex]),
 			Status: status,
 		}
 		progressJSON, err := json.Marshal(downloadProgress)
+		if err == nil {
+			lastDownloadProgressJSON = string(progressJSON)
+		}
 		downloadProgressMutex.Unlock()
 
 		if err != nil {
-			svc.logger.WarnContext(ctx, "encoding software package download progress", "request_uuid", requestUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "encoding software package download progress", "request_uuid", requestUUID, "err", err)
 			return
 		}
 
-		// Longer than the sibling keys because one slow download has to be able to outlast it.
-		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), time.Hour); err != nil {
-			svc.logger.WarnContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), 10*time.Minute); err != nil {
+			svc.logger.ErrorContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
 		}
 	}
 
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() (err error) {
-			defer func() {
-				if err != nil {
-					setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
-				}
-			}()
-
+		g.Go(func() error {
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers are collected in toBeClosedTFRs and will have their Close
@@ -3400,6 +3404,7 @@ func (svc *Service) softwareBatchUpload(
 
 					resp, tfr, err := retryDownload(ctx, p.URL, ifNoneMatch)
 					if err != nil {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 						return err
 					}
 
@@ -3429,6 +3434,7 @@ func (svc *Service) softwareBatchUpload(
 							svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
 							resp, tfr, err = retryDownload(ctx, p.URL, "")
 							if err != nil {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 								return err
 							}
 							if resp != nil && resp.StatusCode == http.StatusNotModified {
@@ -3905,9 +3911,9 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		teamID = &team.ID
 	}
 
-	// Reading a batch result reports which packages it added and deleted, the same software
-	// names the fleet's observers can already read from its library.
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+	// Reading a batch result reports the packages it added and the ones it is about to
+	// delete, so it takes the same read as the fleet's installers.
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -3957,7 +3963,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 	getDownloadProgress := func() []fleet.SoftwarePackageDownloadProgress {
 		progressJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix)
 		if err != nil {
-			svc.logger.WarnContext(ctx, "failed to get software package download progress", "request_uuid", requestUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to get software package download progress", "request_uuid", requestUUID, "err", err)
 			return nil
 		}
 		if progressJSON == nil || *progressJSON == "" {
@@ -3965,7 +3971,7 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		}
 		var downloadProgress []fleet.SoftwarePackageDownloadProgress
 		if err := json.Unmarshal([]byte(*progressJSON), &downloadProgress); err != nil {
-			svc.logger.WarnContext(ctx, "unreadable software package download progress", "request_uuid", requestUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "unreadable software package download progress", "request_uuid", requestUUID, "err", err)
 			return nil
 		}
 		return downloadProgress

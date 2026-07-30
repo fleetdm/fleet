@@ -213,15 +213,13 @@ type DeletedSoftwarePackage struct {
 }
 
 // SoftwarePackageDownloadProgress reports one software package's download in a batch.
-// Entries keep their index in the batch payload, so a package that hasn't started
-// downloading has an empty name.
+// A package that hasn't started downloading has an empty name.
 type SoftwarePackageDownloadProgress struct {
 	Name   string                        `json:"name"`
 	Status SoftwarePackageDownloadStatus `json:"status"`
 }
 
-// SoftwarePackageDownloadStatus is how far a package got through its download. Downloaded
-// means the bytes arrived, not that the package was applied.
+// SoftwarePackageDownloadStatus is how far a package got through its download.
 type SoftwarePackageDownloadStatus string
 
 const (
@@ -238,9 +236,8 @@ type BatchSetSoftwareInstallersResult struct {
 	// Packages is always empty for a dry run.
 	Packages []SoftwarePackageResponse
 	// DeletedPackages holds what the batch deleted, or would delete on a dry run.
-	DeletedPackages []DeletedSoftwarePackage
-	Categories      []string
-	// DownloadProgress is reported whatever the status, not just while processing.
+	DeletedPackages  []DeletedSoftwarePackage
+	Categories       []string
 	DownloadProgress []SoftwarePackageDownloadProgress
 }
 

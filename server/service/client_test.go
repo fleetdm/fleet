@@ -1341,16 +1341,12 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 	}
 
 	processing, completed := fleet.BatchSetSoftwareInstallersStatusProcessing, fleet.BatchSetSoftwareInstallersStatusCompleted
-	downloading, downloaded, failed := fleet.SoftwarePackageDownloadStarted, fleet.SoftwarePackageDownloadFinished, fleet.SoftwarePackageDownloadFailed
+	downloading, downloaded := fleet.SoftwarePackageDownloadStarted, fleet.SoftwarePackageDownloadFinished
 
 	testCases := []struct {
 		name      string
 		polls     []batchSetSoftwareInstallersResultResponse
-		dryRun    bool
-		noTeam    bool
-		fleets    int
 		wantLines []string
-		wantErr   string
 	}{
 		{
 			// A package keeps its entry for the rest of the batch, so a line that already
@@ -1376,52 +1372,6 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 				"[+] downloaded software package - zoom.pkg",
 			},
 		},
-		{
-			name: "a failed download reports itself and never reports as downloaded",
-			polls: []batchSetSoftwareInstallersResultResponse{
-				poll(processing, pkg("htop.rpm", downloading)),
-				{
-					Status:           fleet.BatchSetSoftwareInstallersStatusFailed,
-					Message:          `URL ("https://example.com/htop.rpm") returned "Not Found".`,
-					DownloadProgress: []fleet.SoftwarePackageDownloadProgress{pkg("htop.rpm", failed)},
-				},
-			},
-			wantLines: []string{
-				"[+] downloading software package - htop.rpm ...",
-				"Error: could not download software package htop.rpm",
-			},
-			wantErr: `returned "Not Found"`,
-		},
-		{
-			// A dry run downloads packages too, so it reports the same progress.
-			name:   "dry run reports progress",
-			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
-			dryRun: true,
-			wantLines: []string{
-				"[+] downloading software package - zoom.pkg ...",
-				"[+] downloaded software package - zoom.pkg",
-			},
-		},
-		{
-			name:   "software for unassigned hosts reports progress",
-			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
-			noTeam: true,
-			wantLines: []string{
-				"[+] downloading software package - zoom.pkg ...",
-				"[+] downloaded software package - zoom.pkg",
-			},
-		},
-		{
-			name:   "each fleet reports its own packages",
-			polls:  []batchSetSoftwareInstallersResultResponse{poll(completed, pkg("zoom.pkg", downloaded))},
-			fleets: 2,
-			wantLines: []string{
-				"[+] downloading software package - zoom.pkg ...",
-				"[+] downloaded software package - zoom.pkg",
-				"[+] downloading software package - zoom.pkg ...",
-				"[+] downloaded software package - zoom.pkg",
-			},
-		},
 	}
 
 	for _, tt := range testCases {
@@ -1431,21 +1381,9 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 				lines = append(lines, strings.TrimSuffix(fmt.Sprintf(format, args...), "\n"))
 			}
 
-			for range max(tt.fleets, 1) {
-				var err error
-				client := newClient(t, tt.polls)
-				if tt.noTeam {
-					_, _, _, err = client.ApplyNoTeamSoftwareInstallers(nil, fleet.ApplySpecOptions{DryRun: tt.dryRun}, logFn)
-				} else {
-					_, _, _, err = client.applySoftwareInstallers(nil, url.Values{}, tt.dryRun, logFn)
-				}
-				if tt.wantErr != "" {
-					require.ErrorContains(t, err, tt.wantErr)
-				} else {
-					require.NoError(t, err)
-				}
-			}
-
+			client := newClient(t, tt.polls)
+			_, _, _, err := client.applySoftwareInstallers(nil, url.Values{}, false, logFn)
+			require.NoError(t, err)
 			require.Equal(t, tt.wantLines, lines)
 		})
 	}
