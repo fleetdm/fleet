@@ -6,20 +6,23 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import FormField from "components/forms/FormField";
 
+// Used to display the platform of an existing label on the edit label page
+// (platform is not editable after creation).
 const PLATFORM_STRINGS: { [key: string]: string } = {
   darwin: "macOS",
-  windows: "MS Windows",
-  ubuntu: "Ubuntu Linux",
-  zorin: "Zorin OS",
-  centos: "CentOS Linux",
+  windows: "Windows",
+  linux: "Linux",
+  ubuntu: "Ubuntu (Linux)",
+  centos: "CentOS (Linux)",
 };
 
 const platformOptions: CustomOptionType[] = [
   { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
-  { label: "Ubuntu", value: "ubuntu" },
-  { label: "Centos", value: "centos" },
+  { label: "Linux", value: "linux" },
+  { label: "Ubuntu (Linux)", value: "ubuntu" },
+  { label: "CentOS (Linux)", value: "centos" },
 ];
 
 const baseClass = "platform-field";
