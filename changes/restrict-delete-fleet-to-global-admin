@@ -1,0 +1,1 @@
+* Restricted deleting a fleet to global admins, matching the existing restriction on creating one.

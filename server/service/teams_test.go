@@ -232,7 +232,7 @@ func TestTeamAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			err = svc.DeleteTeam(ctx, 1)
-			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			_, err = svc.TeamEnrollSecrets(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
