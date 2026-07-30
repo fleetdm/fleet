@@ -326,7 +326,7 @@ When building a React-controlled form:
 
 ### Data validation
 
-The rules below describe the target behavior. Existing forms implement the rules directly and are migrated one at a time. New forms should follow these rules on day one.
+The rules below describe the target behavior. Not every existing form complies yet — they're migrated one at a time, without a wrapper or shim. New forms should follow these rules on day one.
 
 #### How to validate
 
@@ -384,7 +384,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 #### Conditional / dependent validation
 
-- Cross-field checks (e.g. password + confirmation match) run on blur only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the dependent/confirmation field, not the source.
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule.
 - Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.
@@ -423,12 +423,9 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 <!-- Design may iterate on error placement (e.g. moving the error text out of the label slot). Document any change here first. -->
 
-
 #### Error message copy register
 
-Every validation error follows a single grammar pattern:
-
-**Verb + object + constraint (if any).**
+Every validation error follows a single grammar pattern: **verb + object + constraint (if any)**.
 
 - **Verb**: the action that fixes the error. `Enter`, `Choose`, `Select`, `Upload`.
 - **Object**: the thing being fixed. `your email`, `a valid URL`, `a password`.
@@ -447,7 +444,7 @@ Rules:
 - Article discipline: `your` for the user's own data (`your email`, `your name`); `a` for a value the user is constructing (`a valid URL`, `a password`).
 - One sentence per error. If it needs a second sentence, the constraint probably belongs in help text below the field, not in the error.
 - **No terminal periods.** The error renders in the label slot, and labels don't end with periods.
-- Use `fleet` not `team` in new copy. The codebase still uses `team_id` etc.; that stays. See [Terminology](../../.claude/rules/fleet-frontend.md#terminology).
+- See [Terminology](../../.claude/rules/fleet-frontend.md#terminology) for `fleet` vs `team` and other renaming rules.
 
 For errors the user can't fix by editing the field — server failures, timeouts, network errors — use a different register: **what happened + what to do**. Example: `Couldn't save your changes. Try again in a few minutes.` This is the one place where periods appear (two sentences).
 
