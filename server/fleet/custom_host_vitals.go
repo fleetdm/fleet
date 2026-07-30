@@ -123,6 +123,7 @@ const (
 	CustomHostVitalEntityAppleProfile          CustomHostVitalEntity = "apple_profile"
 	CustomHostVitalEntityAppleDeclaration      CustomHostVitalEntity = "apple_declaration"
 	CustomHostVitalEntityWindowsProfile        CustomHostVitalEntity = "windows_profile"
+	CustomHostVitalEntityAndroidProfile        CustomHostVitalEntity = "android_profile"
 	CustomHostVitalEntitySoftwareInstaller     CustomHostVitalEntity = "software_installer"
 	CustomHostVitalEntitySetupExperienceScript CustomHostVitalEntity = "setup_experience_script"
 	CustomHostVitalEntityLabel                 CustomHostVitalEntity = "label"
@@ -195,7 +196,7 @@ func ValidateCustomHostVitalName(name string) error {
 	return nil
 }
 
-func ContainsCustomHostVitalIDs(text string) []uint {
+func FindCustomHostVitalIDs(text string) []uint {
 	suffixes := ContainsPrefixVars(text, CustomHostVitalPrefix)
 	if len(suffixes) == 0 {
 		return nil

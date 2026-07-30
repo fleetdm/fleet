@@ -100,6 +100,7 @@ import AwsVpnClient from "./AwsVpnClient";
 import AxureRp from "./AxureRp";
 import AzulZulu25Jdk from "./AzulZulu25Jdk";
 import AzulZulu25Jre from "./AzulZulu25Jre";
+import AzureDataStudio from "./AzureDataStudio";
 import AzureFunctionsCoreTools from "./AzureFunctionsCoreTools";
 import Backblaze from "./Backblaze";
 import BackgroundMusic from "./BackgroundMusic";
@@ -431,6 +432,7 @@ import Gephi from "./Gephi";
 import Ghostty from "./Ghostty";
 import Gimp from "./Gimp";
 import Git from "./Git";
+import GitExtensions from "./GitExtensions";
 import Gitfinder from "./Gitfinder";
 import GithubCopilotForXcode from "./GithubCopilotForXcode";
 import GitHubDesktop from "./GitHubDesktop";
@@ -438,6 +440,7 @@ import Gitify from "./Gitify";
 import GitKraken from "./GitKraken";
 import GitupApp from "./GitupApp";
 import Glyphs from "./Glyphs";
+import Gnupg from "./Gnupg";
 import Go from "./Go";
 import Go2Shell from "./Go2Shell";
 import GoanywhereOpenpgpStudio from "./GoanywhereOpenpgpStudio";
@@ -580,6 +583,7 @@ import Localsend from "./Localsend";
 import Locationsimulator from "./Locationsimulator";
 import Logioptionsplus from "./Logioptionsplus";
 import LogiTune from "./LogiTune";
+import LogitechUnifyingSoftware from "./LogitechUnifyingSoftware";
 import Logseq from "./Logseq";
 import Lookaway from "./Lookaway";
 import Loom from "./Loom";
@@ -689,7 +693,6 @@ import Nextcloud from "./Nextcloud";
 import NextcloudTalk from "./NextcloudTalk";
 import Nightfall from "./Nightfall";
 import NitroPdfPro from "./NitroPdfPro";
-import Nocturnal from "./Nocturnal";
 import Nodejs from "./Nodejs";
 import Nordlayer from "./Nordlayer";
 import Nordpass from "./Nordpass";
@@ -863,6 +866,7 @@ import RocketTypist from "./RocketTypist";
 import RoyalTsx from "./RoyalTsx";
 import Rstudio from "./Rstudio";
 import Rsyncui from "./Rsyncui";
+import Rtools from "./Rtools";
 import RubyMine from "./RubyMine";
 import Runjs from "./Runjs";
 import RustDesk from "./RustDesk";
@@ -918,6 +922,7 @@ import Snapmotion from "./Snapmotion";
 import SnowflakeSnowsql from "./SnowflakeSnowsql";
 import Sococo from "./Sococo";
 import SonicVisualiser from "./SonicVisualiser";
+import SonicwallNetextender from "./SonicwallNetextender";
 import Sonobus from "./Sonobus";
 import Sonos from "./Sonos";
 import SonyPsRemotePlay from "./SonyPsRemotePlay";
@@ -1000,6 +1005,7 @@ import Thumbsup from "./Thumbsup";
 import Thunderbird from "./Thunderbird";
 import Ticktick from "./Ticktick";
 import Tidal from "./Tidal";
+import Tightvnc from "./Tightvnc";
 import Tiles from "./Tiles";
 import Timescribe from "./Timescribe";
 import Timing from "./Timing";
@@ -1107,6 +1113,7 @@ import Xnviewmp from "./Xnviewmp";
 import Xquartz from "./Xquartz";
 import Yaak from "./Yaak";
 import Yacreader from "./Yacreader";
+import Yarn from "./Yarn";
 import Yattee from "./Yattee";
 import Yippy from "./Yippy";
 import YtMusic from "./YtMusic";
@@ -1120,6 +1127,7 @@ import ZeroOneZeroEditor from "./010Editor";
 import Zettlr from "./Zettlr";
 import Zight from "./Zight";
 import Zoom from "./Zoom";
+import ZoomOutlookPlugin from "./ZoomOutlookPlugin";
 import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 import Zulip from "./Zulip";
@@ -1241,6 +1249,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "axure rp": AxureRp,
   "azul zulu jdk": AzulZulu25Jdk,
   "azul zulu jre": AzulZulu25Jre,
+  "azure data studio": AzureDataStudio,
   "azure functions core tools": AzureFunctionsCoreTools,
   backblaze: Backblaze,
   "background music": BackgroundMusic,
@@ -1571,6 +1580,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   ghostty: Ghostty,
   gimp: Gimp,
   git: Git,
+  "git extensions": GitExtensions,
   gitfinder: Gitfinder,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
@@ -1578,6 +1588,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gitkraken: GitKraken,
   gitup: GitupApp,
   glyphs: Glyphs,
+  "gnu privacy guard": Gnupg,
   go: Go,
   go2shell: Go2Shell,
   "goanywhere openpgp studio": GoanywhereOpenpgpStudio,
@@ -1723,6 +1734,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
   loom: Loom,
@@ -1839,7 +1851,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "nextcloud talk desktop": NextcloudTalk,
   nightfall: Nightfall,
   "nitro pdf pro": NitroPdfPro,
-  nocturnal: Nocturnal,
   "node.js": Nodejs,
   "nord vpn": NordVpn,
   nordlayer: Nordlayer,
@@ -2016,6 +2027,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "royal tsx": RoyalTsx,
   rstudio: Rstudio,
   rsyncui: Rsyncui,
+  rtools: Rtools,
   rubymine: RubyMine,
   runjs: Runjs,
   rustdesk: RustDesk,
@@ -2070,6 +2082,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   snowsql: SnowflakeSnowsql,
   sococo: Sococo,
   "sonic visualiser": SonicVisualiser,
+  "sonicwall netextender": SonicwallNetextender,
   sonobus: Sonobus,
   sonos: Sonos,
   soulver: Soulver,
@@ -2154,6 +2167,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   thunderbird: Thunderbird,
   ticktick: Ticktick,
   tidal: Tidal,
+  tightvnc: Tightvnc,
   timescribe: Timescribe,
   timing: Timing,
   todoist: Todoist,
@@ -2222,6 +2236,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   webcatalog: Webcatalog,
   webex: Webex,
   webstorm: WebStorm,
+  wechat: Wechat,
   "wechat for mac": Wechat,
   weektodo: Weektodo,
   whatroute: Whatroute,
@@ -2259,6 +2274,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   xquartz: Xquartz,
   yaak: Yaak,
   yacreader: Yacreader,
+  yarn: Yarn,
   yattee: Yattee,
   yippy: Yippy,
   "youtube music": YtMusic,
@@ -2270,6 +2286,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zeplin: Zeplin,
   zettlr: Zettlr,
   zight: Zight,
+  "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
   zotero: Zotero,
   zulip: Zulip,
