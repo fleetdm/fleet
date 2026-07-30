@@ -732,6 +732,30 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
+	// Omarchy reports its own platform and a versioned BUILD_ID. Unlike the OS
+	// inventory row, the host keeps the distro name and its real version.
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "omarchy-host",
+    "arch": "x86_64",
+    "build": "4.0.0",
+    "codename": "",
+    "major": "4",
+    "minor": "0",
+    "name": "Omarchy",
+    "patch": "0",
+    "platform": "omarchy",
+    "platform_like": "arch",
+    "version": "4.0.0"
+}]`),
+		&rows,
+	))
+
+	require.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
+	require.Equal(t, "Omarchy 4.0.0", host.OSVersion)
+	require.Equal(t, "omarchy", host.Platform)
+	require.Equal(t, "arch", host.PlatformLike)
+
 	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -1772,6 +1796,29 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-2-cachyos",
+			},
+		},
+		{
+			// Omarchy is an Arch-based rolling-release distribution. Unlike CachyOS it
+			// reports a versioned BUILD_ID rather than "rolling", so it should still
+			// aggregate onto the "Arch Linux" row with a "rolling" version.
+			data: []map[string]string{
+				{
+					"name":           "Omarchy",
+					"version":        "4.0.0",
+					"major":          "4",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "4.0.0",
+					"arch":           "x86_64",
+					"kernel_version": "6.16.3-arch1-1",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "rolling",
+				Arch:          "x86_64",
+				KernelVersion: "6.16.3-arch1-1",
 			},
 		},
 	} {
