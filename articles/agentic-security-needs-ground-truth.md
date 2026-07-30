@@ -8,9 +8,9 @@
 
 - **An agent inherits every gap in its input.** Give a remediation agent a day-old inventory and it will act with confidence on a machine that changed this morning. Bad data plus autonomous action lands you somewhere worse than a slow human working from good data.
 
-- **Ground truth has to be current, not collected overnight.** Fleet queries macOS, Windows, and Linux devices on demand, so an agent can ask what is true right now instead of reading what was true at last night's collection run.
+- **Ground truth has to be current, cross-platform, and inspectable.** Fleet queries macOS, Windows, and Linux devices on demand, so an agent reads what is true now rather than what was true at last night's collection run. fleetd is open source, so you can also read exactly what it collects, which matters more once an AI system is consuming that data and proposing action on it.
 
-- **Nothing that reads every device should be a black box.** fleetd is open source, so you can read exactly what it collects and what it leaves alone. That matters more, not less, once an AI system is consuming that data and proposing action on it.
+- **You can inventory the agents already running on your devices.** fleetd's `ai_tools` table returns one row per AI tool across every OS, covering MCP servers, agent CLIs, desktop apps, IDE plugins, sockets, and instruction files, with per-row risk flags describing what each one has been permitted to do.
 
 - **Keep the write path narrow.** The useful pattern so far is read-only by default, with a human approving anything that changes state on a device. Validation before execution beats a well-worded prompt.
 
@@ -57,6 +57,48 @@ An AI system reading everything on every device is exactly the wrong place for "
 ### It has to answer questions nobody wrote a rule for
 
 The hardest work happens before the catalog catches up. A proof of concept lands with no CVE assigned and your scanner returns nothing, because there is nothing to match against yet. What you need then is not a better feed, it's the ability to describe the artifacts and go look: kernel versions, loaded modules, config files, listening ports. Fleet's live queries answer that shape of question in minutes across every host. A catalog lookup tells you which CVEs apply. An artifact query tells you what the machines look like right now, which is the one threat hunting depends on.
+
+## Start with the agents you already have
+
+Before you evaluate anyone's agent platform, it's worth knowing what agentic tooling is already running on your devices and what it has been permitted to do. That's harder to answer than it sounds, because this software arrives without a purchase order. An engineer installs an assistant, wires up a few MCP servers, and grants an agent access to code and credentials, and no help ticket is ever filed.
+
+fleetd's `ai_tools` table answers it in one place. It returns one row per AI tool across macOS, Windows, and Linux, covering desktop apps, IDE plugins, agent CLIs, MCP servers, live AI and MCP sockets, agent instruction files, and browser extensions, with a `type` column to tell them apart. Start with the shape of what's out there:
+
+```sql
+SELECT type, count(*) FROM ai_tools GROUP BY type;
+```
+
+Then the column that carries the most weight for this argument, `risk_flags`:
+
+```sql
+SELECT type, name, risk_flags, path
+FROM ai_tools
+WHERE risk_flags != '';
+```
+
+Those flags describe what an agent on that device can reach and how carefully it was set up. `mcp_shell_exec` and `mcp_fs_write` mean an MCP server was granted shell execution or filesystem writes. `bypass_permissions` and `skip_permissions_runtime` mean someone turned the guardrails off. `plaintext_secret` and `world_readable_config` mean credentials are sitting somewhere they shouldn't be. `injection_markers` and `hidden_unicode` point at instruction files worth reading closely.
+
+That's the ground truth question pointed back at itself. You are deciding whether to let a vendor's agents act in your environment, and this tells you which agents are already acting in it, with what reach, and on whose authority.
+
+Two more worth running. Live MCP servers and how they're connected:
+
+```sql
+SELECT name, source AS client, location, running, pid
+FROM ai_tools
+WHERE type = 'mcp_server' AND running = 1;
+```
+
+And where data is leaving:
+
+```sql
+SELECT name, endpoint
+FROM ai_tools
+WHERE type = 'sockets' AND location = 'remote';
+```
+
+Two limits worth knowing before you read an empty result as an absence. The extension enumerates every home directory on the host rather than only the daemon account's, so running as root is what gives you full visibility across users. And because it runs as root or SYSTEM, it reads only regular files and does not follow symlinks, so a config or binary path managed by a dotfile tool is deliberately left unresolved.
+
+This piece is about the data underneath agentic security, so it stops at inventory. For the fuller tour of finding AI tooling across a fleet, including the browser and IDE extension angles and what to do once you find something, that's [its own article](https://fleetdm.com/articles/shadow-ai-is-already-on-your-fleet).
 
 ## Keep the write path narrow
 
