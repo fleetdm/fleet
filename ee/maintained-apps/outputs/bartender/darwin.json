@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.6.1",
+      "version": "6.6.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender' AND version_compare(bundle_short_version, '6.6.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.surteesstudios.Bartender' AND version_compare(bundle_short_version, '6.6.2') < 0);"
       },
-      "installer_url": "https://downloads.macbartender.com/B2/updates/6-6-1/Bartender%206.zip",
+      "installer_url": "https://downloads.macbartender.com/B2/updates/6-6-2/Bartender%206.zip",
       "install_script_ref": "d06e8444",
       "uninstall_script_ref": "ab5ff0cc",
-      "sha256": "33bc3aac8ff4614aff7ef8d8f48385e4ddcce1971e16cca6a046cf8b20671a46",
+      "sha256": "e178616bc09956e39f0ab0ff9112b8fe89f744b406f8e417fb7b2aaf3524e064",
       "default_categories": [
         "Utilities"
       ]

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.2.1",
+      "version": "2.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.talk.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.talk.mac' AND version_compare(bundle_short_version, '2.2.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nextcloud.talk.mac' AND version_compare(bundle_short_version, '2.2.2') < 0);"
       },
-      "installer_url": "https://github.com/nextcloud-releases/talk-desktop/releases/download/v2.2.1/Nextcloud.Talk-macos-universal.dmg",
+      "installer_url": "https://github.com/nextcloud-releases/talk-desktop/releases/download/v2.2.2/Nextcloud.Talk-macos-universal.dmg",
       "install_script_ref": "597512da",
       "uninstall_script_ref": "baa87dcf",
-      "sha256": "4e42c0c9d91e74b6e2eafa9dde4bd03645675c64877c5eb14c11773c23a027a2",
+      "sha256": "41f67d964ce14c3894cbb769821755dad6fdd4b351d24b1d9a7acf86a15cc637",
       "default_categories": [
         "Productivity"
       ]
