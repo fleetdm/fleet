@@ -78,12 +78,12 @@ type Stats struct {
 	pssoErrors                     int
 
 	// ETag / conditional config stats
-	configFullResponses        int64
-	configNotModified          int64
-	configConditionalRequests  int64
-	configResponseBodyBytes    int64
-	configEstimatedSavedBytes  int64
-	configETagHeaderMismatches int64
+	configFullResponses       int64
+	configNotModified         int64
+	configConditionalRequests int64
+	configResponseBodyBytes   int64
+	configEstimatedSavedBytes int64
+	configETagDrift           int64
 
 	l sync.Mutex
 }
@@ -507,10 +507,10 @@ func (s *Stats) RecordConfigNotModified(lastBodyBytes int64) {
 	s.configEstimatedSavedBytes += lastBodyBytes
 }
 
-func (s *Stats) IncrementConfigETagHeaderMismatches() {
+func (s *Stats) IncrementConfigETagDrift() {
 	s.l.Lock()
 	defer s.l.Unlock()
-	s.configETagHeaderMismatches++
+	s.configETagDrift++
 }
 
 // Getters for ETag stats (used by tests)
@@ -544,10 +544,10 @@ func (s *Stats) ConfigEstimatedSavedBytes() int64 {
 	return s.configEstimatedSavedBytes
 }
 
-func (s *Stats) ConfigETagHeaderMismatches() int64 {
+func (s *Stats) ConfigETagDrift() int64 {
 	s.l.Lock()
 	defer s.l.Unlock()
-	return s.configETagHeaderMismatches
+	return s.configETagDrift
 }
 
 func (s *Stats) Log() {
@@ -583,8 +583,8 @@ func (s *Stats) Log() {
 	fmt.Fprintf(&b, "    distributed:         reads=%d writes=%d (errs: reads=%d writes=%d)\n",
 		s.distributedReads, s.distributedWrites, s.distributedReadErrors, s.distributedWriteErrors)
 	fmt.Fprintf(&b, "    config requests:     %d (errs: %d)\n", s.configRequests, s.configErrors)
-	fmt.Fprintf(&b, "    config etags:        200s=%d 304s=%d conditional=%d header mismatches=%d\n",
-		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagHeaderMismatches)
+	fmt.Fprintf(&b, "    config etags:        200s=%d 304s=%d conditional=%d drift=%d\n",
+		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagDrift)
 	fmt.Fprintf(&b, "    config body bytes:   sent=%d avoided=%d (savings: %.1f%%)\n",
 		s.configResponseBodyBytes, s.configEstimatedSavedBytes, configSavingsPct)
 	fmt.Fprintf(&b, "    result log requests: %d (errs: %d)\n", s.resultLogRequests, s.resultLogErrors)

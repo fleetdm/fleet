@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,20 +30,20 @@ func newTestAgent(configTLSETag bool) *agent {
 }
 
 func TestConfigETag_First200Then304(t *testing.T) {
-	// Server tracks the body it should return
 	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	expectedETag := quotedSHA256(configBody)
+	serverETag := `"server-computed-etag-123"`
 
 	var requestCount int
+	var lastIfNoneMatch string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
-		ifNoneMatch := r.Header.Get("If-None-Match")
-		if ifNoneMatch == expectedETag {
-			w.Header().Set("ETag", expectedETag)
+		lastIfNoneMatch = r.Header.Get("If-None-Match")
+		if lastIfNoneMatch == serverETag {
+			w.Header().Set("ETag", serverETag)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Header().Set("ETag", expectedETag)
+		w.Header().Set("ETag", serverETag)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(configBody)
 	}))
@@ -58,15 +56,17 @@ func TestConfigETag_First200Then304(t *testing.T) {
 	err := a.config()
 	require.NoError(t, err)
 	require.Equal(t, 1, requestCount)
-	require.Equal(t, expectedETag, a.configETag)
+	// Client stores the server's ETag, not a computed hash
+	require.Equal(t, serverETag, a.configETag)
 	require.Equal(t, int64(len(configBody)), a.lastConfigBodyBytes)
 
-	// Second request: should send If-None-Match and get 304
+	// Second request: should send the server's ETag and get 304
 	err = a.config()
 	require.NoError(t, err)
 	require.Equal(t, 2, requestCount)
+	require.Equal(t, serverETag, lastIfNoneMatch)
 	// ETag and body bytes should be unchanged
-	require.Equal(t, expectedETag, a.configETag)
+	require.Equal(t, serverETag, a.configETag)
 	require.Equal(t, int64(len(configBody)), a.lastConfigBodyBytes)
 
 	// Verify stats
@@ -80,15 +80,15 @@ func TestConfigETag_First200Then304(t *testing.T) {
 func TestConfigETag_ChangedConfig(t *testing.T) {
 	bodyA := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
 	bodyB := []byte(`{"packs":{"test":{"queries":{"q2":{"query":"select 2","interval":120}}}}}`)
-	etagA := quotedSHA256(bodyA)
-	etagB := quotedSHA256(bodyB)
+	etagA := `"etag-a"`
+	etagB := `"etag-b"`
 
 	var requestCount int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		ifNoneMatch := r.Header.Get("If-None-Match")
 		if ifNoneMatch == etagA {
-			// Config changed, return new body
+			// Config changed, return new body with new ETag
 			w.Header().Set("ETag", etagB)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(bodyB)
@@ -108,17 +108,17 @@ func TestConfigETag_ChangedConfig(t *testing.T) {
 	a := newTestAgent(true)
 	a.serverAddress = server.URL
 
-	// First request: get body A
+	// First request: get body A with etagA
 	err := a.config()
 	require.NoError(t, err)
 	require.Equal(t, etagA, a.configETag)
 
-	// Second request: send A's tag, get body B (config changed)
+	// Second request: send etagA, get body B with etagB (config changed)
 	err = a.config()
 	require.NoError(t, err)
 	require.Equal(t, etagB, a.configETag)
 
-	// Third request: send B's tag, get 304
+	// Third request: send etagB, get 304
 	err = a.config()
 	require.NoError(t, err)
 	require.Equal(t, etagB, a.configETag)
@@ -127,13 +127,13 @@ func TestConfigETag_ChangedConfig(t *testing.T) {
 
 func TestConfigETag_Malformed200(t *testing.T) {
 	bodyA := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	etagA := quotedSHA256(bodyA)
+	etagA := `"etag-a"`
 
 	var requestCount int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
+		w.Header().Set("ETag", etagA)
 		if requestCount == 1 {
-			w.Header().Set("ETag", etagA)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(bodyA)
 			return
@@ -169,6 +169,7 @@ func TestConfigETag_Disabled(t *testing.T) {
 		if r.Header.Get("If-None-Match") != "" {
 			gotIfNoneMatch = true
 		}
+		w.Header().Set("ETag", `"some-etag"`)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(configBody)
 	}))
@@ -206,29 +207,100 @@ func TestConfigETag_Invalid304(t *testing.T) {
 	require.Contains(t, err.Error(), "invalid config 304")
 }
 
-func TestConfigETag_304WithBody(t *testing.T) {
-	// Note: httptest.NewServer does not actually send a body for 304 responses,
-	// so we cannot directly test this case with httptest. Instead, we verify
-	// the logic by checking that a valid 304 (empty body, sent ETag) succeeds.
+func TestConfigETag_304UpdatesValidator(t *testing.T) {
+	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
+	etagV1 := `"etag-v1"`
+	etagV2 := `"etag-v2"`
+
+	var requestCount int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 1 {
+			w.Header().Set("ETag", etagV1)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(configBody)
+			return
+		}
+		// 304 with a new ETag (server rotated the validator)
+		w.Header().Set("ETag", etagV2)
 		w.WriteHeader(http.StatusNotModified)
-		// No body — this is the correct 304 behavior
 	}))
 	defer server.Close()
 
 	a := newTestAgent(true)
 	a.serverAddress = server.URL
-	a.configETag = `"some-etag"`
 
-	// A valid 304 (empty body, sent ETag) should succeed
+	// First request: get etagV1
 	err := a.config()
 	require.NoError(t, err)
+	require.Equal(t, etagV1, a.configETag)
+
+	// Second request: 304 with new ETag should replace stored validator
+	err = a.config()
+	require.NoError(t, err)
+	require.Equal(t, etagV2, a.configETag)
 }
 
-func TestConfigETag_ServerHeaderMismatch(t *testing.T) {
+func TestConfigETag_304WithoutETagRetainsValidator(t *testing.T) {
 	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	correctETag := quotedSHA256(configBody)
-	wrongETag := `"wrong-etag-value"`
+	etagV1 := `"etag-v1"`
+
+	var requestCount int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 1 {
+			w.Header().Set("ETag", etagV1)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(configBody)
+			return
+		}
+		// 304 without ETag header — client should retain previous validator
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer server.Close()
+
+	a := newTestAgent(true)
+	a.serverAddress = server.URL
+
+	// First request: get etagV1
+	err := a.config()
+	require.NoError(t, err)
+	require.Equal(t, etagV1, a.configETag)
+
+	// Second request: 304 without ETag should retain etagV1
+	err = a.config()
+	require.NoError(t, err)
+	require.Equal(t, etagV1, a.configETag)
+}
+
+func TestConfigETag_ServerETagUsedNotComputed(t *testing.T) {
+	// Verify the client uses the server's ETag, not a locally computed hash
+	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
+	serverETag := `"opaque-server-etag"`
+	// The locally computed hash would be different
+	_ = quotedSHA256(configBody)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", serverETag)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(configBody)
+	}))
+	defer server.Close()
+
+	a := newTestAgent(true)
+	a.serverAddress = server.URL
+
+	err := a.config()
+	require.NoError(t, err)
+	// Client stores the server's opaque ETag, not the computed hash
+	require.Equal(t, serverETag, a.configETag)
+	require.NotEqual(t, quotedSHA256(configBody), a.configETag)
+}
+
+func TestConfigETag_DriftDetected(t *testing.T) {
+	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
+	// Server sends an ETag that differs from what we'd compute locally
+	wrongETag := `"different-from-hash"`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", wrongETag)
@@ -242,15 +314,36 @@ func TestConfigETag_ServerHeaderMismatch(t *testing.T) {
 
 	err := a.config()
 	require.NoError(t, err)
-	// Locally calculated validator should be authoritative
+	// Client uses server's ETag regardless
+	require.Equal(t, wrongETag, a.configETag)
+	// Drift counter incremented (diagnostic only)
+	require.Equal(t, int64(1), a.stats.ConfigETagDrift())
+}
+
+func TestConfigETag_NoDriftWhenMatch(t *testing.T) {
+	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
+	correctETag := quotedSHA256(configBody)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", correctETag)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(configBody)
+	}))
+	defer server.Close()
+
+	a := newTestAgent(true)
+	a.serverAddress = server.URL
+
+	err := a.config()
+	require.NoError(t, err)
 	require.Equal(t, correctETag, a.configETag)
-	// Mismatch counter should have incremented
-	require.Equal(t, int64(1), a.stats.ConfigETagHeaderMismatches())
+	// No drift when server ETag matches local computation
+	require.Equal(t, int64(0), a.stats.ConfigETagDrift())
 }
 
 func TestConfigETag_Gzip(t *testing.T) {
 	configBody := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	expectedETag := quotedSHA256(configBody)
+	serverETag := `"gzip-etag"`
 
 	// Gzip the body
 	var buf bytes.Buffer
@@ -263,12 +356,12 @@ func TestConfigETag_Gzip(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		ifNoneMatch := r.Header.Get("If-None-Match")
-		if ifNoneMatch == expectedETag {
-			w.Header().Set("ETag", expectedETag)
+		if ifNoneMatch == serverETag {
+			w.Header().Set("ETag", serverETag)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Header().Set("ETag", expectedETag)
+		w.Header().Set("ETag", serverETag)
 		w.Header().Set("Content-Encoding", "gzip")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(gzippedBody)
@@ -278,12 +371,13 @@ func TestConfigETag_Gzip(t *testing.T) {
 	a := newTestAgent(true)
 	a.serverAddress = server.URL
 
-	// First request: the server sends gzip-encoded body. Go's default transport
-	// auto-adds Accept-Encoding: gzip and transparently decompresses, so the
-	// ETag is computed from the decompressed bytes (matching the osquery PoC).
+	// First request: Go's default transport auto-adds Accept-Encoding: gzip
+	// and transparently decompresses, so the body is decompressed before read.
 	err := a.config()
 	require.NoError(t, err)
 	require.Equal(t, 1, requestCount)
+	// Client uses server's ETag regardless of body encoding
+	require.Equal(t, serverETag, a.configETag)
 }
 
 func TestQuotedSHA256(t *testing.T) {
@@ -296,11 +390,6 @@ func TestQuotedSHA256(t *testing.T) {
 			name: "empty",
 			data: []byte{},
 			want: `"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"`,
-		},
-		{
-			name: "simple",
-			data: []byte(`{"test": true}`),
-			want: fmt.Sprintf(`"%x"`, sha256.Sum256([]byte(`{"test": true}`))),
 		},
 	}
 
@@ -349,8 +438,6 @@ func TestStats_ConfigSavingsCalculation(t *testing.T) {
 		stats.RecordConfigNotModified(1000)
 	}
 
-	// Baseline = 1000 (downloaded) + 9000 (avoided) = 10000
-	// Savings = 9000 / 10000 = 90%
 	require.Equal(t, int64(1000), stats.ConfigResponseBodyBytes())
 	require.Equal(t, int64(9000), stats.ConfigEstimatedSavedBytes())
 }
@@ -372,7 +459,7 @@ func TestConfigETag_StatsConcurrency(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			stats.IncrementConfigETagHeaderMismatches()
+			stats.IncrementConfigETagDrift()
 		}()
 	}
 	wg.Wait()
@@ -381,18 +468,18 @@ func TestConfigETag_StatsConcurrency(t *testing.T) {
 	require.Equal(t, int64(100), stats.ConfigNotModified())
 	require.Equal(t, int64(10000), stats.ConfigResponseBodyBytes())
 	require.Equal(t, int64(10000), stats.ConfigEstimatedSavedBytes())
-	require.Equal(t, int64(100), stats.ConfigETagHeaderMismatches())
+	require.Equal(t, int64(100), stats.ConfigETagDrift())
 }
 
 func TestConfigETag_ParsingFailurePreservesValidator(t *testing.T) {
 	bodyA := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	etagA := quotedSHA256(bodyA)
+	etagA := `"etag-a"`
 
 	var requestCount int
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
+		w.Header().Set("ETag", etagA)
 		if requestCount == 1 {
-			w.Header().Set("ETag", etagA)
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(bodyA)
 			return
@@ -416,11 +503,9 @@ func TestConfigETag_ParsingFailurePreservesValidator(t *testing.T) {
 	err = a.config()
 	require.Error(t, err)
 	require.Equal(t, etagA, a.configETag)
-	// Next request should still send the old validator
 }
 
 func TestConfigETag_Invalid304WithoutSentETag(t *testing.T) {
-	// A 304 received without sending a conditional request is an error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotModified)
 	}))
@@ -428,7 +513,6 @@ func TestConfigETag_Invalid304WithoutSentETag(t *testing.T) {
 
 	a := newTestAgent(true)
 	a.serverAddress = server.URL
-	// Ensure no ETag is set
 	a.configETag = ""
 
 	err := a.config()
@@ -438,7 +522,7 @@ func TestConfigETag_Invalid304WithoutSentETag(t *testing.T) {
 
 func TestConfigETag_304DoesNotReplaceScheduledQueryState(t *testing.T) {
 	bodyA := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	etagA := quotedSHA256(bodyA)
+	etagA := `"etag-a"`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", etagA)
@@ -485,15 +569,14 @@ func TestConfigETag_304DoesNotReplaceScheduledQueryState(t *testing.T) {
 
 func TestConfigETag_ResponseBodyBytes(t *testing.T) {
 	bodyA := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
-	etagA := quotedSHA256(bodyA)
+	etagA := `"etag-a"`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", etagA)
 		if r.Header.Get("If-None-Match") == etagA {
-			w.Header().Set("ETag", etagA)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Header().Set("ETag", etagA)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bodyA)
 	}))
@@ -511,14 +594,11 @@ func TestConfigETag_ResponseBodyBytes(t *testing.T) {
 	// Second request: 304
 	err = a.config()
 	require.NoError(t, err)
-	// Body bytes should not change (no new body downloaded)
 	require.Equal(t, int64(len(bodyA)), a.stats.ConfigResponseBodyBytes())
-	// Saved bytes should equal the last body size
 	require.Equal(t, int64(len(bodyA)), a.stats.ConfigEstimatedSavedBytes())
 }
 
 func TestConfigETag_JsonUnmarshal(t *testing.T) {
-	// Verify that json.Unmarshal works correctly with the body
 	body := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
 
 	var parsed struct {
@@ -533,7 +613,6 @@ func TestConfigETag_JsonUnmarshal(t *testing.T) {
 }
 
 func TestConfigETag_IoReadAll(t *testing.T) {
-	// Verify io.ReadAll works correctly
 	body := []byte(`{"packs":{"test":{"queries":{"q1":{"query":"select 1","interval":60}}}}}`)
 	reader := bytes.NewReader(body)
 	data, err := io.ReadAll(reader)
