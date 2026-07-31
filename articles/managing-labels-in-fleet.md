@@ -6,7 +6,7 @@ In Fleet, labels organize hosts into groups you can target with [software](https
 
 ## Label types
 
-- **Dynamic:** Query-based; auto-applied to any host returning a result for the label's SQL query. Optionally restrict to a platform (`darwin`, `windows`, `ubuntu`, `centos`).
+- **Dynamic:** Query-based; auto-applied to any host returning a result for the label's SQL query. Optionally restrict to a platform (`darwin`, `windows`, `linux`, `ubuntu`, `centos`). The `linux` option matches hosts on any Linux distribution.
 - **Manual:** Applied to an explicit list of hosts, specified by `hardware_serial`, `uuid`, or Fleet host ID. Useful for one-off groupings (e.g., a pilot group).
 - **Host vitals:** Auto-applied to hosts matching a host vital from your IdP. Supported criteria: `end_user_idp_group` and `end_user_idp_department`. Requires a connected IdP (Okta, Microsoft Entra ID, Google Workspace, authentik, or any SCIM provider; see [Foreign host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)).
 
