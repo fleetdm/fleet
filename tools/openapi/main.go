@@ -89,8 +89,3 @@ func runGenerate(args []string) int {
 	fmt.Fprintf(os.Stderr, "wrote %d endpoint(s) to %s\n", len(allow.Endpoints), *out)
 	return 0
 }
-
-func runVerify(args []string) int {
-	fmt.Fprintln(os.Stderr, "verify: not implemented yet")
-	return 1
-}
