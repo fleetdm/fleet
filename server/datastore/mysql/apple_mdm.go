@@ -8863,3 +8863,29 @@ func (ds *Datastore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, targe
 		return nil
 	})
 }
+
+func (ds *Datastore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+	const stmt = `
+		SELECT
+			hmaou.host_uuid,
+			hmaou.software_update_device_id,
+			hmaou.target_os_version,
+			hmaou.target_deadline,
+			hmaou.resolved_at,
+			IFNULL(h.team_id, 0) AS team_id,
+			h.platform
+		FROM host_mdm_apple_os_updates hmaou
+			INNER JOIN hosts h ON h.uuid = hmaou.host_uuid
+		WHERE hmaou.host_uuid = ?`
+
+	var host fleet.AppleSoftwareUpdateHost
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// No tracking row for this host yet; let the caller decide how to handle
+			// a missing host (the DDM service treats nil as "not found").
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting apple os update host by uuid")
+	}
+	return &host, nil
+}

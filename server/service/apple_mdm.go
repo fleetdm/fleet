@@ -1547,6 +1547,11 @@ func jsonEscapeString(s string) string {
 	return string(b[1 : len(b)-1])
 }
 
+type notReadyYetError struct {
+	error
+	Message string
+}
+
 // replaceDeclarationFleetVariables replaces $FLEET_VAR_* placeholders in a
 // DDM declaration with host-specific values. Values are JSON-string-escaped
 // so they are safe inside JSON string fields.
@@ -1601,6 +1606,24 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 		}
 		idpUser = &users[0]
 		return idpUser, nil
+	}
+
+	var osUpdateHost *fleet.AppleSoftwareUpdateHost
+	resolveOSUpdateHost := func() (*fleet.AppleSoftwareUpdateHost, error) {
+		if osUpdateHost != nil {
+			return osUpdateHost, nil
+		}
+
+		osHost, err := svc.ds.GetAppleOSUpdateHostByUUID(ctx, hostUUID)
+		if err != nil {
+			return nil, fmt.Errorf("get Apple OS update host by UUID: %w", err)
+		}
+		if osHost == nil {
+			return nil, fmt.Errorf("Apple OS update host not found for UUID %s", hostUUID)
+		}
+
+		osUpdateHost = osHost
+		return osUpdateHost, nil
 	}
 
 	for _, fleetVar := range fleetVars {
@@ -1671,7 +1694,22 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 				return "", fmt.Errorf("There is no IdP full name for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleetVar)
 			}
 			value = strings.TrimSpace(user.IdpFullName)
+		case fleet.FleetVarHostTargetOSDeadline, fleet.FleetVarHostTargetOSVersion:
+			osHost, err := resolveOSUpdateHost()
+			if err != nil {
+				return "", err
+			}
+			if osHost.TargetOSVersion == "" || osHost.TargetDeadline == nil {
+				return "", notReadyYetError{
+					Message: "The host's target OS version and deadline are not yet available, but will be within 1 hour. Fleet will automatically resend this profile once available.",
+				}
+			}
 
+			if fleet.FleetVarName(fleetVar) == fleet.FleetVarHostTargetOSVersion {
+				value = osHost.TargetOSVersion
+			} else {
+				value = fmt.Sprintf("%sT12:00:00", osHost.TargetDeadline.Format(time.DateOnly))
+			}
 		default:
 			return "", fmt.Errorf("Fleet variable $FLEET_VAR_%s is not supported in DDM declarations.", fleetVar)
 		}
@@ -1702,6 +1740,12 @@ func (svc *MDMAppleDDMService) replaceDeclarationFleetVariables(
 // markDeclarationFailed marks a DDM declaration as failed for a specific host.
 func (svc *MDMAppleDDMService) markDeclarationFailed(ctx context.Context, hostUUID string, declarationUUID string, detail string) error {
 	status := fleet.MDMDeliveryFailed
+	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, declarationUUID, &status, detail, nil)
+}
+
+// markDeclarationPending marks a DDM declaration as pending for a specific host, and relies on other factors (such as variable bump) to trigger a resend.
+func (svc *MDMAppleDDMService) markDeclarationPending(ctx context.Context, hostUUID string, declarationUUID string, detail string) error {
+	status := fleet.MDMDeliveryPending
 	return svc.ds.SetHostMDMAppleDeclarationStatus(ctx, hostUUID, declarationUUID, &status, detail, nil)
 }
 
@@ -7170,6 +7214,14 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 		if d.VariablesUpdatedAt != nil {
 			if d.RawJSON != nil {
 				if _, err := svc.replaceDeclarationFleetVariables(ctx, string(*d.RawJSON), hostUUID); err != nil {
+					var notReadyYetErr notReadyYetError
+					if errors.As(err, &notReadyYetErr) {
+						if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, notReadyYetErr.Message); err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
+						}
+						continue
+					}
+
 					if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
 						return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")
 					}
@@ -7379,6 +7431,14 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 	// Replace Fleet variables with host-specific values
 	expanded, err = svc.replaceDeclarationFleetVariables(ctx, expanded, hostUUID)
 	if err != nil {
+		var notReadyYetErr notReadyYetError
+		if errors.As(err, &notReadyYetErr) {
+			if err := svc.markDeclarationPending(ctx, hostUUID, d.DeclarationUUID, notReadyYetErr.Message); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "mark declaration as pending")
+			}
+			return nil, nil
+		}
+
 		// Mark this declaration as failed for this host, return empty 200
 		if err := svc.markDeclarationFailed(ctx, hostUUID, d.DeclarationUUID, err.Error()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "mark declaration as failed")

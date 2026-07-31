@@ -2280,6 +2280,8 @@ type ListAppleOSUpdateHostsForReconcileFunc func(ctx context.Context, cursor str
 
 type SetAppleOSUpdateTargetsAndResendFunc func(ctx context.Context, targets []*fleet.ComputedAppleSoftwareUpdateHost) error
 
+type GetAppleOSUpdateHostByUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error)
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -5664,6 +5666,9 @@ type DataStore struct {
 
 	SetAppleOSUpdateTargetsAndResendFunc        SetAppleOSUpdateTargetsAndResendFunc
 	SetAppleOSUpdateTargetsAndResendFuncInvoked bool
+
+	GetAppleOSUpdateHostByUUIDFunc        GetAppleOSUpdateHostByUUIDFunc
+	GetAppleOSUpdateHostByUUIDFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -13562,4 +13567,11 @@ func (s *DataStore) SetAppleOSUpdateTargetsAndResend(ctx context.Context, target
 	s.SetAppleOSUpdateTargetsAndResendFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAppleOSUpdateTargetsAndResendFunc(ctx, targets)
+}
+
+func (s *DataStore) GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*fleet.AppleSoftwareUpdateHost, error) {
+	s.mu.Lock()
+	s.GetAppleOSUpdateHostByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppleOSUpdateHostByUUIDFunc(ctx, hostUUID)
 }

@@ -3849,11 +3849,18 @@ type Datastore interface {
 
 	// InsertAppleSoftwareUpdateDeviceID inserts a new Apple software update device ID for the given host UUID for per-host os update tracking.
 	InsertAppleSoftwareUpdateDeviceID(ctx context.Context, hostUUID string, updateDeviceID string) error
+	// GetLastAppleOSUpdatesUpdate retrieves the timestamp of the last Apple OS updates update in the datastore.
 	GetLastAppleOSUpdatesUpdate(ctx context.Context) (*time.Time, error)
+	// UpsertAppleOSUpdateAssets inserts or updates the given Apple OS update assets in the datastore. updates map is grouped by platform
 	UpsertAppleOSUpdates(ctx context.Context, updates map[string][]OSUpdateAsset) error
+	// ListAppleOSUpdateAssets retrieves all Apple OS update assets from the datastore, grouped by platform.
 	ListAppleOSUpdateAssets(ctx context.Context) (map[string][]AppleSoftwareUpdateAsset, error)
+	//  ListAppleOSUpdateHostsForReconcile retrieves a batch of Apple software update hosts for OS update reconciliation
 	ListAppleOSUpdateHostsForReconcile(ctx context.Context, cursor string, batchSize int, teamsWithLatest map[string]map[uint]uint) ([]*AppleSoftwareUpdateHost, error)
+	// SetAppleOSUpdateTargetsAndResend sets the targets for Apple OS updates and triggers a resend for needed hosts.
 	SetAppleOSUpdateTargetsAndResend(ctx context.Context, targets []*ComputedAppleSoftwareUpdateHost) error
+	// GetAppleOSUpdateHostByUUID retrieves stored Apple software update configuration for a given host by its UUID.
+	GetAppleOSUpdateHostByUUID(ctx context.Context, hostUUID string) (*AppleSoftwareUpdateHost, error)
 }
 
 type AndroidDatastore interface {
