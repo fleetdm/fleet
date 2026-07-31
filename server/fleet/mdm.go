@@ -25,6 +25,10 @@ const (
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
 	MDMAndroidProfileUUIDPrefix   = "g"
+	// MDMAppleDDMActivationUUIDPrefix is "v" rather than "a", which Apple
+	// profiles already use. Activations are never addressed by UUID through the
+	// API; the prefix exists for consistency and readability in the database.
+	MDMAppleDDMActivationUUIDPrefix = "v"
 
 	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
 	// RefetchCriticalQueriesUntil field when migrating a device from a
@@ -654,6 +658,10 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+	// Activation is the custom activation attached to a declaration (DDM)
+	// profile. It is a []byte so encoding/json emits it base64-encoded, and it
+	// is omitted entirely for profiles that don't have one.
+	Activation []byte `json:"activation,omitempty" db:"-"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when

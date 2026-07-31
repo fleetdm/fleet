@@ -94,6 +94,7 @@ func TestMDMApple(t *testing.T) {
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
 		{"MDMAppleDDMDeclarationsToken", testMDMAppleDDMDeclarationsToken},
+		{"MDMAppleCustomActivations", testMDMAppleCustomActivations},
 		{"NewMDMAppleDeclarationSoftwareUpdateTracking", testNewMDMAppleDeclarationSoftwareUpdateTracking},
 		{"SetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking", testSetOrUpdateMDMAppleDeclarationSoftwareUpdateTracking},
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
@@ -13889,4 +13890,83 @@ func testGetABMOrganizationNamesAssociatedByDefaultTeams(t *testing.T, ds *Datas
 
 	_, err := ds.GetABMTokenOrgNamesAssociatedByDefaultTeams(ctx, nil)
 	require.Error(t, err)
+}
+
+func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	declRaw := []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test","Payload":{"Echo":"foo"}}`)
+	actRaw := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"@status(os.version.major) >= 15"}}`)
+
+	newDecl := func(activation *fleet.MDMAppleCustomActivation) *fleet.MDMAppleDeclaration {
+		return &fleet.MDMAppleDeclaration{
+			Identifier: "com.fleet.act-test",
+			Name:       "act-test",
+			RawJSON:    declRaw,
+			Activation: activation,
+		}
+	}
+
+	// A declaration uploaded with an activation stores it, linked by UUID.
+	decl, err := ds.NewMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 actRaw,
+		ConfigurationIdentifier: "com.fleet.act-test",
+	}), nil)
+	require.NoError(t, err)
+
+	var stored struct {
+		ActivationUUID          string `db:"activation_uuid"`
+		Identifier              string `db:"identifier"`
+		RawJSON                 []byte `db:"raw_json"`
+		DeclarationUUID         string `db:"declaration_uuid"`
+		ConfigurationIdentifier string `db:"configuration_identifier"`
+	}
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stored,
+		`SELECT activation_uuid, identifier, raw_json, declaration_uuid, configuration_identifier
+		 FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, "com.fleet.act-test.custom", stored.Identifier)
+	require.JSONEq(t, string(actRaw), string(stored.RawJSON))
+	require.Equal(t, decl.DeclarationUUID, stored.DeclarationUUID)
+	require.Equal(t, "com.fleet.act-test", stored.ConfigurationIdentifier)
+	require.True(t, strings.HasPrefix(stored.ActivationUUID, fleet.MDMAppleDDMActivationUUIDPrefix))
+
+	// It comes back on the list endpoint, base64 is applied at the JSON layer.
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	var found bool
+	for _, p := range profs {
+		if p.ProfileUUID == decl.DeclarationUUID {
+			found = true
+			require.JSONEq(t, string(actRaw), string(p.Activation))
+		}
+	}
+	require.True(t, found, "declaration missing from list")
+
+	// Editing the activation keeps the same row rather than creating a second.
+	editedAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"@status(os.version.major) >= 26"}}`)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 editedAct,
+		ConfigurationIdentifier: "com.fleet.act-test",
+	}), nil)
+	require.NoError(t, err)
+
+	var count int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Equal(t, 1, count)
+
+	var rawAfterEdit []byte
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &rawAfterEdit,
+		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.JSONEq(t, string(editedAct), string(rawAfterEdit))
+
+	// Re-uploading the declaration without an activation removes it.
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+	require.Zero(t, count)
 }

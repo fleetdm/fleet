@@ -1033,8 +1033,16 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
-	if _, err := svc.validateActivation(ctx, activation, d.Identifier, d.Type); err != nil {
+	rawAct, err := svc.validateActivation(ctx, activation, d.Identifier, d.Type)
+	if err != nil {
 		return nil, err
+	}
+	if rawAct != nil {
+		d.Activation = &fleet.MDMAppleCustomActivation{
+			Identifier:              rawAct.Identifier,
+			RawJSON:                 activation,
+			ConfigurationIdentifier: d.Identifier,
+		}
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)

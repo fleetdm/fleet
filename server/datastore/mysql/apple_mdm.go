@@ -5260,6 +5260,10 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "inserting declaration variable associations")
 		}
 
+		if err := setMDMAppleDDMActivationDB(ctx, tx, declUUID, tmID, declaration); err != nil {
+			return err
+		}
+
 		if isSoftwareUpdate {
 			if err := trackAppleUpdateConfigProfileDB(ctx, tx, tmID, declUUID); err != nil {
 				return err
@@ -5279,6 +5283,70 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 
 	declaration.DeclarationUUID = declUUID
 	return declaration, nil
+}
+
+// setMDMAppleDDMActivationDB writes the custom activation attached to a
+// declaration, or removes the stored one when the declaration no longer has an
+// activation, so re-uploading a profile without one clears it.
+//
+// The row is keyed on declaration_uuid rather than inserted fresh each time, so
+// an edit keeps the same activation_uuid and its Fleet variable associations
+// survive. uploaded_at only moves when the content actually changes, matching
+// how declarations themselves are upserted.
+func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUID string, tmID uint,
+	declaration *fleet.MDMAppleDeclaration,
+) error {
+	if declaration.Activation == nil {
+		const deleteStmt = `DELETE FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+		if _, err := tx.ExecContext(ctx, deleteStmt, declUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting declaration activation")
+		}
+		return nil
+	}
+
+	const upsertStmt = `
+INSERT INTO mdm_apple_ddm_activations (
+	activation_uuid,
+	team_id,
+	identifier,
+	raw_json,
+	declaration_uuid,
+	configuration_identifier,
+	secrets_updated_at,
+	uploaded_at
+)
+VALUES (?,?,?,?,?,?,?,NOW(6))
+ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(raw_json = VALUES(raw_json)
+		AND identifier = VALUES(identifier)
+		AND IFNULL(secrets_updated_at = VALUES(secrets_updated_at), TRUE), uploaded_at, NOW(6)),
+	identifier = VALUES(identifier),
+	raw_json = VALUES(raw_json),
+	configuration_identifier = VALUES(configuration_identifier),
+	secrets_updated_at = VALUES(secrets_updated_at)
+`
+
+	act := declaration.Activation
+	if _, err := tx.ExecContext(ctx, upsertStmt,
+		fleet.MDMAppleDDMActivationUUIDPrefix+uuid.NewString(),
+		tmID,
+		act.Identifier,
+		act.RawJSON,
+		declUUID,
+		declaration.Identifier,
+		act.SecretsUpdatedAt,
+	); err != nil {
+		if IsDuplicate(err) {
+			return ctxerr.Wrap(ctx, &existsError{
+				ResourceType: "MDMAppleCustomActivation.Identifier",
+				Identifier:   act.Identifier,
+				TeamID:       &tmID,
+			}, "inserting declaration activation")
+		}
+		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
+	}
+
+	return nil
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,

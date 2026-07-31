@@ -1369,7 +1369,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	// decl type missing actual type
 	b = declarationForTestWithType("D1", "com.apple.configuration")
 	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil, nil)
-	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
+	require.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil

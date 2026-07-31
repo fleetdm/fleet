@@ -848,7 +848,51 @@ FROM (
 		}
 	}
 
+	// load the custom activations for the declarations in this page. Only
+	// declarations can have one, and most won't, so this is skipped entirely
+	// when the page has no declarations.
+	activations, err := ds.getCustomActivationsForDeclarations(ctx, macDeclUUIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	for declUUID, rawJSON := range activations {
+		if prof, ok := profMap[declUUID]; ok {
+			prof.Activation = rawJSON
+		}
+	}
+
 	return profs, metaData, nil
+}
+
+// getCustomActivationsForDeclarations returns the raw activation JSON for the
+// given declarations, keyed by declaration UUID. Declarations without a custom
+// activation are absent from the map rather than present with a nil value, so
+// callers leave MDMConfigProfilePayload.Activation unset and it is omitted from
+// the API response.
+func (ds *Datastore) getCustomActivationsForDeclarations(ctx context.Context, declUUIDs []string) (map[string][]byte, error) {
+	if len(declUUIDs) == 0 {
+		return nil, nil
+	}
+
+	const selectStmt = `SELECT declaration_uuid, raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid IN (?)`
+	stmt, args, err := sqlx.In(selectStmt, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In get declaration activations")
+	}
+
+	var rows []struct {
+		DeclarationUUID string `db:"declaration_uuid"`
+		RawJSON         []byte `db:"raw_json"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select declaration activations")
+	}
+
+	activations := make(map[string][]byte, len(rows))
+	for _, r := range rows {
+		activations[r.DeclarationUUID] = r.RawJSON
+	}
+	return activations, nil
 }
 
 func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {

@@ -945,6 +945,12 @@ type MDMAppleDeclaration struct {
 	// populate mdm_apple_declaration_asset_references in the batch-set path.
 	AssetReferenceUUIDs []string `db:"-" json:"-"`
 
+	// Activation is the custom activation to store alongside this declaration.
+	// A nil Activation means the declaration has none, and any activation
+	// previously stored for it is removed on write, so re-uploading a profile
+	// without one clears it.
+	Activation *MDMAppleCustomActivation `db:"-" json:"-"`
+
 	CreatedAt          time.Time  `db:"created_at" json:"created_at"`
 	UploadedAt         time.Time  `db:"uploaded_at" json:"uploaded_at"`
 	SecretsUpdatedAt   *time.Time `db:"secrets_updated_at" json:"-"`
@@ -1066,6 +1072,32 @@ func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 // com.apple.activation.simple, so new activation types Apple introduces work
 // without a Fleet change.
 const MDMAppleActivationTypePrefix = "com.apple.activation."
+
+// MDMAppleCustomActivation is a custom activation declaration supplied by an
+// admin, stored 1:1 against the configuration declaration it activates.
+// Distinct from MDMAppleDDMActivation, which is Apple's wire format for an
+// activation served to a device.
+//
+// Fleet stores the document verbatim and never interprets its Payload, most
+// importantly the Predicate, which the device evaluates.
+type MDMAppleCustomActivation struct {
+	ActivationUUID string `db:"activation_uuid"`
+	TeamID         uint   `db:"team_id"`
+	// Identifier is the activation's own Identifier, distinct from the
+	// identifier of the configuration it activates.
+	Identifier string          `db:"identifier"`
+	RawJSON    json.RawMessage `db:"raw_json"`
+	// DeclarationUUID is the authoritative link to the configuration this
+	// activation gates; it cascades on delete.
+	DeclarationUUID string `db:"declaration_uuid"`
+	// ConfigurationIdentifier is the Identifier of that same declaration, kept
+	// alongside the UUID because the activation JSON references its
+	// configuration by Identifier rather than by UUID.
+	ConfigurationIdentifier string     `db:"configuration_identifier"`
+	SecretsUpdatedAt        *time.Time `db:"secrets_updated_at"`
+	CreatedAt               time.Time  `db:"created_at"`
+	UploadedAt              time.Time  `db:"uploaded_at"`
+}
 
 // MDMAppleRawActivation holds the fields Fleet reads out of a user-provided
 // activation declaration. Everything else in the document — most importantly
