@@ -118,7 +118,7 @@ Fleet values every community contribution. We want to be upfront about how our e
 
 Fleet uses AI tools extensively to accelerate code development. This means that writing code is no longer the team's bottleneck. Instead, the primary engineering work has shifted to deep code review: understanding the design, evaluating architecture decisions, assessing security implications, and ensuring the team fully owns every line that ships. Fleet is committed to understanding every line of code that goes into the product, regardless of who wrote it.
 
-Because of this shift, contributed code, while genuinely appreciated, does not save the team as much development time as it once did. The review effort is the same whether code was written by a contributor or by the team itself. This is not a reflection of the quality of contributions. It is a reflection of the depth of review Fleet requires before merging any change. Larger or more complex PRs may take longer to review as the team fits them into their planned work. Bug reports with clear reproduction steps, feature requests, and design feedback remain especially valuable.
+Because of this shift, the review effort for any change is the same regardless of who wrote the code. Every contribution receives the same depth of review that Fleet applies to its own work. Larger or more complex PRs may take longer to review as the team fits them into their planned work. Bug reports with clear reproduction steps, feature requests, and design feedback remain especially valuable.
 
 #### Review a community pull request
 
