@@ -36,6 +36,7 @@ import {
   CUSTOM_HOST_VITAL_CRITERION,
   LabelHostVitalsCriterion,
   LabelMembershipType,
+  LabelPlatform,
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -95,7 +96,7 @@ export interface INewLabelFormData {
   type: LabelMembershipType;
   // dynamic
   labelQuery: string;
-  platform: string;
+  platform: LabelPlatform;
 
   // host vitals
   vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria

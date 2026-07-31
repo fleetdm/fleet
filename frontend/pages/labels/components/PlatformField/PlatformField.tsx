@@ -6,9 +6,11 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import FormField from "components/forms/FormField";
 
+import { LabelPlatform } from "interfaces/label";
+
 // Used to display the platform of an existing label on the edit label page
 // (platform is not editable after creation).
-const PLATFORM_STRINGS: { [key: string]: string } = {
+const PLATFORM_STRINGS: Record<Exclude<LabelPlatform, "">, string> = {
   darwin: "macOS",
   windows: "Windows",
   linux: "Linux",
@@ -16,7 +18,11 @@ const PLATFORM_STRINGS: { [key: string]: string } = {
   centos: "CentOS (Linux)",
 };
 
-const platformOptions: CustomOptionType[] = [
+interface IPlatformOption extends CustomOptionType {
+  value: LabelPlatform;
+}
+
+const platformOptions: IPlatformOption[] = [
   { label: "All platforms", value: "" },
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
@@ -28,9 +34,9 @@ const platformOptions: CustomOptionType[] = [
 const baseClass = "platform-field";
 
 interface IPlatformFieldProps {
-  platform: string;
+  platform: LabelPlatform;
   isEditing?: boolean;
-  onChange?: (platform: string) => void;
+  onChange?: (platform: LabelPlatform) => void;
 }
 
 const PlatformField = ({
@@ -39,8 +45,10 @@ const PlatformField = ({
   onChange = noop,
 }: IPlatformFieldProps) => {
   const handleDropdownChange = (newValue: CustomOptionType | null) => {
-    // DropdownWrapper passes a SingleValue<CustomOptionType> | null
-    onChange(newValue?.value ?? "");
+    // DropdownWrapper passes a SingleValue<CustomOptionType> | null, which
+    // widens value to string; the options above only carry LabelPlatform
+    // values, so the assertion is safe.
+    onChange((newValue?.value ?? "") as LabelPlatform);
   };
 
   return (
