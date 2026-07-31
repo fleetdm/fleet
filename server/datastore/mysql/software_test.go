@@ -4131,6 +4131,184 @@ func TestSoftwareTitleUpgradeCodeDriftMatch(t *testing.T) {
 	require.False(t, matched, "program with unknown upgrade_code should not match any title")
 }
 
+// TestSoftwareTitleReadbackBranchEquivalence locks in the rewrite of the pre-insert title readback
+// in applyChangesForNewSoftwareDB. That lookup used to be a single predicate wrapping both key
+// columns in COALESCE(), which no index could serve (EXPLAIN: type=ALL, possible_keys=NULL), so
+// every software ingest full-scanned software_titles inside the ingest transaction, on the writer.
+// It is now three UNIONed branches, each keyed to an index that already existed.
+//
+// This asserts both halves of that change: the new form selects exactly the same titles as the old
+// one for every title shape Fleet stores, and it actually resolves through indexes.
+func TestSoftwareTitleReadbackBranchEquivalence(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	const upgradeCode = "{9a1c2f10-5b3e-4d21-8f77-0c9de1a44b02}"
+
+	type titleRow struct {
+		name, source, extensionFor string
+		bundleID, upgradeCode      *string
+	}
+	// One row of every shape Fleet stores, plus decoys that must NOT be matched.
+	seed := []titleRow{
+		{name: "Safari.app", source: "apps", bundleID: new("com.apple.Safari")},
+		{name: "Chrome.app", source: "apps", bundleID: new("com.google.Chrome")},
+		{name: "Helper.app", source: "apps"},                                      // app without bundle id -> name branch
+		{name: "vim", source: "deb_packages"},                                     // name branch
+		{name: "vim", source: "rpm_packages"},                                     // decoy: same name, other source
+		{name: "Prettier", source: "vscode_extensions", extensionFor: "vscode"},   // name branch with extension_for
+		{name: "Prettier", source: "vscode_extensions", extensionFor: "vscodium"}, // decoy: other extension_for
+		{name: "7-Zip 24.08 (x64)", source: "programs", upgradeCode: new(upgradeCode)},
+		{name: "Notepad++", source: "programs"}, // program without upgrade code -> name branch
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		for _, s := range seed {
+			if _, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, upgrade_code)
+				 VALUES (?,?,?,?,0,?)`,
+				s.name, s.source, s.extensionFor, s.bundleID, s.upgradeCode); err != nil {
+				return err
+			}
+		}
+		// Filler rows so the optimizer has a reason to prefer an index. On a handful of rows a
+		// full scan is genuinely cheaper and the plan assertion below would prove nothing.
+		const filler = 5000
+		vals := make([]string, 0, filler)
+		args := make([]any, 0, filler)
+		for i := range filler {
+			vals = append(vals, "(?, 'deb_packages', '', NULL, 0, NULL)")
+			args = append(args, fmt.Sprintf("filler-pkg-%d", i))
+		}
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel, upgrade_code) VALUES `+
+				strings.Join(vals, ","), args...)
+		return err
+	})
+
+	type incoming struct {
+		name, source, extensionFor, bundleID, upgradeCode string
+	}
+	incomings := []incoming{
+		{name: "Safari.app", source: "apps", bundleID: "com.apple.Safari"},
+		{name: "Renamed.app", source: "apps", bundleID: "com.google.Chrome"}, // bundle id wins over a drifted name
+		{name: "Helper.app", source: "apps"},
+		{name: "vim", source: "deb_packages"},
+		{name: "Prettier", source: "vscode_extensions", extensionFor: "vscode"},
+		{name: "7-Zip 24.09 (x64 edition)", source: "programs", upgradeCode: upgradeCode}, // name drifted
+		{name: "Notepad++", source: "programs"},
+		{name: "Absent", source: "deb_packages"}, // matches nothing
+	}
+
+	selectIDs := func(t *testing.T, stmt string, args ...any) []uint {
+		t.Helper()
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, stmt, args...)
+		})
+		std_slices.Sort(ids)
+		return std_slices.Compact(ids)
+	}
+
+	// The original predicate, kept here so the optimized form is pinned to its behavior.
+	oldStmt := fmt.Sprintf(
+		`SELECT id FROM software_titles
+		 WHERE (COALESCE(bundle_identifier, name), source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`,
+		strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(incomings)), ","))
+	oldArgs := make([]any, 0, len(incomings)*4)
+	var oldUpgradeCodes []any
+	for _, in := range incomings {
+		firstArg := in.name
+		if in.bundleID != "" {
+			firstArg = in.bundleID
+		}
+		oldArgs = append(oldArgs, firstArg, in.source, in.extensionFor, in.bundleID)
+		if in.upgradeCode != "" && in.source == "programs" {
+			oldUpgradeCodes = append(oldUpgradeCodes, in.upgradeCode)
+		}
+	}
+	if len(oldUpgradeCodes) > 0 {
+		oldStmt += fmt.Sprintf(` OR (upgrade_code IN (%s) AND source = 'programs')`,
+			strings.TrimSuffix(strings.Repeat("?,", len(oldUpgradeCodes)), ","))
+		oldArgs = append(oldArgs, oldUpgradeCodes...)
+	}
+
+	// The rewritten form, mirroring applyChangesForNewSoftwareDB.
+	var bundleArgs, nameArgs, upgradeArgs []any
+	for _, in := range incomings {
+		if in.bundleID != "" {
+			bundleArgs = append(bundleArgs, in.bundleID, in.source, in.extensionFor)
+		} else {
+			nameArgs = append(nameArgs, in.name, in.source, in.extensionFor)
+		}
+		if in.upgradeCode != "" && in.source == "programs" {
+			upgradeArgs = append(upgradeArgs, in.upgradeCode)
+		}
+	}
+	newBranches := []string{
+		fmt.Sprintf(`SELECT id FROM software_titles WHERE (bundle_identifier, source, extension_for) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?,?),", len(bundleArgs)/3), ",")),
+		fmt.Sprintf(`SELECT id FROM software_titles WHERE bundle_identifier IS NULL AND (name, source, extension_for) IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("(?,?,?),", len(nameArgs)/3), ",")),
+		fmt.Sprintf(`SELECT id FROM software_titles WHERE source = 'programs' AND unique_identifier IN (%s)`,
+			strings.TrimSuffix(strings.Repeat("?,", len(upgradeArgs)), ",")),
+	}
+	newStmt := strings.Join(newBranches, " UNION ")
+	newArgs := append(append(append([]any{}, bundleArgs...), nameArgs...), upgradeArgs...)
+
+	t.Run("selects the same titles as the original predicate", func(t *testing.T) {
+		want := selectIDs(t, oldStmt, oldArgs...)
+		got := selectIDs(t, newStmt, newArgs...)
+		require.NotEmpty(t, want, "seed data should match something, otherwise this proves nothing")
+		require.Equal(t, want, got)
+		// Each incoming resolves to at most one title, and "Absent" resolves to none.
+		require.Len(t, got, len(incomings)-1)
+	})
+
+	t.Run("resolves through indexes instead of scanning", func(t *testing.T) {
+		var plan []map[string]any
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			rows, err := q.QueryxContext(ctx, "EXPLAIN "+newStmt, newArgs...)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				row := map[string]any{}
+				if err := rows.MapScan(row); err != nil {
+					return err
+				}
+				plan = append(plan, row)
+			}
+			return rows.Err()
+		})
+		require.NotEmpty(t, plan)
+
+		col := func(row map[string]any, name string) string {
+			switch v := row[name].(type) {
+			case nil:
+				return ""
+			case []byte:
+				return string(v)
+			case string:
+				return v
+			default:
+				return fmt.Sprintf("%v", v)
+			}
+		}
+		for _, row := range plan {
+			table := col(row, "table")
+			// The synthetic row describing the UNION result itself has no access path.
+			if table == "" || strings.HasPrefix(table, "<union") {
+				continue
+			}
+			require.NotEqual(t, "ALL", col(row, "type"),
+				"branch on %s must not full-scan software_titles (key=%q)", table, col(row, "key"))
+			require.NotEmpty(t, col(row, "key"), "branch on %s must resolve through an index", table)
+		}
+	})
+}
+
 func testListHostSoftwareMacOSApplicationsFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
