@@ -7506,6 +7506,13 @@
       "description": "ScreenFocus is a tool to manage multiple screens."
     },
     {
+      "name": "Scribe",
+      "slug": "scribe/windows",
+      "platform": "windows",
+      "unique_identifier": "Scribe",
+      "description": "Scribe records a process as you work through it and turns it into a step-by-step guide with screenshots."
+    },
+    {
       "name": "Scribus",
       "slug": "scribus/darwin",
       "platform": "darwin",
