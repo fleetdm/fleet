@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.2.12",
+      "version": "7.2.14",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates' AND version_compare(version, '7.2.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Oracle VirtualBox %' AND publisher = 'Oracle and/or its affiliates' AND version_compare(version, '7.2.14') < 0);"
       },
-      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.12/VirtualBox-7.2.12-174389-Win.exe",
+      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.14/VirtualBox-7.2.14-174565-Win.exe",
       "install_script_ref": "556130e3",
       "uninstall_script_ref": "fb3c3d4d",
-      "sha256": "5094f3d573fe2a511bfc7ae8982c2f6544ae9b5051048dc7a0e9985c74dcac4c",
+      "sha256": "5fb111f32a15763d519bf9ef23e0111153521f641cde7460e5b8e895ca27a1d2",
       "default_categories": [
         "Productivity"
       ]

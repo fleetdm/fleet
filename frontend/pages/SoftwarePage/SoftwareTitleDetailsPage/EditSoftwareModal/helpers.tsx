@@ -8,8 +8,10 @@ import {
   generateSecretErrMsg,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
+import { ensurePeriod } from "pages/SoftwarePage/SoftwareAddPage/helpers";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't edit software. Please try again.";
+const EDIT_SOFTWARE_ERROR_PREFIX = "Couldn't edit software.";
+const DEFAULT_ERROR_MESSAGE = `${EDIT_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (
@@ -22,7 +24,7 @@ export const getErrorMessage = (
   const reason = getErrorReason(err);
 
   if (isTimeout) {
-    return "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+    return `${EDIT_SOFTWARE_ERROR_PREFIX} Request timeout. Please make sure your server and load balancer timeout is long enough.`;
   } else if (reason.includes("selected package is")) {
     return (
       <>
@@ -44,5 +46,16 @@ export const getErrorMessage = (
     );
   }
 
-  return reason || DEFAULT_ERROR_MESSAGE;
+  if (!reason) {
+    return DEFAULT_ERROR_MESSAGE;
+  }
+  // The edit modal always leads with the product-approved verb. Shared
+  // validators now return action-neutral reasons, but some backend messages
+  // still carry their own leading verb (e.g. "Couldn't edit.", "Couldn't
+  // update."); strip it so the UI shows a single, consistent "Couldn't edit
+  // software." rather than the backend's wording or a doubled verb.
+  const withoutLeadingVerb = reason.replace(/^Couldn't [^.]*\.\s*/, "");
+  return withoutLeadingVerb
+    ? `${EDIT_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(withoutLeadingVerb)}`
+    : DEFAULT_ERROR_MESSAGE;
 };

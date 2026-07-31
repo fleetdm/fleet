@@ -269,7 +269,8 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 // build their <Delete> commands after the DeleteTeam cascade removes the definitions) and cleans up never-sent / terminal
 // host-profile rows. Runs in its own transaction to keep load out of the main DeleteTeam transaction.
 func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, tid uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var affectedHostUUIDs []string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var profileUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &profileUUIDs,
 			`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE team_id = ?`, tid); err != nil {
@@ -284,8 +285,19 @@ func (ds *Datastore) prepareWindowsProfilesForTeamDeletion(ctx context.Context, 
 			return ctxerr.Wrapf(ctx, err, "retaining windows profiles for team %d", tid)
 		}
 
-		return ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
+		hosts, err := ds.cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, profileUUIDs)
+		if err != nil {
+			return err
+		}
+		affectedHostUUIDs = hosts
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	// Post-commit async rollup refresh; scales with the team's host count, healed by the hourly reconcile on crash.
+	ds.dispatchWindowsProfilesStatusRollupRefresh(ctx, affectedHostUUIDs)
+	return nil
 }
 
 func (ds *Datastore) TeamByName(ctx context.Context, name string) (*fleet.Team, error) {

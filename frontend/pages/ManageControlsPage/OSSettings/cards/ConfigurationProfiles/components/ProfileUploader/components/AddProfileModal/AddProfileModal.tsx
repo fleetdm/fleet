@@ -61,12 +61,12 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="brand-inverse-icon"
+      variant="secondary"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
         <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" color="core-fleet-green" />
+          Choose file <Icon name="upload" />
         </span>
       </label>
     </Button>
@@ -279,7 +279,7 @@ const AddProfileModal = ({
             </div>
           )}
           <div className={`${baseClass}__button-wrap`}>
-            <Button variant="inverse" onClick={onDone}>
+            <Button variant="secondary" onClick={onDone}>
               Cancel
             </Button>
             <Button

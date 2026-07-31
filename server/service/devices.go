@@ -107,8 +107,17 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 	return r.Token
 }
 
+// deviceHostDetailResponse wraps the host detail response to shadow the
+// host's policies with their device-safe representation, which excludes the
+// policy author's identity and the raw SQL query (this is a device-authenticated
+// endpoint, so it must not expose admin-only data).
+type deviceHostDetailResponse struct {
+	*fleet.HostDetailResponse
+	Policies *[]*fleet.DevicePolicy `json:"policies,omitempty"`
+}
+
 type getDeviceHostResponse struct {
-	Host *fleet.HostDetailResponse `json:"host"`
+	Host *deviceHostDetailResponse `json:"host"`
 	// Deprecated: use OrgLogoURLDarkMode.
 	OrgLogoURL string `json:"org_logo_url"`
 	// Deprecated: use OrgLogoURLLightMode.
@@ -237,8 +246,19 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		},
 	}
 
+	deviceHost := &deviceHostDetailResponse{HostDetailResponse: resp}
+	if resp.Policies != nil {
+		devicePolicies := fleet.HostPoliciesToDevicePolicies(*resp.Policies)
+		deviceHost.Policies = &devicePolicies
+		// defense-in-depth: the shadow field above already wins over the
+		// embedded policies when marshaling, but clear the admin-facing
+		// policies anyway so they cannot leak if the wrapped response is ever
+		// marshaled directly.
+		resp.Policies = nil
+	}
+
 	return getDeviceHostResponse{
-		Host:                      resp,
+		Host:                      deviceHost,
 		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
 		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
 		OrgLogoURLDarkMode:        ac.OrgInfo.OrgLogoURLDarkMode,
@@ -463,8 +483,8 @@ func (r *listDevicePoliciesRequest) deviceAuthToken() string {
 }
 
 type listDevicePoliciesResponse struct {
-	Err      error               `json:"error,omitempty"`
-	Policies []*fleet.HostPolicy `json:"policies"`
+	Err      error                 `json:"error,omitempty"`
+	Policies []*fleet.DevicePolicy `json:"policies"`
 }
 
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
@@ -484,7 +504,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	return listDevicePoliciesResponse{Policies: data}, nil
 }
 
-func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.DevicePolicy, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -7,6 +7,7 @@ import DeviceUserBanners from "./DeviceUserBanners";
 describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
   const resetNonLinuxDiskEncryptKeyExpectedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
+  const adeDiskEncryptKeyExpectedText = /Disk encryption: Refetch to ensure data is safeguarded in case your device is lost or stolen\. If this banner persists, contact your IT admin\./;
   const createNewLinuxDiskEncryptKeyExpectedText = /Disk encryption: Create a new disk encryption key\. This lets your organization help you unlock your device if you forget your passphrase\./;
   const createPINExepectedText = /Disk encryption: Create a BitLocker PIN to safeguard your data/;
 
@@ -31,7 +32,7 @@ describe("Device User Banners", () => {
     render(
       <DeviceUserBanners
         hostPlatform="darwin"
-        mdmEnrollmentStatus="On (automatic)"
+        mdmEnrollmentStatus="On (manual)"
         mdmEnabledAndConfigured
         connectedToFleetMdm
         macDiskEncryptionStatus="action_required"
@@ -44,6 +45,45 @@ describe("Device User Banners", () => {
     expect(
       screen.getByText(resetNonLinuxDiskEncryptKeyExpectedText)
     ).toBeInTheDocument();
+  });
+
+  it("renders the refetch disk encryption banner for ADE-enrolled hosts", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="On (automatic)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus="action_required"
+        diskEncryptionActionRequired="rotate_key"
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+    expect(screen.getByText(adeDiskEncryptKeyExpectedText)).toBeInTheDocument();
+    expect(
+      screen.queryByText(resetNonLinuxDiskEncryptKeyExpectedText)
+    ).not.toBeInTheDocument();
+  });
+
+  // "On (company-owned)" is the current name for automatic enrollment; "On (automatic)"
+  // is the legacy value the API still returns
+  it("renders the refetch disk encryption banner for company-owned hosts", () => {
+    render(
+      <DeviceUserBanners
+        hostPlatform="darwin"
+        mdmEnrollmentStatus="On (company-owned)"
+        mdmEnabledAndConfigured
+        connectedToFleetMdm
+        macDiskEncryptionStatus="action_required"
+        diskEncryptionActionRequired="rotate_key"
+        onTriggerEscrowLinuxKey={noop}
+        onClickCreatePIN={noop}
+        onClickTurnOnMdm={noop}
+      />
+    );
+    expect(screen.getByText(adeDiskEncryptKeyExpectedText)).toBeInTheDocument();
   });
   it("renders the create new linux disk encryption key banner correctly for Ubuntu", () => {
     render(

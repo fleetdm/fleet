@@ -366,6 +366,13 @@
       "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
     },
     {
+      "name": "Airtable",
+      "slug": "airtable/windows",
+      "platform": "windows",
+      "unique_identifier": "Airtable",
+      "description": "Airtable is a spreadsheet-database hybrid for cloud collaboration."
+    },
+    {
       "name": "Airtame",
       "slug": "airtame/darwin",
       "platform": "darwin",
@@ -681,6 +688,13 @@
       "description": "Anytype is a local-first and end-to-end encrypted notes app."
     },
     {
+      "name": "AOMEI Backupper Standard",
+      "slug": "aomei-backupper-standard/windows",
+      "platform": "windows",
+      "unique_identifier": "AOMEI Backupper",
+      "description": "AOMEI Backupper Standard is a backup, sync, and disaster recovery tool for Windows."
+    },
+    {
       "name": "Apidog",
       "slug": "apidog/darwin",
       "platform": "darwin",
@@ -910,6 +924,13 @@
       "platform": "windows",
       "unique_identifier": "Azul Zulu JRE",
       "description": "Azul Zulu JRE 25 is a free Java runtime environment (JRE-only build) of OpenJDK 25 from Azul Systems."
+    },
+    {
+      "name": "Azure Data Studio",
+      "slug": "azure-data-studio/windows",
+      "platform": "windows",
+      "unique_identifier": "Azure Data Studio",
+      "description": "Azure Data Studio is a cross-platform database tool for querying and managing SQL Server, Azure SQL, and PostgreSQL."
     },
     {
       "name": "Azure Functions Core Tools",
@@ -1269,6 +1290,20 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
+      "name": "Box Tools",
+      "slug": "box-tools/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.Box.Box-Edit",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
+      "name": "Box Tools",
+      "slug": "box-tools/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Tools",
+      "description": "Box Tools is a companion app for Box that lets users create and edit files stored in Box with their computer's default applications, directly from a web browser."
+    },
+    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
@@ -1463,13 +1498,6 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.captain",
       "description": "Captain is a tool to manage Docker containers from the menu bar."
-    },
-    {
-      "name": "Captin",
-      "slug": "captin/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.100hps.captin",
-      "description": "Captin is a tool to show caps lock status."
     },
     {
       "name": "Capto",
@@ -2789,13 +2817,6 @@
     },
     {
       "name": "Dynalist",
-      "slug": "dynalist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.dynalist",
-      "description": "Dynalist is an app for outlining app for your work."
-    },
-    {
-      "name": "Dynalist",
       "slug": "dynalist/windows",
       "platform": "windows",
       "unique_identifier": "Dynalist",
@@ -3649,6 +3670,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git Extensions",
+      "slug": "git-extensions/windows",
+      "platform": "windows",
+      "unique_identifier": "Git Extensions",
+      "description": "Git Extensions is a graphical user interface for Git that integrates with Windows Explorer and Visual Studio."
+    },
+    {
       "name": "Git",
       "slug": "git/windows",
       "platform": "windows",
@@ -3717,6 +3745,13 @@
       "platform": "darwin",
       "unique_identifier": "com.GeorgSeifert.Glyphs3",
       "description": "Glyphs is a font editor."
+    },
+    {
+      "name": "GNU Privacy Guard",
+      "slug": "gnupg/windows",
+      "platform": "windows",
+      "unique_identifier": "GNU Privacy Guard",
+      "description": "GNU Privacy Guard is an implementation of the OpenPGP standard for encrypting and signing data and communications."
     },
     {
       "name": "Go",
@@ -3845,6 +3880,13 @@
       "description": "Google Earth Pro is a virtual globe."
     },
     {
+      "name": "Google Earth Pro",
+      "slug": "google-earth-pro/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Earth Pro",
+      "description": "Google Earth Pro is a virtual globe."
+    },
+    {
       "name": "Google Gemini",
       "slug": "google-gemini/darwin",
       "platform": "darwin",
@@ -3878,6 +3920,13 @@
       "platform": "darwin",
       "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
+    },
+    {
+      "name": "Gpg4win",
+      "slug": "gpg4win/windows",
+      "platform": "windows",
+      "unique_identifier": "Gpg4win",
+      "description": "Gpg4win is an email and file encryption suite for Windows that bundles GnuPG with the Kleopatra certificate manager."
     },
     {
       "name": "gPodder",
@@ -4146,6 +4195,62 @@
       "description": "IBM Notifier is an agent that displays custom notifications and alerts to end users on macOS."
     },
     {
+      "name": "IBM Semeru Runtime Open Edition JDK 11",
+      "slug": "ibm-semeru-jdk-11/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 11 is a free, production-ready OpenJDK 11 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 17",
+      "slug": "ibm-semeru-jdk-17/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 17 is a free, production-ready OpenJDK 17 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 21",
+      "slug": "ibm-semeru-jdk-21/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 21 is a free, production-ready OpenJDK 21 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JDK 8",
+      "slug": "ibm-semeru-jdk-8/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JDK)",
+      "description": "IBM Semeru Runtime Open Edition JDK 8 is a free, production-ready OpenJDK 8 distribution built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 11",
+      "slug": "ibm-semeru-jre-11/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 11 is a free, production-ready OpenJDK 11 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 17",
+      "slug": "ibm-semeru-jre-17/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 17 is a free, production-ready OpenJDK 17 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 21",
+      "slug": "ibm-semeru-jre-21/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 21 is a free, production-ready OpenJDK 21 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
+      "name": "IBM Semeru Runtime Open Edition JRE 8",
+      "slug": "ibm-semeru-jre-8/windows",
+      "platform": "windows",
+      "unique_identifier": "IBM Semeru Runtime Open Edition (JRE)",
+      "description": "IBM Semeru Runtime Open Edition JRE 8 is a free, production-ready OpenJDK 8 Java runtime built with the Eclipse OpenJ9 JVM."
+    },
+    {
       "name": "Icon Composer",
       "slug": "icon-composer/darwin",
       "platform": "darwin",
@@ -4181,11 +4286,25 @@
       "description": "IINA is a modern, free and open-source media player for macOS."
     },
     {
+      "name": "ImageGlass",
+      "slug": "imageglass/windows",
+      "platform": "windows",
+      "unique_identifier": "ImageGlass",
+      "description": "ImageGlass is a lightweight, open-source image viewer that supports over 80 image formats."
+    },
+    {
       "name": "iMazing Converter",
       "slug": "imazing-converter/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingHEICConverterMac",
       "description": "iMazing Converter is a free tool to convert HEIC to JPEG and HEVC to MP4."
+    },
+    {
+      "name": "iMazing HEIC Converter",
+      "slug": "imazing-heic-converter/windows",
+      "platform": "windows",
+      "unique_identifier": "iMazing HEIC Converter",
+      "description": "iMazing HEIC Converter is a free tool that converts HEIC photos and HEVC videos to JPEG, PNG, or MP4."
     },
     {
       "name": "iMazing Profile Editor",
@@ -4230,6 +4349,13 @@
       "description": "ImHex is a hex editor for reverse engineers."
     },
     {
+      "name": "Infix PDF Editor",
+      "slug": "infix-pdf-editor/windows",
+      "platform": "windows",
+      "unique_identifier": "Infix PDF Editor",
+      "description": "Infix PDF Editor is a desktop application for editing text, images, fonts, and pages inside existing PDF files."
+    },
+    {
       "name": "Inkscape",
       "slug": "inkscape/darwin",
       "platform": "darwin",
@@ -4263,6 +4389,13 @@
       "platform": "windows",
       "unique_identifier": "Insomnia",
       "description": "Insomnia is an open-source, cross-platform API client primarily used for designing, testing, and debugging REST APIs"
+    },
+    {
+      "name": "install4j",
+      "slug": "install4j/windows",
+      "platform": "windows",
+      "unique_identifier": "install4j",
+      "description": "install4j is a multi-platform Java installer builder that generates native installers and launchers for Java applications."
     },
     {
       "name": "IntelliDock",
@@ -4312,6 +4445,27 @@
       "platform": "darwin",
       "unique_identifier": "br.gov.cti.invesalius",
       "description": "InVesalius is a 3D medical imaging reconstruction software."
+    },
+    {
+      "name": "IrfanView",
+      "slug": "irfanview/windows",
+      "platform": "windows",
+      "unique_identifier": "IrfanView",
+      "description": "IrfanView is a fast, compact image viewer, editor, and converter for Windows."
+    },
+    {
+      "name": "IronPython 3",
+      "slug": "ironpython/windows",
+      "platform": "windows",
+      "unique_identifier": "IronPython 3",
+      "description": "IronPython 3 is an open-source implementation of the Python programming language that is tightly integrated with .NET."
+    },
+    {
+      "name": "IsoBuster",
+      "slug": "isobuster/windows",
+      "platform": "windows",
+      "unique_identifier": "IsoBuster",
+      "description": "IsoBuster is a data recovery tool that reads and extracts files from optical discs, disk images, and memory cards."
     },
     {
       "name": "IsThereNet",
@@ -4823,6 +4977,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech Unifying Software",
+      "slug": "logitech-unifying-software/windows",
+      "platform": "windows",
+      "unique_identifier": "Logitech Unifying Software",
+      "description": "Logitech Unifying Software is a tool for pairing and removing devices that use a Logitech Unifying receiver."
     },
     {
       "name": "Logi Tune",
@@ -5721,13 +5882,6 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
-      "name": "Nocturnal",
-      "slug": "nocturnal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.harshilshah.nocturnal",
-      "description": "Nocturnal is a simple app to toggle dark mode with one click."
-    },
-    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
@@ -6453,7 +6607,14 @@
       "slug": "podman-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "io.podmandesktop.PodmanDesktop",
-      "description": "Open source tool for developers to work with containers and Kubernetes."
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
+    },
+    {
+      "name": "Podman Desktop",
+      "slug": "podman-desktop/windows",
+      "platform": "windows",
+      "unique_identifier": "Podman Desktop",
+      "description": "Podman Desktop is an open source tool for developers to work with containers and Kubernetes."
     },
     {
       "name": "PopChar X",
@@ -6782,7 +6943,7 @@
       "slug": "proxyman/windows",
       "platform": "windows",
       "unique_identifier": "Proxyman",
-      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+      "description": "Proxyman is a high-performance app that enables developers to view HTTP/HTTPS requests and responses."
     },
     {
       "name": "Pulsar",
@@ -7217,6 +7378,13 @@
       "platform": "darwin",
       "unique_identifier": "no.blogspot.RsyncUI",
       "description": "RsyncUI is a GUI for rsync."
+    },
+    {
+      "name": "Rtools",
+      "slug": "rtools/windows",
+      "platform": "windows",
+      "unique_identifier": "Rtools",
+      "description": "Rtools is a toolchain bundle for building R packages from source on Windows."
     },
     {
       "name": "RubyMine",
@@ -7660,6 +7828,13 @@
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
     },
     {
+      "name": "SonicWall NetExtender",
+      "slug": "sonicwall-netextender/windows",
+      "platform": "windows",
+      "unique_identifier": "SonicWall NetExtender",
+      "description": "SonicWall NetExtender is an SSL VPN client that provides secure remote access to SonicWall-protected networks."
+    },
+    {
       "name": "SonoBus",
       "slug": "sonobus/darwin",
       "platform": "darwin",
@@ -7805,6 +7980,13 @@
       "platform": "darwin",
       "unique_identifier": "org.spyder-ide.Spyder-6",
       "description": "Spyder is a scientific Python IDE."
+    },
+    {
+      "name": "Spyder",
+      "slug": "spyder/windows",
+      "platform": "windows",
+      "unique_identifier": "Spyder",
+      "description": "Spyder is a scientific Python development environment with advanced editing, interactive testing, and debugging."
     },
     {
       "name": "SQL Server Management Studio",
@@ -8351,6 +8533,13 @@
       "platform": "darwin",
       "unique_identifier": "com.tidal.desktop",
       "description": "TIDAL is a music streaming service with high fidelity sound and hi-def video quality."
+    },
+    {
+      "name": "TightVNC",
+      "slug": "tightvnc/windows",
+      "platform": "windows",
+      "unique_identifier": "TightVNC",
+      "description": "TightVNC is a remote desktop software solution for viewing and controlling remote computers over a network."
     },
     {
       "name": "Sempliva Tiles",
@@ -9011,11 +9200,11 @@
       "description": "WeChat for Mac is a free messaging and calling application."
     },
     {
-      "name": "WeChat for Mac",
+      "name": "WeChat",
       "slug": "wechat/windows",
       "platform": "windows",
       "unique_identifier": "WeChat",
-      "description": "WeChat for Mac is a free messaging and calling application."
+      "description": "WeChat is a free messaging and calling application."
     },
     {
       "name": "WeekToDo",
@@ -9305,6 +9494,13 @@
       "description": "YACReader is a comic reader."
     },
     {
+      "name": "Yarn",
+      "slug": "yarn/windows",
+      "platform": "windows",
+      "unique_identifier": "Yarn",
+      "description": "Yarn is a fast, reliable, and secure JavaScript package manager compatible with the npm registry."
+    },
+    {
       "name": "Yattee",
       "slug": "yattee/darwin",
       "platform": "darwin",
@@ -9341,17 +9537,10 @@
     },
     {
       "name": "Yubikey Manager",
-      "slug": "yubico-yubikey-manager/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.yubico.ykman",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
-    },
-    {
-      "name": "Yubikey Manager",
       "slug": "yubico-yubikey-manager/windows",
       "platform": "windows",
       "unique_identifier": "YubiKey Manager",
-      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
+      "description": "YubiKey Manager is an application for configuring any YubiKey. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager</a>"
     },
     {
       "name": "Zappy",
@@ -9415,6 +9604,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linebreak.CloudAppMacOSX",
       "description": "Zight is a visual communication platform."
+    },
+    {
+      "name": "Zoom Outlook Plugin",
+      "slug": "zoom-outlook-plugin/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Outlook Plugin",
+      "description": "Zoom Outlook Plugin adds Zoom meeting scheduling and join buttons directly into Microsoft Outlook."
     },
     {
       "name": "Zoom Rooms",

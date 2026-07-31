@@ -2171,6 +2171,13 @@ func (ds *Datastore) deleteMDMOSCustomSettingsForHost(ctx context.Context, tx sq
 		}
 	}
 
+	// The host's Windows profile rows are gone, so drop its now-orphaned per-host profile status rollup.
+	if platform == "windows" {
+		if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{uuid}, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing windows profiles status rollup for host")
+		}
+	}
+
 	return nil
 }
 
@@ -2185,7 +2192,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) (users []*flee
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
 		}
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
@@ -4527,7 +4534,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 		}
 		host := hosts[0]
 
-		if !fleet.MDMSupported(host.Platform) {
+		if !fleet.ClassicMDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
@@ -6229,6 +6236,7 @@ SELECT
 	abt.organization_name,
 	abt.apple_id,
 	abt.terms_expired,
+	abt.token_invalid,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6338,6 +6346,7 @@ SELECT
 	abt.organization_name,
 	abt.apple_id,
 	abt.terms_expired,
+	abt.token_invalid,
 	abt.renew_at,
 	abt.token,
 	abt.enrollment_url_token,
@@ -6463,6 +6472,38 @@ func (ds *Datastore) SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgN
 		wasSet = expired
 	}
 	return wasSet, nil
+}
+
+func (ds *Datastore) SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+	const stmt = `UPDATE abm_tokens SET token_invalid = ? WHERE organization_name = ? AND token_invalid != ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, invalid, orgName, invalid)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update abm_tokens token_invalid")
+	}
+	affRows, _ := res.RowsAffected()
+
+	if affRows > 0 {
+		// if it did update the row, then the previous value was the opposite of
+		// invalid
+		wasSet = !invalid
+	} else {
+		// if it did not update any row, then the previous value was the same
+		wasSet = invalid
+	}
+	return wasSet, nil
+}
+
+func (ds *Datastore) IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error) {
+	const stmt = `SELECT token_invalid FROM abm_tokens WHERE organization_name = ?`
+
+	var invalid bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &invalid, stmt, orgName); err != nil {
+		if err == sql.ErrNoRows {
+			return false, ctxerr.Wrap(ctx, notFound("ABMToken"))
+		}
+		return false, ctxerr.Wrap(ctx, err, "get abm_tokens token_invalid")
+	}
+	return invalid, nil
 }
 
 func (ds *Datastore) CountABMTokensWithTermsExpired(ctx context.Context) (int, error) {
@@ -7898,31 +7939,38 @@ var appleHostRefsForMDMReset = []string{
 
 func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var hostIds []uint
+		var hosts []fleet.Host
 		err := sqlx.SelectContext(
-			ctx, tx, &hostIds,
-			`SELECT id FROM hosts WHERE uuid = ?`, hostUUID,
+			ctx, tx, &hosts,
+			`SELECT id, platform FROM hosts WHERE uuid = ?`, hostUUID,
 		)
 		switch {
 		case err != nil:
 			return ctxerr.Wrap(ctx, err, "resetting mdm enrollment: getting host info from UUID")
-		case len(hostIds) == 0:
+		case len(hosts) == 0:
 			return ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID), "resetting mdm enrollment: getting host info from UUID")
-		case len(hostIds) > 1:
+		case len(hosts) > 1:
 			// This shouldn't happen, but if it does, we log the IDs of the hosts
 			// with the same UUID for debugging purposes.
-			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIds), "processed_host_id", hostIds[0])
+			hostIDs := make([]uint, len(hosts))
+			for i, host := range hosts {
+				hostIDs[i] = host.ID
+			}
+			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIDs), "processed_host_id", hosts[0].ID)
 		}
-		hostID := hostIds[0]
+		host := hosts[0]
 
-		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID); err != nil {
+		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel upcoming activities for mdm reset", "host_uuid", hostUUID)
 		}
 
 		for _, table := range appleHostRefsForMDMReset {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), hostID); err != nil {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("clear %s for mdm reset", table), "host_uuid", hostUUID)
 			}
+		}
+		if err := upsertMDMAppleHostLabelMembershipDB(ctx, tx, ds.logger, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "restore builtin label memberships for mdm reset", "host_uuid", hostUUID)
 		}
 
 		// Clear the PSSO registration (keys cascade) so an ADE re-enrollment
@@ -7932,7 +7980,7 @@ func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID s
 		}
 
 		if !preserveHostActivities {
-			if err := ds.clearHostActivitiesForAppleMDMReset(ctx, tx, hostUUID, hostID); err != nil {
+			if err := ds.clearHostActivitiesForAppleMDMReset(ctx, tx, hostUUID, host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "clear host activities for mdm reset")
 			}
 		}
