@@ -4027,6 +4027,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "HandBrake",
+      "slug": "handbrake/windows",
+      "platform": "windows",
+      "unique_identifier": "HandBrake",
+      "description": "HandBrake is an open-source video transcoder."
+    },
+    {
       "name": "Hazel",
       "slug": "hazel/darwin",
       "platform": "darwin",
