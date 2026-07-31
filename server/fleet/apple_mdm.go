@@ -1097,6 +1097,11 @@ type MDMAppleCustomActivation struct {
 	SecretsUpdatedAt        *time.Time `db:"secrets_updated_at"`
 	CreatedAt               time.Time  `db:"created_at"`
 	UploadedAt              time.Time  `db:"uploaded_at"`
+
+	// FleetVariables are the Fleet variables referenced by RawJSON, recorded
+	// against the activation in mdm_configuration_profile_variables so the
+	// activation is re-delivered when their values change.
+	FleetVariables []FleetVarName `db:"-"`
 }
 
 // MDMAppleRawActivation holds the fields Fleet reads out of a user-provided

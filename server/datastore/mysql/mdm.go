@@ -2347,6 +2347,19 @@ func batchSetProfileVariableAssociationsDB(
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}
 
+	return setVariableAssociationsForColumnDB(ctx, tx, profileVariablesByUUID, columnName)
+}
+
+// setVariableAssociationsForColumnDB rewrites the Fleet variable associations
+// for a set of owners in mdm_configuration_profile_variables. The owner column
+// varies -- profiles, declarations and custom DDM activations all key into the
+// same table -- so it is passed in rather than derived here.
+func setVariableAssociationsForColumnDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+	columnName string,
+) (didUpdate bool, err error) {
 	// collect the profile uuids to clear
 	profileUUIDsToDelete := make([]string, 0, len(profileVariablesByUUID))
 	// small optimization - if there are no variables to insert, we can stop here

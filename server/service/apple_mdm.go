@@ -976,7 +976,7 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 // Callers must pass the identifier of the declaration the activation ships
 // with: Fleet allows exactly one configuration per activation, and that
 // configuration is always the one being uploaded.
-func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, declarationType string) (*fleet.MDMAppleRawActivation, error) {
+func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, declarationType string) (*fleet.MDMAppleCustomActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
 	}
@@ -998,7 +998,34 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 			"checking license for DDM custom activation")
 	}
 
-	rawAct, err := fleet.GetRawActivationValues(activation)
+	// Expand $FLEET_SECRET_* before validating so the checks below run against
+	// the document the device will actually receive, mirroring how declarations
+	// are validated.
+	expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(activation))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()), "expanding activation secrets")
+	}
+
+	// Activations support the same Fleet variables as the declarations they
+	// activate, so the declaration allowlist is reused rather than duplicated.
+	lic, _ := license.FromContext(ctx)
+	actVars, err := validateDeclarationFleetVariables(expanded, lic)
+	if err != nil {
+		if badReqErr, ok := errors.AsType[*fleet.BadRequestError](err); ok {
+			badReqErr.Message = "Couldn't upload activation. " + badReqErr.Message
+			err = badReqErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "validating activation Fleet variables")
+	}
+
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{string(activation)}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating activation custom host vitals")
+		}
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("activation", err.Error()))
+	}
+
+	rawAct, err := fleet.GetRawActivationValues([]byte(expanded))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "parsing activation")
 	}
@@ -1007,7 +1034,20 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 		return nil, ctxerr.Wrap(ctx, err, "validating activation")
 	}
 
-	return rawAct, nil
+	varNames := make([]fleet.FleetVarName, 0, len(actVars))
+	for _, v := range actVars {
+		varNames = append(varNames, fleet.FleetVarName(v))
+	}
+
+	// The unexpanded bytes are stored: secrets are re-expanded at delivery, so
+	// keeping them expanded here would persist the secret values.
+	return &fleet.MDMAppleCustomActivation{
+		Identifier:              rawAct.Identifier,
+		RawJSON:                 activation,
+		ConfigurationIdentifier: configurationIdentifier,
+		SecretsUpdatedAt:        secretsUpdatedAt,
+		FleetVariables:          varNames,
+	}, nil
 }
 
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*fleet.MDMAppleDeclaration, error) {
@@ -1038,11 +1078,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 	if rawAct != nil {
-		d.Activation = &fleet.MDMAppleCustomActivation{
-			Identifier:              rawAct.Identifier,
-			RawJSON:                 activation,
-			ConfigurationIdentifier: d.Identifier,
-		}
+		d.Activation = rawAct
 	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d, varNames)
@@ -1290,11 +1326,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		return err
 	}
 	if rawAct != nil {
-		decl.Activation = &fleet.MDMAppleCustomActivation{
-			Identifier:              rawAct.Identifier,
-			RawJSON:                 activation,
-			ConfigurationIdentifier: decl.Identifier,
-		}
+		decl.Activation = rawAct
 	}
 
 	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {

@@ -13962,11 +13962,43 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		`SELECT raw_json FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
 	require.JSONEq(t, string(editedAct), string(rawAfterEdit))
 
-	// Re-uploading the declaration without an activation removes it.
+	// The single-profile read returns it too.
+	fetched, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, fetched.Activation)
+	require.JSONEq(t, string(editedAct), string(fetched.Activation.RawJSON))
+	require.Equal(t, "com.fleet.act-test.custom", fetched.Activation.Identifier)
+
+	// Fleet variables in the activation are associated with it, not with the
+	// declaration, and satisfy the exactly-one-owner check constraint.
+	varAct := []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.act-test.custom","Payload":{"StandardConfigurations":["com.fleet.act-test"],"Predicate":"$FLEET_VAR_HOST_UUID"}}`)
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&fleet.MDMAppleCustomActivation{
+		Identifier:              "com.fleet.act-test.custom",
+		RawJSON:                 varAct,
+		ConfigurationIdentifier: "com.fleet.act-test",
+		FleetVariables:          []fleet.FleetVarName{fleet.FleetVarHostUUID},
+	}), nil)
+	require.NoError(t, err)
+
+	var activationUUID string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &activationUUID,
+		`SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
+
+	var varCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Equal(t, 1, varCount)
+
+	// Re-uploading the declaration without an activation removes it, and the
+	// FK cascade takes the variable association with it.
 	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)
 	require.NoError(t, err)
 
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &count,
 		`SELECT COUNT(*) FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`, decl.DeclarationUUID))
 	require.Zero(t, count)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Zero(t, varCount)
 }

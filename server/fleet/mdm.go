@@ -733,7 +733,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 	if decl.TeamID != nil && *decl.TeamID > 0 {
 		tid = decl.TeamID
 	}
-	return &MDMConfigProfilePayload{
+	payload := &MDMConfigProfilePayload{
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
@@ -746,6 +746,10 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
+	if decl.Activation != nil {
+		payload.Activation = decl.Activation.RawJSON
+	}
+	return payload
 }
 
 func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {

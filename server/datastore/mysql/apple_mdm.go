@@ -5386,6 +5386,20 @@ ON DUPLICATE KEY UPDATE
 		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
 	}
 
+	// Read the UUID back rather than reusing the generated one: on an edit the
+	// upsert keeps the existing row, so the generated UUID was never used.
+	var activationUUID string
+	const reloadStmt = `SELECT activation_uuid FROM mdm_apple_ddm_activations WHERE declaration_uuid = ?`
+	if err := sqlx.GetContext(ctx, tx, &activationUUID, reloadStmt, declUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reload declaration activation")
+	}
+
+	if _, err := setVariableAssociationsForColumnDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+		{ProfileUUID: activationUUID, FleetVariables: act.FleetVariables},
+	}, "apple_ddm_activation_uuid"); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting activation variable associations")
+	}
+
 	return nil
 }
 

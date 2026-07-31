@@ -9521,6 +9521,39 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("supported Fleet variables in an activation are recorded", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.TierPremium)
+		activation := []byte(`{
+			"Type": "com.apple.activation.simple",
+			"Identifier": "com.fleet.actD1",
+			"Payload": {
+				"StandardConfigurations": ["com.fleet.configD1"],
+				"Predicate": "$FLEET_VAR_HOST_UUID"
+			}
+		}`)
+
+		d, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
+		require.NoError(t, err)
+		require.NotNil(t, d.Activation)
+		require.Equal(t, []fleet.FleetVarName{fleet.FleetVarHostUUID}, d.Activation.FleetVariables)
+	})
+
+	t.Run("unsupported Fleet variables in an activation are rejected", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.TierPremium)
+		activation := []byte(`{
+			"Type": "com.apple.activation.simple",
+			"Identifier": "com.fleet.actD1",
+			"Payload": {
+				"StandardConfigurations": ["com.fleet.configD1"],
+				"Predicate": "$FLEET_VAR_BOZO"
+			}
+		}`)
+
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
+		require.ErrorContains(t, err, "Couldn't upload activation.")
+		require.ErrorContains(t, err, "$FLEET_VAR_BOZO is not supported")
+	})
+
 	t.Run("activation requires premium even where the declaration doesn't", func(t *testing.T) {
 		// Fleet-less (team 0) and unlabeled declarations are allowed on Fleet
 		// Free, so this proves the activation carries its own license gate
