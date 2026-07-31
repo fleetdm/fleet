@@ -86,3 +86,26 @@ func TestParsePathParamRequired(t *testing.T) {
 		t.Fatalf("want required path param, got %+v", e.Params)
 	}
 }
+
+func TestParseDefaultResponse(t *testing.T) {
+	res := mustParseSample(t)
+	e := res.Endpoints[0] // List widgets
+	if len(e.Responses) != 1 || e.Responses[0].Status != 200 {
+		t.Fatalf("want one 200 response, got %+v", e.Responses)
+	}
+	obj, ok := e.Responses[0].Example.(map[string]any)
+	if !ok {
+		t.Fatalf("example not an object: %T", e.Responses[0].Example)
+	}
+	if _, ok := obj["widgets"]; !ok {
+		t.Errorf("example missing widgets key: %v", obj)
+	}
+}
+
+func TestParseInvalidJSONExampleIsError(t *testing.T) {
+	md := "## S\n\n### Bad json\n\n`GET /api/v1/fleet/bad`\n\n##### Default response\n\n`Status: 200`\n\n```json\n{not json}\n```\n"
+	res := Parse(md)
+	if len(res.Skipped) != 1 || !strings.Contains(res.Skipped[0].Reason, "invalid JSON") {
+		t.Fatalf("want invalid JSON skip, got %+v", res.Skipped)
+	}
+}

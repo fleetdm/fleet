@@ -3,8 +3,10 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -42,6 +44,7 @@ type Result struct {
 }
 
 var requestLineRe = regexp.MustCompile("^`(GET|POST|PUT|PATCH|DELETE|HEAD) (/[^` ]*)`\\s*$")
+var statusLineRe = regexp.MustCompile("^`Status: ([0-9]{3})[^`]*`\\s*$")
 
 // Parse walks the entire document. Sections that don't parse as endpoints are
 // recorded in Skipped with a reason; they are never fatal here. Callers decide
@@ -192,4 +195,47 @@ func splitRow(row string) []string {
 	return parts
 }
 
-func parseResponses(body []string) ([]Response, error) { return nil, nil }
+// parseResponses extracts the "##### Default response" block: a Status line
+// and an optional fenced json example. Only the default response is modeled;
+// error responses share Fleet's standard error envelope and are out of the
+// pilot's scope.
+func parseResponses(body []string) ([]Response, error) {
+	for i, l := range body {
+		if strings.TrimSpace(l) != "##### Default response" {
+			continue
+		}
+		resp := Response{Status: 200}
+		found := false
+		for j := i + 1; j < len(body); j++ {
+			t := strings.TrimSpace(body[j])
+			if strings.HasPrefix(t, "#") {
+				break
+			}
+			if m := statusLineRe.FindStringSubmatch(t); m != nil {
+				resp.Status, _ = strconv.Atoi(m[1])
+				found = true
+				continue
+			}
+			if t == "```json" {
+				var buf []string
+				for k := j + 1; k < len(body); k++ {
+					if strings.TrimSpace(body[k]) == "```" {
+						break
+					}
+					buf = append(buf, body[k])
+				}
+				var example any
+				if err := json.Unmarshal([]byte(strings.Join(buf, "\n")), &example); err != nil {
+					return nil, fmt.Errorf("invalid JSON in default response example: %v", err)
+				}
+				resp.Example = example
+				break
+			}
+		}
+		if !found && resp.Example == nil {
+			return nil, fmt.Errorf("default response block has no Status line or example")
+		}
+		return []Response{resp}, nil
+	}
+	return nil, fmt.Errorf("no default response block found")
+}
