@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.44.0",
+      "version": "1.45.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.StorageExplorer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.StorageExplorer' AND version_compare(bundle_short_version, '1.44.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.StorageExplorer' AND version_compare(bundle_short_version, '1.45.0') < 0);"
       },
-      "installer_url": "https://github.com/microsoft/AzureStorageExplorer/releases/download/v1.44.0/StorageExplorer-darwin-arm64.zip",
+      "installer_url": "https://github.com/microsoft/AzureStorageExplorer/releases/download/v1.45.0/StorageExplorer-darwin-arm64.zip",
       "install_script_ref": "e616ea6f",
       "uninstall_script_ref": "343d0773",
-      "sha256": "6e8bfd353116e7e8d34bd4d98e971da1335ca8190c7fe43b1e7cb7e70ca53888",
+      "sha256": "5750a3d17014c3185c433dc1f8fbddbd4d486758ea2ecc144c66e50b58199b22",
       "default_categories": [
         "Productivity"
       ]
