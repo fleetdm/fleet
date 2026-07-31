@@ -326,15 +326,11 @@ $base-class: "button";
     width: 28px;
   }
 
-  // Buttons with leftIcon / rightIcon use uniform 16px horizontal padding and
-  // an 8px gap between icon and label at default size. Small buttons drop to
-  // 8px horizontal padding and a 4px gap. Applies to all variants that carry
-  // an icon (default, alert, secondary, subdued).
+  // Buttons with leftIcon / rightIcon add an 8px gap between icon and label
+  // (4px on small). Horizontal padding is left to the base variant/size —
+  // it does not change based on icon presence or icon side.
   &--with-left-icon,
   &--with-right-icon {
-    padding-left: $pad-medium;
-    padding-right: $pad-medium;
-
     .children-wrapper {
       gap: $pad-small;
     }
@@ -348,9 +344,6 @@ $base-class: "button";
   &--secondary__small.button--with-right-icon,
   &--subdued__small.button--with-left-icon,
   &--subdued__small.button--with-right-icon {
-    padding-left: $pad-small;
-    padding-right: $pad-small;
-
     .children-wrapper {
       gap: $pad-xsmall;
     }
