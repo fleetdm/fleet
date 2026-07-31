@@ -31,7 +31,7 @@ Each content type has its own shape. Identify the type first, then apply the mat
 ## Case studies
 
 - Customer story told in three acts: their problem, why they chose Fleet, what changed — anchored by real, verbatim, attributed quotes.
-- Requires the case-study-specific meta tags below (`summaryChallenge`, `summarySolution`, `summaryKeyResults`, company/quote tags) in addition to the standard article endmatter; the website build enforces these.
+- Requires the case-study-specific meta tags (`summaryChallenge`, `summarySolution`, `summaryKeyResults`, company/quote tags) in addition to the standard article endmatter; the website build enforces these.
 - For the full structure, the `attribution-quote`/`checklist` custom syntax, the required meta tags, and honesty guardrails around quotes and numbers, use the `fleet-case-study-formatting` skill.
 
 ## Announcements and release notes
