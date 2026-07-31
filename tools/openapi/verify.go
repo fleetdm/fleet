@@ -16,6 +16,10 @@ import (
 	validator "github.com/pb33f/libopenapi-validator"
 )
 
+// httpClient is used for all verify requests so slow or hung servers fail
+// fast instead of blocking indefinitely.
+var httpClient = &http.Client{Timeout: 30 * time.Second}
+
 type checkStatus int
 
 const (
@@ -62,7 +66,7 @@ func checkEndpoint(v validator.Validator, server, token, method, path string, bo
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return checkResult{label, statusFailed, err.Error()}
 	}
@@ -219,7 +223,7 @@ func runCommandCheck(v validator.Validator, server, token, hostUUID string) chec
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return checkResult{label, statusFailed, err.Error()}
 	}
@@ -241,7 +245,7 @@ func login(server, email, password string) (string, error) {
 		return "", fmt.Errorf("provide --token, or both --email and --password")
 	}
 	b, _ := json.Marshal(map[string]string{"email": email, "password": password})
-	resp, err := http.Post(server+"/api/v1/fleet/login", "application/json", bytes.NewReader(b))
+	resp, err := httpClient.Post(server+"/api/v1/fleet/login", "application/json", bytes.NewReader(b))
 	if err != nil {
 		return "", err
 	}
@@ -265,7 +269,7 @@ func rawGet(server, token, path string, into any) error {
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -287,7 +291,7 @@ func rawPost(server, token, path string, body any) error {
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

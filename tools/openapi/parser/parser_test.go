@@ -87,6 +87,39 @@ func TestParsePathParamRequired(t *testing.T) {
 	}
 }
 
+func TestParseRequiredVariants(t *testing.T) {
+	cases := []struct {
+		name   string
+		desc   string
+		wantRq bool
+	}{
+		{"bare Required", "**Required**. The widget ID.", true},
+		{"Required with period inside bold", "**Required.** The widget ID.", true},
+		{"lowercase required", "**required**. The widget ID.", true},
+		{"conditional required is not required", "**Required if platform is Android**. The widget ID.", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			md := "## S\n\n### Get widget\n\n`GET /api/v1/fleet/widgets/:id`\n\n#### Parameters\n\n" +
+				"| Name | Type    | In   | Description |\n" +
+				"| ---- | ------- | ---- | ----------- |\n" +
+				"| id   | integer | query | " + tc.desc + " |\n\n" +
+				"##### Default response\n\n`Status: 200`\n\n```json\n{}\n```\n"
+			res := Parse(md)
+			if len(res.Endpoints) != 1 {
+				t.Fatalf("want 1 endpoint, got %+v (skipped: %+v)", res.Endpoints, res.Skipped)
+			}
+			params := res.Endpoints[0].Params
+			if len(params) != 1 {
+				t.Fatalf("want 1 param, got %+v", params)
+			}
+			if params[0].Required != tc.wantRq {
+				t.Errorf("Required = %v, want %v for description %q", params[0].Required, tc.wantRq, tc.desc)
+			}
+		})
+	}
+}
+
 func TestParseDefaultResponse(t *testing.T) {
 	res := mustParseSample(t)
 	e := res.Endpoints[0] // List widgets

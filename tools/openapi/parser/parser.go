@@ -46,6 +46,13 @@ type Result struct {
 var requestLineRe = regexp.MustCompile("^`(GET|POST|PUT|PATCH|DELETE|HEAD) (/[^` ]*)`\\s*$")
 var statusLineRe = regexp.MustCompile("^`Status: ([0-9]{3})[^`]*`\\s*$")
 
+// requiredRe matches the docs' "**Required**" / "**Required.**" / "**required**"
+// markers. The closing "**" must immediately follow "Required" (with at most a
+// trailing period), so conditional prose like "**Required if platform is
+// Android**" does not match: "if platform is Android" sits before the closing
+// "**", not right after "Required".
+var requiredRe = regexp.MustCompile(`\*\*[Rr]equired\.?\*\*`)
+
 // Parse walks the entire document. Sections that don't parse as endpoints are
 // recorded in Skipped with a reason; they are never fatal here. Callers decide
 // which skips matter (allowlisted endpoints missing is the caller's error).
@@ -180,7 +187,7 @@ func parseParams(body []string) ([]Param, error) {
 			Type:        strings.ToLower(cells[1]),
 			In:          in,
 			Description: cells[3],
-			Required:    strings.Contains(cells[3], "**Required**") || in == "path",
+			Required:    requiredRe.MatchString(cells[3]) || in == "path",
 		})
 	}
 	return params, nil
