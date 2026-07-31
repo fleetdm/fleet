@@ -5321,11 +5321,27 @@ func (s *integrationTestSuite) TestLabels() {
 			&fleet.LabelPayload{
 				Name:     "amazing label",
 				Query:    "select 1",
-				Platform: "linux",
+				Platform: "bados",
 			},
 			http.StatusUnprocessableEntity,
 			&createResp,
 		)
+
+		// create a label with the generic "linux" platform (matches all Linux distros)
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/labels",
+			&fleet.LabelPayload{
+				Name:     "linux label",
+				Query:    "select 1",
+				Platform: "linux",
+			},
+			http.StatusOK,
+			&createResp,
+		)
+		assert.NotZero(t, createResp.Label.ID)
+		assert.Equal(t, "linux", createResp.Label.Platform)
+		linuxLbl := createResp.Label.Label
 
 		// create a valid dynamic label
 		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1"}, http.StatusOK, &createResp)
@@ -5479,7 +5495,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.EqualValues(t, 0, modResp.Label.HostCount)
 
 		// list labels
-		dynamicLabels := []fleet.Label{lbl1}
+		dynamicLabels := []fleet.Label{lbl1, linuxLbl}
 		manualLabels := []fleet.Label{manualLbl1, manualLbl2}
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(100))
 		assert.Len(t, listResp.Labels, builtInsCount+len(dynamicLabels)+len(manualLabels))
@@ -5501,7 +5517,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.NotZero(t, createResp.Label.ID)
 		lbl2 := createResp.Label.Label
 		dynamicLabels = append(dynamicLabels, lbl2)
-		require.Len(t, dynamicLabels, 2) // to make linter happy (dynamicLabels is not used past this point)
+		require.Len(t, dynamicLabels, 3) // to make linter happy (dynamicLabels is not used past this point)
 
 		// add lbl2 hosts to that label
 		for _, h := range lbl2Hosts {
@@ -5673,6 +5689,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", linuxLbl.ID), nil, http.StatusOK, &delIDResp)
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
 
 		// delete a non-existing label by id
@@ -6396,12 +6413,30 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 				{
 					Name:                name,
 					Query:               "select 1",
-					Platform:            "linux",
+					Platform:            "bados",
 					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				},
 			},
 		},
 		http.StatusUnprocessableEntity,
+		&applyResp,
+	)
+
+	// apply a valid label spec - generic "linux" platform
+	s.DoJSON(
+		"POST",
+		"/api/latest/fleet/spec/labels",
+		fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{
+				{
+					Name:                name + "_linux",
+					Query:               "select 1",
+					Platform:            "linux",
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				},
+			},
+		},
+		http.StatusOK,
 		&applyResp,
 	)
 
@@ -6455,15 +6490,19 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		},
 	}, http.StatusOK, &applyResp)
 
-	// list label specs, has the newly created one
+	// list label specs, has the newly created ones
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
-	assert.Len(t, listResp.Specs, builtInsCount+1)
+	assert.Len(t, listResp.Specs, builtInsCount+2)
 
 	// get a specific label spec
 	var getResp fleet.GetLabelSpecResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name)), nil, http.StatusOK, &getResp)
 	assert.Equal(t, name, getResp.Spec.Name)
 	assert.NotEqual(t, 0, getResp.Spec.ID)
+
+	// the generic "linux" platform round-trips through the spec endpoints
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/spec/labels/%s", url.PathEscape(name+"_linux")), nil, http.StatusOK, &getResp)
+	assert.Equal(t, "linux", getResp.Spec.Platform)
 
 	// get a non-existing label spec
 	s.DoJSON("GET", "/api/latest/fleet/spec/labels/zzz", nil, http.StatusNotFound, &getResp)
