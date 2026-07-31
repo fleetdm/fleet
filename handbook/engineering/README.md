@@ -130,13 +130,17 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 
 1. **On-call triage**: All community PRs are first reviewed by the on-call engineer. The on-call engineer routes the PR to the appropriate product group.
 
-2. **EM assessment**: The Engineering Manager (EM) of the owning product group evaluates the size, complexity, and review effort required.
+2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
 
-3. **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
+3. **Decision gate**: Based on the type, the right person decides whether this is something we want to pursue:
+   - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or documentation): the Product Designer (PD) decides.
+   - Bug fixes and reliability issues: the Engineering Manager decides.
 
-4. **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline.
+   If the PR is not something we want to pursue, thank the contributor, explain the reasoning, and close the PR.
 
-5. **Product changes**: If the PR changes the product (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or documentation), the EM assigns it to the relevant Product Designer (PD) for review before merging.
+4. **Size and complexity** (EM): If accepted, the EM evaluates the review effort required:
+   - **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
+   - **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline.
 
 
 #### Merge a community pull request
