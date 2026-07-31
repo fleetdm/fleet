@@ -100,8 +100,6 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 	}
-	// AppConfigObfuscated hydrates the Windows enrollment default fleet from its config row on
-	// every config read, so default to "not configured" for tests that don't care about it.
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
@@ -520,8 +518,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
-	// Stateful default for the Windows enrollment default fleet config row: config reads hydrate
-	// from it on every GET /config, so all gitops runs touch it. Tests can override.
+	// Stateful default for the Windows enrollment default fleet config row. Tests can override.
 	var windowsEnrollmentDefaultTeamID *uint
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		if windowsEnrollmentDefaultTeamID == nil {

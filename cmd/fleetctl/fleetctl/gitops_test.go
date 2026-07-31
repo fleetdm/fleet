@@ -4845,8 +4845,7 @@ software:
 				savedTeams[tt.seedTeamName] = &seeded
 			}
 
-			// Track the persisted default fleet, overriding the helper's stateful default so the
-			// test can assert on it directly.
+			// Track the persisted default fleet, overriding the helper's stateful default so the test can assert on it directly.
 			var defaultTeamID *uint
 			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 				if defaultTeamID == nil {
