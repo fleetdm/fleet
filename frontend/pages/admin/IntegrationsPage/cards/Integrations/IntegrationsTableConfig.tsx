@@ -101,9 +101,10 @@ const generateTableHeaders = (
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
         <Button
-          className="row-hover-button integrations-management__delete-button"
+          className="row-hover-button"
           variant="subdued"
           size="small"
+          ariaLabel="Delete integration"
           onClick={() =>
             actionSelectHandler(
               cellProps.cell.value[0].value as string,
@@ -118,7 +119,9 @@ const generateTableHeaders = (
   ];
 };
 
-// NOTE: may need current user ID later for permission on actions.
+// NOTE: the Actions cell renders a single trash Button (not an ActionsDropdown)
+// and reads value[0] directly. If a second option is added here, update the
+// Cell renderer accordingly.
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
