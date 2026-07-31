@@ -167,9 +167,8 @@ consequences shape the design:
   the same. Assignment is therefore a staging operation; nothing happens until the next wipe.
   **Verify before building on this.** Google is silent on what happens to an already-provisioned device
   that is later assigned a configuration, so "waits for the next reset" is the documented behaviour rather
-  than a guarantee about every state. An earlier draft of this document claimed assignment wipes an
-  in-service device; that was a misreading of the sentence quoted in the next bullet, whose subject is a
-  device still in the setup wizard.
+  than a guarantee about every state. Note the adjacent sentence quoted in the next bullet is easy to
+  misread as applying here — its subject is a device still in the setup wizard, not one in service.
 - **A device that skips zero-touch for lack of network resets itself later.** If a device has a
   configuration but no connectivity during setup, zero-touch is skipped and the device boots unmanaged —
   then "resets itself after the first connection to Google servers," warning the user one hour ahead. This
