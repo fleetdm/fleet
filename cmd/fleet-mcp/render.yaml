@@ -2,7 +2,7 @@ services:
   - type: web
     name: fleet-mcp
     runtime: go
-    plan: starter
+    plan: standard
     rootDir: cmd/fleet-mcp
     buildCommand: go build -o fleet-mcp .
     startCommand: ./fleet-mcp
