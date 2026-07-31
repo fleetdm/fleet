@@ -3126,6 +3126,48 @@ This activity contains the following fields:
 }
 ```
 
+## installed_configuration_profile
+
+Generated when a configuration profile is installed on a host by the user (self-service).
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
+## uninstalled_configuration_profile
+
+Generated when a configuration profile is uninstalled on a host by the user (self-service).
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "self_service": Whether the installation was initiated by the end user.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "self_service": true,
+  "profile_name": "Passcode requirements",
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
