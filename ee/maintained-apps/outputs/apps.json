@@ -6379,6 +6379,13 @@
       "description": "Pacifist is an extract files and folders from package files, disk images, and archives."
     },
     {
+      "name": "Paint.NET",
+      "slug": "paint-dot-net/windows",
+      "platform": "windows",
+      "unique_identifier": "Paint.NET",
+      "description": "Paint.NET is an image and photo editor with support for layers, effects, and a range of image formats."
+    },
+    {
       "name": "Pale Moon",
       "slug": "pale-moon/darwin",
       "platform": "darwin",
