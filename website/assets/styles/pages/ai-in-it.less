@@ -177,6 +177,33 @@
     }
   }
 
+  [purpose='press-logos'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  [purpose='press-logos-heading'] {
+    color: @core-fleet-black;
+    font-family: Inter;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: @text-lineheight;
+    text-align: center;
+  }
+  [purpose='press-logo-row'] {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 48px;
+    a {
+      display: flex;
+      align-items: center;
+    }
+  }
+
   [purpose='feature-with-image'] {
     .feature-with-image();
     gap: 64px;
@@ -281,6 +308,14 @@
         border-bottom-right-radius: 0px;
       }
     }
+    [purpose='press-logos'] {
+      gap: 24px;
+    }
+    [purpose='press-logo-row'] {
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
 
   }
 
@@ -317,6 +352,5 @@
       padding: 32px 24px;
     }
   }
-
 
 }
