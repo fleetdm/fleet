@@ -7279,6 +7279,23 @@ software:
 				return false, nil
 			}
 		})
+
+		t.Run("update_new_hosts derives true in latest mode", func(t *testing.T) {
+			savedTeam = existingTeamWithMacOSUpdates("", "")
+
+			teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			// "latest" has no deadline, so deriving from the deadline alone would
+			// leave new hosts unenforced.
+			_, err = teamFile.WriteString(teamYAML(
+				"  macos_updates:\n    minimum_version: \"latest\"\n    deadline_days: 7"))
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
+
+			require.Equal(t, optjson.SetBool(true), savedTeam.Config.MDM.MacOSUpdates.UpdateNewHosts)
+			require.Equal(t, optjson.SetInt(7), savedTeam.Config.MDM.MacOSUpdates.DeadlineDays)
+		})
 	})
 
 	t.Run("ios_updates", func(t *testing.T) {
