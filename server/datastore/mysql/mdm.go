@@ -2360,6 +2360,16 @@ func setVariableAssociationsForColumnDB(
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	columnName string,
 ) (didUpdate bool, err error) {
+	// columnName is interpolated into the statements below. Every caller passes
+	// a literal today, but the helper is shared across profiles, declarations
+	// and activations, so keep the invariant explicit rather than implied.
+	switch columnName {
+	case "apple_profile_uuid", "windows_profile_uuid", "apple_declaration_uuid",
+		"android_profile_uuid", "apple_ddm_activation_uuid":
+	default:
+		return false, ctxerr.Errorf(ctx, "unsupported variable association column %q", columnName)
+	}
+
 	// collect the profile uuids to clear
 	profileUUIDsToDelete := make([]string, 0, len(profileVariablesByUUID))
 	// small optimization - if there are no variables to insert, we can stop here

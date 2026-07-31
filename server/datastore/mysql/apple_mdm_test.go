@@ -13989,6 +13989,57 @@ func testMDMAppleCustomActivations(t *testing.T, ds *Datastore) {
 		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
 	require.Equal(t, 1, varCount)
 
+	// An identifier already used by another declaration's activation is
+	// rejected rather than silently overwriting that declaration's row.
+	otherDecl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+	}, nil)
+	require.NoError(t, err)
+
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.fleet.act-test.other",
+		Name:       "act-test-other",
+		RawJSON:    []byte(`{"Type":"com.apple.configuration.passcode.settings","Identifier":"com.fleet.act-test.other","Payload":{"Echo":"bar"}}`),
+		Activation: &fleet.MDMAppleCustomActivation{
+			// same identifier as the first declaration's activation
+			Identifier:              "com.fleet.act-test.custom",
+			RawJSON:                 actRaw,
+			ConfigurationIdentifier: "com.fleet.act-test.other",
+		},
+	}, nil)
+	require.Error(t, err)
+	var existsErr interface{ IsExists() bool }
+	require.ErrorAs(t, err, &existsErr, "expected an already-exists error, got %v", err)
+	require.True(t, existsErr.IsExists())
+
+	// the first declaration's activation is untouched
+	var stillOwned string
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &stillOwned,
+		`SELECT declaration_uuid FROM mdm_apple_ddm_activations WHERE identifier = 'com.fleet.act-test.custom'`))
+	require.Equal(t, decl.DeclarationUUID, stillOwned)
+
+	require.NoError(t, ds.DeleteMDMAppleDeclaration(ctx, otherDecl.DeclarationUUID))
+
+	// A write that carries the activation forward without restating its
+	// variables must not drop the associations. This is the shape a
+	// labels-only edit produces, since the service reuses the activation
+	// returned by GetMDMAppleDeclaration, which doesn't load them.
+	carried, err := ds.GetMDMAppleDeclaration(ctx, decl.DeclarationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, carried.Activation)
+	require.Empty(t, carried.Activation.FleetVariables, "loaded activation carries no variables")
+
+	carriedAct := *carried.Activation
+	carriedAct.FleetVariables = []fleet.FleetVarName{fleet.FleetVarHostUUID}
+	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(&carriedAct), nil)
+	require.NoError(t, err)
+
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &varCount,
+		`SELECT COUNT(*) FROM mdm_configuration_profile_variables WHERE apple_ddm_activation_uuid = ?`, activationUUID))
+	require.Equal(t, 1, varCount)
+
 	// Re-uploading the declaration without an activation removes it, and the
 	// FK cascade takes the variable association with it.
 	_, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, newDecl(nil), nil)

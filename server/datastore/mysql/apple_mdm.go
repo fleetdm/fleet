@@ -5344,6 +5344,31 @@ func setMDMAppleDDMActivationDB(ctx context.Context, tx sqlx.ExtContext, declUUI
 		return nil
 	}
 
+	act := declaration.Activation
+
+	// The upsert below fires on any of this table's unique keys, so an
+	// identifier already held by a *different* declaration's activation would
+	// silently overwrite that row while leaving its declaration_uuid pointing
+	// elsewhere. Reject it up front instead. The (team_id,
+	// configuration_identifier) key needs no such guard: a configuration
+	// identifier is unique per team, so a conflict there is always the same
+	// declaration.
+	const conflictStmt = `
+SELECT 1 FROM mdm_apple_ddm_activations
+WHERE team_id = ? AND identifier = ? AND declaration_uuid != ?`
+
+	var conflict bool
+	switch err := sqlx.GetContext(ctx, tx, &conflict, conflictStmt, tmID, act.Identifier, declUUID); {
+	case err == nil:
+		return ctxerr.Wrap(ctx, &existsError{
+			ResourceType: "MDMAppleCustomActivation.Identifier",
+			Identifier:   act.Identifier,
+			TeamID:       &tmID,
+		}, "conflicting activation identifier")
+	case !errors.Is(err, sql.ErrNoRows):
+		return ctxerr.Wrap(ctx, err, "checking for conflicting activation identifier")
+	}
+
 	const upsertStmt = `
 INSERT INTO mdm_apple_ddm_activations (
 	activation_uuid,
@@ -5366,7 +5391,6 @@ ON DUPLICATE KEY UPDATE
 	secrets_updated_at = VALUES(secrets_updated_at)
 `
 
-	act := declaration.Activation
 	if _, err := tx.ExecContext(ctx, upsertStmt,
 		fleet.MDMAppleDDMActivationUUIDPrefix+uuid.NewString(),
 		tmID,
@@ -5376,13 +5400,6 @@ ON DUPLICATE KEY UPDATE
 		declaration.Identifier,
 		act.SecretsUpdatedAt,
 	); err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, &existsError{
-				ResourceType: "MDMAppleCustomActivation.Identifier",
-				Identifier:   act.Identifier,
-				TeamID:       &tmID,
-			}, "inserting declaration activation")
-		}
 		return ctxerr.Wrap(ctx, err, "inserting declaration activation")
 	}
 

@@ -1536,6 +1536,38 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		assert.Equal(t, stored.Identifier, updated.Activation.Identifier)
 	})
 
+	t.Run("labels-only update re-derives the activation's Fleet variables", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
+		// the stored activation is loaded without its variables, exactly as
+		// GetMDMAppleDeclaration returns it
+		existing.Activation = &fleet.MDMAppleCustomActivation{
+			Identifier: "com.fleet.actD1",
+			RawJSON: []byte(`{"Type":"com.apple.activation.simple","Identifier":"com.fleet.actD1",` +
+				`"Payload":{"StandardConfigurations":["com.fleet.configD1"],"Predicate":"$FLEET_VAR_HOST_UUID"}}`),
+			ConfigurationIdentifier: "com.fleet.configD1",
+		}
+
+		ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, duid string) (*fleet.MDMAppleDeclaration, error) {
+			return existing, nil
+		}
+		var updated *fleet.MDMAppleDeclaration
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
+			updated = d
+			return d, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, nil, []string{"label-1"}, fleet.LabelsIncludeAll, nil, nil)
+		require.NoError(t, err)
+
+		// the datastore rewrites an activation's variable associations from
+		// whatever it's handed, so carrying it forward without re-deriving
+		// these would wipe them
+		require.NotNil(t, updated)
+		require.NotNil(t, updated.Activation)
+		assert.Equal(t, []fleet.FleetVarName{fleet.FleetVarHostUUID}, updated.Activation.FleetVariables)
+	})
+
 	t.Run("new content without an activation clears the stored one", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		existing := newExistingDeclaration("Test Declaration", "com.fleet.configD1", 0)
@@ -9485,6 +9517,13 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 		d, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, activation)
 		require.NoError(t, err)
 		require.NotNil(t, d)
+
+		require.NotNil(t, d.Activation)
+		assert.Equal(t, "com.fleet.actD1", d.Activation.Identifier)
+		assert.Equal(t, declIdentifier, d.Activation.ConfigurationIdentifier)
+		// the whole document is stored verbatim, Predicate included -- Fleet
+		// never interprets it
+		assert.JSONEq(t, string(activation), string(d.Activation.RawJSON))
 	})
 
 	t.Run("activation referencing another configuration is rejected", func(t *testing.T) {

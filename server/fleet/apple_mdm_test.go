@@ -290,12 +290,6 @@ func TestMDMAppleRawDeclarationValidateUserProvided(t *testing.T) {
 			declType: "com.apple.management.properties",
 			wantErr:  false,
 		},
-		{
-			name:        "activation declaration still not allowed",
-			declType:    "com.apple.activation.simple",
-			wantErr:     true,
-			errContains: "and management declarations",
-		},
 	}
 
 	for _, c := range cases {

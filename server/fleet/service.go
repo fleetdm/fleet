@@ -1241,9 +1241,10 @@ type Service interface {
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
 	// NewMDMActivationUnsupportedProfile is called when an activation is
-	// uploaded alongside a profile that isn't an Apple declaration. Like the
-	// two below, it exists so the error goes through an authorization check --
-	// the endpoint can't reach svc.authz through this interface.
+	// uploaded alongside a profile that isn't an Apple declaration. Like
+	// NewMDMUnsupportedConfigProfile and NewMDMInvalidJSONConfigProfile, it
+	// exists so the error goes through an authorization check -- the endpoint
+	// can't reach svc.authz through this interface.
 	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
 
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that

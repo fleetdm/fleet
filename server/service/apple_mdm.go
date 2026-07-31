@@ -1284,6 +1284,25 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 		for _, v := range variables.Find(expanded) {
 			varNames = append(varNames, fleet.FleetVarName(v))
 		}
+		// The stored activation is loaded without its Fleet variables, and the
+		// datastore rewrites an activation's variable associations from
+		// whatever it is handed. Re-derive them from the activation's own
+		// content, for the same reason the declaration's are re-derived above.
+		carriedActivation := existing.Activation
+		if carriedActivation != nil {
+			expandedAct, _, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(carriedActivation.RawJSON))
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "expanding secrets for existing activation")
+			}
+			actVarNames := make([]fleet.FleetVarName, 0, len(carriedActivation.FleetVariables))
+			for _, v := range variables.Find(expandedAct) {
+				actVarNames = append(actVarNames, fleet.FleetVarName(v))
+			}
+			// copy so the loaded row isn't mutated in place
+			carried := *carriedActivation
+			carried.FleetVariables = actVarNames
+			carriedActivation = &carried
+		}
 		decl = &fleet.MDMAppleDeclaration{
 			Name:             existing.Name,
 			Identifier:       existing.Identifier,
@@ -1296,7 +1315,7 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			// carry the stored activation forward: the datastore clears the
 			// activation of any declaration written without one, so a
 			// labels-only edit would otherwise silently remove it
-			Activation: existing.Activation,
+			Activation: carriedActivation,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
