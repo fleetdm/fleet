@@ -20,7 +20,7 @@ describe("formatSoftwareType", () => {
       },
       {
         source: "programs" as const,
-        expected: "Program (Windows)",
+        expected: "Application (Windows)",
         description: "Windows programs",
       },
       {

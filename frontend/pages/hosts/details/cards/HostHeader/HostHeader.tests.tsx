@@ -56,6 +56,24 @@ describe("HostHeader", () => {
     expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
   });
 
+  it("shows a tooltip explaining the missing refetch button for Android hosts", async () => {
+    const { user } = renderWithSetup(
+      <HostHeader
+        summaryData={{ ...defaultSummaryData, platform: "android" }}
+        showRefetchSpinner={false}
+        onRefetchHost={jest.fn()}
+        renderActionsDropdown={renderActionDropdown}
+        hostMdmEnrollmentStatus={null}
+      />
+    );
+
+    await user.hover(screen.getByText(/Last fetched/i));
+
+    expect(
+      await screen.findByText(/there's no Refetch button/i)
+    ).toBeInTheDocument();
+  });
+
   it("disables refetch button when host is offline", () => {
     render(
       <HostHeader

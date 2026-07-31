@@ -303,12 +303,13 @@ const OktaConditionalAccessModal = ({
           </TooltipWrapper>
           <br />
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onDownloadSigningCert}
             isLoading={isDownloadingCert}
             disabled={isDownloadingCert}
           >
-            Download certificate <Icon name="download" />
+            <span>Download certificate</span>
+            <Icon name="download" />
           </Button>
         </div>
 
@@ -366,7 +367,7 @@ const OktaConditionalAccessModal = ({
           }
           internalError={formErrors[OKTA_CERTIFICATE]}
           onFileUpload={onSelectFile}
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           buttonMessage="Upload"
           accept=".pem,.crt,.cer,.cert"
           fileDetails={certFile ? { name: certFile.name } : undefined}
@@ -380,7 +381,7 @@ const OktaConditionalAccessModal = ({
           >
             Save
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

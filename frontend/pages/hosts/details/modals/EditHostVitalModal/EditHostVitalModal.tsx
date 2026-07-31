@@ -67,7 +67,7 @@ const EditHostVitalModal = ({
           <Button type="submit" isLoading={isSaving} disabled={isSaving}>
             Save
           </Button>
-          <Button variant="inverse" onClick={onCancel} disabled={isSaving}>
+          <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
             Cancel
           </Button>
         </div>
