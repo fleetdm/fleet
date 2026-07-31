@@ -457,6 +457,7 @@ import GoogleGemini from "./GoogleGemini";
 import GoogleWebDesigner from "./GoogleWebDesigner";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
+import Gpg4Win from "./Gpg4Win";
 import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Grandperspective from "./Grandperspective";
@@ -1608,6 +1609,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
+  gpg4win: Gpg4Win,
   gpodder: Gpodder,
   grammarly: GrammarlyDesktop,
   grandperspective: Grandperspective,
