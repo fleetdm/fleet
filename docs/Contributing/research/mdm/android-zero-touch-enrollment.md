@@ -46,7 +46,6 @@ proves the token and team-mapping model before the credential decision is made.
 - [Edge cases and failure modes](#edge-cases-and-failure-modes)
 - [Testing plan](#testing-plan)
 - [Security considerations](#security-considerations)
-- [Unverified claims](#unverified-claims)
 - [Open questions](#open-questions)
 - [Effort estimate](#effort-estimate)
 - [References](#references)
@@ -828,6 +827,10 @@ Phase 1 is independently shippable and worth doing even if Phases 2–4 never ar
 - **Unit** — table-driven `t.Run` subtests over the client interface via the new mock. Cover configuration
   diffing, default-configuration transitions, rotation ordering (patch before delete), `additionalData`
   v1/v2 parsing, and serial normalization.
+- **Behaviour to pin down against the real API before relying on it** — whether
+  `customers.devices:removeConfiguration` leaves the device with no configuration or falls back to the
+  account default. Google documents only "Removes a configuration from device," and the answer determines
+  whether removing a team's configuration silently re-homes its devices into the default team.
 - **Enroll-secret rotation regression** — create a zero-touch token, rotate the team's enroll secret,
   deliver a synthetic `ENROLLMENT` notification, assert the host lands in the right team. This test is the
   reason to do the work.
@@ -860,31 +863,17 @@ Phase 1 is independently shippable and worth doing even if Phases 2–4 never ar
   confirmation.
 - Run a `fleet-security-auditor` pass before merge.
 
-## Unverified claims
-
-Everything else in this document is drawn from Google's published reference documentation or from Fleet's
-source. These specific points are inference or contested and must be confirmed before they are relied on:
-
-1. **Whether `signinEnrollmentToken` works in `dpcExtras`** to drive sign-in-URL authentication from
-   zero-touch. Google documents the two methods separately and does not describe combining them.
-2. **The correct `dpcExtras` payload**, given that the AMAPI provisioning guide and the zero-touch EMM
-   guide contradict each other on whether to include the device-admin component name and signature
-   checksum. Test on hardware.
-3. **Whether customer-account service-account linking is still a Google Form.** The documentation says so;
-   the reseller portal has a self-service screen and the customer portal may have gained parity.
-4. **Whether `androidworkzerotouchemm` is a sensitive scope** requiring Google app verification for
-   Option B.
-5. **What state devices land in after a cascaded `enterprises.delete`** — unmanaged, orphaned, or
-   requiring a reset.
-6. **Whether serial/IMEI correlation is reliable across OEMs** well enough to build pending hosts on.
-7. **Google's rate limits for the provisioning API**, which determine the cron interval.
-8. **Whether `removeConfiguration` falls back to the default configuration** or leaves the device with
-   none. Google documents only "Removes a configuration from device."
-
 ## Open questions
 
+Claims in this document come from Google's published reference documentation or from Fleet's source, except
+where the text says otherwise. Where something is inference, contested between Google's own documents, or
+needs hardware to settle, it is flagged in place in the section it affects — see in particular the
+`dpcExtras` payload, `signinDetail` with zero-touch, service-account linking, and post-offboarding device
+state. The questions below are the ones that block decisions.
+
 1. **Credential model** — Option A or B? Blocks Phase 2. Needs Google's Android Enterprise partner team on
-   items 3 and 4 above.
+   two points: whether customer-account service-account linking is still a Google Form, and whether
+   `androidworkzerotouchemm` is a sensitive scope requiring app verification.
 2. **Proxy divergence** — is "zero-touch goes direct to Google" acceptable to Fleet Cloud, given every
    other Android call is proxied?
 3. **Tier gating** — Premium or Free, and by what mechanism, given the Android bounded context has none?
