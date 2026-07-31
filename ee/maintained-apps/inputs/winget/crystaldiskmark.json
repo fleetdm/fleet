@@ -3,7 +3,7 @@
   "slug": "crystaldiskmark/windows",
   "package_identifier": "CrystalDewWorld.CrystalDiskMark",
   "unique_identifier": "CrystalDiskMark",
-  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark%' AND name NOT LIKE '%Edition%';",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'CrystalDiskMark %' AND name NOT LIKE '%Edition%';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/crystaldiskmark_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/crystaldiskmark_uninstall.ps1",
   "installer_arch": "x64",
