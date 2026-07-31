@@ -225,7 +225,7 @@ func parseResponses(body []string) ([]Response, error) {
 					buf = append(buf, body[k])
 				}
 				var example any
-				if err := json.Unmarshal([]byte(strings.Join(buf, "\n")), &example); err != nil {
+				if err := json.Unmarshal(stripLineComments([]byte(strings.Join(buf, "\n"))), &example); err != nil {
 					return nil, fmt.Errorf("invalid JSON in default response example: %v", err)
 				}
 				resp.Example = example
@@ -238,4 +238,44 @@ func parseResponses(body []string) ([]Response, error) {
 		return []Response{resp}, nil
 	}
 	return nil, fmt.Errorf("no default response block found")
+}
+
+// stripLineComments removes "// comment" annotations the docs use inside
+// otherwise-valid JSON examples (for example, "// Fleet Premium only"),
+// leaving "//" inside string literals (URLs, etc.) untouched.
+func stripLineComments(b []byte) []byte {
+	var out []byte
+	inString := false
+	escaped := false
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if inString {
+			out = append(out, c)
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		if c == '"' {
+			inString = true
+			out = append(out, c)
+			continue
+		}
+		if c == '/' && i+1 < len(b) && b[i+1] == '/' {
+			for i < len(b) && b[i] != '\n' {
+				i++
+			}
+			if i < len(b) {
+				out = append(out, b[i]) // keep the newline
+			}
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
 }
