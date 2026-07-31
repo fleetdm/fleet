@@ -75,7 +75,11 @@ func runGenerate(args []string) int {
 
 	if *check {
 		existing, err := os.ReadFile(*out)
-		if err != nil || !bytes.Equal(existing, rendered) {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s does not exist or is unreadable. Run `make openapi` and commit the result.\n", *out)
+			return 1
+		}
+		if !bytes.Equal(existing, rendered) {
 			fmt.Fprintf(os.Stderr, "error: %s is stale. Run `make openapi` and commit the result.\n", *out)
 			return 1
 		}

@@ -25,6 +25,7 @@ paths:
         - name: host_identifier
           in: query
           description: '**Required.** The host''s `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5.'
+          required: true
           schema:
             type: string
         - name: page
