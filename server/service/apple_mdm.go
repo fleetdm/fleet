@@ -64,6 +64,11 @@ const (
 	maxValueCharsInError          = 100
 	SameProfileNameUploadErrorMsg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 	limit10KiB                    = 10 * 1024
+
+	// ActivationUnsupportedProfileErrorMsg is used by every path that accepts an
+	// activation (single upload here, batch/GitOps elsewhere) so the same
+	// mistake reads the same way wherever it's made.
+	ActivationUnsupportedProfileErrorMsg = "Couldn't add. Activations are only supported for declaration (DDM) profiles."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -960,7 +965,39 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 	return nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) (*fleet.MDMAppleDeclaration, error) {
+// validateActivation parses and validates a user-provided custom activation
+// against the configuration declaration it is attached to. It returns nil when
+// no activation was supplied, leaving Fleet to generate one as before.
+//
+// Callers must pass the identifier of the declaration the activation ships
+// with: Fleet allows exactly one configuration per activation, and that
+// configuration is always the one being uploaded.
+func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier string) (*fleet.MDMAppleRawActivation, error) {
+	if len(activation) == 0 {
+		return nil, nil
+	}
+
+	// Unlike declarations, which are free for hosts on no fleet and without
+	// labels, custom activations are premium in every case.
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return nil, ctxerr.Wrap(ctx,
+			fleet.NewLicenseErrorWithCause(fleet.DDMCustomActivationPremiumCauseMsg),
+			"checking license for DDM custom activation")
+	}
+
+	rawAct, err := fleet.GetRawActivationValues(activation)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing activation")
+	}
+
+	if err := rawAct.ValidateUserProvided(configurationIdentifier); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating activation")
+	}
+
+	return rawAct, nil
+}
+
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -980,6 +1017,10 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 
 	d, varNames, teamName, err := svc.parseAndValidateAppleDeclaration(ctx, teamID, name, data, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	if err != nil {
+		return nil, err
+	}
+
+	if _, err := svc.validateActivation(ctx, activation, d.Identifier); err != nil {
 		return nil, err
 	}
 

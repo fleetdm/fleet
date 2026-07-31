@@ -1073,3 +1073,119 @@ func TestIsMacAppleSilicon(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRawActivationValues(t *testing.T) {
+	t.Run("valid activation", func(t *testing.T) {
+		raw, err := GetRawActivationValues([]byte(`{
+			"Type": "com.apple.activation.simple",
+			"Identifier": "com.fleet.act.passcode",
+			"Payload": {
+				"StandardConfigurations": ["com.fleet.cfg.passcode"],
+				"Predicate": "@status(os.version.major) >= 15"
+			}
+		}`))
+		require.NoError(t, err)
+		require.Equal(t, "com.apple.activation.simple", raw.Type)
+		require.Equal(t, "com.fleet.act.passcode", raw.Identifier)
+		require.Equal(t, []string{"com.fleet.cfg.passcode"}, raw.Payload.StandardConfigurations)
+	})
+
+	t.Run("malformed JSON", func(t *testing.T) {
+		_, err := GetRawActivationValues([]byte(`{"Type":`))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "should include valid JSON")
+	})
+}
+
+func TestMDMAppleRawActivationValidateUserProvided(t *testing.T) {
+	const configIdentifier = "com.fleet.cfg.passcode"
+
+	cases := []struct {
+		name        string
+		activation  MDMAppleRawActivation
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid activation",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier),
+		},
+		{
+			// Fleet accepts the whole com.apple.activation.* namespace so a new
+			// Apple activation type doesn't need a Fleet change.
+			name: "unknown activation type under the activation prefix is allowed",
+			activation: rawActivation("com.apple.activation.something-new", "com.fleet.act.passcode",
+				configIdentifier),
+		},
+		{
+			name:        "missing type",
+			activation:  rawActivation("", "com.fleet.act.passcode", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include a Type.",
+		},
+		{
+			name: "configuration type is not an activation",
+			activation: rawActivation("com.apple.configuration.passcode.settings", "com.fleet.act.passcode",
+				configIdentifier),
+			wantErr:     true,
+			errContains: "Only activation declarations (com.apple.activation.) are supported.",
+		},
+		{
+			name:        "missing identifier",
+			activation:  rawActivation("com.apple.activation.simple", "   ", configIdentifier),
+			wantErr:     true,
+			errContains: "Activation must include an Identifier.",
+		},
+		{
+			name:        "no configurations referenced",
+			activation:  rawActivation("com.apple.activation.simple", "com.fleet.act.passcode"),
+			wantErr:     true,
+			errContains: "Activation must reference the configuration profile it's uploaded with.",
+		},
+		{
+			name: "more than one configuration referenced",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				configIdentifier, "com.fleet.cfg.firewall"),
+			wantErr:     true,
+			errContains: "Activation can only reference one configuration profile.",
+		},
+		{
+			name: "references a different configuration",
+			activation: rawActivation("com.apple.activation.simple", "com.fleet.act.passcode",
+				"com.fleet.cfg.firewall"),
+			wantErr:     true,
+			errContains: `Expected "com.fleet.cfg.passcode", got "com.fleet.cfg.firewall".`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := c.activation.ValidateUserProvided(configIdentifier)
+			if c.wantErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, c.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+
+	t.Run("all problems are reported at once", func(t *testing.T) {
+		act := rawActivation("com.apple.configuration.passcode.settings", "")
+		err := act.ValidateUserProvided(configIdentifier)
+		require.Error(t, err)
+
+		var invalid *InvalidArgumentError
+		require.ErrorAs(t, err, &invalid)
+		require.Len(t, invalid.Errors, 3)
+	})
+}
+
+func rawActivation(declType, identifier string, standardConfigurations ...string) MDMAppleRawActivation {
+	var act MDMAppleRawActivation
+	act.Type = declType
+	act.Identifier = identifier
+	act.Payload.StandardConfigurations = standardConfigurations
+	return act
+}

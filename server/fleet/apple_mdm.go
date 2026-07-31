@@ -1037,6 +1037,79 @@ func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	return &rawDecl, nil
 }
 
+// MDMAppleActivationTypePrefix is the prefix every Apple activation
+// declaration type carries. Fleet accepts any type under it rather than only
+// com.apple.activation.simple, so new activation types Apple introduces work
+// without a Fleet change.
+const MDMAppleActivationTypePrefix = "com.apple.activation."
+
+// MDMAppleRawActivation holds the fields Fleet reads out of a user-provided
+// activation declaration. Everything else in the document — most importantly
+// Payload.Predicate — is stored and served verbatim; Fleet never interprets
+// it and leaves the device to evaluate or reject it.
+type MDMAppleRawActivation struct {
+	// Type is the "Type" field on the raw activation JSON.
+	Type string `json:"Type"`
+	// Identifier is the activation's own identifier, distinct from the
+	// identifier of the configuration it activates.
+	Identifier string `json:"Identifier"`
+	Payload    struct {
+		// StandardConfigurations lists the configuration declarations this
+		// activation turns on. Apple allows several; Fleet allows exactly one,
+		// the configuration the activation is uploaded alongside.
+		StandardConfigurations []string `json:"StandardConfigurations"`
+	} `json:"Payload"`
+}
+
+// GetRawActivationValues parses a user-provided activation declaration.
+func GetRawActivationValues(raw []byte) (*MDMAppleRawActivation, error) {
+	var rawAct MDMAppleRawActivation
+	if err := json.Unmarshal(raw, &rawAct); err != nil {
+		return nil, NewInvalidArgumentError("activation", fmt.Sprintf("Couldn't add. The activation should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+	}
+
+	return &rawAct, nil
+}
+
+// ValidateUserProvided checks a user-provided activation against the
+// configuration declaration it is being attached to. It deliberately does not
+// reuse MDMAppleRawDeclaration.ValidateUserProvided, which only admits
+// com.apple.configuration.* types and would reject every activation.
+//
+// configurationIdentifier is the Identifier of the declaration the activation
+// is uploaded alongside; Fleet's model is one activation per configuration, so
+// StandardConfigurations must name exactly that identifier and nothing else.
+func (r *MDMAppleRawActivation) ValidateUserProvided(configurationIdentifier string) error {
+	invalid := &InvalidArgumentError{}
+
+	if r.Type == "" {
+		invalid.Append("Type", "Activation must include a Type.")
+	} else if !strings.HasPrefix(r.Type, MDMAppleActivationTypePrefix) {
+		invalid.Append("Type", fmt.Sprintf("Only activation declarations (%s) are supported.", MDMAppleActivationTypePrefix))
+	}
+
+	if strings.TrimSpace(r.Identifier) == "" {
+		invalid.Append("Identifier", "Activation must include an Identifier.")
+	}
+
+	switch configs := r.Payload.StandardConfigurations; {
+	case len(configs) == 0:
+		invalid.Append("StandardConfigurations", "Activation must reference the configuration profile it's uploaded with.")
+	case len(configs) > 1:
+		invalid.Append("StandardConfigurations", "Activation can only reference one configuration profile.")
+	case configs[0] != configurationIdentifier:
+		invalid.Append("StandardConfigurations", fmt.Sprintf(
+			"Activation must reference the configuration profile it's uploaded with. Expected %q, got %q.",
+			configurationIdentifier, configs[0]))
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+
+	return nil
+}
+
 // MDMAppleHostDeclaration represents the state of a declaration on a host
 type MDMAppleHostDeclaration struct {
 	// HostUUID is the uuid of the host affected by this declaration

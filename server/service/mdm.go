@@ -1681,6 +1681,9 @@ type newMDMConfigProfileRequest struct {
 	LabelsIncludeAll []string
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
+	// Activation is an optional custom activation declaration, only supported
+	// alongside an Apple declaration (DDM) profile.
+	Activation *multipart.FileHeader
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1716,6 +1719,16 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 
 	if decoded.Profile.Size > fleet.MaxProfileSize {
 		return nil, fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
+	}
+
+	// add activation, optional and only meaningful for declaration (DDM)
+	// profiles -- that's enforced by the endpoint, which is where the profile
+	// type is determined.
+	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
+		decoded.Activation = fhs[0]
+		if decoded.Activation.Size > fleet.MaxProfileSize {
+			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
+		}
 	}
 
 	// add labels
@@ -1769,6 +1782,20 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		return &newMDMConfigProfileResponse{Err: err}, nil
 	}
 
+	var activation []byte
+	if req.Activation != nil {
+		af, err := req.Activation.Open()
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+		defer af.Close()
+
+		activation, err = io.ReadAll(af)
+		if err != nil {
+			return &newMDMConfigProfileResponse{Err: err}, nil
+		}
+	}
+
 	fileExt := filepath.Ext(req.Profile.Filename)
 	profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
@@ -1805,10 +1832,20 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 	}
 
+	// An activation gates a DDM configuration declaration, so it's meaningless
+	// next to any other profile type. This check lives in the endpoint because
+	// the endpoint is what determines the profile's type; the message is shared
+	// with the batch path so the same mistake reads the same way.
+	if len(activation) > 0 && !isAppleDeclarationJSON {
+		return &newMDMConfigProfileResponse{
+			Err: fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg),
+		}, nil
+	}
+
 	if isMobileConfig || isAppleDeclarationJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, data, labels, profileName, labelsMode, req.LabelsExcludeAny, activation)
 			if err != nil {
 				errStr := err.Error()
 				if strings.Contains(errStr, "MDMAppleDeclaration.Name") && strings.Contains(errStr, "already exists") {
