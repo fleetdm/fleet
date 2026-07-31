@@ -10051,7 +10051,7 @@ func (s *integrationTestSuite) TestOsqueryConfigETag() {
 
 	// 9. Config change produces new ETag
 	// Change a global agent option to trigger a config change
-	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"agent_options":{"config":{"options":{"logger_tls_period":"10"}}}}`), http.StatusOK)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"agent_options":{"config":{"options":{"logger_tls_period":10}}}}`), http.StatusOK)
 
 	resp9 := makeConfigReq("")
 	t.Cleanup(func() { resp9.Body.Close() })
