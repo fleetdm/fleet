@@ -628,7 +628,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		lifecycleErrs := []error{}
 		serialsWithErrs := []string{}
 		for _, host := range hosts {
-			if fleet.MDMSupported(host.Platform) {
+			if fleet.ClassicMDMSupported(host.Platform) {
 				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
@@ -1153,7 +1153,7 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return err
 	}
 
-	if fleet.MDMSupported(host.Platform) {
+	if fleet.ClassicMDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionDelete,
