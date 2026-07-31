@@ -72,7 +72,7 @@ jobs:
     - run: rm -f .gitignore
 
     # Get dependencies (including dev deps)
-    - run: cd ee/fleet-agent-downloader/ && npm install
+    - run: cd ee/fleet-agent-downloader/ && npm ci
 
     # Run sanity checks
     - run: cd ee/fleet-agent-downloader/ && npm test

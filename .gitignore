@@ -54,6 +54,7 @@ backup.sql.gz
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
 !website/package-lock.json
+!ee/fleet-agent-downloader/package-lock.json
 
 # infra
 .terraform
