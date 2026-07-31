@@ -386,7 +386,7 @@ policies:
 agent_options:
 queries:
 labels:
-  - name: Test - Linux invalid platform
+  - name: Test - bados invalid platform
     query: SELECT 1;
     platform: bados
 org_settings:
