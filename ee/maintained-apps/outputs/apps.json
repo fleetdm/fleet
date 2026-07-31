@@ -688,6 +688,13 @@
       "description": "Anytype is a local-first and end-to-end encrypted notes app."
     },
     {
+      "name": "AOMEI Backupper Standard",
+      "slug": "aomei-backupper-standard/windows",
+      "platform": "windows",
+      "unique_identifier": "AOMEI Backupper",
+      "description": "AOMEI Backupper Standard is a backup, sync, and disaster recovery tool for Windows."
+    },
+    {
       "name": "Apidog",
       "slug": "apidog/darwin",
       "platform": "darwin",
@@ -1491,13 +1498,6 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.captain",
       "description": "Captain is a tool to manage Docker containers from the menu bar."
-    },
-    {
-      "name": "Captin",
-      "slug": "captin/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.100hps.captin",
-      "description": "Captin is a tool to show caps lock status."
     },
     {
       "name": "Capto",
@@ -2817,13 +2817,6 @@
     },
     {
       "name": "Dynalist",
-      "slug": "dynalist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.dynalist",
-      "description": "Dynalist is an app for outlining app for your work."
-    },
-    {
-      "name": "Dynalist",
       "slug": "dynalist/windows",
       "platform": "windows",
       "unique_identifier": "Dynalist",
@@ -3927,6 +3920,13 @@
       "platform": "darwin",
       "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
+    },
+    {
+      "name": "Gpg4win",
+      "slug": "gpg4win/windows",
+      "platform": "windows",
+      "unique_identifier": "Gpg4win",
+      "description": "Gpg4win is an email and file encryption suite for Windows that bundles GnuPG with the Kleopatra certificate manager."
     },
     {
       "name": "gPodder",

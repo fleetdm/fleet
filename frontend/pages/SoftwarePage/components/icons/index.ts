@@ -71,6 +71,7 @@ import Anyburn from "./Anyburn";
 import AnyDesk from "./AnyDesk";
 import Anydo from "./Anydo";
 import Anytype from "./Anytype";
+import AomeiBackupperStandard from "./AomeiBackupperStandard";
 import Apidog from "./Apidog";
 import Apparency from "./Apparency";
 import AppCleaner from "./AppCleaner";
@@ -165,7 +166,6 @@ import CamundaModeler from "./CamundaModeler";
 import Canva from "./Canva";
 import CapCut from "./CapCut";
 import Captain from "./Captain";
-import Captin from "./Captin";
 import Capto from "./Capto";
 import CarbonCopyCloner from "./CarbonCopyCloner";
 import Cardhop from "./Cardhop";
@@ -458,6 +458,7 @@ import GoogleGemini from "./GoogleGemini";
 import GoogleWebDesigner from "./GoogleWebDesigner";
 import GoToMeeting from "./GoToMeeting";
 import GpgKeychain from "./GpgKeychain";
+import Gpg4Win from "./Gpg4Win";
 import Gpodder from "./Gpodder";
 import GrammarlyDesktop from "./GrammarlyDesktop";
 import Grandperspective from "./Grandperspective";
@@ -1219,6 +1220,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   anyburn: Anyburn,
   anydesk: AnyDesk,
   anytype: Anytype,
+  "aomei backupper standard": AomeiBackupperStandard,
   apidog: Apidog,
   "app fair": AppFair,
   apparency: Apparency,
@@ -1315,7 +1317,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   canva: Canva,
   capcut: CapCut,
   captain: Captain,
-  captin: Captin,
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
@@ -1610,6 +1611,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   gotomeeting: GoToMeeting,
   "gpg keychain": GpgKeychain,
   "gpg suite": GpgKeychain,
+  gpg4win: Gpg4Win,
   gpodder: Gpodder,
   grammarly: GrammarlyDesktop,
   grandperspective: Grandperspective,

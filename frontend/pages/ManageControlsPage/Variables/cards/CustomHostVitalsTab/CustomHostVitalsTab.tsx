@@ -158,6 +158,7 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
   const renderAddButton = (variant: "secondary" | "default") =>
     canEdit ? (
       <GitOpsModeTooltipWrapper
+        position={variant === "secondary" ? "left" : undefined}
         renderChildren={(disableChildren) => (
           <Button
             variant={variant === "secondary" ? "secondary" : undefined}
@@ -165,7 +166,7 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
             onClick={onClickAdd}
             disabled={disableChildren}
           >
-            {variant === "secondary" && <Icon name="plus" />}
+            {variant === "secondary" && <Icon name="plus" size="small" />}
             <span>Add vital</span>
           </Button>
         )}
@@ -227,15 +228,14 @@ const CustomHostVitalsTab: React.FC<IVariablesCardProps> = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Custom host vitals"
-        alignLeftHeaderVertically
-        details={renderAddButton("secondary")}
-      />
-      <PageDescription
-        variant="tab-panel"
-        content="Manage custom fields on hosts. Their values can be set manually on each host's details page, or via API integration."
-      />
+      <SectionHeader title="Custom host vitals" alignLeftHeaderVertically />
+      <div className={`${baseClass}__tab-header`}>
+        <PageDescription
+          variant="tab-panel"
+          content="Manage custom fields on hosts. Their values can be set manually on each host's details page, or via API integration."
+        />
+        {renderAddButton("secondary")}
+      </div>
       {renderContent()}
       {showAddModal && (
         <AddCustomHostVitalModal

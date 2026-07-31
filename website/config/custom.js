@@ -137,6 +137,7 @@ module.exports.custom = {
 
     // 🫧 Articles and release notes
     'articles': 'mike-j-thomas',
+    'articles/fleet-usage-statistics.md': 'rachaelshaw', //« Usage stats guide (more specific than the 'articles' catch-all above)
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
