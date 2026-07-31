@@ -37,7 +37,7 @@ tools/openapi/
   parser/                # rest-api.md -> []Endpoint (parses the ENTIRE doc)
   spec/                  # []Endpoint + allowlist -> OpenAPI 3.1 document
   allowlist.yml          # the 10 pilot paths (method + path); expansion is config-only
-  openapi.yml            # committed generated spec (golden file, reviewable diff)
+  openapi.yml            # generated spec (gitignored), not committed
   DESIGN.md              # this document
 ```
 
@@ -58,20 +58,18 @@ Strictness is split:
 
 `spec/` filters parsed endpoints to the allowlist, assembles the OpenAPI 3.1 document (info block, server URL, `Authorization: Bearer` security scheme, tags by docs section), and validates it in-process with `pb33f/libopenapi` + `libopenapi-validator` before writing. Validation failure exits with code 2. Output goes to `tools/openapi/openapi.yml` by default, or `--out`/`--stdout`.
 
-### Committed spec as golden file
+### Generated artifact
 
-`tools/openapi/openapi.yml` is checked in. CI regenerates and fails on any diff. Consequences:
+`tools/openapi/openapi.yml` is generated on demand, never committed. CI validates that generation succeeds (and the output passes OpenAPI 3.1 validation) on every PR touching the docs or the tool, and uploads the result as a workflow artifact. Goreleaser generates it in a `before` hook, failing fast on any generation or validation error, and attaches it to the release via `release.extra_files`.
 
-- Every docs PR that touches a pilot endpoint shows the resulting spec change in review.
-- The release can never silently ship a spec different from what was reviewed.
-- Contributors refresh it with a make target (`make openapi`) and commit the result.
+Rationale: at full-API scale a committed generated file churns on every docs edit and creates merge conflicts, without adding contract protection beyond what CI validation already provides.
 
 ## CI (`.github/workflows/openapi.yml`)
 
 Triggered on pull requests touching `docs/REST API/**` or `tools/openapi/**`. Two jobs:
 
-1. **generate-and-validate.** Run the generator, validate OpenAPI 3.1, diff the committed `openapi.yml` against fresh output, fail on drift.
-2. **contract-verify.** Start MySQL and Redis (same service pattern as existing Go test workflows), run `fleet prepare db` and `fleet serve`, create an admin via the setup API, then run `go run ./tools/openapi verify --server http://localhost:8080 --token <t>`.
+1. **generate-and-validate.** Run the generator, validate OpenAPI 3.1, fail on any generation or validation error, and upload the resulting `openapi.yml` as a workflow artifact (`openapi-spec`).
+2. **contract-verify.** Start MySQL and Redis (same service pattern as existing Go test workflows), run `fleet prepare db` and `fleet serve`, create an admin via the setup API, then run the generator followed by `go run . verify --server http://localhost:1337 --email <admin> --password <pw>` from `tools/openapi`.
 
 ### The verify subcommand
 
@@ -81,7 +79,7 @@ Walks the 10 pilot endpoints against a live server and validates each response b
 - `GET /hosts` and `GET /hosts/{id}`: in CI there are no enrolled hosts, so `GET /hosts` validates the empty-list envelope and `GET /hosts/{id}` is reported as "partially verified"; the dev-instance run exercises real hosts.
 - `POST /commands/run` cannot succeed without an MDM-enrolled host. In CI, verify asserts the documented error shape and reports the endpoint as "partially verified". The happy path for this endpoint is checked in the manual run against a dev instance.
 
-Because verify takes `--server` and `--token`, the same tool performs the story's test-plan sign-off against a real dev instance.
+Because verify takes `--server` plus `--token` or `--email`/`--password`, the same tool performs the story's test-plan sign-off against a real dev instance.
 
 ## Release wiring
 
@@ -99,7 +97,7 @@ A short subsection in the introduction of `docs/REST API/rest-api.md` (renders a
 ## Testing
 
 - Go unit tests in `parser/` (table extraction, request-line parsing, schema inference edge cases: nulls, empty arrays, `:id` paths, `json`/`form` params) and `spec/` (assembly, allowlist filtering).
-- The committed `openapi.yml` acts as the end-to-end golden test in CI.
+- CI regenerating and validating `openapi.yml` on every relevant PR acts as the end-to-end test.
 - The contract test runs automatically in CI (job 2) and manually against a dev instance for story sign-off.
 - Manual, once at the end: import `openapi.yml` into Postman and Stoplight, confirm both render all 10 endpoints; confirm the artifact appears on an RC release.
 
