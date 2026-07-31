@@ -69,6 +69,10 @@ const (
 	// activation (single upload here, batch/GitOps elsewhere) so the same
 	// mistake reads the same way wherever it's made.
 	ActivationUnsupportedProfileErrorMsg = "Couldn't add. Activations are only supported for declaration (DDM) profiles."
+
+	// ActivationUnsupportedManagementErrorMsg covers the narrower case of a DDM
+	// profile that is a management declaration, which is never activated.
+	ActivationUnsupportedManagementErrorMsg = "Couldn't add. Activations are only supported for configuration declarations (com.apple.configuration.)."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -972,9 +976,18 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 // Callers must pass the identifier of the declaration the activation ships
 // with: Fleet allows exactly one configuration per activation, and that
 // configuration is always the one being uploaded.
-func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier string) (*fleet.MDMAppleRawActivation, error) {
+func (svc *Service) validateActivation(ctx context.Context, activation []byte, configurationIdentifier, declarationType string) (*fleet.MDMAppleRawActivation, error) {
 	if len(activation) == 0 {
 		return nil, nil
+	}
+
+	// Management declarations (organization info, server info, properties) are
+	// never activated -- an activation's StandardConfigurations can only name
+	// configurations -- so attaching one is always a mistake.
+	if fleet.IsManagementDeclaration(declarationType) {
+		return nil, ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("activation", ActivationUnsupportedManagementErrorMsg),
+			"activation supplied for a management declaration")
 	}
 
 	// Unlike declarations, which are free for hosts on no fleet and without
@@ -1020,7 +1033,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, dat
 		return nil, err
 	}
 
-	if _, err := svc.validateActivation(ctx, activation, d.Identifier); err != nil {
+	if _, err := svc.validateActivation(ctx, activation, d.Identifier, d.Type); err != nil {
 		return nil, err
 	}
 

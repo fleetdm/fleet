@@ -913,6 +913,12 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
 
+	// Type is the "Type" key of the associated declaration. It isn't persisted
+	// (it can always be read back out of RawJSON) but is carried here so
+	// callers can tell a configuration from a management declaration without
+	// re-parsing the JSON.
+	Type string `db:"-" json:"-"`
+
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
@@ -1006,6 +1012,24 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.google":   {},
 }
 
+const (
+	// MDMAppleConfigurationTypePrefix is the prefix of every Apple
+	// configuration declaration type.
+	MDMAppleConfigurationTypePrefix = "com.apple.configuration."
+	// MDMAppleManagementTypePrefix is the prefix of every Apple management
+	// declaration type (organization info, server info, properties). These are
+	// stored and uploaded like configurations, but they are never activated:
+	// they're served under the manifest's Management section rather than
+	// Configurations.
+	MDMAppleManagementTypePrefix = "com.apple.management."
+)
+
+// IsManagementDeclaration reports whether a declaration type is an Apple
+// management declaration rather than a configuration.
+func IsManagementDeclaration(declType string) bool {
+	return strings.HasPrefix(declType, MDMAppleManagementTypePrefix)
+}
+
 func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 	var err error
 
@@ -1021,8 +1045,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can't include software management types. To manage software, please use the Software tab.")
 	}
 
-	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) are supported.")
+	if !strings.HasPrefix(r.Type, MDMAppleConfigurationTypePrefix) && !IsManagementDeclaration(r.Type) {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported.")
 	}
 
 	return err
@@ -1183,6 +1207,7 @@ func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ide
 
 	decl.Identifier = ident
 	decl.Name = name
+	decl.Type = declType
 	decl.RawJSON = raw
 	decl.TeamID = teamID
 

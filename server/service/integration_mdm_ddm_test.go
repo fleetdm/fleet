@@ -54,7 +54,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusUnprocessableEntity)
 
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) are supported")
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
 
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {

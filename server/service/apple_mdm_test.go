@@ -1369,7 +1369,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	// decl type missing actual type
 	b = declarationForTestWithType("D1", "com.apple.configuration")
 	_, err = svc.NewMDMAppleDeclaration(ctx, 0, b, nil, "name", fleet.LabelsIncludeAll, nil, nil)
-	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
+	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
@@ -1642,7 +1642,7 @@ func TestUpdateMDMAppleDeclaration(t *testing.T) {
 		invalidContent := declarationForTestWithType(existing.Identifier, "com.example.not-a-real-type")
 		err := svc.UpdateMDMConfigProfile(ctx, existing.DeclarationUUID, invalidContent, nil, fleet.LabelsIncludeAll, nil)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
+		assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) and management declarations (com.apple.management.) are supported")
 	})
 
 	t.Run("label appearing in both include and exclude lists is rejected", func(t *testing.T) {
@@ -9404,6 +9404,25 @@ func TestNewMDMAppleDeclarationWithActivation(t *testing.T) {
 
 		_, err := svc.NewMDMAppleDeclaration(ctx, 0, decl, nil, "name", fleet.LabelsIncludeAll, nil, []byte(`{"Type":`))
 		require.ErrorContains(t, err, "should include valid JSON")
+	})
+
+	t.Run("activation on a management declaration is rejected", func(t *testing.T) {
+		svc, ctx := setup(t, fleet.TierPremium)
+		// Management declarations are never activated, so attaching one is
+		// always a mistake even though this is a valid DDM profile.
+		mgmt := []byte(`{
+			"Type": "com.apple.management.organization-info",
+			"Identifier": "com.fleet.orgD1",
+			"Payload": { "Echo": "foo" }
+		}`)
+		activation := activationBytesForTest("com.fleet.actD1", "com.fleet.orgD1")
+
+		_, err := svc.NewMDMAppleDeclaration(ctx, 0, mgmt, nil, "name", fleet.LabelsIncludeAll, nil, activation)
+		require.ErrorContains(t, err, "Activations are only supported for configuration declarations")
+
+		// ...but the management declaration itself uploads fine without one.
+		_, err = svc.NewMDMAppleDeclaration(ctx, 0, mgmt, nil, "name", fleet.LabelsIncludeAll, nil, nil)
+		require.NoError(t, err)
 	})
 
 	t.Run("activation requires premium even where the declaration doesn't", func(t *testing.T) {
