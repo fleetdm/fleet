@@ -627,7 +627,47 @@ WHERE
 		}
 	}
 
+	// Load the custom activation, if any, so callers that write the declaration
+	// back can carry it forward. setMDMAppleDDMActivationDB deletes the stored
+	// activation when the declaration it writes has none, so an edit that
+	// dropped this would silently clear it.
+	activation, err := ds.getCustomActivationForDeclaration(ctx, res.DeclarationUUID)
+	if err != nil {
+		return nil, err
+	}
+	res.Activation = activation
+
 	return &res, nil
+}
+
+// getCustomActivationForDeclaration returns the custom activation attached to a
+// declaration, or nil when it has none. Having no activation is a normal state,
+// not a not-found error.
+func (ds *Datastore) getCustomActivationForDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleCustomActivation, error) {
+	const stmt = `
+SELECT
+	activation_uuid,
+	team_id,
+	identifier,
+	raw_json,
+	declaration_uuid,
+	configuration_identifier,
+	secrets_updated_at,
+	created_at,
+	uploaded_at
+FROM
+	mdm_apple_ddm_activations
+WHERE
+	declaration_uuid = ?`
+
+	var act fleet.MDMAppleCustomActivation
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &act, stmt, declUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get declaration custom activation")
+	}
+	return &act, nil
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {

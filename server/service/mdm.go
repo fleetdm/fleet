@@ -1901,6 +1901,9 @@ type updateMDMConfigProfileRequest struct {
 	LabelsIncludeAll []string
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
+	// Activation is an optional custom activation, only supported for
+	// declaration (DDM) profiles.
+	Activation *multipart.FileHeader
 }
 
 func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
@@ -1926,6 +1929,16 @@ func (updateMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.
 		decoded.Profile = fhs[0]
 		if decoded.Profile.Size > fleet.MaxProfileSize {
 			return nil, fleet.NewInvalidArgumentError("mdm", fleet.MaxProfileSizeErrMsg)
+		}
+	}
+
+	// activation is optional too, and only meaningful for declarations --
+	// that's enforced by the service, which is where the update path resolves
+	// the profile's type from its UUID
+	if fhs, ok := r.MultipartForm.File["activation"]; ok && len(fhs) > 0 {
+		decoded.Activation = fhs[0]
+		if decoded.Activation.Size > fleet.MaxProfileSize {
+			return nil, fleet.NewInvalidArgumentError("activation", fleet.MaxProfileSizeErrMsg)
 		}
 	}
 
@@ -1982,7 +1995,21 @@ func updateMDMConfigProfileEndpoint(ctx context.Context, request any, svc fleet.
 		labelsMode = fleet.LabelsIncludeAll
 	}
 
-	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny); err != nil {
+	var activation []byte
+	if req.Activation != nil {
+		af, err := req.Activation.Open()
+		if err != nil {
+			return &updateMDMConfigProfileResponse{Err: err}, nil
+		}
+		defer af.Close()
+
+		activation, err = io.ReadAll(af)
+		if err != nil {
+			return &updateMDMConfigProfileResponse{Err: err}, nil
+		}
+	}
+
+	if err := svc.UpdateMDMConfigProfile(ctx, req.ProfileUUID, data, labels, labelsMode, req.LabelsExcludeAny, activation); err != nil {
 		return &updateMDMConfigProfileResponse{Err: err}, nil
 	}
 
@@ -2056,7 +2083,18 @@ func (svc *Service) checkLabelsOnlyProfileUpdate(ctx context.Context, labelsIncl
 // UpdateMDMConfigProfile updates an existing configuration profile's contents
 // and/or label targeting in place, dispatching by profile UUID to the
 // platform-specific implementation.
-func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
+	// Unlike the create path, where the endpoint determines the profile type
+	// from the uploaded file, the update path dispatches here on the UUID
+	// prefix -- so this is where an activation on a non-declaration profile is
+	// rejected.
+	if len(activation) > 0 && !isAppleDeclarationUUID(profileUUID) {
+		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		return fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg)
+	}
+
 	switch {
 	case isAppleProfileUUID(profileUUID):
 		return svc.updateMDMAppleConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
@@ -2065,7 +2103,7 @@ func (svc *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID stri
 	case isAndroidProfileUUID(profileUUID):
 		return svc.updateMDMAndroidConfigProfile(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
 	case isAppleDeclarationUUID(profileUUID):
-		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny)
+		return svc.updateMDMAppleDeclaration(ctx, profileUUID, profile, labelsInclude, labelsMembershipMode, labelsExcludeAny, activation)
 	default:
 		if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 			return ctxerr.Wrap(ctx, err)

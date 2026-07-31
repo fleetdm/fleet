@@ -1185,7 +1185,7 @@ func (svc *Service) parseAndValidateAppleDeclaration(ctx context.Context, teamID
 // mdm_apple_declarations.token is a MySQL generated column derived from
 // raw_json, so the ReconcileAppleDeclarations cron picks up a content change
 // on its own.
-func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string) error {
+func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error {
 	// first we perform a basic authz check
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1257,6 +1257,10 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			// the upsert writes scope unconditionally, so the unchanged
 			// content's scope must be carried over or it would be cleared
 			Scope: existing.Scope,
+			// carry the stored activation forward: the datastore clears the
+			// activation of any declaration written without one, so a
+			// labels-only edit would otherwise silently remove it
+			Activation: existing.Activation,
 		}
 		switch labelsMembershipMode {
 		case fleet.LabelsIncludeAll:
@@ -1265,6 +1269,32 @@ func (svc *Service) updateMDMAppleDeclaration(ctx context.Context, profileUUID s
 			decl.LabelsIncludeAny = includeLabels
 		}
 		decl.LabelsExcludeAny = excludeLabels
+	}
+
+	// A supplied activation always replaces whatever is stored. When new
+	// profile content is supplied without one, the activation is intentionally
+	// dropped, which is how an admin removes it -- matching the create path,
+	// where a declaration uploaded without an activation has none.
+	if len(activation) > 0 && decl.Type == "" {
+		// an activation-only or labels-plus-activation edit leaves the content
+		// untouched, so the Type -- which isn't a column -- has to be recovered
+		// from it to reject an activation on a management declaration
+		rawDecl, err := fleet.GetRawDeclarationValues(decl.RawJSON)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing existing declaration")
+		}
+		decl.Type = rawDecl.Type
+	}
+	rawAct, err := svc.validateActivation(ctx, activation, decl.Identifier, decl.Type)
+	if err != nil {
+		return err
+	}
+	if rawAct != nil {
+		decl.Activation = &fleet.MDMAppleCustomActivation{
+			Identifier:              rawAct.Identifier,
+			RawJSON:                 activation,
+			ConfigurationIdentifier: decl.Identifier,
+		}
 	}
 
 	if _, err := svc.ds.SetOrUpdateMDMAppleDeclaration(ctx, decl, varNames); err != nil {
