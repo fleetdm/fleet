@@ -140,7 +140,7 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 
 4. **Size and complexity** (EM): If accepted, the EM evaluates the review effort required:
    - **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
-   - **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline.
+   - **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline. The EM should consider converting the PR to a draft to signal that it is not yet under active review.
 
 
 #### Merge a community pull request
