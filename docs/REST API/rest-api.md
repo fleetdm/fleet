@@ -4162,25 +4162,25 @@ Returns the information of the specified host.
     "gigs_total_disk_space": 128,
     "app_analytics_enabled": true,
     "accessibility_settings": {
-      "bold_text": false,
-      "increase_contrast": false,
-      "reduce_motion": true,
-      "reduce_transparency": false,
-      "text_size": 1.0,
-      "touch_accommodations": false,
-      "voice_over": false,
-      "zoom": false
+      "bold_text_enabled": false,
+      "grayscale_enabled": false,
+      "increase_contrast_enabled": false,
+      "reduce_motion_enabled": true,
+      "reduce_transparency_enabled": false,
+      "text_size": 4,
+      "touch_accommodations_enabled": false,
+      "voice_over_enabled": false,
+      "zoom_enabled": false
     },
     "awaiting_configuration": false,
-    "battery_level": 82,
+    "battery_level": 0.82,
     "bluetooth_mac": "a4:83:e7:12:34:57",
-    "cellular_technology": "LTE",
+    "cellular_technology": "GSM",
     "data_roaming_enabled": false,
-    "device_properties_attestation": {
-      "device_attested": true,
-      "attestation_status": "valid",
-      "last_attested_at": "2023-02-26T22:33:12Z"
-    },
+    "device_properties_attestation": [
+      "MIIC6zCCAnKgAwIBAgIGAZ+onLUpMAoGCCqGSM49BAMDMFIxLjAsBgNVBAMMJUFwcGxl",
+      "MIICSTCCAc6gAwIBAgIUcDHgQKbmtGvw4vNNVWqEVNBCXnEwCgYIKoZIzj0EAwMwUTEt"
+    ],
     "diagnostic_submission_enabled": true,
     "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
     "is_cloud_backup_enabled": true,
@@ -4194,8 +4194,7 @@ Returns the information of the specified host.
     "mdm_options": {
       "activation_lock_allowed_while_supervised": true,
       "bootstrap_token_allowed": true,
-      "bootstrap_token_required_for_software_update": false,
-      "bootstrap_token_required_for_kext_approval": false
+      "prompt_user_to_allow_bootstrap_token_for_authentication": false
     },
     "model_number": "MNEP3LL/A",
     "modem_firmware_version": "2.01.00",
@@ -4224,11 +4223,12 @@ Returns the information of the specified host.
         "label_id": "com.apple.subscriberLabel.primary",
         "meid": "35209900176148",
         "phone_number": "+1-123-456-7890",
-        "slot": "1"
+        "slot": "CTSubscriptionSlotOne",
+        "subscriber_carrier_network": "Verizon"
       }
     ],
     "supplemental_build_version": "21E236",
-    "supplemental_os_version_extra": "a",
+    "supplemental_os_version_extra": "(a)",
     "wifi_mac": "a4:83:e7:12:34:58",
     "disk_encryption_enabled": true,
     "status": "online",
@@ -4438,6 +4438,11 @@ Returns the information of the specified host.
 > Note: 
 > - `signature_information` is only set for macOS (.app) applications. 
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
+> - `battery_level` is a fraction between `0` and `1`, not a percentage.
+> - `accessibility_settings` isn't reported by every device. In testing, company-owned (automatic) hosts returned it while manually-enrolled hosts didn't.
+> - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. A value Apple adds in future that Fleet doesn't recognize is reported as `unknown`.
+> - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
 
 > Note:
 > - `orbit_version: null` means this agent is not a fleetd agent
@@ -4739,25 +4744,25 @@ If `hostname` is specified when there is more than one host with the same hostna
     "gigs_total_disk_space": 128,
     "app_analytics_enabled": true,
     "accessibility_settings": {
-      "bold_text": false,
-      "increase_contrast": false,
-      "reduce_motion": true,
-      "reduce_transparency": false,
-      "text_size": 1.0,
-      "touch_accommodations": false,
-      "voice_over": false,
-      "zoom": false
+      "bold_text_enabled": false,
+      "grayscale_enabled": false,
+      "increase_contrast_enabled": false,
+      "reduce_motion_enabled": true,
+      "reduce_transparency_enabled": false,
+      "text_size": 4,
+      "touch_accommodations_enabled": false,
+      "voice_over_enabled": false,
+      "zoom_enabled": false
     },
     "awaiting_configuration": false,
-    "battery_level": 82,
+    "battery_level": 0.82,
     "bluetooth_mac": "a4:83:e7:12:34:57",
-    "cellular_technology": "LTE",
+    "cellular_technology": "GSM",
     "data_roaming_enabled": false,
-    "device_properties_attestation": {
-      "device_attested": true,
-      "attestation_status": "valid",
-      "last_attested_at": "2023-02-26T22:33:12Z"
-    },
+    "device_properties_attestation": [
+      "MIIC6zCCAnKgAwIBAgIGAZ+onLUpMAoGCCqGSM49BAMDMFIxLjAsBgNVBAMMJUFwcGxl",
+      "MIICSTCCAc6gAwIBAgIUcDHgQKbmtGvw4vNNVWqEVNBCXnEwCgYIKoZIzj0EAwMwUTEt"
+    ],
     "diagnostic_submission_enabled": true,
     "eas_device_identifier": "3E2A1F9C4D7B6E8A2C5D1F0E3B4A7C9D",
     "is_cloud_backup_enabled": true,
@@ -4771,8 +4776,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "mdm_options": {
       "activation_lock_allowed_while_supervised": true,
       "bootstrap_token_allowed": true,
-      "bootstrap_token_required_for_software_update": false,
-      "bootstrap_token_required_for_kext_approval": false
+      "prompt_user_to_allow_bootstrap_token_for_authentication": false
     },
     "model_number": "MNEP3LL/A",
     "modem_firmware_version": "2.01.00",
@@ -4801,11 +4805,12 @@ If `hostname` is specified when there is more than one host with the same hostna
         "label_id": "com.apple.subscriberLabel.primary",
         "meid": "35209900176148",
         "phone_number": "+1-555-867-5309",
-        "slot": "1"
+        "slot": "CTSubscriptionSlotOne",
+        "subscriber_carrier_network": "Verizon"
       }
     ],
     "supplemental_build_version": "21E236",
-    "supplemental_os_version_extra": "a",
+    "supplemental_os_version_extra": "(a)",
     "wifi_mac": "a4:83:e7:12:34:58",
     "issues": {
       "failing_policies_count": 1,
@@ -4967,6 +4972,11 @@ If `hostname` is specified when there is more than one host with the same hostna
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 > Note: Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
+> - `battery_level` is a fraction between `0` and `1`, not a percentage.
+> - `accessibility_settings` isn't reported by every device. In testing, company-owned (automatic) hosts returned it while manually-enrolled hosts didn't.
+> - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. A value Apple adds in future that Fleet doesn't recognize is reported as `unknown`.
+> - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
 
 
 ### Get host by Fleet Desktop token
