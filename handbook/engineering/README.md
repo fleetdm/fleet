@@ -138,9 +138,7 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 
    If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
 
-4. **Size and complexity** (EM): If accepted, the EM evaluates the review effort required:
-   - **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
-   - **Larger contributions** (estimated review time over 30 minutes, or complex/risky changes): The EM adds the PR to the team's ready column. The team reviews it when capacity allows, fitting it into their planned work. A comment should be posted on the PR thanking the contributor and letting them know the timeline. The EM should consider converting the PR to a draft to signal that it is not yet under active review.
+4. **Track the work**: Create an issue using the relevant [work item](https://fleetdm.com/handbook/company/product-groups#work-items) issue template. The issue then moves across the relevant product group's board following the [standard process](https://fleetdm.com/handbook/company/product-groups#how-issues-move).
 
 
 #### Merge a community pull request
