@@ -213,7 +213,8 @@ const CustomMenu = (props: MenuProps<INumberDropdownOption, false>) => {
             variant="subdued"
             onClick={onClickAddFleet}
             size="small"
-            rightIcon="plus"
+            icon="plus"
+            iconPosition="right"
           >
             Add fleet
           </Button>

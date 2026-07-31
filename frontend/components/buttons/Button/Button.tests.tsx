@@ -1,6 +1,5 @@
 import React from "react";
 import { render, fireEvent, screen } from "@testing-library/react";
-import Icon from "components/Icon";
 import Button from "./Button";
 
 describe("Button component", () => {
@@ -69,46 +68,56 @@ describe("Button component", () => {
     );
     expect(container.firstChild).toHaveClass("button--secondary__small");
   });
-  it("adds the icon-only class when a secondary button has only an icon", () => {
+  it("adds the icon-only class on a secondary button with icon and no label", () => {
     const { container } = render(
-      <Button variant="secondary">
-        <Icon name="trash" />
-      </Button>
+      <Button variant="secondary" icon="trash" ariaLabel="Delete" />
     );
     expect(container.firstChild).toHaveClass("button--icon-only");
   });
-  it("does not add the icon-only class when a secondary button has a text label", () => {
-    const { container } = render(
-      <Button variant="secondary">
-        Delete <Icon name="trash" />
-      </Button>
+  it("sizes the icon to small on a small icon-only button", () => {
+    render(
+      <Button
+        variant="secondary"
+        size="small"
+        icon="trash"
+        ariaLabel="Delete"
+      />
     );
-    expect(container.firstChild).not.toHaveClass("button--icon-only");
+    // Small icon = 12px per ICON_SIZES.
+    expect(
+      screen.getByTestId("trash-icon").querySelector("svg")
+    ).toHaveAttribute("width", "12");
   });
-  it("renders a leftIcon and applies the with-left-icon class", () => {
+  it("renders icon left of the label by default and applies the with-icon class", () => {
     const { container } = render(
-      <Button variant="secondary" leftIcon="plus">
+      <Button variant="secondary" icon="plus">
         Add
       </Button>
     );
-    expect(container.firstChild).toHaveClass("button--with-left-icon");
+    expect(container.firstChild).toHaveClass("button--with-icon");
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
     expect(screen.getByTestId("plus-icon")).toBeInTheDocument();
   });
-  it("renders a rightIcon and applies the with-right-icon class", () => {
+  it("renders icon right of the label when iconPosition is right", () => {
     const { container } = render(
-      <Button variant="subdued" rightIcon="chevron-right">
+      <Button variant="subdued" icon="chevron-right" iconPosition="right">
         Next
       </Button>
     );
-    expect(container.firstChild).toHaveClass("button--with-right-icon");
-    expect(screen.getByTestId("chevron-right-icon")).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass("button--with-icon");
+    expect(container.firstChild).not.toHaveClass("button--icon-only");
+    const wrapper = container.querySelector(".children-wrapper");
+    expect(wrapper?.lastElementChild).toBe(
+      screen.getByTestId("chevron-right-icon")
+    );
   });
-  it("does not add the icon-only class when leftIcon is set with a single icon child", () => {
+  it("does not apply icon classes on variants outside the icon-enabled set", () => {
     const { container } = render(
-      <Button variant="secondary" leftIcon="plus">
-        <Icon name="trash" />
+      <Button variant="pill" icon="plus">
+        Add
       </Button>
     );
+    expect(container.firstChild).not.toHaveClass("button--with-icon");
     expect(container.firstChild).not.toHaveClass("button--icon-only");
   });
 });

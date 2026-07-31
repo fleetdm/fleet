@@ -437,7 +437,7 @@ const SoftwareTitleDetailsPage = ({
         variant="secondary"
         onClick={() => setShowAddPackageModal(true)}
         disabled={atPackageLimit}
-        leftIcon="plus"
+        icon="plus"
       >
         Add package
       </Button>

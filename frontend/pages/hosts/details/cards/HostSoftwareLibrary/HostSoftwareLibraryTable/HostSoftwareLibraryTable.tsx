@@ -215,7 +215,7 @@ const HostSoftwareLibraryTable = ({
             className={`${baseClass}__add-software-button`}
             variant="secondary"
             onClick={onAddSoftware}
-            leftIcon="plus"
+            icon="plus"
           >
             <span>Add software</span>
           </Button>

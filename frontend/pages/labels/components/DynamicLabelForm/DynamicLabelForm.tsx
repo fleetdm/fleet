@@ -85,7 +85,12 @@ const DynamicLabelForm = ({
     }
 
     return (
-      <Button variant="subdued" onClick={onOpenSidebar} rightIcon="info">
+      <Button
+        variant="subdued"
+        onClick={onOpenSidebar}
+        icon="info"
+        iconPosition="right"
+      >
         Schema
       </Button>
     );

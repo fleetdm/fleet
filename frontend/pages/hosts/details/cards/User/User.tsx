@@ -79,7 +79,8 @@ const User = ({
               variant="secondary"
               onClick={onClickMyDevice}
               size="small"
-              rightIcon="external-link"
+              icon="external-link"
+              iconPosition="right"
             >
               My device
             </Button>
@@ -90,7 +91,7 @@ const User = ({
               variant="secondary"
               onClick={onClickUpdateUser}
               size="small"
-              leftIcon={writeButtonIcon}
+              icon={writeButtonIcon}
             >
               {writeButtonText}
             </Button>

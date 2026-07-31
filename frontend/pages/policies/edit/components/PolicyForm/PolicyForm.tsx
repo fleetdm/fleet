@@ -494,7 +494,8 @@ const PolicyForm = ({
           <Button
             variant="subdued"
             onClick={onOpenSchemaSidebar}
-            rightIcon="info"
+            icon="info"
+            iconPosition="right"
           >
             Schema
           </Button>
@@ -801,7 +802,8 @@ const PolicyForm = ({
                     disabledLiveQuery
                   }
                   variant="secondary"
-                  rightIcon="run"
+                  icon="run"
+                  iconPosition="right"
                 >
                   Run policy
                 </Button>

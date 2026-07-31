@@ -110,7 +110,8 @@ const HQRTable = ({
           onClick={onShowQuery}
           variant="secondary"
           size="small"
-          rightIcon="eye"
+          icon="eye"
+          iconPosition="right"
         >
           Show query
         </Button>
@@ -119,7 +120,8 @@ const HQRTable = ({
           onClick={onExportQueryResults}
           variant="secondary"
           size="small"
-          rightIcon="download"
+          icon="download"
+          iconPosition="right"
         >
           Export results
         </Button>

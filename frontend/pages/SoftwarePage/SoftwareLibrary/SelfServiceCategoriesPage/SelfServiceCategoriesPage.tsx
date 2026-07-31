@@ -224,7 +224,7 @@ const SelfServiceCategoriesPage = ({
               <Button
                 variant="secondary"
                 onClick={() => setShowAddModal(true)}
-                leftIcon="plus"
+                icon="plus"
               >
                 Add category
               </Button>

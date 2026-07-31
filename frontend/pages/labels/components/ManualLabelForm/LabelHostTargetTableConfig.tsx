@@ -7,7 +7,6 @@ import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Icon from "components/Icon/Icon";
 import Button from "components/buttons/Button";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
@@ -27,9 +26,8 @@ export const generateTableHeaders = (
             <Button
               onClick={() => handleRowRemove(cellProps.row)}
               variant="subdued"
-            >
-              <Icon name="close-filled" />
-            </Button>
+              icon="close-filled"
+            />
           ),
           disableHidden: true,
         },

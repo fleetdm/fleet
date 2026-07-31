@@ -115,7 +115,8 @@ const PackQueriesTable = ({
             <Button
               onClick={onAddPackQuery}
               variant="secondary"
-              rightIcon="plus"
+              icon="plus"
+              iconPosition="right"
             >
               Add report
             </Button>

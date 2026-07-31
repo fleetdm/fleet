@@ -1,6 +1,5 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
-import Icon from "components/Icon";
 import { ButtonVariant, IButtonProps } from "./Button";
 import Button from ".";
 
@@ -34,13 +33,13 @@ type Story = StoryObj<typeof Button>;
 // Base template for NON-loading variants (explicitly hides isLoading)
 const Template = (
   variant: ButtonVariant,
-  children?: JSX.Element,
+  children?: React.ReactNode,
   extraArgs?: Partial<IButtonProps> // e.g. { size: "small" } or { disabled: true }
 ): Story => ({
   args: {
     ...DEFAULT_ARGS,
     variant,
-    children: children || DEFAULT_ARGS.children, // Fall back to default text
+    children: children ?? DEFAULT_ARGS.children, // Fall back to default text
     ...extraArgs,
   },
   argTypes: {
@@ -70,23 +69,25 @@ const createLoadingVariant = (variant: ButtonVariant): Story => ({
 export const DefaultVariant = createLoadingVariant("default");
 // Used for Action dropdown triggers in the product.
 export const DefaultIconAfterVariant = Template("default", undefined, {
-  rightIcon: "chevron-right",
+  icon: "chevron-right",
+  iconPosition: "right",
 });
 
 export const AlertVariant = createLoadingVariant("alert");
 
 // Bordered secondary button — see #35329
 export const SecondaryVariant = Template("secondary");
-export const SecondaryIconAfterVariant = Template("secondary", undefined, {
-  rightIcon: "plus",
-});
 export const SecondaryIconBeforeVariant = Template("secondary", undefined, {
-  leftIcon: "plus",
+  icon: "plus",
 });
-export const SecondaryIconOnlyVariant = Template(
-  "secondary",
-  <Icon name="trash" />
-);
+export const SecondaryIconAfterVariant = Template("secondary", undefined, {
+  icon: "plus",
+  iconPosition: "right",
+});
+export const SecondaryIconOnlyVariant = Template("secondary", null, {
+  icon: "trash",
+  ariaLabel: "Delete",
+});
 export const SecondarySmallVariant = Template("secondary", undefined, {
   size: "small",
 });
@@ -95,7 +96,7 @@ export const SecondarySmallIconBeforeVariant = Template(
   undefined,
   {
     size: "small",
-    leftIcon: "plus",
+    icon: "plus",
   }
 );
 export const SecondaryDisabledVariant = Template("secondary", undefined, {
@@ -103,22 +104,25 @@ export const SecondaryDisabledVariant = Template("secondary", undefined, {
 });
 
 // Borderless subdued button (low-emphasis text + icon)
-export const SubduedIconAfterVariant = Template("subdued", undefined, {
-  rightIcon: "chevron-right",
-});
 export const SubduedIconBeforeVariant = Template("subdued", undefined, {
-  leftIcon: "chevron-left",
+  icon: "chevron-left",
 });
-export const SubduedIconOnlyVariant = Template(
-  "subdued",
-  <Icon name="chevron-right" />
-);
+export const SubduedIconAfterVariant = Template("subdued", undefined, {
+  icon: "chevron-right",
+  iconPosition: "right",
+});
+export const SubduedIconOnlyVariant = Template("subdued", null, {
+  icon: "chevron-right",
+  ariaLabel: "Next",
+});
 export const SubduedSmallVariant = Template("subdued", undefined, {
   size: "small",
-  rightIcon: "chevron-right",
+  icon: "chevron-right",
+  iconPosition: "right",
 });
 export const SubduedDisabledVariant = Template("subdued", undefined, {
-  rightIcon: "chevron-right",
+  icon: "chevron-right",
+  iconPosition: "right",
   disabled: true,
 });
 

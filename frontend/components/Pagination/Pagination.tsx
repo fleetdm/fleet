@@ -2,7 +2,6 @@ import React from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "pagination";
 
@@ -39,7 +38,7 @@ const Pagination = ({
         disabled={disablePrev}
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
-        leftIcon="chevron-left"
+        icon="chevron-left"
       >
         Previous
       </Button>
@@ -48,8 +47,10 @@ const Pagination = ({
         disabled={disableNext}
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}
+        icon="chevron-right"
+        iconPosition="right"
       >
-        Next <Icon name="chevron-right" color="ui-fleet-black-75" />
+        Next
       </Button>
     </div>
   );

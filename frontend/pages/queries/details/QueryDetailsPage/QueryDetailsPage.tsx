@@ -296,7 +296,8 @@ const QueryDetailsPage = ({
                               );
                           }}
                           disabled={isLiveQueryDisabled}
-                          rightIcon="run"
+                          icon="run"
+                          iconPosition="right"
                         >
                           Live report
                         </Button>

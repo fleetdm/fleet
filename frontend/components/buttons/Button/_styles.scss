@@ -326,24 +326,23 @@ $base-class: "button";
     width: 28px;
   }
 
-  // Buttons with leftIcon / rightIcon add an 8px gap between icon and label
-  // (4px on small). Horizontal padding is left to the base variant/size —
-  // it does not change based on icon presence or icon side.
-  &--with-left-icon,
-  &--with-right-icon {
+  // Buttons with an icon + label get an 8px gap between them (4px on small).
+  // Only default, alert, secondary, and subdued carry icons — scoped so the
+  // `icon` prop is a no-op on link, pill, unstyled, etc. Horizontal padding
+  // is left to the base variant/size.
+  &--default.button--with-icon,
+  &--alert.button--with-icon,
+  &--secondary.button--with-icon,
+  &--subdued.button--with-icon {
     .children-wrapper {
       gap: $pad-small;
     }
   }
 
-  &--default__small.button--with-left-icon,
-  &--default__small.button--with-right-icon,
-  &--alert__small.button--with-left-icon,
-  &--alert__small.button--with-right-icon,
-  &--secondary__small.button--with-left-icon,
-  &--secondary__small.button--with-right-icon,
-  &--subdued__small.button--with-left-icon,
-  &--subdued__small.button--with-right-icon {
+  &--default__small.button--with-icon,
+  &--alert__small.button--with-icon,
+  &--secondary__small.button--with-icon,
+  &--subdued__small.button--with-icon {
     .children-wrapper {
       gap: $pad-xsmall;
     }

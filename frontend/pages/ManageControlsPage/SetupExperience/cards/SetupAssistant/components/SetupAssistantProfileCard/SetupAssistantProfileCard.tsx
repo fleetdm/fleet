@@ -4,7 +4,6 @@ import classnames from "classnames";
 
 import { uploadedFromNow } from "utilities/date_format";
 
-import Icon from "components/Icon";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Button from "components/buttons/Button";
@@ -83,17 +82,15 @@ const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
           className={`${baseClass}__download-button`}
           variant="secondary"
           onClick={onDownload}
-        >
-          <Icon name="download" />
-        </Button>
+          icon="download"
+        />
         {!props.defaultProfile && (
           <Button
             className={`${baseClass}__delete-button`}
             variant="secondary"
             onClick={props.onDelete}
-          >
-            <Icon name="trash" />
-          </Button>
+            icon="trash"
+          />
         )}
       </div>
     </Card>

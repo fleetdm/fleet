@@ -111,7 +111,7 @@ const PolicyAutomationActivityDetailsModal = ({
               variant="secondary"
               onClick={onResetPolicy}
               className={`${baseClass}__reset`}
-              leftIcon="refresh"
+              icon="refresh"
             >
               Reset policy
             </Button>

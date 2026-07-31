@@ -26,7 +26,7 @@ const WindowsTenantAddedCard = ({
   <SectionCard
     iconName="success"
     cta={
-      <Button onClick={editTenants} variant="subdued" leftIcon="pencil">
+      <Button onClick={editTenants} variant="subdued" icon="pencil">
         Edit
       </Button>
     }

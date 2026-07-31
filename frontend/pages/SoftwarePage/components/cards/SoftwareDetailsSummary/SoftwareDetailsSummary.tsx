@@ -346,7 +346,7 @@ const SoftwareDetailsSummary = ({
                       variant="subdued"
                       onClick={onClickEditAppearance}
                       disabled={disableChildren || !onClickEditAppearance}
-                      leftIcon="pencil"
+                      icon="pencil"
                     >
                       Edit
                     </Button>

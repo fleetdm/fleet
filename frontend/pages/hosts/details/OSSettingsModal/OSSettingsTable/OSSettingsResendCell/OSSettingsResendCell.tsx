@@ -36,7 +36,7 @@ const ResendButton = ({ isResending, onClick }: IResendButtonProps) => {
       variant="secondary"
       className={classNames}
       size="small"
-      leftIcon="refresh"
+      icon="refresh"
     >
       {buttonText}
     </Button>
@@ -62,7 +62,7 @@ const RotateButton = ({ isRotating, onClick }: IRotateButtonProps) => {
       variant="secondary"
       className={classNames}
       size="small"
-      leftIcon="refresh"
+      icon="refresh"
     >
       {buttonText}
     </Button>

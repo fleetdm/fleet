@@ -35,7 +35,7 @@ const SeeDetailsAppleMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickDetails} variant="subdued" leftIcon="pencil">
+        <Button onClick={onClickDetails} variant="subdued" icon="pencil">
           Edit
         </Button>
       }

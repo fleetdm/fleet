@@ -18,9 +18,24 @@ export type ButtonVariant =
   | "unstyled-modal-query"
   | "oversized";
 
+// Variants whose text color is white — icons default to white on these.
+const WHITE_TEXT_VARIANTS: readonly ButtonVariant[] = [
+  "default",
+  "alert",
+  "oversized",
+];
+
+// Only these variants participate in icon / iconPosition / icon-only styling.
+const ICON_ENABLED_VARIANTS: readonly ButtonVariant[] = [
+  "default",
+  "alert",
+  "secondary",
+  "subdued",
+];
+
 export interface IButtonProps {
   autofocus?: boolean;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
   disabled?: boolean;
   tabIndex?: number;
@@ -52,10 +67,14 @@ export interface IButtonProps {
   ariaPressed?: boolean;
   /** Small: 1/2 the padding, Wide: 200px */
   size?: "small" | "wide" | "default";
-  /** Renders an icon before the label with icon-side padding trimmed to match design. */
-  leftIcon?: IconNames;
-  /** Renders an icon after the label with icon-side padding trimmed to match design. */
-  rightIcon?: IconNames;
+  /**
+   * Icon rendered inside the button. Sized automatically (16px on default,
+   * 12px on `size="small"`) and colored to match the variant's text.
+   * With no `children`, renders an icon-only square (secondary/subdued only).
+   */
+  icon?: IconNames;
+  /** Where to render `icon` relative to the label. Ignored when icon-only. */
+  iconPosition?: "left" | "right";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -69,6 +88,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
     type: "button",
     variant: "default",
+    iconPosition: "left",
   };
 
   componentDidMount(): void {
@@ -131,21 +151,15 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       ariaLabel,
       ariaPressed,
       size,
-      leftIcon,
-      rightIcon,
+      icon,
+      iconPosition,
     } = this.props;
-    // The bordered "secondary" and borderless "subdued" variants render as a
-    // square when their only content is an icon (no text label) — see #35329.
-    // toArray strips false/null and flattens fragments, so we reliably detect a
-    // lone <Icon> child while ignoring conditional or wrapped text content.
-    const childArray = React.Children.toArray(children);
+    const hasLabel = React.Children.count(children) > 0;
+    // Square, centered layout for a bare icon on secondary/subdued — see #35329.
     const isIconOnly =
-      (variant === "secondary" || variant === "subdued") &&
-      !leftIcon &&
-      !rightIcon &&
-      childArray.length === 1 &&
-      React.isValidElement(childArray[0]) &&
-      childArray[0].type === Icon;
+      !!icon && !hasLabel && (variant === "secondary" || variant === "subdued");
+    const hasIconWithLabel =
+      !!icon && hasLabel && ICON_ENABLED_VARIANTS.includes(variant!);
     const fullClassName = classnames(
       baseClass,
       `${baseClass}--${variant}`,
@@ -155,23 +169,18 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-only`]: isIconOnly,
-        [`${baseClass}--with-left-icon`]: !!leftIcon,
-        [`${baseClass}--with-right-icon`]: !!rightIcon,
+        [`${baseClass}--with-icon`]: hasIconWithLabel,
       }
     );
-    const onWhite =
-      variant === "link" ||
-      variant === "secondary" ||
-      variant === "subdued" ||
-      variant === "pill" ||
-      variant === "grey-pill";
+    // Variants with white text (dark backgrounds) — icons and the loading
+    // spinner both render white so they're visible.
+    const hasWhiteText = WHITE_TEXT_VARIANTS.includes(variant!);
     // Icons: 16px on default-size buttons, 12px on small-size buttons.
     const iconSize = size === "small" ? "small" : "medium";
-    // Default (green) and alert (red) buttons have white text — icons should match.
-    const iconColor =
-      variant === "default" || variant === "alert"
-        ? "core-fleet-white"
-        : undefined;
+    const iconColor = hasWhiteText ? "core-fleet-white" : undefined;
+    const iconElement = icon && (
+      <Icon name={icon} size={iconSize} color={iconColor} />
+    );
 
     return (
       <button
@@ -188,16 +197,16 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         aria-label={ariaLabel}
         aria-pressed={ariaPressed}
       >
-        <div className={isLoading ? "transparent-text" : "children-wrapper"}>
-          {leftIcon && (
-            <Icon name={leftIcon} size={iconSize} color={iconColor} />
-          )}
+        <div
+          className={classnames("children-wrapper", {
+            "transparent-text": isLoading,
+          })}
+        >
+          {iconElement && iconPosition === "left" && iconElement}
           {children}
-          {rightIcon && (
-            <Icon name={rightIcon} size={iconSize} color={iconColor} />
-          )}
+          {iconElement && iconPosition === "right" && iconElement}
         </div>
-        {isLoading && <Spinner small button white={!onWhite} delay={0} />}
+        {isLoading && <Spinner small button white={hasWhiteText} delay={0} />}
       </button>
     );
   }

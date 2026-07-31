@@ -100,7 +100,7 @@ const EnrollSecretModal = ({
                   onClick={addNewSecretClick}
                   className={`${baseClass}__add-secret-btn`}
                   variant="secondary"
-                  leftIcon="plus"
+                  icon="plus"
                 >
                   Add secret
                 </Button>
@@ -122,7 +122,7 @@ const EnrollSecretModal = ({
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
                 variant="secondary"
-                leftIcon="plus"
+                icon="plus"
               >
                 Add secret
               </Button>

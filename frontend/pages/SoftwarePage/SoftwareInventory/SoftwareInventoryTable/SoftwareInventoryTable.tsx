@@ -255,7 +255,7 @@ const SoftwareTable = ({
             variant="secondary"
             onClick={onAddFiltersClick}
             disabled={controlsDisabled}
-            leftIcon="filter"
+            icon="filter"
           >
             <span>{vulnFilterDetails.buttonText}</span>
           </Button>

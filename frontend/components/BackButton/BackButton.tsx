@@ -31,7 +31,7 @@ const BackButton = ({
       variant="subdued"
       onClick={onClick}
       className={classes}
-      leftIcon="chevron-left"
+      icon="chevron-left"
     >
       <span>{text}</span>
     </Button>

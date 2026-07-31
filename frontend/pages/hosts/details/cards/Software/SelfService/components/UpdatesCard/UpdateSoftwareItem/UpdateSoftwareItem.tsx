@@ -129,7 +129,7 @@ const InstallerStatus = ({
                   onShowInstallerDetails();
                 }}
                 size="small"
-                leftIcon={displayConfig.iconName || "install"}
+                icon={displayConfig.iconName || "install"}
               >
                 {displayConfig.displayText}
               </Button>

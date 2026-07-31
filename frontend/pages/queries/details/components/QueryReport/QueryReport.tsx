@@ -84,7 +84,8 @@ const QueryReport = ({
           onClick={onExportQueryResults}
           variant="secondary"
           size="small"
-          rightIcon="download"
+          icon="download"
+          iconPosition="right"
         >
           Export results
         </Button>

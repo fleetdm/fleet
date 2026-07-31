@@ -394,7 +394,7 @@ const SaveNewPolicyModal = ({
               variant="secondary"
               type="button"
               onClick={() => setShowAutomations(true)}
-              leftIcon="plus"
+              icon="plus"
             >
               Add automations
             </Button>

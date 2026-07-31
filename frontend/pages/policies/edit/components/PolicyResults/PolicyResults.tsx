@@ -114,7 +114,8 @@ const PolicyResults = ({
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
           variant="secondary"
-          rightIcon="eye"
+          icon="eye"
+          iconPosition="right"
         >
           Show query
         </Button>

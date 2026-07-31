@@ -430,7 +430,8 @@ const PolicyDetailsPage = ({
                         );
                     }}
                     disabled={!!disabledLiveQuery}
-                    rightIcon="run"
+                    icon="run"
+                    iconPosition="right"
                   >
                     Run policy
                   </Button>

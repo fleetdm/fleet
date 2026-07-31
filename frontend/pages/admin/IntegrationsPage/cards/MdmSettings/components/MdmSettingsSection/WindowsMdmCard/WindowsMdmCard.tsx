@@ -36,7 +36,7 @@ const TurnOffWindowsMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickEdit} variant="subdued" leftIcon="pencil">
+        <Button onClick={onClickEdit} variant="subdued" icon="pencil">
           Edit
         </Button>
       }

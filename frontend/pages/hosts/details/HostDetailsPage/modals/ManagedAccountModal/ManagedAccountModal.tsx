@@ -118,7 +118,7 @@ const ManagedAccountModal = ({
                   onClick={onRotatePassword}
                   disabled={isRotating}
                   className={`${baseClass}__rotate-button`}
-                  leftIcon="refresh"
+                  icon="refresh"
                 >
                   {isRotating ? "Rotating..." : "Rotate password"}
                 </Button>

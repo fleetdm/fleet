@@ -7,7 +7,6 @@ import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -111,9 +110,8 @@ const ScriptListItem = ({
             className={`${baseClass}__action-button`}
             variant="secondary"
             ariaLabel={`Edit ${script.name}`}
-          >
-            <Icon name="pencil" />
-          </Button>
+            icon="pencil"
+          />
         )}
       />
       <Button
@@ -121,9 +119,8 @@ const ScriptListItem = ({
         variant="secondary"
         onClick={onClickDownload}
         ariaLabel={`Download ${script.name}`}
-      >
-        <Icon name="download" />
-      </Button>
+        icon="download"
+      />
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
@@ -132,9 +129,8 @@ const ScriptListItem = ({
             className={`${baseClass}__action-button`}
             variant="secondary"
             ariaLabel={`Delete ${script.name}`}
-          >
-            <Icon name="trash" />
-          </Button>
+            icon="trash"
+          />
         )}
       />
     </div>

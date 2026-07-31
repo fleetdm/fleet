@@ -227,7 +227,8 @@ const PolicyAutomationsActivitiesTable = ({
               <Button
                 variant="subdued"
                 onClick={onClickResetPolicy}
-                rightIcon="refresh"
+                icon="refresh"
+                iconPosition="right"
               >
                 Reset policy
               </Button>

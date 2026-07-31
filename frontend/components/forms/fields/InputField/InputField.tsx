@@ -6,7 +6,6 @@ import { PlacesType } from "react-tooltip-5";
 import FormField from "components/forms/FormField";
 import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
-import Icon from "components/Icon";
 
 const baseClass = "input-field";
 
@@ -153,9 +152,8 @@ const InputField = ({
             onClick={onToggleSecret}
             ariaLabel={showSecret ? "Hide secret" : "Show secret"}
             ariaPressed={showSecret}
-          >
-            <Icon name="eye" />
-          </Button>
+            icon="eye"
+          />
         )}
       </div>
     );

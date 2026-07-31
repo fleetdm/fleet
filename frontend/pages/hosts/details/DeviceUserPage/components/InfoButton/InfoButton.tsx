@@ -13,7 +13,8 @@ const InfoButton = ({ onClick }: IInfoButton) => {
       className={baseClass}
       onClick={onClick}
       variant="subdued"
-      rightIcon="info"
+      icon="info"
+      iconPosition="right"
     >
       Info
     </Button>

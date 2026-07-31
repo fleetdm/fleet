@@ -18,7 +18,6 @@ import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError";
 import ActionsDropdown from "components/ActionsDropdown";
@@ -200,9 +199,8 @@ const ScriptDetailsModal = ({
                 className={`${baseClass}__action-button`}
                 variant="subdued"
                 onClick={() => onClickDownload()}
-              >
-                <Icon name="download" />
-              </Button>
+                icon="download"
+              />
               <GitOpsModeTooltipWrapper
                 position="bottom"
                 renderChildren={(disableChildren) => (
@@ -211,9 +209,9 @@ const ScriptDetailsModal = ({
                     className={`${baseClass}__action-button`}
                     variant="subdued"
                     onClick={onDelete}
-                  >
-                    <Icon name="trash" color="ui-fleet-black-75" />
-                  </Button>
+                    icon="trash"
+                    ariaLabel="Delete script"
+                  />
                 )}
               />
             </>

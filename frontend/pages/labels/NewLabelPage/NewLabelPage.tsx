@@ -516,7 +516,8 @@ const NewLabelPage = ({
                   <Button
                     variant="subdued"
                     onClick={onOpenSidebar}
-                    rightIcon="info"
+                    icon="info"
+                    iconPosition="right"
                   >
                     Schema
                   </Button>

@@ -86,7 +86,6 @@ import { strToBool } from "utilities/strings/stringUtils";
 
 import { notify } from "components/ToastNotification";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
 import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -1791,7 +1790,7 @@ const ManageHostsPage = ({
               onClick={onExportHostsResults}
               variant="secondary"
               disabled={isTrulyEmpty}
-              leftIcon="download"
+              icon="download"
             >
               Export hosts
             </Button>
@@ -1801,11 +1800,9 @@ const ManageHostsPage = ({
             onClick={toggleEditColumnsModal}
             variant="secondary"
             disabled={isTrulyEmpty}
+            icon="columns"
           >
-            <>
-              <Icon name="columns" color="ui-fleet-black-75" />
-              Edit columns
-            </>
+            Edit columns
           </Button>
         </div>
         <div className={`${baseClass}__filter-dropdowns`}>
@@ -2084,7 +2081,7 @@ const ManageHostsPage = ({
                 }
                 className={`${baseClass}__custom-host-vitals`}
                 variant="secondary"
-                leftIcon="pencil"
+                icon="pencil"
               >
                 <span>Custom host vitals</span>
               </Button>
@@ -2094,7 +2091,7 @@ const ManageHostsPage = ({
                 onClick={() => setShowEnrollSecretModal(true)}
                 className={`${baseClass}__enroll-hosts button`}
                 variant="secondary"
-                leftIcon="settings"
+                icon="settings"
               >
                 <span>Enroll secrets</span>
               </Button>

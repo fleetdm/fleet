@@ -3,7 +3,6 @@ import React from "react";
 import ListItem from "components/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import { ICertAuthorityListData } from "../CertificateAuthorityList/CertificateAuthorityList";
 
 const baseClass = "cert-authority-list-item";
@@ -24,9 +23,8 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             onClick={onEdit}
             className={`${baseClass}__action-button`}
             variant="subdued"
-          >
-            <Icon name="pencil" />
-          </Button>
+            icon="pencil"
+          />
         )}
       />
       <GitOpsModeTooltipWrapper
@@ -37,9 +35,8 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             onClick={onDelete}
             className={`${baseClass}__action-button`}
             variant="subdued"
-          >
-            <Icon name="trash" />
-          </Button>
+            icon="trash"
+          />
         )}
       />
     </>

@@ -23,7 +23,7 @@ const CertAuthorityListHeader = ({
               variant="secondary"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
-              leftIcon="plus"
+              icon="plus"
             >
               Add CA
             </Button>

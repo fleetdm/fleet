@@ -135,7 +135,7 @@ const LoginForm = ({
             onClick={() => setShowPendingEmail(false)}
             variant="subdued"
             className="back-link"
-            leftIcon="chevron-left"
+            icon="chevron-left"
           >
             Back to login
           </Button>

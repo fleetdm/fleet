@@ -8,7 +8,6 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -90,9 +89,8 @@ const LogoCard = ({
                 onClick={onEdit}
                 disabled={disableChildren}
                 title="Replace logo"
-              >
-                <Icon name="pencil" />
-              </Button>
+                icon="pencil"
+              />
             )}
           />
           <GitOpsModeTooltipWrapper
@@ -104,9 +102,8 @@ const LogoCard = ({
                 onClick={onDelete}
                 disabled={disableChildren || !hasCustomLogo}
                 title="Remove logo"
-              >
-                <Icon name="trash" />
-              </Button>
+                icon="trash"
+              />
             )}
           />
         </div>

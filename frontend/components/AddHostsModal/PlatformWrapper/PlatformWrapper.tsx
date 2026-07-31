@@ -200,7 +200,8 @@ const PlatformWrapper = ({
                 variant="secondary"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
-                rightIcon="download"
+                icon="download"
+                iconPosition="right"
               >
                 Download
               </Button>
@@ -395,7 +396,8 @@ const PlatformWrapper = ({
                   <Button
                     variant="secondary"
                     onClick={onDownloadEnrollSecret}
-                    rightIcon="download"
+                    icon="download"
+                    iconPosition="right"
                   >
                     Download
                   </Button>
@@ -419,7 +421,8 @@ const PlatformWrapper = ({
                     <Button
                       variant="secondary"
                       onClick={onDownloadFlagfile}
-                      rightIcon="download"
+                      icon="download"
+                      iconPosition="right"
                     >
                       Download
                     </Button>

@@ -206,7 +206,7 @@ const HostSoftwareTable = ({
           variant="secondary"
           onClick={onAddFiltersClick}
           disabled={isTrulyEmpty}
-          leftIcon="filter"
+          icon="filter"
         >
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>

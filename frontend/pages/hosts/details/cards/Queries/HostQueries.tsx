@@ -146,7 +146,7 @@ const HostQueries = ({
             variant="secondary"
             onClick={onClickAddQuery}
             size="small"
-            leftIcon="plus"
+            icon="plus"
           >
             Add report
           </Button>

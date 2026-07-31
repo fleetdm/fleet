@@ -91,11 +91,7 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button
-          variant="subdued"
-          onClick={onClickShowAppDetails}
-          leftIcon="info"
-        >
+        <Button variant="subdued" onClick={onClickShowAppDetails} icon="info">
           Show details
         </Button>
       </div>

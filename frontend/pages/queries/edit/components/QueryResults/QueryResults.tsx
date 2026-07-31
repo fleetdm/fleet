@@ -193,7 +193,8 @@ const QueryResults = ({
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
           variant="secondary"
-          rightIcon="eye"
+          icon="eye"
+          iconPosition="right"
         >
           Show query
         </Button>
@@ -205,7 +206,8 @@ const QueryResults = ({
               : onExportQueryResults
           }
           variant="secondary"
-          rightIcon="download"
+          icon="download"
+          iconPosition="right"
         >
           Export {tableType}
         </Button>

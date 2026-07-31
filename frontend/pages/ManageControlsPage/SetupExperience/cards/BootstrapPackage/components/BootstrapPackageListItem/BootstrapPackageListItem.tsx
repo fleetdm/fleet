@@ -5,7 +5,6 @@ import URL_PREFIX from "router/url_prefix";
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import endpoints from "utilities/endpoints";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -44,9 +43,8 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
         variant="subdued"
         type="submit"
         className={`${baseClass}__list-item-button`}
-      >
-        <Icon name="download" />
-      </Button>
+        icon="download"
+      />
     </form>
   );
 };
@@ -90,9 +88,8 @@ const BootstrapPackageListItem = ({
               variant="subdued"
               disabled={disabled}
               onClick={() => onDelete(bootstrapPackage)}
-            >
-              <Icon name="trash" />
-            </Button>
+              icon="trash"
+            />
           )}
         />
       </div>
