@@ -4,7 +4,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -37,7 +36,6 @@ func runGenerate(args []string) int {
 	markdown := fs.String("markdown", "../../docs/REST API/rest-api.md", "path to rest-api.md")
 	out := fs.String("out", "openapi.yml", "output path")
 	allowPath := fs.String("allowlist", "allowlist.yml", "allowlist path")
-	check := fs.Bool("check", false, "fail if the output differs from the existing file")
 	fs.Parse(args)
 
 	md, err := os.ReadFile(*markdown)
@@ -73,19 +71,6 @@ func runGenerate(args []string) int {
 		return 2
 	}
 
-	if *check {
-		existing, err := os.ReadFile(*out)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %s does not exist or is unreadable. Run `make openapi` and commit the result.\n", *out)
-			return 1
-		}
-		if !bytes.Equal(existing, rendered) {
-			fmt.Fprintf(os.Stderr, "error: %s is stale. Run `make openapi` and commit the result.\n", *out)
-			return 1
-		}
-		fmt.Fprintf(os.Stderr, "%s is up to date\n", *out)
-		return 0
-	}
 	if err := os.WriteFile(*out, rendered, 0o644); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		return 1

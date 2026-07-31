@@ -3,24 +3,28 @@
 Generates Fleet's pilot [OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0)
 spec from the canonical REST API reference at
 [`docs/REST API/rest-api.md`](../../docs/REST%20API/rest-api.md). The Markdown
-is the source of truth; `openapi.yml` is a derived artifact attached to each
-Fleet release. Pilot story: [#45279](https://github.com/fleetdm/fleet/issues/45279).
+is the source of truth; `openapi.yml` is a generated artifact, not committed
+to the repo. Pilot story: [#45279](https://github.com/fleetdm/fleet/issues/45279).
 
 ## Usage
 
-Regenerate the committed spec after editing docs for a pilot endpoint:
+Generate the spec locally after editing docs for a pilot endpoint:
 
 ```sh
 make openapi
 ```
 
-CI fails if `openapi.yml` is stale (`make openapi-check`). Commit the
-regenerated file together with your docs change.
+This writes `tools/openapi/openapi.yml`, which is gitignored. Every PR that
+touches the docs or this tool gets CI generation and validation, and the
+result is uploaded as a workflow artifact named `openapi-spec` (see the
+"Actions" tab on the PR). Releases generate and attach `openapi.yml`
+automatically, no committed file to keep in sync.
 
 Pilot endpoints live in [`allowlist.yml`](./allowlist.yml). Expanding coverage
 is config-only: add a method and path that exist in the Markdown, run
-`make openapi`, and commit both files. The generate command prints a coverage
-report showing how much of the full reference currently parses.
+`make openapi` to confirm it generates and validates, and commit the
+allowlist change. The generate command prints a coverage report showing how
+much of the full reference currently parses.
 
 ## Verifying against a live server
 

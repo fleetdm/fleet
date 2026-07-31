@@ -39,8 +39,15 @@ jobs:
       - name: Run generator tests
         run: cd tools/openapi && go test ./...
 
-      - name: Check committed spec is fresh and valid
-        run: make openapi-check
+      - name: Generate and validate spec
+        run: make openapi
+
+      - name: Upload spec artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: openapi-spec
+          path: tools/openapi/openapi.yml
+          retention-days: 30
 
   contract-verify:
     runs-on: ubuntu-latest
@@ -88,6 +95,7 @@ jobs:
       - name: Verify pilot endpoints against the live server
         run: |
           cd tools/openapi
+          go run . generate
           go run . verify --server http://localhost:1337 --email admin@example.com --password 'preview1337#'
 
       - name: Upload fleet logs on failure

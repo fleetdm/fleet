@@ -10,7 +10,7 @@ before:
   hooks:
     - make deps
     - make generate
-    - make openapi-check
+    - make openapi
 
 # gomod:
 #   proxy: true
