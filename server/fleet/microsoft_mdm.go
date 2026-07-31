@@ -945,6 +945,25 @@ type MDMWindowsEnrolledDevice struct {
 	UpdatedAt      time.Time `db:"updated_at"`
 }
 
+// WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
+// layer). Nil FleetID and empty FleetName mean no default is configured.
+type WindowsEnrollmentDefaultFleet struct {
+	FleetID   *uint
+	FleetName string
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Clone() (Cloner, error) {
+	return w.Copy(), nil
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Copy() *WindowsEnrollmentDefaultFleet {
+	clone := *w
+	if w.FleetID != nil {
+		clone.FleetID = new(*w.FleetID)
+	}
+	return &clone
+}
+
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
 }

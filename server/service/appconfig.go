@@ -283,11 +283,8 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 	// svc.ds.AppConfig directly.
 	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
 
-	// The Windows enrollment default fleet's source of truth is the windows_enrollment_config row
-	// (it survives team renames and deletions via its FK), so hydrate the response from it when it
-	// disagrees with the name stored in the app config JSON (team renamed or deleted since the
-	// last write). Otherwise leave the field's stored shape untouched so configs round-trip
-	// unchanged.
+	// The Windows enrollment default fleet's source of truth is GetWindowsEnrollmentDefaultFleet (also cached), so hydrate the
+	// response from it when it disagrees with the name stored in the app config JSON.
 	winDefaultTeamID, winDefaultFleetName, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")

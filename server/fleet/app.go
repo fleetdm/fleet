@@ -2152,6 +2152,9 @@ type WindowsSettings struct {
 type WindowsEnrollment struct {
 	// DefaultFleet is the name of the fleet that new user-driven Windows MDM enrollments are assigned to.
 	// Empty means no default: new hosts stay Unassigned.
+	//
+	// Do NOT read this field for logic: it is the transport/display shape only, and the copy stored in app_config_json can be stale
+	// after a fleet rename or deletion. The source of truth is via Datastore.GetWindowsEnrollmentDefaultFleet
 	DefaultFleet string `json:"default_fleet"`
 }
 
