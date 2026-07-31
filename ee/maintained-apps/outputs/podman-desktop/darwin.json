@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.29.0",
+      "version": "1.29.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop' AND version_compare(bundle_short_version, '1.29.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop' AND version_compare(bundle_short_version, '1.29.1') < 0);"
       },
-      "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.29.0/podman-desktop-1.29.0-arm64.dmg",
+      "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.29.1/podman-desktop-1.29.1-arm64.dmg",
       "install_script_ref": "e5a669f0",
       "uninstall_script_ref": "d4656e95",
-      "sha256": "e3df690297c24ae7a8555eedbf7e84cbc89fa1466366ec56b6b479b43bfa2d01",
+      "sha256": "8521dbfe1b22e5f9d9c46f613f0b576263494c7e8a8ab60cd8347e46aae3930b",
       "default_categories": [
         "Developer tools"
       ]
