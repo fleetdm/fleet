@@ -74,32 +74,58 @@ paths:
                   meta:
                     properties:
                       has_next_results:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       has_previous_results:
-                        type: boolean
-                    type: object
+                        type:
+                          - boolean
+                          - "null"
+                    type:
+                      - object
+                      - "null"
                   results:
                     items:
                       properties:
                         command_status:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         command_uuid:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         host_uuid:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hostname:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         name: {}
                         request_type:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         status:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         updated_at:
                           format: date-time
-                          type: string
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - string
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 count: null
                 meta:
@@ -152,10 +178,16 @@ paths:
               schema:
                 properties:
                   command_uuid:
-                    type: string
+                    type:
+                      - string
+                      - "null"
                   request_type:
-                    type: string
-                type: object
+                    type:
+                      - string
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 command_uuid: a2064cef-0000-1234-afb9-283e3c1d487e
                 request_type: ProfileList
@@ -211,66 +243,124 @@ paths:
                           properties:
                             command_line_flags:
                               properties: {}
-                              type: object
+                              type:
+                                - object
+                                - "null"
                             config:
                               properties:
                                 decorators:
                                   properties:
                                     load:
                                       items:
-                                        type: string
-                                      type: array
-                                  type: object
+                                        type:
+                                          - string
+                                          - "null"
+                                      type:
+                                        - array
+                                        - "null"
+                                  type:
+                                    - object
+                                    - "null"
                                 options:
                                   properties:
                                     disable_distributed:
-                                      type: boolean
+                                      type:
+                                        - boolean
+                                        - "null"
                                     distributed_interval:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     distributed_plugin:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     distributed_tls_max_attempts:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     logger_tls_endpoint:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     logger_tls_period:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     pack_delimiter:
-                                      type: string
-                                  type: object
-                              type: object
+                                      type:
+                                        - string
+                                        - "null"
+                                  type:
+                                    - object
+                                    - "null"
+                              type:
+                                - object
+                                - "null"
                             overrides:
                               properties: {}
-                              type: object
-                          type: object
+                              type:
+                                - object
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         created_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         description:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         host_count:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         secrets:
                           items:
                             properties:
                               created_at:
                                 format: date-time
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               secret:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               team_id:
-                                type: integer
-                            type: object
-                          type: array
+                                type:
+                                  - integer
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         user_count:
-                          type: integer
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - integer
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 fleets:
                   - agent_options:
@@ -374,46 +464,86 @@ paths:
                     items:
                       properties:
                         author_email:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         author_id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         author_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         created_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         critical:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         description:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         failing_host_count:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         host_count_updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         labels_include_any:
                           items:
-                            type: string
-                          type: array
+                            type:
+                              - string
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         passing_host_count:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         platform:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         query:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         resolution:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         team_id: {}
                         updated_at:
                           format: date-time
-                          type: string
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - string
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 policies:
                   - author_email: john@example.com
@@ -513,43 +643,79 @@ paths:
                   policy:
                     properties:
                       author_email:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       author_id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       author_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       created_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       critical:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       description:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       failing_host_count:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       host_count_updated_at: {}
                       id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       labels_include_any:
                         items:
-                          type: string
-                        type: array
+                          type:
+                            - string
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       passing_host_count:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       platform:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       query:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       resolution:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       team_id: {}
                       updated_at:
                         format: date-time
-                        type: string
-                    type: object
-                type: object
+                        type:
+                          - string
+                          - "null"
+                    type:
+                      - object
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 policy:
                   author_email: john@example.com
@@ -789,307 +955,581 @@ paths:
                       properties:
                         additional:
                           properties: {}
-                          type: object
+                          type:
+                            - object
+                            - "null"
                         build:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         code_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         computer_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         config_tls_refresh:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         cpu_brand:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         cpu_logical_cores:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         cpu_physical_cores:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         cpu_subtype:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         cpu_type:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         created_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         detail_updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         display_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         display_text:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         distributed_interval:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         fleet_id: {}
                         fleet_name: {}
                         geolocation:
                           properties:
                             city_name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             country_iso:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             geometry:
                               properties:
                                 coordinates:
                                   items:
-                                    type: number
-                                  type: array
+                                    type:
+                                      - number
+                                      - "null"
+                                  type:
+                                    - array
+                                    - "null"
                                 type:
-                                  type: string
-                              type: object
-                          type: object
+                                  type:
+                                    - string
+                                    - "null"
+                              type:
+                                - object
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         gigs_disk_space_available:
-                          type: number
+                          type:
+                            - number
+                            - "null"
                         gigs_total_disk_space:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         hardware_model:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hardware_serial:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hardware_vendor:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hardware_version:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hostname:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         issues:
                           properties:
                             critical_vulnerabilities_count:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             failing_policies_count:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             total_issues_count:
-                              type: integer
-                          type: object
+                              type:
+                                - integer
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         label_updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         labels:
                           items:
                             properties:
                               created_at:
                                 format: date-time
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               description:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               label_membership_type:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               label_type:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               platform:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               query:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               updated_at:
                                 format: date-time
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         last_enrolled_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         last_restarted_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         logger_tls_period:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         mdm:
                           properties:
                             dep_profile_error:
-                              type: boolean
+                              type:
+                                - boolean
+                                - "null"
                             device_status:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             encryption_key_available:
-                              type: boolean
+                              type:
+                                - boolean
+                                - "null"
                             enrollment_status:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             pending_action:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             server_url:
-                              type: string
-                          type: object
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         memory:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         os_version:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         osquery_version:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         pack_stats:
                           items:
                             properties:
                               pack_id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               pack_name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               query_stats:
                                 items:
                                   properties:
                                     automations_enabled:
-                                      type: boolean
+                                      type:
+                                        - boolean
+                                        - "null"
                                     average_memory:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     denylisted:
-                                      type: boolean
+                                      type:
+                                        - boolean
+                                        - "null"
                                     description:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     discard_data:
-                                      type: boolean
+                                      type:
+                                        - boolean
+                                        - "null"
                                     executions:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     interval:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     last_executed:
                                       format: date-time
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     last_fetched: {}
                                     output_size:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     pack_name:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     query_name:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     scheduled_query_id:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     scheduled_query_name:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     system_time:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     user_time:
-                                      type: integer
+                                      type:
+                                        - integer
+                                        - "null"
                                     wall_time:
-                                      type: integer
-                                  type: object
-                                type: array
+                                      type:
+                                        - integer
+                                        - "null"
+                                  type:
+                                    - object
+                                    - "null"
+                                type:
+                                  - array
+                                  - "null"
                               type:
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         percent_disk_space_available:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         platform:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         platform_like:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         policies:
                           items:
                             properties:
                               critical:
-                                type: boolean
+                                type:
+                                  - boolean
+                                  - "null"
                               description:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               fleet_maintained:
-                                type: boolean
+                                type:
+                                  - boolean
+                                  - "null"
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               platform:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               query:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               resolution:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               response:
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         policy_updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         primary_ip:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         primary_mac:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         public_ip:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         seen_time:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         software:
                           items:
                             properties:
                               generated_cpe:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               installed_paths:
                                 items:
-                                  type: string
-                                type: array
+                                  type:
+                                    - string
+                                    - "null"
+                                type:
+                                  - array
+                                  - "null"
                               last_opened_at:
                                 format: date-time
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               source:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               version:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               vulnerabilities:
                                 items:
                                   properties:
                                     cisa_known_exploit:
-                                      type: boolean
+                                      type:
+                                        - boolean
+                                        - "null"
                                     cve:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     cve_description:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     cve_published:
                                       format: date-time
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     cvss_score:
-                                      type: number
+                                      type:
+                                        - number
+                                        - "null"
                                     details_link:
-                                      type: string
+                                      type:
+                                        - string
+                                        - "null"
                                     epss_probability:
-                                      type: number
+                                      type:
+                                        - number
+                                        - "null"
                                     resolved_in_version:
-                                      type: string
-                                  type: object
-                                type: array
-                            type: object
-                          type: array
+                                      type:
+                                        - string
+                                        - "null"
+                                  type:
+                                    - object
+                                    - "null"
+                                type:
+                                  - array
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         software_updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         status:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         team_id: {}
                         team_name: {}
                         timezone: {}
                         updated_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         uptime:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         users:
                           items:
                             properties:
                               groupname:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               shell:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               type:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               uid:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               username:
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         uuid:
-                          type: string
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - string
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 hosts:
                   - additional: {}
@@ -1284,362 +1724,676 @@ paths:
                     properties:
                       additional:
                         properties: {}
-                        type: object
+                        type:
+                          - object
+                          - "null"
                       batteries:
                         items:
                           properties:
                             cycle_count:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             health:
-                              type: string
-                          type: object
-                        type: array
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       build:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       code_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       computer_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       config_tls_refresh:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       cpu_brand:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       cpu_logical_cores:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       cpu_physical_cores:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       cpu_subtype:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       cpu_type:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       created_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       detail_updated_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       disk_encryption_enabled:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       display_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       display_text:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       distributed_interval:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       end_users:
                         items:
                           properties:
                             idp_department:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             idp_full_name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             idp_groups:
                               items:
-                                type: string
-                              type: array
+                                type:
+                                  - string
+                                  - "null"
+                              type:
+                                - array
+                                - "null"
                             idp_id:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             idp_info_updated_at:
                               format: date-time
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             idp_username:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             other_emails:
                               items:
                                 properties:
                                   email:
-                                    type: string
+                                    type:
+                                      - string
+                                      - "null"
                                   source:
-                                    type: string
-                                type: object
-                              type: array
-                          type: object
-                        type: array
+                                    type:
+                                      - string
+                                      - "null"
+                                type:
+                                  - object
+                                  - "null"
+                              type:
+                                - array
+                                - "null"
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       fleet_desktop_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       fleet_id: {}
                       fleet_name: {}
                       geolocation:
                         properties:
                           city_name:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           country_iso:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           geometry:
                             properties:
                               coordinates:
                                 items:
-                                  type: number
-                                type: array
+                                  type:
+                                    - number
+                                    - "null"
+                                type:
+                                  - array
+                                  - "null"
                               type:
-                                type: string
-                            type: object
-                        type: object
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                        type:
+                          - object
+                          - "null"
                       gigs_disk_space_available:
-                        type: number
+                        type:
+                          - number
+                          - "null"
                       gigs_total_disk_space:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       hardware_model:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       hardware_serial:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       hardware_vendor:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       hardware_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       hostname:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       issues:
                         properties:
                           critical_vulnerabilities_count:
-                            type: integer
+                            type:
+                              - integer
+                              - "null"
                           failing_policies_count:
-                            type: integer
+                            type:
+                              - integer
+                              - "null"
                           total_issues_count:
-                            type: integer
-                        type: object
+                            type:
+                              - integer
+                              - "null"
+                        type:
+                          - object
+                          - "null"
                       label_updated_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       labels:
                         items:
                           properties:
                             created_at:
                               format: date-time
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             description:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             id:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             label_membership_type:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             label_type:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             platform:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             query:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             updated_at:
                               format: date-time
-                              type: string
-                          type: object
-                        type: array
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       last_enrolled_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       last_mdm_checked_in_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       last_mdm_enrolled_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       last_restarted_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       logger_tls_period:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       maintenance_window:
                         properties:
                           starts_at:
                             format: date-time
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           timezone:
-                            type: string
-                        type: object
+                            type:
+                              - string
+                              - "null"
+                        type:
+                          - object
+                          - "null"
                       mdm:
                         properties:
                           apple_settings:
                             properties:
                               action_required: {}
                               disk_encryption:
-                                type: string
-                            type: object
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
                           connected_to_fleet:
-                            type: boolean
+                            type:
+                              - boolean
+                              - "null"
                           device_status:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           encryption_key_available:
-                            type: boolean
+                            type:
+                              - boolean
+                              - "null"
                           enrollment_status:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           macos_settings:
                             properties:
                               action_required: {}
                               disk_encryption:
-                                type: string
-                            type: object
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
                           macos_setup:
                             properties:
                               bootstrap_package_name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               bootstrap_package_status:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               detail:
-                                type: string
-                            type: object
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
                           name:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           os_settings:
                             properties:
                               disk_encryption:
                                 properties:
                                   detail:
-                                    type: string
+                                    type:
+                                      - string
+                                      - "null"
                                   status:
-                                    type: string
-                                type: object
-                            type: object
+                                    type:
+                                      - string
+                                      - "null"
+                                type:
+                                  - object
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
                           pending_action:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           profiles:
                             items:
                               properties:
                                 detail:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 managed_local_account:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 name:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 operation_type:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 profile_uuid:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 scope:
-                                  type: string
+                                  type:
+                                    - string
+                                    - "null"
                                 status:
-                                  type: string
-                              type: object
-                            type: array
+                                  type:
+                                    - string
+                                    - "null"
+                              type:
+                                - object
+                                - "null"
+                            type:
+                              - array
+                              - "null"
                           server_url:
-                            type: string
+                            type:
+                              - string
+                              - "null"
                           setup_experience:
                             properties:
                               bootstrap_package_name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               bootstrap_package_status:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               detail:
-                                type: string
-                            type: object
-                        type: object
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                        type:
+                          - object
+                          - "null"
                       mdm_enrollment_hardware_attested:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       memory:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       orbit_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       os_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       osquery_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       pack_stats: {}
                       packs:
                         items: {}
-                        type: array
+                        type:
+                          - array
+                          - "null"
                       percent_disk_space_available:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       platform:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       platform_like:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       policies:
                         items:
                           properties:
                             critical:
-                              type: boolean
+                              type:
+                                - boolean
+                                - "null"
                             description:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             id:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             platform:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             query:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             resolution:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             response:
-                              type: string
-                          type: object
-                        type: array
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       policy_updated_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       primary_ip:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       primary_mac:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       public_ip:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       refetch_requested:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       scripts_enabled:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       seen_time:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       software:
                         items:
                           properties:
                             bundle_identifier:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             generated_cpe:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             id:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             installed_paths:
                               items:
-                                type: string
-                              type: array
+                                type:
+                                  - string
+                                  - "null"
+                              type:
+                                - array
+                                - "null"
                             last_opened_at:
                               format: date-time
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             source:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             version:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             vulnerabilities: {}
-                          type: object
-                        type: array
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       software_updated_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       status:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       team_id: {}
                       team_name: {}
                       timezone: {}
                       updated_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       uptime:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       users:
                         items:
                           properties:
                             groupname:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             shell:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             type:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             uid:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             username:
-                              type: string
-                          type: object
-                        type: array
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       uuid:
-                        type: string
-                    type: object
-                type: object
+                        type:
+                          - string
+                          - "null"
+                    type:
+                      - object
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 host:
                   additional: {}
@@ -1912,173 +2666,323 @@ paths:
               schema:
                 properties:
                   count:
-                    type: integer
+                    type:
+                      - integer
+                      - "null"
                   meta:
                     properties:
                       has_next_results:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       has_previous_results:
-                        type: boolean
-                    type: object
+                        type:
+                          - boolean
+                          - "null"
+                    type:
+                      - object
+                      - "null"
                   queries:
                     items:
                       properties:
                         author_email:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         author_id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         author_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         automations_enabled:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         created_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         description:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         discard_data:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         interval:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         labels_include_any:
                           items: {}
-                          type: array
+                          type:
+                            - array
+                            - "null"
                         logging:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         min_osquery_version:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         observer_can_run:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         packs:
                           items:
                             properties:
                               created_at:
                                 format: date-time
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               description:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               disabled:
-                                type: boolean
+                                type:
+                                  - boolean
+                                  - "null"
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               platform:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               updated_at:
                                 format: date-time
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         platform:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         query:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         saved:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         stats:
                           properties:
                             system_time_p50:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             system_time_p95:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             total_executions:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             user_time_p50:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             user_time_p95:
-                              type: integer
-                          type: object
+                              type:
+                                - integer
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         team_id: {}
                         updated_at:
                           format: date-time
-                          type: string
-                      type: object
-                    type: array
+                          type:
+                            - string
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
                   reports:
                     items:
                       properties:
                         author_email:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         author_id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         author_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         automations_enabled:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         created_at:
                           format: date-time
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         description:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         discard_data:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         interval:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         labels_include_any:
                           items: {}
-                          type: array
+                          type:
+                            - array
+                            - "null"
                         logging:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         min_osquery_version:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         observer_can_run:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         packs:
                           items:
                             properties:
                               created_at:
                                 format: date-time
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               description:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               disabled:
-                                type: boolean
+                                type:
+                                  - boolean
+                                  - "null"
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               name:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               platform:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               updated_at:
                                 format: date-time
-                                type: string
-                            type: object
-                          type: array
+                                type:
+                                  - string
+                                  - "null"
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         platform:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         query:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         saved:
-                          type: boolean
+                          type:
+                            - boolean
+                            - "null"
                         stats:
                           properties:
                             system_time_p50:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             system_time_p95:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             total_executions:
-                              type: integer
+                              type:
+                                - integer
+                                - "null"
                             user_time_p50:
-                              type: number
+                              type:
+                                - number
+                                - "null"
                             user_time_p95:
-                              type: integer
-                          type: object
+                              type:
+                                - integer
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         team_id: {}
                         updated_at:
                           format: date-time
-                          type: string
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - string
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 count: 200
                 meta:
@@ -2255,98 +3159,184 @@ paths:
                   query:
                     properties:
                       author_email:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       author_id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       author_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       automations_enabled:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       created_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       description:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       discard_data:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       interval:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       labels_include_any:
                         items:
-                          type: string
-                        type: array
+                          type:
+                            - string
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       logging:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       min_osquery_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       observer_can_run:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       packs:
                         items: {}
-                        type: array
+                        type:
+                          - array
+                          - "null"
                       platform:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       query:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       saved:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       team_id: {}
                       updated_at:
                         format: date-time
-                        type: string
-                    type: object
+                        type:
+                          - string
+                          - "null"
+                    type:
+                      - object
+                      - "null"
                   report:
                     properties:
                       author_email:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       author_id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       author_name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       automations_enabled:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       created_at:
                         format: date-time
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       description:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       discard_data:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       id:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       interval:
-                        type: integer
+                        type:
+                          - integer
+                          - "null"
                       labels_include_any:
                         items:
-                          type: string
-                        type: array
+                          type:
+                            - string
+                            - "null"
+                        type:
+                          - array
+                          - "null"
                       logging:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       min_osquery_version:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       name:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       observer_can_run:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       packs:
                         items: {}
-                        type: array
+                        type:
+                          - array
+                          - "null"
                       platform:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       query:
-                        type: string
+                        type:
+                          - string
+                          - "null"
                       saved:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       team_id: {}
                       updated_at:
                         format: date-time
-                        type: string
-                    type: object
-                type: object
+                        type:
+                          - string
+                          - "null"
+                    type:
+                      - object
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 query:
                   author_email: ""
@@ -2498,71 +3488,127 @@ paths:
               schema:
                 properties:
                   count:
-                    type: integer
+                    type:
+                      - integer
+                      - "null"
                   counts_updated_at:
                     format: date-time
-                    type: string
+                    type:
+                      - string
+                      - "null"
                   meta:
                     properties:
                       has_next_results:
-                        type: boolean
+                        type:
+                          - boolean
+                          - "null"
                       has_previous_results:
-                        type: boolean
-                    type: object
+                        type:
+                          - boolean
+                          - "null"
+                    type:
+                      - object
+                      - "null"
                   software_titles:
                     items:
                       properties:
                         app_store_app: {}
                         browser:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         bundle_identifier:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         display_name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         extension_for:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hash_sha256:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         hosts_count:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         icon_url: {}
                         id:
-                          type: integer
+                          type:
+                            - integer
+                            - "null"
                         name:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         software_package:
                           properties:
                             automatic_install_policies: {}
                             last_install: {}
                             last_uninstall: {}
                             name:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             package_url:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             platform:
-                              type: string
+                              type:
+                                - string
+                                - "null"
                             self_service:
-                              type: boolean
+                              type:
+                                - boolean
+                                - "null"
                             version:
-                              type: string
-                          type: object
+                              type:
+                                - string
+                                - "null"
+                          type:
+                            - object
+                            - "null"
                         source:
-                          type: string
+                          type:
+                            - string
+                            - "null"
                         versions:
                           items:
                             properties:
                               id:
-                                type: integer
+                                type:
+                                  - integer
+                                  - "null"
                               version:
-                                type: string
+                                type:
+                                  - string
+                                  - "null"
                               vulnerabilities: {}
-                            type: object
-                          type: array
+                            type:
+                              - object
+                              - "null"
+                          type:
+                            - array
+                            - "null"
                         versions_count:
-                          type: integer
-                      type: object
-                    type: array
-                type: object
+                          type:
+                            - integer
+                            - "null"
+                      type:
+                        - object
+                        - "null"
+                    type:
+                      - array
+                      - "null"
+                type:
+                  - object
+                  - "null"
               example:
                 count: 2
                 counts_updated_at: "2026-06-04T12:34:56Z"

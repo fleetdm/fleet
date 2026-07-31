@@ -10,11 +10,11 @@ func TestInferScalars(t *testing.T) {
 		in   any
 		want map[string]any
 	}{
-		{"hello", map[string]any{"type": "string"}},
-		{"2024-01-01T12:00:00Z", map[string]any{"type": "string", "format": "date-time"}},
-		{float64(3), map[string]any{"type": "integer"}},
-		{float64(3.5), map[string]any{"type": "number"}},
-		{true, map[string]any{"type": "boolean"}},
+		{"hello", map[string]any{"type": []any{"string", "null"}}},
+		{"2024-01-01T12:00:00Z", map[string]any{"type": []any{"string", "null"}, "format": "date-time"}},
+		{float64(3), map[string]any{"type": []any{"integer", "null"}}},
+		{float64(3.5), map[string]any{"type": []any{"number", "null"}}},
+		{true, map[string]any{"type": []any{"boolean", "null"}}},
 		{nil, map[string]any{}},
 	}
 	for _, c := range cases {
@@ -34,19 +34,20 @@ func TestInferObjectAndArray(t *testing.T) {
 		"empty": []any{},
 	}
 	got := Infer(in)
-	if got["type"] != "object" {
-		t.Fatalf("want object, got %v", got)
+	if !reflect.DeepEqual(got["type"], []any{"object", "null"}) {
+		t.Fatalf("want nullable object, got %v", got)
 	}
 	props := got["properties"].(map[string]any)
-	if props["id"].(map[string]any)["type"] != "integer" {
+	if !reflect.DeepEqual(props["id"].(map[string]any)["type"], []any{"integer", "null"}) {
 		t.Errorf("id: %v", props["id"])
 	}
 	tags := props["tags"].(map[string]any)
-	if tags["type"] != "array" || tags["items"].(map[string]any)["type"] != "string" {
+	if !reflect.DeepEqual(tags["type"], []any{"array", "null"}) ||
+		!reflect.DeepEqual(tags["items"].(map[string]any)["type"], []any{"string", "null"}) {
 		t.Errorf("tags: %v", tags)
 	}
 	empty := props["empty"].(map[string]any)
-	if empty["type"] != "array" || len(empty["items"].(map[string]any)) != 0 {
+	if !reflect.DeepEqual(empty["type"], []any{"array", "null"}) || len(empty["items"].(map[string]any)) != 0 {
 		t.Errorf("empty array should have permissive items: %v", empty)
 	}
 }
