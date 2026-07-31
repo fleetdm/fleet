@@ -293,9 +293,7 @@ func TestGenerateWindowsEUAToken(t *testing.T) {
 	})
 }
 
-// enrollOrbitStore wraps mock.Store to make EnrollOrbit mockable: mock.Store deliberately shadows
-// the generated EnrollOrbit with a hardcoded nil return (see mock/datastore.go), so tests that
-// need to control it must override the method themselves.
+// enrollOrbitStore wraps mock.Store to make EnrollOrbit mockable
 type enrollOrbitStore struct {
 	*mock.Store
 	enrollOrbitFunc    func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
@@ -307,10 +305,9 @@ func (s *enrollOrbitStore) EnrollOrbit(ctx context.Context, opts ...fleet.Datast
 	return s.enrollOrbitFunc(ctx, opts...)
 }
 
-// TestEnrollOrbitWindowsReverseLink covers the reverse-link-by-serial branch of EnrollOrbit: a
-// still-unlinked user-driven Windows MDM enrollment whose device-reported serial matches the
-// enrolling host gets linked (and the Windows enrollment default fleet applied) before the enroll
-// response returns; lookup failures never fail the enrollment.
+// TestEnrollOrbitWindowsReverseLink covers the reverse-link-by-serial branch of EnrollOrbit: a still-unlinked user-driven Windows
+// MDM enrollment whose device-reported serial matches the enrolling host gets linked (and the Windows enrollment default fleet
+// applied) before the enroll response returns; lookup failures never fail the enrollment.
 func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 	const testSerial = "SER-123"
 	defaultTeamID := uint(7)
@@ -345,6 +342,18 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
 		return svc, ds
 	}
+
+	t.Run("windows mdm not configured: no reverse-link attempted", func(t *testing.T) {
+		svc, ds := newSvc(t)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		nodeKey, err := svc.EnrollOrbit(t.Context(), hostInfo, "secret", "")
+		require.NoError(t, err)
+		require.NotEmpty(t, nodeKey)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+	})
 
 	t.Run("no unlinked enrollment: enrollment succeeds without linking", func(t *testing.T) {
 		svc, ds := newSvc(t)

@@ -332,21 +332,17 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	}
 
 	if euaDeviceID != "" {
-		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping
-		// (what this path historically did inline), plus IdP device mapping, the DEP flag, and the
-		// Windows enrollment default fleet assignment for newly created hosts.
+		// LinkWindowsHostMDMEnrollment performs the full post-link bookkeeping: SCIM user mapping, plus IdP device mapping, the DEP flag,
+		// and the Windows enrollment default fleet assignment for newly created hosts.
 		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, euaDeviceID); err != nil {
 			svc.logger.ErrorContext(ctx, "failed to link windows mdm enrollment to orbit host via EUA token",
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
 	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured && hostInfo.HardwareSerial != "" {
-		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this
-		// device, created before fleetd was installed. The OMA-DM session stores the device-reported
-		// SMBIOS serial on the unlinked enrollment row; link it now, before orbit fetches its config
-		// and runs its one-shot setup-experience init, so the Windows enrollment default fleet (and
-		// therefore the ESP's software and profiles) applies to this host from the start. The ctx
-		// already requires the primary, so the row written seconds ago by the management session is
-		// visible. Best-effort: the DevDetail and osquery link paths remain as fallbacks.
+		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this device, created before fleetd was
+		// installed. The OMA-DM session stores the device-reported SMBIOS serial on the unlinked enrollment row; link it now, before
+		// orbit fetches its config and runs its one-shot setup-experience init, so the Windows enrollment default fleet (and therefore
+		// the ESP's software and profiles) applies to this host from the start.
 		device, err := svc.ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, hostInfo.HardwareSerial)
 		switch {
 		case err != nil && !fleet.IsNotFound(err):
@@ -357,6 +353,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 					"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
 			}
+			// A Windows orbit enrollment is not linked when it is not MDM, if it is already linked, uses placeholder serials,
+			// or programmatic fleetd-first enrollment.
 		}
 	}
 

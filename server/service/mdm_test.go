@@ -4962,8 +4962,7 @@ func TestProcessIncomingMDMCmdsDevDetailLinkage(t *testing.T) {
 		ds.WindowsHostLiteByHardwareSerialFunc = func(_ context.Context, _ string) (*fleet.HostLite, error) {
 			return nil, &notFoundError{}
 		}
-		// On this branch the serial is persisted on the unlinked enrollment row so the orbit
-		// enrollment path can reverse-link it.
+		// On this branch the serial is persisted on the unlinked enrollment row so the orbit enrollment path can reverse-link it.
 		ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc = func(_ context.Context, mdmDeviceID string, hardwareSerial string) error {
 			assert.Equal(t, testDeviceID, mdmDeviceID)
 			assert.Equal(t, testSerial, hardwareSerial)
