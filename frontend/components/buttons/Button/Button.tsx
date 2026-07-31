@@ -154,11 +154,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       icon,
       iconPosition,
     } = this.props;
-    const hasLabel = React.Children.count(children) > 0;
     // Square, centered layout for a bare icon on secondary/subdued — see #35329.
     // Detects both the modern `icon` prop and the legacy `<Icon>` child pattern
     // used by call sites that need a color/className override on the icon.
+    // `toArray` (not `Children.count`) so `{cond && "text"}` with a false `cond`
+    // reads as "no label" — otherwise the false child still counts as a label
+    // and the visually-lone icon skips its square styling.
     const childArray = React.Children.toArray(children);
+    const hasLabel = childArray.length > 0;
     const hasLoneIconChild =
       !icon &&
       childArray.length === 1 &&
@@ -221,9 +224,9 @@ class Button extends React.Component<IButtonProps, IButtonState> {
             "transparent-text": isLoading,
           })}
         >
-          {iconElement && iconPosition === "left" && iconElement}
+          {iconPosition === "left" && iconElement}
           {children}
-          {iconElement && iconPosition === "right" && iconElement}
+          {iconPosition === "right" && iconElement}
         </div>
         {isLoading && <Spinner small button white={hasWhiteText} delay={0} />}
       </button>

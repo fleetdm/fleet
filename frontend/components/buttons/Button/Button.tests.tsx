@@ -148,6 +148,16 @@ describe("Button component", () => {
         ?.getAttribute("stroke")
     ).toContain("ui-fleet-black-75");
   });
+  it("treats a false child as no label and applies icon-only styling", () => {
+    // Callers commonly do `{cond && "Label"}` — a false-y cond means no label.
+    const { container } = render(
+      <Button variant="secondary" icon="trash" ariaLabel="Delete">
+        {false && "Delete"}
+      </Button>
+    );
+    expect(container.firstChild).toHaveClass("button--icon-only");
+    expect(container.firstChild).not.toHaveClass("button--with-icon");
+  });
   it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
     // Some call sites keep the child <Icon> pattern to pass color/className.
     // We still want the square icon-only styling for those.
