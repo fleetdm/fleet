@@ -133,6 +133,15 @@ type Datastore interface {
 	// since both appear in a team host's pack config.
 	// If teamID is nil, checks only global queries.
 	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
+	// HasAnyLabelScopedScheduledQueries reports whether any saved, scheduled
+	// query (report) anywhere in the deployment is scoped to labels
+	// (query_labels rows). Such queries make the osquery config HOST-specific
+	// rather than team-shared (see ListScheduledQueriesForAgents' per-host
+	// label filtering), and their effective targeting drifts with label
+	// membership changes, which fire no datastore write. Used by the config
+	// ETag short circuit's deployment-wide gate (see
+	// fleet.ConfigETagStore.ShortCircuitBlocked).
+	HasAnyLabelScopedScheduledQueries(ctx context.Context) (bool, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)

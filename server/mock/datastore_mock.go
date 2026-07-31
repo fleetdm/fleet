@@ -116,6 +116,8 @@ type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, h
 
 type HasLabelScopedScheduledQueriesFunc func(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
 
+type HasAnyLabelScopedScheduledQueriesFunc func(ctx context.Context) (bool, error)
+
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
 type QueriesPerHostFunc func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error)
@@ -2492,6 +2494,9 @@ type DataStore struct {
 
 	HasLabelScopedScheduledQueriesFunc        HasLabelScopedScheduledQueriesFunc
 	HasLabelScopedScheduledQueriesFuncInvoked bool
+
+	HasAnyLabelScopedScheduledQueriesFunc        HasAnyLabelScopedScheduledQueriesFunc
+	HasAnyLabelScopedScheduledQueriesFuncInvoked bool
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
@@ -6173,6 +6178,13 @@ func (s *DataStore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *
 	s.HasLabelScopedScheduledQueriesFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasLabelScopedScheduledQueriesFunc(ctx, teamID, queryReportsDisabled)
+}
+
+func (s *DataStore) HasAnyLabelScopedScheduledQueries(ctx context.Context) (bool, error) {
+	s.mu.Lock()
+	s.HasAnyLabelScopedScheduledQueriesFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAnyLabelScopedScheduledQueriesFunc(ctx)
 }
 
 func (s *DataStore) QueryByName(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
