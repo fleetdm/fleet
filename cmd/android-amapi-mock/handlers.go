@@ -87,7 +87,7 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 		d.mu.Lock()
 		resp := map[string]any{
 			"name":                 name,
-			"appliedPolicyVersion": d.PolicyVersion,
+			"appliedPolicyVersion": fmt.Sprintf("%d", d.PolicyVersion),
 			"appliedPolicyName":    d.PolicyName,
 		}
 		d.mu.Unlock()
@@ -135,7 +135,7 @@ func handleDevicesPatch(store *deviceStore) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":                 name,
-			"appliedPolicyVersion": appliedVersion,
+			"appliedPolicyVersion": fmt.Sprintf("%d", appliedVersion),
 		})
 	}
 }
@@ -262,7 +262,7 @@ func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.Handl
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"name":    name,
-			"version": version,
+			"version": fmt.Sprintf("%d", version),
 		})
 	}
 }
@@ -287,7 +287,7 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"version": version,
+			"version": fmt.Sprintf("%d", version),
 		})
 	}
 }
@@ -351,16 +351,18 @@ func handleEnterprisesList(store *deviceStore) http.HandlerFunc {
 
 func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []byte) {
 	var req struct {
-		Applications []struct {
-			ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
-		} `json:"applications"`
+		Changes []struct {
+			Application struct {
+				ManagedConfiguration json.RawMessage `json:"managedConfiguration"`
+			} `json:"application"`
+		} `json:"changes"`
 	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		return
 	}
 
-	for _, app := range req.Applications {
-		if app.ManagedConfiguration == nil {
+	for _, change := range req.Changes {
+		if change.Application.ManagedConfiguration == nil {
 			continue
 		}
 		var config struct {
@@ -370,15 +372,13 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 				Operation string `json:"operation"`
 			} `json:"certificate_templates"`
 		}
-		if err := json.Unmarshal(app.ManagedConfiguration, &config); err != nil {
+		if err := json.Unmarshal(change.Application.ManagedConfiguration, &config); err != nil {
 			continue
 		}
 		if len(config.CertificateTemplateIDs) == 0 {
 			continue
 		}
 
-		// Find the device by matching hostUUID — the policy name is enterprises/{eid}/policies/{hostUUID}
-		// and hostUUID == enterpriseSpecificID for android devices
 		var certIDs []uint
 		for _, ct := range config.CertificateTemplateIDs {
 			if ct.Operation == "install" {
@@ -389,13 +389,13 @@ func extractAndStoreCertTemplateIDs(store *deviceStore, hostUUID string, body []
 			return
 		}
 
-		store.mu.RLock()
-		for _, d := range store.byESID {
+		// The hostUUID from the policy path is the enterpriseSpecificID for android devices.
+		d := store.getByESID(hostUUID)
+		if d != nil {
 			d.mu.Lock()
 			d.PendingCertificates = certIDs
 			d.mu.Unlock()
 		}
-		store.mu.RUnlock()
 		return
 	}
 }
