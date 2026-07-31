@@ -109,3 +109,57 @@ func TestParseInvalidJSONExampleIsError(t *testing.T) {
 		t.Fatalf("want invalid JSON skip, got %+v", res.Skipped)
 	}
 }
+
+func TestStripLineComments(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "comment after value on same line is stripped",
+			in:   "{\n  \"a\": 1, // comment\n  \"b\": 2\n}",
+			want: "{\n  \"a\": 1, \n  \"b\": 2\n}",
+		},
+		{
+			name: "url in string value survives byte-for-byte",
+			in:   `{"url": "https://example.com/path"}`,
+			want: `{"url": "https://example.com/path"}`,
+		},
+		{
+			name: "escaped quote followed by // inside string is not stripped",
+			in:   `{"a": "a\"b // not a comment"}`,
+			want: `{"a": "a\"b // not a comment"}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := string(stripLineComments([]byte(tc.in)))
+			if got != tc.want {
+				t.Errorf("stripLineComments(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestParseDefaultResponseStripsLineComments(t *testing.T) {
+	md := "## S\n\n### Commented json\n\n`GET /api/v1/fleet/commented`\n\n##### Default response\n\n`Status: 200`\n\n" +
+		"```json\n{\n  \"count\": 1, // Fleet Premium only\n  \"url\": \"https://example.com/path\"\n}\n```\n"
+	res := Parse(md)
+	if len(res.Skipped) != 0 {
+		t.Fatalf("want no skips, got %+v", res.Skipped)
+	}
+	if len(res.Endpoints) != 1 {
+		t.Fatalf("want 1 endpoint, got %+v", res.Endpoints)
+	}
+	obj, ok := res.Endpoints[0].Responses[0].Example.(map[string]any)
+	if !ok {
+		t.Fatalf("example not an object: %T", res.Endpoints[0].Responses[0].Example)
+	}
+	if obj["count"] != float64(1) {
+		t.Errorf("comment not stripped from value: %v", obj["count"])
+	}
+	if obj["url"] != "https://example.com/path" {
+		t.Errorf("url mangled: %v", obj["url"])
+	}
+}
