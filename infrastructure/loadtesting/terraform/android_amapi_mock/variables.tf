@@ -3,8 +3,8 @@ variable "tag" {
   type        = string
 
   validation {
-    condition     = !strcontains(var.tag, "/")
-    error_message = "var.tag cannot contain forward slashes — Docker image tags do not allow them. Replace slashes with dashes (e.g. \"my-feature\" instead of \"user/feature\")."
+    condition     = can(regex("^[0-9A-Za-z_.-]+$", var.tag)) && length(var.tag) <= 128
+    error_message = "var.tag must be a non-empty Docker-tag-safe string (letters, digits, '.', '_', '-' only, max 128 chars). Replace slashes with dashes."
   }
 }
 
