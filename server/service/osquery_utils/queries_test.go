@@ -22,6 +22,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -2737,8 +2738,6 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
 	}
-	// No Windows enrollment default fleet configured; assignment is exercised in
-	// TestMaybeAssignWindowsEnrollmentDefaultFleet.
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
@@ -4580,15 +4579,9 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 			expectTransfer: true,
 		},
 		{
-			name:           "host created before the enrollment stays put",
+			name:           "host created before the enrollment (incl. parked Unassigned) stays put",
 			defaultTeamID:  &defaultTeamID,
 			hostCreatedAt:  enrollmentCreatedAt.Add(-time.Minute),
-			expectTransfer: false,
-		},
-		{
-			name:           "pre-existing Unassigned host stays put",
-			defaultTeamID:  &defaultTeamID,
-			hostCreatedAt:  enrollmentCreatedAt.Add(-24 * time.Hour),
 			expectTransfer: false,
 		},
 		{
@@ -4607,6 +4600,7 @@ func TestMaybeAssignWindowsEnrollmentDefaultFleet(t *testing.T) {
 				return tc.defaultTeamID, "Workstations", nil
 			}
 			ds.HostLiteByIDFunc = func(ctx context.Context, id uint) (*fleet.HostLite, error) {
+				require.True(t, ctxdb.IsPrimaryRequired(ctx), "host read must hit the primary (read-after-write with orbit enroll)")
 				return &fleet.HostLite{ID: id, TeamID: tc.hostTeamID, CreatedAt: tc.hostCreatedAt}, nil
 			}
 			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {

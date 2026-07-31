@@ -3234,21 +3234,12 @@ func LinkWindowsHostMDMEnrollment(ctx context.Context, logger *slog.Logger, ds f
 	return updated, nil
 }
 
-// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment
-// default fleet iff all of: the linked enrollment is user-driven (LinkWindowsHostMDMEnrollment
-// verifies the UPN before calling), a default fleet is configured, the host has no fleet, and the
-// host record was created at or after the enrollment row (MDM-first ordering, as in Autopilot,
-// where Fleet installs fleetd after MDM enrollment). Hosts that enrolled fleetd first keep the
-// fleet their enroll secret chose; IT admins deploying fleetd ahead of MDM enrollment should use
-// the target fleet's enroll secret. Pre-existing hosts are never moved, including hosts
-// deliberately parked in Unassigned, matching macOS ABM re-enrollment behavior. The transfer runs
-// the same profile side effects as a manual transfer; no transferred_hosts activity is logged,
-// mirroring ABM ingest.
+// maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
+// enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
+// the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
+// fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
+// in Unassigned, matching macOS ABM re-enrollment behavior.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
-	// Require the primary for both reads: this path runs only once per link, so replica lag could
-	// permanently lose the assignment, either by missing a just-configured default fleet or by a
-	// NotFound on a hosts row that orbit enroll inserted seconds ago.
-	ctx = ctxdb.RequirePrimary(ctx, true)
 	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
@@ -3256,7 +3247,9 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	if teamID == nil {
 		return nil
 	}
-	host, err := ds.HostLiteByID(ctx, hostID)
+	// replica lag could permanently lose the assignment by a NotFound on a hosts row that orbit enroll inserted seconds ago.
+	ctxPrimary := ctxdb.RequirePrimary(ctx, true)
+	host, err := ds.HostLiteByID(ctxPrimary, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host for windows enrollment default fleet assignment")
 	}
@@ -3270,8 +3263,7 @@ func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.
 	if err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{hostID})); err != nil {
 		return ctxerr.Wrap(ctx, err, "assign windows enrollment default fleet")
 	}
-	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately;
-	// without it the host keeps the Unassigned profile set until something else triggers a recalc.
+	// Same side effect as a manual transfer so the new fleet's profiles reconcile immediately
 	if _, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{hostID}, nil, nil, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending profiles after windows enrollment default fleet assignment")
 	}
