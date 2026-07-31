@@ -10,6 +10,8 @@ import teamsAPI from "services/entities/teams";
 import { ApplePlatform } from "interfaces/platform";
 
 import InputField from "components/forms/fields/InputField";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import validatePresence from "components/forms/validators/validate_presence";
@@ -19,6 +21,27 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "apple-os-target-form";
+
+/** The sentinel stored in minimum_version meaning "enforce the newest version
+ * available", with the deadline derived from deadline_days rather than a date. */
+export const LATEST_VERSION = "latest";
+
+/** Which set of fields the form collects. Not stored separately: minimum_version
+ * carries the mode, so the target is derived from it. */
+export type AppleOSTarget = "none" | "custom" | "latest";
+
+const TARGET_OPTIONS: CustomOptionType[] = [
+  { label: "No updates enforced", value: "none" },
+  { label: "Custom version", value: "custom" },
+  { label: "Latest version", value: "latest" },
+];
+
+export const getTargetFromMinOsVersion = (
+  minOsVersion: string
+): AppleOSTarget => {
+  if (minOsVersion === LATEST_VERSION) return "latest";
+  return minOsVersion ? "custom" : "none";
+};
 
 interface IAppleOSTargetFormData {
   minOsVersion: string;
@@ -130,6 +153,9 @@ const AppleOSTargetForm = ({
     .gitops_mode_enabled;
 
   const [isSaving, setIsSaving] = useState(false);
+  const [target, setTarget] = useState<AppleOSTarget>(
+    getTargetFromMinOsVersion(defaultMinOsVersion)
+  );
   const [minOsVersion, setMinOsVersion] = useState(defaultMinOsVersion);
   const [deadline, setDeadline] = useState(defaultDeadline);
   const [minOsVersionError, setMinOsVersionError] = useState<
@@ -192,6 +218,16 @@ const AppleOSTargetForm = ({
 
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
+      <DropdownWrapper
+        label="Target"
+        name="target"
+        options={TARGET_OPTIONS}
+        value={target}
+        isDisabled={gitOpsModeEnabled}
+        onChange={(option) =>
+          option && setTarget(option.value as AppleOSTarget)
+        }
+      />
       <InputField
         label="Minimum version"
         name="minimum_version"
