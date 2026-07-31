@@ -8,7 +8,6 @@ import { createMockHostMdmData } from "__mocks__/mdmMock";
 
 import { IHost } from "interfaces/host";
 import VitalsModal from "./VitalsModal";
-import { UNSUPPORTED_VITALS_BY_ENROLLMENT } from "./unsupportedVitalsByEnrollment";
 
 const ALL_VITALS_LABELS = [
   "Accessibility settings",
@@ -319,74 +318,6 @@ describe("VitalsModal component", () => {
       ?.querySelector("dd")?.textContent;
 
     expect(modelNumberValue).toBe("None");
-  });
-
-  describe("Not supported treatment", () => {
-    const originalTable = JSON.parse(
-      JSON.stringify(UNSUPPORTED_VITALS_BY_ENROLLMENT)
-    );
-
-    afterEach(() => {
-      (Object.keys(UNSUPPORTED_VITALS_BY_ENROLLMENT) as Array<
-        keyof typeof UNSUPPORTED_VITALS_BY_ENROLLMENT
-      >).forEach((enrollmentStatus) => {
-        UNSUPPORTED_VITALS_BY_ENROLLMENT[enrollmentStatus] = [
-          ...originalTable[enrollmentStatus],
-        ];
-      });
-    });
-
-    it("renders the tooltip-wrapped 'Not supported' treatment for a vital marked unsupported for the host's enrollment method, even when the API returned a non-null value", async () => {
-      UNSUPPORTED_VITALS_BY_ENROLLMENT["On (manual)"] = ["udid"];
-      const host = buildFullyPopulatedHost({
-        udid: "00008030-should-not-show",
-      });
-      const customRender = createCustomRenderer({});
-
-      const { user } = customRender(
-        <VitalsModal
-          host={host}
-          vitalsData={host}
-          mdm={host.mdm}
-          onExit={noop}
-        />
-      );
-
-      expect(
-        screen.queryByText("00008030-should-not-show")
-      ).not.toBeInTheDocument();
-      const notSupportedText = screen.getByText("Not supported");
-      expect(notSupportedText).toBeInTheDocument();
-
-      await user.hover(notSupportedText);
-      await waitFor(() => {
-        expect(
-          screen.getByText(
-            /This property isn't supported for this device's enrollment method\./i
-          )
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("does not apply the 'Not supported' treatment to vitals for a different enrollment method", () => {
-      UNSUPPORTED_VITALS_BY_ENROLLMENT["On (automatic)"] = ["udid"];
-      const host = buildFullyPopulatedHost({
-        mdm: createMockHostMdmData({ enrollment_status: "On (manual)" }),
-        udid: "00008030-000000000000000",
-      });
-
-      render(
-        <VitalsModal
-          host={host}
-          vitalsData={host}
-          mdm={host.mdm}
-          onExit={noop}
-        />
-      );
-
-      expect(screen.getByText("00008030-000000000000000")).toBeInTheDocument();
-      expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
-    });
   });
 
   it("calls onExit when the Done button is clicked", async () => {

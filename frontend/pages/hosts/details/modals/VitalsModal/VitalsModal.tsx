@@ -16,13 +16,6 @@ import {
   VitalForSort,
 } from "../../cards/Vitals/Vitals";
 
-import {
-  IosOrIpadosEnrollmentStatus,
-  NOT_SUPPORTED_VITAL_TOOLTIP,
-  UNSUPPORTED_VITALS_BY_ENROLLMENT,
-  VitalKey,
-} from "./unsupportedVitalsByEnrollment";
-
 const baseClass = "vitals-modal";
 const EMPTY_VITAL_VALUE = "None";
 
@@ -186,6 +179,38 @@ const renderServiceSubscriptions = (
     </div>
   );
 };
+
+/** iOS/iPadOS vitals fields (see HostMDMAppleDeviceVitals, server/fleet/mdm_apple_device_vitals.go) */
+type VitalKey =
+  | "udid"
+  | "model_number"
+  | "modem_firmware_version"
+  | "supplemental_build_version"
+  | "supplemental_os_version_extra"
+  | "bluetooth_mac"
+  | "wifi_mac"
+  | "eas_device_identifier"
+  | "itunes_store_account_hash"
+  | "push_token"
+  | "battery_level"
+  | "cellular_technology"
+  | "app_analytics_enabled"
+  | "awaiting_configuration"
+  | "data_roaming_enabled"
+  | "diagnostic_submission_enabled"
+  | "is_cloud_backup_enabled"
+  | "is_device_locator_service_enabled"
+  | "is_do_not_disturb_in_effect"
+  | "is_mdm_lost_mode_enabled"
+  | "is_network_tethered"
+  | "itunes_store_account_is_active"
+  | "personal_hotspot_enabled"
+  | "last_cloud_backup_date"
+  | "accessibility_settings"
+  | "organization_info"
+  | "mdm_options"
+  | "device_properties_attestation"
+  | "service_subscriptions";
 
 interface IVital {
   key: VitalKey;
@@ -420,28 +445,8 @@ interface IVitalsModal extends IHostVitalsSources {
 }
 
 const VitalsModal = ({ host, onExit, ...vitalsSources }: IVitalsModal) => {
-  // enrollment_status is the full MdmEnrollmentStatus union; a non-iOS status
-  // (or null) simply has no entry, leaving every vital supported.
-  const unsupportedVitals =
-    UNSUPPORTED_VITALS_BY_ENROLLMENT[
-      host.mdm?.enrollment_status as IosOrIpadosEnrollmentStatus
-    ];
-
   const iosOnlyVitals: VitalForSort[] = VITALS.map(
     ({ key, label, render, multiline, tooltip }) => {
-      const isUnsupported = unsupportedVitals?.includes(key) ?? false;
-      const value = isUnsupported ? (
-        <TooltipWrapper
-          tipContent={NOT_SUPPORTED_VITAL_TOOLTIP}
-          showArrow
-          position="top"
-        >
-          Not supported
-        </TooltipWrapper>
-      ) : (
-        render(host)
-      );
-
       return {
         sortKey: label,
         element: (
@@ -454,8 +459,8 @@ const VitalsModal = ({ host, onExit, ...vitalsSources }: IVitalsModal) => {
                 label
               )
             }
-            value={value}
-            multiline={multiline && !isUnsupported}
+            value={render(host)}
+            multiline={multiline}
           />
         ),
       };
