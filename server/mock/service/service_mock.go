@@ -754,6 +754,8 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profi
 
 type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, filename string) error
 
+type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uint) error
+
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
 type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation []byte) error
@@ -2085,6 +2087,9 @@ type Service struct {
 
 	NewMDMUnsupportedConfigProfileFunc        NewMDMUnsupportedConfigProfileFunc
 	NewMDMUnsupportedConfigProfileFuncInvoked bool
+
+	NewMDMActivationUnsupportedProfileFunc        NewMDMActivationUnsupportedProfileFunc
+	NewMDMActivationUnsupportedProfileFuncInvoked bool
 
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
@@ -5001,6 +5006,13 @@ func (s *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMUnsupportedConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMUnsupportedConfigProfileFunc(ctx, teamID, filename)
+}
+
+func (s *Service) NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.NewMDMActivationUnsupportedProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMActivationUnsupportedProfileFunc(ctx, teamID)
 }
 
 func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error {

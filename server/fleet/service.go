@@ -1240,6 +1240,12 @@ type Service interface {
 	// unsupported extension is uploaded.
 	NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error
 
+	// NewMDMActivationUnsupportedProfile is called when an activation is
+	// uploaded alongside a profile that isn't an Apple declaration. Like the
+	// two below, it exists so the error goes through an authorization check --
+	// the endpoint can't reach svc.authz through this interface.
+	NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error
+
 	// NewMDMInvalidJSONConfigProfile is called when a JSON profile is uploaded with contents that
 	// cannot be resolved to either Apple DDM or Android format
 	NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error

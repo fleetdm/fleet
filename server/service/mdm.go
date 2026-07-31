@@ -1837,8 +1837,11 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	// the endpoint is what determines the profile's type; the message is shared
 	// with the batch path so the same mistake reads the same way.
 	if len(activation) > 0 && !isAppleDeclarationJSON {
+		// routed through the service so the error is returned from behind an
+		// authorization check; returning it straight from the endpoint would
+		// skip authz entirely and surface as a bare "forbidden"
 		return &newMDMConfigProfileResponse{
-			Err: fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg),
+			Err: svc.NewMDMActivationUnsupportedProfile(ctx, req.TeamID),
 		}, nil
 	}
 
@@ -2025,6 +2028,17 @@ func (svc *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID u
 	// svc.authz is only available on the concrete Service struct, not on the
 	// Service interface so it cannot be done in the endpoint itself.
 	return fleet.NewInvalidArgumentError("profile", err.Error()).WithStatus(http.StatusBadRequest)
+}
+
+func (svc *Service) NewMDMActivationUnsupportedProfile(ctx context.Context, teamID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// this is required because we need authorize to return the error, and
+	// svc.authz is only available on the concrete Service struct, not on the
+	// Service interface so it cannot be done in the endpoint itself.
+	return fleet.NewInvalidArgumentError("activation", ActivationUnsupportedProfileErrorMsg)
 }
 
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {

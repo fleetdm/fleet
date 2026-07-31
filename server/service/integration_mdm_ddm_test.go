@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5" // nolint:gosec // used only for tests
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -2239,4 +2240,146 @@ func declarationForTestWithType(identifier string, dType string) []byte {
     },
     "Identifier": "%s"
 }`, dType, identifier))
+}
+
+// TestAppleDDMCustomActivations covers the HTTP layer for custom activations:
+// the multipart plumbing, the endpoint-level guard for non-DDM profiles, and
+// the wire format of the activation on read. The validation rules themselves
+// are covered by unit tests; this exercises what only a real request can.
+func (s *integrationMDMTestSuite) TestAppleDDMCustomActivations() {
+	t := s.T()
+
+	activationForTest := func(identifier, configIdentifier, predicate string) []byte {
+		return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.activation.simple",
+    "Identifier": %q,
+    "Payload": {
+        "StandardConfigurations": [%q],
+        "Predicate": %q
+    }
+}`, identifier, configIdentifier, predicate))
+	}
+
+	uploadProfile := func(fileName string, content, activation []byte, wantStatus int) *http.Response {
+		var extraFiles map[string]multipartFile
+		if activation != nil {
+			extraFiles = map[string]multipartFile{
+				"activation": {fileName: "activation.json", content: activation},
+			}
+		}
+		body, headers := generateMultipartRequestWithFiles(
+			t, "profile", fileName, content, s.token, nil, extraFiles,
+		)
+		return s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+	}
+
+	t.Run("upload a declaration with an activation and read it back", func(t *testing.T) {
+		declIdent := "com.fleet.ddm.act.upload"
+		activation := activationForTest(declIdent+".custom", declIdent, "@status(os.version.major) >= 15")
+
+		res := uploadProfile(declIdent+".json", declarationForTest(declIdent), activation, http.StatusOK)
+		var uploadResp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+		require.NotEmpty(t, uploadResp.ProfileUUID)
+		t.Cleanup(func() {
+			var delResp deleteMDMConfigProfileResponse
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+		})
+
+		// the list endpoint returns it, base64-encoded by encoding/json
+		var listResp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+		var found *fleet.MDMConfigProfilePayload
+		for _, p := range listResp.Profiles {
+			if p.ProfileUUID == uploadResp.ProfileUUID {
+				found = p
+			}
+		}
+		require.NotNil(t, found, "uploaded declaration missing from list")
+		require.JSONEq(t, string(activation), string(found.Activation))
+
+		// the single-profile endpoint returns it too, and the raw body carries
+		// it as a base64 string rather than an object -- this is the wire
+		// format the API reference promises
+		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
+		rawBody, err := io.ReadAll(getRes.Body)
+		require.NoError(t, err)
+		var asMap map[string]any
+		require.NoError(t, json.Unmarshal(rawBody, &asMap))
+		encoded, ok := asMap["activation"].(string)
+		require.True(t, ok, "activation should serialize as a base64 string, got %T", asMap["activation"])
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		require.NoError(t, err)
+		require.JSONEq(t, string(activation), string(decoded))
+	})
+
+	t.Run("activation alongside a non-DDM profile is rejected", func(t *testing.T) {
+		activation := activationForTest("com.fleet.ddm.act.bad", "com.fleet.ddm.act.bad", "")
+		mc := mobileconfigForTest("act-not-ddm", "com.fleet.ddm.act.notddm")
+
+		res := uploadProfile("act-not-ddm.mobileconfig", mc, activation, http.StatusUnprocessableEntity)
+		errMsg := extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Activations are only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("activation on a non-DDM profile is rejected when editing too", func(t *testing.T) {
+		// the create path rejects this in the endpoint, the edit path in the
+		// service -- both have to return a real validation error rather than
+		// tripping the authorization layer
+		mc := mobileconfigForTest("act-edit-not-ddm", "com.fleet.ddm.act.editnotddm")
+		body, headers := generateNewProfileMultipartRequest(t, "act-edit-not-ddm.mobileconfig", mc, s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		var uploadResp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+		t.Cleanup(func() {
+			var delResp deleteMDMConfigProfileResponse
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+		})
+
+		activation := activationForTest("com.fleet.ddm.act.bad", "com.fleet.ddm.act.bad", "")
+		patchBody, patchHeaders := generateMultipartRequestWithFiles(
+			t, "profile", "", nil, s.token, nil,
+			map[string]multipartFile{"activation": {fileName: "activation.json", content: activation}},
+		)
+		patchRes := s.DoRawWithHeaders("PATCH",
+			fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID),
+			patchBody.Bytes(), http.StatusUnprocessableEntity, patchHeaders)
+		require.Contains(t, extractServerErrorText(patchRes.Body),
+			"Activations are only supported for declaration (DDM) profiles")
+	})
+
+	t.Run("activation can be edited on its own", func(t *testing.T) {
+		declIdent := "com.fleet.ddm.act.edit"
+		content := declarationForTest(declIdent)
+		activation := activationForTest(declIdent+".custom", declIdent, "@status(os.version.major) >= 15")
+
+		res := uploadProfile(declIdent+".json", content, activation, http.StatusOK)
+		var uploadResp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&uploadResp))
+		t.Cleanup(func() {
+			var delResp deleteMDMConfigProfileResponse
+			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK, &delResp)
+		})
+
+		// PATCH with only an activation: no profile part at all
+		updated := activationForTest(declIdent+".custom", declIdent, "@status(os.version.major) >= 26")
+		body, headers := generateMultipartRequestWithFiles(
+			t, "profile", "", nil, s.token, nil,
+			map[string]multipartFile{"activation": {fileName: "activation.json", content: updated}},
+		)
+		s.DoRawWithHeaders("PATCH",
+			fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID),
+			body.Bytes(), http.StatusOK, headers)
+
+		getRes := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uploadResp.ProfileUUID), nil, http.StatusOK)
+		var profResp getMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(getRes.Body).Decode(&profResp))
+		require.JSONEq(t, string(updated), string(profResp.Activation), "activation should be replaced")
+
+		// the declaration's own content is untouched by an activation-only edit
+		decl, err := s.ds.GetMDMAppleDeclaration(context.Background(), uploadResp.ProfileUUID)
+		require.NoError(t, err)
+		require.JSONEq(t, string(content), string(decl.RawJSON))
+	})
 }
