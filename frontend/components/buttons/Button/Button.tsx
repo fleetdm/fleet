@@ -186,8 +186,18 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     const hasWhiteText = WHITE_TEXT_VARIANTS.includes(variant!);
     // Icons: 16px on default-size buttons, 12px on small-size buttons.
     const iconSize = size === "small" ? "small" : "medium";
-    const iconColor = hasWhiteText ? "core-fleet-white" : undefined;
-    const iconElement = icon && (
+    // Match the icon to the button text: white on dark-fill variants,
+    // ui-fleet-black-75 on the light secondary/subdued variants.
+    let iconColor: "core-fleet-white" | "ui-fleet-black-75" | undefined;
+    if (hasWhiteText) {
+      iconColor = "core-fleet-white";
+    } else if (variant === "secondary" || variant === "subdued") {
+      iconColor = "ui-fleet-black-75";
+    }
+    // Skip the icon on variants that don't support it — otherwise the SVG
+    // renders unspaced against the label, since the `--with-icon` gap rule is
+    // scoped to ICON_ENABLED_VARIANTS in _styles.scss.
+    const iconElement = icon && ICON_ENABLED_VARIANTS.includes(variant!) && (
       <Icon name={icon} size={iconSize} color={iconColor} />
     );
 

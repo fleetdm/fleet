@@ -29,6 +29,7 @@ export const generateTableHeaders = (
               onClick={() => handleRowRemove(cellProps.row)}
               variant="subdued"
               icon="close-filled"
+              ariaLabel="Remove"
             />
           ),
           disableHidden: true,

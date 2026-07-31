@@ -112,7 +112,7 @@ describe("Button component", () => {
       screen.getByTestId("chevron-right-icon")
     );
   });
-  it("does not apply icon classes on variants outside the icon-enabled set", () => {
+  it("does not render the icon or apply icon classes on variants outside the icon-enabled set", () => {
     const { container } = render(
       <Button variant="pill" icon="plus">
         Add
@@ -120,6 +120,33 @@ describe("Button component", () => {
     );
     expect(container.firstChild).not.toHaveClass("button--with-icon");
     expect(container.firstChild).not.toHaveClass("button--icon-only");
+    expect(screen.queryByTestId("plus-icon")).not.toBeInTheDocument();
+  });
+  it("auto-colors the icon white on white-text variants (default)", () => {
+    render(
+      <Button variant="default" icon="plus">
+        Add
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("core-fleet-white");
+  });
+  it("matches the icon color to the text on secondary/subdued", () => {
+    render(
+      <Button variant="secondary" icon="plus">
+        Add
+      </Button>
+    );
+    expect(
+      screen
+        .getByTestId("plus-icon")
+        .querySelector("path")
+        ?.getAttribute("stroke")
+    ).toContain("ui-fleet-black-75");
   });
   it("adds the icon-only class for a legacy <Icon> child pattern on secondary/subdued", () => {
     // Some call sites keep the child <Icon> pattern to pass color/className.

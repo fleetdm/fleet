@@ -39,7 +39,7 @@ const Template = (
   args: {
     ...DEFAULT_ARGS,
     variant,
-    children: children ?? DEFAULT_ARGS.children, // Fall back to default text
+    children: children === undefined ? DEFAULT_ARGS.children : children, // Fall back to default text; pass `null` for icon-only stories
     ...extraArgs,
   },
   argTypes: {

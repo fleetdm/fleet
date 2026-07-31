@@ -125,6 +125,7 @@ const generateSelectedTableHeaders = (
         onClick={() => handleRemove(cellProps.row)}
         variant="subdued"
         icon="close-filled"
+        ariaLabel="Remove"
       />
     ),
     disableHidden: true,
