@@ -390,14 +390,17 @@ controls:
   apple_settings:
     configuration_profiles:
       - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
+        self_service: true
         labels_include_any:
           - Engineering
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
+        self_service: true
     certificates:
       - name: wifi-certificate
         certificate_authority_name: EST_WIFI
@@ -451,6 +454,8 @@ Each entry can use either `path:` or `paths:`:
 - **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in.
 
 ### android_settings
 
@@ -538,7 +543,7 @@ Currently, you can specify `install_software` in the [`policies` YAML](#policies
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
-Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
+Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. ``). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
 #### Example
 
