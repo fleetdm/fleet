@@ -105,12 +105,7 @@ const generateTableHeaders = (
           variant="subdued"
           size="small"
           ariaLabel="Delete integration"
-          onClick={() =>
-            actionSelectHandler(
-              cellProps.cell.value[0].value as string,
-              cellProps.row.original
-            )
-          }
+          onClick={() => actionSelectHandler("delete", cellProps.row.original)}
         >
           <Icon name="trash" />
         </Button>
@@ -119,9 +114,6 @@ const generateTableHeaders = (
   ];
 };
 
-// NOTE: the Actions cell renders a single trash Button (not an ActionsDropdown)
-// and reads value[0] directly. If a second option is added here, update the
-// Cell renderer accordingly.
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
