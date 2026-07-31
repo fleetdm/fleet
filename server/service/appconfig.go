@@ -2026,13 +2026,25 @@ func (svc *Service) validateMDM(
 	updatingIPadOSDeadlineDays := mdm.IPadOSUpdates.DeadlineDays.Valid &&
 		mdm.IPadOSUpdates.DeadlineDays != oldMdm.IPadOSUpdates.DeadlineDays
 
-	if updatingMacOSVersion || updatingMacOSDeadline || updatingMacOSDeadlineDays ||
-		updatingIOSVersion || updatingIOSDeadline || updatingIOSDeadlineDays ||
-		updatingIPadOSVersion || updatingIPadOSDeadline || updatingIPadOSDeadlineDays {
+	updatingMacOS := updatingMacOSVersion || updatingMacOSDeadline || updatingMacOSDeadlineDays
+	updatingIOS := updatingIOSVersion || updatingIOSDeadline || updatingIOSDeadlineDays
+	updatingIPadOS := updatingIPadOSVersion || updatingIPadOSDeadline || updatingIPadOSDeadlineDays
+
+	if updatingMacOS || updatingIOS || updatingIPadOS {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !lic.IsPremium() {
-			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
+			// The gate is shared by all three platforms, so a fixed field name
+			// would report macOS for an iOS-only edit.
+			field := "macos_updates.minimum_version"
+			switch {
+			case updatingMacOS:
+			case updatingIOS:
+				field = "ios_updates.minimum_version"
+			default:
+				field = "ipados_updates.minimum_version"
+			}
+			invalid.Append(field, ErrMissingLicense.Error())
 			return nil
 		}
 	}

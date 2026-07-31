@@ -1312,7 +1312,35 @@ func TestMDMConfig(t *testing.T) {
 				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
 				DeadlineDays:   optjson.SetInt(21),
 			}},
-			expectedError: licenseErr,
+			expectedError: "macos_updates.minimum_version " + licenseErr,
+		},
+		{
+			// The license gate is shared by the three Apple platforms, so the
+			// reported field has to follow the one that changed.
+			name:        "deadlineDaysFreeIOS",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: "ios_updates.minimum_version " + licenseErr,
+		},
+		{
+			name:        "deadlineDaysFreeIPadOS",
+			licenseTier: "free",
+			oldMDM: fleet.MDM{IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(14),
+			}},
+			newMDM: fleet.MDM{IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(fleet.AppleOSUpdateLatestVersion),
+				DeadlineDays:   optjson.SetInt(21),
+			}},
+			expectedError: "ipados_updates.minimum_version " + licenseErr,
 		},
 		{
 			name:          "ssoFree",
