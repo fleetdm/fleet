@@ -1,0 +1,131 @@
+<div id="capex-savings" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <h1>Cut your hardware spend with real device data</h1>
+        <p>Most refresh cycles run on the calendar, not the evidence. Fleet collects real performance data from every device, so you can see which computers need replacing, which ones don't, and what each team actually needs.</p>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+          <div purpose="callout-text-container">
+            <img alt="a small green line" class="d-none d-sm-block" purpose="callout-line" src="/images/capex-cta-callout-line-90x42@2x.png">
+            <img alt="a small green line" class="d-block d-sm-none" purpose="callout-line" src="/images/capex-cta-callout-line-sm-13x41@2x.png">
+            <img alt="Reported savings of up to $10M via Fleet inventory data" purpose="callout-text" src="/images/capex-cta-callout-272x61@2x.png">
+          </div>
+        </div>
+      </div>
+      <div purpose="page-section">
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="A table showing device health score" src="/images/dex-health-800x600@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h2>Refresh policies are guesses</h2>
+            <p>Most refresh policies replace devices on a fixed cycle, usually every 3 to 5 years. The cycle is an assumption applied to thousands of devices at once. Some devices get replaced while they're still fast. Others slow people down for a year before their date comes up.</p>
+            <p>Meanwhile, memory shortages pushed hardware prices up roughly 20% in 2026, across every major vendor, with no relief expected before late 2027.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="A table showing device memory presure" src="/images/dex-mem-pressure-800x600@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h2>What Fleet can tell you about every device</h2>
+            <p>One agent across macOS, Windows, and Linux. Ship the data to your own data platform and keep the history.</p>
+            <div purpose="checklist">
+              <p>CPU and RAM usage over time</p>
+              <p>Disk utilization and I/O</p>
+              <p>Battery health</p>
+              <p>Which apps and processes consume the most resources</p>
+              <p>Hardware specs, compared across teams and cost centers</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <h2>Make hardware decisions with data</h2>
+          <p>Fleet gives you the performance data to know which devices can safely stay in service.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <img alt="DEX score breakdown" src="/images/dex-score-breakdown-800x450@2x.png">
+            <div purpose="feature-text">
+              <h5>Refresh on evidence</h5>
+              <p>A device that performs well in year 4 doesn't need replacing because a policy says so. Likewise, a device that's slowing someone down shouldn't wait for its calendar date. Performance data shows you which is which.</p>
+            </div>
+          </div>
+          <div purpose="feature-item">
+            <img alt="DEX device score" src="/images/dex-score-device-800x450@2x.png">
+            <div purpose="feature-text">
+              <h5>Right-size the specs</h5>
+              <p>Usage data shows what each team actually needs. If a whole cost center runs fine on a base model, stop defaulting everyone to the top spec. And if 10% of a team is struggling on that spec, you'll see exactly who, and why.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="page-section">
+        <div purpose="feature-and-calculator">
+          <div purpose="feature">
+            <h2>Refresh cycles are<br> already stretching</h2>
+            <p>Companies are moving from 3-year cycles to 4 or 5, as hardware lasts longer and prices climb. The difference between doing that blind and doing it with device data is knowing which machines can safely stay, and which ones are quietly costing you productivity.</p>
+          </div>
+          <div purpose="capex-calc">
+            <div purpose="calc-heading">
+              <h3>What one deferred year could save</h3>
+            </div>
+            <div purpose="calc-sliders">
+              <div purpose="slider-row">
+                <div purpose="label">
+                  <p>Cost per device</p>
+                </div>
+                <div purpose="slider">
+                  <input type="range" min="1000" max="6000" step="100" v-model.number="costPerDevice">
+                  <output>{{formattedCostPerDevice}}</output>
+                </div>
+              </div>
+              <div purpose="slider-row">
+                <div purpose="label">
+                  <p>Current cycle</p>
+                </div>
+                <div purpose="slider">
+                  <input type="range" min="2" max="5" step="1" v-model.number="currentCycleYears">
+                  <output>{{currentCycleYears}} years</output>
+                </div>
+              </div>
+              <div purpose="slider-row">
+                <div purpose="label">
+                  <p>Devices</p>
+                </div>
+                <div purpose="slider">
+                  <input type="range" min="100" max="50000" step="100" v-model.number="deviceCount">
+                  <input type="number" min="1" max="1000000" step="100" v-model.number="deviceCount" aria-label="Devices in your fleet, exact number">
+                </div>
+              </div>
+            </div>
+            <div purpose="calc-result">
+              <p>You could save</p>
+              <h2>{{calculatorResult}} <span>per year</span></h2>
+            </div>
+            <div purpose="calc-footnote">
+              <p>Assumes each device stays in service one extra year. Illustrative estimate, device cost includes hardware, required software, and warranty.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="bottom-cta" class="text-center">
+        <h1>See what your fleet data says</h1>
+        <p>Reach out and we'll show you how Fleet can help you save money on hardware.</p>
+        <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%/* Cloud city banner */%>
+  <cloud-city></cloud-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

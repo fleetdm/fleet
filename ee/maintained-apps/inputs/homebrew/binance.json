@@ -6,5 +6,6 @@
   "slug": "binance/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }
