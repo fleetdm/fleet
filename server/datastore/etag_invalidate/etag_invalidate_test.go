@@ -83,14 +83,18 @@ func TestHooksFireOnSuccess(t *testing.T) {
 		{
 			"ApplyQueries", true,
 			func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-				ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, discard map[uint]struct{}) error { return nil }
+				ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, discard map[uint]struct{}) error {
+					return nil
+				}
 				return &ds.ApplyQueriesFuncInvoked, func() error { return d.ApplyQueries(ctx, 1, nil, nil) }
 			},
 		},
 		{
 			"NewQuery", true,
 			func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-				ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) { return query, nil }
+				ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+					return query, nil
+				}
 				return &ds.NewQueryFuncInvoked, func() error { _, err := d.NewQuery(ctx, &fleet.Query{}); return err }
 			},
 		},
@@ -125,7 +129,9 @@ func TestHooksFireOnSuccess(t *testing.T) {
 		{
 			"NewPack", true,
 			func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-				ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) { return pack, nil }
+				ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+					return pack, nil
+				}
 				return &ds.NewPackFuncInvoked, func() error { _, err := d.NewPack(ctx, &fleet.Pack{}); return err }
 			},
 		},

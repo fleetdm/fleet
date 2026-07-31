@@ -23,9 +23,9 @@ type stubConfigETagStore struct {
 	callLoader bool // when true, ShortCircuitBlocked defers to the load callback (exercises the real loader)
 	setErr     error
 
-	getCalls     int
-	setCalls     int
-	blockedCalls int
+	getCalls        int
+	setCalls        int
+	blockedCalls    int
 	lastSetScope    string
 	lastSetPlatform string
 	lastSetETag     string

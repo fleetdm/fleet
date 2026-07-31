@@ -18,13 +18,13 @@ import (
 func newTestAgent(configTLSETag bool) *agent {
 	stats := &osquery_perf.Stats{}
 	a := &agent{
-		agentIndex:           1,
-		serverAddress:        "http://test",
-		stats:                stats,
-		nodeKey:              "test-node-key",
-		configTLSETag:        configTLSETag,
-		scheduledQueryData:   new(sync.Map),
-		hostIdentityClient:   hostidentity.NewClient(hostidentity.Config{}, false, 0),
+		agentIndex:         1,
+		serverAddress:      "http://test",
+		stats:              stats,
+		nodeKey:            "test-node-key",
+		configTLSETag:      configTLSETag,
+		scheduledQueryData: new(sync.Map),
+		hostIdentityClient: hostidentity.NewClient(hostidentity.Config{}, false, 0),
 	}
 	return a
 }
