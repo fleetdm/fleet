@@ -9,7 +9,7 @@
       "installer_url": "https://github.com/epicenter-os/epicenter/releases/download/v7.11.0/Whispering_7.11.0_aarch64.dmg",
       "install_script_ref": "97e6a9b5",
       "uninstall_script_ref": "2a39a669",
-      "sha256": "52b79ad24f14907fad55673761935ba90ce70c6d3248f804a7d302b62bfef828",
+      "sha256": "7c15883a5562e594633e2636db5abbc8197b8ae93c4714711bf802b531eaf2d0",
       "default_categories": [
         "Productivity"
       ]

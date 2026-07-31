@@ -9,7 +9,7 @@
       "installer_url": "https://ftp.binance.com/electron-desktop/mac/production/binance-2.4.1-arm64.dmg",
       "install_script_ref": "17a1483e",
       "uninstall_script_ref": "6006366b",
-      "sha256": "19564f74e7d9d6cacd326d0ba2b64cef8aa24d47d78bdf3bd44bd513730919b8",
+      "sha256": "2bb7e4c115a5bbef14c734f31ead811456e46a4863d3ec3303a66cb3e5c6e745",
       "default_categories": [
         "Productivity"
       ]

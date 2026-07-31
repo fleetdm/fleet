@@ -9,7 +9,7 @@
       "installer_url": "https://downloads.dbeaver.net/enterprise/26.1.0/dbeaver-ee-26.1.0-macos-aarch64.dmg",
       "install_script_ref": "b36e0de5",
       "uninstall_script_ref": "d32399ce",
-      "sha256": "b6a9b6c17d136330c357f8f7de49653639304ab57e4f77199f7f96a0e00c9699",
+      "sha256": "60bcaa629809beb0de699797fd9e8ffeab082a91035b895b102da36cbc594888",
       "default_categories": [
         "Developer tools"
       ]

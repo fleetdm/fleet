@@ -9,7 +9,7 @@
       "installer_url": "https://downloads.dbeaver.net/lite/26.1.0/dbeaver-le-26.1.0-macos-aarch64.dmg",
       "install_script_ref": "3c86b0f4",
       "uninstall_script_ref": "4e5f63ae",
-      "sha256": "ddad856da3e39ef3ad33286fb27ff3782ff7e8892103d128d70494aa56f813cf",
+      "sha256": "9821764efce6be58c9bc87e31730e6943d07bdb9fb1d2ccb358138b5709e0acf",
       "default_categories": [
         "Developer tools"
       ]

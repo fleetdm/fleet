@@ -1493,13 +1493,6 @@
       "description": "Captain is a tool to manage Docker containers from the menu bar."
     },
     {
-      "name": "Captin",
-      "slug": "captin/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.100hps.captin",
-      "description": "Captin is a tool to show caps lock status."
-    },
-    {
       "name": "Capto",
       "slug": "capto/darwin",
       "platform": "darwin",
