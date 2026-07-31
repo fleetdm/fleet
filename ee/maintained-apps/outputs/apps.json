@@ -1493,13 +1493,6 @@
       "description": "Captain is a tool to manage Docker containers from the menu bar."
     },
     {
-      "name": "Captin",
-      "slug": "captin/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.100hps.captin",
-      "description": "Captin is a tool to show caps lock status."
-    },
-    {
       "name": "Capto",
       "slug": "capto/darwin",
       "platform": "darwin",
@@ -2814,13 +2807,6 @@
       "platform": "windows",
       "unique_identifier": "DYMO ID",
       "description": "DYMO ID is label-design software for DYMO XTL and Rhino 6000+ industrial label makers."
-    },
-    {
-      "name": "Dynalist",
-      "slug": "dynalist/darwin",
-      "platform": "darwin",
-      "unique_identifier": "io.dynalist",
-      "description": "Dynalist is an app for outlining app for your work."
     },
     {
       "name": "Dynalist",

@@ -17161,7 +17161,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 		Filename:      "no_bundle_identifier.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Unable to extract necessary metadata.")
 }
 
 func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
@@ -17176,13 +17176,13 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 		Filename:      "hello-world-installer.exe",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Uninstall script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		Filename: "hello-world-installer.exe",
 		TeamID:   &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Install script is required for .exe packages.")
 
 	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
@@ -22112,7 +22112,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
 	dev_mode.ClearOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
+	require.Contains(t, extractServerErrorText(r.Body), fleet.AddMaintainedAppTimeoutErrMsg)
 
 	// Add a maintained app to no team
 
@@ -23356,7 +23356,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+	require.Contains(t, errMsg, "Install script is required for .exe packages.")
 
 	softwareToInstall[1].InstallScript = "echo install"
 	softwareToInstall[1].UninstallScript = "echo uninstall"

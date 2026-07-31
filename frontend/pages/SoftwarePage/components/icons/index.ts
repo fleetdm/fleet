@@ -165,7 +165,6 @@ import CamundaModeler from "./CamundaModeler";
 import Canva from "./Canva";
 import CapCut from "./CapCut";
 import Captain from "./Captain";
-import Captin from "./Captin";
 import Capto from "./Capto";
 import CarbonCopyCloner from "./CarbonCopyCloner";
 import Cardhop from "./Cardhop";
@@ -1315,7 +1314,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   canva: Canva,
   capcut: CapCut,
   captain: Captain,
-  captin: Captin,
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,

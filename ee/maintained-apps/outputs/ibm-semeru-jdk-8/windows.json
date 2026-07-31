@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.0.492.9",
+      "version": "8.0.502.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '8.%';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '8.%' AND version_compare(version, '8.0.492.9') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'IBM Semeru Runtime Open Edition (JDK)%' AND publisher = 'Semeru' AND version LIKE '8.%' AND version_compare(version, '8.0.502.0') < 0);"
       },
-      "installer_url": "https://github.com/ibmruntimes/semeru8-binaries/releases/download/jdk-8.0.492.0/ibm-semeru-open-jdk_x64_windows_8.0.492.0.msi",
+      "installer_url": "https://github.com/ibmruntimes/semeru8-binaries/releases/download/jdk-8.0.502.0/ibm-semeru-open-jdk_x64_windows_8.0.502.0.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "11b3094c",
-      "sha256": "4f53c0d00a0c68a4e3a224b618bb2eba23f85e1308948da5cefc503f309cffb3",
+      "sha256": "50eafa193115e31d2d450420e8605f91f28f0ca03c77ec36f0d1beee6a675fad",
       "default_categories": [
         "Developer tools"
       ],
