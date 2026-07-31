@@ -136,3 +136,6 @@ custom-gcl
 
 # dibble (the seed slinger) — binary lives next to source
 tools/dibble/dibble
+
+# osv-processor binary built from cmd/osv-processor
+/osv-processor
