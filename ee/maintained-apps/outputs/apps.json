@@ -5378,6 +5378,13 @@
       "description": "Microsoft Azure Storage Explorer is an explorer for Azure Storage."
     },
     {
+      "name": "Microsoft .NET Desktop Runtime 10",
+      "slug": "microsoft-dotnet-desktop-runtime-10/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Windows Desktop Runtime",
+      "description": "Microsoft .NET Desktop Runtime 10 runs desktop apps built on .NET 10, including Windows Forms and WPF apps."
+    },
+    {
       "name": "Microsoft .NET Runtime 10",
       "slug": "microsoft-dotnet-runtime-10/windows",
       "platform": "windows",
