@@ -213,7 +213,9 @@ type DeletedSoftwarePackage struct {
 }
 
 // SoftwarePackageDownloadProgress reports one software package's download in a batch.
-// A package that hasn't started downloading has an empty name.
+// A package that hasn't started downloading has an empty name. Entries keep their place in
+// the batch payload, which is what tells two packages with the same name apart, so nothing
+// may filter or reorder them.
 type SoftwarePackageDownloadProgress struct {
 	Name   string                        `json:"name"`
 	Status SoftwarePackageDownloadStatus `json:"status"`

@@ -3070,11 +3070,10 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	// The keepalive below reads this while a download is writing it, so it needs a lock.
-	// Writing to Redis stays outside that lock so it never holds up a download.
+	// Every write marshals the whole slice, so writing only your own index isn't enough if
+	// the download goroutine limit is ever raised. The Redis write stays outside the lock.
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
-	var lastDownloadProgressJSON string
 
 	// Periodically refresh the expiration on the batch install process so that, even when downloading/uploading
 	// large installers, we ensure the server doesn't lose track of the batch. This way, the only time a batch times
@@ -3092,15 +3091,15 @@ func (svc *Service) softwareBatchUpload(
 			case <-ticker.C:
 				_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime)
 
-				downloadProgressMutex.Lock()
-				progressJSON := lastDownloadProgressJSON
-				downloadProgressMutex.Unlock()
-				if progressJSON != "" {
-					_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, progressJSON, 10*time.Minute)
+				progressKey := batchSoftwarePrefix + requestUUID + batchSoftwareDownloadedSuffix
+				progressJSON, err := svc.keyValueStore.Get(ctx, progressKey)
+				if err == nil && progressJSON != nil {
+					_ = svc.keyValueStore.Set(ctx, progressKey, *progressJSON, 10*time.Minute)
 				}
 
 				categoriesKey := batchSoftwarePrefix + requestUUID + batchSoftwareCategoriesSuffix
-				if categoriesJSON, err := svc.keyValueStore.Get(ctx, categoriesKey); err == nil && categoriesJSON != nil {
+				categoriesJSON, err := svc.keyValueStore.Get(ctx, categoriesKey)
+				if err == nil && categoriesJSON != nil {
 					_ = svc.keyValueStore.Set(ctx, categoriesKey, *categoriesJSON, 10*time.Minute)
 				}
 				// The deleted key is only written once the downloads are done, and refreshed
@@ -3183,9 +3182,6 @@ func (svc *Service) softwareBatchUpload(
 			Status: status,
 		}
 		progressJSON, err := json.Marshal(downloadProgress)
-		if err == nil {
-			lastDownloadProgressJSON = string(progressJSON)
-		}
 		downloadProgressMutex.Unlock()
 
 		if err != nil {
@@ -3421,6 +3417,7 @@ func (svc *Service) softwareBatchUpload(
 						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
 						if existErr == nil && bytesExist {
 							if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, existingForCache, existingForCache.StorageID); err != nil {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 								return err
 							}
 							installer.HTTPETag = existingForCache.HTTPETag
@@ -3439,6 +3436,7 @@ func (svc *Service) softwareBatchUpload(
 								return err
 							}
 							if resp != nil && resp.StatusCode == http.StatusNotModified {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 								return fmt.Errorf("server returned 304 on unconditional re-download of %q", p.URL)
 							}
 						}
@@ -3452,6 +3450,7 @@ func (svc *Service) softwareBatchUpload(
 							if resp != nil {
 								statusCode = resp.StatusCode
 							}
+							setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
 							return fmt.Errorf("download of %q returned no body (status %d)", p.URL, statusCode)
 						}
 
@@ -3909,23 +3908,8 @@ func validETag(etag string) bool {
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
-	// Looking a fleet up by name tells the caller whether it exists, so authorize first.
+	// A running batch only reports download progress, so polling it takes any logged in user.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
-	}
-
-	var teamID *uint
-	if tmName != "" {
-		team, err := svc.ds.TeamByName(ctx, tmName)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load team by name")
-		}
-		teamID = &team.ID
-	}
-
-	// Reading a batch result reports the packages it added and the ones it is about to
-	// delete, so it takes the same read as the fleet's installers.
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -4005,6 +3989,20 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		}, nil
 	default:
 		return nil, ctxerr.New(ctx, "invalid status")
+	}
+
+	// The fleet's own packages below take the same read as its installers. Resolved here,
+	// not up top, to keep the lookup out of every poll.
+	var teamID *uint
+	if tmName != "" {
+		team, err := svc.ds.TeamByName(ctx, tmName)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load team by name")
+		}
+		teamID = &team.ID
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	deletedPackages, err := getDeletedPackages()

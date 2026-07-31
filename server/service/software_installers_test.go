@@ -744,18 +744,20 @@ func TestGetBatchSetSoftwareInstallersResultAuth(t *testing.T) {
 
 	kvStore := &mock.KVStore{}
 	kvStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
-		// Only the batch status key holds a value here, so the batch reports as still
-		// processing and no package lists are loaded.
+		// Completed is the only status that authorizes against the fleet.
 		if strings.Contains(key, ":") {
 			return nil, nil
 		}
-		return new(fleet.BatchSetSoftwareInstallersStatusProcessing), nil
+		return new(fleet.BatchSetSoftwareInstallersStatusCompleted), nil
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, KeyValueStore: kvStore})
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		return &fleet.Team{ID: 1, Name: name}, nil
+	}
+	ds.GetSoftwareInstallersFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwarePackageResponse, error) {
+		return nil, nil
 	}
 
 	// Reading a batch result takes the same read as the fleet's installers, so observers are
@@ -794,6 +796,23 @@ func TestGetBatchSetSoftwareInstallersResultAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFail, err)
 		})
 	}
+
+	// A running batch reports only progress, so anyone logged in can poll it.
+	t.Run("polling a running batch only takes a logged in user", func(t *testing.T) {
+		processingKVStore := &mock.KVStore{}
+		processingKVStore.GetFunc = func(ctx context.Context, key string) (*string, error) {
+			if strings.Contains(key, ":") {
+				return nil, nil
+			}
+			return new(fleet.BatchSetSoftwareInstallersStatusProcessing), nil
+		}
+		processingSvc, processingCtx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, KeyValueStore: processingKVStore})
+
+		ctx := viewer.NewContext(processingCtx, viewer.Viewer{User: test.UserTeamObserverTeam1})
+		result, err := processingSvc.GetBatchSetSoftwareInstallersResult(ctx, "team1", "request-uuid", false)
+		require.NoError(t, err)
+		require.Equal(t, fleet.BatchSetSoftwareInstallersStatusProcessing, result.Status)
+	})
 }
 
 func TestSoftwareBatchProgressWriteFailure(t *testing.T) {

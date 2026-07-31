@@ -1662,8 +1662,11 @@ func TestGitOpsSoftwareDownloadProgress(t *testing.T) {
 
 		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_script_package.yml"})
 		require.NoError(t, err)
+		// The counts prove the script package was in the batch, not just missing from it.
+		require.Contains(t, out.String(), "[+] applying 2 software packages for fleet "+teamName+"\n")
 		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
 		require.NotContains(t, out.String(), "install_ruby.sh")
+		require.Contains(t, out.String(), "[+] applied 2 software packages for fleet "+teamName+"\n")
 	})
 
 	t.Run("a package Fleet can't download reports the failure", func(t *testing.T) {

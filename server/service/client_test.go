@@ -1373,6 +1373,20 @@ func TestApplySoftwareInstallersProgress(t *testing.T) {
 			},
 		},
 		{
+			// The same maintained app for two platforms carries one name.
+			name: "two packages sharing a name each report",
+			polls: []batchSetSoftwareInstallersResultResponse{
+				poll(processing, pkg("OneDrive", downloaded), pkg("OneDrive", downloading)),
+				poll(completed, pkg("OneDrive", downloaded), pkg("OneDrive", downloaded)),
+			},
+			wantLines: []string{
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+				"[+] downloading software package - OneDrive ...",
+				"[+] downloaded software package - OneDrive",
+			},
+		},
+		{
 			name:  "packages the batch never downloads stay silent",
 			polls: []batchSetSoftwareInstallersResultResponse{poll(completed, fleet.SoftwarePackageDownloadProgress{}, pkg("zoom.pkg", downloaded), fleet.SoftwarePackageDownloadProgress{})},
 			wantLines: []string{

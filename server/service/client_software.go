@@ -115,44 +115,46 @@ func (c *Client) applySoftwareInstallers(
 		return nil, nil, nil, nil
 	}
 
+	// Keyed by place in the batch, since two packages can share a name.
+	printedDownloading := make(map[int]struct{})
+	printedResult := make(map[int]struct{})
+
 	// Assumes the server downloads packages one by one, so each "downloading" line prints
 	// right before its own "downloaded" line. Concurrent downloads would break this.
-	printedDownloading := make(map[string]struct{})
-	printedResult := make(map[string]struct{})
 	logDownloadProgress := func(downloadProgress []fleet.SoftwarePackageDownloadProgress) {
-		for _, packageProgress := range downloadProgress {
+		for payloadIndex, packageProgress := range downloadProgress {
 			// A package the batch hasn't started downloading has no name yet.
 			if packageProgress.Name == "" {
 				continue
 			}
 
-			// A package Fleet doesn't have to download never gets a downloading line, only this one.
+			// A package Fleet doesn't download gets only this line, never a downloading one.
 			if packageProgress.Status == fleet.SoftwarePackageDownloadSkipped {
-				_, printedSkip := printedResult[packageProgress.Name]
+				_, printedSkip := printedResult[payloadIndex]
 				if !printedSkip {
-					printedResult[packageProgress.Name] = struct{}{}
+					printedResult[payloadIndex] = struct{}{}
 					logFn("[+] skipped downloading the software package (already in storage) - %s\n", packageProgress.Name)
 				}
 				continue
 			}
 
 			// A package can still turn out to be skipped after this prints, when the download returns a 304.
-			_, printedStart := printedDownloading[packageProgress.Name]
+			_, printedStart := printedDownloading[payloadIndex]
 			if !printedStart {
-				printedDownloading[packageProgress.Name] = struct{}{}
+				printedDownloading[payloadIndex] = struct{}{}
 				logFn("[+] downloading software package - %s ...\n", packageProgress.Name)
 			}
 
-			_, printedFinish := printedResult[packageProgress.Name]
+			_, printedFinish := printedResult[payloadIndex]
 			if printedFinish {
 				continue
 			}
 			switch packageProgress.Status {
 			case fleet.SoftwarePackageDownloadFailed:
-				printedResult[packageProgress.Name] = struct{}{}
+				printedResult[payloadIndex] = struct{}{}
 				logFn("Error: could not download software package %s\n", packageProgress.Name)
 			case fleet.SoftwarePackageDownloadFinished:
-				printedResult[packageProgress.Name] = struct{}{}
+				printedResult[payloadIndex] = struct{}{}
 				logFn("[+] downloaded software package - %s\n", packageProgress.Name)
 			}
 		}
