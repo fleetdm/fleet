@@ -133,5 +133,63 @@ func normalizePath(p string) string {
 	return strings.Join(segs, "/")
 }
 
-func parseParams(body []string) ([]Param, error)       { return nil, nil }
+func parseParams(body []string) ([]Param, error) {
+	start := -1
+	for i, l := range body {
+		if strings.TrimSpace(l) == "#### Parameters" {
+			start = i + 1
+			break
+		}
+	}
+	if start == -1 {
+		return nil, nil
+	}
+
+	var params []Param
+	inTable := false
+	rowNum := 0
+	for _, l := range body[start:] {
+		t := strings.TrimSpace(l)
+		if !strings.HasPrefix(t, "|") {
+			if inTable {
+				break
+			}
+			if strings.HasPrefix(t, "#") {
+				break // hit the next sub-heading without ever seeing a table
+			}
+			continue
+		}
+		inTable = true
+		rowNum++
+		if rowNum <= 2 {
+			continue // header and separator rows
+		}
+		cells := splitRow(t)
+		if len(cells) != 4 {
+			return nil, fmt.Errorf("parameters table row has %d columns, want 4: %q", len(cells), t)
+		}
+		in := strings.ToLower(cells[2])
+		if in == "json" || in == "form" {
+			in = "body"
+		}
+		params = append(params, Param{
+			Name:        cells[0],
+			Type:        strings.ToLower(cells[1]),
+			In:          in,
+			Description: cells[3],
+			Required:    strings.Contains(cells[3], "**Required**") || in == "path",
+		})
+	}
+	return params, nil
+}
+
+func splitRow(row string) []string {
+	row = strings.Trim(row, "|")
+	parts := strings.Split(row, "|")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
+}
+
 func parseResponses(body []string) ([]Response, error) { return nil, nil }
