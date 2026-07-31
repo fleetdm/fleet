@@ -1044,17 +1044,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	// Normalize the stored JSON to the canonical fleet name when one was resolved. Clears keep the
-	// payload's own shape, consistent with the rest of the optjson pipeline. The DB row written
-	// after save (windows_enrollment_config) is the source of truth; reads hydrate from it.
+	// Normalize the stored JSON to the canonical fleet name when one was resolved.
 	if windowsEnrollmentDefined && windowsEnrollmentFleetName != "" {
 		appConfig.MDM.WindowsEnrollment = optjson.Any[fleet.WindowsEnrollment]{
 			Set: true, Valid: true,
 			Value: fleet.WindowsEnrollment{DefaultFleet: windowsEnrollmentFleetName},
 		}
 	} else if appConfig.MDM.WindowsEnrollment.Set && !appConfig.MDM.WindowsEnrollment.Valid {
-		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated
-		// it as omitted), so restore the stored value rather than persisting the null.
+		// A null windows_enrollment keeps the persisted setting (validateWindowsEnrollment treated it as omitted), so restore the stored value.
 		appConfig.MDM.WindowsEnrollment = oldAppConfig.MDM.WindowsEnrollment
 	}
 
@@ -1331,8 +1328,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Persist the Windows enrollment default fleet to its config row and log the change. Only when
-	// the payload provided the section (omitted key is a no-op) and the value actually changed.
+	// Persist the Windows enrollment default fleet to its config row and log the change.
 	if windowsEnrollmentDefined {
 		oldWindowsEnrollmentTeamID, _, err := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 		if err != nil {
@@ -2284,10 +2280,9 @@ func (svc *Service) validateMDM(
 	return nil
 }
 
-// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload
-// and resolves its default fleet name to a team id. Returns defined=false when the section was
-// omitted (no-op). When defined, teamID is the resolved team id (nil to clear) and fleetName is the
-// canonical team name (empty when clearing). Validation failures are accumulated on invalid.
+// validateWindowsEnrollment validates the mdm.windows_enrollment section of a config modify payload and resolves its default
+// fleet name to a team id. Returns defined=false when the section was omitted (no-op). When defined, teamID is the resolved team
+// id (nil to clear) and fleetName is the canonical team name (empty when clearing).
 func (svc *Service) validateWindowsEnrollment(
 	ctx context.Context,
 	newMDM *fleet.MDM,
@@ -2307,9 +2302,8 @@ func (svc *Service) validateWindowsEnrollment(
 	}
 
 	if lic == nil || !lic.IsPremium() {
-		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported
-		// config after a license downgrade); only reject attempts to change it. Mirrors the
-		// apple_bm_default_team behavior, and keeps a lapsed license from failing every apply.
+		// Tolerate an unchanged value re-sent without Premium (e.g. gitops re-applying exported config after a license downgrade); only
+		// reject attempts to change it.
 		curTeamID, curName, dsErr := svc.ds.GetWindowsEnrollmentDefaultFleet(ctx)
 		if dsErr != nil {
 			return true, nil, "", ctxerr.Wrap(ctx, dsErr, "get current windows enrollment default fleet")

@@ -3271,6 +3271,23 @@ func TestModifyAppConfigWindowsEnrollment(t *testing.T) {
 			expectSet:      false,
 			expectActivity: false,
 		},
+		{
+			name:           "null tolerated without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":null}}`,
+			currentTeamID:  &teamID,
+			expectSet:      false,
+			expectActivity: false,
+		},
+		{
+			name:           "clear with empty string allowed without premium",
+			licenseTier:    fleet.TierFree,
+			payload:        `{"mdm":{"windows_enrollment":{"default_fleet":""}}}`,
+			currentTeamID:  &teamID,
+			expectSet:      true,
+			expectSetTo:    nil,
+			expectActivity: true,
+		},
 	}
 
 	for _, tc := range testCases {
