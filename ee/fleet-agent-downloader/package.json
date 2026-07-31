@@ -44,6 +44,20 @@
     "node": "^20.18"
   },
   "overrides": {
-    "aws-sdk": "2.1692.0"
+    "aws-sdk": {
+      ".": "2.1692.0",
+      "uuid": "11.1.1"
+    },
+    "hoek": "npm:@hapi/hoek@11.0.7",
+    "njwt": {
+      "uuid": "11.1.1"
+    },
+    "node-jose": {
+      "uuid": "11.1.1"
+    },
+    "@okta/oidc-middleware": {
+      "uuid": "11.1.1"
+    },
+    "body-parser": "1.20.6"
   }
 }
