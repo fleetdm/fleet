@@ -30,7 +30,7 @@ You can require IdP authentication during automatic enrollment (ADE) for Apple (
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate the macOS local account **Full Name** with any of these.
 
-4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable end user authentication by heading to **Controls > Setup experience > Users > End user authentication > Require IdP authentication**. Alternatively, you can use [GitOps](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable end user authentication.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Authentication (SSO) > End users**. Then, enable IdP authentication by heading to **Controls > Setup experience > Require IdP authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files) to configure your IdP integration and enable IdP authentication.
 
 > If you've already configured [single sign-on
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
@@ -97,7 +97,7 @@ This feature is available for macOS hosts that automatically enroll via Apple Bu
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden  admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden  admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
 
 2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
@@ -139,7 +139,9 @@ A manual rotation cancels any active auto-rotation timer for that host.
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience). 
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages). You can install software during out-of-the-box Windows and Linux setup. Learn more in [this separate guide](https://fleetdm.com/guides/windows-linux-setup-experience).
+
+> Fleet will always deliver the command to install a bootstrap package before delivering commands for installing profiles. 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 

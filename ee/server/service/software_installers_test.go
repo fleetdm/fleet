@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -715,6 +716,59 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 		require.ErrorAs(t, err, &forbiddenError)
 	} else {
 		require.NoError(t, err)
+	}
+}
+
+// TestBatchNeedsWindowsTitleReconcile pins the predicate that decides whether a GitOps
+// batch kicks the Windows title reconcile. A false negative here is invisible: the batch
+// succeeds, the uninstall action stays hidden, and nothing surfaces until the periodic
+// pass runs up to an hour later.
+func TestBatchNeedsWindowsTitleReconcile(t *testing.T) {
+	fmaID := uint(7)
+
+	cases := []struct {
+		name       string
+		installers []*fleet.UploadSoftwareInstallerPayload
+		want       bool
+	}{
+		{"empty batch", nil, false},
+		{
+			"custom installers only",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Other", Platform: "darwin"},
+			},
+			false,
+		},
+		{
+			"maintained app present",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Custom", Platform: "windows"},
+				{Title: "Granola", Platform: "windows", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			// Deliberately still true: the platform is not part of the decision, since it
+			// is not reliably populated this far down the batch payload chain and the
+			// reconcile is a no-op for non-Windows apps anyway.
+			"maintained app with no platform set",
+			[]*fleet.UploadSoftwareInstallerPayload{
+				{Title: "Granola", FleetMaintainedAppID: &fmaID},
+			},
+			true,
+		},
+		{
+			"nil entries are skipped",
+			[]*fleet.UploadSoftwareInstallerPayload{nil, {Title: "Custom"}},
+			false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.want, batchNeedsWindowsTitleReconcile(c.installers))
+		})
 	}
 }
 
@@ -1803,7 +1857,7 @@ func TestInstallShScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux', but the unix-like exception
@@ -1919,7 +1973,7 @@ func TestInstallPyScriptOnWindowsFails(t *testing.T) {
 	var bre *fleet.BadRequestError
 	require.ErrorAs(t, err, &bre, "error should be BadRequestError")
 	require.NotNil(t, bre)
-	require.Contains(t, bre.Message, "can be installed only on linux hosts")
+	require.Contains(t, bre.Message, "can be installed only on macOS and Linux hosts")
 }
 
 // .py packages are stored with platform='linux'; the self-service install path
@@ -2620,6 +2674,10 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 		{name: "pkg any rejected", input: []string{"darwin"}, extension: "pkg", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .pkg package`},
 		{name: "msi any rejected", input: []string{"darwin"}, extension: "msi", wantErr: `platform "darwin" is not a valid "setup_experience_platform" value for a .msi package`},
 		{name: "sh unsupported windows", input: []string{"windows"}, extension: "sh", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .sh package`},
+		{name: "py darwin", input: []string{"darwin"}, extension: "py", want: []string{"darwin"}},
+		{name: "py linux", input: []string{"linux"}, extension: "py", want: []string{"linux"}},
+		{name: "py both platforms", input: []string{"darwin", "linux"}, extension: "py", want: []string{"darwin", "linux"}},
+		{name: "py unsupported windows", input: []string{"windows"}, extension: "py", wantErr: `platform "windows" is not a valid "setup_experience_platform" value for a .py package`},
 		{name: "empty string skipped", input: []string{""}, extension: "sh", want: []string{}},
 	}
 
@@ -2640,4 +2698,42 @@ func TestNormalizeSetupExperiencePlatforms(t *testing.T) {
 			assert.Equal(t, c.want, got)
 		})
 	}
+}
+
+func TestValidateFleetVariablesOnInstallerScripts(t *testing.T) {
+	premiumCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	freeCtx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
+
+	good := "echo $FLEET_VAR_HOST_UUID and ${FLEET_VAR_HOST_END_USER_IDP_USERNAME}"
+	bad := "echo $FLEET_VAR_NONEXISTENT"
+	plain := "echo hello"
+
+	t.Run("no variables passes on both tiers", func(t *testing.T) {
+		for _, ctx := range []context.Context{premiumCtx, freeCtx} {
+			require.NoError(t, validateFleetVariablesOnInstallerScripts(ctx, &plain, nil, &plain))
+		}
+	})
+
+	t.Run("supported variables pass on premium", func(t *testing.T) {
+		require.NoError(t, validateFleetVariablesOnInstallerScripts(premiumCtx, &good, &good, &good))
+	})
+
+	t.Run("unsupported variable names the script", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(premiumCtx, &plain, &bad, nil)
+		require.ErrorContains(t, err, "post-install script")
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.")
+
+		err = validateFleetVariablesOnInstallerScripts(premiumCtx, &bad, nil, &bad)
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae)
+		invalid := iae.Invalid()
+		require.Len(t, invalid, 2)
+		require.Equal(t, "install script", invalid[0]["name"])
+		require.Equal(t, "uninstall script", invalid[1]["name"])
+	})
+
+	t.Run("any variable on free returns license error", func(t *testing.T) {
+		err := validateFleetVariablesOnInstallerScripts(freeCtx, &plain, nil, &good)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
 }

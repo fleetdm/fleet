@@ -3,7 +3,9 @@ name: Build Fleet Desktop (macOS)
 # Builds the native macOS Fleet Desktop app (apps/fleet-desktop-macos/) and its
 # embedded Platform SSO extension (FleetPSSOExtension.appex), code signs and
 # notarizes them with Fleet's Developer ID certificates, and uploads the signed
-# .pkg as a workflow artifact. No GitHub Release is created.
+# .pkg as a workflow artifact. No GitHub Release is created. Also callable as a
+# reusable workflow (workflow_call), which is how release-fleet-desktop-macos.yml
+# produces the pkg it publishes to download.fleetdm.com.
 #
 # The app and extension carry managed Associated Domains entitlements
 # (com.apple.developer.associated-domains{,.mdm-managed}). Those are restricted
@@ -28,6 +30,28 @@ on:
       - 'apps/fleet-desktop-macos/**'
       - '.github/workflows/fleet-desktop-macos-build.yml'
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      APPLE_APPLICATION_CERTIFICATE:
+        required: true
+      APPLE_APPLICATION_CERTIFICATE_PASSWORD:
+        required: true
+      APPLE_INSTALLER_CERTIFICATE:
+        required: true
+      APPLE_INSTALLER_CERTIFICATE_PASSWORD:
+        required: true
+      KEYCHAIN_PASSWORD:
+        required: true
+      APPLE_FLEET_DESKTOP_APP_PROFILE_B64:
+        required: true
+      APPLE_PSSO_EXT_PROFILE_B64:
+        required: true
+      APPLE_USERNAME:
+        required: true
+      APPLE_PASSWORD:
+        required: true
+      APPLE_TEAM_ID:
+        required: true
 
 # Cancel superseded runs on the same ref.
 concurrency:

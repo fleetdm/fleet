@@ -500,8 +500,10 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
-	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerDownloadFailedCopy    = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy          = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
+	SoftwareInstallerFleetVarsFailedCopy   = "Installing software...\nError: Fleet couldn't resolve variables in this software's scripts.\n%s"
+	SoftwareInstallerScriptCouldNotRunCopy = "Installing software...\nError: Fleet couldn't run the install script. The script's interpreter (from its \"#!\" shebang) may be missing or not executable on this host, or the script was stopped before it finished.\n%s"
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -534,6 +536,12 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerNotFound:
 		*h.Output = SoftwareInstallerNotFoundCopy
+		return
+	case ExitCodeFleetVarResolutionFailed:
+		*h.Output = fmt.Sprintf(SoftwareInstallerFleetVarsFailedCopy, *h.Output)
+		return
+	case ExitCodeScriptTimeout:
+		h.Output = new(fmt.Sprintf(SoftwareInstallerScriptCouldNotRunCopy, *h.Output))
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -801,7 +809,7 @@ func CanonicalPlatform(p string) string {
 func AllowedSetupExperiencePlatformsForExtension(ext string) []string {
 	ext = strings.TrimPrefix(strings.ToLower(ext), ".")
 	switch ext {
-	case "sh":
+	case "sh", "py":
 		return []string{"darwin", "linux"}
 	default:
 		return nil
@@ -1165,21 +1173,6 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 	}
 }
 
-const (
-	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
-	// disabled.
-	ExitCodeScriptsDisabled = -2
-	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
-	ExitCodeInstallerDownloadFailed = -3
-	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
-	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
-	// details from the server for longer than the retry window (e.g. because the
-	// installer was deleted/replaced while a setup-experience install was in flight).
-	ExitCodeInstallerNotFound = -4
-)
-
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
 	TitleID uint `json:"title_id"`
@@ -1282,11 +1275,16 @@ const MaxSoftwareInstallAttempts = 3
 const MaxPackagesPerTitle = 10
 
 func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName string) error {
-	var customCount, fmaCount int
+	var customCount int
 	seenHash := make(map[string]struct{}, len(payloads))
+	seenFMA := make(map[uint]struct{}, len(payloads))
+	var fmaNames []string
 	for _, p := range payloads {
 		if p.FleetMaintainedAppID != nil {
-			fmaCount++
+			if _, seen := seenFMA[*p.FleetMaintainedAppID]; !seen {
+				seenFMA[*p.FleetMaintainedAppID] = struct{}{}
+				fmaNames = append(fmaNames, p.Title)
+			}
 			continue
 		}
 		customCount++
@@ -1295,7 +1293,12 @@ func ValidateTitlePackages(payloads []*UploadSoftwareInstallerPayload, teamName 
 		}
 		seenHash[p.StorageID] = struct{}{}
 	}
-	if fmaCount > 0 && customCount > 0 {
+	// Two FMAs on one title share a bundle identifier (e.g. Firefox and Firefox ESR): same
+	// inventory app, so only one can be added.
+	if len(fmaNames) > 1 {
+		return ConflictError{Message: fmt.Sprintf(CantAddConflictingFMAMessage, fmaNames[0], fmaNames[1])}
+	}
+	if len(fmaNames) > 0 && customCount > 0 {
 		return ConflictError{Message: fmt.Sprintf(SoftwareAlreadyHasFleetMaintainedAppMessage, payloads[0].Title, teamName)}
 	}
 	if customCount > MaxPackagesPerTitle {

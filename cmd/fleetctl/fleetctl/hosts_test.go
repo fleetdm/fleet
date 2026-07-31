@@ -65,7 +65,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 	}
 
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
-		return nil, nil
+		return []*fleet.Host{{ID: 42}}, nil
 	}
 	ds.ListMDMAndroidUUIDsToHostIDsFunc = func(ctx context.Context, hostIDs []uint) (map[string]uint, error) {
 		return map[string]uint{}, nil

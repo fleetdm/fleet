@@ -639,7 +639,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           onClick={handleClickCancel}
-          variant="inverse"
+          variant="secondary"
         >
           Cancel
         </Button>

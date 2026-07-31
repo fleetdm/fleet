@@ -43,7 +43,7 @@ const ApplePushCertInfo = ({
         </div>
       </dl>
       <div className={`${baseClass}__apns-button-wrap`}>
-        <Button variant="inverse" onClick={onClickTurnOff}>
+        <Button variant="secondary" onClick={onClickTurnOff}>
           Turn off MDM
         </Button>
         <Button className="save-loading" onClick={onClickRenew}>

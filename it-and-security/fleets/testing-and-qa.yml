@@ -92,9 +92,18 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
   - path: ../lib/all/reports/dex-queries.yml
+  - path: ../lib/windows/reports/collect-windows-11-hardware-readiness.yml
 software:
   packages:
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
+    - slug: slack/darwin # Slack for macOS
+      self_service: true
+    - slug: zoom/darwin # Zoom for macOS
+      self_service: true
+    - slug: google-chrome/darwin # Google Chrome for macOS
+      self_service: true
+    - slug: claude/darwin # Claude for macOS
+      self_service: true  
     # Windows apps

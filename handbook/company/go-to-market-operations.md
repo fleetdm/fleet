@@ -29,7 +29,7 @@ The goal of the 🤝Enterprise group is to provide the best possible customer ex
 | Revenue DRI                       | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_ <br> [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ <br> [Henry Stamerjohann](https://www.linkedin.com/in/henry-st/) _([@headmin](https://github.com/headmin))_
 | Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_  <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_ <br> [Manny Mendoza](https://www.linkedin.com/in/mannymendoza1/) _([@mmendm](https://github.com/mmendm))_ 
-| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_ <br> [James Sorrenti](https://www.linkedin.com/in/jsorrenti/) _([@jamessorrenti](https://github.com/jamessorrenti))_
+| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/thomassalomon4/) _([@ThomasSalomon4](https://github.com/ThomasSalomon4))_ <br> [Maribell Morales](https://www.linkedin.com/in/maribell-morales-056647139/) _([@maribell-fleetdm](https://github.com/maribell-fleetdm))_ <br> [James Sorrenti](https://www.linkedin.com/in/jsorrenti/) _([@jamessorrenti](https://github.com/jamessorrenti))_ <br> [Lewis Barajas](https://www.linkedin.com/in/lewisbarajas/) _([@lewisbarajas](https://github.com/lewisbarajas))_ 
 | Pipeline DRI                      | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala/) _([@akuthiala](https://github.com/akuthiala))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ 
@@ -311,6 +311,10 @@ Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 mi
 - Salesforce updated before moving to next lead
 
 
+## "Let's get you set up" calls
+
+"Let's get you set up" calls happen every Friday at 10 AM and 2 PM US Central time. [Dave Siederer](https://www.linkedin.com/in/siederer/) _([@ds0x](https://github.com/ds0x))_ on the Solutions Consulting team is point person for these calls. He will be on these calls as his schedule allows and coordinates coverage when he is unable to attend. Every call includes a Solutions Consultant and a Solutions Specialist.
+
 
 ## Proof of value (POV)
 
@@ -538,7 +542,7 @@ This approach “connects” Eventbrite to Salesforce campaigns by using the **`
 
 #### LinkedIn comments from tracked posts
 
-We track certian social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
+We track certain social posts from the [LinkedIn company page](https://www.linkedin.com/company/fleetdm/) using the following workflow:
 - LinkedIn post URL provided to Clay.
 - Clay enriches the data from any reactions or shares.
 - Clay sends webhook to webhooks/receive-from-clay.js

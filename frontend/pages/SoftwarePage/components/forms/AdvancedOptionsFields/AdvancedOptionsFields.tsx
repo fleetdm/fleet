@@ -64,7 +64,7 @@ const AdvancedOptionsFields = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onClickShowSchema}>
+      <Button variant="subdued" onClick={onClickShowSchema}>
         Schema
         <Icon name="info" size="small" />
       </Button>

@@ -56,7 +56,7 @@ const ConfirmDataCollectionDisableModal = ({
           <Button variant="alert" onClick={onConfirm} isLoading={isUpdating}>
             Save and disable
           </Button>
-          <Button variant="inverse-alert" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel}>
             Cancel
           </Button>
         </div>

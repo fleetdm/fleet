@@ -23,7 +23,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onEdit}
             className={`${baseClass}__action-button`}
-            variant="icon"
+            variant="subdued"
           >
             <Icon name="pencil" />
           </Button>
@@ -36,7 +36,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onDelete}
             className={`${baseClass}__action-button`}
-            variant="icon"
+            variant="subdued"
           >
             <Icon name="trash" />
           </Button>

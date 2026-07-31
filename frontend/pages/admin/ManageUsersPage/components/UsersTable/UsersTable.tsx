@@ -317,7 +317,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         options={ADD_USER_OPTIONS}
         onChange={onAddUserSelect}
         placeholder="Add user"
-        variant="brand-button"
+        variant="primary"
         buttonLabel="Add user"
         className="add-user-dropdown"
         menuAlign="left"

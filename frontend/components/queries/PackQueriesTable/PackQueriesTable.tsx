@@ -94,15 +94,14 @@ const PackQueriesTable = ({
             name: "add query",
             buttonText: "Add query",
             iconSvg: "plus",
-            iconColor: "core-fleet-green",
-            variant: "brand-inverse-icon",
+            variant: "secondary",
             onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
-            variant: "inverse",
+            variant: "secondary",
             onClick: onRemovePackQueries,
           }}
           searchable
@@ -114,14 +113,10 @@ const PackQueriesTable = ({
         <EmptyState
           header="Your pack has no reports"
           primaryButton={
-            <Button
-              onClick={onAddPackQuery}
-              variant="brand-inverse-icon"
-              iconStroke
-            >
+            <Button onClick={onAddPackQuery} variant="secondary">
               <>
                 Add report
-                <Icon name="plus" color="core-fleet-green" />
+                <Icon name="plus" />
               </>
             </Button>
           }

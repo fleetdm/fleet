@@ -71,7 +71,7 @@ Use react-router, not `window.location` / `window.history`. Direct window mutati
 
 ## Notifications
 - Use `notify.success(msg)` / `notify.error(msg, { response })` / `notify.batch([...])` from `components/ToastNotification`.
-- **When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page (#48088).
+- **When showing a success toast and navigating, call `notify.success` before `router.push` / `router.replace`** — the reverse order can break auto-dismiss on the destination page.
 - Success toasts auto-dismiss after 5s by default; error toasts are sticky by default.
 
 ## XSS Prevention
@@ -103,9 +103,21 @@ Render software title names via `getDisplayedSoftwareName(name, display_name)` f
 - Use `classnames()` for conditional classes
 - Style files use underscore prefix: `_styles.scss`
 - Prefer `gap` over `margin` for spacing between sibling elements when the parent is `display: flex`/`grid`. Use the layout mixins from `frontend/styles/var/mixins.scss`: `vertical-card-layout`, `vertical-form-layout`, `vertical-modal-layout`, `vertical-page-layout`, `vertical-page-tab-panel-layout`, `vertical-data-set-layout`
+- **Row hover-reveal actions** (a button/dropdown that only appears when the containing row is hovered): add `className="row-hover-button"` to the element. The fade + `:focus-visible` reveal is defined for `tr` in `frontend/components/TableContainer/_styles.scss` and for `.paginated-list__row` in `frontend/components/PaginatedList/_styles.scss` — don't hand-roll a local `opacity: 0` / `:hover { opacity: 1 }` per-consumer. Never fade only `.children-wrapper` — bordered/filled `Button` variants (e.g. `secondary`) leave an empty button frame behind.
 
 ## Forms
 Cap free-text inputs' `maxLength` to the backend column length (check `server/datastore/mysql/schema.sql`, don't guess) via `inputOptions={{ maxLength: NAME_MAX_LENGTH }}` on `InputField`, using a local constant.
+
+## Validation
+
+**Read [frontend/docs/patterns.md#data-validation](../../frontend/docs/patterns.md#data-validation) before adding or editing form validation — that doc is authoritative.** Fleet diverges from what mainstream React libraries (Formik, react-hook-form, MUI, Ant Design) do by default on submit-button behavior, error timing, error position, and copy tone. Pattern-matching from another React app will land you in these specific mistakes:
+- No visible required-field indicator (no `*`, no `(required)` suffix). Users discover requirements via post-interaction errors.
+- Submit button stays enabled with invalid fields. Only disable during in-flight submission, or when the form is disabled by GitOps mode. On click, the handler runs client-side validation first — if invalid, it surfaces errors inline and returns without calling the API.
+- Field errors clear on **focus**, not on typing.
+- Re-validate on blur of a dirty field, never on keystroke.
+- Error text renders in the field's label slot via `FormField` (replaces the label). No separate error line below the input.
+- Field-specific server errors: render inline AND fire a toast (long forms may scroll the field off-screen).
+- Copy: verb + object + constraint. `Enter your email`, not `Email is required`. No terminal periods on field errors (toasts for system/transport errors are the carve-out).
 
 ## Lists & rows
 User-typed free-text fields (`name`, `title`, `label`, `description`) inside an `UploadList` `ListItemComponent`, a `__row` flex container with sibling actions/badges, or a `TableContainer` open-text cell — wrap the value in `<TooltipTruncatedText value={...} />` and give the immediate parent `flex: 1; min-width: 0`.
