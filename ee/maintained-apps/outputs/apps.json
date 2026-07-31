@@ -5413,6 +5413,13 @@
       "description": "Microsoft Excel is the industry-standard spreadsheet software, perfect for data analysis, reporting, and visualization."
     },
     {
+      "name": "Microsoft ODBC Driver 18 for SQL Server",
+      "slug": "microsoft-odbc-driver-18/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft ODBC Driver 18 for SQL Server",
+      "description": "Microsoft ODBC Driver 18 for SQL Server lets applications connect to SQL Server and Azure SQL Database through the ODBC interface."
+    },
+    {
       "name": "Microsoft Office",
       "slug": "microsoft-office/windows",
       "platform": "windows",
