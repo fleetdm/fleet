@@ -95,7 +95,14 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
         requestData.system = systemPrompt;
       }
       if (effort) {
-        requestData.output_config = { effort };// eslint-disable-line camelcase
+        // output_config.effort (adaptive thinking) is only supported on some Anthropic models.
+        // Claude Haiku 4.5, for example, does not accept it, so attaching it would cause a 4xx
+        // from Anthropic.  Ignore the input for models that don't support it.
+        if (baseModel.startsWith('claude-haiku')) {
+          sails.log.warn(`The prompt helper received an "effort" input, but the specified baseModel (${baseModel}) does not support output_config.effort. This input will be ignored in this LLM generation.`);
+        } else {
+          requestData.output_config = { effort };// eslint-disable-line camelcase
+        }
       }
 
       let anthropicResponse = await sails.helpers.http.post('https://api.anthropic.com/v1/messages', requestData, {
@@ -110,7 +117,14 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
         return new Error('Failed to generate result.  Error communicating with LLM: '+err.stack);
       });
 
-      rawPromptResponse = anthropicResponse.content[0].text;
+      // With adaptive thinking enabled, the first content block can be a `thinking` (or
+      // `redacted_thinking`) block rather than the actual answer, so scan for the first `text`
+      // block instead of assuming it is at index 0.
+      let textBlock = _.find(anthropicResponse.content, { type: 'text' });
+      if (!textBlock) {
+        throw new Error('The LLM responded, but its response did not contain a text block.  Full response content: '+require('util').inspect(anthropicResponse.content, {depth: 3}));
+      }
+      rawPromptResponse = textBlock.text;
     } else {
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
       // OpenAI API  [?]: https://platform.openai.com/docs/api-reference/chat/create
