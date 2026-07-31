@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "32.2.0",
+      "version": "32.2.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project' AND version_compare(version, '32.2.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'OBS Studio' AND publisher = 'OBS Project' AND version_compare(version, '32.2.1') < 0);"
       },
-      "installer_url": "https://github.com/obsproject/obs-studio/releases/download/32.2.0/OBS-Studio-32.2.0-Windows-x64-Installer.exe",
+      "installer_url": "https://github.com/obsproject/obs-studio/releases/download/32.2.1/OBS-Studio-32.2.1-Windows-x64-Installer.exe",
       "install_script_ref": "8a919fae",
       "uninstall_script_ref": "145a6b76",
-      "sha256": "e85f7cc39129c4c1999d84765fde8dade4c9a9800972f78d752ad218e7c50302",
+      "sha256": "bbb95e52b96ad9b7ccd5abd13121379d29774d6cc5fdbef82ffa249e8a24a289",
       "default_categories": [
         "Productivity"
       ]
