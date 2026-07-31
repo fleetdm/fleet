@@ -73,6 +73,11 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
 
+## GTM territory assignments
+
+For current territory assignments, see the ["GTM territory assignments" spreadsheet (confidential)](https://docs.google.com/spreadsheets/d/1QuxmpSDeAaobE9IFBM7BLASoQwU-YeFs7DUsey59bNM/edit?gid=1371329015#gid=1371329015).
+
+
 ## Go-To-Market tools
 
 Go-To-Market tools at Fleet will be vetted by the Head of GTM Architecture, onboarded by IT, and made available to all necessary stakeholders.
