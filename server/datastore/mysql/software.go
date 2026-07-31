@@ -1372,31 +1372,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Retrieve the IDs for the titles we just inserted (or that already existed).
 				// Use uniqueTitles (all unique titles) so we resolve IDs for cached titles too.
-				//
-				// This was originally one predicate:
-				//
-				//	WHERE (COALESCE(bundle_identifier, name), source, extension_for,
-				//	       COALESCE(bundle_identifier, '')) IN (...)
-				//	  [OR (upgrade_code IN (...) AND source = 'programs')]
-				//
-				// Wrapping the key columns in COALESCE() left MySQL unable to match the predicate to any
-				// index (EXPLAIN: type=ALL, possible_keys=NULL), so every software ingest full-scanned
-				// software_titles inside this transaction, on the writer.
-				//
-				// The tuple decomposes exactly. Writing b for the incoming bundle identifier:
-				//   - b != "": the 4th element pins bundle_identifier = b, making the 1st redundant, so
-				//     the row is found by bundle_identifier (idx_software_titles_bundle_identifier).
-				//   - b == "": the 4th element pins bundle_identifier IS NULL, so
-				//     COALESCE(bundle_identifier, name) collapses to name (idx_sw_titles).
-				// The only case dropped is a stored row with bundle_identifier = '' AND name = '', which
-				// cannot occur: software with an empty name is rejected before it reaches here.
-				//
-				// upgrade_code has no index of its own, so Windows programs are matched through the
-				// unique_identifier generated column (idx_unique_sw_titles), the same way
-				// getIncomingSoftwareChecksumsToExistingTitles already resolves them.
-				//
-				// The branches are UNIONed, not ORed: a single OR across these columns returns the plan
-				// to a full table scan.
+				// The branches are UNIONed, not ORed: a single OR across these columns causes a regression to a full table scan.
 				var (
 					bundleArgs  []any // (bundle_identifier, source, extension_for)
 					nameArgs    []any // (name, source, extension_for)
