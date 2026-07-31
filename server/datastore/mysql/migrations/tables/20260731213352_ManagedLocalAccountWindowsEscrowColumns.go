@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260728171642, Down_20260728171642)
+	MigrationClient.AddMigration(Up_20260731213352, Down_20260731213352)
 }
 
-// Up_20260728171642 adapts host_managed_local_account_passwords to accounts created by fleetd on
+// Up_20260731213352 adapts host_managed_local_account_passwords to accounts created by fleetd on
 // the device (Windows):
 //   - command_uuid becomes nullable. It records the MDM command that set the password on macOS;
 //   - encrypted_password becomes nullable, so a row that only records a failed creation attempt can
@@ -19,7 +19,7 @@ func init() {
 //
 // It also adds mdm_windows_enrollments.managed_local_account_escrowed, which records that the device
 // has escrowed a password for its current enrollment.
-func Up_20260728171642(tx *sql.Tx) error {
+func Up_20260731213352(tx *sql.Tx) error {
 	if _, err := tx.Exec(
 		"ALTER TABLE host_managed_local_account_passwords " +
 			"MODIFY `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NULL, " +
@@ -38,6 +38,6 @@ func Up_20260728171642(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260728171642(tx *sql.Tx) error {
+func Down_20260731213352(tx *sql.Tx) error {
 	return nil
 }
