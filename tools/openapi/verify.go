@@ -14,6 +14,7 @@ import (
 
 	"github.com/pb33f/libopenapi"
 	validator "github.com/pb33f/libopenapi-validator"
+	valerrors "github.com/pb33f/libopenapi-validator/errors"
 )
 
 // httpClient is used for all verify requests so slow or hung servers fail
@@ -46,21 +47,20 @@ func newSpecValidator(specBytes []byte) (validator.Validator, error) {
 	return v, nil
 }
 
-// checkEndpoint performs one request and validates the response body against
-// the spec. body == nil means GET-style no payload.
-func checkEndpoint(v validator.Validator, server, token, method, path string, body any) checkResult {
-	label := method + " " + path
+// doRequest performs one HTTP request against the server under test. body ==
+// nil means GET-style no payload. The caller owns resp.Body and must close it.
+func doRequest(server, token, method, path string, body any) (*http.Request, *http.Response, error) {
 	var reader io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return checkResult{label, statusFailed, err.Error()}
+			return nil, nil, err
 		}
 		reader = bytes.NewReader(b)
 	}
 	req, err := http.NewRequest(method, server+path, reader)
 	if err != nil {
-		return checkResult{label, statusFailed, err.Error()}
+		return nil, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	if body != nil {
@@ -68,22 +68,86 @@ func checkEndpoint(v validator.Validator, server, token, method, path string, bo
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		return nil, nil, err
+	}
+	return req, resp, nil
+}
+
+// checkEndpoint performs one request and validates the response body against
+// the spec. body == nil means GET-style no payload.
+func checkEndpoint(v validator.Validator, server, token, method, path string, body any) checkResult {
+	label := method + " " + path
+	req, resp, err := doRequest(server, token, method, path, body)
+	if err != nil {
 		return checkResult{label, statusFailed, err.Error()}
 	}
 	defer resp.Body.Close()
+	return validateResponse(v, label, req, resp)
+}
+
+// validateResponse validates an already-issued response against the spec.
+// req and resp must come from the same round trip, and resp.Body must not
+// have been read yet.
+func validateResponse(v validator.Validator, label string, req *http.Request, resp *http.Response) checkResult {
 	if resp.StatusCode >= 300 {
 		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return checkResult{label, statusFailed, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, payload)}
 	}
 	ok, verrs := v.ValidateHttpResponse(req, resp)
 	if !ok {
-		var msgs []string
-		for _, e := range verrs {
-			msgs = append(msgs, e.Message)
-		}
-		return checkResult{label, statusFailed, strings.Join(msgs, "; ")}
+		return checkResult{label, statusFailed, formatValidationErrors(verrs)}
 	}
 	return checkResult{label, statusVerified, ""}
+}
+
+// formatValidationErrors renders each validation error's message plus up to
+// 5 underlying schema failure lines, so a schema mismatch names the field
+// and reason instead of just "failed to validate schema".
+func formatValidationErrors(verrs []*valerrors.ValidationError) string {
+	var lines []string
+	for _, e := range verrs {
+		lines = append(lines, e.Message)
+		for i, sf := range e.SchemaValidationErrors {
+			if i >= 5 {
+				break
+			}
+			loc := sf.FieldPath
+			if loc == "" {
+				loc = strings.Join(sf.InstancePath, "/")
+			}
+			lines = append(lines, fmt.Sprintf("  at %s: %s", loc, sf.Reason))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// mdmNotConfiguredMessage is the substring of Fleet's standard error envelope
+// message when a server has no MDM certificates configured.
+const mdmNotConfiguredMessage = "MDM features aren't turned on"
+
+// checkMDMEndpoint validates a response like checkEndpoint, but treats an
+// HTTP 400 carrying Fleet's "MDM features aren't turned on" error envelope as
+// a partial pass rather than a failure: on a server with no MDM certificates
+// configured, that error is the correct, spec-consistent behavior, not a bug.
+func checkMDMEndpoint(v validator.Validator, server, token, method, path string, body any) checkResult {
+	label := method + " " + path
+	req, resp, err := doRequest(server, token, method, path, body)
+	if err != nil {
+		return checkResult{label, statusFailed, err.Error()}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusBadRequest {
+		payload, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		var envelope struct {
+			Message string `json:"message"`
+		}
+		if json.Unmarshal(payload, &envelope) == nil && strings.Contains(envelope.Message, mdmNotConfiguredMessage) {
+			return checkResult{label, statusPartial, "MDM not configured on this server; verified error envelope only"}
+		}
+		return checkResult{label, statusFailed, fmt.Sprintf("HTTP %d: %s", resp.StatusCode, payload)}
+	}
+	return validateResponse(v, label, req, resp)
 }
 
 func runVerify(args []string) int {
@@ -173,7 +237,7 @@ func runChecks(v validator.Validator, server, token, mdmHostUUID string) []check
 	add(checkEndpoint(v, server, token, "GET", "/api/v1/fleet/global/policies", nil))
 	add(checkEndpoint(v, server, token, "GET", "/api/v1/fleet/reports", nil))
 	add(checkEndpoint(v, server, token, "GET", "/api/v1/fleet/fleets", nil))
-	add(checkEndpoint(v, server, token, "GET", "/api/v1/fleet/commands", nil))
+	add(checkMDMEndpoint(v, server, token, "GET", "/api/v1/fleet/commands", nil))
 	add(runCommandCheck(v, server, token, mdmHostUUID))
 	return results
 }

@@ -47,7 +47,7 @@ Walks the entire Markdown document section by section. For each `###` heading it
 
 - The request line: a backticked `` `METHOD /api/v1/fleet/...` `` code span. Path params in `:id` form map to `{id}`.
 - The `#### Parameters` table: name, type, `in`, description. The docs use `in` values of `query`, `path`, `body`, and (inconsistently) `json` and `form`; the latter two are treated as `body`. Body params become the request body schema.
-- Response examples: the first fenced `json` block under `##### Default response`, with the `Status: NNN` line above it. JSON Schema is inferred from the example payload (object/array/string/integer/number/boolean, nullable via observed `null`, `date-time` format via regex).
+- Response examples: the first fenced `json` block under `##### Default response`, with the `Status: NNN` line above it. JSON Schema is inferred from the example payload (object/array/string/integer/number/boolean, `date-time` format via regex); all inferred types are nullable unions since one example can't promise non-nullability.
 
 Strictness is split:
 
