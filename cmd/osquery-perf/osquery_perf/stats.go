@@ -79,7 +79,7 @@ type Stats struct {
 	configConditionalRequests int64
 	configResponseBodyBytes   int64
 	configEstimatedSavedBytes int64
-	configETagDrift            int64
+	configETagDrift           int64
 
 	l sync.Mutex
 }

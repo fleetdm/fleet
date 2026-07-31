@@ -354,11 +354,11 @@ type getClientConfigResponse struct {
 	// renders the pre-marshaled body via HijackRender below. Config and the
 	// success branch of MarshalJSON exist only for tests and for UnmarshalJSON
 	// (client-side decoding of a config response).
-	Config map[string]any `json:"-"`
-	body         []byte
-	etag         string
-	notModified  bool
-	Err          error `json:"error,omitempty"`
+	Config      map[string]any `json:"-"`
+	body        []byte
+	etag        string
+	notModified bool
+	Err         error `json:"error,omitempty"`
 }
 
 func (r getClientConfigResponse) Error() error { return r.Err }
@@ -899,8 +899,8 @@ func (svc *Service) GetClientConfigWithETag(ctx context.Context, ifNoneMatch str
 // configShortCircuitBlockers is the loader for the ETag short circuit's
 // deployment-wide gate. It reports whether ANY blocker exists:
 //
-//   - user-created 2017 packs. ListPacks (without IncludeSystemPacks) uses
-//     the broad predicate `pack_type IS NULL OR pack_type = ''` —
+//   - user-created 2017 packs. ListPacks (without IncludeSystemPacks) broadly
+//     matches packs whose pack_type is NULL or empty —
 //     deliberately wider than ListPacksForHost's strict
 //     `pack_type IS NULL`, because for this gate over-matching only costs
 //     the optimization while under-matching could let a host 304 past a
