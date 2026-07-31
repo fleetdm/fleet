@@ -614,6 +614,11 @@ type inputApp struct {
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
+	// RequiresClientOS marks installers that refuse to run on Windows Server
+	// SKUs (e.g. Dell Display and Peripheral Manager). The ingester ignores it;
+	// CI (.github/scripts/partition-fma-apps.sh) reads it to route validation to
+	// the windows-11-arm runner, the only GitHub-hosted client-OS Windows runner.
+	RequiresClientOS bool `json:"requires_client_os"`
 }
 
 type installerManifest struct {

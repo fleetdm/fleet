@@ -28,8 +28,9 @@ jobs:
   # Partition every Windows app in apps.json by installer architecture on a
   # cheap Linux runner, then fan out to Windows runners whose native
   # architecture matches each app's installer: arm64 apps to windows-11-arm,
-  # x64/x86/neutral apps to the x64 runner. Each architecture bucket is split
-  # into shards that validate in parallel.
+  # x64/x86/neutral apps to the x64 runner. Apps marked requires_client_os
+  # always go to windows-11-arm (the x64 runner is Windows Server). Each
+  # architecture bucket is split into shards that validate in parallel.
   partition:
     runs-on: ubuntu-latest
     outputs:

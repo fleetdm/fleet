@@ -33,8 +33,9 @@ jobs:
   # cheap Linux runner. The (much more expensive) Windows runners below only
   # spin up when there are Windows apps to validate, and each app is routed to
   # a runner whose native architecture matches its installer: arm64 apps to
-  # windows-11-arm, x64/x86/neutral apps to the x64 runner. Large PRs are split
-  # into shards that validate in parallel.
+  # windows-11-arm, x64/x86/neutral apps to the x64 runner. Apps marked
+  # requires_client_os always go to windows-11-arm (the x64 runner is Windows
+  # Server). Large PRs are split into shards that validate in parallel.
   detect-changed-apps:
     runs-on: ubuntu-latest
     outputs:
