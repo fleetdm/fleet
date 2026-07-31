@@ -68,11 +68,11 @@ const (
 	// ActivationUnsupportedProfileErrorMsg is used by every path that accepts an
 	// activation (single upload here, batch/GitOps elsewhere) so the same
 	// mistake reads the same way wherever it's made.
-	ActivationUnsupportedProfileErrorMsg = "Couldn't add. Activations are only supported for declaration (DDM) profiles."
+	ActivationUnsupportedProfileErrorMsg = "Activations are only supported for declaration (DDM) profiles."
 
 	// ActivationUnsupportedManagementErrorMsg covers the narrower case of a DDM
 	// profile that is a management declaration, which is never activated.
-	ActivationUnsupportedManagementErrorMsg = "Couldn't add. Activations are only supported for configuration declarations (com.apple.configuration.)."
+	ActivationUnsupportedManagementErrorMsg = "Activations are only supported for configuration declarations (com.apple.configuration.)."
 )
 
 // TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
@@ -992,7 +992,8 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 
 	// Unlike declarations, which are free for hosts on no fleet and without
 	// labels, custom activations are premium in every case.
-	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
 		return nil, ctxerr.Wrap(ctx,
 			fleet.NewLicenseErrorWithCause(fleet.DDMCustomActivationPremiumCauseMsg),
 			"checking license for DDM custom activation")
@@ -1008,7 +1009,6 @@ func (svc *Service) validateActivation(ctx context.Context, activation []byte, c
 
 	// Activations support the same Fleet variables as the declarations they
 	// activate, so the declaration allowlist is reused rather than duplicated.
-	lic, _ := license.FromContext(ctx)
 	actVars, err := validateDeclarationFleetVariables(expanded, lic)
 	if err != nil {
 		if badReqErr, ok := errors.AsType[*fleet.BadRequestError](err); ok {
