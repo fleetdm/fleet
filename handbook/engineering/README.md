@@ -118,25 +118,25 @@ Fleet values every community contribution. We want to be upfront about how our e
 
 Fleet uses AI tools extensively to accelerate code development. This means that writing code is no longer the team's bottleneck. Instead, the primary engineering work has shifted to deep code review: understanding the design, evaluating architecture decisions, assessing security implications, and ensuring the team fully owns every line that ships. Fleet is committed to understanding every line of code that goes into the product, regardless of who wrote it.
 
-Because of this shift, contributed code, while genuinely appreciated, does not save the team as much development time as it once did. The review effort is the same whether code was written by a contributor or by the team itself. This is not a reflection of the quality of contributions. It is a reflection of the depth of review Fleet requires before merging any change. Larger or more complex PRs may take longer to review as the team fits them into their planned work.
+Because of this shift, contributed code, while genuinely appreciated, does not save the team as much development time as it once did. The review effort is the same whether code was written by a contributor or by the team itself. This is not a reflection of the quality of contributions. It is a reflection of the depth of review Fleet requires before merging any change. Larger or more complex PRs may take longer to review as the team fits them into their planned work. Bug reports with clear reproduction steps, feature requests, and design feedback remain especially valuable.
 
 #### Review a community pull request
 
-The goal is to not go more than one business day without following up with the contributor. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
+The goal is to not go more than one business day without responding to the contributor and routing the PR to the right team. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
 If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
 
 Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
 
-1. **On-call triage**: All community PRs are first reviewed by the on-call engineer. The on-call engineer routes the PR to the appropriate product group.
+1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who routes the PR to the appropriate product group's EM. Internal Fleeties who already know the owning team can go directly to the EM.
 
 2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
 
 3. **Decision gate**: Based on the type, the right person decides whether this is something we want to pursue:
-   - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or documentation): the Product Designer (PD) decides.
-   - Bug fixes and reliability issues: the Engineering Manager decides.
+   - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or significant documentation changes that alter the product definition or meaning): the Product Designer (PD) decides.
+   - Bug fixes, typo fixes, minor documentation improvements, and reliability issues: the Engineering Manager decides.
 
-   If the PR is not something we want to pursue, thank the contributor, explain the reasoning, and close the PR.
+   If the PR is not something we want to pursue, thank the contributor, explain the reasoning, optionally invite them to file a [feature request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%3Aproduct&projects=&template=feature-request.md&title=), and close the PR.
 
 4. **Size and complexity** (EM): If accepted, the EM evaluates the review effort required:
    - **Quick wins** (estimated review time of 30 minutes or less): The team reviews and merges promptly. Follow the existing merge process below.
