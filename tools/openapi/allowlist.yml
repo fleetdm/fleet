@@ -1,0 +1,24 @@
+# Pilot endpoints emitted into openapi.yml (fleetdm/fleet#45279).
+# Expanding coverage is config-only: add method+path pairs that exist in
+# docs/REST API/rest-api.md and run `make openapi`.
+endpoints:
+  - method: GET
+    path: /api/v1/fleet/hosts
+  - method: GET
+    path: /api/v1/fleet/hosts/{id}
+  - method: GET
+    path: /api/v1/fleet/software/titles
+  - method: GET
+    path: /api/v1/fleet/global/policies
+  - method: POST
+    path: /api/v1/fleet/global/policies
+  - method: GET
+    path: /api/v1/fleet/reports
+  - method: POST
+    path: /api/v1/fleet/reports
+  - method: GET
+    path: /api/v1/fleet/fleets
+  - method: GET
+    path: /api/v1/fleet/commands
+  - method: POST
+    path: /api/v1/fleet/commands/run
