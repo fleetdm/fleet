@@ -2152,6 +2152,13 @@ func (a *agent) config() error {
 			a.stats.IncrementConfigErrors()
 			return fmt.Errorf("invalid config 304: sent_etag=%t body_bytes=%d", sentETag != "", len(body))
 		}
+		// If the 304 response supplies a new ETag, replace the stored validator.
+		// If it omits ETag, retain the previous validator.
+		if a.configTLSETag {
+			if newETag := response.Header.Get("ETag"); newETag != "" {
+				a.configETag = newETag
+			}
+		}
 		a.stats.RecordConfigNotModified(a.lastConfigBodyBytes)
 		return nil
 	}
@@ -2161,21 +2168,20 @@ func (a *agent) config() error {
 		return fmt.Errorf("config request failed: %d", response.StatusCode)
 	}
 
-	// Read the full body to compute the ETag hash
+	// Read the full body
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("read config body: %w", err)
 	}
 
-	// Compute candidate ETag from the exact response bytes (like the osquery PoC)
-	candidateETag := ""
+	// Use the server's ETag header as the validator (opaque, stored as-is).
+	// Keep local SHA-256 computation for diagnostics only (track drift).
 	if a.configTLSETag {
-		candidateETag = quotedSHA256(body)
-
-		// Diagnostic: compare with server's ETag header if present
-		if serverETag := response.Header.Get("ETag"); serverETag != "" && serverETag != candidateETag {
-			a.stats.IncrementConfigETagHeaderMismatches()
+		serverETag := response.Header.Get("ETag")
+		localHash := quotedSHA256(body)
+		if serverETag != "" && serverETag != localHash {
+			a.stats.IncrementConfigETagDrift()
 		}
 	}
 
@@ -2240,9 +2246,10 @@ func (a *agent) config() error {
 	a.scheduledQueryData = newScheduledQueryData
 	a.scheduledQueryMapMutex.Unlock()
 
-	// Only commit the ETag and body size after successfully parsing and installing the config
+	// Only commit the ETag and body size after successfully parsing and installing the config.
+	// Use the server's ETag header as the authoritative validator.
 	if a.configTLSETag {
-		a.configETag = candidateETag
+		a.configETag = response.Header.Get("ETag")
 		a.lastConfigBodyBytes = int64(len(body))
 	}
 	a.stats.RecordFullConfigResponse(int64(len(body)), sentETag != "")
