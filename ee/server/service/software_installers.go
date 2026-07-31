@@ -3071,6 +3071,7 @@ func (svc *Service) softwareBatchUpload(
 	}(time.Now())
 
 	// The keepalive below reads this while a download is writing it, so it needs a lock.
+	// Writing to Redis stays outside that lock so it never holds up a download.
 	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
 	var downloadProgressMutex sync.Mutex
 	var lastDownloadProgressJSON string
@@ -3908,6 +3909,11 @@ func validETag(etag string) bool {
 }
 
 func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
+	// Looking a fleet up by name tells the caller whether it exists, so authorize first.
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
 	var teamID *uint
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
@@ -4011,7 +4017,8 @@ func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmN
 		return nil, err
 	}
 
-	// The last packages to finish are only in the key by the time the batch completes.
+	// The packages that finish last only reach the progress key as the batch ends, so a
+	// completed batch carries progress too.
 	downloadProgress := getDownloadProgress()
 
 	if dryRun {

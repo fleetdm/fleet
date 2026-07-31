@@ -126,7 +126,7 @@ func (c *Client) applySoftwareInstallers(
 				continue
 			}
 
-			// A package Fleet doesn't have to download reports no progress, just the skip.
+			// A package Fleet doesn't have to download never gets a downloading line, only this one.
 			if packageProgress.Status == fleet.SoftwarePackageDownloadSkipped {
 				_, printedSkip := printedResult[packageProgress.Name]
 				if !printedSkip {

@@ -1657,6 +1657,15 @@ func TestGitOpsSoftwareDownloadProgress(t *testing.T) {
 		require.Contains(t, out.String(), "[+] would've applied 2 software packages for fleet "+teamName+"\n")
 	})
 
+	t.Run("a script package stays out of the progress, since nothing is downloaded for it", func(t *testing.T) {
+		setupSoftwareMocks(t)
+
+		out, err := fleetctltest.RunAppNoChecks([]string{"gitops", "-f", "../../fleetctl/testdata/gitops/team_software_script_package.yml"})
+		require.NoError(t, err)
+		require.Contains(t, out.String(), "[+] downloaded software package - ruby.deb\n")
+		require.NotContains(t, out.String(), "install_ruby.sh")
+	})
+
 	t.Run("a package Fleet can't download reports the failure", func(t *testing.T) {
 		setupSoftwareMocks(t)
 
