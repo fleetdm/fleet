@@ -448,6 +448,9 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+      - path: ../lib/macos/profiles/my-declaration.json
       - paths: ../lib/macos/profiles/ddm.json
         labels_include_any:
           - Engineering
@@ -458,12 +461,14 @@ controls:
   windows_settings:
     configuration_profiles:
       - paths: ../lib/windows/profiles/*.xml
+        self_service: true
         labels_include_any:
           - Engineering
     enable_managed_local_account: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
+        self_service: true
     certificates:
       - name: wifi-certificate
         certificate_authority_name: EST_WIFI
@@ -529,6 +534,7 @@ In addition to configuration profiles, you can upload **assets** which are `.jso
 
 > PayloadScope set to "User" in a DDM declaration's top-level JSON is required for user-scoped payloads, see [Custom OS settings](https://fleetdm.com/guides/custom-os-settings#macos) for details.`
 
+Use `self_service` to specify whether end users can manually install from **Fleet Desktop > Controls**. When set to true, profile will not be deployed automatically and is opt-in.
 
 ### android_settings
 
@@ -617,7 +623,7 @@ Currently, you can specify `install_software` in the [`policies` YAML](#policies
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
-Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
+Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. ``). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
 Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fleet replaces them with their values when the install script is sent to the host.
 
